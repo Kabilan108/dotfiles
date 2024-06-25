@@ -38,6 +38,7 @@ require('lazy').setup({
   require 'plugins/todo-comments',
   require 'plugins/mini',
   require 'plugins/treesitter',
+  require 'plugins/barbar',
 
   require 'plugins/llm',
 
@@ -54,7 +55,7 @@ require('lazy').setup({
   require 'plugins/indent_line',
   -- require 'plugins/lint',
   -- require 'plugins/autopairs',
-  require 'plugins/neo-tree',
+  require 'plugins/file_explorer',
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
