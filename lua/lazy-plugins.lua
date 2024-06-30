@@ -39,6 +39,7 @@ require('lazy').setup({
   require 'plugins/mini',
   require 'plugins/treesitter',
   require 'plugins/barbar',
+  require 'plugins/distant',
 
   require 'plugins/llm',
 
