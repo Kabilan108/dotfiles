@@ -40,7 +40,6 @@ require('lazy').setup({
   require 'plugins/treesitter',
   require 'plugins/barbar',
   require 'plugins/distant',
-
   require 'plugins/llm',
 
   -- The following two comments only work if you have downloaded the kickstart repo, not just copy pasted the
