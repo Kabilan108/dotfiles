@@ -17,12 +17,19 @@ return {
   --   end,
   -- },
   {
-    'catppuccin/nvim',
-    name = 'catppuccin',
+    'olimorris/onedarkpro.nvim',
+    name = 'onedark',
     priority = 1000,
     init = function()
-      vim.cmd.colorscheme 'catppuccin-mocha'
-      vim.cmd.hi 'Comment gui=none'
+      vim.cmd.colorscheme 'onedark'
+    end,
+    config = function()
+      require('onedarkpro').setup {
+        options = {
+          cursorline = true,
+          transparency = true,
+        },
+      }
     end,
   },
 }
