@@ -118,8 +118,28 @@ export arrakis="/mnt/arrakis/"
 ### -> PROMPT
 
 # export PS1="\[\033[01;32m\]\u@\h\[\033[00m\]: \[\033[01;34m\]\w\[\033[00m\] \$ "
-export PS1="\t \[\033[32m\]\w\[\033[33m\]\$(GIT_PS1_SHOWUNTRACKEDFILES=1 GIT_PS1_SHOWDIRTYSTATE=1 __git_ps1)\[\033[00m\]\n> "
+# export PS1="\t \[\033[32m\]\w\[\033[33m\]\$(GIT_PS1_SHOWUNTRACKEDFILES=1 GIT_PS1_SHOWDIRTYSTATE=1 __git_ps1)\[\033[00m\]\n> "
 # export PS1="\[\033[32m\]\w\[\033[33m\]\$(GIT_PS1_SHOWUNTRACKEDFILES=1 GIT_PS1_SHOWDIRTYSTATE=1 __git_ps1)\[\033[00m\]\n> "
+__bash_prompt() {
+    local userpart='`export XIT=$? \
+        && echo -n "\[\033[0;32m\]\u " \
+        && [ "$XIT" -ne "0" ] && echo -n "\[\033[1;31m\]➜" || echo -n "\[\033[0m\]➜"`'
+    local gitbranch='`\
+        export BRANCH=$(git --no-optional-locks symbolic-ref --short HEAD 2>/dev/null || git --no-optional-locks rev-parse --short HEAD 2>/dev/null); \
+        if [ "${BRANCH}" != "" ]; then \
+            echo -n "\[\033[0;36m\](\[\033[1;31m\]${BRANCH}" \
+            && if git --no-optional-locks ls-files --error-unmatch -m --directory --no-empty-directory -o --exclude-standard ":/*" > /dev/null 2>&1; then \
+                echo -n " \[\033[1;33m\]✗"; \
+            fi \
+            && echo -n "\[\033[0;36m\]) "; \
+        fi`'
+    local lightblue='\[\033[1;34m\]'
+    local removecolor='\[\033[0m\]'
+    PS1="${userpart} ${lightblue}\w ${gitbranch}${removecolor}\n\$ "
+    unset -f __bash_prompt
+}
+__bash_prompt
+export PROMPT_DIRTRIM=4
 
 ### -> ENABLE PROGRAMS
 
@@ -149,6 +169,10 @@ export BUN_INSTALL="$HOME/.bun"
 export PATH=$BUN_INSTALL/bin:$PATH
 [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
+# enable icat for matplotlib
+export MPLBACKEND='module://matplotlib-backend-kitty'
+export MPLBACKEND_KITTY_SIZING=manual
+
 
 ### -> ALIASES
 
@@ -176,6 +200,10 @@ alias copy='xclip -selection clipboard' ## <- FIXME
 
 # python
 alias ipy='ipython'
+
+# kitty
+alias s='kitten ssh'
+alias icat='kitten icat'
 
 ### -> CUSTOM FUNCTIONS
 
