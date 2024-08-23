@@ -149,11 +149,6 @@ export PATH=/usr/local/cuda-12.6/bin${PATH:+:${PATH}}
 # enable nvim
 export PATH="$PATH:/opt/nvim-linux64/bin"
 
-# enable pyenv
-export PYENV_ROOT="$HOME/.pyenv"
-[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init -)"
-
 # enable cargo
 source $HOME/.cargo/env 
 
@@ -376,3 +371,5 @@ cp_() {
   return $status
 }
 
+
+. "$HOME/.cargo/env"
