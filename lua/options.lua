@@ -63,4 +63,20 @@ vim.opt.cursorline = true
 -- Minimal number of screen lines to keep above and below the cursor.
 vim.opt.scrolloff = 10
 
+-- Set default indentation to 2 spaces for all files
+vim.opt.expandtab = true
+vim.opt.shiftwidth = 2
+vim.opt.tabstop = 2
+vim.opt.softtabstop = 2
+
+-- Set indentation to 4 spaces for python and kotlin
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = { 'python', 'kotlin' },
+  callback = function()
+    vim.opt_local.shiftwidth = 4
+    vim.opt_local.tabstop = 4
+    vim.opt_local.softtabstop = 4
+  end,
+})
+
 -- vim: ts=2 sts=2 sw=2 et
