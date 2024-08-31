@@ -200,6 +200,9 @@ alias ipy='ipython'
 alias s='kitten ssh'
 alias icat='kitten icat'
 
+# llm calls
+alias claude='llm -m claude-3.5-sonnet'
+
 ### -> CUSTOM FUNCTIONS
 
 #### --> TMUX
