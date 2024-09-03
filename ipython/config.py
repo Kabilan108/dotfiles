@@ -632,11 +632,11 @@ c.InteractiveShell.confirm_exit = False
 
 ## Shortcut style to use at the prompt. 'vi' or 'emacs'.
 #  Default: 'emacs'
-# c.TerminalInteractiveShell.editing_mode = 'vi'
+c.TerminalInteractiveShell.editing_mode = 'vi'
 
 ## Set the editor used by IPython (default to $EDITOR/vi/notepad).
 #  Default: 'vi'
-# c.TerminalInteractiveShell.editor = 'vi'
+c.TerminalInteractiveShell.editor = 'nvim'
 
 ## Add shortcuts from 'emacs' insert mode to 'vi' insert mode.
 #  Default: True
@@ -644,7 +644,7 @@ c.InteractiveShell.confirm_exit = False
 
 ## Allows to enable/disable the prompt toolkit history search
 #  Default: True
-# c.TerminalInteractiveShell.enable_history_search = True
+c.TerminalInteractiveShell.enable_history_search = True
 
 ## 
 #  See also: InteractiveShell.enable_html_pager
