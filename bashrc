@@ -164,6 +164,8 @@ export BUN_INSTALL="$HOME/.bun"
 export PATH=$BUN_INSTALL/bin:$PATH
 [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
+# enable cargo
+. "$HOME/.cargo/env"
 
 ### -> ALIASES
 
@@ -203,27 +205,27 @@ alias claude='llm -m claude-3.5-sonnet'
 
 #### --> TMUX
 
-# function tmuxa() {
-#     if [[ -z "$1" ]]; then
-#         echo "Usage: tmuxa <session>"
-#         return 1
-#     else
-#         tmux attach-session -t "$1"
-#     fi
-# }
-#
-# function tmuxn() {
-#     if [[ -z "$1" ]]; then
-#         echo "Usage: tmuxn <session>"
-#         return 1
-#     else
-#         tmux new-session -s "$1"
-#     fi
-# }
-#
-# function tmuxl() {
-#     tmux list-sessions
-# }
+function tmuxa() {
+    if [[ -z "$1" ]]; then
+        echo "Usage: tmuxa <session>"
+        return 1
+    else
+        tmux attach-session -t "$1"
+    fi
+}
+
+function tmuxn() {
+    if [[ -z "$1" ]]; then
+        echo "Usage: tmuxn <session>"
+        return 1
+    else
+        tmux new-session -s "$1"
+    fi
+}
+
+function tmuxl() {
+    tmux list-sessions
+}
 
 #### --> PROGRAM LAUNCHERS
 
@@ -294,81 +296,16 @@ cd() {
   loadenv
 }
 
-# function mount_gdrive() {
-#   rclone mount gdrive:Drexel/Academic/05\ -\ Senior/01\ -\ Fall\ Quarter/ ~/Class \
-#     --vfs-cache-mode writes \
-#     --vfs-read-chunk-size 256M \
-#     --log-level ERROR \
-#     --fast-list \
-#     --allow-other \
-#     --uid 1000
-# }
-
-cp_() {
-  # wrapper for rclone -> copy with progress bar
-
-  local OPTIND
-  local recursive=false
-  local verbose=false
-  local preserve=false
-
-  # Parse options
-  while getopts "rvp" opt; do
-    case $opt in
-      r) recursive=true ;;
-      v) verbose=true ;;
-      p) preserve=true ;;
-      \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
-    esac
-  done
-  shift $((OPTIND-1))
-
-  # Check for correct number of arguments
-  if [ $# -lt 2 ]; then
-    echo "Usage: cp_ [-rvp] source... destination" >&2
-    return 1
-  fi
-
-  # Prepare rsync options
-  local rsync_opts="-a --progress"
-  $recursive || rsync_opts+=" --no-recursive"
-  $verbose && rsync_opts+=" -v"
-  $preserve || rsync_opts+=" --no-perms --no-owner --no-group"
-
-  # Prepare source and destination
-  local sources=("${@:1:$#-1}")
-  local dest="${!#}"
-
-  # Check if destination is a directory
-  if [ -d "$dest" ]; then
-    # If copying multiple sources or recursive, destination must be a directory
-    if [ ${#sources[@]} -gt 1 ] || $recursive; then
-        :  # Destination is already a directory, do nothing
-    else
-        # If single file to single file, remove trailing slash
-        dest="${dest%/}"
-    fi
-  elif [ ${#sources[@]} -gt 1 ]; then
-    echo "cp_with_progress: target '$dest' is not a directory" >&2
-    return 1
-  fi
-
-  # Perform the copy operation
-  if $verbose; then
-    rsync $rsync_opts "${sources[@]}" "$dest"
-  else
-    rsync $rsync_opts "${sources[@]}" "$dest" | pv -l -s "$(rsync --no-h --no-i -r --stats "${sources[@]}" "$dest" 2>&1 | awk '/Total file size:/ {print $4}')" > /dev/null
-  fi
-
-  local status=$?
-  if [ $status -eq 0 ]; then
-    echo "Copy completed successfully."
-  else
-    echo "Error occurred during copy. Exit status: $status" >&2
-  fi
-
-  return $status
+function mountgdrive() {
+    local gdrive_path="$1"
+    local local_mount="$2"
+    
+    rclone mount "gdrive:$gdrive_path" "$local_mount" \
+    --vfs-cache-mode writes \
+    --vfs-read-chunk-size 256M \
+    --log-level ERROR \
+    --fast-list \
+    --allow-other \
+    --uid 1000
 }
 
-
-. "$HOME/.cargo/env"
