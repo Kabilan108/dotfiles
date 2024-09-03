@@ -40,6 +40,12 @@ c.InteractiveShellApp.exec_lines = ['%autoreload 2']
 #  Default: []
 c.InteractiveShellApp.extensions = ['autoreload']
 
+try:
+    import icat
+    c.InteractiveShellApp.extensions.append('icat')
+except ImportError:
+    pass
+
 ## Dotted module name(s) of one or more IPython extensions to load.
 #  
 #  For specifying extra extensions to load on the command-line.
