@@ -164,10 +164,6 @@ export BUN_INSTALL="$HOME/.bun"
 export PATH=$BUN_INSTALL/bin:$PATH
 [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
-# enable icat for matplotlib
-export MPLBACKEND='module://matplotlib-backend-kitty'
-export MPLBACKEND_KITTY_SIZING=manual
-
 
 ### -> ALIASES
 
