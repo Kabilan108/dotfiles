@@ -166,7 +166,7 @@ export PATH=$BUN_INSTALL/bin:$PATH
 
 ### -> ALIASES
 
-alias nohist='HISTFILE-/dev/null'
+alias nohist='HISTFILE=/dev/null'
 
 # give things some color
 alias ls='ls --color=auto'
