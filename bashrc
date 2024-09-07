@@ -186,7 +186,7 @@ alias svi='sudo -E nvim'
 alias cr="cursor"
 
 # tools
-alias copy='xclip -selection clipboard' ## <- FIXME
+# alias copy='xclip -selection clipboard' ## <- FIXME
 
 # python
 alias ipy='ipython'
@@ -194,6 +194,7 @@ alias ipy='ipython'
 # kitty
 alias s='kitten ssh'
 alias icat='kitten icat'
+alias copy='kitten clipboard'
 
 # llm calls
 alias claude='llm -m claude-3.5-sonnet'
