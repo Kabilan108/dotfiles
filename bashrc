@@ -195,6 +195,7 @@ alias ipy='ipython'
 alias s='kitten ssh'
 alias icat='kitten icat'
 alias copy='kitten clipboard'
+alias update-kitty='curl -L https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin'
 
 # llm calls
 alias claude='llm -m claude-3.5-sonnet'
