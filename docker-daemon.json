@@ -1,0 +1,9 @@
+{
+  "data-root": "/mnt/arrakis/userdata/docker",
+  "runtimes": {
+    "nvidia": {
+      "path": "nvidia-container-runtime",
+      "runtimeArgs": []
+    }
+  }
+}
