@@ -182,7 +182,7 @@ alias egrep='egrep --color=auto'
 
 # editors
 alias vi='nvim'
-alias svi='sudo -E nvim'
+alias svi='sudo -E /opt/nvim-linux64/bin/nvim -u $HOME/.config/nvim/init.lua'
 alias cr="cursor"
 
 # tools
