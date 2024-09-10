@@ -1,0 +1,19 @@
+#! /bin/bash
+
+CLASS=zotero
+PROGRAM=/opt/zotero/zotero
+MAIN_EXEC=/opt/zotero/zotero-bin
+if [ -z "$(WINDOW_ID=$(xdotool search --onlyvisible --class $CLASS); echo $WINDOW_ID)" ] && [ -z "$(pidof $MAIN_EXEC)" ]; then
+    $PROGRAM $@ &
+    WINDOW_ID=$(printf 0x%x $(xdotool search --onlyvisible --sync  --class $CLASS)) # WINDOW_ID in hex
+    sleep 0.5
+    # increase timeout, try to add icon.
+    kdocker -w $WINDOW_ID -q &
+else
+    WINDOW_ID=$(xdotool search --onlyvisible --class $CLASS)
+    if [ -z "$WINDOW_ID" ]; then
+        $PROGRAM &
+    else
+        xdotool windowminimize --sync  $WINDOW_ID
+    fi
+fi
