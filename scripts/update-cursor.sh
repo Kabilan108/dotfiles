@@ -5,6 +5,10 @@ APPIMAGE_URL="https://downloader.cursor.sh/linux/appImage/x64"
 
 echo "Starting Cursor AppImage download..."
 
+if [ -f $APPIMAGE_PATH ]; then
+    rm $APPIMAGE_PATH
+fi
+
 if wget -q -O $APPIMAGE_PATH $APPIMAGE_URL; then
     echo "Cursor AppImage downloaded successfully to $APPIMAGE_PATH"
     echo "Setting executable permissions..."
