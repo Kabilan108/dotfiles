@@ -1,0 +1,10 @@
+[Unit]
+Description=Update Cursor
+
+[Service]
+ExecStart=/home/muaddib/.local/bin/cursor/update-cursor.sh
+Type=oneshot
+
+[Install]
+WantedBy=default.target
+
