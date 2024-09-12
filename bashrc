@@ -185,8 +185,14 @@ alias vi='nvim'
 alias svi='sudo -E /opt/nvim-linux64/bin/nvim -u $HOME/.config/nvim/init.lua'
 alias cr="cursor"
 
+# useful conversions
+alias excel_to_csv='libreoffice --headless --convert-to csv'
+
 # tools
 # alias copy='xclip -selection clipboard' ## <- FIXME
+
+# work
+alias devserver='kitten ssh -t moberg-devserver3 "bash -ic devsrv"'
 
 # python
 alias ipy='ipython'
