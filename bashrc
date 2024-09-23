@@ -205,6 +205,7 @@ alias update-kitty='curl -L https://sw.kovidgoyal.net/kitty/installer.sh | sh /d
 
 # llm calls
 alias claude='llm -m claude-3.5-sonnet'
+alias pplx='llm -m sonar-large'
 
 ### -> CUSTOM FUNCTIONS
 
@@ -238,7 +239,7 @@ cursor() {
   if [ "$#" -eq 1 ]; then
     (nohup "$USER_BIN/cursor/cursor.AppImage" "$(realpath $1)" &>/dev/null &)
   else
-    echo "Usage: cursor <argument>"
+    (nohup "$USER_BIN/cursor/cursor.AppImage" &>/dev/null &)
   fi
 }
 
