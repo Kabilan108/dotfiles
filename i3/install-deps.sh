@@ -32,7 +32,8 @@ sudo apt-get install -y \
   feh \
   playerctl \
   pactl \
-  light
+  light \
+  picom
 
 sudo update-alternatives --install /usr/bin/editor editor /opt/nvim-linux64/bin/nvim 60
 sudo update-alternatives --config editor
