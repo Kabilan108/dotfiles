@@ -16,8 +16,8 @@ bindsym $mod+d exec --no-startup-id rofi -show drun
 bindsym $mod+Shift+d exec --no-startup-id rofi -show combi
 bindsym $mod+Shift+s exec --no-startup-id rofi -show ssh
 bindsym $mod+Tab exec --no-startup-id rofi -show window
-bindsym $mod+Shift+f exec --no-startup-id $HOME/.config/rofi/search_files.sh
-bindsym $mod+Shift+e exec --no-startup-id $HOME/.config/rofi/log-out.sh
+bindsym $mod+Shift+f exec --no-startup-id $HOME/.config/rofi/search-files.sh
+bindsym $mod+Shift+e exec --no-startup-id $HOME/.config/rofi/exit-menu.sh
 
 # change focus
 bindsym $mod+h focus left
@@ -56,10 +56,6 @@ bindsym $mod+p focus parent
 
 # focus the child container
 bindsym $mod+c focus child
-
-# lock and suspend
-bindsym $mod+ctrl+e exec --no-startup-id $HOME/.config/i3/ctl/lock
-bindsym $mod+ctrl+s exec --no-startup-id $HOME/.config/i3/ctl/lock --suspend
 
 # reload the configuration file
 bindsym $mod+Shift+c reload
