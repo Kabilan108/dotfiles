@@ -16,8 +16,7 @@ configuration {
   tokenize: true;
 
   /*---------- SSH settings ----------*/
-  ssh-client: "ssh";
-  ssh-command: "{terminal} -e {ssh-client} {host} [-p {port}]";
+  ssh-command: "{terminal} -e kitty +kitten ssh {host} [-p {port}]";
   parse-hosts: true;
   parse-known-hosts: true;
 
@@ -37,7 +36,7 @@ configuration {
   }
 
   /*---------- Run settings ----------*/
-  run-command: "{cmd}";
+  run-command: "{terminal} -e {cmd}";
   run-list-command: "";
   run-shell-command: "{terminal} -e {cmd}";
 
