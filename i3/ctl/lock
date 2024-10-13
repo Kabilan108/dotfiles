@@ -1,6 +1,16 @@
 #!/bin/bash
 
 overlay=/usr/share/pixmaps/lockoverlay.png
+suspend_flag=false
+
+# Check for --suspend flag
+for arg in "$@"
+do
+    if [ "$arg" == "--suspend" ]
+    then
+        suspend_flag=true
+    fi
+done
 
 # take a fullscreen screenshot
 scrot /tmp/currentworkspace.png
@@ -12,7 +22,16 @@ convert /tmp/currentworkspace.png -blur 0x5 /tmp/currentworkspaceblur.png
 composite -gravity center $overlay /tmp/currentworkspaceblur.png /tmp/lockbackground.png
 
 # Lock the screen with the final image
-i3lock -i /tmp/lockbackground.png --nofork
+i3lock -i /tmp/lockbackground.png --nofork &
+
+# Wait a moment for the lock screen to activate
+sleep 1
+
+# If --suspend flag is present, suspend the system
+if [ "$suspend_flag" = true ]
+then
+    systemctl suspend
+fi
 
 # Clean up temporary files
 rm /tmp/currentworkspace.png /tmp/currentworkspaceblur.png /tmp/lockbackground.png

@@ -57,8 +57,9 @@ bindsym $mod+p focus parent
 # focus the child container
 bindsym $mod+c focus child
 
-# lock
-bindsym $mod+ctrl+e exec $HOME/.config/i3/ctl/lock
+# lock and suspend
+bindsym $mod+ctrl+e exec --no-startup-id $HOME/.config/i3/ctl/lock
+bindsym $mod+ctrl+s exec --no-startup-id $HOME/.config/i3/ctl/lock --suspend
 
 # reload the configuration file
 bindsym $mod+Shift+c reload
