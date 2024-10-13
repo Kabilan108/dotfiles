@@ -11,14 +11,13 @@ bindsym $mod+Return exec kitty
 # kill focused window
 bindsym $mod+Shift+q kill
 
-# enable rofi application launcher
+# enable rofi menus
 bindsym $mod+d exec --no-startup-id rofi -show drun
 bindsym $mod+Shift+d exec --no-startup-id rofi -show combi
 bindsym $mod+Shift+s exec --no-startup-id rofi -show ssh
 bindsym $mod+Tab exec --no-startup-id rofi -show window
 bindsym $mod+Shift+f exec --no-startup-id $HOME/.config/rofi/search_files.sh
-
-# TODO: rofi ssh x kitty ssh
+bindsym $mod+Shift+e exec --no-startup-id $HOME/.config/rofi/log-out.sh
 
 # change focus
 bindsym $mod+h focus left
@@ -59,16 +58,13 @@ bindsym $mod+p focus parent
 bindsym $mod+c focus child
 
 # lock
-# bindsym $mod+shift+x exec i3lock
+bindsym $mod+ctrl+e exec $HOME/.config/i3/ctl/lock
 
 # reload the configuration file
 bindsym $mod+Shift+c reload
 
 # restart i3 inplace (preserves your layout/session, can be used to upgrade i3)
 bindsym $mod+Shift+r restart
-
-# exit i3 (logs you out of your X session)
-bindsym $mod+Shift+e exec "i3-nagbar -t warning -m 'You pressed the exit shortcut. Do you really want to exit i3? This will end your X session.' -B 'Yes, exit i3' 'i3-msg exit'"
 
 # resize window (you can also use the mouse for that)
 mode "resize" {
@@ -208,7 +204,7 @@ exec --no-startup-id dex --autostart --environment i3
 
 # xss-lock grabs a logind suspend inhibit lock and will use i3lock to lock the
 # screen before suspend. Use loginctl lock-session to lock your screen.
-exec --no-startup-id xss-lock --transfer-sleep-lock -- i3lock --nofork
+exec --no-startup-id xss-lock --transfer-sleep-lock -- $HOME/.config/i3/ctl/lock
 
 # network manager applet
 exec --no-startup-id nm-applet

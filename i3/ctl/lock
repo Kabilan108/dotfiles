@@ -1,0 +1,18 @@
+#!/bin/bash
+
+overlay=/usr/share/pixmaps/lockoverlay.png
+
+# take a fullscreen screenshot
+scrot /tmp/currentworkspace.png
+
+# Blur the screenshot
+convert /tmp/currentworkspace.png -blur 0x5 /tmp/currentworkspaceblur.png
+
+# Composite the overlay onto the blurred screenshot
+composite -gravity center $overlay /tmp/currentworkspaceblur.png /tmp/lockbackground.png
+
+# Lock the screen with the final image
+i3lock -i /tmp/lockbackground.png --nofork
+
+# Clean up temporary files
+rm /tmp/currentworkspace.png /tmp/currentworkspaceblur.png /tmp/lockbackground.png
