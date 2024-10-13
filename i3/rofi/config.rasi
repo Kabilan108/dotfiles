@@ -36,7 +36,7 @@ configuration {
   }
 
   /*---------- Run settings ----------*/
-  run-command: "{terminal} -e {cmd}";
+  run-command: "{cmd}";
   run-list-command: "";
   run-shell-command: "{terminal} -e {cmd}";
 
