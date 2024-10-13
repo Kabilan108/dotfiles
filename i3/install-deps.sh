@@ -33,3 +33,6 @@ sudo apt-get install -y \
   playerctl \
   pactl \
   light
+
+sudo update-alternatives --install /usr/bin/editor editor /opt/nvim-linux64/bin/nvim 60
+sudo update-alternatives --config editor

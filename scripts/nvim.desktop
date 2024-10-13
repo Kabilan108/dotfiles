@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Neovim
+Exec=open-nvim.sh %f
+Icon=/home/muaddib/.config/nvim/nvim.png
+Terminal=false
+Categories=Utility;TextEditor;
+MimeType=text/plain;

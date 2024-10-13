@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# modify this so it doesn't break cursor if run w/o an internet connection
+
 APPIMAGE_PATH="/home/muaddib/.local/bin/cursor/cursor.AppImage"
 APPIMAGE_URL="https://downloader.cursor.sh/linux/appImage/x64"
 
@@ -23,4 +25,3 @@ else
     echo "Failed to download Cursor AppImage"
     exit 1
 fi
-

@@ -14,9 +14,9 @@ bindsym $mod+Shift+q kill
 # enable rofi application launcher
 bindsym $mod+d exec --no-startup-id rofi -show drun
 bindsym $mod+Shift+d exec --no-startup-id rofi -show combi
-bindsym $mod+Shift+f exec --no-startup-id rofi -show filebrowser
 bindsym $mod+Shift+s exec --no-startup-id rofi -show ssh
 bindsym $mod+Tab exec --no-startup-id rofi -show window
+bindsym $mod+Shift+f exec --no-startup-id $HOME/.config/rofi/search_files.sh
 
 # TODO: rofi ssh x kitty ssh
 
