@@ -1,0 +1,22 @@
+#!/bin/bash
+
+if [[ ! $1 =~ ^[+-][1-9][0-9]?$ ]]; then
+    echo "Invalid argument. Use +N or -N where N is 1-99."
+    exit 1
+fi
+
+sign=${1:0:1}
+value=${1:1}
+
+if [ "$sign" = "+" ]; then
+    light -A "$value"
+else
+    light -U "$value"
+fi
+
+brightness=$(light -G | cut -d'.' -f1)
+dunstify \
+    -a "brightness" \
+    -u low \
+    -h string:x-dunst-stack-tag:brightness \
+    -h int:value:"$brightness" "Brightness" "Current: $brightness%"

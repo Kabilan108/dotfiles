@@ -1,0 +1,59 @@
+#!/bin/bash
+
+usage() {
+    echo "Usage: $0 [mute|mute-mic|[+-]<1-99>]"
+    echo "  mute: Toggle mute for the default sink"
+    echo "  mute-mic: Toggle mute for the default source"
+    echo "  [+-]<1-99>: Increase or decrease volume by 1-99%"
+    exit 1
+}
+
+notify() {
+    volume=$(pactl get-sink-volume @DEFAULT_SINK@ | grep -Po '\d+(?=%)' | head -1)
+    if pactl get-sink-mute @DEFAULT_SINK@ | grep -q "yes"; then
+        icon="audio-volume-muted"
+        text="Muted"
+    else
+        if [ "$volume" -ge 70 ]; then
+            icon="audio-volume-high"
+        elif [ "$volume" -ge 40 ]; then
+            icon="audio-volume-medium"
+        else
+            icon="audio-volume-low"
+        fi
+        text="Volume: ${volume}%"
+    fi
+
+    dunstify \
+        -i "$icon" \
+        -a "volume" \
+        -u low \
+        -h string:x-dunst-stack-tag:volume \
+        -h int:value:"$volume" "Volume" "$text" ": $volume%"
+}
+
+if [ $# -ne 1 ]; then
+    usage
+fi
+
+case "$1" in
+    mute)
+        pactl set-sink-mute @DEFAULT_SINK@ toggle
+        notify
+        ;;
+    mute-mic)
+        pactl set-source-mute @DEFAULT_SOURCE@ toggle
+        if pactl get-source-mute @DEFAULT_SOURCE@ | grep -q "yes"; then
+            notify-send -i microphone-sensitivity-muted "Microphone" "Muted"
+        else
+            notify-send -i microphone-sensitivity-high "Microphone" "Unmuted"
+        fi
+        ;;
+    [+-][1-9]|[+-][1-9][0-9])
+        pactl set-sink-volume @DEFAULT_SINK@ "$1%"
+        notify
+        ;;
+    *)
+        usage
+        ;;
+esac
