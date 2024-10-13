@@ -12,9 +12,3 @@ repos:
     rev: v1.32.0
     hooks:
       - id: yamllint
-
-  - repo: https://github.com/jumanjihouse/pre-commit-hooks
-    rev: 3.0.0
-    hooks:
-      - id: shfmt
-        args: ["-i", "2", "-ci", "-bn"]
