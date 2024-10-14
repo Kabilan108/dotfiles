@@ -36,13 +36,13 @@ confirm_power_off() {
 }
 
 # Main menu options
-options="Lock\nSuspend\nLogout\nPower Off"
+options="Lock\nSuspend\nLogout\nRestart\nPower Off"
 
 # Show the main menu and get user selection
 selected=$(echo -e $options | rofi \
-    -theme-str 'window {width: 300px; height:200px;}' \
+    -theme-str 'window {width: 300px; height:250px;}' \
     -dmenu -i -p 'Exit Menu' \
-    -lines 4 \
+    -lines 5 \
     -line-margin 5 \
     -line-padding 10 \
     -kb-row-select 'Tab' \
@@ -59,6 +59,9 @@ case $selected in
         ;;
     Logout)
         i3-msg exit
+        ;;
+    Restart)
+        systemctl reboot
         ;;
     "Power Off")
         confirm_power_off
