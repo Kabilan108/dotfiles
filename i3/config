@@ -5,6 +5,9 @@
 
 set $mod Mod4
 
+# take screenshots
+bindcode 107 exec flameshot gui --path $HOME/media/screenshots/$(date +%Y.%m.%d-%H.%M.%S).png
+
 # start terminal
 bindsym $mod+Return exec kitty
 
