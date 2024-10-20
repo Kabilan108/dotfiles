@@ -16,6 +16,9 @@ vim.g.loaded_netrwPlugin = 1
 -- use system clipboard
 opt.clipboard:append "unnamedplus"
 
+-- highlight on search
+opt.hlsearch = true
+
 -- enable 24-bit color
 opt.termguicolors = true
 

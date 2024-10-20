@@ -1,5 +1,8 @@
 -- keymaps.lua
 
+local api = vim.api
+local cmd = vim.cmd
+
 local ts = require("telescope.builtin")
 
 local map = function(keys, func, desc, opts)
@@ -8,6 +11,9 @@ end
 
 -- neo-tree
 map("\\", ":Neotree toggle<CR>", "[\\] toggle file explorer")
+
+-- clear search highlights
+map("<Esc>", ":nohlsearch<CR>")
 
 -- telescope
 map("<leader>b", ts.buffers, "[b]uffers", { sort_mru = true })
@@ -29,35 +35,42 @@ map("<leader>ss", ":mksession<CR>", "[s]ave [s]ession")
 local trailspace = require("mini.trailspace")
 map("<leader>tw", trailspace.trim, "[t]rim [w]hitespace")
 
+-- Disable arrow keys in normal mode
+local function show_msg()
+  cmd('echo "retard."')
+  vim.defer_fn(function()
+      cmd('echon ""')
+  end, 3000)
+end
+map('<left>', show_msg)
+map('<right>', show_msg)
+map('<up>', show_msg)
+map('<down>', show_msg)
+
+-- window navigation
+map('<C-h>', '<C-w><C-h>', 'Move focus to the left window')
+map('<C-l>', '<C-w><C-l>', 'Move focus to the right window')
+map('<C-j>', '<C-w><C-j>', 'Move focus to the lower window')
+map('<C-k>', '<C-w><C-k>', 'Move focus to the upper window')
+
 -- buffer navigation
 map("<A-,>", ":bp<CR>", "next buffer")
 map("<A-.>", ":bn<CR>", "next buffer")
 map("<A-w>", ":bwipeout<CR>", "buffer wipeout")
 
--- Define groups for which-key
-local wk = require("which-key")
-wk.add({
-  { "<leader>c",  group = "[c]ode" },
-  { "<leader>c_", hidden = true },
-  { "<leader>d",  group = "[d]ocument" },
-  { "<leader>d_", hidden = true },
-  { "<leader>h",  group = "git [h]unk" },
-  { "<leader>h_", hidden = true },
-  { "<leader>r",  group = "[r]ename" },
-  { "<leader>r_", hidden = true },
-  { "<leader>s",  group = "[s]earch" },
-  { "<leader>s_", hidden = true },
-  { "<leader>t",  group = "[t]oggle" },
-  { "<leader>t_", hidden = true },
-  { "<leader>w",  group = "[w]orkspace" },
-  { "<leader>w_", hidden = true },
-  { "<leader>h",  desc = "git [h]unk",  mode = "v" },
+-- highlight when yanking
+api.nvim_create_autocmd('TextYankPost', {
+  desc = 'Highlight when yanking (copying) text',
+  group = api.nvim_create_augroup('kickstart-highlight-yank', { clear = true }),
+  callback = function()
+    vim.highlight.on_yank()
+  end,
 })
 
 -- LSP keymaps
 -- these will only be enabled when a LSP attaches to the buffer
-vim.api.nvim_create_autocmd("LspAttach", {
-  group = vim.api.nvim_create_augroup("lsp-attach", { clear = true }),
+api.nvim_create_autocmd("LspAttach", {
+  group = api.nvim_create_augroup("lsp-attach", { clear = true }),
 
   callback = function(event)
     local map_ = function(keys, func, desc)
@@ -96,6 +109,12 @@ vim.api.nvim_create_autocmd("LspAttach", {
     -- or a suggestion from your LSP for this to activate.
     map_("<leader>ca", vim.lsp.buf.code_action, "[c]ode [a]ction")
 
+    -- interact with diagnostic messages
+    map("[d", vim.diagnostic.goto_prev, "prev [d]iagnostic message")
+    map("]d", vim.diagnostic.goto_next, "next [d]iagnostic message")
+    map("<leader>e", vim.diagnostic.open_float, "show [e]rror message")
+    map("<leader>q", vim.diagnostic.setloclist, "show [q]uick fix")
+
     -- Opens a popup that displays documentation about the word under your cursor
     --  See `:help K` for why this keymap.
     map_("K", vim.lsp.buf.hover, "[K] Hover Documentation")
@@ -115,27 +134,27 @@ vim.api.nvim_create_autocmd("LspAttach", {
     local client = vim.lsp.get_client_by_id(event.data.client_id)
 
     if client and client.server_capabilities.documentHighlightProvider then
-      local highlight_augroup = vim.api.nvim_create_augroup(
+      local highlight_augroup = api.nvim_create_augroup(
         "lsp-highlight", { clear = false }
       )
 
-      vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
+      api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
         buffer = event.buf,
         group = highlight_augroup,
         callback = vim.lsp.buf.document_highlight,
       })
 
-      vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+      api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
         buffer = event.buf,
         group = highlight_augroup,
         callback = vim.lsp.buf.clear_references,
       })
 
-      vim.api.nvim_create_autocmd("LspDetach", {
-        group = vim.api.nvim_create_augroup("lsp-detach", { clear = true }),
+      api.nvim_create_autocmd("LspDetach", {
+        group = api.nvim_create_augroup("lsp-detach", { clear = true }),
         callback = function(event2)
           vim.lsp.buf.clear_references()
-          vim.api.nvim_clear_autocmds { group = "lsp-highlight", buffer = event2.buf }
+          api.nvim_clear_autocmds { group = "lsp-highlight", buffer = event2.buf }
         end,
       })
     end
@@ -147,8 +166,28 @@ vim.api.nvim_create_autocmd("LspAttach", {
     if client and client.server_capabilities.inlayHintProvider and vim.lsp.inlay_hint then
       map("<leader>th", function()
         vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled())
-      end, "[T]oggle Inlay [H]ints")
+      end, "[t]oggle inlay [h]ints")
     end
   end,
+})
+
+-- Define groups for which-key
+local wk = require("which-key")
+wk.add({
+  { "<leader>c",  group = "[c]ode" },
+  { "<leader>c_", hidden = true },
+  { "<leader>d",  group = "[d]ocument" },
+  { "<leader>d_", hidden = true },
+  { "<leader>h",  group = "git [h]unk" },
+  { "<leader>h_", hidden = true },
+  { "<leader>r",  group = "[r]ename" },
+  { "<leader>r_", hidden = true },
+  { "<leader>s",  group = "[s]earch" },
+  { "<leader>s_", hidden = true },
+  { "<leader>t",  group = "[t]oggle" },
+  { "<leader>t_", hidden = true },
+  { "<leader>w",  group = "[w]orkspace" },
+  { "<leader>w_", hidden = true },
+  { "<leader>h",  desc = "git [h]unk",  mode = "v" },
 })
 

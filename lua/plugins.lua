@@ -3,6 +3,9 @@
 
 local local_plugins = vim.fn.stdpath 'config' .. '/lua/custom'
 
+local home = os.getenv("HOME")
+package.path = package.path .. ";" .. home .. ".luarocks/lib/luarocks/rocks-5.1"
+
 return {
   "numToStr/Comment.nvim",
   "nvim-lua/plenary.nvim",
@@ -10,13 +13,20 @@ return {
   "nvim-tree/nvim-web-devicons",
   "wakatime/vim-wakatime",
 
-  { dir = local_plugins, name = "mentat" },
+  { dir = local_plugins,                   name = "mentat" },
 
   { "folke/which-key.nvim",                event = "VimEnter" },
   { "lukas-reineke/indent-blankline.nvim", main = "ibl",                          opts = {} },
   { "neovim/nvim-lspconfig",               dependencies = { "j-hui/fidget.nvim" } },
   { "williamboman/mason.nvim",             config = true },
   { "williamboman/mason-lspconfig.nvim" },
+
+  {
+    "3rd/image.nvim",
+    config = function()
+      require('image').setup({})
+    end
+  },
 
   -- autocompletion
   {
