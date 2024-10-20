@@ -1,130 +1,274 @@
+-- plugins.lua
+-- set up plugins for nvim
+
+local local_plugins = vim.fn.stdpath 'config' .. '/lua/custom'
+
 return {
-  -- set up the colorscheme
+  "numToStr/Comment.nvim",
+  "nvim-lua/plenary.nvim",
+  "nvim-lualine/lualine.nvim",
+  "nvim-tree/nvim-web-devicons",
+  "wakatime/vim-wakatime",
+
+  { dir = local_plugins, name = "mentat" },
+
+  { "folke/which-key.nvim",                event = "VimEnter" },
+  { "lukas-reineke/indent-blankline.nvim", main = "ibl",                          opts = {} },
+  { "neovim/nvim-lspconfig",               dependencies = { "j-hui/fidget.nvim" } },
+  { "williamboman/mason.nvim",             config = true },
+  { "williamboman/mason-lspconfig.nvim" },
+
+  -- autocompletion
   {
-    'folke/tokyonight.nvim',
-    lazy = false, -- make sure we load this during startup if it is your main colorscheme
-    priority = 1000, -- make sure to load this before all the other start plugins
-    config = function()
-      -- load the colorscheme here
-      vim.cmd([[colorscheme tokyonight]])
-    end,
+    "hrsh7th/nvim-cmp",
+    dependencies = { "hrsh7th/cmp-nvim-lsp", "hrsh7th/cmp-path" },
   },
 
-  -- enable telescope file serach
+  -- todo comments
   {
-    'nvim-telescope/telescope.nvim',
-    tag = '0.1.8',
-    requires = {
-      { 'nvim-lua/plenary.nvim' }
+    'folke/todo-comments.nvim',
+    event = 'VimEnter',
+    config = function()
+      local colors = require("catppuccin.palettes").get_palette "mocha"
+      require("todo-comments").setup({
+        sign_priority = 6,
+        signs = true,
+        keywords = {
+          FIX = {
+            icon = " ",
+            color = colors.red,
+            alt = { "FIXME", "BUG", "FIXIT", "ISSUE" },
+          },
+          TODO = { icon = " ", color = colors.blue, },
+          WARN = { icon = " ", color = colors.orange, alt = { "WARNING", "XXX" } },
+          NOTE = { icon = " ", color = colors.teal, alt = { "INFO" } },
+        },
+      })
+    end
+  },
+
+  -- conform (formatting)
+  {
+    "stevearc/conform.nvim",
+    formatters_by_ft = {
+      lua = { "stylua" },
+      python = { "isort", "ruff" },
+      javascript = { "prettierd" },
     }
   },
 
-  -- enable treesitter for highlighting, indenting
+  -- telescope
   {
-    'nvim-treesitter/nvim-treesitter',
-    build = ':TSUpdate',
-    config = function ()
-        local configs = require("nvim-treesitter.configs")
-
-        configs.setup({
-            auto_install = true,
-            sync_install = false,
-            highlight = { enable = true },
-            indent = { enable = true },
-            ensure_installed = {
-                "bash",
-                "bibtex",
-                "c",
-                "css",
-                "csv",
-                "html",
-                "javascript",
-                -- "latex",
-                "lua",
-                "markdown",
-                "markdown_inline",
-                "python",
-                "toml",
-                "typescript",
-                "yaml"
+    "nvim-telescope/telescope.nvim",
+    tag = "0.1.8",
+    dependencies = { "nvim-telescope/telescope-ui-select.nvim" },
+    config = function()
+      require("telescope").setup {
+        extensions = {
+          ["ui-select"] = {
+            require("telescope.themes").get_dropdown {
+              -- even more opts
             }
-        })
+
+            -- pseudo code / specification for writing custom displays, like the one
+            -- for "codeactions"
+            -- specific_opts = {
+            --   [kind] = {
+            --     make_indexed = function(items) -> indexed_items, width,
+            --     make_displayer = function(widths) -> displayer
+            --     make_display = function(displayer) -> function(e)
+            --     make_ordinal = function(e) -> string
+            --   },
+            --   -- for example to disable the custom builtin "codeactions" display
+            --      do the following
+            --   codeactions = false,
+            -- }
+          }
+        }
+      }
+      -- To get ui-select loaded and working with telescope, you need to call
+      -- load_extension, somewhere after setup function:
+      require("telescope").load_extension("ui-select")
     end
+  },
+
+  -- neotree (file explorer)
+  {
+    "nvim-neo-tree/neo-tree.nvim",
+    dependencies = { "MunifTanjim/nui.nvim" },
+    cmd = "Neotree",
+    opts = {
+      filesystem = {
+        filtered_items = {
+          visible = true,
+          show_hidden_count = false,
+          hide_dotfiles = false,
+          hide_gitignored = false,
+          hide_by_name = {
+            "node_modules",
+          },
+          never_show = {
+            ".git",
+            ".DS_Store",
+            "thumbs.db",
+            "__pycache__",
+          }
+        }
+      },
+      window = { width = 27 }
+    },
+  },
+
+  -- mini.nvim
+  { -- Collection of various small independent plugins/modules
+    'echasnovski/mini.nvim',
+    config = function()
+      -- Better Around/Inside textobjects
+      --
+      -- Examples:
+      --  - va)  - [V]isually select [A]round [)]paren
+      --  - yinq - [Y]ank [I]nside [N]ext [']quote
+      --  - ci'  - [C]hange [I]nside [']quote
+      require('mini.ai').setup { n_lines = 500 }
+
+      -- Add/delete/replace surroundings (brackets, quotes, etc.)
+      --
+      -- - saiw) - [S]urround [A]dd [I]nner [W]ord [)]Paren
+      -- - sd'   - [S]urround [D]elete [']quotes
+      -- - sr)'  - [S]urround [R]eplace [)] [']
+      require('mini.surround').setup()
+
+      require('mini.pairs').setup()
+      require('mini.tabline').setup()
+      require('mini.sessions').setup()
+      require('mini.trailspace').setup()
+    end,
+  },
+
+  -- treesitter
+  {
+    "nvim-treesitter/nvim-treesitter",
+    build = ":TSUpdate",
+    config = function()
+      local configs = require("nvim-treesitter.configs")
+      configs.setup({
+        auto_install = true,
+        sync_install = false,
+        highlight = { enable = true },
+        indent = { enable = true },
+        ensure_installed = {
+          "bash",
+          "lua",
+          "markdown",
+          "markdown_inline",
+          "python",
+        }
+      })
+    end
+  },
+
+  -- theme (catppuccin)
+  {
+    "catppuccin/nvim",
+    name = "catppuccin",
+    priority = 1000,
+    config = function()
+      require("catppuccin").setup({
+        compile_path = vim.fn.stdpath "cache" .. "/catppuccin",
+        default_integrations = false,
+        integrations = {
+          cmp = true,
+          fidget = true,
+          gitsigns = true,
+          indent_blankline = {
+            enabled = true,
+            scope_color = "lavender",
+            color_indent_levels = false,
+          },
+          mason = true,
+          neotree = true,
+          native_lsp = {
+            enabled = true,
+            virtual_text = {
+              errors = { "italic" },
+              hints = { "italic" },
+              warnings = { "italic" },
+              information = { "italic" },
+              ok = { "italic" },
+            },
+            underlines = {
+              errors = { "underline" },
+              hints = { "underline" },
+              warnings = { "underline" },
+              information = { "underline" },
+              ok = { "underline" },
+            },
+            inlay_hints = {
+              background = true,
+            },
+          },
+          telescope = {
+            enabled = true,
+          },
+          treesitter = true,
+          which_key = true,
+        },
+      })
+      vim.cmd.colorscheme "catppuccin-mocha"
+    end
+  },
+
+  {
+    "lewis6991/gitsigns.nvim",
+    opts = {
+      signs                        = {
+        add          = { text = '┃' },
+        change       = { text = '┃' },
+        delete       = { text = '_' },
+        topdelete    = { text = '‾' },
+        changedelete = { text = '~' },
+        untracked    = { text = '┆' },
+      },
+      signs_staged                 = {
+        add          = { text = '┃' },
+        change       = { text = '┃' },
+        delete       = { text = '_' },
+        topdelete    = { text = '‾' },
+        changedelete = { text = '~' },
+        untracked    = { text = '┆' },
+      },
+      signs_staged_enable          = true,
+      signcolumn                   = true,  -- Toggle with `:Gitsigns toggle_signs`
+      numhl                        = false, -- Toggle with `:Gitsigns toggle_numhl`
+      linehl                       = false, -- Toggle with `:Gitsigns toggle_linehl`
+      word_diff                    = false, -- Toggle with `:Gitsigns toggle_word_diff`
+      watch_gitdir                 = {
+        follow_files = true
+      },
+      auto_attach                  = true,
+      attach_to_untracked          = false,
+      current_line_blame           = false, -- Toggle with `:Gitsigns toggle_current_line_blame`
+      current_line_blame_opts      = {
+        virt_text = true,
+        virt_text_pos = 'eol', -- 'eol' | 'overlay' | 'right_align'
+        delay = 1000,
+        ignore_whitespace = false,
+        virt_text_priority = 100,
+        use_focus = true,
+      },
+      current_line_blame_formatter = '<author>, <author_time:%R> - <summary>',
+      sign_priority                = 6,
+      update_debounce              = 100,
+      status_formatter             = nil,   -- Use default
+      max_file_length              = 40000, -- Disable if file is longer than this (in lines)
+      preview_config               = {
+        -- Options passed to nvim_open_win
+        border = 'single',
+        style = 'minimal',
+        relative = 'cursor',
+        row = 0,
+        col = 1
+      },
+    }
   }
-
-  -- I have a separate config.mappings file where I require which-key.
-  -- With lazy the plugin will be auomatically loaded when it is required somewhere
-  -- { "folke/which-key.nvim", lazy = true },
-
-  -- {
-  --   "nvim-neorg/neorg",
-  --   -- lazy-load on filetype
-  --   ft = "norg",
-  --   -- options for neorg. This will automatically call `require("neorg").setup(opts)`
-  --   opts = {
-  --     load = {
-  --       ["core.defaults"] = {},
-  --     },
-  --   },
-  -- },
-
-  -- {
-  --   "dstein64/vim-startuptime",
-  --   -- lazy-load on a command
-  --   cmd = "StartupTime",
-  --   -- init is called during startup. Configuration for vim plugins typically should be set in an init function
-  --   init = function()
-  --     vim.g.startuptime_tries = 10
-  --   end,
-  -- },
-  --
-  -- {
-  --   "hrsh7th/nvim-cmp",
-  --   -- load cmp on InsertEnter
-  --   event = "InsertEnter",
-  --   -- these dependencies will only be loaded when cmp loads
-  --   -- dependencies are always lazy-loaded unless specified otherwise
-  --   dependencies = {
-  --     "hrsh7th/cmp-nvim-lsp",
-  --     "hrsh7th/cmp-buffer",
-  --   },
-  --   config = function()
-  --     -- ...
-  --   end,
-  -- },
-
-  -- if some code requires a module from an unloaded plugin, it will be automatically loaded.
-  -- So for api plugins like devicons, we can always set lazy=true
-  -- { "nvim-tree/nvim-web-devicons", lazy = true },
-
-  -- you can use the VeryLazy event for things that can
-  -- load later and are not important for the initial UI
-  -- { "stevearc/dressing.nvim", event = "VeryLazy" },
-
-  -- {
-  --   "Wansmer/treesj",
-  --   keys = {
-  --     { "J", "<cmd>TSJToggle<cr>", desc = "Join Toggle" },
-  --   },
-  --   opts = { use_default_keymaps = false, max_join_length = 150 },
-  -- },
-  --
-  -- {
-  --   "monaqa/dial.nvim",
-  --   -- lazy-load on keys
-  --   -- mode is `n` by default. For more advanced options, check the section on key mappings
-  --   keys = { "<C-a>", { "<C-x>", mode = "n" } },
-  -- },
-
-  -- local plugins need to be explicitly configured with dir
-  -- { dir = "~/projects/secret.nvim" },
-
-  -- you can use a custom url to fetch a plugin
-  -- { url = "git@github.com:folke/noice.nvim.git" },
-
-  -- local plugins can also be configured with the dev option.
-  -- This will use {config.dev.path}/noice.nvim/ instead of fetching it from GitHub
-  -- With the dev option, you can easily switch between the local and installed version of a plugin
-  -- { "folke/noice.nvim", dev = true },
-} 
-
+}
