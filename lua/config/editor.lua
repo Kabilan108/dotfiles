@@ -82,14 +82,15 @@ capabilities = vim.tbl_deep_extend(
   'force', capabilities, require('cmp_nvim_lsp').default_capabilities()
 )
 
--- TODO: figure out how to install and configure formatters like stylua
+-- TODO: figure out how to install and configure formatters like stylua and ruff
+-- TODO: get ruff lsp and formatter working
 
 -- set up mason to install servers
 local lspconfig = require("lspconfig")
 require('mason').setup()
 require('mason-lspconfig').setup({
   ensure_installed = {
-    "clangd", "lua_ls",
+    "clangd", "lua_ls", "ruff"
   },
   handlers = {
     function(server_name)
