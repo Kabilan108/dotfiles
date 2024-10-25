@@ -15,6 +15,8 @@ bindsym $mod+Return exec kitty
 bindsym $mod+Shift+q kill
 
 # enable rofi menus
+# TODO: add rofi menu for power saving/performance/balanced mode
+#       add inticator to polybar
 bindsym $mod+d exec --no-startup-id rofi -show drun
 bindsym $mod+Shift+d exec --no-startup-id rofi -show combi
 bindsym $mod+Shift+s exec --no-startup-id rofi -show ssh
@@ -145,6 +147,11 @@ bindsym $mod+Ctrl+h move workspace to output left
 bindsym $mod+Ctrl+j move workspace to output down
 bindsym $mod+Ctrl+k move workspace to output up
 bindsym $mod+Ctrl+l move workspace to output right
+
+# configure floating windows
+for_window [class="Evolution-alarm-notify"] floating enable, resize set 400 300, move position center
+for_window [class="zoom"] floating enable, resize set 800 600
+for_window [class="Org.gnome.Nautilus"] floating enable, resize set 800 600
 
 # ===> APPEARANCE =====================================================================
 
