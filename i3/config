@@ -149,7 +149,7 @@ bindsym $mod+Ctrl+k move workspace to output up
 bindsym $mod+Ctrl+l move workspace to output right
 
 # configure floating windows
-for_window [class="Evolution-alarm-notify"] floating enable, resize set 400 300, move position center
+for_window [class="Evolution-alarm-notify"] floating enable, resize set 600 300, move position center
 for_window [class="zoom"] floating enable, resize set 800 600
 for_window [class="Org.gnome.Nautilus"] floating enable, resize set 800 600
 
