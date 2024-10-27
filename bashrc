@@ -113,6 +113,7 @@ CDPATH=".:~:/mnt/arrakis"
 # this allows you to bookmark locations by setting variables to folder paths
 shopt -s cdable_vars
 export arrakis="/mnt/arrakis/"
+export www="/var/www/"
 
 
 ### -> PROMPT
@@ -147,7 +148,7 @@ export PATH=/usr/local/cuda-12.6/bin${PATH:+:${PATH}}
 export PATH="$PATH:/opt/nvim-linux64/bin"
 
 # enable cargo
-source $HOME/.cargo/env 
+source $HOME/.cargo/env
 
 # enable nvm
 export NVM_DIR="$HOME/.nvm"
@@ -305,7 +306,7 @@ cd() {
 function mountgdrive() {
     local gdrive_path="$1"
     local local_mount="$2"
-    
+
     rclone mount "gdrive:$gdrive_path" "$local_mount" \
     --vfs-cache-mode writes \
     --vfs-read-chunk-size 256M \
@@ -314,4 +315,3 @@ function mountgdrive() {
     --allow-other \
     --uid 1000
 }
-
