@@ -59,7 +59,8 @@ map('<C-k>', '<C-w><C-k>', 'Move focus to the upper window')
 -- buffer navigation
 map("<A-,>", ":bp<CR>", "next buffer")
 map("<A-.>", ":bn<CR>", "next buffer")
-map("<A-w>", ":bwipeout<CR>", "buffer wipeout")
+map("<A-w>", ":w<CR>:bwipeout<CR>", "save and wipeout buffer")
+map("<A-c>", ":bwipeout!<CR>", "force wipeout buffer")
 
 -- highlight when yanking
 api.nvim_create_autocmd('TextYankPost', {
