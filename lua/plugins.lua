@@ -63,7 +63,10 @@ return {
     formatters_by_ft = {
       lua = { "stylua" },
       python = { "isort", "ruff" },
-      javascript = { "prettierd" },
+      javascript = { "biome" },
+      typescript = { "biome" },
+      javascriptreact = { "biome" },
+      typescriptreact = { "biome" },
     }
   },
 

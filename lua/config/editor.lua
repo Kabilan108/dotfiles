@@ -65,6 +65,12 @@ local servers = {
       'pyproject.toml', 'ruff.toml', '.ruff.toml'
     ),
   },
+  biome = {
+    cmd = { 'biome', 'lsp-proxy' },
+    filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact', 'json' },
+    root_dir = require('lspconfig.util').root_pattern('biome.json', 'package.json'),
+    single_file_support = true,
+  },
   lua_ls = {
     settings = {
       Lua = {
@@ -90,7 +96,7 @@ local lspconfig = require("lspconfig")
 require('mason').setup()
 require('mason-lspconfig').setup({
   ensure_installed = {
-    "clangd", "lua_ls", "ruff"
+    "clangd", "lua_ls", "ruff", "biome"
   },
   handlers = {
     function(server_name)
