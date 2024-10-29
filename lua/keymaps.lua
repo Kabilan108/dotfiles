@@ -27,6 +27,13 @@ map("<leader>sk", ts.keymaps, "[s]earch [k]eymaps")
 map("<leader>sr", ts.resume, "[s]earch [r]esume")
 map("<leader>s.", ts.oldfiles, "[s]earch [.] recent files")
 
+-- folding
+map("zc", ":foldclose<CR>", "close fold under cursor")
+map("zo", ":foldopen<CR>", "open fold under cursor")
+map("za", ":foldclose<CR>", "toggle fold under cursor")
+map("<leader>z", "za", "toggle fold")
+map("<leader>Z", "zA", "toggle fold recursively")
+
 -- mini.sessions
 local load_session = function ()
   require('mini.sessions').read()
@@ -192,6 +199,8 @@ wk.add({
   { "<leader>t_", hidden = true },
   { "<leader>w",  group = "[w]orkspace" },
   { "<leader>w_", hidden = true },
+  { "<leader>z",  group = "[z] fold" },
+  { "<leader>z_", hidden = true },
   { "<leader>h",  desc = "git [h]unk",  mode = "v" },
 })
 

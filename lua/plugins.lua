@@ -158,6 +158,7 @@ return {
       require('mini.tabline').setup()
       require('mini.sessions').setup()
       require('mini.trailspace').setup()
+      require('mini.icons').setup()
     end,
   },
 

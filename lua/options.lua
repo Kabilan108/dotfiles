@@ -67,7 +67,12 @@ opt.inccommand = 'split'
 opt.cursorline = true
 
 -- min #lines to keep above and below the cursor
-opt.scrolloff = 10
+opt.scrolloff = 20
+
+-- folding
+opt.foldmethod = "indent"  -- fold based on indentation
+opt.foldlevel = 99        -- start with all folds open
+opt.foldenable = true     -- enable folding
 
 -- indentation
 opt.expandtab = true
