@@ -9,7 +9,7 @@ local map = function(keys, func, desc, opts, mode)
   vim.keymap.set(mode or "n", keys, func, { desc = desc }, opts or {})
 end
 
-map("<A-r>", ":s/", "replace")
+map("<A-r>", ":s/", "replace", {}, "v")
 
 -- neo-tree
 map("\\", ":Neotree toggle<CR>", "[\\] toggle file explorer")
