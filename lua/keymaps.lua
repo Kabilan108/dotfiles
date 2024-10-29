@@ -9,6 +9,7 @@ local map = function(keys, func, desc, opts, mode)
   vim.keymap.set(mode or "n", keys, func, { desc = desc }, opts or {})
 end
 
+-- add replace keymap
 map("<A-r>", ":s/", "replace", {}, "v")
 
 -- neo-tree
