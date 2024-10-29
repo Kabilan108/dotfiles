@@ -5,9 +5,11 @@ local cmd = vim.cmd
 
 local ts = require("telescope.builtin")
 
-local map = function(keys, func, desc, opts)
-  vim.keymap.set("n", keys, func, { desc = desc }, opts or {})
+local map = function(keys, func, desc, opts, mode)
+  vim.keymap.set(mode or "n", keys, func, { desc = desc }, opts or {})
 end
+
+map("<A-r>", ":s/", "replace")
 
 -- neo-tree
 map("\\", ":Neotree toggle<CR>", "[\\] toggle file explorer")
