@@ -161,8 +161,8 @@ for_window [class="Org.gnome.Nautilus"] floating enable, resize set 800 600
 font pango:CaskaydiaCoveNerdFont 12
 
 # Gaps settings for i3
-gaps inner 8
-gaps outer 4
+# gaps inner 8
+# gaps outer 4
 
 # boarders
 default_border pixel 2
