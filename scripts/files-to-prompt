@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Exit on error
+set -e
+
+# Function to escape any special XML characters in the file content
+escape_xml() {
+    # Replace & with &amp;, < with &lt;, > with &gt;
+    sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
+}
+
+# Check if we're in a git repository
+if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+    echo "Error: Not in a git repository" >&2
+    exit 1
+fi
+
+# Get the root of the git repository
+repo_root=$(git rev-parse --show-toplevel)
+
+# Change to the repository root
+cd "$repo_root"
+
+# Use fd to find all files, respecting .gitignore
+# Then process each file
+fdfind --type f --hidden --follow --exclude .git '' | while read -r file; do
+    # Get absolute path
+    absolute_path="$repo_root/$file"
+
+    # Output the opening tag with the path
+    echo "<file path='$absolute_path'>"
+
+    # Output the file content with XML escaping
+    cat "$file" | escape_xml
+
+    # Output the closing tag
+    echo "</file>"
+
+    # Add a newline for readability
+    echo ""
+done
