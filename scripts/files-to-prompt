@@ -9,29 +9,37 @@ escape_xml() {
     sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
 }
 
-# Check if we're in a git repository
-if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-    echo "Error: Not in a git repository" >&2
+# Get the target directory from command line argument, default to current directory
+target_dir="${1:-.}"
+
+# Convert to absolute path
+target_dir=$(realpath "$target_dir")
+
+# Check if directory exists
+if [ ! -d "$target_dir" ]; then
+    echo "Error: Directory '$target_dir' does not exist" >&2
     exit 1
 fi
 
-# Get the root of the git repository
-repo_root=$(git rev-parse --show-toplevel)
+# Change to the target directory
+cd "$target_dir"
 
-# Change to the repository root
-cd "$repo_root"
+# Use find to get all files, excluding .git directory
+find . -type f \
+    ! -path "./.git/*" \
+    ! -name ".DS_Store" \
+    -print0 | while IFS= read -r -d '' file; do
+    # Remove leading ./
+    file="${file#./}"
 
-# Use fd to find all files, respecting .gitignore
-# Then process each file
-fdfind --type f --hidden --follow --exclude .git '' | while read -r file; do
     # Get absolute path
-    absolute_path="$repo_root/$file"
+    absolute_path="$target_dir/$file"
 
     # Output the opening tag with the path
     echo "<file path='$absolute_path'>"
 
     # Output the file content with XML escaping
-    cat "$file" | escape_xml
+    cat "$absolute_path" | escape_xml
 
     # Output the closing tag
     echo "</file>"
