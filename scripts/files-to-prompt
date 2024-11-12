@@ -32,6 +32,12 @@ find . -type f \
     # Remove leading ./
     file="${file#./}"
 
+    if file -b --mime-encoding $file | grep -q binary; then
+      continue
+    elif echo $file | grep -q \\bprompt\$; then
+      continue
+    fi
+
     # Get absolute path
     absolute_path="$target_dir/$file"
 
