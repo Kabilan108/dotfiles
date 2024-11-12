@@ -90,7 +90,7 @@ configuration {
   }
 }
 
-@theme "~/.config/rofi/nord.rasi"
+@theme "~/.config/rofi/theme.rasi"
 
 listview {
 	lines: 5;
@@ -98,6 +98,6 @@ listview {
 }
 
 window {
-	width: 40%;
+	width: 30%;
   height: 30%;
 }
