@@ -247,7 +247,7 @@ cursor() {
 }
 
 
-#### --> C++ UTILS
+#### --> COMPILE UTILS
 
 compile() {
   local output_specified=false
@@ -290,6 +290,53 @@ compile() {
     -Wall -Weffc++ -Wextra -Wconversion -Wsign-conversion \
     "${args[@]}"
 }
+
+
+ktcompile() {
+  local run_after=false
+  local input_file=""
+  local output_file=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -r)
+        run_after=true
+        shift
+        ;;
+      *)
+        if [ -z "$input_file" ]; then
+          input_file="$1"
+        elif [ -z "$output_file" ]; then
+          output_file="$1"
+        else
+          echo "Error: Too many arguments."
+          echo "Usage: ktcompile [-r] <input_file.kt> [output_file.jar]"
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  if [ -z "$input_file" ]; then
+    echo "Usage: ktcompile [-r] <input_file.kt> [output_file.jar]"
+    return 1
+  fi
+
+  if [ -z "$output_file" ]; then
+    output_file="${input_file%.kt}.jar"
+  fi
+
+  if [ -f "$input_file" ]; then
+    kotlinc "$input_file" -include-runtime -d "$output_file"
+    if [ $? -eq 0 ] && [ "$run_after" = true ]; then
+      java -jar "$output_file"
+    fi
+  else
+    echo "Error: $input_file not found."
+  fi
+}
+
 
 
 #### --> FILE UTILS
