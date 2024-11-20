@@ -87,6 +87,14 @@ map("<A-.>", "<CMD>bn<CR>", "next buffer")
 map("<A-w>", "<CMD>w<CR><CMD>bwipeout<CR>", "save and wipeout buffer")
 map("<A-c>", "<CMD>bwipeout!<CR>", "force wipeout buffer")
 
+-- terminal mode
+map(
+  "<C-`>",
+  function() vim.cmd("split | terminal") end,
+  "Open horizontal terminal split"
+)
+map("<C-n>", "<C-\\><C-n>", "Exit terminal mode", "t")
+
 -- highlight when yanking
 api.nvim_create_autocmd('TextYankPost', {
   desc = 'Highlight when yanking (copying) text',
