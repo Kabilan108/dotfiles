@@ -75,6 +75,12 @@ map('<C-l>', '<C-w><C-l>', 'Move focus to the right window')
 map('<C-j>', '<C-w><C-j>', 'Move focus to the lower window')
 map('<C-k>', '<C-w><C-k>', 'Move focus to the upper window')
 
+-- window resizing
+map('<C-A-t>', '<CMD>resize +2<CR>', 'resize [t]aller')
+map('<C-A-s>', '<CMD>resize -2<CR>', 'resize [s]horter')
+map('<C-A-w>', '<CMD>vertical resize +2<CR>', 'resize [w]ider')
+map('<C-A-n>', '<CMD>vertical resize -2<CR>', 'resize [n]arrower')
+
 -- buffer navigation
 map("<A-,>", "<CMD>bp<CR>", "next buffer")
 map("<A-.>", "<CMD>bn<CR>", "next buffer")
