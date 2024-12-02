@@ -162,6 +162,9 @@ export BUN_INSTALL="$HOME/.bun"
 export PATH=$BUN_INSTALL/bin:$PATH
 [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
+# enable direnv
+eval "$(direnv hook bash)"
+
 # enable cargo
 . "$HOME/.cargo/env"
 
@@ -340,17 +343,6 @@ ktcompile() {
 
 
 #### --> FILE UTILS
-
-loadenv() {
-  if [ -f .env ]; then
-    source .env
-  fi
-}
-
-cd() {
-  builtin cd $@
-  loadenv
-}
 
 function mountgdrive() {
     local gdrive_path="$1"
