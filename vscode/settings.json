@@ -1,0 +1,215 @@
+{
+	"autoDocstring.docstringFormat": "numpy",
+
+	"cursor.cpp.enablePartialAccepts": true,
+	"cursor.chat.ghostTextAtSymbols": true,
+	"cursor.cmdk.useThemedDiffBackground": true,
+	"cursor.cmdk.ghostTextAtSymbols": true,
+
+	"editor.bracketPairColorization.enabled": true,
+	"editor.fontFamily": "'CaskaydiaCoveNerdFont Mono'",
+	"editor.formatOnSave": true,
+	"editor.guides.indentation": true,
+	"editor.guides.bracketPairs": true,
+	"editor.indentSize": "tabSize",
+	"editor.insertSpaces": true,
+	"editor.minimap.enabled": true,
+	"editor.rulers": [90, 100],
+	"editor.tabSize": 2,
+	"editor.wordWrap": "off",
+	"editor.wordWrapColumn": 90,
+
+	"explorer.confirmDelete": false,
+	"explorer.confirmDragAndDrop": false,
+
+	"files.exclude": {
+		"**/__pycache__": true,
+		"**/.ruff_cache": true,
+		"**/.venv": true
+	},
+	"files.simpleDialog.enable": true,
+	"files.trimTrailingWhitespace": true,
+	"files.trimFinalNewlines": true,
+
+	"git.autofetch": true,
+	"git.confirmSync": false,
+	"git.enableSmartCommit": true,
+	"git.openRepositoryInParentFolders": true,
+
+	"jupyter.askForKernelRestart": false,
+
+	"latex-workshop.latex.outDir": "%DIR%/build",
+	"latex-workshop.latex.recipe.default": "latexmk (xelatex)",
+	"latex-workshop.latex.recipes": [
+		{
+			"name": "latexmk (xelatex)",
+			"tools": ["latexmk"]
+		}
+	],
+	"latex-workshop.latex.tools": [
+		{
+			"name": "latexmk",
+			"command": "latexmk",
+			"args": [
+				"-xelatex",
+				"-interaction=nonstopmode",
+				"-synctex=1",
+				"-file-line-error",
+				"-output-directory=%DIR%/build",
+				"%DOC%"
+			]
+		}
+	],
+
+	"notebook.lineNumbers": "on",
+
+	"terminal.external.linuxExec": "kitty",
+	"terminal.integrated.enableMultiLinePasteWarning": false,
+	"terminal.integrated.fontFamily": "'CaskaydiaCoveNerdFont Mono'",
+	"terminal.integrated.cursorBlinking": true,
+	"terminal.integrated.scrollback": 10000,
+
+	"vim.highlightedyank": {
+		"enable": true,
+		"duration": 250
+	},
+	"vim.hlsearch": true,
+	"vim.incsearch": true,
+	"vim.leader": "<Space>",
+	"vim.overrideCopy": "true",
+	"vim.useCtrlKeys": true,
+	"vim.useSystemClipboard": true,
+	"vim.visualstar": true,
+	"extensions.experimental.affinity": {
+		"vscodevim": 1
+	},
+	"vim.insertModeKeyBindings": [],
+	"vim.normalModeKeyBindings": [
+		{
+			"before": ["<Esc>"],
+			"commands": [":nohl"]
+		},
+		{
+			"before": ["\\"],
+			"commands": ["workbench.action.toggleSidebarVisibility"]
+		},
+		{
+			"before": ["<leader>", "s", "f"],
+			"commands": ["workbench.action.quickOpen"]
+		},
+		{
+			"before": ["<leader>", "s", "g"],
+			"commands": ["workbench.action.findInFiles"]
+		},
+		{
+			"before": ["<leader>", "b"],
+			"commands": ["workbench.action.showAllEditors"]
+		},
+		{
+			"before": ["z", "c"],
+			"commands": ["editor.fold"]
+		},
+		{
+			"before": ["z", "o"],
+			"commands": ["editor.unfold"]
+		},
+		{
+			"before": ["<leader>", "z"],
+			"commands": ["editor.toggleFold"]
+		},
+		{
+			"before": ["<leader>", "Z"],
+			"commands": ["editor.toggleFoldRecursively"]
+		},
+		{
+			"before": ["<C-`>"],
+			"commands": ["workbench.action.terminal.openInEditor"]
+		}
+	],
+	"vim.visualModeKeyBindings": [],
+
+	"vsicons.dontShowNewVersionMessage": true,
+
+	"window.commandCenter": 1,
+	"window.customTitleBarVisibility": "auto",
+	"window.menuBarVisibility": "compact",
+
+	"workbench.activityBar.orientation": "vertical",
+	"workbench.colorTheme": "Catppuccin Mocha",
+	"workbench.editor.enablePreview": false,
+	"workbench.iconTheme": "vscode-icons",
+
+	"[javascript][typescript][javascriptreact][typescriptreact]": {
+		"editor.defaultFormatter": "biomejs.biome",
+		"editor.formatOnSave": true,
+		"updateImportsOnFileMove.enabled": "always"
+	},
+	"[json]": {
+		"editor.wordWrap": "wordWrapColumn"
+	},
+	"[latex]": {
+		"editor.wordWrap": "wordWrapColumn"
+	},
+	"[markdown]": {
+		"editor.wordWrap": "wordWrapColumn"
+	},
+	"[python][kotlin][yaml]": {
+		"editor.tabSize": 4
+	},
+	"[python]": {
+		"editor.defaultFormatter": "charliermarsh.ruff",
+		"editor.formatOnSave": true,
+		"editor.rulers": [88],
+		"updateImportsOnFileMove.enabled": "always"
+	},
+	"[yaml]": {
+		"editor.defaultFormatter": "redhat.vscode-yaml",
+		"editor.formatOnSave": true
+	},
+
+	"cSpell.userWords": [
+		"Advarra",
+		"autoencoder",
+		"binarizing",
+		"Boxplots",
+		"colsample",
+		"Conv",
+		"convolutional",
+		"creitical",
+		"deepclean",
+		"Drexel",
+		"ensembled",
+		"gini",
+		"grayscale",
+		"HCFE",
+		"Hirsch",
+		"hyperparameters",
+		"interpretability",
+		"Interquartile",
+		"manil",
+		"minkowski",
+		"Moberg",
+		"Moyer",
+		"multimodal",
+		"multiparametric",
+		"Natus",
+		"neurocritical",
+		"neuromonitoring",
+		"OHCA",
+		"Okeke",
+		"overfitting",
+		"Palo",
+		"Pereira",
+		"plethysmography",
+		"PRECICECAP",
+		"pulseless",
+		"SCAE",
+		"scikit",
+		"Scipy's",
+		"Shrestha",
+		"torchvision",
+		"xgboost",
+		"Zihuai"
+	],
+	"cSpell.language": "en"
+}
