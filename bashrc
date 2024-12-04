@@ -165,6 +165,9 @@ export PATH=$BUN_INSTALL/bin:$PATH
 # enable direnv
 eval "$(direnv hook bash)"
 
+# enable fzf
+eval "$(fzf --bash)"
+
 # enable cargo
 . "$HOME/.cargo/env"
 
