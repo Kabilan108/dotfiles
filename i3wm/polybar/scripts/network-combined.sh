@@ -40,4 +40,3 @@ wifi_info=$(get_wifi_info)
 tailscale_info=$(get_tailscale_info)
 
 echo "$wifi_info $tailscale_info "
-
