@@ -15,7 +15,6 @@ USERBIN=$HOME/.local/bin
 CONFDIR=$HOME/.config
 DOTFILES=$(dirname $(realpath $0))
 
-
 # -------------------------------------------------------------------------------------
 
 log() {
