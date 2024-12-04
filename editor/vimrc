@@ -1,7 +1,30 @@
+set mapleader=" "
+
+""" Plugins  --------------------------------
+set surround
+set multiple-cursors
+set commentary
+set argtextobj
+set textobj-entire
+set ReplaceWithRegister
+set exchange
+set clipboard+=unnamedplus
+set clipboard+=ideaput
+
+""" Plugin settings -------------------------
+let g:argtextobj_pairs="[:],(:),<:>"
+
+""" Idea specific settings ------------------
+set ideajoin
+set ideastatusicon=gray
+
 " Set Options
+set showmode
+set so=5
 set showmatch                  " Show matching brackets
 set mouse=v                    " Middle-click paste with mouse
 set number                     " Add line numbers
+set relativenumbers
 set wildmode=longest,list      " Get bash-like tab completions
 set colorcolumn=90             " Color column (ruler)
 set title                      " Show file title

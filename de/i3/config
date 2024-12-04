@@ -22,8 +22,8 @@ bindsym $mod+d exec --no-startup-id rofi -show drun
 bindsym $mod+Shift+d exec --no-startup-id rofi -show combi
 bindsym $mod+Shift+s exec --no-startup-id rofi -show ssh
 bindsym $mod+Tab exec --no-startup-id rofi -show window
-bindsym $mod+Shift+f exec --no-startup-id $HOME/.config/rofi/search-files.sh
-bindsym $mod+Shift+e exec --no-startup-id $HOME/.config/rofi/exit-menu.sh
+bindsym $mod+Shift+f exec --no-startup-id $HOME/.config/rofi/menus/search-files.sh
+bindsym $mod+Shift+e exec --no-startup-id $HOME/.config/rofi/menus/exit.sh
 
 # change focus
 bindsym $mod+h focus left
@@ -91,14 +91,14 @@ bindsym XF86AudioNext exec playerctl next
 bindsym XF86AudioPrev exec playerctl previous
 
 # Use pactl to adjust volume in PulseAudio.
-bindsym XF86AudioRaiseVolume exec --no-startup-id $HOME/.config/i3/ctl/volume +5
-bindsym XF86AudioLowerVolume exec --no-startup-id $HOME/.config/i3/ctl/volume -5
-bindsym XF86AudioMute exec --no-startup-id $HOME/.config/i3/ctl/volume mute
-bindsym XF86AudioMicMute exec --no-startup-id $HOME/.config/i3/ctl/volume mute-mic
+bindsym XF86AudioRaiseVolume exec --no-startup-id $HOME/.local/bin/scripts/volctl +5
+bindsym XF86AudioLowerVolume exec --no-startup-id $HOME/.local/bin/scripts/volctl -5
+bindsym XF86AudioMute exec --no-startup-id $HOME/.local/bin/scripts/volctl mute
+bindsym XF86AudioMicMute exec --no-startup-id $HOME/.local/bin/scripts/volctl mute-mic
 
 # enable brightness control
-bindsym XF86MonBrightnessUp exec --no-startup-id $HOME/.config/i3/ctl/brightness +5
-bindsym XF86MonBrightnessDown exec --no-startup-id $HOME/.config/i3/ctl/brightness -5
+bindsym XF86MonBrightnessUp exec --no-startup-id $HOME/.local/bin/scripts/brightctl +5
+bindsym XF86MonBrightnessDown exec --no-startup-id $HOME/.local/bin/scripts/brightctl -5
 
 # ===> WORKSPACES =====================================================================
 
@@ -218,7 +218,7 @@ exec --no-startup-id dex --autostart --environment i3
 
 # xss-lock grabs a logind suspend inhibit lock and will use i3lock to lock the
 # screen before suspend. Use loginctl lock-session to lock your screen.
-exec --no-startup-id xss-lock --transfer-sleep-lock -- $HOME/.config/i3/ctl/lock
+exec --no-startup-id xss-lock --transfer-sleep-lock -- $HOME/.local/bin/scripts/lock
 
 # network manager applet
 exec --no-startup-id nm-applet
@@ -230,7 +230,7 @@ exec --no-startup-id bluetooth-applet
 exec --no-startup-id dunst
 
 # load custom xrandr layout
-exec_always --no-startup-id $HOME/.config/i3/run-xrandr.sh
+exec_always --no-startup-id $HOME/.local/bin/scripts/set-monitors
 
 # wallpaper
 exec_always --no-startup-id feh --bg-fill $WALLPAPER
@@ -239,7 +239,7 @@ exec_always --no-startup-id feh --bg-fill $WALLPAPER
 exec_always --no-startup-id $HOME/.config/polybar/launch.sh
 
 # compositor
-exec --no-startup-id picom --config ~/.config/picom/picom.conf -b
+exec --no-startup-id picom --config $HOME/.config/picom/picom.conf -b
 
 # enable natural scrolling
 # exec_always --no-startup-id xinput set-prop "SynPS/2 Synaptics TouchPad"  345 1

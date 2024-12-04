@@ -2,7 +2,8 @@
 Description=Update Cursor
 
 [Service]
-ExecStart=/home/muaddib/.local/bin/cursor/update-cursor.sh
+ExecStart=/home/muaddib/.local/bin/scripts/update-cursor
+
 Type=oneshot
 
 [Install]
