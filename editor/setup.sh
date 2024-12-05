@@ -10,7 +10,7 @@ install_neovim() {
 }
 
 install_cursor() {
-  mkdir $HOME/.local/bin/cursor
+  mkdir -p $HOME/.local/bin/cursor
   $HOME/.local/bin/scripts/update-cursor
 }
 

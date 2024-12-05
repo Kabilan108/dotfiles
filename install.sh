@@ -75,9 +75,9 @@ setup_kitty() {
   curl -L https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin
   ln -sf $HOME/.local/kitty.app/bin/kitty $HOME/.local/kitty.app/bin/kitten $USERBIN
   cp \
-    $HOME/local/kitty.app/share/applications/kitty.desktop \
-    $HOME/local/kitty.app/share/applications/kitty-open.desktop \
-    $HOME/local/share/applications/
+    $HOME/.local/kitty.app/share/applications/kitty.desktop \
+    $HOME/.local/kitty.app/share/applications/kitty-open.desktop \
+    $HOME/.local/share/applications/
   sed -i "s|Icon=kitty|Icon=$HOME/.local/kitty.app/share/icons/hicolor/256x256/apps/kitty.png|g" $HOME/.local/share/applications/kitty*.desktop
   sed -i "s|Exec=kitty|Exec=$HOME/.local/kitty.app/bin/kitty|g" $HOME/.local/share/applications/kitty*.desktop
   sudo update-desktop-database
@@ -114,12 +114,9 @@ setup_docker() {
 
 setup_ufw() {
   log i "setting up ufw"
-  sudo ufw
   sudo ufw enable
   sudo ufw default deny incoming
   sudo ufw default allow outgoing
-  sudo ufw allow ssh
-  sudo ufw show added
   sudo ufw status
 }
 
@@ -177,6 +174,7 @@ install_jetbrains_toolbox() {
   log i "installing jetbrains"
   mkdir -p /tmp/jetbrains && cd /tmp/jetbrains
   wget https://download.jetbrains.com/toolbox/jetbrains-toolbox-2.5.2.35332.tar.gz
+  tar xzf jetbrains-toolbox-2.5.2.35332.tar.gz
   mv jetbrains-toolbox-2.5.2.35332/jetbrains-toolbox  $USERBIN/
 }
 
@@ -194,7 +192,9 @@ sudo apt install -y \
   curl \
   wget \
   htop \
-  ffmpeg
+  ffmpeg \
+  openvpn \
+  bzip2
 
 setup_ufw
 setup_tailscale
@@ -218,6 +218,9 @@ uv tool install ruff
 
 mkdir -p $USERBIN $CONFDIR
 
+log i "setting up script/*"
+ln -s $DOTFILES/scripts $USERBIN/scripts
+
 log i "setting up de/*"
 bash $DOTFILES/de/setup.sh
 for d in $(find $DOTFILES/de -mindepth 1 -maxdepth 1 -type d); do
@@ -229,14 +232,14 @@ bash $DOTFILES/editor/setup.sh
 ln -s $DOTFILES/editor/vimrc $HOME/.vimrc
 ln -s $DOTFILES/editor/vimrc $HOME/.ideavimrc
 ln -s $DOTFILES/editor/nvim $CONFDIR/nvim
+mkdir -p $CONFDIR/Cursor/User
 for x in $(find $DOTFILES/editor/vscode -mindepth 1 -maxdepth 1); do
-  ln -s $x "$CONFDIR/Cursor/User/$(basename x)"
+  ln -s $x "$CONFDIR/Cursor/User/$(basename $x)"
 done
 
-log i "setting up script/*"
-ln -f $DOTFILES/scripts $USERBIN/scripts
-
 log i "setting up services/*"
+# TODO: get the timer to actually work
+systemctl --user enable $DOTFILES/services/update-cursor.service
 systemctl --user enable $DOTFILES/services/update-cursor.timer
 systemctl --user start update-cursor.timer
 systemctl --user daemon-reload
@@ -244,9 +247,9 @@ systemctl --user daemon-reload
 log i "setting up sys/*"
 ln -s $DOTFILES/sys/ipython $CONFDIR/ipython
 ln -s $DOTFILES/sys/ruff $CONFDIR/ruff
-ln -s $DOTFILES/sys/bashrc $HOME/.bashrc
-ln -s $DOTFILES/sys/gitconfig $HOME/.gitconfig
-ln -s $DOTFILES/sys/user-dirs.dirs $CONFDIR/user-dirs.dirs
+rm $HOME/.bashrc && ln -s $DOTFILES/sys/bashrc $HOME/.bashrc
+rm $HOME/.gitconfig && ln -s $DOTFILES/sys/gitconfig $HOME/.gitconfig
+rm $CONFDIR/user-dirs.dirs && ln -s $DOTFILES/sys/user-dirs.dirs $CONFDIR/user-dirs.dirs
 setup_kitty
 setup_docker
 

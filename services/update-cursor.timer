@@ -3,8 +3,8 @@ Description=Update Cursor Weekly
 
 [Timer]
 OnCalendar=Sun *-*-* 00:00:00
-RandomizedDelaySec=3600  # Adds random delay up to 1 hour
-Persistent=true          # Run immediately if last run was missed
+RandomizedDelaySec=3600
+Persistent=true
 Unit=update-cursor.service
 
 [Install]

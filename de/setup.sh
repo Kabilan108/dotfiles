@@ -47,6 +47,6 @@ sudo apt-get install -y \
   rofi \
   feh \
   playerctl \
-  pactl \
+  pulseaudio-utils \
   light \
   picom
