@@ -154,6 +154,7 @@ for_window [class="Evolution-alarm-notify"] floating enable, resize set 600 300,
 for_window [class="Blueman-manager"] floating enable, resize set 400 300, move position center
 for_window [class="zoom"] floating enable, resize set 800 600
 for_window [class="Org.gnome.Nautilus"] floating enable, resize set 800 600
+for_window [class="org.gnome.Nautilus"] floating enable, resize set 800 600
 for_window [class="TelegramDesktop"] floating enable, resize set 800 600
 
 # ===> APPEARANCE =====================================================================
@@ -233,13 +234,10 @@ exec --no-startup-id dunst
 exec_always --no-startup-id $HOME/.local/bin/scripts/set-monitors
 
 # wallpaper
-exec_always --no-startup-id feh --bg-fill $WALLPAPER
+exec_always --no-startup-id feh --bg-scale $WALLPAPER
 
 # polybar
 exec_always --no-startup-id $HOME/.config/polybar/launch.sh
 
 # compositor
 exec --no-startup-id picom --config $HOME/.config/picom/picom.conf -b
-
-# enable natural scrolling
-# exec_always --no-startup-id xinput set-prop "SynPS/2 Synaptics TouchPad"  345 1

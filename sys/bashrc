@@ -187,8 +187,6 @@ alias grep='grep --color=auto'
 alias fgrep='fgrep --color=auto'
 alias egrep='egrep --color=auto'
 
-alias fd="fdfind"
-
 # editors
 alias vi='nvim'
 alias svi='sudo -E /opt/nvim-linux64/bin/nvim -u $HOME/.config/nvim/init.lua'

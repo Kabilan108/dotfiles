@@ -30,8 +30,7 @@ confirm_power_off() {
         -lines 2 \
         -line-margin 5 \
         -line-padding 10 \
-        -kb-row-select 'Tab' \
-        -kb-row-tab '' <<< $'No\nYes' \
+        -kb-row-tb '' <<< $'No\nYes' \
         | grep -q '^Yes$' && systemctl poweroff
 }
 
@@ -45,7 +44,6 @@ selected=$(echo -e $options | rofi \
     -lines 5 \
     -line-margin 5 \
     -line-padding 10 \
-    -kb-row-select 'Tab' \
     -kb-row-tab '')
 
 # Process the user's selection
