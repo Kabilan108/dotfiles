@@ -1,0 +1,33 @@
+#! /bin/bash
+
+if [ $# -eq 0 ]; then
+  autorandr --change
+  i3-msg reload
+  exi 0
+fi
+
+case "$1" in
+  --save)
+    if [ -z "$2" ]; then
+      echo "provide a profile name"
+      exit 1
+    fi
+    autorandr --save "$2"
+    ;;
+  --load)
+    if [ -z "$2" ]; then
+      echo "provide a profile name"
+      exit 1
+    fi
+    autorandr --load "$2"
+    i3-msg restart
+    ;;
+  --detect)
+    autorandr
+    ;;
+  *)
+    echo "usage: $0 [--save PROFILE | --load PROFILE | --detect]"
+    echo "if no args are provided, auto-detect and load the appropriate profile"
+    exit 1
+    ;;
+esac
