@@ -1,191 +1,211 @@
 # This is Git's per-user configuration file.
 [user]
-    name = Tony Okeke
-    email = muaddib@lisan-al-gaib
-    username = kabilan108
+  name = Tony Okeke
+  email = muaddib@lisan-al-gaib
+  username = kabilan108
 [init]
-    defaultBranch = main
+  defaultBranch = main
 [core]
-    editor = nvim
-    whitespace = fix,-indent-with-non-tab,trailing-space,cr-at-eol
+  editor = nvim
+  whitespace = fix,-indent-with-non-tab,trailing-space,cr-at-eol
+  pager = delta
 [color]
-    ui = auto
+  ui = auto
 [color "status"]
-    added = green bold
-    changed = yellow bold
-    untracked = red bold
+  added = green bold
+  changed = yellow bold
+  untracked = red bold
 [diff]
-    colorMoved = default
-    dark = true
+  colorMoved = default
+  dark = true
+[interactive]
+  diffFilter = delta --color-only
+[delta]
+  navigate = true
+  line-numbers = true
+  syntax-theme = base16
+  file-style = bold yellow
+  hunk-header-style = omit
+  zero-style = dim syntax
+  plus-style = syntax "#324430"
+  minus-style = syntax "#492a32"
+  whitespace-error-style = 22 reverse # Highlight whitespace errors
+  features = decorations       # Enable additional features
+  inspect-raw-lines = true     # Better handling of moved blocks
+  commit-decoration-style = bold yellow box ul
+  file-decoration-style = none
+  hunk-header-decoration-style = cyan box ul
+[merge]
+    conflictstyle = zdiff3
 [alias]
-    a = add --all
-    ai = add -i
-    #############
-    ap = apply
-    as = apply --stat
-    ac = apply --check
-    #############
-    ama = am --abort
-    amr = am --resolved
-    ams = am --skip
-    #############
-    b = branch
-    ba = branch -a
-    bd = branch -d
-    bdd = branch -D
-    br = branch -r
-    bc = rev-parse --abbrev-ref HEAD
-    bu = !git rev-parse --abbrev-ref --symbolic-full-name "@{u}"
-    bs = !git-branch-status
-    #############
-    c = commit
-    ca = commit -a
-    cm = commit -m
-    cam = commit -am
-    cem = commit --allow-empty -m
-    cd = commit --amend
-    cad = commit -a --amend
-    ced = commit --allow-empty --amend
-    #############
-    cl = clone
-    cld = clone --depth 1
-    clg = !sh -c 'git clone https://github.com/$1 $(basename $1)' -
-    clgp = !sh -c 'git clone git@github.com:$1 $(basename $1)' -
-    clgu = !sh -c 'git clone git@github.com:$(git config --get user.username)/$1 $1' -
-    #############
-    cp = cherry-pick
-    cpa = cherry-pick --abort
-    cpc = cherry-pick --continue
-    #############
-    d = diff
-    dp = diff --patience
-    dc = diff --cached
-    dk = diff --check
-    dck = diff --cached --check
-    dt = difftool
-    dct = difftool --cached
-    #############
-    f = fetch
-    fo = fetch origin
-    fu = fetch upstream
-    #############
-    fp = format-patch
-    #############
-    fk = fsck
-    #############
-    g = grep -p
-    #############
-    l = log --oneline
-    lg = log --oneline --graph --decorate
-    #############
-    ls = ls-files
-    lsf = !git ls-files | grep -i
-    #############
-    m = merge
-    ma = merge --abort
-    mc = merge --continue
-    ms = merge --skip
-    #############
-    o = checkout
-    om = checkout master
-    ob = checkout -b
-    opr = !sh -c 'git fo pull/$1/head:pr-$1 && git o pr-$1'
-    #############
-    pr = prune -v
-    #############
-    ps = push
-    psf = push -f
-    psu = push -u
-    pst = push --tags
-    #############
-    pso = push origin
-    psao = push --all origin
-    psfo = push -f origin
-    psuo = push -u origin
-    #############
-    psom = push origin master
-    psaom = push --all origin master
-    psfom = push -f origin master
-    psuom = push -u origin master
-    psoc = !git push origin $(git bc)
-    psaoc = !git push --all origin $(git bc)
-    psfoc = !git push -f origin $(git bc)
-    psuoc = !git push -u origin $(git bc)
-    psdc = !git push origin :$(git bc)
-    #############
-    pl = pull
-    pb = pull --rebase
-    #############
-    plo = pull origin
-    pbo = pull --rebase origin
-    plom = pull origin master
-    ploc = !git pull origin $(git bc)
-    pbom = pull --rebase origin master
-    pboc = !git pull --rebase origin $(git bc)
-    #############
-    plu = pull upstream
-    plum = pull upstream master
-    pluc = !git pull upstream $(git bc)
-    pbum = pull --rebase upstream master
-    pbuc = !git pull --rebase upstream $(git bc)
-    #############
-    rb = rebase
-    rba = rebase --abort
-    rbc = rebase --continue
-    rbi = rebase --interactive
-    rbs = rebase --skip
-    #############
-    re = reset
-    rh = reset HEAD
-    reh = reset --hard
-    rem = reset --mixed
-    res = reset --soft
-    rehh = reset --hard HEAD
-    remh = reset --mixed HEAD
-    resh = reset --soft HEAD
-    rehom = reset --hard origin/master
-    #############
-    r = remote
-    ra = remote add
-    rr = remote rm
-    rv = remote -v
-    rn = remote rename
-    rp = remote prune
-    rs = remote show
-    rao = remote add origin
-    rau = remote add upstream
-    rro = remote remove origin
-    rru = remote remove upstream
-    rso = remote show origin
-    rsu = remote show upstream
-    rpo = remote prune origin
-    rpu = remote prune upstream
-    #############
-    rmf = rm -f
-    rmrf = rm -r -f
-    #############
-    s = status
-    sb = status -s -b
-    #############
-    sa = stash apply
-    sc = stash clear
-    sd = stash drop
-    sl = stash list
-    sp = stash pop
-    ss = stash save
-    ssk = stash save -k
-    sw = stash show
-    st = !git stash list | wc -l 2>/dev/null | grep -oEi '[0-9][0-9]*'
-    #############
-    t = tag
-    td = tag -d
-    #############
-    subadd = !sh -c 'git submodule add https://github.com/$1 $2/$(basename $1)' -
-    subrm = !sh -c 'git submodule deinit -f -- $1 && rm -rf .git/modules/$1 && git rm -f $1' -
-    subup = submodule update --init --recursive
-    subpull = submodule foreach 'git pull --tags -f origin master || git pull --tags -f origin main || git pull --tags -f origin development'
+  a = add --all
+  ai = add -i
+  #############
+  ap = apply
+  as = apply --stat
+  ac = apply --check
+  #############
+  ama = am --abort
+  amr = am --resolved
+  ams = am --skip
+  #############
+  b = branch
+  ba = branch -a
+  bd = branch -d
+  bdd = branch -D
+  br = branch -r
+  bc = rev-parse --abbrev-ref HEAD
+  bu = !git rev-parse --abbrev-ref --symbolic-full-name "@{u}"
+  bs = !git-branch-status
+  #############
+  c = commit
+  ca = commit -a
+  cm = commit -m
+  cam = commit -am
+  cem = commit --allow-empty -m
+  cd = commit --amend
+  cad = commit -a --amend
+  ced = commit --allow-empty --amend
+  #############
+  cl = clone
+  cld = clone --depth 1
+  clg = !sh -c 'git clone https://github.com/$1 $(basename $1)' -
+  clgp = !sh -c 'git clone git@github.com:$1 $(basename $1)' -
+  clgu = !sh -c 'git clone git@github.com:$(git config --get user.username)/$1 $1' -
+  #############
+  cp = cherry-pick
+  cpa = cherry-pick --abort
+  cpc = cherry-pick --continue
+  #############
+  d = diff
+  dp = diff --patience
+  dc = diff --cached
+  dk = diff --check
+  dck = diff --cached --check
+  dt = difftool
+  dct = difftool --cached
+  #############
+  f = fetch
+  fo = fetch origin
+  fu = fetch upstream
+  #############
+  fp = format-patch
+  #############
+  fk = fsck
+  #############
+  g = grep -p
+  #############
+  l = log --oneline
+  lg = log --oneline --graph --decorate
+  #############
+  ls = ls-files
+  lsf = !git ls-files | grep -i
+  #############
+  m = merge
+  ma = merge --abort
+  mc = merge --continue
+  ms = merge --skip
+  #############
+  o = checkout
+  om = checkout master
+  ob = checkout -b
+  opr = !sh -c 'git fo pull/$1/head:pr-$1 && git o pr-$1'
+  #############
+  pr = prune -v
+  #############
+  ps = push
+  psf = push -f
+  psu = push -u
+  pst = push --tags
+  #############
+  pso = push origin
+  psao = push --all origin
+  psfo = push -f origin
+  psuo = push -u origin
+  #############
+  psom = push origin master
+  psaom = push --all origin master
+  psfom = push -f origin master
+  psuom = push -u origin master
+  psoc = !git push origin $(git bc)
+  psaoc = !git push --all origin $(git bc)
+  psfoc = !git push -f origin $(git bc)
+  psuoc = !git push -u origin $(git bc)
+  psdc = !git push origin :$(git bc)
+  #############
+  pl = pull
+  pb = pull --rebase
+  #############
+  plo = pull origin
+  pbo = pull --rebase origin
+  plom = pull origin master
+  ploc = !git pull origin $(git bc)
+  pbom = pull --rebase origin master
+  pboc = !git pull --rebase origin $(git bc)
+  #############
+  plu = pull upstream
+  plum = pull upstream master
+  pluc = !git pull upstream $(git bc)
+  pbum = pull --rebase upstream master
+  pbuc = !git pull --rebase upstream $(git bc)
+  #############
+  rb = rebase
+  rba = rebase --abort
+  rbc = rebase --continue
+  rbi = rebase --interactive
+  rbs = rebase --skip
+  #############
+  re = reset
+  rh = reset HEAD
+  reh = reset --hard
+  rem = reset --mixed
+  res = reset --soft
+  rehh = reset --hard HEAD
+  remh = reset --mixed HEAD
+  resh = reset --soft HEAD
+  rehom = reset --hard origin/master
+  #############
+  r = remote
+  ra = remote add
+  rr = remote rm
+  rv = remote -v
+  rn = remote rename
+  rp = remote prune
+  rs = remote show
+  rao = remote add origin
+  rau = remote add upstream
+  rro = remote remove origin
+  rru = remote remove upstream
+  rso = remote show origin
+  rsu = remote show upstream
+  rpo = remote prune origin
+  rpu = remote prune upstream
+  #############
+  rmf = rm -f
+  rmrf = rm -r -f
+  #############
+  s = status
+  sb = status -s -b
+  #############
+  sa = stash apply
+  sc = stash clear
+  sd = stash drop
+  sl = stash list
+  sp = stash pop
+  ss = stash save
+  ssk = stash save -k
+  sw = stash show
+  st = !git stash list | wc -l 2>/dev/null | grep -oEi '[0-9][0-9]*'
+  #############
+  t = tag
+  td = tag -d
+  #############
+  subadd = !sh -c 'git submodule add https://github.com/$1 $2/$(basename $1)' -
+  subrm = !sh -c 'git submodule deinit -f -- $1 && rm -rf .git/modules/$1 && git rm -f $1' -
+  subup = submodule update --init --recursive
+  subpull = submodule foreach 'git pull --tags -f origin master || git pull --tags -f origin main || git pull --tags -f origin development'
 [filter "lfs"]
-    clean = git-lfs clean -- %f
-    smudge = git-lfs smudge -- %f
-    process = git-lfs filter-process
-    required = true
+  clean = git-lfs clean -- %f
+  smudge = git-lfs smudge -- %f
+  process = git-lfs filter-process
+  required = true
