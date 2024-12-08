@@ -147,6 +147,9 @@ export PATH=/usr/local/cuda-12.6/bin${PATH:+:${PATH}}
 # enable nvim
 export PATH="$PATH:/opt/nvim-linux64/bin"
 
+# set bat theme
+export BAT_THEME="base16"
+
 # enable cargo
 source $HOME/.cargo/env
 
