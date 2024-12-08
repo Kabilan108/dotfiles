@@ -1,0 +1,9 @@
+#! /bin/bash
+
+source "$HOME/.bash_env"
+
+if [ -n "$WALLPAPER" ] && [ -f "$WALLPAPER" ]; then
+  feh --bg-scale "$WALLPAPER"
+else
+  echo "error: 'WALLPAPER' not found as $WALLPAPER" >&2
+fi

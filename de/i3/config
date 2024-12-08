@@ -234,10 +234,12 @@ exec --no-startup-id dunst
 exec_always --no-startup-id $HOME/.local/bin/scripts/set-monitors
 
 # wallpaper
-exec_always --no-startup-id feh --bg-scale $WALLPAPER
+exec_always --no-startup-id $HOME/.local/bin/scripts/set-wallpaper
 
 # polybar
 exec_always --no-startup-id $HOME/.config/polybar/launch.sh
 
 # compositor
 exec --no-startup-id picom --config $HOME/.config/picom/picom.conf -b
+
+exec_always --no-startup-id echo "$WALLPAPER" >> /tmp/wallpaper_debug.log
