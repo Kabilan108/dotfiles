@@ -65,8 +65,6 @@ set listchars=eol:↲,tab:> ,space:·,trail:·
 " Map keybindings
 nnoremap <silent> ,<space> :nohlsearch<CR>      " Clear search highlights
 nnoremap <silent> <C-A-S> :set invspell<CR>     " Toggle spellcheck
-nnoremap <silent> <F2> :set invnumber<CR>       " Toggle line numbers
-nnoremap <silent> <F4> :set list! list?<CR>     " Toggle whitespace characters
 
 " Keybindings for split navigation
 nnoremap <silent> <C-j> <C-w>j
