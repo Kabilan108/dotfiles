@@ -230,6 +230,9 @@ exec --no-startup-id bluetooth-applet
 # dunst (notification daemon)
 exec --no-startup-id dunst
 
+# obsidian
+exec --no-startup-id /snap/bin/obsidian
+
 # load custom xrandr layout
 exec_always --no-startup-id $HOME/.local/bin/scripts/monitor-handler
 
