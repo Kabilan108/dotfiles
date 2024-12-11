@@ -1,0 +1,12 @@
+#! /bin/bash
+
+file_path="$1"
+
+if [ ! -f "$file_path" ]; then
+  echo "Error: File not found" >&2
+  return 1
+fi
+
+absolute_path=$(realpath "$file_path")
+encoded_path=$(printf '%s' "$absolute_path" | sed 's/[^a-zA-Z0-9]/\\&/g; s/\\//g')
+echo "file://$encoded_path"
