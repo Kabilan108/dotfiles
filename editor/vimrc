@@ -1,4 +1,4 @@
-set mapleader=" "
+let mapleader = " "
 
 """ Plugins  --------------------------------
 set surround
@@ -63,11 +63,16 @@ set backupdir=/home/muaddib/.cache/nvim
 set listchars=eol:↲,tab:> ,space:·,trail:·
 
 " Map keybindings
-nnoremap <silent> ,<space> :nohlsearch<CR>      " Clear search highlights
+nnoremap <silent> <leader><space> :nohlsearch<CR>      " Clear search highlights
 nnoremap <silent> <C-A-S> :set invspell<CR>     " Toggle spellcheck
+nnoremap <leader>z :action CollapseSelection<CR>
 
 " Keybindings for split navigation
-nnoremap <silent> <C-j> <C-w>j
-nnoremap <silent> <C-k> <C-w>k
-nnoremap <silent> <C-h> <C-w>h
-nnoremap <silent> <C-l> <C-w>l
+"nnoremap <silent> <C-j> <C-w>j
+"nnoremap <silent> <C-k> <C-w>k
+"nnoremap <silent> <C-h> <C-w>h
+"nnoremap <silent> <C-l> <C-w>l
+
+" Search mappings
+nnoremap <leader>sf :action GotoFile<CR>
+nnoremap <leader>sg :action FindInPath<CR>
