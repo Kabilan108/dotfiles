@@ -1,11 +1,9 @@
 {
 	"autoDocstring.docstringFormat": "numpy",
-
 	"cursor.cpp.enablePartialAccepts": true,
 	"cursor.chat.ghostTextAtSymbols": true,
 	"cursor.cmdk.useThemedDiffBackground": true,
 	"cursor.cmdk.ghostTextAtSymbols": true,
-
 	"editor.bracketPairColorization.enabled": true,
 	"editor.fontFamily": "'CaskaydiaCoveNerdFont Mono'",
 	"editor.formatOnSave": true,
@@ -18,10 +16,8 @@
 	"editor.tabSize": 2,
 	"editor.wordWrap": "off",
 	"editor.wordWrapColumn": 90,
-
 	"explorer.confirmDelete": false,
 	"explorer.confirmDragAndDrop": false,
-
 	"files.exclude": {
 		"**/__pycache__": true,
 		"**/.ruff_cache": true,
@@ -30,14 +26,11 @@
 	"files.simpleDialog.enable": true,
 	"files.trimTrailingWhitespace": true,
 	"files.trimFinalNewlines": true,
-
 	"git.autofetch": true,
 	"git.confirmSync": false,
 	"git.enableSmartCommit": true,
 	"git.openRepositoryInParentFolders": true,
-
 	"jupyter.askForKernelRestart": false,
-
 	"latex-workshop.latex.outDir": "%DIR%/build",
 	"latex-workshop.latex.recipe.default": "latexmk (xelatex)",
 	"latex-workshop.latex.recipes": [
@@ -60,15 +53,12 @@
 			]
 		}
 	],
-
 	"notebook.lineNumbers": "on",
-
 	"terminal.external.linuxExec": "kitty",
 	"terminal.integrated.enableMultiLinePasteWarning": false,
 	"terminal.integrated.fontFamily": "'CaskaydiaCoveNerdFont Mono'",
 	"terminal.integrated.cursorBlinking": true,
 	"terminal.integrated.scrollback": 10000,
-
 	"vim.highlightedyank": {
 		"enable": true,
 		"duration": 250
@@ -127,18 +117,14 @@
 		}
 	],
 	"vim.visualModeKeyBindings": [],
-
 	"vsicons.dontShowNewVersionMessage": true,
-
 	"window.commandCenter": 1,
 	"window.customTitleBarVisibility": "auto",
 	"window.menuBarVisibility": "compact",
-
 	"workbench.activityBar.orientation": "vertical",
 	"workbench.colorTheme": "Catppuccin Mocha",
 	"workbench.editor.enablePreview": false,
 	"workbench.iconTheme": "vscode-icons",
-
 	"[javascript][typescript][javascriptreact][typescriptreact]": {
 		"editor.defaultFormatter": "biomejs.biome",
 		"editor.formatOnSave": true,
@@ -147,13 +133,17 @@
 	"[json]": {
 		"editor.wordWrap": "wordWrapColumn"
 	},
+	"[kotlin]": {
+		"editor.tabSize": 4,
+		"editor.formatOnSave": false
+	},
 	"[latex]": {
 		"editor.wordWrap": "wordWrapColumn"
 	},
 	"[markdown]": {
 		"editor.wordWrap": "wordWrapColumn"
 	},
-	"[python][kotlin][yaml]": {
+	"[python][yaml]": {
 		"editor.tabSize": 4
 	},
 	"[python]": {
@@ -166,7 +156,6 @@
 		"editor.defaultFormatter": "redhat.vscode-yaml",
 		"editor.formatOnSave": true
 	},
-
 	"cSpell.userWords": [
 		"Advarra",
 		"autoencoder",
