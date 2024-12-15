@@ -1,0 +1,50 @@
+# ~/.config/betterlockscreenrc
+
+display options
+display_on=all          # Changed to 'all' to support multiple monitors
+span_image=false        # Keep false to show separate copies on each monitor
+lock_timeout=300
+fx_list=(dim blur dimblur pixel dimpixel color)
+dim_level=40
+blur_level=1
+pixel_scale=10,1000
+solid_color=1e1e2e     # Catppuccin Mocha base color
+wallpaper_cmd="feh --bg-fill"
+quiet=false
+
+# Catppuccin Mocha theme colors
+loginbox=1e1e2e99      # Base color with transparency
+loginshadow=00000000
+locktext="Type password to unlock..."
+font="JetBrains Mono Nerd Font"  # Changed to a more aesthetic font
+ringcolor=cba6f7ff     # Mauve
+insidecolor=1e1e2e99   # Base with transparency
+separatorcolor=00000000
+ringvercolor=a6e3a1ff  # Green
+insidevercolor=1e1e2e99
+ringwrongcolor=f38ba8ff # Red
+insidewrongcolor=1e1e2e99
+timecolor=cdd6f4ff     # Text
+time_format="%H:%M:%S"
+greetercolor=cdd6f4ff  # Text
+layoutcolor=cdd6f4ff   # Text
+keyhlcolor=f38ba8ff    # Red
+bshlcolor=f38ba8ff     # Red
+veriftext="Verifying..."
+verifcolor=cdd6f4ff    # Text
+wrongtext="Failure!"
+wrongcolor=f38ba8ff    # Red
+modifcolor=f38ba8ff    # Red
+bgcolor=1e1e2eff       # Base color
+
+# Expert options
+# i3lockcolor_bin="i3lock-color"
+suspend_command="systemctl suspend"
+
+# Custom arguments for multiple monitor setup
+lockargs=()
+lockargs+=(--screen 1)
+lockargs+=(--indicator)
+lockargs+=(--verif-text="Authenticating...")
+lockargs+=(--wrong-text="Try again")
+lockargs+=(--nofork)
