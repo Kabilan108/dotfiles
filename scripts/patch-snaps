@@ -1,0 +1,32 @@
+#! /bin/bash
+
+desktop_dir="/var/lib/snapd/desktop/applications"
+
+# Check if directory exists
+if [ ! -d "$desktop_dir" ]; then
+  echo "Error: Directory $desktop_dir does not exist"
+  return 1
+fi
+
+# Iterate through all .desktop files
+find "$desktop_dir" -name "*.desktop" -type f | while read -r file; do
+  # Create a temporary file
+  temp_file=$(mktemp)
+
+  # Use sed to modify the Exec line
+  # This replaces any Exec line that starts with "Exec=env BAMF_DESKTOP_FILE_HINT="
+  sed 's|^Exec=env BAMF_DESKTOP_FILE_HINT=[^ ]* \(/snap/bin/[^ ]*\)|Exec=\1|' "$file" > "$temp_file"
+
+  # Check if sed operation made any changes
+  if cmp -s "$file" "$temp_file"; then
+      echo "No changes needed in $file"
+  else
+      # Preserve original permissions
+      cp --preserve=mode,ownership "$temp_file" "$file"
+      chmod 644 "$file"
+      echo "Modified $file"
+  fi
+
+  # Clean up temporary file
+  rm "$temp_file"
+done
