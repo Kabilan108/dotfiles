@@ -105,9 +105,7 @@ bindsym XF86MonBrightnessDown exec --no-startup-id $HOME/.local/bin/scripts/brig
 # Use Mouse+$mod to drag floating windows to their wanted position
 floating_modifier $mod
 
-# Define names for default workspaces for which we configure key bindings later on.
-# We use variables to avoid repeating the names in multiple places.
-#       󰍹  
+# workspace names
 set $ws0 "0"
 set $ws1 "1"
 set $ws2 "2"
@@ -117,7 +115,7 @@ set $ws5 "5"
 set $ws6 "6"
 set $ws7 "7"
 set $ws8 "8"
-set $ws9 "9:  "
+set $ws9 "9"
 
 # switch to workspace
 bindsym $mod+0 workspace number $ws0
@@ -164,15 +162,15 @@ for_window [class="TelegramDesktop"] floating enable, resize set 800 600
 font pango:CaskaydiaCoveNerdFont 12
 
 # Gaps settings for i3
-# gaps inner 8
-# gaps outer 4
+gaps inner 4
+gaps outer 4
 
 # boarders
 default_border pixel 2
 default_floating_border pixel 2
 
-# Only enable gaps on a workspace when there is at least one container
-smart_gaps on
+# on => Only enable gaps on a workspace when there is at least one container
+smart_gaps off
 
 # Activate smart borders (always)
 smart_borders on
@@ -210,7 +208,8 @@ client.urgent           $nord11 $nord11 $nord6  $nord11   $nord11
 client.placeholder      $nord0  $nord0  $nord4  $nord0    $nord0
 client.background       $nord0
 
-for_window [class="^.*"] border pixel 3
+# window appearance
+for_window [class="^.*"] border pixel 2
 
 # ===> AUTO-START PROGRAMS ============================================================
 
@@ -232,16 +231,14 @@ exec --no-startup-id dunst
 # obsidian
 exec --no-startup-id /snap/bin/obsidian
 
-# load custom xrandr layout
-exec_always --no-startup-id $HOME/.local/bin/scripts/monitor-handler
+# compositor
+exec --no-startup-id picom --config $HOME/.config/picom/picom.conf -b
+
+# set autorandr layout
+exec_always autorandr --change
 
 # wallpaper
 exec_always --no-startup-id $HOME/.local/bin/scripts/set-wallpaper
 
 # polybar
 exec_always --no-startup-id $HOME/.config/polybar/launch.sh
-
-# compositor
-exec --no-startup-id picom --config $HOME/.config/picom/picom.conf -b
-
-exec_always --no-startup-id echo "$WALLPAPER" >> /tmp/wallpaper_debug.log
