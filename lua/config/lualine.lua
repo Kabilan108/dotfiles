@@ -201,4 +201,3 @@ ins_right {
 }
 
 require('lualine').setup(config)
-

@@ -14,4 +14,3 @@ require "config.editor"
 require "config.lualine"
 require "config.mentat"
 require "config.codecompanion"
-
