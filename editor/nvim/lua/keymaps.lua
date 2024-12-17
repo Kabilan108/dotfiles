@@ -87,6 +87,10 @@ map("<A-.>", "<CMD>bn<CR>", "next buffer")
 map("<A-w>", "<CMD>w<CR><CMD>bwipeout<CR>", "save and wipeout buffer")
 map("<A-c>", "<CMD>bwipeout!<CR>", "force wipeout buffer")
 
+-- increment & decrement numbers
+map("<C-i>", "<C-a>", "increment")
+map("<C-d>", "<C-x>", "decrement")
+
 -- terminal mode
 map(
   "<C-`>",
