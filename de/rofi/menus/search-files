@@ -1,0 +1,18 @@
+#!/bin/bash
+
+rofi_finder() {
+  fd . "/mnt" --hidden --type f --type d | rofi \
+    -dmenu -i -p ' ' \
+    -theme-str 'window { width: 800px; } element-icon { size: 0;}' \
+    -lines 10
+}
+
+selected_item=$(rofi_finder)
+
+if [ -n "$selected_item" ]; then
+  if [ -d "$selected_item" ]; then
+    kitty --directory "$selected_item"
+  else
+    kitty -d $(dirname "$selected_item") -e nvim "$selected_item"
+  fi
+fi

@@ -1,15 +1,16 @@
+@theme "~/.config/rofi/theme.rasi"
+
 configuration {
   /*---------- General setting ----------*/
-  modi: "drun,run,filebrowser,window,combi";
+  modi: "drun,run,window,combi,ssh";
   case-sensitive: false;
   cycle: true;
   filter: "";
   scroll-method: 0;
   normalize-match: true;
-  show-icons: true;
+
   icon-theme: "Papirus";
   steal-focus: false;
-  //dpi: -1;
 
   /*---------- Matching setting ----------*/
   matching: "normal";
@@ -27,7 +28,7 @@ configuration {
   drun-show-actions: false;
   drun-url-launcher: "xdg-open";
   drun-use-desktop-cache: false;
-  drun-reload-desktop-cache: false;
+  drun-reload-desktop-cache: true;
   drun {
     /** Parse user desktop files. */
     parse-user:   true;
@@ -41,8 +42,6 @@ configuration {
   run-list-command: "";
   run-shell-command: "{terminal} -e {cmd}";
 
-  /*---------- Fallback Icon ----------*/
-
   /*---------- Window switcher settings ----------*/
   window-match-fields: "title,class,role,name,desktop";
   window-command: "wmctrl -i -R {window}";
@@ -50,20 +49,19 @@ configuration {
   window-thumbnail: false;
 
   /*---------- Combi settings ----------*/
-  combi-modi: "drun,run,filebrowser";
-/*  combi-hide-mode-prefix: false;*/
-/*  combi-display-format: "{mode} {text}";*/
+  combi-modi: "drun,run";
+  combi-hide-mode-prefix: false;
+  combi-display-format: "{mode} {text}";
 
   /*---------- History and Sorting ----------*/
   disable-history: false;
   sorting-method: "normal";
   max-history-size: 25;
 
-  /*---------- Display setting ----------*/
+  /*---------- Window Titles ----------*/
   show-icons:     true;
-  display-keys: " ";
+  display-keys:   " ";
   display-ssh:    " ";
-  display-run:    " ";
   display-drun:   " ";
   display-window: " ";
   display-combi:  " ";
@@ -89,16 +87,4 @@ configuration {
     action: "kb-cancel";
     delay:  0;
   }
-}
-
-@theme "~/.config/rofi/theme.rasi"
-
-listview {
-	lines: 5;
-	columns: 1;
-}
-
-window {
-	width: 30%;
-  height: 30%;
 }

@@ -1,0 +1,29 @@
+#!/bin/bash
+
+options="   Lock\n   Suspend\n   Logout\n   Restart\n   Power Off"
+
+selected=$(echo -e "$options" | rofi \
+  -theme-str 'window { width: 250px; height:280px; } inputbar { children: [entry]; } entry {margin: 20px 20px 0px 20px;}' \
+  -dmenu -i \
+  -lines 5 \
+  -line-margin 5 \
+  -line-padding 5 \
+  -kb-row-tab '')
+
+case $selected in
+  *Lock)
+    betterlockscreen -l dim
+    ;;
+  *Suspend)
+    systemctl suspend
+    ;;
+  *Logout)
+    i3-msg exit
+    ;;
+  *Restart)
+    systemctl reboot
+    ;;
+  *"Power Off")
+    systemctl poweroff
+    ;;
+esac
