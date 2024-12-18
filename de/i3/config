@@ -22,8 +22,8 @@ bindsym $mod+d exec --no-startup-id rofi -show drun
 bindsym $mod+Shift+d exec --no-startup-id rofi -show combi
 bindsym $mod+Shift+s exec --no-startup-id rofi -show ssh
 bindsym $mod+Tab exec --no-startup-id rofi -show window
-bindsym $mod+Shift+f exec --no-startup-id $HOME/.config/rofi/menus/search-files.sh
-bindsym $mod+Shift+e exec --no-startup-id $HOME/.config/rofi/menus/exit.sh
+bindsym $mod+Shift+f exec --no-startup-id $HOME/.config/rofi/menus/search-files
+bindsym $mod+Shift+e exec --no-startup-id $HOME/.config/rofi/menus/exit
 
 # change focus
 bindsym $mod+h focus left
