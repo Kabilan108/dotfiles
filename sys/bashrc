@@ -144,17 +144,11 @@ export PROMPT_DIRTRIM=4
 # enable cuda
 export PATH=/usr/local/cuda-12.6/bin${PATH:+:${PATH}}
 
-# enable nvim
-export PATH="$PATH:/opt/nvim-linux64/bin"
-
 # enable user scripts
 export PATH="$PATH:/home/muaddib/dotfiles/scripts"
 
 # set bat theme
 export BAT_THEME="base16"
-
-# enable cargo
-source $HOME/.cargo/env
 
 # enable nvm
 export NVM_DIR="$HOME/.nvm"
