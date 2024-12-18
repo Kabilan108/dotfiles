@@ -162,15 +162,15 @@ for_window [class="TelegramDesktop"] floating enable, resize set 800 600
 font pango:CaskaydiaCoveNerdFont 11
 
 # Gaps settings for i3
-gaps inner 4
-gaps outer 2
+# gaps inner 4
+# gaps outer 2
 
 # boarders
 default_border pixel 2
 default_floating_border pixel 2
 
 # on => Only enable gaps on a workspace when there is at least one container
-smart_gaps off
+smart_gaps on
 
 # Activate smart borders (always)
 smart_borders on
@@ -211,11 +211,10 @@ set $crust     #11111b
 
 # Window Colors
 # class                 border    backgr.   text      indicator  child_border
-client.focused          $crust    $mantle   $lavender $blue      $mauve
+client.focused          $mauve    $mantle   $lavender $blue      $mauve
 client.focused_inactive $crust    $mantle   $text     $blue      $overlay0
-client.unfocused        $crust    $crust    $text     $surface2  $overlay0
+client.unfocused        $overlay0 $crust    $text     $surface2  $overlay0
 client.urgent           $peach    $peach    $base     $red       $peach
-client.unfocused        $crust    $crust    $text     $surface2  $overlay0
 client.background       $red
 
 # window appearance
