@@ -6,7 +6,7 @@ services:
     network_mode: "host"  # This allows Jellyfin to use the host's network, including Tailscale
     restart: unless-stopped
     volumes:
-      - /home/muaddib/docker/jellyfin/:/config  # Replace with your desired config location
+      - /home/muaddib/docker/jellyfin/config/:/config  # Replace with your desired config location
       - /mnt/media:/media:ro  # Your existing media mount, read-only
       - /etc/localtime:/etc/localtime:ro  # Sync container time with host
     devices:
