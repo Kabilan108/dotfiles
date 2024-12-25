@@ -162,8 +162,8 @@ for_window [class="TelegramDesktop"] floating enable, resize set 800 600
 font pango:CaskaydiaCoveNerdFont 11
 
 # Gaps settings for i3
-gaps inner 4
-gaps outer 2
+# gaps inner 4
+# gaps outer 2
 
 # boarders
 default_border pixel 2
