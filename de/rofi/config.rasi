@@ -34,7 +34,6 @@ configuration {
     parse-user:   true;
     /** Parse system desktop files. */
     parse-system: true;
-    search-path:  "/var/lib/snapd/desktop/applications";
   }
 
   /*---------- Run settings ----------*/
