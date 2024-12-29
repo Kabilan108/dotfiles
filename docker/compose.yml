@@ -1,0 +1,17 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    user: 1000:1000  # Update this to match your user's UID:GID
+    network_mode: "host"  # This allows Jellyfin to use the host's network, including Tailscale
+    restart: unless-stopped
+    entrypoint: ["/entrypoint.sh"]
+    volumes:
+      - /home/muaddib/docker/jellyfin/config/:/config  # Replace with your desired config location
+      - /mnt/media:/media  # Your existing media mount, read-only
+      - /etc/localtime:/etc/localtime:ro  # Sync container time with host
+      - ./jellyfin/entrypoint.sh:/entrypoint.sh
+    devices:
+      - /dev/dri:/dev/dri  # Hardware acceleration (if available)
+    environment:
+      - JELLYFIN_PublishedServerUrl=http://100.104.180.3:8096  # Replace with your Tailscale IP
