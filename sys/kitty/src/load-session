@@ -1,0 +1,68 @@
+#!/usr/bin/env -S uv run --script --quiet
+# /// script
+# requires-python = ">=3.12"
+# ///
+
+from pathlib import Path
+import subprocess
+import logging
+import time
+import json
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    filename="/tmp/kitty-load-session.log",
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+
+def load_window_id(path: Path):
+    with open(path) as f:
+        wid = json.load(f)["window_id"]
+    path.unlink()
+    return str(wid)
+
+
+def load_and_cleanup():
+    session_file = Path("~/.session.kitty").expanduser()
+    window_id_file = Path("~/.session.kitty.window").expanduser()
+
+    logging.debug(f"Checking for session file: {session_file}")
+    if not session_file.exists():
+        logging.error("No session file found")
+        return
+
+    logging.debug(f"Checking for window id file: {window_id_file}")
+    if not window_id_file.exists():
+        logging.error("No session file found")
+        return
+
+    try:
+        logging.debug("Launching new kitty instance...")
+        # Launch a new detached kitty instance with the session
+        process = subprocess.Popen(
+            ["kitty", "--detach", "--session", str(session_file)]
+        )
+        logging.debug(f"Kitty process launched with PID: {process.pid}")
+
+        # Give the new kitty instance a moment to start and load the session
+        time.sleep(1.0)
+
+        # Delete the session file
+        session_file.unlink()
+        logging.debug("Session file cleaned up")
+
+        # Close the current kitty window
+        window_id = load_window_id(window_id_file)
+        subprocess.call(["xkill", "-id", window_id])
+
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Error loading session: {e}")
+    except Exception as e:
+        logging.error(f"Error: {e}", exc_info=True)
+
+
+if __name__ == "__main__":
+    logging.debug("Script started")
+    load_and_cleanup()
+    logging.debug("Script completed")

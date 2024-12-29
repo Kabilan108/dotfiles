@@ -1,0 +1,127 @@
+#!/usr/bin/env -S uv run --script --quiet
+# /// script
+# requires-python = ">=3.12"
+# ///
+
+from pathlib import Path
+import subprocess
+import json
+import os
+
+
+def get_kitty_windows():
+    """Dump the current kitty session"""
+    try:
+        result = subprocess.run(
+            ["kitty", "@", "ls", "--self"], capture_output=True, text=True
+        )
+        windows_data = json.loads(result.stdout)
+
+        return windows_data
+    except subprocess.CalledProcessError as e:
+        print(f"Error running kitty command: {e}")
+        return None
+    except json.JSONDecodeError as e:
+        print(f"Error parsing JSON output: {e}")
+        return None
+
+
+def env_to_str(env):
+    """Convert an env list to a series of '--env key=value' parameters and return as a string."""
+    s = ""
+    for key in env:
+        s += f"--env {key}={env[key]} "
+
+    return s.strip()
+
+
+def cmdline_to_str(cmdline):
+    """Convert a cmdline list to a space separated string."""
+    s = ""
+    for e in cmdline:
+        s += f"{e} "
+
+    return s.strip()
+
+
+def fg_proc_to_str(fg):
+    """Convert a foreground_processes list to a space separated string."""
+    fg = fg[0]
+    cmdline = fg["cmdline"]
+
+    # If this is a basic shell command, just return the shell without flags
+    if cmdline[0] in ["/bin/bash", "bash"] and "--posix" in cmdline:
+        return "/bin/bash"
+
+    # For the window running the ls command
+    if cmdline == ["kitten", "@", "ls", "--self"]:
+        return "/bin/bash"
+
+    return cmdline_to_str(cmdline)
+
+
+def convert(session):
+    """Convert a kitty session dict into a kitty session file and return it as a string."""
+    output = []
+    first_window = True
+    for os_window in session:
+        if not first_window:
+            output.append("\nnew_os_window\n")
+        first_window = False
+
+        for tab in os_window["tabs"]:
+            if tab["windows"]:  # Only process tabs that have windows
+                output.append(f"\nnew_tab {tab['title']}")
+                output.append(f"layout {tab['layout']}")
+                output.append(f"cd {tab['windows'][0]['cwd']}")
+
+                # Process all windows in this tab
+                for window in tab["windows"]:
+                    if window["title"] == "save-session":
+                        continue
+                    output.append(f"title {window['title']}")
+
+                    # Get the command to launch
+                    if window.get("is_self"):  # This is the window running the command
+                        cmd = os.getenv("SHELL", "/bin/sh")
+                    else:
+                        cmd = fg_proc_to_str(window["foreground_processes"])
+
+                    # Launch the window with its environment
+                    output.append(f"launch {env_to_str(window['env'])} {cmd}")
+
+                    # Set focus if this window was focused
+                    if window["is_focused"]:
+                        output.append("focus")
+
+    return "\n".join(output)
+
+
+def save_session(content, filepath):
+    """Save the session content to the specified file."""
+    filepath = Path(filepath).expanduser()
+
+    # Create parent directories if they don't exist
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+
+    # Write the content to the file
+    filepath.write_text(content)
+    return filepath
+
+
+def save_window_id(session):
+    window_id = session[0].get("platform_window_id", None)
+    path = Path.home() / ".session.kitty.window"
+    if window_id:
+        with open(path, "w") as f:
+            json.dump({"window_id": window_id}, f)
+
+
+if __name__ == "__main__":
+    session = get_kitty_windows()
+    if session:
+        content = convert(session)
+        saved_path = save_session(content, "~/.session.kitty")
+        save_window_id(session)
+    else:
+        print("Failed to get kitty session")
