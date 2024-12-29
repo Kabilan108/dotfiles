@@ -208,6 +208,7 @@ alias ipy='ipython'
 alias s='kitten ssh'
 alias icat='kitten icat'
 alias copy='kitten clipboard'
+alias clipboard='kitten clipboard -g'
 alias update-kitty='curl -L https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin'
 
 # llm calls
