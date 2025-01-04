@@ -1,46 +1,22 @@
 [global]
     ### Display ###
 
-    # Which monitor should the notifications be displayed on.
+    # monitor the notification should be displayed on
     monitor = 0
 
-    # Display notification on focused monitor.  Possible modes are:
-    #   mouse: follow mouse pointer
-    #   keyboard: follow window with keyboard focus
-    #   none: don't follow anything
-    #
-    # "keyboard" needs a window manager that exports the
-    # _NET_ACTIVE_WINDOW property.
-    # This should be the case for almost all modern window managers.
-    #
-    # If this option is set to mouse or keyboard, the monitor option
-    # will be ignored.
+    # show notifications on focused monitor (follow mouse)
     follow = mouse
 
-    # The geometry of the window:
-    #   [{width}]x{height}[+/-{x}+/-{y}]
-    # The geometry of the message window.
-    # The height is measured in number of notifications everything else
-    # in pixels.  If the width is omitted but the height is given
-    # ("-geometry x2"), the message window expands over the whole screen
-    # (dmenu-like).  If width is 0, the window expands to the longest
-    # message displayed.  A positive x is measured from the left, a
-    # negative from the right side of the screen.  Y is measured from
-    # the top and down respectively.
-    # The width can be negative.  In this case the actual width is the
-    # screen width minus the width defined in within the geometry option.
+    # The geometry of the window: [{width}]x{n_notifications}[+/-{x}+/-{y}]
     geometry = "300x5-30+20"
 
     # Show how many messages are currently hidden (because of geometry).
     indicate_hidden = yes
 
-    # Shrink window if it's smaller than the width.  Will be ignored if
-    # width is 0.
+    # Shrink window if it's smaller than the width.
     shrink = no
 
     # The transparency of the window.  Range: [0; 100].
-    # This option will only work if a compositing window manager is
-    # present (e.g. xcompmgr, compiz, etc.).
     transparency = 0
 
     # The height of the entire notification.  If the height is smaller
@@ -51,7 +27,7 @@
     # Draw a line of "separator_height" pixel height between two
     # notifications.
     # Set to 0 to disable.
-    separator_height = 2
+    separator_height = 1
 
     # Padding between text and separator.
     padding = 8
@@ -64,17 +40,8 @@
     frame_width = 2
 
     # Defines color of the frame around the notification window.
-    frame_color = "#4C566A"
-    background = "#2E3440"
-    foreground = "#D8DEE9"
-
-    # Define a color for the separator.
-    # possible values are:
-    #  * auto: dunst tries to find a color fitting to the background;
-    #  * foreground: use the same color as the foreground;
-    #  * frame: use the same color as the frame;
-    #  * anything else will be interpreted as a X color.
-    separator_color = frame
+    frame_color = "#cba6f7"    # mauve
+    separator_color = "#cba6f7" # mauve
 
     # Sort messages by urgency.
     sort = yes
@@ -293,28 +260,23 @@
     context = ctrl+shift+period
 
 [urgency_low]
-    # IMPORTANT: colors have to be defined in quotation marks.
-    # Otherwise the "#" and following would be interpreted as a comment.
-    background = "#3B4252"
-    foreground = "#E5E9F0"
+    background = "#1e1e2e"     # base
+    foreground = "#cdd6f4"     # text
     timeout = 5
-    # Icon for notifications with low urgency, uncomment to enable
     #icon = /path/to/icon
 
 [urgency_normal]
-    background = "#434C5E"
-    foreground = "#E5E9F0"
+    background = "#1e1e2e"     # base
+    foreground = "#cdd6f4"     # text
     timeout = 10
-    # Icon for notifications with normal urgency, uncomment to enable
-    #icon = /path/to/icon
+    # icon = /path/to/icon
 
 [urgency_critical]
-    background = "#BF616A"
-    foreground = "#ECEFF4"
-    frame_color = "#EBCB8B"
+    background = "#1e1e2e"     # base
+    foreground = "#f38ba8"     # red
+    frame_color = "#fab387"    # peach
     timeout = 0
-    # Icon for notifications with critical urgency, uncomment to enable
-    #icon = /path/to/icon
+    # icon = /path/to/icon
 
 # Every section that isn't one of the above is interpreted as a rules to
 # override settings for certain messages.
@@ -384,56 +346,30 @@
 #    msg_urgency = critical
 #    fullscreen = show
 
-#[espeak]
-#    summary = "*"
-#    script = dunst_espeak.sh
-
-#[script-test]
-#    summary = "*script*"
-#    script = dunst_test.sh
-
-#[ignore]
-#    # This notification will not be displayed
-#    summary = "foobar"
-#    format = ""
-
-#[history-ignore]
-#    # This notification will not be saved in history
-#    summary = "foobar"
-#    history_ignore = yes
-
-#[skip-display]
-#    # This notification will not be displayed, but will be included in the history
-#    summary = "foobar"
-#    skip_display = yes
-
-#[signed_on]
-#    appname = Pidgin
-#    summary = "*signed on*"
-#    urgency = low
-#
-#[signed_off]
-#    appname = Pidgin
-#    summary = *signed off*
-#    urgency = low
-#
-#[says]
-#    appname = Pidgin
-#    summary = *says*
-#    urgency = critical
-#
-#[twitter]
-#    appname = Pidgin
-#    summary = *twitter.com*
-#    urgency = normal
 [stack-brightness]
-    appname = "brightness-control"
+    appname = "brightctl"
     summary = "Brightness"
-    set_stack_tag = "brightness"
+    set_stack_tag = "brightctl"
+    highlight = "#f9e2af"     # yellow for brightness
+    progress_bar_frame_color = "#45475a"  # surface1
+    progress_bar_background_color = "#313244"  # surface0
+    progress_bar = true
+    format = "<b>󰕾 %s</b> %p"   # Icon, summary (percentage), and progress bar
+    horizontal_padding = 16
+    alignment = left
+    vertical_alignment = center
 
 [stack-volumes]
-   appname = "volume-control"
-   summary = "Volume"
-   set_stack_tag = "volume"
+    appname = "volctl"
+    summary = "Volume"
+    set_stack_tag = "volctl"
+    highlight = "#f5c2e7"     # pink for volume
+    progress_bar_frame_color = "#45475a"  # surface1
+    progress_bar_background_color = "#313244"  # surface0
+    progress_bar = true
+    format = "<b>󰕾 %s</b> %p"   # Icon, summary (percentage), and progress bar
+    horizontal_padding = 16
+    alignment = left
+    vertical_alignment = center
 
 # vim: ft=cfg

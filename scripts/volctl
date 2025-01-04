@@ -26,9 +26,9 @@ notify() {
 
     dunstify \
         -i "$icon" \
-        -a "volume" \
+        -a "volctl" \
         -u low \
-        -h string:x-dunst-stack-tag:volume \
+        -h string:x-dunst-stack-tag:volctl \
         -h int:value:"$volume" "Volume" "$text" ": $volume%"
 }
 

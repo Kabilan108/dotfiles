@@ -16,7 +16,7 @@ fi
 
 brightness=$(light -G | cut -d'.' -f1)
 dunstify \
-    -a "brightness" \
+    -a "brightctl" \
     -u low \
-    -h string:x-dunst-stack-tag:brightness \
+    -h string:x-dunst-stack-tag:brightctl \
     -h int:value:"$brightness" "Brightness" "Current: $brightness%"
