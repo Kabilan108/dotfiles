@@ -9,8 +9,30 @@ escape_xml() {
     sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
 }
 
-# Get the target directory from command line argument, default to current directory
-target_dir="${1:-.}"
+# Initialize array for ignore patterns
+declare -a ignore_patterns
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --ignore|-i)
+            if [[ -n "$2" ]]; then
+                ignore_patterns+=("$2")
+                shift 2
+            else
+                echo "Error: --ignore/-i requires a pattern" >&2
+                exit 1
+            fi
+            ;;
+        *)
+            target_dir="$1"
+            shift
+            ;;
+    esac
+done
+
+# Set default target directory if not provided
+target_dir="${target_dir:-.}"
 
 # Convert to absolute path
 target_dir=$(realpath "$target_dir")
@@ -24,18 +46,22 @@ fi
 # Change to the target directory
 cd "$target_dir"
 
-# Use find to get all files, excluding .git directory
-find . -type f \
-    ! -path "./.git/*" \
-    ! -name ".DS_Store" \
-    -print0 | while IFS= read -r -d '' file; do
+# Build find command with ignore patterns
+find_cmd="find . -type f ! -path \"./.git/*\" ! -name \".DS_Store\""
+for pattern in "${ignore_patterns[@]}"; do
+    find_cmd+=" ! -path \"$pattern\""
+done
+find_cmd+=" -print0"
+
+# Execute the find command
+eval "$find_cmd" | while IFS= read -r -d '' file; do
     # Remove leading ./
     file="${file#./}"
 
-    if file -b --mime-encoding $file | grep -q binary; then
-      continue
-    elif echo $file | grep -q \\bprompt\$; then
-      continue
+    if file -b --mime-encoding "$file" | grep -q binary; then
+        continue
+    elif echo "$file" | grep -q \\bprompt\$; then
+        continue
     fi
 
     # Get absolute path
