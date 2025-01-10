@@ -38,6 +38,12 @@ cmp.setup {
 
 -- define language servers
 local servers = {
+  biome = {
+    cmd = { 'biome', 'lsp-proxy' },
+    filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact', 'json' },
+    root_dir = require('lspconfig.util').root_pattern('biome.json', 'package.json'),
+    single_file_support = true,
+  },
   clangd = {
     cmd = { 'clangd' },
     filetypes = { 'c', 'cpp', 'cc', 'objc', 'objcpp' },
@@ -58,19 +64,6 @@ local servers = {
     },
     settings = {},
   },
-  ruff = {
-    cmd = { 'ruff', 'server' },
-    filetypes = { 'python' },
-    root_dir = require('lspconfig.util').root_pattern(
-      'pyproject.toml', 'ruff.toml', '.ruff.toml'
-    ),
-  },
-  biome = {
-    cmd = { 'biome', 'lsp-proxy' },
-    filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact', 'json' },
-    root_dir = require('lspconfig.util').root_pattern('biome.json', 'package.json'),
-    single_file_support = true,
-  },
   lua_ls = {
     settings = {
       Lua = {
@@ -80,6 +73,27 @@ local servers = {
       },
     },
   },
+  pyright = {
+    settings = {
+      pyright = {
+        -- use ruff's import organizer
+        disableOrganizeImports = true,
+      },
+      python = {
+        analysis = {
+          -- ignore all files for analysis to exclusively use ruff for linting
+          ignore = { '*' },
+        }
+      }
+    }
+  },
+  ruff = {
+    init_options = {
+      settings = {
+        configuration = "~/.config/ruff/ruff.toml",
+      }
+    }
+  }
 }
 
 -- inform servers of completion capabilities
@@ -88,16 +102,11 @@ capabilities = vim.tbl_deep_extend(
   'force', capabilities, require('cmp_nvim_lsp').default_capabilities()
 )
 
--- TODO: figure out how to install and configure formatters like stylua and ruff
--- TODO: get ruff lsp and formatter working
-
 -- set up mason to install servers
 local lspconfig = require("lspconfig")
 require('mason').setup()
 require('mason-lspconfig').setup({
-  ensure_installed = {
-    "clangd", "lua_ls", "ruff", "biome"
-  },
+  ensure_installed = { "biome", "clangd", "lua_ls", "pyright", "ruff" },
   handlers = {
     function(server_name)
       local server = servers[server_name] or {}
