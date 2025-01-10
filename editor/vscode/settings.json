@@ -200,5 +200,6 @@
 		"xgboost",
 		"Zihuai"
 	],
-	"cSpell.language": "en"
+	"cSpell.language": "en",
+	"cursor.aipreview.enabled": true
 }
