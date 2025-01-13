@@ -4,12 +4,19 @@
 -- autocomplete -----------------------------------------------------------------------
 
 local cmp = require "cmp"
+local luasnip = require "luasnip"
 
 cmp.setup {
   completion = { completeopt = "menu,menuone,noinsert" },
   sources = {
     { name = "nvim_lsp" },
+    { name = "luasnip" },
     { name = "path" },
+  },
+  snippet = {
+    expand = function(args)
+      luasnip.lsp_expand(args.body)
+    end,
   },
   mapping = cmp.mapping.preset.insert {
     -- Select the [n]ext item
@@ -31,7 +38,41 @@ cmp.setup {
     --  Generally you don't need this, because nvim-cmp will display
     --  completions whenever it has completion options available.
     ['<C-Space>'] = cmp.mapping.complete {},
-  }
+
+    -- Super Tab functionality
+    ["<Tab>"] = cmp.mapping(function(fallback)
+      if cmp.visible() then
+        cmp.select_next_item()
+      elseif luasnip.expand_or_jumpable() then
+        luasnip.expand_or_jump()
+      else
+        fallback()
+      end
+    end, { "i", "s" }),
+
+    ["<S-Tab>"] = cmp.mapping(function(fallback)
+      if cmp.visible() then
+        cmp.select_prev_item()
+      elseif luasnip.jumpable(-1) then
+        luasnip.jump(-1)
+      else
+        fallback()
+      end
+    end, { "i", "s" }),
+  },
+  formatting = {
+    format = function(entry, vim_item)
+      -- Kind icons
+      vim_item.kind = string.format('%s %s', require('config.icons').kinds[vim_item.kind], vim_item.kind)
+      -- Source
+      vim_item.menu = ({
+        nvim_lsp = "[LSP]",
+        luasnip = "[Snippet]",
+        path = "[Path]",
+      })[entry.source.name]
+      return vim_item
+    end
+  },
 }
 
 -- lsp --------------------------------------------------------------------------------
