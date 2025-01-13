@@ -217,11 +217,6 @@ api.nvim_create_autocmd("LspAttach", {
   end,
 })
 
--- codecompanion
-map("<C-a>", "<CMD>CodeCompanionActions<CR>", "Show code companion actions", {"n", "v"})
-map("<LocalLeader>a", "<CMD>CodeCompanionChat Toggle<CR>", "Toggle code companion chat", {"n", "v"})
-map("ga", "<CMD>CodeCompanionChat Add<CR>", "Add selection to chat", "v")
-
 -- Define groups for which-key
 local wk = require("which-key")
 wk.add({

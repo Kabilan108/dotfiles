@@ -159,6 +159,7 @@ return {
       require('mini.sessions').setup()
       require('mini.trailspace').setup()
       require('mini.icons').setup()
+      require("mini.diff").setup()
     end,
   },
 
