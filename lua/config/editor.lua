@@ -81,7 +81,7 @@ cmp.setup {
 local servers = {
   biome = {
     cmd = { 'biome', 'lsp-proxy' },
-    filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact', 'json' },
+    filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact', 'json', 'css' },
     root_dir = require('lspconfig.util').root_pattern('biome.json', 'package.json'),
     single_file_support = true,
   },

@@ -84,6 +84,7 @@ return {
       typescript = { "biome" },
       javascriptreact = { "biome" },
       typescriptreact = { "biome" },
+      css = { "biome" },
     }
   },
 
