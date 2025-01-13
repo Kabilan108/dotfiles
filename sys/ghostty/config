@@ -1,0 +1,25 @@
+# ghostty configuration
+
+clipboard-trim-trailing-spaces = true
+
+adw-toolbar-style = "flat"
+gtk-tabs-location = "bottom"
+gtk-wide-tabs = "false"
+
+font-family = "CaskaydiaCove Nerd Font Mono"
+
+window-decoration = false
+window-padding-x = 4
+window-padding-y = 4
+window-theme = "ghostty"
+
+shell-integration = "bash"
+shell-integration-features = true
+
+theme = "catppuccin-mocha"
+
+
+keybind = ctrl+shift+t=new_tab
+keybind = ctrl+alt+,=previous_tab
+keybind = ctrl+alt+.=next_tab
+keybind = ctrl+shift+enter=new_split:auto
