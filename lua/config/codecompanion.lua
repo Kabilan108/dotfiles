@@ -181,7 +181,9 @@ local function map(keys, func, desc, mode)
   vim.keymap.set(mode or "n", keys, func, opts)
 end
 
+-- keymaps
 map("<C-a>", "<CMD>CodeCompanionActions<CR>", "Show code companion actions", {"n", "v"})
 map("<leader>a", "<CMD>CodeCompanionChat Toggle<CR>", "Toggle code companion chat", {"n", "v"})
+map("<leader>k", "<CMD>CodeCompanion /buffer<CR>", "Toggle code companion chat", {"v"})
 map("ga", "<CMD>CodeCompanionChat Add<CR>", "Add selection to chat", "v")
 
