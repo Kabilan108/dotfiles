@@ -179,6 +179,46 @@ cc.setup({
   },
 })
 
+
+require('minuet').setup({
+  provider = "claude",
+  provider_options = {
+    openai = {
+      model = 'gpt-4o-mini',
+      max_tokens = 1024,
+      stream = true,
+    },
+    claude = {
+      model = 'claude-3-5-haiku-20241022',
+      max_tokens = 1024,
+      stream = true,
+    },
+    openai_fim_compatible = {
+      model = 'qwen/qwen-2.5-coder-32b-instruct',
+      end_point = 'https://openrouter.ai/api/v1/chat/completions',
+      api_key = 'OPENROUTER_API_KEY',
+      name = 'Qwen 2.5 Coder 32B',
+      stream = true,
+      optional = {
+        max_tokens = 1024,
+        stop = { '\n\n' },
+      },
+    }
+  },
+  virtualtext = {
+    auto_trigger_ft = {},
+    keymap = {
+      accept = '<A-A>',
+      accept_line = '<A-a>',
+      -- Cycle to prev completion item, or manually invoke completion
+      prev = '<A-[>',
+      -- Cycle to next completion item, or manually invoke completion
+      next = '<A-]>',
+      dismiss = '<A-e>',
+    },
+  },
+})
+
 -- Expand 'cc' into 'CodeCompanion' in the command line
 vim.cmd([[cab cc CodeCompanion]])
 

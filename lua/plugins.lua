@@ -199,6 +199,9 @@ return {
     config = true
   },
 
+  -- minuet-ai
+  { "milanglacier/minuet-ai.nvim" },
+
   -- theme (catppuccin)
   {
     "catppuccin/nvim",
