@@ -1,4 +1,5 @@
 local cc = require("codecompanion")
+local llm = require("llm")
 
 -- create code companion adapters
 local function create_adapter(provider, model)
