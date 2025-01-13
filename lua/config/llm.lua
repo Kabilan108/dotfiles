@@ -1,5 +1,4 @@
 local cc = require("codecompanion")
-local llm = require("llm")
 
 -- create code companion adapters
 local function create_adapter(provider, model)
@@ -122,9 +121,16 @@ local function load_prompts()
   return prompt_library
 end
 
+-- additional keybindings
+local function map(keys, func, desc, mode)
+  local opts = { noremap = true, silent = true, desc = desc }
+  vim.keymap.set(mode or "n", keys, func, opts)
+end
+
 cc.setup({
   adapters = {
     sonnet = create_adapter("anthropic", "claude-3-5-sonnet-20241022"),
+    haiku = create_adapter("anthropic", "claude-3.5-haiku-20241022"),
     deepseek = create_adapter("openrouter", "deepseek/deepseek-chat"),
     qwen_coder_32b = create_adapter("openrouter", "qwen/qwen-2.5-coder-32b-instruct"),
     qwen_qwq_32b = create_adapter("openrouter", "qwen/qwq-32b-preview"),
@@ -175,12 +181,6 @@ cc.setup({
 
 -- Expand 'cc' into 'CodeCompanion' in the command line
 vim.cmd([[cab cc CodeCompanion]])
-
--- additional keybindings
-local function map(keys, func, desc, mode)
-  local opts = { noremap = true, silent = true, desc = desc }
-  vim.keymap.set(mode or "n", keys, func, opts)
-end
 
 -- keymaps
 map("<C-a>", "<CMD>CodeCompanionActions<CR>", "Show code companion actions", {"n", "v"})
