@@ -105,6 +105,22 @@ local servers = {
     },
     settings = {},
   },
+  gopls = {
+    cmd = { 'gopls' },
+    filetypes = { 'go', 'gomod', 'gowork', 'gotmpl' },
+    root_dir = require('lspconfig.util').root_pattern('go.work', 'go.mod', '.git'),
+    settings = {
+      gopls = {
+        analyses = {
+          unusedparams = true,
+        },
+        staticcheck = true,
+        gofumpt = true,
+        usePlaceholders = true,
+        completeUnimported = true,
+      },
+    },
+  },
   lua_ls = {
     settings = {
       Lua = {
@@ -147,7 +163,7 @@ capabilities = vim.tbl_deep_extend(
 local lspconfig = require("lspconfig")
 require('mason').setup()
 require('mason-lspconfig').setup({
-  ensure_installed = { "biome", "clangd", "lua_ls", "pyright", "ruff" },
+  ensure_installed = { "biome", "clangd", "gopls", "lua_ls", "pyright", "ruff" },
   handlers = {
     function(server_name)
       local server = servers[server_name] or {}

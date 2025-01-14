@@ -85,6 +85,7 @@ return {
       javascriptreact = { "biome" },
       typescriptreact = { "biome" },
       css = { "biome" },
+      go = { "gofumpt" }
     }
   },
 
