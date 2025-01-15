@@ -1,5 +1,7 @@
 # ghostty configuration
 
+clipboard-read = allow
+clipboard-write = allow
 clipboard-trim-trailing-spaces = true
 
 adw-toolbar-style = "flat"
@@ -17,9 +19,3 @@ shell-integration = "bash"
 shell-integration-features = true
 
 theme = "catppuccin-mocha"
-
-
-keybind = ctrl+shift+t=new_tab
-keybind = ctrl+alt+,=previous_tab
-keybind = ctrl+alt+.=next_tab
-keybind = ctrl+shift+enter=new_split:auto
