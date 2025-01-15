@@ -11,8 +11,8 @@ gtk-wide-tabs = "false"
 font-family = "CaskaydiaCove Nerd Font Mono"
 
 window-decoration = false
-window-padding-x = 4
-window-padding-y = 4
+# window-padding-x = 4
+# window-padding-y = 4
 window-theme = "ghostty"
 
 shell-integration = "bash"
