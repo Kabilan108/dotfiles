@@ -223,7 +223,7 @@ require('minuet').setup({
 vim.cmd([[cab cc CodeCompanion]])
 
 -- keymaps
-map("<C-a>", "<CMD>CodeCompanionActions<CR>", "Show code companion actions", {"n", "v"})
+map("<leader>aa", "<CMD>CodeCompanionActions<CR>", "Show code companion actions", {"n", "v"})
 map("<leader>a", "<CMD>CodeCompanionChat Toggle<CR>", "Toggle code companion chat", {"n", "v"})
 map("<leader>k", "<CMD>CodeCompanion /buffer<CR>", "Toggle code companion chat", {"v"})
 map("ga", "<CMD>CodeCompanionChat Add<CR>", "Add selection to chat", "v")
