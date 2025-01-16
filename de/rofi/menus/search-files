@@ -11,8 +11,8 @@ selected_item=$(rofi_finder)
 
 if [ -n "$selected_item" ]; then
   if [ -d "$selected_item" ]; then
-    kitty --directory "$selected_item"
+    ghostty -e "cd "$selected_item" && nvim ."
   else
-    kitty -d $(dirname "$selected_item") -e nvim "$selected_item"
+    ghostty -e "cd $(dirname $selected_item) && nvim '$selected_item'"
   fi
 fi

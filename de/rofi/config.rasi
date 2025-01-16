@@ -17,7 +17,7 @@ configuration {
   tokenize: true;
 
   /*---------- SSH settings ----------*/
-  ssh-command: "{terminal} -e kitty +kitten ssh {host} [-p {port}]";
+  ssh-command: "{terminal} -e ssh {host} [-p {port}]";
   parse-hosts: true;
   parse-known-hosts: true;
 
@@ -67,7 +67,7 @@ configuration {
   display-filebrowser: "";
 
   /*---------- Misc setting ----------*/
-  terminal: "kitty";
+  terminal: "ghostty";
   font: "CaskaydiaCoveNerdFont 12";
   sort: false;
   threads: 0;
@@ -75,7 +75,7 @@ configuration {
 
   /*---------- File browser settings ----------*/
   filebrowser {
-    cmd: "kitty -e nvim";
+    cmd: "ghostty -e nvim";
     directory: "/home";
     directories-first: true;
     sorting-method:    "name";

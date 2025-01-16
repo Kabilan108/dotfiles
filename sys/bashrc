@@ -196,7 +196,8 @@ alias cr="cursor"
 alias excel_to_csv='libreoffice --headless --convert-to csv'
 
 # tools
-# alias copy='xclip -selection clipboard' ## <- FIXME
+alias copy='xclip -selection clipboard'
+alias clipboard='xclip -selection clipboard -o'
 
 # work
 alias devserver='kitten ssh -t moberg-devserver3 "bash -ic devsrv"'
@@ -204,18 +205,15 @@ alias devserver='kitten ssh -t moberg-devserver3 "bash -ic devsrv"'
 # python
 alias ipy='ipython'
 
-# kitty
-alias s='kitten ssh'
+# useful kittens
 alias icat='kitten icat'
-alias copy='kitten clipboard'
-alias clipboard='kitten clipboard -g'
-alias update-kitty='curl -L https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin'
 
 # llm calls
 alias claude='llm -m claude-3.5-sonnet'
 alias pplx='llm -m sonar-large'
 
 ### -> CUSTOM FUNCTIONS
+
 
 #### --> TMUX
 

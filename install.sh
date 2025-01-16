@@ -70,19 +70,7 @@ install_node_bun() {
   curl -fsSL https://bun.sh/install | bash
 }
 
-setup_kitty() {
-  log i "setting up kitty"
-  curl -L https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin
-  ln -sf $HOME/.local/kitty.app/bin/kitty $HOME/.local/kitty.app/bin/kitten $USERBIN
-  cp \
-    $HOME/.local/kitty.app/share/applications/kitty.desktop \
-    $HOME/.local/kitty.app/share/applications/kitty-open.desktop \
-    $HOME/.local/share/applications/
-  sed -i "s|Icon=kitty|Icon=$HOME/.local/kitty.app/share/icons/hicolor/256x256/apps/kitty.png|g" $HOME/.local/share/applications/kitty*.desktop
-  sed -i "s|Exec=kitty|Exec=$HOME/.local/kitty.app/bin/kitty|g" $HOME/.local/share/applications/kitty*.desktop
-  sudo update-desktop-database
-  ln -s $DOTFILES/sys/kitty $CONFDIR/kitty
-}
+# TODO: implement setup_ghostty setup_tmux and setup_icat (install kitten binary for icat)
 
 setup_docker() {
   log i "setting up docker"
@@ -250,7 +238,6 @@ ln -s $DOTFILES/sys/ruff $CONFDIR/ruff
 rm $HOME/.bashrc && ln -s $DOTFILES/sys/bashrc $HOME/.bashrc
 rm $HOME/.gitconfig && ln -s $DOTFILES/sys/gitconfig $HOME/.gitconfig
 rm $CONFDIR/user-dirs.dirs && ln -s $DOTFILES/sys/user-dirs.dirs $CONFDIR/user-dirs.dirs
-setup_kitty
 setup_docker
 
 log i "installing desktop programs"
