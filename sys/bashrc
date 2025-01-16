@@ -218,26 +218,42 @@ alias pplx='llm -m sonar-large'
 #### --> TMUX
 
 function tmuxa() {
-    if [[ -z "$1" ]]; then
-        echo "Usage: tmuxa <session>"
-        return 1
-    else
-        tmux attach-session -t "$1"
-    fi
+  if [[ -z "$1" ]]; then
+    echo "Usage: tmuxa <session>"
+    return 1
+  else
+    tmux attach-session -t "$1"
+  fi
 }
 
 function tmuxn() {
-    if [[ -z "$1" ]]; then
-        echo "Usage: tmuxn <session>"
-        return 1
-    else
-        tmux new-session -s "$1"
-    fi
+  if [[ -z "$1" ]]; then
+    tmux new-session
+  else
+    tmux new-session -s "$1"
+  fi
 }
 
 function tmuxl() {
-    tmux list-sessions
+  tmux list-sessions 2>/dev/null
 }
+
+function tmuxk() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: tmuxk <session>"
+    sessions=$(tmuxl | awk -F': ' '{print $1}' | paste -sd '  ' -)
+    [ -n "$sessions" ] && echo "existing sessions:  $sessions"
+    return 1
+  else
+    tmux kill-session -t "$1"
+  fi
+}
+
+alias ta="tmuxa"
+alias tn="tmuxn"
+alias tl="tmuxl"
+alias tk="tmuxk"
+
 
 #### --> PROGRAM LAUNCHERS
 
