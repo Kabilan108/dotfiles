@@ -15,3 +15,32 @@ services:
       - /dev/dri:/dev/dri  # Hardware acceleration (if available)
     environment:
       - JELLYFIN_PublishedServerUrl=http://100.104.180.3:8096  # Replace with your Tailscale IP
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    ports:
+      - "7000:8080"
+    environment:
+      - ENV=dev  # enable /docs
+      - ENABLE_SIGNUP=False
+      - DEFAULT_USER_ROLE=admin
+
+      # set model for title generation, web search
+      - TASK_MODEL_EXTERNAL=openai/gpt-4o-mini
+
+      # enable web search
+      # - ENABLE_RAG_WEB_SEARCH=True
+      # - RAG_WEB_SEARCH_ENGINE=google_pse
+
+      # enable whisper stt
+      # - WHISPER_MODEL=base
+
+      # API keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - open-webui:/app/backend/data
+    restart: always
+
+volumes:
+  open-webui:
