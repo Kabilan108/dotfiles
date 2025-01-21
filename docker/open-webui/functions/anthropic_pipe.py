@@ -29,18 +29,31 @@ class Pipe:
             **{"ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY", "")}
         )
         self.MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB per image
-        pass
+        self.CACHE_SUPPORTED_MODELS = [
+            "claude-3-5-sonnet-20241022",
+            "claude-3-opus-20240229",
+            "claude-3-5-haiku-latest",
+            "claude-3-haiku-20240307",
+        ]
+
+    def model_supports_caching(self, model_id: str) -> bool:
+        return any(
+            model_id.startswith(m.split("-2024")[0])
+            for m in self.CACHE_SUPPORTED_MODELS
+        )
+
+    def get_min_cache_tokens(self, model_id: str) -> int:
+        if "sonnet" in model_id or "opus" in model_id:
+            return 1024
+        elif "haiku" in model_id:
+            return 2048
+        return 0
 
     def get_anthropic_models(self):
         return [
             {"id": "claude-3-5-sonnet-20241022", "name": "claude-3.5-sonnet"},
             {"id": "claude-3-opus-20240229", "name": "claude-3-opus"},
             {"id": "claude-3-5-haiku-latest", "name": "claude-3.5-haiku"},
-            # {"id": "claude-3-haiku-20240307", "name": "claude-3-haiku-20240307"},
-            # {"id": "claude-3-sonnet-20240229", "name": "claude-3-sonnet-20240229"},
-            # {"id": "claude-3-5-haiku-20241022", "name": "claude-3.5-haiku-20241022"},
-            # {"id": "claude-3-5-sonnet-20240620", "name": "claude-3.5-sonnet-20240620"},
-            # {"id": "claude-3-5-sonnet-latest", "name": "claude-3.5-sonnet-latest"},
         ]
 
     def pipes(self) -> List[dict]:
@@ -51,14 +64,11 @@ class Pipe:
         if image_data["image_url"]["url"].startswith("data:image"):
             mime_type, base64_data = image_data["image_url"]["url"].split(",", 1)
             media_type = mime_type.split(":")[1].split(";")[0]
-
-            # Check base64 image size
-            image_size = len(base64_data) * 3 / 4  # Convert base64 size to bytes
+            image_size = len(base64_data) * 3 // 4
             if image_size > self.MAX_IMAGE_SIZE:
                 raise ValueError(
                     f"Image size exceeds 5MB limit: {image_size / (1024 * 1024):.2f}MB"
                 )
-
             return {
                 "type": "image",
                 "source": {
@@ -68,16 +78,13 @@ class Pipe:
                 },
             }
         else:
-            # For URL images, perform size check after fetching
             url = image_data["image_url"]["url"]
             response = requests.head(url, allow_redirects=True)
             content_length = int(response.headers.get("content-length", 0))
-
             if content_length > self.MAX_IMAGE_SIZE:
                 raise ValueError(
                     f"Image at URL exceeds 5MB limit: {content_length / (1024 * 1024):.2f}MB"
                 )
-
             return {
                 "type": "image",
                 "source": {"type": "url", "url": url},
@@ -85,48 +92,64 @@ class Pipe:
 
     def pipe(self, body: dict) -> Union[str, Generator, Iterator]:
         system_message, messages = pop_system_message(body["messages"])
+        model_id = body["model"][body["model"].find(".") + 1 :]
+        supports_caching = self.model_supports_caching(model_id)
+        min_tokens = self.get_min_cache_tokens(model_id)
+        min_chars = min_tokens * 4  # Approximate token-to-char ratio
 
+        # Process system message
+        system_blocks = []
+        if system_message:
+            system_text = str(system_message)
+            system_block = {"type": "text", "text": system_text}
+            if supports_caching and len(system_text) >= min_chars:
+                system_block["cache_control"] = {"type": "ephemeral"}
+            system_blocks.append(system_block)
+
+        # Process messages and images
         processed_messages = []
         total_image_size = 0
-
         for message in messages:
             processed_content = []
             if isinstance(message.get("content"), list):
                 for item in message["content"]:
                     if item["type"] == "text":
-                        processed_content.append({"type": "text", "text": item["text"]})
+                        text = item["text"]
+                        new_item = {"type": "text", "text": text}
+                        if supports_caching and len(text) >= min_chars:
+                            new_item["cache_control"] = {"type": "ephemeral"}
+                        processed_content.append(new_item)
                     elif item["type"] == "image_url":
                         processed_image = self.process_image(item)
-                        processed_content.append(processed_image)
-
-                        # Track total size for base64 images
+                        if supports_caching:
+                            processed_image["cache_control"] = {"type": "ephemeral"}
                         if processed_image["source"]["type"] == "base64":
-                            image_size = len(processed_image["source"]["data"]) * 3 / 4
+                            image_size = len(processed_image["source"]["data"]) * 3 // 4
                             total_image_size += image_size
-                            if (
-                                total_image_size > 100 * 1024 * 1024
-                            ):  # 100MB total limit
+                            if total_image_size > 100 * 1024 * 1024:
                                 raise ValueError(
-                                    "Total size of images exceeds 100 MB limit"
+                                    "Total image size exceeds 100 MB limit"
                                 )
+                        processed_content.append(processed_image)
             else:
-                processed_content = [
-                    {"type": "text", "text": message.get("content", "")}
-                ]
-
+                text = message.get("content", "")
+                new_item = {"type": "text", "text": text}
+                if supports_caching and len(text) >= min_chars:
+                    new_item["cache_control"] = {"type": "ephemeral"}
+                processed_content = [new_item]
             processed_messages.append(
                 {"role": message["role"], "content": processed_content}
             )
 
         payload = {
-            "model": body["model"][body["model"].find(".") + 1 :],
+            "model": model_id,
             "messages": processed_messages,
             "max_tokens": body.get("max_tokens", 4096),
             "temperature": body.get("temperature", 0.8),
             "top_k": body.get("top_k", 40),
             "top_p": body.get("top_p", 0.9),
             "stop_sequences": body.get("stop", []),
-            **({"system": str(system_message)} if system_message else {}),
+            **({"system": system_blocks} if system_blocks else {}),
             "stream": body.get("stream", False),
         }
 
@@ -135,7 +158,6 @@ class Pipe:
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
         }
-
         url = "https://api.anthropic.com/v1/messages"
 
         try:
@@ -159,7 +181,6 @@ class Pipe:
                     raise Exception(
                         f"HTTP Error {response.status_code}: {response.text}"
                     )
-
                 for line in response.iter_lines():
                     if line:
                         line = line.decode("utf-8")
@@ -176,11 +197,7 @@ class Pipe:
                                     for content in data.get("content", []):
                                         if content["type"] == "text":
                                             yield content["text"]
-
-                                time.sleep(
-                                    0.01
-                                )  # Delay to avoid overwhelming the client
-
+                                time.sleep(0.01)
                             except json.JSONDecodeError:
                                 print(f"Failed to parse JSON: {line}")
                             except KeyError as e:
@@ -200,7 +217,6 @@ class Pipe:
             )
             if response.status_code != 200:
                 raise Exception(f"HTTP Error {response.status_code}: {response.text}")
-
             res = response.json()
             return (
                 res["content"][0]["text"] if "content" in res and res["content"] else ""
