@@ -127,6 +127,15 @@ return {
     end
   },
 
+  {
+    'ggml-org/llama.vim',
+    init = function ()
+      vim.g.llama_config = {
+        endpoint = "http://lisan-al-gaib:8012/infill"
+      }
+    end
+  },
+
   -- neotree (file explorer)
   {
     "nvim-neo-tree/neo-tree.nvim",
@@ -217,9 +226,6 @@ return {
     },
     config = true
   },
-
-  -- minuet-ai
-  { "milanglacier/minuet-ai.nvim" },
 
   -- theme (catppuccin)
   {
