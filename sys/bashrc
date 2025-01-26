@@ -52,12 +52,6 @@ bind '"\C-A-l":"clear\n"'
 # load environment variables
 source $HOME/.bash_env
 
-# set TERM variable when using ghostty
-if [[ $TERM_PROGRAM == "ghostty" ]]; then
-  export TERM=xterm-256color
-fi
-
-
 ### -> SMARTER TAB-COMPLETION
 
 # case insensitive file completion
