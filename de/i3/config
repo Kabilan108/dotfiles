@@ -232,7 +232,7 @@ exec --no-startup-id betterlockscreen -w dim
 exec --no-startup-id nm-applet
 
 # bluetooth applet
-exec --no-startup-id blueman-applet
+exec --no-startup-id sleep 2 && blueman-applet
 
 # dunst (notification daemon)
 exec --no-startup-id dunst

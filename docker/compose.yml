@@ -21,25 +21,38 @@ services:
     container_name: open-webui
     ports:
       - "7000:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - ENV=dev  # enable /docs
-      - ENABLE_SIGNUP=False
+      - ENABLE_SIGNUP=True
       - DEFAULT_USER_ROLE=admin
 
       # set model for title generation, web search
       - TASK_MODEL_EXTERNAL=openai/gpt-4o-mini
 
-      # enable web search
       # - ENABLE_RAG_WEB_SEARCH=True
       # - RAG_WEB_SEARCH_ENGINE=google_pse
 
-      # enable whisper stt
-      # - WHISPER_MODEL=base
+      - RAG_EMBEDDING_MODEL_AUTO_UPDATE=True
+      - RAG_RERANKING_MODEL_AUTO_UPDATE=True
+      - RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True
+      - RAG_RERANKING_MODEL_TRUST_REMOTE_CODE=True
 
-      # API keys
+      - WHISPER_MODEL=base
+
+      - ENABLE_OLLAMA_API=False
+
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
       - open-webui:/app/backend/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     restart: always
 
 volumes:
