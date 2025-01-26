@@ -377,3 +377,6 @@ function mountgdrive() {
     --allow-other \
     --uid 1000
 }
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/home/muaddib/.lmstudio/bin"
