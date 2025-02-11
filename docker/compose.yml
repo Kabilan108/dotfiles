@@ -1,28 +1,44 @@
 services:
-  jellyfin:
-    image: jellyfin/jellyfin:latest
-    container_name: jellyfin
-    user: 1000:1000  # Update this to match your user's UID:GID
-    network_mode: "host"  # This allows Jellyfin to use the host's network, including Tailscale
+  nginx:
+    container_name: nginx-proxy
+    image: nginx:alpine
+    networks:
+      - proxy-network
+    ports:
+      - "80:80"
     restart: unless-stopped
-    entrypoint: ["/entrypoint.sh"]
     volumes:
-      - /home/muaddib/docker/jellyfin/config/:/config  # Replace with your desired config location
-      - /mnt/media:/media  # Your existing media mount, read-only
-      - /etc/localtime:/etc/localtime:ro  # Sync container time with host
-      - ./jellyfin/entrypoint.sh:/entrypoint.sh
+      - ./nginx:/etc/nginx/conf.d
+
+  jellyfin:
+    container_name: jellyfin
     devices:
-      - /dev/dri:/dev/dri  # Hardware acceleration (if available)
+      - /dev/dri:/dev/dri  # hardware acceleration
+    entrypoint: ["/entrypoint.sh"]
     environment:
-      - JELLYFIN_PublishedServerUrl=http://100.104.180.3:8096  # Replace with your Tailscale IP
+      - JELLYFIN_PublishedServerUrl=http://lisan-al-gaib/jellyfin
+    image: jellyfin/jellyfin:latest
+    networks:
+      - proxy-network
+    ports:
+      - "8096:8096"
+    restart: unless-stopped
+    user: 1000:1000
+    volumes:
+      - /home/muaddib/docker/jellyfin/config/:/config
+      - /mnt/media:/media  # media mount, read-only
+      - /etc/localtime:/etc/localtime:ro  # sync container time with host
+      - ./jellyfin/entrypoint.sh:/entrypoint.sh
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
     container_name: open-webui
-    ports:
-      - "7000:8080"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     environment:
       - ENV=dev  # enable /docs
       - ENABLE_SIGNUP=True
@@ -44,16 +60,17 @@ services:
       - ENABLE_OLLAMA_API=False
 
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+    image: ghcr.io/open-webui/open-webui:main
+    networks:
+      - proxy-network
+    ports:
+      - "7000:8080"
+    restart: unless-stopped
     volumes:
       - open-webui:/app/backend/data
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    restart: always
+
+networks:
+  proxy-network:
 
 volumes:
   open-webui:
