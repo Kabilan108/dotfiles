@@ -136,6 +136,7 @@ cc.setup({
     qwen_qwq_32b = create_adapter("openrouter", "qwen/qwq-32b-preview"),
     o1 = create_adapter("openai", "o1-2024-12-17"),
     o1_mini = create_adapter("openai", "o1-mini-2024-09-12"),
+    chatgpt = create_adapter("openai", "chatgpt-4o-latest"),
     gpt_4o = create_adapter("openai", "gpt-4o-2024-11-20"),
     gpt_4o_mini = create_adapter("openai", "gpt-4o-mini-2024-07-18"),
   },
