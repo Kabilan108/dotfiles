@@ -147,7 +147,6 @@
 	},
 	"[python]": {
 		"editor.defaultFormatter": "charliermarsh.ruff",
-		"editor.formatOnSave": true,
 		"editor.rulers": [88],
 		"updateImportsOnFileMove.enabled": "always"
 	},
@@ -201,5 +200,7 @@
 		"Zihuai"
 	],
 	"cSpell.language": "en",
-	"cursor.aipreview.enabled": true
+	"cursor.aipreview.enabled": true,
+	"wakatime.apiUrl": "https://wakapi.dev/api",
+	"editor.lineNumbers": "relative"
 }
