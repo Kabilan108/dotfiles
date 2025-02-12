@@ -372,4 +372,38 @@
     alignment = left
     vertical_alignment = center
 
+[stack-battery]
+    appname = "battery"
+    set_stack_tag = "battery"
+    background = "#1e1e2e"     # base
+    foreground = "#a6e3a1"     # green
+    frame_color = "#a6e3a1"    # green
+    highlight = "#a6e3a1"      # green
+    format = "<b>%s</b>\n%b"
+
+[battery-full]
+    appname = "battery"
+    category = "battery-full"
+    background = "#1e1e2e"     # base
+    foreground = "#a6e3a1"     # green
+    frame_color = "#a6e3a1"    # green
+    highlight = "#a6e3a1"      # green
+
+[battery-low]
+    appname = "battery"
+    category = "battery-low"
+    background = "#1e1e2e"     # base
+    foreground = "#fab387"     # peach
+    frame_color = "#fab387"    # peach
+    highlight = "#fab387"      # peach
+
+[battery-critical]
+    appname = "battery"
+    category = "battery-critical"
+    background = "#1e1e2e"     # base
+    foreground = "#f38ba8"     # red
+    frame_color = "#f38ba8"    # red
+    highlight = "#f38ba8"      # red
+    timeout = 0
+
 # vim: ft=cfg

@@ -1,0 +1,81 @@
+#!/bin/bash
+
+THRESHOLD_LOW=20     # Low battery threshold in percent
+THRESHOLD_CRITICAL=5 # Critical battery threshold in percent
+CHECK_INTERVAL=60    # How often (in seconds) to check the battery
+
+# Battery paths
+BATTERY_PATH="/sys/class/power_supply/BAT1"
+[ ! -d "$BATTERY_PATH" ] && BATTERY_PATH="/sys/class/power_supply/BAT0"
+
+# Icon selection based on battery status
+get_battery_icon() {
+  local capacity=$1
+  local status=$2
+
+  if [ "$status" = "Charging" ]; then
+    echo "󰂄" # Charging icon
+  else
+    if [ "$capacity" -ge 90 ]; then
+      echo "󰁹"
+    elif [ "$capacity" -ge 80 ]; then
+      echo "󰂂"
+    elif [ "$capacity" -ge 70 ]; then
+      echo "󰂁"
+    elif [ "$capacity" -ge 60 ]; then
+      echo "󰂀"
+    elif [ "$capacity" -ge 50 ]; then
+      echo "󰁿"
+    elif [ "$capacity" -ge 40 ]; then
+      echo "󰁾"
+    elif [ "$capacity" -ge 30 ]; then
+      echo "󰁽"
+    elif [ "$capacity" -ge 20 ]; then
+      echo "󰁼"
+    elif [ "$capacity" -ge 10 ]; then
+      echo "󰁻"
+    else
+      echo "󰁺"
+    fi
+  fi
+}
+
+# Main monitoring loop
+while true; do
+  if [ -d "$BATTERY_PATH" ]; then
+    capacity=$(cat "$BATTERY_PATH/capacity")
+    status=$(cat "$BATTERY_PATH/status")
+    icon=$(get_battery_icon "$capacity" "$status")
+
+    if [ "$status" = "Charging" ]; then
+      # Charging notification
+      if [ "$capacity" -ge 95 ]; then
+        dunstify \
+          -a "battery" \
+          -u normal \
+          -h string:x-dunst-stack-tag:battery \
+          -h string:category:battery-full \
+          "$icon Battery Charged"
+      fi
+    else
+      # Discharging notifications
+      if [ "$capacity" -le "$THRESHOLD_CRITICAL" ]; then
+        dunstify \
+          -a "battery" \
+          -u critical \
+          -h string:x-dunst-stack-tag:battery \
+          -h string:category:battery-critical \
+          "$icon Battery Crically Low" \
+          "Battery critically low ($capacity%)!\nPlease connect charger immediately!"
+      elif [ "$capacity" -le "$THRESHOLD_LOW" ]; then
+        dunstify \
+          -a "battery" \
+          -u normal \
+          -h string:x-dunst-stack-tag:battery \
+          -h string:category:battery-low \
+          "$icon Low Battery - $capacity%"
+      fi
+    fi
+  fi
+  sleep "$CHECK_INTERVAL"
+done
