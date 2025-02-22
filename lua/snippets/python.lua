@@ -7,7 +7,7 @@ return {
   s("script", {
     t({
       "# /// script",
-      "# requires-python = [\">=3.11\"]",
+      "# requires-python = \">=3.11\"",
       "# dependencies = [\"ipdb\""
     }),
     i(1, ""),
