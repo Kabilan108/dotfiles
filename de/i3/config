@@ -154,6 +154,7 @@ for_window [class="zoom"] floating enable, resize set 800 600
 for_window [class="Org.gnome.Nautilus"] floating enable, resize set 800 600
 for_window [class="org.gnome.Nautilus"] floating enable, resize set 800 600
 for_window [class="TelegramDesktop"] floating enable, resize set 800 600
+for_window [class="Dictator-dev-linux-amd64"] floating enable
 
 # ===> APPEARANCE =====================================================================
 
