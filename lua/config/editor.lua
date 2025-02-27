@@ -105,6 +105,11 @@ local servers = {
     },
     settings = {},
   },
+  dockerls = {
+    filetypes = { 'dockerfile' },
+    root_dir = require('lspconfig.util').root_pattern('Dockerfile', '.dockerignore', 'docker-compose.yml', '.git'),
+    single_file_support = true,
+  },
   gopls = {
     cmd = { 'gopls' },
     filetypes = { 'go', 'gomod', 'gowork', 'gotmpl' },
@@ -163,7 +168,7 @@ capabilities = vim.tbl_deep_extend(
 local lspconfig = require("lspconfig")
 require('mason').setup()
 require('mason-lspconfig').setup({
-  ensure_installed = { "biome", "clangd", "gopls", "lua_ls", "pyright", "ruff" },
+  ensure_installed = { "biome", "clangd", "dockerls", "gopls", "lua_ls", "pyright", "ruff" },
   handlers = {
     function(server_name)
       local server = servers[server_name] or {}
