@@ -202,5 +202,7 @@
 	"cSpell.language": "en",
 	"cursor.aipreview.enabled": true,
 	"wakatime.apiUrl": "https://wakapi.dev/api",
-	"editor.lineNumbers": "relative"
+	"editor.lineNumbers": "relative",
+	"cursor.composer.renderPillsInsteadOfBlocks": true,
+	"cursor.terminal.usePreviewBox": true
 }
