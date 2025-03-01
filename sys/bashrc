@@ -208,7 +208,6 @@ alias ipy='ipython'
 alias icat='kitten icat'
 
 # llm calls
-alias claude='llm -m claude-3.5-sonnet'
 alias pplx='llm -m sonar-large'
 
 ### -> CUSTOM FUNCTIONS
