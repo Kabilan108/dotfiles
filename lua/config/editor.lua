@@ -105,6 +105,11 @@ local servers = {
     },
     settings = {},
   },
+  dockerls = {
+    filetypes = { 'dockerfile' },
+    root_dir = require('lspconfig.util').root_pattern('Dockerfile', '.dockerignore', 'docker-compose.yml', '.git'),
+    single_file_support = true,
+  },
   gopls = {
     cmd = { 'gopls' },
     filetypes = { 'go', 'gomod', 'gowork', 'gotmpl' },
@@ -150,7 +155,12 @@ local servers = {
         configuration = "~/.config/ruff/ruff.toml",
       }
     }
-  }
+  },
+  ts_ls = {
+    filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact' },
+    root_dir = require('lspconfig.util').root_pattern('package.json', 'tsconfig.json', 'jsconfig.json'),
+    single_file_support = true,
+  },
 }
 
 -- inform servers of completion capabilities
@@ -163,7 +173,7 @@ capabilities = vim.tbl_deep_extend(
 local lspconfig = require("lspconfig")
 require('mason').setup()
 require('mason-lspconfig').setup({
-  ensure_installed = { "biome", "clangd", "gopls", "lua_ls", "pyright", "ruff" },
+  ensure_installed = { "biome", "clangd", "dockerls", "gopls", "lua_ls", "pyright", "ruff", "ts_ls" },
   handlers = {
     function(server_name)
       local server = servers[server_name] or {}
