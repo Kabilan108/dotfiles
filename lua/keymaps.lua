@@ -38,8 +38,8 @@ map("<leader>sf", ts.find_files, "[s]earch [f]iles")
 map("<leader>sg", ts.live_grep, "[s]earch [g]rep")
 map("<leader>sh", ts.help_tags, "[s]earch [h]elp tags")
 map("<leader>sk", ts.keymaps, "[s]earch [k]eymaps")
-map("<leader>sr", ts.resume, "[s]earch [r]esume")
-map("<leader>s.", ts.oldfiles, "[s]earch [.] recent files")
+map("<leader>rs", ts.resume, "[r]esume [s]earch")
+map("<leader>sr", ts.oldfiles, "[s]earch [r]ecent")
 
 -- folding
 map("zc", "<CMD>foldclose<CR>", "close fold under cursor")
