@@ -13,6 +13,15 @@ return {
   "nvim-tree/nvim-web-devicons",
   "wakatime/vim-wakatime",
 
+  {
+    'stevearc/oil.nvim',
+    ---@module 'oil'
+    ---@type oil.SetupOpts
+    opts = {},
+    -- Lazy loading is not recommended because it is very tricky to make it work correctly in all situations.
+    lazy = false,
+  },
+
   { dir = local_plugins,                   name = "mentat" },
 
   { "folke/which-key.nvim",                event = "VimEnter" },
