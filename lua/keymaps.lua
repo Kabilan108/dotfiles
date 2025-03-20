@@ -4,6 +4,7 @@
 local api = vim.api
 local cmd = vim.cmd
 local ts = require("telescope.builtin")
+local custom_ts = require("custom.telescope")
 
 ---- FUNCS ----------------------------------------------------------------------------
 local function map(keys, func, desc, mode)
@@ -31,7 +32,7 @@ map("<Esc>", "<CMD>nohlsearch<CR>")
 -- telescope
 map("<leader>b", function() ts.buffers({ sort_mru = true }) end, "search [b]uffers")
 map("<leader>sf", ts.find_files, "[s]earch [f]iles")
-map("<leader>sg", ts.live_grep, "[s]earch [g]rep")
+map("<leader>sg", custom_ts.livegrep, "[s]earch [g]rep")
 map("<leader>sh", ts.help_tags, "[s]earch [h]elp tags")
 map("<leader>sk", ts.keymaps, "[s]earch [k]eymaps")
 map("<leader>rs", ts.resume, "[r]esume [s]earch")
