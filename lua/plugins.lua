@@ -16,7 +16,6 @@ return {
   {
     'stevearc/oil.nvim',
     ---@module 'oil'
-    ---@type oil.SetupOpts
     opts = {
       columns = { "icon" },
       view_options = { show_hidden = true }
@@ -86,21 +85,6 @@ return {
     end
   },
 
-  -- conform (formatting)
-  {
-    "stevearc/conform.nvim",
-    formatters_by_ft = {
-      lua = { "stylua" },
-      python = { "isort", "ruff" },
-      javascript = { "biome" },
-      typescript = { "biome" },
-      javascriptreact = { "biome" },
-      typescriptreact = { "biome" },
-      css = { "biome" },
-      go = { "gofumpt" }
-    }
-  },
-
   -- telescope
   {
     "nvim-telescope/telescope.nvim",
@@ -112,25 +96,7 @@ return {
           find_files = { hidden = true, }
         },
         extensions = {
-          ["ui-select"] = {
-            require("telescope.themes").get_dropdown {
-              -- even more opts
-            }
-
-            -- pseudo code / specification for writing custom displays, like the one
-            -- for "codeactions"
-            -- specific_opts = {
-            --   [kind] = {
-            --     make_indexed = function(items) -> indexed_items, width,
-            --     make_displayer = function(widths) -> displayer
-            --     make_display = function(displayer) -> function(e)
-            --     make_ordinal = function(e) -> string
-            --   },
-            --   -- for example to disable the custom builtin "codeactions" display
-            --      do the following
-            --   codeactions = false,
-            -- }
-          }
+          ["ui-select"] = { require("telescope.themes").get_dropdown {} }
         }
       }
       -- To get ui-select loaded and working with telescope, you need to call
@@ -141,7 +107,7 @@ return {
 
   {
     'ggml-org/llama.vim',
-    init = function ()
+    init = function()
       vim.g.llama_config = {
         endpoint = "http://lisan-al-gaib:8012/infill"
       }
@@ -165,13 +131,12 @@ return {
       -- - saiw) - [S]urround [A]dd [I]nner [W]ord [)]Paren
       -- - sd'   - [S]urround [D]elete [']quotes
       -- - sr)'  - [S]urround [R]eplace [)] [']
-      require('mini.surround').setup()
+      require('mini.surround').setup {
+        highlight_duration = 1000,
+      }
 
       require('mini.pairs').setup()
-      require('mini.tabline').setup()
-      require('mini.sessions').setup()
       require('mini.trailspace').setup()
-      require('mini.icons').setup()
       require("mini.diff").setup()
     end,
   },
@@ -196,20 +161,6 @@ return {
         }
       })
     end
-  },
-
-  -- codecompanion
-  {
-    "olimorris/codecompanion.nvim",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      "nvim-treesitter/nvim-treesitter",
-      "hrsh7th/nvim-cmp",                                                                    -- Optional: For using slash commands and variables in the chat buffer
-      "nvim-telescope/telescope.nvim",                                                       -- Optional: For using slash commands
-      { "MeanderingProgrammer/render-markdown.nvim", ft = { "markdown", "codecompanion" } }, -- Optional: For prettier markdown rendering
-      { "stevearc/dressing.nvim",                    opts = {} },                            -- Optional: Improves `vim.ui.select`
-    },
-    config = true
   },
 
   -- theme (catppuccin)

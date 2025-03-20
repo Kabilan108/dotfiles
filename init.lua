@@ -13,7 +13,6 @@ require "keymaps"
 require "config.editor"
 require "config.lualine"
 require "config.mentat"
-require "config.llm"
 require("config.snippets").setup()
 
 require "config.terminal"
