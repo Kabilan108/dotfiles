@@ -148,33 +148,6 @@ return {
     end
   },
 
-  -- neotree (file explorer)
-  {
-    "nvim-neo-tree/neo-tree.nvim",
-    dependencies = { "MunifTanjim/nui.nvim" },
-    cmd = "Neotree",
-    opts = {
-      filesystem = {
-        filtered_items = {
-          visible = true,
-          show_hidden_count = false,
-          hide_dotfiles = false,
-          hide_gitignored = false,
-          hide_by_name = {
-            "node_modules",
-          },
-          never_show = {
-            ".git",
-            ".DS_Store",
-            "thumbs.db",
-            "__pycache__",
-          }
-        }
-      },
-      window = { width = 27 }
-    },
-  },
-
   -- mini.nvim
   { -- Collection of various small independent plugins/modules
     'echasnovski/mini.nvim',

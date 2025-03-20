@@ -22,8 +22,8 @@ end
 -- global replace
 map("<A-r>", ":%s/", "replace", { "n", "v" })
 
--- neo-tree
-map("\\", "<CMD>Neotree toggle<CR>", "[\\] toggle file explorer")
+-- oil
+map("-", "<CMD>Oil<CR>", "Open parent directory")
 
 -- clear search highlights
 map("<Esc>", "<CMD>nohlsearch<CR>")
