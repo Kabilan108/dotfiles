@@ -16,7 +16,7 @@ M.livegrep = function(opts)
       end
 
       local pieces = vim.split(prompt, "  ")
-      local args = { "rg" }
+      local args = { "rg", "--glob", "!.git/**" }
 
       if pieces[1] then
         table.insert(args, "-e")
