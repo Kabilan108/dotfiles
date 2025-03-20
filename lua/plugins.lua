@@ -17,7 +17,8 @@ return {
     'stevearc/oil.nvim',
     ---@module 'oil'
     opts = {
-      columns = { "icon" },
+      columns = { "icon", "permissions", "size" },
+      watch_for_changes = true,
       view_options = { show_hidden = true }
     },
     -- Lazy loading is not recommended because it is very tricky to make it work correctly in all situations.
