@@ -14,7 +14,7 @@ end
 local function echo(msg)
   cmd('echo "' .. msg .. '"')
   vim.defer_fn(function()
-      cmd('echon ""')
+    cmd('echon ""')
   end, 3000)
 end
 
@@ -51,7 +51,7 @@ map("<leader>Z", "zA", "toggle fold recursively")
 -- mini.sessions
 map(
   "<leader>ls",
-  function () require('mini.sessions').read() end,
+  function() require('mini.sessions').read() end,
   "[l]oad [s]ession"
 )
 map("<leader>ss", "<CMD>mksession<CR>", "[s]ave [s]ession")
