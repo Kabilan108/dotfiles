@@ -235,6 +235,9 @@ exec --no-startup-id nm-applet
 # bluetooth applet
 exec --no-startup-id sleep 2 && blueman-applet
 
+# remap CapsLock
+exec --no-startup-id setxkbmap -option caps:escape
+
 # dunst (notification daemon)
 exec --no-startup-id dunst
 
