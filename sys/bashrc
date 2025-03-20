@@ -170,6 +170,11 @@ eval "$(direnv hook bash)"
 # enable cargo
 . "$HOME/.cargo/env"
 
+# enable geass completions
+if [ -f '/home/muaddib/.bash_completions/geass.sh' ]; then
+  source '/home/muaddib/.bash_completions/geass.sh'
+fi
+
 ### -> ALIASES
 
 alias nohist='HISTFILE=/dev/null'
