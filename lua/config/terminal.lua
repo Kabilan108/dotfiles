@@ -56,7 +56,7 @@ function M.toggle_terminal(opts)
   end
 
   -- create a new terminal
-  vim.g.terminal_buf_id = vim.api.nvim_create_buf(false, true) -- not listed, scratch buffer
+  vim.g.terminal_buf_id = vim.api.nvim_create_buf(true, true) -- scratch buffer
   vim.g.terminal_win_id = vim.api.nvim_open_win(vim.g.terminal_buf_id, true, get_win_config())
   vim.g.terminal_win_h = get_win_config().height
   vim.g.terminal_win_w = get_win_config().width
