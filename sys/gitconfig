@@ -100,3 +100,5 @@
 
   t = tag
   td = tag -d
+[credential]
+	helper = store
