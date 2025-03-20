@@ -29,17 +29,13 @@ map("-", "<CMD>Oil<CR>", "Open parent directory")
 map("<Esc>", "<CMD>nohlsearch<CR>")
 
 -- telescope
-map(
-  "<leader>b",
-  function() ts.buffers({ sort_mru = true }) end,
-  "[b]uffers"
-)
+map("<leader>b", function() ts.buffers({ sort_mru = true }) end, "search [b]uffers")
 map("<leader>sf", ts.find_files, "[s]earch [f]iles")
 map("<leader>sg", ts.live_grep, "[s]earch [g]rep")
 map("<leader>sh", ts.help_tags, "[s]earch [h]elp tags")
 map("<leader>sk", ts.keymaps, "[s]earch [k]eymaps")
 map("<leader>rs", ts.resume, "[r]esume [s]earch")
-map("<leader>sr", ts.oldfiles, "[s]earch [r]ecent")
+map("<leader>sr", ts.oldfiles, "[s]earch [r]ecent files")
 
 -- folding
 map("zc", "<CMD>foldclose<CR>", "close fold under cursor")
@@ -84,11 +80,15 @@ map('<C-A-s>', '<CMD>resize -2<CR>', 'resize [s]horter')
 map('<C-A-w>', '<CMD>vertical resize +2<CR>', 'resize [w]ider')
 map('<C-A-n>', '<CMD>vertical resize -2<CR>', 'resize [n]arrower')
 
+-- tab navigation
+map("nt", "<CMD>tabnew<CR>", "[n]ew [t]ab")
+map("tn", "<CMD>tabnext<CR>", "[t]ab [n]ext")
+map("tp", "<CMD>tabprevious<CR>", "[t]ab [p]revious")
+
 -- buffer navigation
-map("<A-,>", "<CMD>bp<CR>", "next buffer")
-map("<A-.>", "<CMD>bn<CR>", "next buffer")
-map("<A-w>", "<CMD>w<CR><CMD>bwipeout<CR>", "save and wipeout buffer")
-map("<A-c>", "<CMD>bwipeout!<CR>", "force wipeout buffer")
+map("bp", "<CMD>bp<CR>", "[b]uffer [p]revious")
+map("bn", "<CMD>bn<CR>", "[b]uffer [n]ext")
+map("cb", "<CMD>enew<CR>", "[c]lear [b]uffer")
 
 -- increment & decrement numbers
 map("<C-i>", "<C-a>", "increment")
