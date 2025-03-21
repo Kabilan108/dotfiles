@@ -31,7 +31,17 @@ map("<Esc>", "<CMD>nohlsearch<CR>")
 
 -- telescope
 map("<leader>b", function() ts.buffers({ sort_mru = true }) end, "search [b]uffers")
-map("<leader>sf", ts.find_files, "[s]earch [f]iles")
+map(
+  "<leader>sf",
+  function()
+    ts.find_files({
+      hidden = true,
+      follow = true,
+      find_command = { "rg", "--files", "--color", "never", "-g", "!.git/**" }
+    })
+  end,
+  "[s]earch [f]iles"
+)
 map("<leader>sg", custom_ts.livegrep, "[s]earch [g]rep")
 map("<leader>sh", ts.help_tags, "[s]earch [h]elp tags")
 map("<leader>sk", ts.keymaps, "[s]earch [k]eymaps")
