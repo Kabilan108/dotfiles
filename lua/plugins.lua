@@ -63,6 +63,14 @@ return {
     },
   },
 
+  -- typing practice
+  {
+    "nvzone/typr",
+    dependencies = "nvzone/volt",
+    opts = {},
+    cmd = { "Typr", "TyprStats" }
+  },
+
   -- todo comments
   {
     'folke/todo-comments.nvim',

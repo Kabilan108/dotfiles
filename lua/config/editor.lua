@@ -188,3 +188,17 @@ require('mason-lspconfig').setup({
     end,
   },
 })
+
+cmp.setup.filetype({ 'typr' }, {
+  window = {
+    completion = cmp.config.disable,
+    documentation = cmp.config.disable,
+  }
+})
+
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "typr",
+  callback = function()
+    vim.fn['llama#disable']()
+  end
+})
