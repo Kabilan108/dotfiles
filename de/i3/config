@@ -236,9 +236,6 @@ exec --no-startup-id nm-applet
 # bluetooth applet
 exec --no-startup-id sleep 2 && blueman-applet
 
-# remap CapsLock
-exec --no-startup-id setxkbmap -option caps:escape
-
 # dunst (notification daemon)
 exec --no-startup-id dunst
 
@@ -247,6 +244,9 @@ exec --no-startup-id /snap/bin/obsidian
 
 # compositor
 exec --no-startup-id picom --config $HOME/.config/picom/picom.conf -b
+
+# remap CapsLock
+exec_always --no-startup-id setxkbmap -option caps:escape
 
 # set autorandr layout
 exec_always autorandr --change
