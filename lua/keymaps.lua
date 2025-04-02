@@ -4,7 +4,7 @@
 local api = vim.api
 local cmd = vim.cmd
 local ts = require("telescope.builtin")
-local custom_ts = require("custom.telescope")
+local custom_ts = require("config.telescope")
 
 ---- FUNCS ----------------------------------------------------------------------------
 local function map(keys, func, desc, mode)

@@ -12,7 +12,7 @@ require "keymaps"
 -- configure plugins
 require "config.editor"
 require "config.lualine"
-require "config.mentat"
+require "config.ghola"
 require("config.snippets").setup()
 
 require "config.terminal"

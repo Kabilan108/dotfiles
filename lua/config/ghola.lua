@@ -4,66 +4,66 @@ local system_prompt =
 local helpful_prompt =
 'You are a helpful assistant. What I have sent are my notes so far. You are very curt, yet helpful.'
 
-local mentat = require 'custom.mentat'
+local ghola = require 'ghola'
 
 local function groq_replace()
-  mentat.invoke_llm_and_stream_into_editor({
+  ghola.invoke_llm_and_stream_into_editor({
     url = 'https://api.groq.com/openai/v1/chat/completions',
     model = 'llama3-70b-8192',
     api_key_name = 'GROQ_API_KEY',
     system_prompt = system_prompt,
     replace = true,
-  }, mentat.make_openai_spec_curl_args, mentat.handle_openai_spec_data)
+  }, ghola.make_openai_spec_curl_args, ghola.handle_openai_spec_data)
 end
 
 local function groq_help()
-  mentat.invoke_llm_and_stream_into_editor({
+  ghola.invoke_llm_and_stream_into_editor({
     url = 'https://api.groq.com/openai/v1/chat/completions',
     model = 'llama3-70b-8192',
     api_key_name = 'GROQ_API_KEY',
     system_prompt = helpful_prompt,
     replace = false,
-  }, mentat.make_openai_spec_curl_args, mentat.handle_openai_spec_data)
+  }, ghola.make_openai_spec_curl_args, ghola.handle_openai_spec_data)
 end
 
 local function openai_replace()
-  mentat.invoke_llm_and_stream_into_editor({
+  ghola.invoke_llm_and_stream_into_editor({
     url = 'https://api.openai.com/v1/chat/completions',
     model = 'gpt-4o',
     api_key_name = 'OPENAI_API_KEY',
     system_prompt = system_prompt,
     replace = true,
-  }, mentat.make_openai_spec_curl_args, mentat.handle_openai_spec_data)
+  }, ghola.make_openai_spec_curl_args, ghola.handle_openai_spec_data)
 end
 
 local function openai_help()
-  mentat.invoke_llm_and_stream_into_editor({
+  ghola.invoke_llm_and_stream_into_editor({
     url = 'https://api.openai.com/v1/chat/completions',
     model = 'gpt-4o',
     api_key_name = 'OPENAI_API_KEY',
     system_prompt = helpful_prompt,
     replace = false,
-  }, mentat.make_openai_spec_curl_args, mentat.handle_openai_spec_data)
+  }, ghola.make_openai_spec_curl_args, ghola.handle_openai_spec_data)
 end
 
 local function anthropic_help()
-  mentat.invoke_llm_and_stream_into_editor({
+  ghola.invoke_llm_and_stream_into_editor({
     url = 'https://api.anthropic.com/v1/messages',
     model = 'claude-3-5-sonnet-20240620',
     api_key_name = 'ANTHROPIC_API_KEY',
     system_prompt = helpful_prompt,
     replace = false,
-  }, mentat.make_anthropic_spec_curl_args, mentat.handle_anthropic_spec_data)
+  }, ghola.make_anthropic_spec_curl_args, ghola.handle_anthropic_spec_data)
 end
 
 local function anthropic_replace()
-  mentat.invoke_llm_and_stream_into_editor({
+  ghola.invoke_llm_and_stream_into_editor({
     url = 'https://api.anthropic.com/v1/messages',
     model = 'claude-3-5-sonnet-20240620',
     api_key_name = 'ANTHROPIC_API_KEY',
     system_prompt = system_prompt,
     replace = true,
-  }, mentat.make_anthropic_spec_curl_args, mentat.handle_anthropic_spec_data)
+  }, ghola.make_anthropic_spec_curl_args, ghola.handle_anthropic_spec_data)
 end
 
 vim.keymap.set({ 'n', 'v' }, '<leader>k', groq_replace, { desc = 'llm groq' })

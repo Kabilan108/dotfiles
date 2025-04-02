@@ -1,7 +1,7 @@
 -- plugins.lua
 -- set up plugins for nvim
 
-local local_plugins = vim.fn.stdpath 'config' .. '/lua/custom'
+local local_plugins = vim.fn.stdpath 'config' .. '/plugins'
 
 local home = os.getenv("HOME")
 package.path = package.path .. ";" .. home .. ".luarocks/lib/luarocks/rocks-5.1"
@@ -25,7 +25,7 @@ return {
     lazy = false,
   },
 
-  { dir = local_plugins,                   name = "mentat" },
+  { dir = local_plugins .. '/ghola',       name = "ghola" },
 
   { "folke/which-key.nvim",                event = "VimEnter" },
   { "lukas-reineke/indent-blankline.nvim", main = "ibl",                          opts = {} },
