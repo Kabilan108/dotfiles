@@ -89,6 +89,7 @@ return {
           TODO = { icon = " ", color = colors.blue, },
           WARN = { icon = " ", color = colors.orange, alt = { "WARNING", "XXX" } },
           NOTE = { icon = " ", color = colors.teal, alt = { "INFO" } },
+          WHY = { icon = " ", color = colors.cyan, alt = { "WHY" } },
         },
       })
     end
