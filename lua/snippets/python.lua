@@ -17,7 +17,7 @@ return {
       "" }),
     i(0),
   }),
-  s("if name", {
+  s("ifmain", {
     t({ "if __name__ == \"__main__\":",
       "    " }),
     i(1, "pass"),
