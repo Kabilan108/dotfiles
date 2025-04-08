@@ -117,4 +117,11 @@ def run_server():
 
 
 if __name__ == "__main__":
-    run_server()
+    try:
+        run_server()
+    except KeyboardInterrupt as e:
+        rich.print("[bold yellow] exiting...")
+    except OSError as e:
+        rich.print(f"[red]Error starting pyrepl: {e}")
+    except Exception as e:
+        rich.print(f"[red]Unexpected error: {e}")
