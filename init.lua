@@ -16,5 +16,3 @@ require "config.ghola"
 require("config.snippets").setup()
 
 require "config.terminal"
-
-require "pyrepl"

@@ -26,7 +26,7 @@ return {
   },
 
   { dir = local_plugins .. '/ghola',       name = "ghola" },
-  { dir = local_plugins .. '/pyrepl',       name = "pyrepl" },
+  { dir = local_plugins .. '/pyrepl',      name = "pyrepl" },
 
   { "folke/which-key.nvim",                event = "VimEnter" },
   { "lukas-reineke/indent-blankline.nvim", main = "ibl",                          opts = {} },
