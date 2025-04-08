@@ -4,22 +4,32 @@ import sys
 import traceback
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from io import StringIO, TextIOWrapper
+from typing import Optional
+
+import rich
+from rich.syntax import Syntax
+
+# TODO: add a --log flag which would save the command outputs to a log file
+# TODO: add support for using icat to display PIL Images and mpl plots
 
 repl_scope = {}
 
 
-def validate_code_exc_data(post_data: str) -> dict:
+def format_code(code: list[str]) -> list:
+    cblk = (">> " + "\n   ".join(code)).strip()
+    return Syntax(cblk, "python", theme="one-dark")
+
+
+def validate_code_exc_data(post_data: str) -> tuple[list[str], Optional[str]]:
     try:
         raw_data = json.loads(post_data)
-        raw_code = raw_data.get("code", [])
-        if not isinstance(raw_code, list):
+        code = raw_data.get("code", [])
+        if not isinstance(code, list):
             raise ValueError("'code' must be a list of strings")
-
-        code = "\n".join(raw_code)
-        return dict(code=code, error=None)
+        return code, None
 
     except Exception as e:
-        return dict(code=[], error=f"Failed to parse request: {e}")
+        return [], f"Failed to parse request: {e}"
 
 
 class RedirectStdout:
@@ -56,24 +66,23 @@ class CodeExecutionHandler(BaseHTTPRequestHandler):
 
         content_length = int(self.headers["Content-Length"])
         post_data = self.rfile.read(content_length)
-        data = validate_code_exc_data(post_data.decode("utf-8"))
-
-        if data["error"] is not None:
-            self.send_json_response(400, dict(error=data["error"]))
+        code, error = validate_code_exc_data(post_data.decode("utf-8"))
+        if error is not None:
+            self.send_json_response(400, dict(error=error))
             return
 
-        print(">> " + "\n   ".join(data["code"].splitlines()))
+        rich.print("\n", format_code(code), "\n", end="")
 
         stdout = RedirectStdout(sys.stdout)
         sys.stdout = stdout
 
         try:
-            exec(data["code"], repl_scope)
+            exec("\n".join(code), repl_scope)
             output = stdout.redirectout.getvalue()
             result = dict(output=output, error=None)
         except Exception:
             error = traceback.format_exc()
-            print(error)
+            rich.print("[red]", error, sep="")
             result = dict(output=None, error=error)
         finally:
             sys.stdout = stdout.sysout
@@ -82,8 +91,8 @@ class CodeExecutionHandler(BaseHTTPRequestHandler):
 
     def reset_scope(self) -> None:
         global repl_scope
-        print("Clearing REPL scope")
         repl_scope = {}
+        rich.print("[bold yellow]Cleared REPL scope\n")
         self.send_json_response(200, dict(status="ok"))
 
     def log_message(self, format, *args):
@@ -103,7 +112,7 @@ def get_address(default_port: int = 5000) -> tuple[str, int]:
 def run_server():
     addr = get_address()
     httpd = HTTPServer(addr, CodeExecutionHandler)
-    print(f"Server running on http://{addr[0]}:{addr[1]}")
+    rich.print(f"[bold yellow]Server running on http://{addr[0]}:{addr[1]}")
     httpd.serve_forever()
 
 
