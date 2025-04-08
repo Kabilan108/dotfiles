@@ -4,15 +4,16 @@ local curl = require('plenary.curl')
 
 ---@class pyrepl.Config
 ---@field port integer pyrepl server port
+---@field show_errs boolean whether or not to print errors in neovim
 M.config = {
-  port = tonumber(os.getenv("PYREPL_PORT")) or 5000
+  port = tonumber(os.getenv("PYREPL_PORT")) or 5000,
+  show_errs = true
 }
 
 local function get_url()
   return 'http://localhost:' .. M.config.port
 end
 
----@param opts pyrepl.Config|table|nil
 function M.setup(opts)
   M.config = vim.tbl_extend('force', M.config, opts or {})
   vim.api.nvim_create_user_command('RunInPyrepl', function() M.run_selected_lines() end, {})
@@ -42,7 +43,7 @@ function M.send_to_repl(code)
   if resp.status ~= 200 then
     vim.notify('Failed to send request to pyrepl server', vim.log.levels.ERROR)
   end
-  if data.error ~= vim.NIL then
+  if data.error ~= vim.NIL and M.config.show_errs then
     vim.notify('Error from pyrepl: ' .. data.error, vim.log.levels.ERROR)
   end
 end
