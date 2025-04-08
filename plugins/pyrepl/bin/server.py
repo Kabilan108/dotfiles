@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import sys
 import traceback
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -87,17 +88,16 @@ class CodeExecutionHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(resp_data).encode("utf-8"))
 
 
-def run_server(port=5000):
-    server_address = ("localhost", port)
-    httpd = HTTPServer(server_address, CodeExecutionHandler)
-    print(f"Server running on http://localhost:{port}")
+def get_address(default_port: int = 5000) -> tuple[str, int]:
+    return "localhost", int(os.environ.get("PYREPL_PORT", default_port))
+
+
+def run_server():
+    addr = get_address()
+    httpd = HTTPServer(addr, CodeExecutionHandler)
+    print(f"Server running on http://{addr[0]}:{addr[1]}")
     httpd.serve_forever()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run a code execution server.")
-    parser.add_argument(
-        "--port", type=int, default=5000, help="Port to run the server on"
-    )
-    args = parser.parse_args()
-    run_server(port=args.port)
+    run_server()

@@ -3,10 +3,14 @@ local M = {}
 local curl = require('plenary.curl')
 
 ---@class pyrepl.Config
----@field url string pyrepl server url
+---@field port integer pyrepl server port
 M.config = {
-  url = os.getenv("PYREPL_URL") or 'http://localhost:5000'
+  port = tonumber(os.getenv("PYREPL_PORT")) or 5000
 }
+
+local function get_url()
+  return 'http://localhost:' .. M.config.port
+end
 
 ---@param opts pyrepl.Config|table|nil
 function M.setup(opts)
@@ -19,7 +23,7 @@ end
 
 ---@return boolean
 function M.is_server_alive()
-  local ok, resp = pcall(curl.get, M.config.url .. '/health', {
+  local ok, resp = pcall(curl.get, get_url() .. '/health', {
     timeout = 5000,
     on_error = function() end
   })
@@ -30,10 +34,10 @@ end
 ---@param reset boolean
 function M.send_to_repl(code, reset)
   if not M.is_server_alive() then
-    vim.notify('pyrepl server not running on ' .. M.config.url, vim.log.levels.ERROR)
+    vim.notify('pyrepl server not running on ' .. get_url(), vim.log.levels.ERROR)
     return
   end
-  local resp = curl.post(M.config.url, {
+  local resp = curl.post(get_url(), {
     body = vim.fn.json_encode({ code = code, reset = reset or false }),
     headers = { content_type = 'application/json' }
   })
