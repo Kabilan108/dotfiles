@@ -7,8 +7,6 @@ from io import StringIO, TextIOWrapper
 
 repl_scope = {}
 
-print('foo br')
-
 
 def validate_code_exc_data(post_data: str) -> dict:
     try:

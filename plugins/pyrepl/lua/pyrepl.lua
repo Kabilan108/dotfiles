@@ -5,12 +5,16 @@ local curl = require('plenary.curl')
 ---@class pyrepl.Config
 ---@field url string pyrepl server url
 M.config = {
-  url = 'http://localhost:5000'
+  url = os.getenv("PYREPL_URL") or 'http://localhost:5000'
 }
 
----@param opts pyrepl.Config
+---@param opts pyrepl.Config|table|nil
 function M.setup(opts)
   M.config = vim.tbl_extend('force', M.config, opts or {})
+  vim.api.nvim_create_user_command('RunInPyrepl', function() M.run_selected_lines(false) end, {})
+  vim.keymap.set("v", "<leader>xp", "<CMD>RunInPyrepl<CR>", {
+    noremap = true, silent = true, desc = "e[x]ecute [p]ython"
+  })
 end
 
 ---@return boolean
@@ -45,21 +49,25 @@ end
 
 ---@return string[]
 function M.get_visual_selection()
-  local start_pos = vim.fn.getpos("'<")
-  local end_pos = vim.fn.getpos("'>")
-  local start_line, start_col = start_pos[2], start_pos[3]
-  local end_line, end_col = end_pos[2], end_pos[3]
-  local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
-  if #lines == 0 then
-    return {}
+  local _, srow, scol = unpack(vim.fn.getpos 'v')
+  local _, erow, ecol = unpack(vim.fn.getpos '.')
+
+  if vim.fn.mode() == 'V' then
+    if srow > erow then
+      return vim.api.nvim_buf_get_lines(0, erow - 1, srow, true)
+    else
+      return vim.api.nvim_buf_get_lines(0, srow - 1, erow, true)
+    end
   end
-  if #lines == 1 then
-    lines[1] = string.sub(lines[1], start_col, end_col)
-  else
-    lines[1] = string.sub(lines[1], start_col)
-    lines[#lines] = string.sub(lines[#lines], 1, end_col)
+
+  if vim.fn.mode() == 'v' then
+    if srow < erow or (srow == erow and scol <= ecol) then
+      return vim.api.nvim_buf_get_text(0, srow - 1, scol - 1, erow - 1, ecol, {})
+    else
+      return vim.api.nvim_buf_get_text(0, erow - 1, ecol - 1, srow - 1, scol, {})
+    end
   end
-  return lines
+  return {}
 end
 
 ---@param reset boolean
@@ -69,8 +77,5 @@ function M.run_selected_lines(reset)
     M.send_to_repl(code, reset)
   end
 end
-
--- lazy load
-vim.api.nvim_create_user_command('RunInPyrepl', function() M.run_selected_lines(false) end, {})
 
 return M
