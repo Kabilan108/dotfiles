@@ -16,9 +16,6 @@ end
 function M.setup(opts)
   M.config = vim.tbl_extend('force', M.config, opts or {})
   vim.api.nvim_create_user_command('RunInPyrepl', function() M.run_selected_lines(false) end, {})
-  vim.keymap.set("v", "<leader>xp", "<CMD>RunInPyrepl<CR>", {
-    noremap = true, silent = true, desc = "e[x]ecute [p]ython"
-  })
 end
 
 ---@return boolean
