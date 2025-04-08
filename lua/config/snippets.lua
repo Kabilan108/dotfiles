@@ -24,6 +24,7 @@ function M.setup()
 
   -- Load custom snippets
   luasnip.add_snippets("python", require("snippets.python"))
+  luasnip.add_snippets("go", require("snippets.go"))
 
   -- Key mappings
   vim.keymap.set({ "i", "s" }, "<C-k>", function()
