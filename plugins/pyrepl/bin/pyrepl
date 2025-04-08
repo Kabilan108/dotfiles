@@ -1,0 +1,42 @@
+#!/bin/bash
+
+set -e
+
+WITH_PKGS=""
+HELP=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --port)
+            PORT="$2"
+            shift 2
+            ;;
+        --with-pkgs)
+            WITH_PKGS="$2"
+            shift 2
+            ;;
+        --help)
+            HELP=true
+            shift 1
+            ;;
+    esac
+done
+
+if $HELP; then
+    echo "Usage: pyrepl [options]"
+    echo "Options:"
+    echo "  --port <port>       Specify the port to use."
+    echo "  --with-pkgs <pkgs>  Comma-separated list of packages to install"
+    echo "  --help              Display this help message."
+    exit 0
+fi
+
+SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
+PORT=${PORT:-5000}
+
+PKGS="rich"
+if [[ -n "$WITH_PKGS" ]]; then
+    PKGS="rich,$WITH_PKGS"
+fi
+
+uv run --with "$PKGS" "$SCRIPT_DIR/server.py" --port $PORT
