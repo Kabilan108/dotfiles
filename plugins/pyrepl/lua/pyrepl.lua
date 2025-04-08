@@ -15,7 +15,8 @@ end
 ---@param opts pyrepl.Config|table|nil
 function M.setup(opts)
   M.config = vim.tbl_extend('force', M.config, opts or {})
-  vim.api.nvim_create_user_command('RunInPyrepl', function() M.run_selected_lines(false) end, {})
+  vim.api.nvim_create_user_command('RunInPyrepl', function() M.run_selected_lines() end, {})
+  vim.api.nvim_create_user_command('ResetPyrepl', function() M.reset_repl() end, {})
 end
 
 ---@return boolean
@@ -28,14 +29,13 @@ function M.is_server_alive()
 end
 
 ---@param code string[]
----@param reset boolean
-function M.send_to_repl(code, reset)
+function M.send_to_repl(code)
   if not M.is_server_alive() then
     vim.notify('pyrepl server not running on ' .. get_url(), vim.log.levels.ERROR)
     return
   end
-  local resp = curl.post(get_url(), {
-    body = vim.fn.json_encode({ code = code, reset = reset or false }),
+  local resp = curl.post(get_url() .. '/execute', {
+    body = vim.fn.json_encode({ code = code }),
     headers = { content_type = 'application/json' }
   })
   local data = vim.fn.json_decode(resp.body)
@@ -43,8 +43,18 @@ function M.send_to_repl(code, reset)
     vim.notify('Failed to send request to pyrepl server', vim.log.levels.ERROR)
   end
   if data.error ~= vim.NIL then
-    -- FIXME: concatenating data.error to a string throws an error
     vim.notify('Error from pyrepl: ' .. data.error, vim.log.levels.ERROR)
+  end
+end
+
+function M.reset_repl()
+  if not M.is_server_alive() then
+    vim.notify('pyrepl server not running on ' .. get_url(), vim.log.levels.ERROR)
+    return
+  end
+  local resp = curl.post(get_url() .. '/reset', {})
+  if resp.status ~= 200 then
+    vim.notify('Failed to send reset request to pyrepl server', vim.log.levels.ERROR)
   end
 end
 
@@ -71,11 +81,10 @@ function M.get_visual_selection()
   return {}
 end
 
----@param reset boolean
-function M.run_selected_lines(reset)
+function M.run_selected_lines()
   local code = M.get_visual_selection()
   if #code > 0 then
-    M.send_to_repl(code, reset)
+    M.send_to_repl(code)
   end
 end
 

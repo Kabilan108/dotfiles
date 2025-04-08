@@ -11,17 +11,15 @@ repl_scope = {}
 def validate_code_exc_data(post_data: str) -> dict:
     try:
         raw_data = json.loads(post_data)
-
         raw_code = raw_data.get("code", [])
         if not isinstance(raw_code, list):
             raise ValueError("'code' must be a list of strings")
 
         code = "\n".join(raw_code)
-        reset = bool(raw_data.get("reset", False))
-        return dict(code=code, reset=reset, error=None)
+        return dict(code=code, error=None)
 
     except Exception as e:
-        return dict(code=[], reset=False, error=f"Failed to parse request: {e}")
+        return dict(code=[], error=f"Failed to parse request: {e}")
 
 
 class RedirectStdout:
@@ -45,6 +43,15 @@ class CodeExecutionHandler(BaseHTTPRequestHandler):
             self.send_json_response(200, dict(status="alive"))
 
     def do_POST(self) -> None:
+        if self.path == "/execute":
+            self.execute_code()
+        elif self.path == "/reset":
+            self.reset_scope()
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def execute_code(self) -> None:
         global repl_scope
 
         content_length = int(self.headers["Content-Length"])
@@ -54,10 +61,6 @@ class CodeExecutionHandler(BaseHTTPRequestHandler):
         if data["error"] is not None:
             self.send_json_response(400, dict(error=data["error"]))
             return
-
-        if data["reset"]:
-            print("Clearing REPL scope")
-            repl_scope = {}
 
         print(">> " + "\n   ".join(data["code"].splitlines()))
 
@@ -76,6 +79,12 @@ class CodeExecutionHandler(BaseHTTPRequestHandler):
             sys.stdout = stdout.sysout
 
         self.send_json_response(200, result)
+
+    def reset_scope(self) -> None:
+        global repl_scope
+        print("Clearing REPL scope")
+        repl_scope = {}
+        self.send_json_response(200, dict(status="ok"))
 
     def log_message(self, format, *args):
         pass
