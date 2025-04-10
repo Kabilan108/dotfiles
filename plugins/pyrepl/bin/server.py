@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import textwrap
 import traceback
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from io import StringIO, TextIOWrapper
@@ -77,7 +78,8 @@ class CodeExecutionHandler(BaseHTTPRequestHandler):
         sys.stdout = stdout
 
         try:
-            exec("\n".join(code), repl_scope)
+            code_str = "\n".join(code)
+            exec(textwrap.dedent(code_str), repl_scope)
             output = stdout.redirectout.getvalue()
             result = dict(output=output, error=None)
         except Exception:
@@ -119,7 +121,7 @@ def run_server():
 if __name__ == "__main__":
     try:
         run_server()
-    except KeyboardInterrupt as e:
+    except KeyboardInterrupt:
         rich.print("[bold yellow] exiting...")
     except OSError as e:
         rich.print(f"[red]Error starting pyrepl: {e}")
