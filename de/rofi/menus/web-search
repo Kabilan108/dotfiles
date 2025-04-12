@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+
+HISTORY_DB_ORIGINAL="$HOME/.config/BraveSoftware/Brave-Browser/Default/History"
+BRAVE_CMD="brave-browser"
+HISTORY_LIMIT=50
+# TODO: use exa here. may need to add an exa search tool to tools.kabilan108.com
+SEARCH_URL="https://duckduckgo.com/?q=%s"
+HISTORY_DB_TEMP="/tmp/brave_history_copy_$$.sqlite"
+declare -a BLACKLIST_DOMAINS=(
+    "localhost"
+    "countdowns.live"
+)
+
+cleanup() {
+  rm -f "$HISTORY_DB_TEMP"
+}
+
+is_blacklisted() {
+    local domain_to_check=$1
+    local blacklisted_domain
+    for blacklisted_domain in "${BLACKLIST_DOMAINS[@]}"; do
+        if [[ "$domain_to_check" == "$blacklisted_domain" ]]; then
+            return 0 # 0 means true (is blacklisted)
+        fi
+    done
+    return 1 # 1 means false (is not blacklisted)
+}
+
+
+# __main__
+
+trap cleanup EXIT # EXIT is a signal sent when the script finishes, regardless of how
+
+if [[ ! -f "$HISTORY_DB_ORIGINAL" ]]; then
+    rofi -e "Brave history DB not found: $HISTORY_DB_ORIGINAL"
+    exit 1
+fi
+
+cp "$HISTORY_DB_ORIGINAL" "$HISTORY_DB_TEMP"
+if [[ $? -ne 0 ]]; then
+    rofi -e "Failed to copy Brave history DB to temporary location."
+    raw_urls=""
+else
+    # Query the copied database
+    if ! command -v sqlite3 &> /dev/null; then
+        rofi -e "sqlite3 command not found. Cannot query history."
+        raw_urls=""
+    else
+        raw_urls=$(sqlite3 "$HISTORY_DB_TEMP" \
+            "SELECT url FROM urls WHERE id IN (SELECT id FROM urls GROUP BY url ORDER BY MAX(last_visit_time) DESC) ORDER BY last_visit_time DESC LIMIT $HISTORY_LIMIT;" \
+            2>&1) # Capture stderr
+
+        sqlite_exit_code=$?
+        if [[ $sqlite_exit_code -ne 0 ]]; then
+            rofi -e "SQLite Error ($sqlite_exit_code): $(echo "$raw_urls" | head -n 1)"
+            raw_urls=""
+        elif [[ -z "$raw_urls" ]]; then
+             : # History is empty or query returned nothing
+        fi
+    fi
+fi
+
+filtered_urls=""
+if [[ -n "$raw_urls" ]]; then
+    while IFS= read -r raw_url; do
+        # Extract domain: remove scheme, take host part, remove port, remove leading www.
+        # Example: https://www.google.com:80/search?q=... -> google.com
+        # Example: http://localhost:3000/ -> localhost
+        # Example: ftp://ftp.debian.org/ -> ftp.debian.org
+        extracted_domain=$(echo "$raw_url" | awk -F/ '{print $3}' | awk -F: '{print $1}' | sed 's/^www\.//')
+
+        # Check if the extracted domain is in the blacklist
+        if ! is_blacklisted "$extracted_domain"; then
+             # Append the original raw_url to filtered_urls, ensuring newline separation
+             if [[ -z "$filtered_urls" ]]; then
+                 filtered_urls="$raw_url"
+             else
+                 # Use $'\n' for a literal newline character
+                 filtered_urls="$filtered_urls"$'\n'"$raw_url"
+             fi
+        fi
+    done <<< "$raw_urls" # Feed the original URLs into the loop
+fi
+
+# Overwrite raw_urls with the filtered list for subsequent processing
+raw_urls="$filtered_urls"
+
+# Format URLs for display
+# Remove http://, https://, and www. prefixes for cleaner display in Rofi
+# Uses pipe | as sed delimiter because URLs contain /
+# \(https\?://\)\? : Optionally match http:// or https:// (group 1)
+# \(www\.\)\?      : Optionally match www. (group 2)
+formatted_urls=$(printf "%s\n" "$raw_urls" | sed -e 's|^\(https\?://\)\?\(www\.\)\?||')
+
+# Show Rofi menu
+chosen=$(echo -e "$formatted_urls" | rofi -dmenu -p "󰖟 Web" -i -config ~/.config/rofi/config.rasi)
+
+# Exit if nothing was chosen
+if [[ -z "$chosen" ]]; then
+    exit 0
+fi
+
+final_url=""
+is_from_history=false
+
+# Rebuild the mapping using the *filtered* raw_urls
+if [[ -n "$raw_urls" ]]; then
+    declare -A url_map
+    while IFS= read -r raw_url; do
+        # Use the same formatting logic as above for the key
+        formatted_url=$(printf "%s\n" "$raw_url" | sed -e 's|^\(https\?://\)\?\(www\.\)\?||')
+        [[ -z "${url_map[$formatted_url]}" ]] && url_map["$formatted_url"]="$raw_url"
+    done <<< "$raw_urls"
+
+    # Check if the user's choice matches a formatted URL from history
+    if [[ -v "url_map[$chosen]" ]]; then
+        final_url="${url_map[$chosen]}" # Use the original, unformatted URL
+        is_from_history=true
+    fi
+fi
+
+# If not from history, process typed input
+if ! $is_from_history; then
+    if ! command -v jq &> /dev/null && [[ ! "$chosen" =~ .*"://".* && ! "$chosen" =~ ^localhost:[0-9]+.* && ! "$chosen" =~ \..+ && ! "$chosen" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+        rofi -e "jq command not found. Cannot URL encode search query."
+        exit 1
+    fi
+
+    if [[ "$chosen" =~ .*"://".* || "$chosen" =~ ^localhost:[0-9]+.* ]]; then
+        final_url="$chosen"
+    elif [[ "$chosen" =~ \..+ || "$chosen" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+         # Add back https:// if it looks like a domain/IP but has no scheme
+         # Check if it *already* starts with a scheme before adding https://
+         if [[ ! "$chosen" =~ ^[a-zA-Z]+:// ]]; then
+            final_url="https://$chosen"
+         else
+            final_url="$chosen" # It already had a scheme (like ftp://)
+         fi
+    else
+        encoded_chosen=$(printf %s "$chosen" | jq -sRr @uri)
+        final_url=$(printf "$SEARCH_URL" "$encoded_chosen")
+    fi
+fi
+
+if [[ -n "$final_url" ]]; then
+    setsid "$BRAVE_CMD" "$final_url" >/dev/null 2>&1 &
+fi
+
+exit 0
+
+# vim: ft=bash
