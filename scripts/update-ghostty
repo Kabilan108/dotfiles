@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -e          # exit script if any errors are thrown
+set -u          # unset variables throw errors
+set -o pipefail # pipe return value = status of last command with exit status != 0
+
+latest=$(curl https://api.github.com/repos/ghostty-org/ghostty/tags | jq -r .[0].name)
+source_url="https://github.com/ghostty-org/ghostty/archive/refs/tags/${latest}.zip"
+echo "installing ghostty ${latest} from ${source_url}"
+if [ -d /tmp/ghostty ]; then rm -rf /tmp/ghostty; fi
+mkdir -p /tmp/ghostty && cd /tmp/ghostty
+git clone https://github.com/ghostty-org/ghostty > /dev/null 2>&1
+cd ghostty && git checkout $latest > /dev/null 2>&1
+sudo zig build -p /usr -Doptimize=ReleaseFast
+rm -rf /tmp/ghostty
