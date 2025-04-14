@@ -156,6 +156,7 @@ local servers = {
       }
     }
   },
+  rust_analyzer = {},
   ruff = {
     cmd = { 'ruff', 'server' },
     init_options = {
@@ -181,7 +182,7 @@ capabilities = vim.tbl_deep_extend(
 local lspconfig = require("lspconfig")
 require('mason').setup()
 require('mason-lspconfig').setup({
-  ensure_installed = { "biome", "clangd", "dockerls", "gopls", "lua_ls", "pyright", "ts_ls" },
+  ensure_installed = { "biome", "clangd", "dockerls", "gopls", "lua_ls", "pyright", "rust_analyzer", "ts_ls" },
   handlers = {
     function(server_name)
       local server = servers[server_name] or {}
