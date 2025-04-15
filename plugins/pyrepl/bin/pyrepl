@@ -4,6 +4,7 @@ set -e
 
 WITH_PKGS=""
 HELP=false
+PORT=${PORT:-5000} # Default port
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -19,24 +20,34 @@ while [[ $# -gt 0 ]]; do
             HELP=true
             shift 1
             ;;
+        *) # Handle unknown options if necessary
+            echo "Unknown option: $1"
+            HELP=true
+            ;;
     esac
 done
 
 if $HELP; then
     echo "Usage: pyrepl [options]"
     echo "Options:"
-    echo "  --port <port>       Specify the port to use."
-    echo "  --with-pkgs <pkgs>  Comma-separated list of packages to install"
+    echo "  --port <port>       Specify the port to use (default: 5000)."
+    echo "  --with-pkgs <pkgs>  Comma-separated list of *additional* packages to install."
+    echo "                      ipython, rich, matplotlib, Pillow, and ./icat are always included."
     echo "  --help              Display this help message."
     exit 0
 fi
 
 SCRIPT_DIR="$(dirname $(realpath "${BASH_SOURCE[0]}"))"
-PORT=${PORT:-5000}
-
-PKGS="rich"
-if [[ -n "$WITH_PKGS" ]]; then
-    PKGS="rich,$WITH_PKGS"
+if [ -z "$PYREPL_PORT" ]; then
+  export PYREPL_PORT=$PORT
 fi
 
-uv run --with "$PKGS" "$SCRIPT_DIR/server.py" --port $PORT
+PKGS="rich,ipython-icat"
+if [[ -n "$WITH_PKGS" ]]; then
+    PKGS="$PKGS,$WITH_PKGS"
+fi
+
+echo "Starting pyrepl server on port $PYREPL_PORT with packages: $PKGS"
+uv run --with "$PKGS" "$SCRIPT_DIR/server.py"
+
+# vim: set ft=bash:
