@@ -1,29 +1,40 @@
+import argparse
+import datetime
 import json
 import os
+import re
 import sys
 import textwrap
+import threading
 import traceback
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Optional
+from typing import Dict, List, Optional, Tuple
 
 import rich
 from IPython.terminal.embed import InteractiveShellEmbed
 from IPython.utils.capture import capture_output
-from traitlets.config import Config
 from rich.syntax import Syntax
+from traitlets.config import Config
 
 ipshell = None
+log_file_path = None
+ansi_regex = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
+is_executing = False
+execution_lock = threading.Lock()
 
 
-# TODO: add a --log flag which would save the command outputs to a log file
+def strip_ansi_codes(text: str) -> str:
+    """Removes ANSI escape codes from a string."""
+    return ansi_regex.sub("", text) if text else ""
 
 
-def format_code(code: list[str]) -> list:
+def format_code(code: List[str]) -> List:
     cblk = (">> " + "\n   ".join(code)).strip()
     return Syntax(cblk, "python", theme="one-dark")
 
 
-def validate_code_exc_data(post_data: str) -> tuple[list[str], Optional[str]]:
+def validate_code_exc_data(post_data: str) -> Tuple[List[str], Optional[str]]:
     try:
         raw_data = json.loads(post_data)
         code = raw_data.get("code", [])
@@ -32,6 +43,96 @@ def validate_code_exc_data(post_data: str) -> tuple[list[str], Optional[str]]:
         return code, None
     except Exception as e:
         return [], f"Failed to parse request: {e}"
+
+
+def write_to_log(code_lines: List[str], result: Dict) -> None:
+    """Appends the code and result (with ANSI codes stripped) to the log file."""
+    global log_file_path
+    if not log_file_path:
+        return
+
+    try:
+        code_str = "\n".join(code_lines)
+        output_str = strip_ansi_codes(result.get("output") or "")
+        error_str = strip_ansi_codes(result.get("error") or "")
+
+        log_content = ""
+        if output_str:
+            log_content += output_str
+        if error_str:
+            if log_content:
+                log_content += "\n"
+            log_content += error_str
+
+        with open(log_file_path, "a", encoding="utf-8") as f:
+            f.write(
+                "```python\n"
+                f"{code_str}\n"
+                "```\n\n"
+                "<output>\n"
+                f"{log_content.strip()}\n"
+                "</output>\n\n"
+            )
+
+    except Exception as e:
+        rich.print(f"[red]Error writing to log file {log_file_path}: {e}")
+
+
+def _run_code_in_background(
+    shell_instance: InteractiveShellEmbed, code_lines: List[str], code_str: str
+) -> None:
+    """Executes the code in IPython and handles output/errors."""
+    global is_executing, execution_lock
+
+    rich.print("\n", format_code(code_lines), "\n", end="")
+
+    output = None
+    error_output = None
+    result = {}
+
+    try:
+        with capture_output() as captured:
+            exec_result = shell_instance.run_cell(
+                code_str, store_history=False, silent=False
+            )
+
+        output = captured.stdout
+        error_output = captured.stderr
+
+        if exec_result.error_before_exec:
+            error_output = (
+                error_output or ""
+            ) + f"Error before execution: {exec_result.error_before_exec}"
+        elif exec_result.error_in_exec:
+            if not output and not error_output:
+                error_output = "".join(
+                    traceback.format_exception(
+                        exec_result.error_in_exec.__class__,
+                        exec_result.error_in_exec,
+                        exec_result.error_in_exec.__traceback__,
+                    )
+                )
+
+        if output:
+            sys.stdout.write(output)
+            sys.stdout.flush()
+        if error_output:
+            rich.print("[red]", error_output, sep="")
+
+        result = dict(output=output or "", error=error_output or "")
+
+    except Exception:
+        error_output = traceback.format_exc()
+        if output:
+            sys.stdout.write(output)
+            sys.stdout.flush()
+        rich.print("[red]Error during background execution:", error_output, sep="")
+        result = dict(output=output or "", error=error_output)
+
+    finally:
+        with execution_lock:
+            is_executing = False
+        write_to_log(code_lines, result)
 
 
 class CodeExecutionHandler(BaseHTTPRequestHandler):
@@ -46,13 +147,16 @@ class CodeExecutionHandler(BaseHTTPRequestHandler):
         if self.path == "/execute":
             self.execute_code()
         elif self.path == "/reset":
+            # Reset should ideally interrupt/clear execution state too,
+            # but for now, we just reset IPython's scope.
+            # A more robust reset might need to signal the execution thread.
             self.reset_scope()
         else:
             self.send_response(404)
             self.end_headers()
 
     def execute_code(self) -> None:
-        global ipshell
+        global ipshell, is_executing, execution_lock
         if ipshell is None:
             self.send_json_response(500, dict(error="IPython shell not initialized"))
             return
@@ -64,117 +168,102 @@ class CodeExecutionHandler(BaseHTTPRequestHandler):
             self.send_json_response(400, dict(error=error))
             return
 
-        rich.print("\n", format_code(code), "\n", end="")
-
-        # Execute code within the IPython shell and capture its stdout/stderr
-        # any icat output will go directly to the server's terminal
-        output = None
-        error_output = None
-        try:
-            # Dedent the code before running
-            code_str = textwrap.dedent("\n".join(code))
-
-            # Use IPython's capture_output context manager
-            with capture_output() as captured:
-                # Run the cell. store_history=False avoids polluting history
-                # with potentially large multi-line blocks sent from vim
-                exec_result = ipshell.run_cell(
-                    code_str, store_history=False, silent=False
+        with execution_lock:
+            if is_executing:
+                self.send_json_response(
+                    409, {"error": "Server is busy executing previous code"}
                 )
+                return
 
-            output = captured.stdout
-            error_output = captured.stderr
+            is_executing = True
 
-            # Check for execution errors reported by IPython
-            if exec_result.error_before_exec:
-                # Error during IPython's preprocessing
-                error_output = (
-                    error_output or ""
-                ) + f"Error before execution: {exec_result.error_before_exec}"
-            elif exec_result.error_in_exec:
-                # Error during code execution (exception)
-                # IPython formats the traceback nicely
-                # We captured stderr, which might contain the traceback
-                # If not, format it from the result
-                if not error_output:
-                    error_output = "".join(
-                        traceback.format_exception(
-                            exec_result.error_in_exec.__class__,
-                            exec_result.error_in_exec,
-                            exec_result.error_in_exec.__traceback__,
-                        )
-                    )
+        self.send_json_response(200, {"status": "Execution request accepted"})
 
-            if error_output:
-                rich.print("[red]", error_output, sep="", end="")
-                result = dict(
-                    output=output or "", error=error_output
-                )  # Send stdout even if error
-            else:
-                # Print captured stdout to the server terminal as well
-                if output:
-                    sys.stdout.write(output)
-                    sys.stdout.flush()
-                result = dict(output=output, error=None)
-
-        except Exception as e:
-            # Catch unexpected errors in the handler itself
-            error_output = traceback.format_exc()
-            rich.print("[red]", error_output, sep="")
-            result = dict(output=output, error=error_output)  # Send any captured output
-
-        self.send_json_response(200, result)
+        code_str = textwrap.dedent("\n".join(code))
+        thread = threading.Thread(
+            target=_run_code_in_background, args=(ipshell, code, code_str), daemon=True
+        )
+        thread.start()
 
     def reset_scope(self) -> None:
-        global ipshell
+        global ipshell, is_executing, execution_lock
         if ipshell:
-            ipshell.reset(new_session=True)  # Clears namespace and history
-            rich.print("[bold yellow]Cleared REPL scope (IPython reset)\n")
+            ipshell.reset(new_session=True)
+            reset_msg = "Cleared REPL scope (IPython reset)"
+            rich.print(f"[bold yellow]{reset_msg}\n")
+            with execution_lock:
+                is_executing = False
             self.send_json_response(200, dict(status="ok"))
+            write_to_log(["# Reset Command Received"], {"output": reset_msg})
         else:
             self.send_json_response(500, dict(error="IPython shell not initialized"))
 
     def log_message(self, format, *args):
-        # Keep server quiet by default
         pass
 
-    def send_json_response(self, status: int, resp_data: dict) -> None:
+    def send_json_response(self, status: int, resp_data: Dict) -> None:
         self.send_response(status)
         self.send_header("Content-type", "application/json")
         self.end_headers()
         self.wfile.write(json.dumps(resp_data).encode("utf-8"))
 
 
-def get_address(default_port: int = 5000) -> tuple[str, int]:
-    """Read port from environment variable set by bin/pyrepl"""
+def get_address(default_port: int = 5000) -> Tuple[str, int]:
     port = int(os.environ.get("PYREPL_PORT", default_port))
     return "localhost", port
 
 
-import foo
-
-
-def run_server():
-    global ipshell
-    addr = get_address()
+def setup_logging(log_dir: str, log_name: Optional[str]) -> Optional[str]:
+    """Creates log directory and constructs the log file path."""
+    global log_file_path
+    if not log_dir:
+        return None
 
     try:
-        # Initialize the embedded IPython shell
-        # Configure it to be quiet, not exit on failure, etc.
+        target_dir = os.path.join(log_dir, ".pyrepl")
+        os.makedirs(target_dir, exist_ok=True)
+
+        filename = f"{datetime.datetime.now().strftime('%b%d%Y-%H%M%S')}"
+        if log_name:
+            safe_log_name = re.sub(r"[^\w\-]+", "_", log_name)
+            filename += f"-{safe_log_name}"
+        filename += ".md"
+
+        log_file_path = os.path.join(target_dir, filename)
+        rich.print(f"[blue]Logging enabled. Log file: {log_file_path}")
+        with open(log_file_path, "a", encoding="utf-8") as f:
+            f.write(f"# PyREPL Session Log: {datetime.datetime.now()}\n")
+            f.write(f"# CWD: {log_dir}\n")
+            if log_name:
+                f.write(f"# Session Name: {log_name}\n")
+            f.write("\n")
+        return log_file_path
+    except Exception as e:
+        rich.print(f"[red]Failed to setup logging in {log_dir}: {e}")
+        return None
+
+
+def run_server(args):
+    global ipshell, log_file_path
+    addr = get_address()
+
+    log_file_path = setup_logging(args.log_dir, args.log_name)
+
+    try:
         config = Config()
         ipshell = InteractiveShellEmbed(config=config, banner1="", exit_msg="")
 
-        rich.print("[cyan]Initializing IPython & loading default extensions...")
+        rich.print("[blue]Initializing IPython & loading default extensions...")
         ipshell.run_cell("%load_ext autoreload", store_history=False, silent=True)
         ipshell.run_cell("%autoreload 2", store_history=False, silent=True)
 
-        rich.print(f"[bold yellow]Server running on http://{addr[0]}:{addr[1]}")
+        rich.print(f"[bold blue]Server running on http://{addr[0]}:{addr[1]}")
 
         httpd = HTTPServer(addr, CodeExecutionHandler)
         httpd.serve_forever()
 
     except KeyboardInterrupt:
-        rich.print("\n[bold yellow] exiting...")
+        rich.print("\n[bold blue] exiting...")
     except OSError as e:
         rich.print(f"[red]Error starting pyrepl: {e}")
         if "Address already in use" in str(e):
@@ -185,4 +274,11 @@ def run_server():
 
 
 if __name__ == "__main__":
-    run_server()
+    parser = argparse.ArgumentParser(description="PyREPL Server")
+    parser.add_argument(
+        "--log-dir", help="Directory where .pyrepl logs should be stored."
+    )
+    parser.add_argument("--log-name", help="Optional name for the log session file.")
+    cli_args, unknown = parser.parse_known_args()
+
+    run_server(cli_args)

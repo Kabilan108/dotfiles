@@ -4,7 +4,10 @@ set -e
 
 WITH_PKGS=""
 HELP=false
-PORT=${PORT:-5000} # Default port
+PORT=${PORT:-5000}
+LOG=false
+LOG_NAME=""
+SERVER_ARGS=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -16,13 +19,25 @@ while [[ $# -gt 0 ]]; do
             WITH_PKGS="$2"
             shift 2
             ;;
+        --log)
+            LOG=true
+            # Check if the next argument is a value for --log or another flag
+            if [[ -n "$2" && ! "$2" =~ ^-- ]]; then
+                LOG_NAME="$2"
+                shift 2
+            else
+                shift 1
+            fi
+            ;;
         --help)
             HELP=true
             shift 1
             ;;
-        *) # Handle unknown options if necessary
+        *) # Handle unknown options
             echo "Unknown option: $1"
             HELP=true
+            # Stop parsing if unknown option encountered
+            break
             ;;
     esac
 done
@@ -32,7 +47,9 @@ if $HELP; then
     echo "Options:"
     echo "  --port <port>       Specify the port to use (default: 5000)."
     echo "  --with-pkgs <pkgs>  Comma-separated list of *additional* packages to install."
-    echo "                      ipython, rich, matplotlib, Pillow, and ./icat are always included."
+    echo "                      (e.g., numpy,pandas)."
+    echo "  --log [name]        Enable logging. Optionally provide a session name."
+    echo "                      Logs stored in <cwd>/.pyrepl/."
     echo "  --help              Display this help message."
     exit 0
 fi
@@ -47,7 +64,14 @@ if [[ -n "$WITH_PKGS" ]]; then
     PKGS="$PKGS,$WITH_PKGS"
 fi
 
-echo "Starting pyrepl server on port $PYREPL_PORT with packages: $PKGS"
-uv run --with "$PKGS" "$SCRIPT_DIR/server.py"
+if $LOG; then
+    LOG_DIR=$(pwd) # Get current working directory
+    SERVER_ARGS="--log-dir \"$LOG_DIR\""
+    if [[ -n "$LOG_NAME" ]]; then
+        SERVER_ARGS="$SERVER_ARGS --log-name \"$LOG_NAME\""
+    fi
+fi
+
+eval uv run --with "$PKGS" "$SCRIPT_DIR/server.py" $SERVER_ARGS
 
 # vim: set ft=bash:

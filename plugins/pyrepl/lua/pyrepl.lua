@@ -2,12 +2,17 @@ local M = {}
 
 local curl = require('plenary.curl')
 
+local mnotify = require('mini.notify')
+mnotify.setup()
+local notify = mnotify.make_notify({
+  ERROR = { duration = 5000 },
+  WARN = { duration = 3000 },
+})
+
 ---@class pyrepl.Config
 ---@field port integer pyrepl server port
----@field show_errs boolean whether or not to print errors in neovim
 M.config = {
   port = tonumber(os.getenv("PYREPL_PORT")) or 5000,
-  show_errs = true
 }
 
 local function get_url()
@@ -23,7 +28,7 @@ end
 ---@return boolean
 function M.is_server_alive()
   local ok, resp = pcall(curl.get, get_url() .. '/health', {
-    timeout = 5000,
+    timeout = 1000,
     on_error = function() end
   })
   return ok and resp and resp.status == 200
@@ -32,30 +37,57 @@ end
 ---@param code string[]
 function M.send_to_repl(code)
   if not M.is_server_alive() then
-    vim.notify('pyrepl server not running on ' .. get_url(), vim.log.levels.ERROR)
+    notify('pyrepl server not running on ' .. get_url(), vim.log.levels.ERROR)
     return
   end
-  local resp = curl.post(get_url() .. '/execute', {
+
+  -- Make the request
+  local ok, resp = pcall(curl.post, get_url() .. '/execute', {
     body = vim.fn.json_encode({ code = code }),
-    headers = { content_type = 'application/json' }
+    headers = { content_type = 'application/json' },
+    timeout = 5000,
   })
-  local data = vim.fn.json_decode(resp.body)
-  if resp.status ~= 200 then
-    vim.notify('Failed to send request to pyrepl server', vim.log.levels.ERROR)
+
+  -- Handle pcall errors (network issues, etc.)
+  if not ok then
+    notify('Failed to connect to pyrepl server: ' .. tostring(resp), vim.log.levels.ERROR)
+    return
   end
-  if data.error ~= vim.NIL and M.config.show_errs then
-    vim.notify('Error from pyrepl: ' .. data.error, vim.log.levels.ERROR)
+
+  -- Handle specific HTTP status codes
+  if resp.status == 409 then -- 409 Conflict indicates server busy
+    -- Try to parse error message from body, fallback to default
+    local body_data = vim.fn.json_decode(resp.body)
+    local err_msg = "pyrepl server is busy executing previous code"
+    if type(body_data) == 'table' and body_data.error then
+      err_msg = "pyrepl: " .. body_data.error
+    end
+    notify(err_msg, vim.log.levels.WARN)
+  elseif resp.status ~= 200 then -- Handle other non-success statuses
+    msg = "Failed request to pyrepl server (Status: " .. resp.status .. "): " .. resp.body
+    notify(msg, vim.log.levels.ERROR)
   end
 end
 
 function M.reset_repl()
   if not M.is_server_alive() then
-    vim.notify('pyrepl server not running on ' .. get_url(), vim.log.levels.ERROR)
+    notify('pyrepl server not running on ' .. get_url(), vim.log.levels.ERROR)
     return
   end
-  local resp = curl.post(get_url() .. '/reset', {})
-  if resp.status ~= 200 then
-    vim.notify('Failed to send reset request to pyrepl server', vim.log.levels.ERROR)
+
+  local ok, resp = pcall(curl.post, get_url() .. '/reset', {
+    timeout = 5000
+  })
+
+  if not ok then
+    notify('Failed to connect to pyrepl server for reset: ' .. tostring(resp), vim.log.levels.ERROR)
+    return
+  end
+
+  if resp.status == 200 then
+    notify('pyrepl scope reset', vim.log.levels.INFO)
+  else
+    notify('Failed to send reset request (Status: ' .. resp.status .. ')', vim.log.levels.ERROR)
   end
 end
 
@@ -64,21 +96,28 @@ function M.get_visual_selection()
   local _, srow, scol = unpack(vim.fn.getpos 'v')
   local _, erow, ecol = unpack(vim.fn.getpos '.')
 
+  -- Handle Visual Line mode ('V')
   if vim.fn.mode() == 'V' then
-    if srow > erow then
-      return vim.api.nvim_buf_get_lines(0, erow - 1, srow, true)
-    else
-      return vim.api.nvim_buf_get_lines(0, srow - 1, erow, true)
-    end
+    -- Ensure srow is always less than or equal to erow
+    if srow > erow then srow, erow = erow, srow end
+    return vim.api.nvim_buf_get_lines(0, srow - 1, erow, true)
   end
 
-  if vim.fn.mode() == 'v' then
+  -- Handle Visual mode ('v') and Visual Block mode ('<C-v>')
+  -- For simplicity, treat visual block like character visual for line extraction
+  if vim.fn.mode():find('v', 1, true) then
+    -- Determine start and end positions correctly regardless of selection direction
+    local start_pos, end_pos
     if srow < erow or (srow == erow and scol <= ecol) then
-      return vim.api.nvim_buf_get_text(0, srow - 1, scol - 1, erow - 1, ecol, {})
+      start_pos = { srow - 1, scol - 1 }
+      end_pos = { erow - 1, ecol } -- nvim_buf_get_text end col is exclusive
     else
-      return vim.api.nvim_buf_get_text(0, erow - 1, ecol - 1, srow - 1, scol, {})
+      start_pos = { erow - 1, ecol - 1 }
+      end_pos = { srow - 1, scol } -- nvim_buf_get_text end col is exclusive
     end
+    return vim.api.nvim_buf_get_text(0, start_pos[1], start_pos[2], end_pos[1], end_pos[2], {})
   end
+
   return {}
 end
 
