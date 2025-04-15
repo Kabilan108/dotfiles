@@ -8,7 +8,7 @@ adw-toolbar-style = "flat"
 gtk-tabs-location = "bottom"
 gtk-wide-tabs = "false"
 
-font-family = "CaskaydiaCove Nerd Font Mono"
+font-family = "FiraMono Nerd Font Mono"
 
 window-decoration = false
 window-theme = "ghostty"

@@ -34,7 +34,7 @@
   border:       @lavender;
   selected:     @surface0;
 
-  font:         "CaskaydiaCoveNerdFont 12";
+  font:         "FiraMono Nerd Font 12";
 }
 
 element-text, element-icon , mode-switcher {

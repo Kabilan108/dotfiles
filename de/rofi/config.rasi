@@ -68,7 +68,7 @@ configuration {
 
   /*---------- Misc setting ----------*/
   terminal: "ghostty";
-  font: "CaskaydiaCoveNerdFont 12";
+  font: "FiraMono Nerd Font 12";
   sort: false;
   threads: 0;
   click-to-exit: true;

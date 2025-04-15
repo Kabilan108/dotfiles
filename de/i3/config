@@ -162,7 +162,7 @@ for_window [class="Dictator"] floating enable
 
 # Font for window titles. Will also be used by the bar unless a different font
 # is used in the bar {} block below.
-font pango:CaskaydiaCoveNerdFont 11
+font pango:FiraMono Nerd Font 11
 
 # Gaps settings for i3
 # gaps inner 4

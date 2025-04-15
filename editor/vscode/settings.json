@@ -5,7 +5,7 @@
 	"cursor.cmdk.useThemedDiffBackground": true,
 	"cursor.cmdk.ghostTextAtSymbols": true,
 	"editor.bracketPairColorization.enabled": true,
-	"editor.fontFamily": "'CaskaydiaCoveNerdFont Mono'",
+	"editor.fontFamily": "'FiraMono Nerd Font Mono'",
 	"editor.guides.indentation": true,
 	"editor.guides.bracketPairs": true,
 	"editor.indentSize": "tabSize",
@@ -55,7 +55,7 @@
 	"notebook.lineNumbers": "on",
 	"terminal.external.linuxExec": "ghostty",
 	"terminal.integrated.enableMultiLinePasteWarning": false,
-	"terminal.integrated.fontFamily": "'CaskaydiaCoveNerdFont Mono'",
+	"terminal.integrated.fontFamily": "'FiraMono Nerd Font Mono'",
 	"terminal.integrated.cursorBlinking": true,
 	"terminal.integrated.scrollback": 10000,
 	"vim.highlightedyank": {
