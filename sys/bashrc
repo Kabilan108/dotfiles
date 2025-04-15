@@ -105,14 +105,8 @@ shopt -s dirspell 2> /dev/null
 # correct spelling errors in args to cd
 shopt -s cdspell 2> /dev/null
 
-# tell cd where to look for targets (add dirs separated by colons)
-# e.g. CDPATH=".:~:~/projects" will look for targets in the cwd, home and ~/projects folders
-CDPATH=".:~:/mnt/arrakis"
-
 # this allows you to bookmark locations by setting variables to folder paths
 shopt -s cdable_vars
-export arrakis="/mnt/arrakis/"
-export www="/var/www/"
 
 
 ### -> PROMPT
@@ -142,9 +136,6 @@ export PROMPT_DIRTRIM=4
 
 # enable cuda
 export PATH=/usr/local/cuda-12.6/bin${PATH:+:${PATH}}
-
-# enable user scripts
-export PATH="$PATH:/home/muaddib/dotfiles/scripts"
 
 # set bat theme
 export BAT_THEME="base16"
@@ -377,4 +368,4 @@ function mountgdrive() {
 }
 
 # Added by LM Studio CLI (lms)
-export PATH="$PATH:/home/muaddib/.lmstudio/bin"
+export PATH="$PATH:$HOME/.lmstudio/bin"
