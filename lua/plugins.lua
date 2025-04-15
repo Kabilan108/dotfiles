@@ -26,7 +26,7 @@ return {
   },
 
   { dir = local_plugins .. '/ghola',       name = "ghola" },
-  { dir = local_plugins .. '/pyrepl',      name = "pyrepl" },
+  { "kabilan108/pyrepl.nvim" },
 
   { "folke/which-key.nvim",                event = "VimEnter" },
   { "lukas-reineke/indent-blankline.nvim", main = "ibl",                          opts = {} },
@@ -147,6 +147,7 @@ return {
       }
 
       require('mini.pairs').setup()
+      require('mini.notify').setup()
       require('mini.trailspace').setup()
       require("mini.diff").setup()
     end,

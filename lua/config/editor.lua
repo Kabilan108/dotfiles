@@ -77,7 +77,7 @@ cmp.setup {
 
 -- code execution ---------------------------------------------------------------------
 
-require("pyrepl").setup({ show_errs = false })
+require("pyrepl").setup({})
 vim.keymap.set("v", "<leader>xp", "<CMD>RunInPyrepl<CR>", {
   noremap = true, silent = true, desc = "e[x]ecute [p]ython"
 })
