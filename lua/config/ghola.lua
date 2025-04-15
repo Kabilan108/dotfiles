@@ -10,7 +10,7 @@ local function chatgpt_completion(mode)
   return function()
     ghola.invoke_llm_and_stream_into_editor({
       url = 'https://api.openai.com/v1/chat/completions',
-      model = 'chatgpt-4o-latest',
+      model = 'gpt-4.1-2025-04-14',
       api_key_name = 'OPENAI_API_KEY',
       system_prompt = mode == 'edit' and edit_prompt or help_prompt,
       replace = mode == 'edit',
@@ -54,8 +54,8 @@ local function deepseek_v3_completion(mode)
   end
 end
 
-vim.keymap.set({ 'n', 'v' }, '<leader>C', chatgpt_completion("help"), { desc = 'help - GPT 4o' })
-vim.keymap.set({ 'n', 'v' }, '<leader>c', chatgpt_completion("edit"), { desc = 'edit - GPT 4o' })
+vim.keymap.set({ 'n', 'v' }, '<leader>C', chatgpt_completion("help"), { desc = 'help - GPT 4.1' })
+vim.keymap.set({ 'n', 'v' }, '<leader>c', chatgpt_completion("edit"), { desc = 'edit - GPT 4.1' })
 vim.keymap.set({ 'n', 'v' }, '<leader>A', sonnet_completion("help"), { desc = 'help - 3.6 Sonnet' })
 vim.keymap.set({ 'n', 'v' }, '<leader>a', sonnet_completion("edit"), { desc = 'edit - 3.6 Sonnet' })
 vim.keymap.set({ 'n', 'v' }, '<leader>G', gemini_flash_completion("help"), { desc = 'help - Gemini 2.0 Flash' })
