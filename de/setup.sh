@@ -31,6 +31,7 @@ install_dunst() {
   mkdir -p /tmp/dunst
   cd /tmp/dunst
   git clone https://github.com/dunst-project/dunst.git
+  git checkout 42d2bf8964ab206cb309bb50e0398e0a8af608b8
   cd dunst
   make
   sudo make install
