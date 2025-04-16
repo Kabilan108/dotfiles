@@ -1,7 +1,7 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $0 [mute|mute-mic|[+-]<1-99>]"
+  echo "Usage: $(basename $0) [mute|mute-mic|[+-]<1-99>]"
     echo "  mute: Toggle mute for the default sink"
     echo "  mute-mic: Toggle mute for the default source"
     echo "  [+-]<1-99>: Increase or decrease volume by 1-99%"
