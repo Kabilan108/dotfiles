@@ -140,6 +140,9 @@ export PATH=/usr/local/cuda-12.6/bin${PATH:+:${PATH}}
 # set bat theme
 export BAT_THEME="base16"
 
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:$HOME/.lmstudio/bin"
+
 # enable nvm
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # loads nvm
@@ -259,99 +262,6 @@ cursor() {
   fi
 }
 
-
-#### --> COMPILE UTILS
-
-compile() {
-  local output_specified=false
-  local input_file=""
-  local output_file=""
-  local args=()
-
-  # Parse arguments
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      -o)
-        output_specified=true
-        output_file="$2"
-        args+=("$1" "$2")
-        shift 2
-        ;;
-      *.cpp|*.cxx|*.cc)
-        input_file="$1"
-        args+=("$1")
-        shift
-        ;;
-      *)
-        args+=("$1")
-        shift
-        ;;
-    esac
-  done
-
-  # If -o is not specified, generate output filename
-  if ! $output_specified && [[ -n "$input_file" ]]; then
-    output_file="${input_file%.*}.o"
-    args+=("-o" "$output_file")
-  fi
-
-  # Call g++ with processed arguments
-  g++ \
-    -std=c++17 \
-    -ggdb \
-    -pedantic-errors \
-    -Wall -Weffc++ -Wextra -Wconversion -Wsign-conversion \
-    "${args[@]}"
-}
-
-
-ktcompile() {
-  local run_after=false
-  local input_file=""
-  local output_file=""
-
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      -r)
-        run_after=true
-        shift
-        ;;
-      *)
-        if [ -z "$input_file" ]; then
-          input_file="$1"
-        elif [ -z "$output_file" ]; then
-          output_file="$1"
-        else
-          echo "Error: Too many arguments."
-          echo "Usage: ktcompile [-r] <input_file.kt> [output_file.jar]"
-          return 1
-        fi
-        shift
-        ;;
-    esac
-  done
-
-  if [ -z "$input_file" ]; then
-    echo "Usage: ktcompile [-r] <input_file.kt> [output_file.jar]"
-    return 1
-  fi
-
-  if [ -z "$output_file" ]; then
-    output_file="${input_file%.kt}.jar"
-  fi
-
-  if [ -f "$input_file" ]; then
-    kotlinc "$input_file" -include-runtime -d "$output_file"
-    if [ $? -eq 0 ] && [ "$run_after" = true ]; then
-      java -jar "$output_file"
-    fi
-  else
-    echo "Error: $input_file not found."
-  fi
-}
-
-
-
 #### --> FILE UTILS
 
 function mountgdrive() {
@@ -366,6 +276,3 @@ function mountgdrive() {
     --allow-other \
     --uid 1000
 }
-
-# Added by LM Studio CLI (lms)
-export PATH="$PATH:$HOME/.lmstudio/bin"
