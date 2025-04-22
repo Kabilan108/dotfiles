@@ -1,0 +1,44 @@
+#!/bin/bash
+
+usage() {
+    echo "Usage: pickers [--split] <dirs|hosts>"
+    exit 1
+}
+
+split=0
+type=""
+
+# Parse command line arguments
+for arg in "$@"; do
+    case "$arg" in
+        --split)
+            split=1
+            ;;
+        dirs|hosts)
+            type="$arg"
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+
+# Check if type is provided and valid
+if [ -z "$type" ]; then
+    usage
+fi
+
+# Execute the appropriate command based on type and split flag
+if [ "$type" = "dirs" ]; then
+    if [ "$split" -eq 1 ]; then
+        fd -t d -d 4 . $HOME /mnt/arrakis/ | fzf --tmux | xargs -I DIR tmux split-window -c DIR
+    else
+        fd -t d -d 4 . $HOME /mnt/arrakis/ | fzf --tmux | xargs -I DIR sh -c 'tmux new-window -c "DIR" -n "$(basename "DIR")"'
+    fi
+elif [ "$type" = "hosts" ]; then
+    if [ "$split" -eq 1 ]; then
+        grep "^Host " ~/.ssh/config | awk '{print $2}' | fzf --tmux | xargs -I HOST tmux split-window ssh HOST
+    else
+        grep "^Host " ~/.ssh/config | awk '{print $2}' | fzf --tmux | xargs -I HOST tmux new-window -n HOST ssh HOST
+    fi
+fi
