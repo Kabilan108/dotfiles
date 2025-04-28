@@ -176,6 +176,7 @@ alias nohist='HISTFILE=/dev/null'
 # give things some color
 alias ls='ls --color=auto'
 alias ll='ls -alF'
+alias lha='ls -lha'
 alias la='ls -A'
 alias l='ls -CF'
 alias lt="ls --human-readable --size -1 -S --classify"
