@@ -31,6 +31,7 @@
   line-numbers = true
   syntax-theme = base16
   file-style = bold yellow
+  max-line-length = 0
   hunk-header-style = omit
   zero-style = dim syntax
   plus-style = syntax "#324430"
