@@ -14,5 +14,4 @@ require "config.editor"
 require "config.lualine"
 require "config.ghola"
 require("config.snippets").setup()
-
-require "config.terminal"
+require "config.debug"
