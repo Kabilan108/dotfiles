@@ -64,3 +64,6 @@ end
 dap.listeners.before.event_exited.dapui_config = function()
   ui.close()
 end
+
+-- customize colors
+vim.api.nvim_set_hl(0, "DapBreakpoint", { fg = "#f38ba8" })
