@@ -22,4 +22,7 @@ return {
       "    " }),
     i(1, "pass"),
   }),
+  s({ trig = "set_trace" }, {
+    t("import ipdb; ipdb.set_trace()"),
+  }),
 }
