@@ -2,7 +2,16 @@
 # vim: syn=bash ft=bash
 
 usage() {
-    echo "Usage: pickers [--split] <dirs|hosts>"
+    cat <<EOF
+Usage: pickers [--split] TYPE
+
+TYPE:
+  dirs    Open a directory picker
+  hosts   Open an SSH host picker
+
+Options:
+  --split Open selection in a tmux split instead of a new window
+EOF
     exit 1
 }
 
