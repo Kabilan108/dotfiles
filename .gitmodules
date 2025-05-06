@@ -1,3 +1,0 @@
-[submodule "editor/nvim"]
-	path = editor/nvim
-	url = git@github.com:Kabilan108/kickstart.nvim.git
