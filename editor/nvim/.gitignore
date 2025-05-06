@@ -1,0 +1,6 @@
+.luarc.json
+lazy-lock.json
+Session.vim
+
+.aider*
+.env
