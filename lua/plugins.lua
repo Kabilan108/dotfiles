@@ -41,6 +41,16 @@ return {
     end
   },
 
+  -- debugger
+  {
+    "mfussenegger/nvim-dap",
+    dependencies = {
+      "rcarriga/nvim-dap-ui",
+      "theHamsta/nvim-dap-virtual-text",
+      "nvim-neotest/nvim-nio"
+    }
+  },
+
   -- autocompletion
   {
     "hrsh7th/nvim-cmp",

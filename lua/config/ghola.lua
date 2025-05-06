@@ -42,23 +42,9 @@ local function gemini_flash_completion(mode)
   end
 end
 
-local function deepseek_v3_completion(mode)
-  return function()
-    ghola.invoke_llm_and_stream_into_editor({
-      url = 'https://openrouter.ai/api/v1/chat/completions',
-      model = 'deepseek/deepseek-chat-v3-0324',
-      api_key_name = 'OPENROUTER_API_KEY',
-      system_prompt = mode == 'edit' and edit_prompt or help_prompt,
-      replace = mode == 'edit',
-    }, ghola.make_openai_spec_curl_args, ghola.handle_openai_spec_data)
-  end
-end
-
 vim.keymap.set({ 'n', 'v' }, '<leader>C', chatgpt_completion("help"), { desc = 'help - GPT 4.1' })
 vim.keymap.set({ 'n', 'v' }, '<leader>c', chatgpt_completion("edit"), { desc = 'edit - GPT 4.1' })
 vim.keymap.set({ 'n', 'v' }, '<leader>A', sonnet_completion("help"), { desc = 'help - 3.6 Sonnet' })
 vim.keymap.set({ 'n', 'v' }, '<leader>a', sonnet_completion("edit"), { desc = 'edit - 3.6 Sonnet' })
 vim.keymap.set({ 'n', 'v' }, '<leader>G', gemini_flash_completion("help"), { desc = 'help - Gemini 2.0 Flash' })
 vim.keymap.set({ 'n', 'v' }, '<leader>g', gemini_flash_completion("edit"), { desc = 'edit - Gemini 2.0 Flash' })
-vim.keymap.set({ 'n', 'v' }, '<leader>D', deepseek_v3_completion("help"), { desc = 'help - DeepSeek V3 0324' })
-vim.keymap.set({ 'n', 'v' }, '<leader>d', deepseek_v3_completion("edit"), { desc = 'edit - DeepSeek V3 0324' })
