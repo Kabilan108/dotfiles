@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+
+usage() {
+    echo "Usage: sessionizer"
+    exit 1
+}
+
+switch_to() {
+    if [[ -z $TMUX ]]; then
+        tmux attach-session -t $1
+    else
+        tmux switch-client -t $1
+    fi
+}
+
+has_session() {
+    tmux list-sessions | grep -q "^$1:"
+}
+
+hydrate() {
+    if [ -f $2/.tmux-sessionizer ]; then
+        tmux send-keys -t $1 "source $2/.tmux-sessionizer" c-M
+    elif [ -f $HOME/.tmux-sessionizer ]; then
+        tmux send-keys -t $1 "source $HOME/.tmux-sessionizer" c-M
+    fi
+}
+
+get_sessions() {
+    tmux list-sessions | awk '{print "tmux:" substr($1, 1, length($1)-1)}'
+}
+
+get_dirs() {
+    fd -t d -d 2 . $HOME/work $HOME/sietch/ $HOME/dotfiles
+}
+
+if [[ $# -eq 1 ]]; then
+    selected=$1
+else
+    selected=$({ get_sessions; get_dirs; } | fzf --tmux)
+    selected=${selected#tmux:}
+fi
+
+if [[ -z $selected ]]; then
+    exit 0
+fi
+
+selected_name=$(basename "$selected" | tr . _)
+tmux_running=$(pgrep tmux)
+
+if [[ -z $TMUX ]] && [[ -z $tmux_running ]]; then
+    tmux new-session -s $selected_name -c $selected
+    hydrate $selected_name $selected
+    exit 0
+fi
+
+if ! has_session $selected_name; then
+    tmux new-session -ds $selected_name -c $selected
+    hydrate $selected_name $selected
+fi
+
+switch_to $selected_name
