@@ -8,6 +8,5 @@ if [ ! -e "$file_path" ]; then
   exit 1
 fi
 
-absolute_path=$(realpath "$file_path")
-encoded_path=$(printf '%s' "$absolute_path" | sed 's/[^a-zA-Z0-9]/\\&/g; s/\\//g')
+encoded_path=$(printf '%s' "$file_path" | sed 's/[^a-zA-Z0-9]/\\&/g; s/\\//g')
 echo "file://$encoded_path"
