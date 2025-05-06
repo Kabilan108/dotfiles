@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
 
 # Check for required tools
 for cmd in xrandr ffmpeg pactl; do

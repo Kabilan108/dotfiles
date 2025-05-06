@@ -1,6 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
 
-# modify this so it doesn't break cursor if run w/o an internet connection
+# TODO: modify this so it doesn't break cursor if run w/o an internet connection
 
 APPIMAGE_PATH="$HOME/.local/bin/cursor/cursor.AppImage"
 APPIMAGE_URL="https://downloader.cursor.sh/linux/appImage/x64"

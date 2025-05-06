@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
 
 usage() {
     echo "Usage: pickers [--split] <dirs|hosts>"

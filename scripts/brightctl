@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
 
 if [[ ! $1 =~ ^[+-][1-9][0-9]?$ ]]; then
     echo "Invalid argument. Use +N or -N where N is 1-99."

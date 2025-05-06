@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
 
 show_help() {
   echo "Usage: $0 [ref_branch]"
