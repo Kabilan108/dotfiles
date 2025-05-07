@@ -127,6 +127,12 @@ return {
   },
 
   {
+    "ThePrimeagen/harpoon",
+    branch = "harpoon2",
+    dependencies = { "nvim-lua/plenary.nvim" }
+  },
+
+  {
     'ggml-org/llama.vim',
     init = function()
       vim.g.llama_config = {
