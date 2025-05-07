@@ -10,8 +10,8 @@ require "setup-lazy"
 require "keymaps"
 
 -- configure plugins
-require "config.editor"
-require "config.lualine"
-require "config.ghola"
-require("config.snippets").setup()
 require "config.debug"
+require "config.editor"
+require "config.ghola"
+require "config.lualine"
+require("config.snippets").setup()

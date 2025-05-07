@@ -70,9 +70,6 @@ map(
   "[t]rim [w]hitespace"
 )
 
--- toggle terminal
-map("<leader>t", require("config.terminal").toggle_terminal, "[t]oggle terminal")
-
 -- Disable arrow keys in normal mode
 local keys = { '<left>', '<right>', '<up>', '<down>' }
 for i = 1, #keys do
