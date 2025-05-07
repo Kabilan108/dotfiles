@@ -136,7 +136,12 @@ return {
     'ggml-org/llama.vim',
     init = function()
       vim.g.llama_config = {
-        endpoint = "http://lisan-al-gaib:8012/infill"
+        endpoint = "http://lisan-al-gaib:8012/infill",
+        show_info = 1,
+        keymap_trigger = "<C-c>",
+        keymap_accept_full = "<C-s>",
+        keymap_accept_line = "<C-l>",
+        keymap_accept_word = "<C-w>",
       }
     end
   },
