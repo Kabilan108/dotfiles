@@ -27,11 +27,11 @@ hydrate() {
 }
 
 get_sessions() {
-    tmux list-sessions | awk '{print "tmux:" substr($1, 1, length($1)-1)}'
+    tmux list-sessions 2>/dev/null | awk '{print "tmux:" substr($1, 1, length($1)-1)}'
 }
 
 get_dirs() {
-    fd -t d -d 2 . $HOME/work $HOME/sietch/ $HOME/dotfiles
+    fd -t d -d 2 . $HOME/work $HOME/sietch/ $HOME
 }
 
 if [[ $# -eq 1 ]]; then
