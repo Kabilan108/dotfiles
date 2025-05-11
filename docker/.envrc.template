@@ -1,0 +1,6 @@
+# copy this file to .envrc and populate the env variables
+export OPENAI_API_KEY=""
+
+export TAILSCALE_NAME=""
+export TAILSCALE_IP=""
+export TAILSCALE_URL=""

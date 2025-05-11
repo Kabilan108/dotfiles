@@ -1,14 +1,34 @@
 services:
   nginx:
-    container_name: nginx-proxy
+    container_name: nginx
     image: nginx:alpine
     networks:
-      - proxy-network
+      - proxynet
     ports:
       - "80:80"
+      - "443:443"
     restart: unless-stopped
     volumes:
       - ./nginx:/etc/nginx/conf.d
+      - ./nginx/certs/${TAILSCALE_URL}.crt:/etc/ssl/certs/tailscale.crt:ro
+      - ./nginx/certs/${TAILSCALE_URL}.key:/etc/ssl/private/tailscale.key:ro
+    environment:
+      TAILSCALE_NAME: ${TAILSCALE_NAME}
+      TAILSCALE_IP: ${TAILSCALE_IP}
+      TAILSCALE_URL: ${TAILSCALE_URL}
+
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    networks:
+      - proxynet
+    environment:
+      DOMAIN: "https://${TAILSCALE_URL}/vw"
+      SIGNUPS_ALLOWED: "true"
+      # ADMIN_TOKEN: ""
+    volumes:
+      - vaultwarden-data:/data/
 
   jellyfin:
     container_name: jellyfin
@@ -19,7 +39,7 @@ services:
       - JELLYFIN_PublishedServerUrl=http://lisan-al-gaib/jellyfin
     image: jellyfin/jellyfin:latest
     networks:
-      - proxy-network
+      - proxynet
     ports:
       - "8096:8096"
     restart: unless-stopped
@@ -62,7 +82,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     image: ghcr.io/open-webui/open-webui:main
     networks:
-      - proxy-network
+      - proxynet
     ports:
       - "7000:8080"
     restart: unless-stopped
@@ -70,7 +90,8 @@ services:
       - open-webui:/app/backend/data
 
 networks:
-  proxy-network:
+  proxynet:
 
 volumes:
   open-webui:
+  vaultwarden-data:
