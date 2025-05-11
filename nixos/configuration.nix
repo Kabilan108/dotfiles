@@ -67,8 +67,8 @@
     enable = true;
 
     displayManager = {
-      startx.enable = true;
-      lightdm.enable = true;
+      startx.enable = false;
+      gdm.enable = true;
     };
 
     desktopManager.xterm.enable = false;
@@ -106,6 +106,14 @@
     (nerdfonts.override { fonts = [ "FiraMono" ]; })
     fira-mono
   ];
+  fonts.fontconfig = {
+    enable = true;
+    defaultFonts = {
+      serif = [ "Noto Serif" ];
+      sansSerif = [ "Noto Sans" ];
+      monospace = ["FiraMono Nerd Font" "Fira Mono" ];
+    };
+  };
 
   # configure nvidia drivers
   ## load nvidia driver for Xorg & Wayland
