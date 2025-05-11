@@ -91,14 +91,14 @@ bindsym XF86AudioNext exec playerctl next
 bindsym XF86AudioPrev exec playerctl previous
 
 # Use pactl to adjust volume in PulseAudio.
-bindsym XF86AudioRaiseVolume exec --no-startup-id $HOME/.local/bin/scripts/volctl +5
-bindsym XF86AudioLowerVolume exec --no-startup-id $HOME/.local/bin/scripts/volctl -5
-bindsym XF86AudioMute exec --no-startup-id $HOME/.local/bin/scripts/volctl mute
-bindsym XF86AudioMicMute exec --no-startup-id $HOME/.local/bin/scripts/volctl mute-mic
+bindsym XF86AudioRaiseVolume exec --no-startup-id $HOME/bin/volctl +5
+bindsym XF86AudioLowerVolume exec --no-startup-id $HOME/bin/volctl -5
+bindsym XF86AudioMute exec --no-startup-id $HOME/bin/volctl mute
+bindsym XF86AudioMicMute exec --no-startup-id $HOME/bin/volctl mute-mic
 
 # enable brightness control
-bindsym XF86MonBrightnessUp exec --no-startup-id $HOME/.local/bin/scripts/brightctl +5
-bindsym XF86MonBrightnessDown exec --no-startup-id $HOME/.local/bin/scripts/brightctl -5
+bindsym XF86MonBrightnessUp exec --no-startup-id $HOME/bin/brightctl +5
+bindsym XF86MonBrightnessDown exec --no-startup-id $HOME/bin/brightctl -5
 
 # ===> WORKSPACES =====================================================================
 
@@ -252,7 +252,7 @@ exec_always --no-startup-id setxkbmap -option caps:escape
 exec_always autorandr --change
 
 # wallpaper
-exec_always --no-startup-id $HOME/.local/bin/scripts/set-wallpaper
+exec_always --no-startup-id $HOME/bin/set-wallpaper
 
 # polybar
 exec_always --no-startup-id $HOME/.config/polybar/launch.sh
@@ -261,4 +261,4 @@ exec_always --no-startup-id $HOME/.config/polybar/launch.sh
 exec_always autotiling -w 1
 
 # battery notifications
-exec --no-startup-id $HOME/.local/bin/scripts/battery-watcher
+exec --no-startup-id $HOME/bin/battery-watcher
