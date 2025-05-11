@@ -134,39 +134,18 @@ export PROMPT_DIRTRIM=4
 
 ### -> ENABLE PROGRAMS
 
-# enable cuda
-export PATH=/usr/local/cuda-12.6/bin${PATH:+:${PATH}}
-
 # set bat theme
 export BAT_THEME="base16"
 
 # Added by LM Studio CLI (lms)
 export PATH="$PATH:$HOME/.lmstudio/bin"
 
-# enable nvm
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # loads nvm bash_completion
-EDITOR=nvim
-VISUAL=$EDITOR
-
-# enable bun
-export BUN_INSTALL="$HOME/.bun"
-export PATH=$BUN_INSTALL/bin:$PATH
-[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
-
 # enable direnv
 eval "$(direnv hook bash)"
 
-# enable fzf
-[ -f ~/.fzf.bash ] && source ~/.fzf.bash
-
-# enable cargo
-. "$HOME/.cargo/env"
-
 # enable geass completions
-if [ -f '/home/muaddib/.bash_completions/geass.sh' ]; then
-  source '/home/muaddib/.bash_completions/geass.sh'
+if [ -f "$HOME/.bash_completions/geass.sh" ]; then
+  source "$HOME/.bash_completions/geass.sh"
 fi
 
 ### -> ALIASES
@@ -188,15 +167,15 @@ alias egrep='egrep --color=auto'
 
 # editors
 alias vi='nvim'
-alias svi='sudo -E /opt/nvim-linux64/bin/nvim -u $HOME/.config/nvim/init.lua'
+alias svi='sudo -E nvim -u $HOME/.config/nvim/init.lua'
 alias cr="cursor"
 
 # useful conversions
 alias excel_to_csv='libreoffice --headless --convert-to csv'
 
 # tools
-alias copy='xclip -selection clipboard'
-alias clipboard='xclip -selection clipboard -o'
+# alias copy='xclip -selection clipboard'
+# alias clipboard='xclip -selection clipboard -o'
 
 # work
 alias devserver='kitten ssh -t moberg-devserver3 "bash -ic devsrv"'
