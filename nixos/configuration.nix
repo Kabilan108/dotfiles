@@ -15,10 +15,6 @@
   boot.loader.efi.canTouchEfiVariables = true;
   boot.kernel.sysctl."net.ipv4.ip_unprivileged_port_start" = 80;
 
-  # Configure network proxy if necessary
-  # networking.proxy.default = "http://user:password@proxy:port/";
-  # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
-
   # Enable networking
   networking.hostName = "sietch";
   networking.networkmanager.enable = true;
@@ -91,6 +87,7 @@
         flameshot
         playerctl
         pulseaudio
+        pavucontrol
         autorandr
         arandr
         xorg.xrandr
@@ -139,7 +136,6 @@
     libreoffice-fresh
     nautilus
     obsidian
-    pavucontrol
     slack
     spotify
     telegram-desktop
@@ -191,10 +187,6 @@
     defaultEditor = true;
   };
 
-  # Some programs need SUID wrappers, can be configured further or are
-  # started in user sessions.
-  # programs.mtr.enable = true;
-
   # List services that you want to enable:
   services.gnome.gnome-keyring.enable = true;
 
@@ -223,5 +215,4 @@
   # Before changing this value read the documentation for this option
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
   system.stateVersion = "24.11"; # Did you read the comment?
-
 }
