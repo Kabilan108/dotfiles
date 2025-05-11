@@ -77,22 +77,24 @@
       enable = true;
       extraPackages = with pkgs; [
         (polybar.override { pulseSupport = true; })
-        autotiling
-        feh
-        dunst
-        light
-        rofi
-        picom
-        polybar
-        betterlockscreen
-        flameshot
-        playerctl
-        pulseaudio
-        pavucontrol
-        autorandr
+
         arandr
-        xorg.xrandr
+        autorandr
+        autotiling
+        betterlockscreen
+        dunst
+        feh
+        flameshot
+        light
+        networkmanagerapplet
+        picom
+        pavucontrol
+        playerctl
+        polybar
+        pulseaudio
+        rofi
         xorg.xev
+        xorg.xrandr
       ];
     };
 
