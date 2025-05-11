@@ -257,5 +257,8 @@ exec_always --no-startup-id $HOME/.local/bin/scripts/set-wallpaper
 # polybar
 exec_always --no-startup-id $HOME/.config/polybar/launch.sh
 
+# autostart
+exec_always autotiling -w 1
+
 # battery notifications
 exec --no-startup-id $HOME/.local/bin/scripts/battery-watcher
