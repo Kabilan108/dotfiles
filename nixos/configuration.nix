@@ -1,7 +1,3 @@
-# Edit this configuration file to define what should be installed on
-# your system.  Help is available in the configuration.nix(5) man page
-# and in the NixOS manual (accessible by running ‘nixos-help’).
-
 { config, pkgs, lib, ... }:
 
 {
@@ -65,13 +61,17 @@
   environment.pathsToLink = [ "/libexec" ];
 
   # set up X11 and i3wm
-  services.displayManager.defaultSession = "none+i3";
+  services.displayManager.defaultSession ="none+i3";
+
   services.xserver = {
     enable = true;
 
-    desktopManager = {
-      xterm.enable = false;
+    displayManager = {
+      startx.enable = true;
+      lightdm.enable = true;
     };
+
+    desktopManager.xterm.enable = false;
 
     windowManager.i3 = {
       enable = true;
@@ -124,6 +124,10 @@
     package = config.boot.kernelPackages.nvidiaPackages.stable;
   };
 
+  # enable audio & bluetooth
+  hardware.bluetooth.enable = true;
+  hardware.bluetooth.powerOnBoot = true;
+  services.blueman.enable = true;
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
