@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# vim: syn=bash ft=bash
 
 start_polybar() {
   MONITOR=$1 polybar main --config=$HOME/.config/polybar/config.ini 2>&1 \
