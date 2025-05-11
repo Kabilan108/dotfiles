@@ -1,1 +1,4 @@
 default*
+.envrc
+jellyfin/config
+certs/
