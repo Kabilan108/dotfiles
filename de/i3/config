@@ -165,18 +165,16 @@ for_window [class="pavucontrol"] floating enable
 font pango:FiraMono Nerd Font 11
 
 # Gaps settings for i3
-# gaps inner 4
-# gaps outer 2
+gaps inner 2
+gaps outer 2
 
 # boarders
-default_border pixel 2
-default_floating_border pixel 2
+default_border pixel 1
+default_floating_border pixel 1
 
-# on => Only enable gaps on a workspace when there is at least one container
-smart_gaps on
-
-# Activate smart borders (always)
-smart_borders on
+# # only enable gaps/borderrs on a workspace when there is at least one container
+# smart_gaps on
+# smart_borders on
 
 # Keybindings to dynamically change gaps size
 bindsym $mod+z gaps outer current plus 5
@@ -241,7 +239,7 @@ exec --no-startup-id sleep 2 && blueman-applet
 exec --no-startup-id dunst
 
 # obsidian
-exec --no-startup-id /snap/bin/obsidian
+exec --no-startup-id obsidian
 
 # compositor
 exec --no-startup-id picom --config $HOME/.config/picom/picom.conf -b
@@ -256,7 +254,7 @@ exec_always autorandr --change
 exec_always --no-startup-id $HOME/bin/set-wallpaper
 
 # polybar
-exec_always --no-startup-id $HOME/.config/polybar/launch.sh
+exec_always --no-startup-id $HOME/bin/start-polybar
 
 # autostart
 exec_always autotiling -w 1
