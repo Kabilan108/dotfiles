@@ -174,8 +174,8 @@ alias cr="cursor"
 alias excel_to_csv='libreoffice --headless --convert-to csv'
 
 # tools
-# alias copy='xclip -selection clipboard'
-# alias clipboard='xclip -selection clipboard -o'
+alias copy='xclip -selection clipboard'
+alias clipboard='xclip -selection clipboard -o'
 
 # work
 alias devserver='kitten ssh -t moberg-devserver3 "bash -ic devsrv"'
