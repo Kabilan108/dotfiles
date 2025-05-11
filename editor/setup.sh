@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/usr/bin/env bash
 
 install_neovim() {
   mkdir -p /tmp/nvim && cd /tmp/nvim

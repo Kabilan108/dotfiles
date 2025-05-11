@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/usr/bin/env bash
 
 start_polybar() {
   MONITOR=$1 polybar main --config=$HOME/.config/polybar/config.ini 2>&1 \
