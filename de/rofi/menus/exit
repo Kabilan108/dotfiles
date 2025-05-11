@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 options="   Lock\n   Suspend\n   Logout\n   Restart\n   Power Off"
 

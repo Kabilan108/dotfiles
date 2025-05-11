@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 rofi_finder() {
   fd . "/mnt" --hidden --type f --type d | rofi \
