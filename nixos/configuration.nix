@@ -76,6 +76,7 @@
     windowManager.i3 = {
       enable = true;
       extraPackages = with pkgs; [
+        (polybar.override { pulseSupport = true; })
         autotiling
         feh
         dunst
@@ -132,10 +133,20 @@
     package = config.boot.kernelPackages.nvidiaPackages.stable;
   };
 
-  # enable audio & bluetooth
+  # configure bluetooth support
   hardware.bluetooth.enable = true;
   hardware.bluetooth.powerOnBoot = true;
   services.blueman.enable = true;
+
+  # configure audio
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    alsa.support32Bit = true;
+    pulse.enable = true;
+  };
+  hardware.pulseaudio.enable = false;
+  security.rtkit.enable = true;
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
