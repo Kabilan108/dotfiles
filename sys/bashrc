@@ -49,9 +49,6 @@ fi
 bind '"\C-l":"clear\n"'
 bind '"\C-A-l":"clear\n"'
 
-# load environment variables
-source $HOME/.bash_env
-
 ### -> SMARTER TAB-COMPLETION
 
 # case insensitive file completion
@@ -137,8 +134,16 @@ export PROMPT_DIRTRIM=4
 # set bat theme
 export BAT_THEME="base16"
 
-# Added by LM Studio CLI (lms)
-export PATH="$PATH:$HOME/.lmstudio/bin"
+# Path modifications
+paths=(
+    # "$HOME/.lmstudio/bin"
+    "$HOME/bin"
+)
+for dir in "${paths[@]}"; do
+    if [[ -d "$dir" ]]; then
+        PATH="$dir:$PATH"
+    fi
+done
 
 # enable direnv
 eval "$(direnv hook bash)"
@@ -187,8 +192,6 @@ alias icat='kitten icat'
 
 # llm calls
 alias pplx='llm -m sonar-large'
-
-### -> CUSTOM FUNCTIONS
 
 
 #### --> TMUX
