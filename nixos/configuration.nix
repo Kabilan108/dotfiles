@@ -97,6 +97,7 @@ in
     spotify
     telegram-desktop
     zotero
+    zoom-us
 
     bashInteractive
     cmake
