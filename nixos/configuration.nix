@@ -93,6 +93,7 @@ in
     libreoffice-fresh
     nautilus
     obsidian
+    openrgb-with-all-plugins
     slack
     spotify
     telegram-desktop
