@@ -196,13 +196,23 @@
     bun
     cargo
     clang
-    clang-tools
     go
-    lua
-    luajitPackages.luarocks
-    luajitPackages.magick
     nodejs_20
     zig
+
+    # neovim
+    biome
+    clang-tools
+    dockerfile-language-server-nodejs
+    gopls
+    lua
+    lua-language-server
+    luajitPackages.luarocks
+    luajitPackages.magick
+    nodePackages.typescript-language-server
+    pyright
+    rust-analyzer
+    ruff
   ] ++ (
     (import ./go-tools.nix) { inherit pkgs lib; }
   );
@@ -213,6 +223,9 @@
     viAlias = true;
     vimAlias = true;
   };
+
+  # enable nix-direnv
+  programs.direnv.enable = true;
 
   # List services that you want to enable:
   services.gnome.gnome-keyring.enable = true;

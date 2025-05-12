@@ -178,24 +178,15 @@ capabilities = vim.tbl_deep_extend(
   'force', capabilities, require('cmp_nvim_lsp').default_capabilities()
 )
 
--- set up mason to install servers
+-- set up language servers
 local lspconfig = require("lspconfig")
-require('mason').setup()
-require('mason-lspconfig').setup({
-  ensure_installed = { "biome", "clangd", "dockerls", "gopls", "lua_ls", "pyright", "rust_analyzer", "ts_ls" },
-  handlers = {
-    function(server_name)
-      local server = servers[server_name] or {}
-      -- This handles overriding only values explicitly passed
-      -- by the server configuration above. Useful when disabling
-      -- certain features of an LSP (for example, turning off formatting for tsserver)
-      server.capabilities = vim.tbl_deep_extend(
-        'force', {}, capabilities, server.capabilities or {}
-      )
-      lspconfig[server_name].setup(server)
-    end,
-  },
-})
+for name, opts in ipairs(servers) do
+  lspconfig[name].setup(opts)
+  opts.capabilities = vim.tbl_deep_extend(
+    'force', {}, capabilities, opts.capabilities or {}
+  )
+  lspconfig[name].setup(opts)
+end
 
 cmp.setup.filetype({ 'typr' }, {
   window = {

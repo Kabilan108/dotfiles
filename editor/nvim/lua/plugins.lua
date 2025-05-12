@@ -31,8 +31,6 @@ return {
   { "folke/which-key.nvim",                event = "VimEnter" },
   { "lukas-reineke/indent-blankline.nvim", main = "ibl",                          opts = {} },
   { "neovim/nvim-lspconfig",               dependencies = { "j-hui/fidget.nvim" } },
-  { "williamboman/mason.nvim",             config = true },
-  { "williamboman/mason-lspconfig.nvim" },
 
   {
     "3rd/image.nvim",
