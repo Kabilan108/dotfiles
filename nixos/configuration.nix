@@ -42,6 +42,9 @@ in
       /etc/nixos/secret/authorized_keys
     ];
   };
+  nix.extraOptions = ''
+    trusted-users = root kabilan
+  '';
 
   virtualisation.docker = {
     enable = true;
