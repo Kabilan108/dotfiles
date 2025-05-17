@@ -93,6 +93,8 @@ in
       viAlias = true;
       vimAlias = true;
     };
+    nm-applet.enable = true;
+    steam.enable = true;
   };
 
   environment.systemPackages = with pkgs; [
