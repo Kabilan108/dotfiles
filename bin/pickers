@@ -15,6 +15,14 @@ EOF
     exit 1
 }
 
+pick_dir() {
+    fd -L -t d -d 4 . $HOME | fzf --tmux
+}
+
+pick_host() {
+    grep "^Host " ~/.ssh/config | awk '{print $2}' | fzf --tmux
+}
+
 split=0
 type=""
 
@@ -41,14 +49,14 @@ fi
 # Execute the appropriate command based on type and split flag
 if [ "$type" = "dirs" ]; then
     if [ "$split" -eq 1 ]; then
-        fd -t d -d 4 . $HOME /mnt/arrakis/ | fzf --tmux | xargs -I DIR tmux split-window -c DIR
+        pick_dir | xargs -I DIR tmux split-window -c DIR
     else
-        fd -t d -d 4 . $HOME /mnt/arrakis/ | fzf --tmux | xargs -I DIR sh -c 'tmux new-window -c "DIR" -n "$(basename "DIR")"'
+        pick_dir | xargs -I DIR sh -c 'tmux new-window -c "DIR" -n "$(basename "DIR")"'
     fi
 elif [ "$type" = "hosts" ]; then
     if [ "$split" -eq 1 ]; then
-        grep "^Host " ~/.ssh/config | awk '{print $2}' | fzf --tmux | xargs -I HOST tmux split-window ssh HOST
+        pick_host | xargs -I HOST tmux split-window ssh HOST
     else
-        grep "^Host " ~/.ssh/config | awk '{print $2}' | fzf --tmux | xargs -I HOST tmux new-window -n HOST ssh HOST
+        pick_host | xargs -I HOST tmux new-window -n HOST ssh HOST
     fi
 fi

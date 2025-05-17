@@ -31,7 +31,7 @@ get_sessions() {
 }
 
 get_dirs() {
-    fd -t d -d 2 . $HOME/work $HOME/sietch/ $HOME
+    fd -L -t d -d 2 . $HOME
 }
 
 if [[ $# -eq 1 ]]; then
