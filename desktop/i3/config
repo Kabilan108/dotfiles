@@ -211,8 +211,8 @@ set $crust     #11111b
 
 # Window Colors
 # class                 border    backgr.   text      indicator  child_border
-client.focused          $mauve    $mantle   $lavender $blue      $mauve
-client.focused_inactive $crust    $mantle   $text     $blue      $overlay0
+client.focused          $mauve    $mantle   $lavender $mauve     $mauve
+client.focused_inactive $crust    $mantle   $text     $overlay0  $overlay0
 client.unfocused        $overlay0 $crust    $text     $surface2  $overlay0
 client.urgent           $peach    $peach    $base     $red       $peach
 client.background       $red
