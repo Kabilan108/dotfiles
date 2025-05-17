@@ -26,6 +26,18 @@
 [interactive]
   diffFilter = delta --color-only
 
+[merge]
+    conflictstyle = zdiff3
+
+[filter "lfs"]
+  clean = git-lfs clean -- %f
+  smudge = git-lfs smudge -- %f
+  process = git-lfs filter-process
+  required = true
+
+[credential]
+	helper = store
+
 [delta]
   navigate = true
   line-numbers = true
@@ -43,63 +55,30 @@
   file-decoration-style = none
   hunk-header-decoration-style = cyan box ul
 
-[merge]
-    conflictstyle = zdiff3
-
-[filter "lfs"]
-  clean = git-lfs clean -- %f
-  smudge = git-lfs smudge -- %f
-  process = git-lfs filter-process
-  required = true
-
 [alias]
   a = add --all
-
   b = branch
-
   c = commit
-
   ca = commit --append
   cl = clone
-
   co = checkout
-  com = checkout master
-  cob = checkout -b
-
   d = diff
   ds = diff --staged
-
   f = fetch
-  fo = fetch origin
-  fu = fetch upstream
-
   l = log
   lo = log --oneline
   lg = log --oneline --graph --decorate
-
   m = merge
-  ma = merge --abort
-  mc = merge --continue
-
   ps = push
   psu = push -u
   pst = push --tags
-
   pl = pull
-
   ra = remote add
   rr = remote rm
-  rgu = remote get-url
-  rsu = remote set-url
-
   s = status
   ss = status -s -b
-
   st = stash
   stl = stash list
   stp = stash pop
-
   t = tag
   td = tag -d
-[credential]
-	helper = store
