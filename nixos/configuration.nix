@@ -128,6 +128,7 @@ in
     fd
     fzf
     ghostty
+    kitty.kitten
     neofetch
     ripgrep
     sd
