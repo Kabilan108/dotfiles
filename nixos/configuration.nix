@@ -146,10 +146,12 @@ in
     lua-language-server
     luajitPackages.luarocks
     luajitPackages.magick
+    nil
     nodePackages.typescript-language-server
     pyright
     rust-analyzer
     ruff
+    stylua
   ]
   ++ ((import ./modules/go-tools.nix) { inherit pkgs lib; })
   ++ (lib.optional enableNvidia nvtopPackages.full)
