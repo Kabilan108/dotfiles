@@ -20,7 +20,6 @@ bindsym $mod+Shift+q kill
 #       add inticator to polybar
 bindsym $mod+d exec --no-startup-id rofi -show drun
 bindsym $mod+Shift+d exec --no-startup-id rofi -show combi
-bindsym $mod+Shift+s exec --no-startup-id rofi -show ssh
 bindsym $mod+Tab exec --no-startup-id rofi -show window
 bindsym $mod+b exec --no-startup-id $HOME/.config/rofi/menus/web-search
 bindsym $mod+Shift+e exec --no-startup-id $HOME/.config/rofi/menus/exit
