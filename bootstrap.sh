@@ -31,11 +31,17 @@ create_symlink() {
 
 mkdir -p "$CONFDIR"
 
-echo "Creating standard user directories..."
+echo "Creating user directories..."
 mkdir -p "$HOME/downloads" \
          "$HOME/media/screenshots" \
          "$HOME/media/screencaps" \
          "$HOME/media/wallpapers"
+
+if [ -d "/vault" ]; then
+  mkdir -p "/vault/userdata" "/vault/work/moberg" "/vault/repos"
+  create_symlink "/vault/work" "$HOME/work"
+  create_symlink "/vault/repos" "$HOME/repos"
+fi
 
 echo "Symlinking ~/dotfiles/bin to ~/bin..."
 create_symlink "$DOTFILES/bin" "$HOME/bin"
@@ -50,22 +56,22 @@ done
 
 echo "Symlinking directories in ~/dotfiles/conf to ~/.config..."
 for dir in "$DOTFILES/conf"/*/; do
-    dir_name=$(basename "$dir")
-    if [ -d "$dir" ]; then
-        if [[ "$dir_name" == "vscode" || "$dir_name" == "ipython" ]]; then
-            continue
-        fi
-        create_symlink "$dir" "$CONFDIR/$dir_name"
+  dir_name=$(basename "$dir")
+  if [ -d "$dir" ]; then
+    if [[ "$dir_name" == "vscode" || "$dir_name" == "ipython" ]]; then
+      continue
     fi
+    create_symlink "$dir" "$CONFDIR/$dir_name"
+  fi
 done
 
 echo "Symlinking files in ~/dotfiles/conf to ~/..."
 shopt -s dotglob
 for file in "$DOTFILES/conf"/*; do
-    if [ -f "$file" ]; then
-        file_name=$(basename "$file")
-        create_symlink "$file" "$HOME/$file_name"
-    fi
+  if [ -f "$file" ]; then
+    file_name=$(basename "$file")
+    create_symlink "$file" "$HOME/$file_name"
+  fi
 done
 
 if [ ! -d $HOME/.tmux/plugins ]; then
