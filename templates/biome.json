@@ -5,7 +5,6 @@
 		"clientKind": "git",
 		"useIgnoreFile": true
 	},
-
 	"formatter": {
 		"enabled": true,
 		"lineWidth": 88,
@@ -16,7 +15,6 @@
 		"enabled": true,
 		"rules": {
 			"recommended": true,
-			"nursery": {}
 		}
 	},
 	"organizeImports": {
@@ -24,10 +22,5 @@
 	},
 	"files": {
 		"include": ["**/*.{js,ts,jsx,tsx,html,css}"]
-	},
-	"javascript": {
-		"formatter": {
-			"quoteStyle": "double"
-		}
 	}
 }

@@ -1,6 +1,6 @@
-# bash scripts
+# bin
 
-a collection of useful bash scripts for accomplishing various tasks. some of these are meant to be used as part of my wm setup, others are just useful clis.
+useful bash tools. some of these are used as part of my desktop env others are just clis.
 
 - [battery-watcher](./battery-watcher):
   monitors battery level and sends desktop notifications when low, critical, or fully charged.

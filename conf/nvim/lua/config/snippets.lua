@@ -95,6 +95,47 @@ M.snippets.python = {
   s({ trig = "set_trace" }, {
     t("import ipdb; ipdb.set_trace()"),
   }),
+  s({ trig = "ruff" }, {
+    t({
+      '[tool.ruff]',
+      'target-version = "py311"',
+      'exclude = [',
+      '    ".direnv",',
+      '    ".git",',
+      '    ".ipynb_checkpoints",',
+      '    ".pytest_cache",',
+      '   ".ruff_cache",',
+      '    ".venv",',
+      '    "build",',
+      '    "dist",',
+      '    "node_modules",',
+      ']',
+      '[tool.ruff.lint]',
+      'ignore = ["E402", "F403"]'
+    })
+  })
+}
+
+M.snippets.toml = {
+  s({ trig = "ruff" }, {
+    t({
+      '[tool.ruff]',
+      'target-version = "py311"',
+      'exclude = [',
+      '    ".direnv",',
+      '    ".git",',
+      '    ".ipynb_checkpoints",',
+      '    ".pytest_cache",',
+      '   ".ruff_cache",',
+      '    ".venv",',
+      '    "build",',
+      '    "dist",',
+      '    "node_modules",',
+      ']',
+      '[tool.ruff.lint]',
+      'ignore = ["E402", "F403"]'
+    })
+  })
 }
 
 return M
