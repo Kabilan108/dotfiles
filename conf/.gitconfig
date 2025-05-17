@@ -59,7 +59,7 @@
   a = add --all
   b = branch
   c = commit
-  ca = commit --append
+  ca = commit --amend
   cl = clone
   co = checkout
   d = diff
