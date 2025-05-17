@@ -52,6 +52,9 @@ echo "Symlinking directories in ~/dotfiles/conf to ~/.config..."
 for dir in "$DOTFILES/conf"/*/; do
     dir_name=$(basename "$dir")
     if [ -d "$dir" ]; then
+        if [[ "$dir_name" == "vscode" || "$dir_name" == "ipython" ]]; then
+            continue
+        fi
         create_symlink "$dir" "$CONFDIR/$dir_name"
     fi
 done
