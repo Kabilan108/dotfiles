@@ -1,7 +1,4 @@
-# bash defaults
-#
-# inspired by mrzool/bash-sensible
-# version: 0.1
+# bashrc
 
 # if not running interactively, don't do anything
 case $- in
@@ -30,24 +27,13 @@ shopt -s nocaseglob
 # vim mode
 set -o vi
 
-# make less more friendly for non-text input files, see lesspipe(1)
-[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
-
 # colored GCC warnings and errors
 export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
-
-# enable bash completion
-if ! shopt -oq posix; then
-  if [ -f /usr/share/bash-completion/bash_completion ]; then
-    . /usr/share/bash-completion/bash_completion
-  elif [ -f /etc/bash_completion ]; then
-    . /etc/bash_completion
-  fi
-fi
 
 # enable CTRL+L and CTRL+Alt+L to clear terminal
 bind '"\C-l":"clear\n"'
 bind '"\C-A-l":"clear\n"'
+
 
 ### -> SMARTER TAB-COMPLETION
 
@@ -93,9 +79,6 @@ bind '"\e[D": backward-char'
 
 ### -> DIRECTORY NAVIGATION
 
-# prepend cd to directory names automatically
-shopt -s autocd 2> /dev/null
-
 # correct spelling errors during tab-completion
 shopt -s dirspell 2> /dev/null
 
@@ -129,14 +112,10 @@ __bash_prompt() {
 __bash_prompt
 export PROMPT_DIRTRIM=4
 
-### -> ENABLE PROGRAMS
 
-# set bat theme
-export BAT_THEME="base16"
+### -> PATH
 
-# Path modifications
 paths=(
-    # "$HOME/.lmstudio/bin"
     "$HOME/bin"
 )
 for dir in "${paths[@]}"; do
@@ -145,56 +124,10 @@ for dir in "${paths[@]}"; do
     fi
 done
 
-# enable direnv
 eval "$(direnv hook bash)"
 
-# enable geass completions
-if [ -f "$HOME/.bash_completions/geass.sh" ]; then
-  source "$HOME/.bash_completions/geass.sh"
-fi
 
-### -> ALIASES
-
-alias nohist='HISTFILE=/dev/null'
-
-# give things some color
-alias ls='ls --color=auto'
-alias ll='ls -alF'
-alias lha='ls -lha'
-alias la='ls -A'
-alias l='ls -CF'
-alias lt="ls --human-readable --size -1 -S --classify"
-alias dir='dir --color=auto'
-alias vdir='vdir --color=auto'
-alias grep='grep --color=auto'
-alias fgrep='fgrep --color=auto'
-alias egrep='egrep --color=auto'
-
-# editors
-alias svi='sudo -E nvim -u $HOME/.config/nvim/init.lua'
-alias cr="cursor"
-
-# useful conversions
-alias excel_to_csv='libreoffice --headless --convert-to csv'
-
-# tools
-alias copy='xclip -selection clipboard'
-alias clipboard='xclip -selection clipboard -o'
-
-# work
-alias devserver='kitten ssh -t moberg-devserver3 "bash -ic devsrv"'
-
-# python
-alias ipy='ipython'
-
-# useful kittens
-alias icat='kitten icat'
-
-# llm calls
-alias pplx='llm -m sonar-large'
-
-
-#### --> TMUX
+#### --> FUNCTIONS
 
 function tmuxa() {
   if [[ -z "$1" ]]; then
@@ -228,33 +161,30 @@ function tmuxk() {
   fi
 }
 
+
+### -> ALIASES
+
 alias ta="tmuxa"
 alias tn="tmuxn"
 alias tl="tmuxl"
 alias tk="tmuxk"
 
+alias ls='ls --color=auto'
+alias ll='ls -alF'
+alias lha='ls -lha'
+alias la='ls -A'
+alias l='ls -CF'
+alias lt="ls --human-readable --size -1 -S --classify"
+alias dir='dir --color=auto'
+alias vdir='vdir --color=auto'
+alias grep='grep --color=auto'
+alias fgrep='fgrep --color=auto'
+alias egrep='egrep --color=auto'
 
-#### --> PROGRAM LAUNCHERS
-
-cursor() {
-  if [ "$#" -eq 1 ]; then
-    (nohup "$USER_BIN/cursor/cursor.AppImage" "$(realpath $1)" &>/dev/null &)
-  else
-    (nohup "$USER_BIN/cursor/cursor.AppImage" &>/dev/null &)
-  fi
-}
-
-#### --> FILE UTILS
-
-function mountgdrive() {
-    local gdrive_path="$1"
-    local local_mount="$2"
-
-    rclone mount "gdrive:$gdrive_path" "$local_mount" \
-    --vfs-cache-mode writes \
-    --vfs-read-chunk-size 256M \
-    --log-level ERROR \
-    --fast-list \
-    --allow-other \
-    --uid 1000
-}
+alias ipy='ipython'
+alias icat='kitten icat'
+alias nohist='HISTFILE=/dev/null'
+alias copy='xclip -selection clipboard'
+alias clipboard='xclip -selection clipboard -o'
+alias svi='sudo -E nvim -u $HOME/.config/nvim/init.lua'
+alias xlsx2csv='libreoffice --headless --convert-to csv'
