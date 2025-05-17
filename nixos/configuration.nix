@@ -48,6 +48,7 @@ in
 
   virtualisation.docker = {
     enable = true;
+    daemon.settings.data-root = "/vault/userdata/docker";
   };
 
   nixpkgs.config.allowUnfree = true;
