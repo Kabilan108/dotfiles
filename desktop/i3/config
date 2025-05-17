@@ -21,7 +21,7 @@ bindsym $mod+Shift+q kill
 bindsym $mod+d exec --no-startup-id rofi -show drun
 bindsym $mod+Shift+d exec --no-startup-id rofi -show combi
 bindsym $mod+Tab exec --no-startup-id rofi -show window
-bindsym $mod+b exec --no-startup-id $HOME/.config/rofi/menus/web-search
+bindsym $mod+u exec --no-startup-id $HOME/.config/rofi/menus/web-search
 bindsym $mod+Shift+e exec --no-startup-id $HOME/.config/rofi/menus/exit
 
 # change focus
