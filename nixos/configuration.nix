@@ -1,17 +1,17 @@
 { config, pkgs, lib, ... }:
 
 let
-  machineCfg = import /etc/nixos/secret/machine-conf.nix;
+  machine = import ./machine.nix;
 
-  currentHostName = machineCfg.hostName;
-  enableNvidia = machineCfg.enableNvidia;
-  customEnvVars = machineCfg.env;
+  currentHostName = machine.hostName;
+  enableNvidia = machine.enableNvidia;
+  envVars = machine.env;
 in
 {
   imports = [
-    /etc/nixos/hardware-configuration.nix
-    ./mod/setup-i3.nix
-  ] ++ (lib.optional enableNvidia  ./mod/setup-nvidia.nix);
+    ./hardware-config.nix
+    ./modules/setup-i3.nix
+  ] ++ (lib.optional enableNvidia  ./modules/setup-nvidia.nix);
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -19,7 +19,7 @@ in
 
   time.timeZone = "America/New_York";
 
-  environment.variables = customEnvVars;
+  environment.variables = envVars;
 
   networking = {
     hostName = currentHostName;
@@ -39,7 +39,7 @@ in
     packages = with pkgs; [];
     shell = pkgs.bashInteractive;
     openssh.authorizedKeys.keyFiles = [
-      /etc/nixos/secret/authorized_keys
+      ./authorized_keys
     ];
   };
   nix.extraOptions = ''
@@ -150,7 +150,7 @@ in
     rust-analyzer
     ruff
   ]
-  ++ ((import ./mod/go-tools.nix) { inherit pkgs lib; })
+  ++ ((import ./modules/go-tools.nix) { inherit pkgs lib; })
   ++ (lib.optional enableNvidia nvtopPackages.full)
   ++ (lib.optional enableNvidia nvidia-container-toolkit);
 
