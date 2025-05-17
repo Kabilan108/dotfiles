@@ -111,8 +111,8 @@ in
     git
     gnumake
     htop
-    jq
     imagemagick
+    jq
     openssl
     psmisc
     tailscale
