@@ -38,9 +38,11 @@ mkdir -p "$HOME/downloads" \
          "$HOME/media/wallpapers"
 
 if [ -d "/vault" ]; then
-  mkdir -p "/vault/userdata" "/vault/work/moberg" "/vault/repos"
+  mkdir -p "/vault/work" "/vault/repos" "/vault/journal" "/vault/userdata"
   create_symlink "/vault/work" "$HOME/work"
   create_symlink "/vault/repos" "$HOME/repos"
+  create_symlink "/vault/journal" "$HOME/journal"
+  create_symlink "/vault/userdata" "$HOME/userdata"
 fi
 
 echo "Symlinking ~/dotfiles/bin to ~/bin..."
