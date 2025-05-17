@@ -24,6 +24,7 @@ in
   networking = {
     hostName = currentHostName;
     networkmanager.enable = true;
+    networkmanager.plugins = [ pkgs.networkmanager-openvpn ];
     firewall = {
       enable = true;
       interfaces."tailscale0" = {
@@ -114,6 +115,7 @@ in
     imagemagick
     jq
     openssl
+    openvpn
     psmisc
     tailscale
     tree
