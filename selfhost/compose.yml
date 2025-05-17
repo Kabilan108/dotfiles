@@ -25,7 +25,7 @@ services:
       - proxynet
     environment:
       DOMAIN: "https://${TAILSCALE_URL}/vw"
-      SIGNUPS_ALLOWED: "true"
+      SIGNUPS_ALLOWED: "false"
       # ADMIN_TOKEN: ""
     volumes:
       - vaultwarden-data:/data/
