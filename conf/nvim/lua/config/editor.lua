@@ -75,6 +75,21 @@ cmp.setup {
   },
 }
 
+cmp.setup.filetype({ 'typr' }, {
+  window = {
+    completion = cmp.config.disable,
+    documentation = cmp.config.disable,
+  }
+})
+
+-- disable llama autocomplete in typr buffers
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "typr",
+  callback = function()
+    vim.fn['llama#disable']()
+  end
+})
+
 -- code execution ---------------------------------------------------------------------
 
 require("pyrepl").setup({})
@@ -159,11 +174,6 @@ local servers = {
   rust_analyzer = {},
   ruff = {
     cmd = { 'ruff', 'server' },
-    init_options = {
-      settings = {
-        configuration = "~/.config/ruff/ruff.toml",
-      }
-    }
   },
   ts_ls = {
     filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact' },
@@ -172,32 +182,18 @@ local servers = {
   },
 }
 
--- inform servers of completion capabilities
+-- set up LSPs
+
+local lspconfig = require("lspconfig")
+
 local capabilities = vim.lsp.protocol.make_client_capabilities()
 capabilities = vim.tbl_deep_extend(
   'force', capabilities, require('cmp_nvim_lsp').default_capabilities()
 )
 
--- set up language servers
-local lspconfig = require("lspconfig")
-for name, opts in ipairs(servers) do
-  lspconfig[name].setup(opts)
+for name, opts in pairs(servers) do
   opts.capabilities = vim.tbl_deep_extend(
     'force', {}, capabilities, opts.capabilities or {}
   )
   lspconfig[name].setup(opts)
 end
-
-cmp.setup.filetype({ 'typr' }, {
-  window = {
-    completion = cmp.config.disable,
-    documentation = cmp.config.disable,
-  }
-})
-
-vim.api.nvim_create_autocmd("FileType", {
-  pattern = "typr",
-  callback = function()
-    vim.fn['llama#disable']()
-  end
-})
