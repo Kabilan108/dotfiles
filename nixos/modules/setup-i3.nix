@@ -21,7 +21,6 @@
 
         arandr
         autorandr
-        autotiling
         betterlockscreen
         dunst
         feh

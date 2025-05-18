@@ -255,8 +255,5 @@ exec_always --no-startup-id $HOME/bin/set-wallpaper
 # polybar
 exec_always --no-startup-id $HOME/bin/start-polybar
 
-# autostart
-exec_always autotiling -w 1
-
 # battery notifications
 exec --no-startup-id $HOME/bin/battery-watcher
