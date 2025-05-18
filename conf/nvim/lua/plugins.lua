@@ -32,13 +32,6 @@ return {
   { "lukas-reineke/indent-blankline.nvim", main = "ibl",                          opts = {} },
   { "neovim/nvim-lspconfig",               dependencies = { "j-hui/fidget.nvim" } },
 
-  {
-    "3rd/image.nvim",
-    config = function()
-      require('image').setup({})
-    end
-  },
-
   -- debugger
   {
     "mfussenegger/nvim-dap",
