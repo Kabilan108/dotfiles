@@ -10,6 +10,7 @@
     displayManager = {
       startx.enable = false;
       gdm.enable = true;
+      gdm.wayland = false;
     };
 
     desktopManager.xterm.enable = false;
