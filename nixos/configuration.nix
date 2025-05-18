@@ -6,10 +6,6 @@ let
   currentHostName = machine.hostName;
   enableNvidia = machine.enableNvidia;
   envVars = machine.env;
-
-  pkgsUnstable = import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz") {
-    config = config.nixpkgs.config;
-  };
 in
 {
   imports = [
@@ -130,7 +126,6 @@ in
     jq
     openssl
     openvpn
-    pkgsUnstable.llm
     psmisc
     tailscale
     tree
@@ -153,6 +148,8 @@ in
     clang
     go
     nodejs_20
+    python312Full
+    uv
     zig
 
     # neovim
