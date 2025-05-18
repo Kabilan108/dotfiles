@@ -117,6 +117,7 @@ export PROMPT_DIRTRIM=4
 
 paths=(
     "$HOME/bin"
+    "$HOME/.local/bin"
 )
 for dir in "${paths[@]}"; do
     if [[ -d "$dir" ]]; then
