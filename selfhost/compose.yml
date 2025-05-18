@@ -36,12 +36,10 @@ services:
       - /dev/dri:/dev/dri  # hardware acceleration
     entrypoint: ["/entrypoint.sh"]
     environment:
-      - JELLYFIN_PublishedServerUrl=http://lisan-al-gaib/jellyfin
+      - JELLYFIN_PublishedServerUrl=https://${TAILSCALE_URL}/jellyfin
     image: jellyfin/jellyfin:latest
     networks:
       - proxynet
-    ports:
-      - "8096:8096"
     restart: unless-stopped
     user: 1000:1000
     volumes:
