@@ -4,8 +4,9 @@
   env = rec {
     WALLPAPER = "";
 
-    # opts for 3rd party tools
+    # config opts for 3rd party tools
     FZF_DEFAULT_OPTS = "--reverse";
+    GTK_THEME = "WhiteSur-Dark";
     UV_LINK_MODE = "copy";
     UV_SYSTEM_PYTHON = 1;
 
