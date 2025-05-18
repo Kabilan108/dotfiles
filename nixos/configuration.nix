@@ -107,12 +107,14 @@ in
     gparted
     inkscape
     libreoffice-fresh
+    lxappearance
     nautilus
     obsidian
     openrgb-with-all-plugins
     slack
     spotify
     telegram-desktop
+    whitesur-gtk-theme
     zotero
     zoom-us
 
