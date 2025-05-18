@@ -86,12 +86,12 @@ return {
           FIX = {
             icon = " ",
             color = colors.red,
-            alt = { "FIXME", "BUG", "FIXIT", "ISSUE" },
+            alt = { "BUG", "ISSUE", "fix", "bug", "issue" },
           },
-          TODO = { icon = " ", color = colors.blue, },
-          WARN = { icon = " ", color = colors.orange, alt = { "WARNING", "XXX" } },
-          NOTE = { icon = " ", color = colors.teal, alt = { "INFO" } },
-          WHY = { icon = " ", color = colors.cyan, alt = { "WHY" } },
+          TODO = { icon = " ", color = colors.blue, alt = { "todo" } },
+          WARN = { icon = " ", color = colors.orange, alt = { "warn" } },
+          NOTE = { icon = " ", color = colors.teal, alt = { "INFO", "note", "info" } },
+          WHY = { icon = " ", color = colors.cyan, alt = { "why" } },
         },
       })
     end
