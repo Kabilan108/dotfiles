@@ -73,6 +73,7 @@ in
   services = {
     blueman.enable = true;
     gnome.gnome-keyring.enable = true;
+    hardware.openrgb.enable = true;
     openssh = {
       enable = true;
       settings.PasswordAuthentication = true;
