@@ -1,17 +1,18 @@
 {
   description = "python devshell with uv and cuda support";
 
+  # see https://www.nixhub.io/packages/python for version hashes
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nixpkgs_p39.url = "github:NixOS/nixpkgs/5ed627539ac84809c78b2dd6d26a5cebeb5ae269";
+    nixpkgs_py3919.url = "github:NixOS/nixpkgs/5ed627539ac84809c78b2dd6d26a5cebeb5ae269";
   };
 
-  outputs = { self, nixpkgs, nixpkgs_p39 }: let
+  outputs = { self, nixpkgs, nixpkgs_py3919 }: let
     system = "x86_64-linux";
     pkgs   = import nixpkgs {
       inherit system; config.allowUnfree = true; config.cudaSupport = true;
     };
-    oldPkgs   = import nixpkgs_p39 {
+    oldPkgs   = import nixpkgs_py3919 {
       inherit system; config.allowUnfree = true; config.cudaSupport = true;
     };
   in {
@@ -19,7 +20,7 @@
       buildInputs = with pkgs; [
         oldPkgs.python39Full
         uv
-        git              # uv loves a git binary
+        git
         cudaPackages.cudatoolkit
         cudaPackages.cudnn
       ];
@@ -37,6 +38,7 @@
 
         export UV_SYSTEM_PYTHON=1
 
+        # include this if installing packages from private git repos over ssh
         eval "$(ssh-agent -s)"
         ssh-add $HOME/.ssh/bitbucket
       '';
