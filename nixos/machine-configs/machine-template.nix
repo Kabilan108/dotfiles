@@ -19,12 +19,13 @@
 
     # data dirs
     USER_DATA = "/vault/userdata";
-    TORCH_HOME = "${USER_DATA}/torch";
     FASTAI_HOME = "${USER_DATA}/fastai";
+    GOPATH = "${USER_DATA}/go";
     HF_HOME = "${USER_DATA}/huggingface";
     HF_DATASETS_CACHE = "$HF_HOME/datasets";
     LLM_USER_PATH = "${USER_DATA}/datasette-llm";
     OLLAMA_MODELS = "${USER_DATA}/ollama/models";
+    TORCH_HOME = "${USER_DATA}/torch";
 
     # llms
     ANTHROPIC_API_KEY = "";
