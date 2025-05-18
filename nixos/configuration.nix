@@ -114,6 +114,7 @@ in
     slack
     spotify
     telegram-desktop
+    virtualbox
     whitesur-gtk-theme
     zotero
     zoom-us
