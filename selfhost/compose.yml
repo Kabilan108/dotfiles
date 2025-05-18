@@ -45,10 +45,10 @@ services:
     restart: unless-stopped
     user: 1000:1000
     volumes:
-      - /home/muaddib/docker/jellyfin/config/:/config
-      - /mnt/media:/media  # media mount, read-only
-      - /etc/localtime:/etc/localtime:ro  # sync container time with host
+      - jellyfin-data:/config
       - ./jellyfin/entrypoint.sh:/entrypoint.sh
+      - /library:/media
+      - /etc/localtime:/etc/localtime:ro
 
   open-webui:
     container_name: open-webui
@@ -87,11 +87,12 @@ services:
       - "7000:8080"
     restart: unless-stopped
     volumes:
-      - open-webui:/app/backend/data
+      - open-webui-data:/app/backend/data
 
 networks:
   proxynet:
 
 volumes:
-  open-webui:
   vaultwarden-data:
+  jellyfin-data:
+  open-webui-data:
