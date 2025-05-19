@@ -179,7 +179,9 @@ in
   ]
   ++ ((import ./modules/go-tools.nix) { inherit pkgs lib; })
   ++ (lib.optional enableNvidia nvtopPackages.full)
-  ++ (lib.optional enableNvidia nvidia-container-toolkit);
+  ++ (lib.optional enableNvidia nvidia-container-toolkit)
+  ++ (lib.optional enableNvidia cudaPackages.cudatoolkit)
+  ++ (lib.optional enableNvidia cudaPackages.cudnn);
 
   # Select internationalisation properties.
   i18n.defaultLocale = "en_US.UTF-8";
