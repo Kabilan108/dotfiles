@@ -73,8 +73,8 @@
   psu = push -u
   pst = push --tags
   pl = pull
-  ra = remote add
-  rr = remote rm
+  r = restore
+  rs = restore --staged
   s = status
   ss = status -s -b
   st = stash
