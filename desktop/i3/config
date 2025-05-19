@@ -229,9 +229,6 @@ for_window [class="^.*"] border pixel 2
 # XDG autostart
 exec --no-startup-id dex --autostart --environment i3
 
-# set desktop background
-exec --no-startup-id betterlockscreen -w dim
-
 # network manager applet
 exec --no-startup-id nm-applet
 
