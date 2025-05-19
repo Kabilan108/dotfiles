@@ -128,6 +128,7 @@ in
     cmake
     fuse
     ffmpeg_6-full
+    gh
     git
     gnumake
     htop
