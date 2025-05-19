@@ -16,6 +16,7 @@
     DIFFGPT_MODEL = "openai/gpt-4o-mini";
     PYREPL_PORT = 5678;
     SIREN_API_KEY = "";
+    LLAMA_SERVER_URL = "http://localhost:8012";
 
     # data dirs
     USER_DATA = "/vault/userdata";

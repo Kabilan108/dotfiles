@@ -123,11 +123,14 @@ return {
     dependencies = { "nvim-lua/plenary.nvim" }
   },
 
+
   {
     'ggml-org/llama.vim',
     init = function()
+      -- get the LLAMA_SERVER url env var
+      local url = os.getenv("LLAMA_SERVER_URL") or "http://localhost:8012"
       vim.g.llama_config = {
-        endpoint = "http://lisan-al-gaib:8012/infill",
+        endpoint = url .. "/infill",
         show_info = 1,
         keymap_trigger = "<C-c>",
         keymap_accept_full = "<C-s>",
