@@ -1,6 +1,7 @@
 # Configuration file for ipython.
+# ruff: noqa: F401 F821
 
-c = get_config()  # noqa
+c = get_config()
 
 ## list of dotted module names of IPython extensions to load.
 c.InteractiveShellApp.extensions = ["autoreload"]
@@ -10,10 +11,9 @@ c.InteractiveShellApp.exec_lines = ["%autoreload 2"]
 
 ## load icat plugin
 try:
-    import icat  # noqa: F401
+    import icat
 
     c.InteractiveShellApp.extensions.append("icat")
-    c.InteractiveShellApp.matplotlib = "module://icat"
 except ImportError:
     pass
 
