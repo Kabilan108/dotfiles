@@ -60,6 +60,10 @@ in
     daemon.settings.data-root = "/vault/userdata/docker";
   };
 
+  virtualisation.virtualbox.host.enable = true;
+  virtualisation.virtualbox.host.enableExtensionPack = true;
+  users.extraGroups.vboxusers.members = [ "kabilan" ];
+
   nixpkgs.config.allowUnfree = true;
 
   # configure bluetooth & audio
@@ -89,6 +93,8 @@ in
   };
 
   programs = {
+    appimage.enable = true;
+    appimage.binfmt = true;
     direnv.enable = true;  # nix-direnv
     neovim = {
       enable = true;
@@ -114,7 +120,6 @@ in
     slack
     spotify
     telegram-desktop
-    virtualbox
     whitesur-gtk-theme
     zotero
     zoom-us
