@@ -18,7 +18,7 @@
     windowManager.i3 = {
       enable = true;
       extraPackages = with pkgs; [
-        (polybar.override { pulseSupport = true; })
+        (polybar.override { i3Support = true; pulseSupport = true; })
 
         arandr
         autorandr
