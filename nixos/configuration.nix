@@ -127,7 +127,7 @@ in
     bashInteractive
     cmake
     fuse
-    ffmpeg_6-full
+    ffmpeg-full
     gh
     git
     gnumake
@@ -136,12 +136,14 @@ in
     jq
     openssl
     openvpn
-    psmisc
+    sshfs-fuse
     tailscale
     tree
+    tree-sitter
     tmux
     wget
     xclip
+    yt-dlp
 
     direnv
     delta
