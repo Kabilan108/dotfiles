@@ -34,6 +34,7 @@
         polybar
         pulseaudio
         rofi
+        xorg.xdpyinfo
         xorg.xev
         xorg.xrandr
       ];

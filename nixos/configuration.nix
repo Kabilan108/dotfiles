@@ -120,6 +120,7 @@ in
     slack
     spotify
     telegram-desktop
+    vlc
     whitesur-gtk-theme
     zotero
     zoom-us
