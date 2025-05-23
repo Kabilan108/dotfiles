@@ -17,6 +17,7 @@
     PYREPL_PORT = 5678;
     SIREN_API_KEY = "";
     LLAMA_SERVER_URL = "http://localhost:8012";
+    CAPSCREEN_OUTPUT_DIR = "$HOME/media/screencasts";
 
     # data dirs
     USER_DATA = "/vault/userdata";
