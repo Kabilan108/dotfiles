@@ -144,6 +144,7 @@ in
     tmux
     wget
     xclip
+    xdotool
     yt-dlp
 
     direnv
