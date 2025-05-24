@@ -55,6 +55,13 @@ sudo nixos-generate-config --root /mnt
 
 # info: copy over the config files from the dotfiles repo
 #       preserve the generated hardware-configuration.nix file
+#
+#       you'll also need to make some changes to the hardware-config.nix file:
+#       - update these lines:
+#             boot.initrd.kernelModules = [ "dm-snapshot" "cryptd" ];
+#             boot.initrd.luks.devices."cryptroot".device = "/dev/disk/by-label/NIXOS_LUKS";
+#       - update the `device` attribute of the `filesystems."*"` attributes to use `/dev/disk/by-label` instead of `/dev/disk/by-uuid`
+
 
 # install nixos
 sudo nixos-install --root /mnt --no-root-passwd
