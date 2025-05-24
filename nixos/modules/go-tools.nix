@@ -28,7 +28,7 @@
       owner = "kabilan108";
       repo = "diffgpt";
       rev = "v${version}";
-      sha256 =  "sha256-ekbT5W3mB8ra4MPJlbdUQdWMEl8i7cHkwoN84P78AwY=";
+      sha256 =  "sha256-DgWGcsdRWh9kUmDh/Oh1PScdiQ7GvkeDlMGL0z+FjY4=";
     };
 
     vendorHash = "sha256-YMPiHe2DEA/1E8wtB1GJf/pvJ0vl3TjfquZdvDA9NDU=";

@@ -47,8 +47,7 @@
   };
 
   fonts.packages = with pkgs; [
-    (nerdfonts.override { fonts = [ "FiraMono" ]; })
-    fira-mono
+    nerd-fonts.fira-mono
   ];
 
   fonts.fontconfig = {
