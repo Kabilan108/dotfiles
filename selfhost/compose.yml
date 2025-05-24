@@ -48,6 +48,21 @@ services:
       - /library:/media
       - /etc/localtime:/etc/localtime:ro
 
+  siren:
+    container_name: siren
+    build:
+      context: https://github.com/kabilan108/siren.git
+      dockerfile: Dockerfile.gpu
+    restart: unless-stopped
+    networks:
+      - proxynet
+    environment:
+      - SIREN_API_KEY=${SIREN_API_KEY}
+    volumes:
+      - ${HF_HOME}:/root/.cache/huggingface
+    devices:
+      - nvidia.com/gpu=all
+
   open-webui:
     container_name: open-webui
     deploy:
