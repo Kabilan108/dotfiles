@@ -15,9 +15,9 @@ notify() {
         icon="audio-volume-muted"
         text="Muted"
     else
-        if [ "$volume" -ge 70 ]; then
+        if [[ "$volume" -ge 70 ]]; then
             icon="audio-volume-high"
-        elif [ "$volume" -ge 40 ]; then
+        elif [[ "$volume" -ge 40 ]]; then
             icon="audio-volume-medium"
         else
             icon="audio-volume-low"
@@ -28,9 +28,9 @@ notify() {
     dunstify \
         -i "$icon" \
         -a "volctl" \
-        -u low \
-        -h string:x-dunst-stack-tag:volctl \
-        -h int:value:"$volume" "Volume" "$text" ": $volume%"
+        -u "low" \
+        -h "string:x-dunst-stack-tag:volctl" \
+        -h "int:value:$volume" "$text"
 }
 
 if [ $# -ne 1 ]; then
