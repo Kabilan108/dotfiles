@@ -4,6 +4,8 @@
 {
   services.displayManager.defaultSession ="none+i3";
 
+  security.pam.services.i3lock.enable = true;
+
   services.xserver = {
     enable = true;
 
