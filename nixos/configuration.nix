@@ -4,6 +4,7 @@ let
   machine = import ./machine.nix;
 
   currentHostName = machine.hostName;
+  isFramework13 = machine.isFramework13;
   enableNvidia = machine.enableNvidia;
   envVars = machine.env;
 in
@@ -11,7 +12,9 @@ in
   imports = [
     ./hardware-config.nix
     ./modules/setup-i3.nix
-  ] ++ (lib.optional enableNvidia  ./modules/setup-nvidia.nix);
+  ] ++ (lib.optional enableNvidia  ./modules/setup-nvidia.nix)
+    ++ (lib.optional isFramework13  <nixos-hardware/framework/13-inch/7040-amd>)
+    ++ (lib.optional isFramework13  ./modules/setup-framework.nix);
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -186,7 +189,8 @@ in
   ++ (lib.optional enableNvidia nvtopPackages.full)
   ++ (lib.optional enableNvidia nvidia-container-toolkit)
   ++ (lib.optional enableNvidia cudaPackages.cudatoolkit)
-  ++ (lib.optional enableNvidia cudaPackages.cudnn);
+  ++ (lib.optional enableNvidia cudaPackages.cudnn)
+  ++ (lib.optional isFramework13 fprintd);
 
   # Select internationalisation properties.
   i18n.defaultLocale = "en_US.UTF-8";
