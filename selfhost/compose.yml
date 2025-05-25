@@ -48,6 +48,18 @@ services:
       - /library:/media
       - /etc/localtime:/etc/localtime:ro
 
+  llama:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    networks:
+      - proxynet
+    volumes:
+      - ${USER_DATA}/ggufs:/models
+    devices:
+      - nvidia.com/gpu=all
+    command: >
+      --host 0.0.0.0 --port 8000 -ngl 99 -fa -dt 0.1 --ubatch-size 512 --batch-size 1024 --ctx-size 0 --cache-reuse 256 -m /models/zed-industries_zeta-Q6_K_L.gguf
+
+
   siren:
     container_name: siren
     build:
