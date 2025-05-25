@@ -6,16 +6,9 @@ start_polybar() {
     | tee -a /tmp/polybar-$1.log & disown
 }
 
-# stop running bar instances
-killall -q polybar
+kill $(ps aux | grep 'polybar main --config' | awk 'NR==1{print $2}')
+sleep 1
 
-# wait until processes have shut down
-while pgrep -u $UID -x polybar > /dev/null; do sleep 1; done
-
-# Get the list of connected monitors
-connected_monitors=$(xrandr --query | grep " connected" | cut -d" " -f1)
-
-# Start polybar on each connected monitor
-for monitor in $connected_monitors; do
+for monitor in $(xrandr --query | grep " connected" | cut -d" " -f1); do
   start_polybar $monitor
 done
