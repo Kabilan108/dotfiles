@@ -141,6 +141,7 @@ in
     jq
     openssl
     openvpn
+    portaudio
     sshfs-fuse
     tailscale
     tree
