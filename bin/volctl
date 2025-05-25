@@ -9,6 +9,10 @@ usage() {
     exit 1
 }
 
+icon_path() {
+  echo "/run/current-system/sw/share/icons/WhiteSur-dark/status/symbolic/$1-symbolic.svg"
+}
+
 notify() {
     volume=$(pactl get-sink-volume @DEFAULT_SINK@ | grep -Po '\d+(?=%)' | head -1)
     if pactl get-sink-mute @DEFAULT_SINK@ | grep -q "yes"; then
@@ -26,11 +30,11 @@ notify() {
     fi
 
     dunstify \
-        -i "$icon" \
         -a "volctl" \
         -u "low" \
         -h "string:x-dunst-stack-tag:volctl" \
-        -h "int:value:$volume" "$text"
+        -i "$(icon_path $icon)" \
+        "volume = $volume%" ""
 }
 
 if [ $# -ne 1 ]; then

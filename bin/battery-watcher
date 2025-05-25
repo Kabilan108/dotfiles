@@ -9,39 +9,26 @@ CHECK_INTERVAL=60    # How often (in seconds) to check the battery
 BATTERY_PATH="/sys/class/power_supply/BAT1"
 [ ! -d "$BATTERY_PATH" ] && BATTERY_PATH="/sys/class/power_supply/BAT0"
 
-# Icon selection based on battery status
+icon_path() {
+  echo "/run/current-system/sw/share/icons/WhiteSur-dark/status/symbolic/$1-symbolic.svg"
+}
+
 get_battery_icon() {
   local capacity=$1
   local status=$2
+  local charging_suffix
 
-  if [ "$status" = "Charging" ]; then
-    echo "󰂄" # Charging icon
-  else
-    if [ "$capacity" -ge 90 ]; then
-      echo "󰁹"
-    elif [ "$capacity" -ge 80 ]; then
-      echo "󰂂"
-    elif [ "$capacity" -ge 70 ]; then
-      echo "󰂁"
-    elif [ "$capacity" -ge 60 ]; then
-      echo "󰂀"
-    elif [ "$capacity" -ge 50 ]; then
-      echo "󰁿"
-    elif [ "$capacity" -ge 40 ]; then
-      echo "󰁾"
-    elif [ "$capacity" -ge 30 ]; then
-      echo "󰁽"
-    elif [ "$capacity" -ge 20 ]; then
-      echo "󰁼"
-    elif [ "$capacity" -ge 10 ]; then
-      echo "󰁻"
-    else
-      echo "󰁺"
-    fi
+  [ "$status" = "Charging" ] && charging_suffix="-charging" || charging_suffix=""
+
+  if   [ "$capacity" -ge 90 ]; then icon_path "battery-100$charging_suffix"
+  elif [ "$capacity" -ge 80 ]; then icon_path "battery-080$charging_suffix"
+  elif [ "$capacity" -ge 60 ]; then icon_path "battery-060$charging_suffix"
+  elif [ "$capacity" -ge 40 ]; then icon_path "battery-040$charging_suffix"
+  elif [ "$capacity" -ge 20 ]; then icon_path "battery-020$charging_suffix"
+  else                              icon_path "battery-000$charging_suffix"
   fi
 }
 
-# Main monitoring loop
 while true; do
   if [ -d "$BATTERY_PATH" ]; then
     capacity=$(cat "$BATTERY_PATH/capacity")
@@ -53,28 +40,30 @@ while true; do
       if [ "$capacity" -ge 95 ]; then
         dunstify \
           -a "battery" \
-          -u normal \
-          -h string:x-dunst-stack-tag:battery \
-          -h string:category:battery-full \
-          "$icon Battery Charged"
+          -u "normal" \
+          -h "string:x-dunst-stack-tag:battery" \
+          -h "string:category:battery-full" \
+          -i "$icon" \
+          "battery charged"
       fi
     else
       # Discharging notifications
       if [ "$capacity" -le "$THRESHOLD_CRITICAL" ]; then
         dunstify \
           -a "battery" \
-          -u critical \
-          -h string:x-dunst-stack-tag:battery \
-          -h string:category:battery-critical \
-          "$icon Battery Crically Low" \
-          "Battery critically low ($capacity%)!\nPlease connect charger immediately!"
+          -u "critical" \
+          -h "string:x-dunst-stack-tag:battery" \
+          -h "string:category:battery-critical" \
+          -i "$icon" \
+          "battery crically low ($capacity%)"
       elif [ "$capacity" -le "$THRESHOLD_LOW" ]; then
         dunstify \
           -a "battery" \
-          -u normal \
-          -h string:x-dunst-stack-tag:battery \
-          -h string:category:battery-low \
-          "$icon Low Battery - $capacity%"
+          -u "normal" \
+          -h "string:x-dunst-stack-tag:battery" \
+          -h "string:category:battery-low" \
+          -i "$icon" \
+          "low battery ($capacity%)"
       fi
     fi
   fi

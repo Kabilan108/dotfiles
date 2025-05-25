@@ -125,6 +125,7 @@ in
     telegram-desktop
     vlc
     whitesur-gtk-theme
+    whitesur-icon-theme
     zotero
     zoom-us
 
