@@ -186,8 +186,11 @@ in
     rust-analyzer
     ruff
     stylua
+
+    (builtins.getFlake "github:kabilan108/dump").packages.${builtins.currentSystem}.default
+    (builtins.getFlake "github:kabilan108/diffgpt").packages.${builtins.currentSystem}.default
+    (builtins.getFlake "github:kabilan108/capscreen").packages.${builtins.currentSystem}.default
   ]
-  ++ ((import ./modules/go-tools.nix) { inherit pkgs lib; })
   ++ (lib.optional enableNvidia nvtopPackages.full)
   ++ (lib.optional enableNvidia nvidia-container-toolkit)
   ++ (lib.optional enableNvidia cudaPackages.cudatoolkit)
