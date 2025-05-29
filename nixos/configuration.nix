@@ -146,6 +146,7 @@ in
     tailscale
     tree
     tree-sitter
+    texliveMedium
     tmux
     wget
     xclip
@@ -188,6 +189,7 @@ in
     stylua
 
     (builtins.getFlake "github:kabilan108/dump").packages.${builtins.currentSystem}.default
+    (builtins.getFlake "github:kabilan108/dictator").packages.${builtins.currentSystem}.default
     (builtins.getFlake "github:kabilan108/diffgpt").packages.${builtins.currentSystem}.default
     (builtins.getFlake "github:kabilan108/capscreen").packages.${builtins.currentSystem}.default
   ]
