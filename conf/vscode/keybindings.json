@@ -42,5 +42,9 @@
 	{
 		"key": "ctrl+`",
 		"command": "workbench.action.createTerminalEditor"
+	},
+	{
+		"key": "ctrl+i",
+		"command": "composerMode.agent"
 	}
 ]

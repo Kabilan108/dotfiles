@@ -204,5 +204,7 @@
 	"wakatime.apiUrl": "https://wakapi.dev/api",
 	"editor.lineNumbers": "relative",
 	"cursor.composer.renderPillsInsteadOfBlocks": true,
-	"cursor.terminal.usePreviewBox": true
+	"cursor.terminal.usePreviewBox": true,
+	"cursor.composer.cmdPFilePicker2": true,
+	"cursor.diffs.useCharacterLevelDiffs": true
 }
