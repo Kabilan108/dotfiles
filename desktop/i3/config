@@ -24,6 +24,10 @@ bindsym $mod+Tab exec --no-startup-id rofi -show window
 bindsym $mod+u exec --no-startup-id $HOME/.config/rofi/menus/web-search
 bindsym $mod+Shift+e exec --no-startup-id $HOME/.config/rofi/menus/exit
 
+# voice typing
+bindsym $mod+t exec dictator toggle
+bindsym $mod+Escape exec dictator cancel
+
 # change focus
 bindsym $mod+h focus left
 bindsym $mod+j focus down
