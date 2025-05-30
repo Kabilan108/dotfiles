@@ -1,4 +1,9 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 let
   machine = import ./machine.nix;
@@ -9,12 +14,14 @@ let
   envVars = machine.env;
 in
 {
-  imports = [
-    ./hardware-config.nix
-    ./modules/setup-i3.nix
-  ] ++ (lib.optional enableNvidia  ./modules/setup-nvidia.nix)
-    ++ (lib.optional isFramework13  <nixos-hardware/framework/13-inch/7040-amd>)
-    ++ (lib.optional isFramework13  ./modules/setup-framework.nix);
+  imports =
+    [
+      ./hardware-config.nix
+      ./modules/setup-i3.nix
+    ]
+    ++ (lib.optional enableNvidia ./modules/setup-nvidia.nix)
+    ++ (lib.optional isFramework13 <nixos-hardware/framework/13-inch/7040-amd>)
+    ++ (lib.optional isFramework13 ./modules/setup-framework.nix);
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -37,7 +44,12 @@ in
     firewall = {
       enable = true;
       interfaces."tailscale0" = {
-        allowedTCPPorts = [ 22 80 443 8012 ];
+        allowedTCPPorts = [
+          22
+          80
+          443
+          8012
+        ];
       };
     };
   };
@@ -45,15 +57,22 @@ in
   users.users.kabilan = {
     isNormalUser = true;
     description = "Tony Kabilan Okeke";
-    extraGroups = [ "networkmanager" "wheel" "docker" ];
-    packages = with pkgs; [];
+    extraGroups = [
+      "networkmanager"
+      "wheel"
+      "docker"
+    ];
+    packages = with pkgs; [ ];
     shell = pkgs.bashInteractive;
     openssh.authorizedKeys.keyFiles = [
       ./authorized_keys
     ];
   };
 
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ];
   nix.extraOptions = ''
     trusted-users = root kabilan
   '';
@@ -98,7 +117,7 @@ in
   programs = {
     appimage.enable = true;
     appimage.binfmt = true;
-    direnv.enable = true;  # nix-direnv
+    direnv.enable = true; # nix-direnv
     neovim = {
       enable = true;
       defaultEditor = true;
@@ -109,97 +128,99 @@ in
     steam.enable = true;
   };
 
-  environment.systemPackages = with pkgs; [
-    brave
-    baobab
-    discord
-    gparted
-    inkscape
-    libreoffice-fresh
-    lxappearance
-    nautilus
-    obsidian
-    openrgb-with-all-plugins
-    slack
-    spotify
-    telegram-desktop
-    vlc
-    whitesur-gtk-theme
-    whitesur-icon-theme
-    zotero
-    zoom-us
+  environment.systemPackages =
+    with pkgs;
+    [
+      brave
+      baobab
+      discord
+      gparted
+      inkscape
+      libreoffice-fresh
+      lxappearance
+      nautilus
+      obsidian
+      openrgb-with-all-plugins
+      slack
+      spotify
+      telegram-desktop
+      vlc
+      whitesur-gtk-theme
+      whitesur-icon-theme
+      zotero
+      zoom-us
 
-    bashInteractive
-    cmake
-    fuse
-    ffmpeg-full
-    gh
-    git
-    gnumake
-    htop
-    imagemagick
-    jq
-    openssl
-    openvpn
-    portaudio
-    sshfs-fuse
-    tailscale
-    tree
-    tree-sitter
-    texliveMedium
-    tmux
-    wget
-    xclip
-    xdotool
-    yt-dlp
+      bashInteractive
+      cmake
+      fuse
+      ffmpeg-full
+      gh
+      git
+      gnumake
+      htop
+      imagemagick
+      jq
+      openssl
+      openvpn
+      portaudio
+      sshfs-fuse
+      tailscale
+      tree
+      tree-sitter
+      texliveMedium
+      tmux
+      wget
+      xclip
+      xdotool
+      yt-dlp
 
-    direnv
-    delta
-    fd
-    fzf
-    ghostty
-    kitty.kitten
-    neofetch
-    ripgrep
-    sd
+      direnv
+      delta
+      fd
+      fzf
+      ghostty
+      kitty.kitten
+      neofetch
+      ripgrep
+      sd
 
-    bun
-    cargo
-    clang
-    go
-    nixd
-    nixfmt-rfc-style
-    nodejs_20
-    python312Full
-    uv
-    zig
+      bun
+      cargo
+      clang
+      go
+      nixd
+      nixfmt-rfc-style
+      nodejs_20
+      python312Full
+      uv
+      zig
 
-    # neovim
-    biome
-    clang-tools
-    dockerfile-language-server-nodejs
-    gopls
-    lua
-    lua-language-server
-    luajitPackages.luarocks
-    luajitPackages.magick
-    nil
-    nodePackages.typescript-language-server
-    pyright
-    rust-analyzer
-    ruff
-    stylua
+      # neovim
+      biome
+      clang-tools
+      dockerfile-language-server-nodejs
+      gopls
+      lua
+      lua-language-server
+      luajitPackages.luarocks
+      luajitPackages.magick
+      nil
+      nodePackages.typescript-language-server
+      pyright
+      rust-analyzer
+      ruff
+      stylua
 
-    (builtins.getFlake "github:kabilan108/dump").packages.${builtins.currentSystem}.default
-    (builtins.getFlake "github:kabilan108/dictator").packages.${builtins.currentSystem}.default
-    (builtins.getFlake "github:kabilan108/diffgpt").packages.${builtins.currentSystem}.default
-    (builtins.getFlake "github:kabilan108/capscreen").packages.${builtins.currentSystem}.default
-  ]
-  ++ (lib.optional enableNvidia nvtopPackages.full)
-  ++ (lib.optional enableNvidia nvidia-container-toolkit)
-  ++ (lib.optional enableNvidia cudaPackages.cudatoolkit)
-  ++ (lib.optional enableNvidia cudaPackages.cudnn)
-  ++ (lib.optional isFramework13 fprintd);
+      (builtins.getFlake "github:kabilan108/dump").packages.${builtins.currentSystem}.default
+      (builtins.getFlake "github:kabilan108/dictator").packages.${builtins.currentSystem}.default
+      (builtins.getFlake "github:kabilan108/diffgpt").packages.${builtins.currentSystem}.default
+      (builtins.getFlake "github:kabilan108/capscreen").packages.${builtins.currentSystem}.default
+    ]
+    ++ (lib.optional enableNvidia nvtopPackages.full)
+    ++ (lib.optional enableNvidia nvidia-container-toolkit)
+    ++ (lib.optional enableNvidia cudaPackages.cudatoolkit)
+    ++ (lib.optional enableNvidia cudaPackages.cudnn)
+    ++ (lib.optional isFramework13 fprintd);
 
   # Select internationalisation properties.
   i18n.defaultLocale = "en_US.UTF-8";

@@ -3,7 +3,7 @@
 { config, ... }:
 {
   # load driver for xorg & wayland
-  services.xserver.videoDrivers = ["nvidia"];
+  services.xserver.videoDrivers = [ "nvidia" ];
 
   # enable opengl
   hardware.graphics.enable = true;

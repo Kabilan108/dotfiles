@@ -1,40 +1,59 @@
-{ config, lib, pkgs, modulesPath, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  modulesPath,
+  ...
+}:
 
 {
-  imports =
-    [ (modulesPath + "/installer/scan/not-detected.nix")
-    ];
+  imports = [
+    (modulesPath + "/installer/scan/not-detected.nix")
+  ];
 
-  boot.initrd.availableKernelModules = [ "nvme" "xhci_pci" "ahci" "usbhid" "usb_storage" "sd_mod" ];
-  boot.initrd.kernelModules = [ "dm-snapshot" "cryptd" ];
+  boot.initrd.availableKernelModules = [
+    "nvme"
+    "xhci_pci"
+    "ahci"
+    "usbhid"
+    "usb_storage"
+    "sd_mod"
+  ];
+  boot.initrd.kernelModules = [
+    "dm-snapshot"
+    "cryptd"
+  ];
   boot.initrd.luks.devices."cryptroot".device = "/dev/disk/by-label/NIXOS_LUKS";
   boot.kernelModules = [ "kvm-amd" ];
   boot.extraModulePackages = [ ];
 
-  fileSystems."/" =
-    { device = "/dev/disk/by-label/NIXOS";
-      fsType = "ext4";
-    };
+  fileSystems."/" = {
+    device = "/dev/disk/by-label/NIXOS";
+    fsType = "ext4";
+  };
 
-  fileSystems."/boot" =
-    { device = "/dev/disk/by-label/BOOT";
-      fsType = "vfat";
-      options = [ "fmask=0077" "dmask=0077" ];
-    };
-
-  fileSystems."/vault" =
-    { device = "/dev/disk/by-label/VAULT";
-      fsType = "ext4";
-    };
-
-  fileSystems."/library" =
-    { device = "/dev/disk/by-label/MEDIA";
-      fsType = "ext4";
-    };
-
-  swapDevices =
-    [ { device = "/dev/disk/by-label/SWAP"; }
+  fileSystems."/boot" = {
+    device = "/dev/disk/by-label/BOOT";
+    fsType = "vfat";
+    options = [
+      "fmask=0077"
+      "dmask=0077"
     ];
+  };
+
+  fileSystems."/vault" = {
+    device = "/dev/disk/by-label/VAULT";
+    fsType = "ext4";
+  };
+
+  fileSystems."/library" = {
+    device = "/dev/disk/by-label/MEDIA";
+    fsType = "ext4";
+  };
+
+  swapDevices = [
+    { device = "/dev/disk/by-label/SWAP"; }
+  ];
 
   systemd.tmpfiles.rules = [
     "d /vault 0755 kabilan users - -"

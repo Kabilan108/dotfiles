@@ -2,7 +2,7 @@
 
 { pkgs, ... }:
 {
-  services.displayManager.defaultSession ="none+i3";
+  services.displayManager.defaultSession = "none+i3";
 
   security.pam.services.i3lock.enable = true;
 
@@ -20,7 +20,10 @@
     windowManager.i3 = {
       enable = true;
       extraPackages = with pkgs; [
-        (polybar.override { i3Support = true; pulseSupport = true; })
+        (polybar.override {
+          i3Support = true;
+          pulseSupport = true;
+        })
 
         arandr
         autorandr
@@ -57,7 +60,10 @@
     defaultFonts = {
       serif = [ "Noto Serif" ];
       sansSerif = [ "Noto Sans" ];
-      monospace = ["FiraMono Nerd Font" "Fira Mono" ];
+      monospace = [
+        "FiraMono Nerd Font"
+        "Fira Mono"
+      ];
     };
   };
 }
