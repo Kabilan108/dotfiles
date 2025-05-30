@@ -222,6 +222,56 @@ api.nvim_create_autocmd("LspAttach", {
   end,
 })
 
+api.nvim_create_autocmd("FileType", {
+  pattern = "lua",
+  callback = function(event)
+    local function lua_map(keys, func, desc, mode)
+      local opts = {
+        noremap = true,
+        silent = true,
+        buffer = event.buf,
+        desc = "Lua: " .. desc
+      }
+      vim.keymap.set(mode or "n", keys, func, opts)
+    end
+
+    -- Execute current line
+    lua_map("<leader>xl", function()
+      local line = vim.api.nvim_get_current_line()
+      local ok, result = pcall(load(line))
+      if ok and result ~= nil then
+        print(vim.inspect(result))
+      elseif not ok then
+        print("Error: " .. tostring(result))
+      end
+    end, "e[x]ecute [l]ine")
+
+    -- Execute visual selection
+    lua_map("<leader>xs", function()
+      -- Get visual selection
+      local _, start_row, start_col = unpack(vim.fn.getpos("'<"))
+      local _, end_row, end_col = unpack(vim.fn.getpos("'>"))
+
+      local lines = vim.api.nvim_buf_get_text(
+        0,
+        start_row - 1,
+        start_col - 1,
+        end_row - 1,
+        end_col,
+        {}
+      )
+
+      local code = table.concat(lines, "\n")
+      local ok, result = pcall(load(code))
+      if ok and result ~= nil then
+        print(vim.inspect(result))
+      elseif not ok then
+        print("Error: " .. tostring(result))
+      end
+    end, "e[x]ecute [s]election", "v")
+  end,
+})
+
 -- Define groups for which-key
 local wk = require("which-key")
 wk.add({
