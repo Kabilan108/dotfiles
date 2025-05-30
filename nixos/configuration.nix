@@ -167,6 +167,8 @@ in
     cargo
     clang
     go
+    nixd
+    nixfmt-rfc-style
     nodejs_20
     python312Full
     uv
