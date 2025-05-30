@@ -52,7 +52,7 @@ This is a complete NixOS-based development workstation configuration with:
 - **Vault Storage**: `/vault` directory for persistent data with symlinks to `~/work`, `~/repos`, `~/journal`, `~/userdata`
 - **Session Management**: `sessionizer` script for tmux session switching with fzf
 - **AI Integration**: Multiple AI services configured (Anthropic, OpenAI, OpenRouter)
-- **Development Environment**: LSPs for Python, Go, Node.js, Rust, Zig with Neovim
+- **Development Environment**: Comprehensive LSP setup with Neovim, autocomplete, debugging, and code navigation
 - **Self-Hosted Services**: Open-WebUI for AI chat, Jellyfin for media, Vaultwarden for passwords
 
 ### Configuration Management
