@@ -25,7 +25,7 @@ return {
     lazy = false,
   },
 
-  { dir = local_plugins .. '/droid',       name = "droid" },
+  { dir = local_plugins .. '/droid.nvim',  name = "droid" },
   { "kabilan108/pyrepl.nvim",              config = function() require("pyrepl").setup({}) end },
 
   { "lukas-reineke/indent-blankline.nvim", main = "ibl",                                       opts = {} },

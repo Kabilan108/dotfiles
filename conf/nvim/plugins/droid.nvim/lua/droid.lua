@@ -18,24 +18,28 @@ local Job = require 'plenary.job'
 ---@field replace boolean
 
 --- retrieves an api key from environment variables
----@param name string the environment variable name
----@return string? the api key value or nil if not found
+---@param name string
+---@return string?
 local function get_api_key(name)
   return os.getenv(name)
 end
 
 --- writes a string at the current cursor position in the buffer
----@param str string the text to insert
+---@param str string
 ---@return nil
 local function write_string_at_cursor(str)
+  -- vim.schedule ensures this runs on the main event loop (thread-safe for async operations)
   vim.schedule(function()
     local current_window = vim.api.nvim_get_current_win()
     local cursor_position = vim.api.nvim_win_get_cursor(current_window)
     local row, col = cursor_position[1], cursor_position[2]
 
+    -- split incoming text into lines for proper insertion
     local lines = vim.split(str, '\n')
+    -- nvim_put: 'c' = character-wise, true = after cursor, true = follow cursor
     vim.api.nvim_put(lines, 'c', true, true)
 
+    -- calculate new cursor position after text insertion
     local num_lines = #lines
     local last_line_length = #lines[num_lines]
     vim.api.nvim_win_set_cursor(current_window, { row + num_lines - 1, col + last_line_length })
@@ -43,16 +47,16 @@ local function write_string_at_cursor(str)
 end
 
 --- validates and sets default values for completion options
----@param opts CompletionOpts? the options to validate
----@return CompletionOpts the validated options with defaults applied
+---@param opts CompletionOpts?
+---@return CompletionOpts
 local function validate_opts(opts)
   opts = opts or {}
   opts.base_url = opts.base_url or "https://openrouter.ai/api/v1"
-  opts.model = opts.model or "openai/gpt-4o"
+  opts.model = opts.model or "openai/gpt-4.1"
   opts.api_key_name = opts.api_key_name or nil
+  opts.replace = opts.replace == nil and false or opts.replace
   opts.system_prompt = opts.system_prompt or
       "You are a tsundere uwu anime. Yell at me for not setting my configuration for my llm plugin correctly"
-  opts.replace = opts.replace == nil and false or opts.replace
 
   if not opts.api_key_name or opts.api_key_name == "" then
     error("api_key_name must be provided in CompletionOpts")
@@ -60,29 +64,32 @@ local function validate_opts(opts)
   return opts
 end
 
+local M = {}
+
 --- extracts the prompt text from visual selection or text until cursor
----@param opts CompletionOpts the completion options
----@return string the extracted prompt text
-local function get_prompt(opts)
+---@param opts CompletionOpts
+---@return string
+M.get_prompt = function(opts)
   local visual_lines = M.get_visual_selection()
   local prompt = ''
 
   if visual_lines then
     prompt = table.concat(visual_lines, '\n')
     if opts.replace then
+      -- delete selected text if we're in replace mode (llm will overwrite selection)
       vim.api.nvim_command 'normal! d'
       vim.api.nvim_command 'normal! k'
     else
+      -- exit visual mode without modifying selection (llm appends after selection)
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', false, true, true), 'nx', false)
     end
   else
+    -- use all text from buffer start to cursor as context
     prompt = M.get_lines_until_cursor()
   end
 
   return prompt
 end
-
-local M = {}
 
 --- gets all lines from the start of buffer until the current cursor position
 ---@return string concatenated text from buffer start to cursor
@@ -98,11 +105,13 @@ function M.get_lines_until_cursor()
 end
 
 --- extracts the currently selected text in visual mode
----@return table? Array of selected lines, or nil if no selection
+---@return table? Array selected lines
 function M.get_visual_selection()
+  -- get selection start ('v') and end ('.') positions
   local _, srow, scol = unpack(vim.fn.getpos 'v')
   local _, erow, ecol = unpack(vim.fn.getpos '.')
 
+  -- line-wise visual mode (V): select entire lines
   if vim.fn.mode() == 'V' then
     if srow > erow then
       return vim.api.nvim_buf_get_lines(0, erow - 1, srow, true)
@@ -111,6 +120,7 @@ function M.get_visual_selection()
     end
   end
 
+  -- character-wise visual mode (v): select partial text within/across lines
   if vim.fn.mode() == 'v' then
     if srow < erow or (srow == erow and scol <= ecol) then
       return vim.api.nvim_buf_get_text(0, srow - 1, scol - 1, erow - 1, ecol, {})
@@ -119,14 +129,17 @@ function M.get_visual_selection()
     end
   end
 
+  -- block-wise visual mode (ctrl-v): select rectangular text blocks
   if vim.fn.mode() == '\22' then
     local lines = {}
+    -- normalize selection boundaries
     if srow > erow then
       srow, erow = erow, srow
     end
     if scol > ecol then
       scol, ecol = ecol, scol
     end
+    -- extract text from each row within the column range
     for i = srow, erow do
       table.insert(lines,
         vim.api.nvim_buf_get_text(0, i - 1, math.min(scol - 1, ecol), i - 1, math.max(scol - 1, ecol), {})[1])
@@ -136,9 +149,9 @@ function M.get_visual_selection()
 end
 
 --- creates curl arguments for anthropic api requests
----@param opts CompletionOpts the completion configuration
----@param prompt string the user prompt to send
----@return string[] Array of curl command arguments
+---@param opts CompletionOpts
+---@param prompt string
+---@return string[] Array curl command arguments
 function M.make_anthropic_spec_curl_args(opts, prompt)
   local base_url = opts.base_url
   local api_key = opts.api_key_name and get_api_key(opts.api_key_name)
@@ -161,9 +174,9 @@ function M.make_anthropic_spec_curl_args(opts, prompt)
 end
 
 --- creates curl arguments for openai-compatible api requests
----@param opts CompletionOpts the completion configuration
----@param prompt string the user prompt to send
----@return string[] Array of curl command arguments
+---@param opts CompletionOpts
+---@param prompt string
+---@return string[] Array curl command arguments
 function M.make_openai_spec_curl_args(opts, prompt)
   local base_url = opts.base_url
   local api_key = opts.api_key_name and get_api_key(opts.api_key_name)
@@ -222,11 +235,13 @@ function M.invoke_llm_and_stream_into_editor(opts, make_curl_args, handle_data_f
   vim.api.nvim_clear_autocmds { group = group }
 
   opts = validate_opts(opts)
-  local prompt = get_prompt(opts)
+  local prompt = M.get_prompt(opts)
   -- TODO: implement parsing for file, lsp, folder references
+
   local args = make_curl_args(opts, prompt)
   local curr_event_state = nil
 
+  -- parse server-sent events (sse) format: "event: type\ndata: json"
   local function parse_and_call(line)
     local event = line:match '^event: (.+)$'
     if event then
@@ -239,11 +254,13 @@ function M.invoke_llm_and_stream_into_editor(opts, make_curl_args, handle_data_f
     end
   end
 
+  -- cancel any existing job before starting new one
   if active_job then
     active_job:shutdown()
     active_job = nil
   end
 
+  -- plenary.job provides async process management for long-running curl streams
   active_job = Job:new {
     command = 'curl',
     args = args,
