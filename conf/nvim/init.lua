@@ -1,17 +1,12 @@
 -- init.lua
 
--- set vim options
 require "options"
-
--- load lazy
 require "setup-lazy"
-
--- define keymaps
 require "keymaps"
 
--- configure plugins
+require "config.autocmd"
+require "config.completion"
 require "config.debug"
-require "config.editor"
-require "config.ghola"
+require "config.lsp"
 require "config.lualine"
-require("config.snippets").setup()
+require "config.snippets"

@@ -1,4 +1,4 @@
--- statusline.lua
+-- lualine.lua
 -- configure lualine
 
 -- local lualine = require('lualine')

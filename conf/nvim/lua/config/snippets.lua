@@ -1,4 +1,5 @@
-local M = {}
+-- snippets.lua
+-- set up code snippets
 
 local luasnip = require "luasnip"
 local types = require "luasnip.util.types"
@@ -6,45 +7,16 @@ local types = require "luasnip.util.types"
 local s = luasnip.snippet
 local t = luasnip.text_node
 local i = luasnip.insert_node
-local f = luasnip.function_node
 
-local function load_snippets(snippet_table)
-  for ft, snippets in pairs(snippet_table) do
-    luasnip.add_snippets(ft, snippets)
-  end
-end
+local snippets = {}
 
-function M.setup()
-  -- Load friendly-snippets
-  require("luasnip.loaders.from_vscode").lazy_load()
-  require("luasnip.loaders.from_snipmate").lazy_load()
-
-  -- Configure LuaSnip
-  luasnip.config.set_config({
-    history = true,                            -- keep around last snippet local to jump back
-    updateevents = "TextChanged,TextChangedI", -- update changes as you type
-    enable_autosnippets = true,
-    ext_opts = {
-      [types.choiceNode] = {
-        active = {
-          virt_text = { { "●", "GruvboxOrange" } },
-        },
-      },
-    },
-  })
-
-  load_snippets(M.snippets)
-end
-
-M.snippets = {}
-
-M.snippets.all = {
+snippets.all = {
   s("shell_script", {
     t({ "#!/usr/bin/env bash", "# vim: syn=bash ft=bash", "" }),
   })
 }
 
-M.snippets.go = {
+snippets.go = {
   s("gofunc", {
     t("go func() {"),
     t({ "", "\t" }),
@@ -53,7 +25,7 @@ M.snippets.go = {
   }),
 }
 
-M.snippets.python = {
+snippets.python = {
   s("script", {
     t({
       "# /// script",
@@ -96,7 +68,7 @@ M.snippets.python = {
   })
 }
 
-M.snippets.toml = {
+snippets.toml = {
   s({ trig = "ruff" }, {
     t({
       '[tool.ruff]',
@@ -118,4 +90,23 @@ M.snippets.toml = {
   })
 }
 
-return M
+-- Load friendly-snippets
+require("luasnip.loaders.from_vscode").lazy_load()
+require("luasnip.loaders.from_snipmate").lazy_load()
+
+-- Configure LuaSnip
+luasnip.config.set_config({
+  history = true,                            -- keep around last snippet local to jump back
+  updateevents = "TextChanged,TextChangedI", -- update changes as you type
+  enable_autosnippets = true,
+  ext_opts = {
+    [types.choiceNode] = {
+      active = {
+        virt_text = { { "●", "GruvboxOrange" } },
+      },
+    },
+  },
+})
+for ft, snip in pairs(snippets) do
+  luasnip.add_snippets(ft, snip)
+end

@@ -1,3 +1,6 @@
+-- debug.lua
+-- debugger setup with dap
+
 local dap = require "dap"
 local ui = require "dapui"
 local vt = require "nvim-dap-virtual-text"
