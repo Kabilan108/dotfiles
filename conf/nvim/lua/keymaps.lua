@@ -8,7 +8,6 @@ local sessions = require "mini.sessions"
 local trailspace = require "mini.trailspace"
 
 local utils = require "utils"
-local llm = require "custom.droid"
 local custom_ts = require "custom.telescope"
 
 ---------------------------------------------------------------------------------------
@@ -135,15 +134,6 @@ utils.map("<C-l>", { "i", "s" }, function()
     luasnip.change_choice(1)
   end
 end, "LuaSnip next choice")
-
--- llm completions
-utils.map('<leader>C', { 'n', 'v' }, llm.chatgpt_completion("help"), 'help - GPT 4.1')
-utils.map('<leader>c', { 'n', 'v' }, llm.chatgpt_completion("edit"), 'edit - GPT 4.1')
-utils.map('<leader>lA', { 'n', 'v' }, llm.sonnet_completion("help"), 'help - 3.6 Sonnet')
-utils.map('<leader>la', { 'n', 'v' }, llm.sonnet_completion("edit"), 'edit - 3.6 Sonnet')
-utils.map('<leader>G', { 'n', 'v' }, llm.gemini_flash_completion("help"), 'help - Gemini 2.0 Flash')
-utils.map('<leader>g', { 'n', 'v' }, llm.gemini_flash_completion("edit"), 'edit - Gemini 2.0 Flash')
-utils.map('<leader>lc', 'n', ':doautocmd User Droid_Escape<CR>', "cancel droid llm stream")
 
 -- code execution
 ---@type table<string, utils.Executor>
