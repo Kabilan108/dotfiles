@@ -1,6 +1,21 @@
 -- editor.lua
 -- configure plugins for editing code
 
+-- editor config ----------------------------------------------------------------------
+
+local harpoon = require("harpoon")
+local harpoon_extensions = require("harpoon.extensions")
+harpoon:setup({})
+harpoon:extend(harpoon_extensions.builtins.highlight_current_file())
+
+vim.api.nvim_create_autocmd('TextYankPost', {
+  desc = 'Highlight when yanking (copying) text',
+  group = vim.api.nvim_create_augroup('kickstart-highlight-yank', { clear = true }),
+  callback = function()
+    vim.highlight.on_yank()
+  end,
+})
+
 -- autocomplete -----------------------------------------------------------------------
 
 local cmp = require "cmp"
@@ -19,27 +34,12 @@ cmp.setup {
     end,
   },
   mapping = cmp.mapping.preset.insert {
-    -- Select the [n]ext item
     ['<C-n>'] = cmp.mapping.select_next_item(),
-
-    -- Select the [p]revious item
     ['<C-p>'] = cmp.mapping.select_prev_item(),
-
-    -- Scroll the documentation window [b]ack / [f]orward
     ['<C-b>'] = cmp.mapping.scroll_docs(-4),
     ['<C-f>'] = cmp.mapping.scroll_docs(4),
-
-    -- Accept ([y]es) the completion.
-    --  This will auto-import if your LSP supports it.
-    --  This will expand snippets if the LSP sent a snippet.
     ['<C-y>'] = cmp.mapping.confirm { select = true },
-
-    -- Manually trigger a completion from nvim-cmp.
-    --  Generally you don't need this, because nvim-cmp will display
-    --  completions whenever it has completion options available.
     ['<C-Space>'] = cmp.mapping.complete {},
-
-    -- Super Tab functionality
     ["<Tab>"] = cmp.mapping(function(fallback)
       if cmp.visible() then
         cmp.select_next_item()
@@ -49,7 +49,6 @@ cmp.setup {
         fallback()
       end
     end, { "i", "s" }),
-
     ["<S-Tab>"] = cmp.mapping(function(fallback)
       if cmp.visible() then
         cmp.select_prev_item()
@@ -90,16 +89,8 @@ vim.api.nvim_create_autocmd("FileType", {
   end
 })
 
--- code execution ---------------------------------------------------------------------
-
-require("pyrepl").setup({})
-vim.keymap.set("v", "<leader>xp", "<CMD>RunInPyrepl<CR>", {
-  noremap = true, silent = true, desc = "e[x]ecute [p]ython"
-})
-
 -- lsp --------------------------------------------------------------------------------
 
--- define language servers
 local servers = {
   biome = {
     cmd = { 'biome', 'lsp-proxy' },
@@ -183,57 +174,14 @@ local servers = {
   },
 }
 
--- set up LSPs
-
 local lspconfig = require("lspconfig")
-
 local capabilities = vim.lsp.protocol.make_client_capabilities()
 capabilities = vim.tbl_deep_extend(
   'force', capabilities, require('cmp_nvim_lsp').default_capabilities()
 )
-
 for name, opts in pairs(servers) do
   opts.capabilities = vim.tbl_deep_extend(
     'force', {}, capabilities, opts.capabilities or {}
   )
   lspconfig[name].setup(opts)
 end
-
--- harpoon ----------------------------------------------------------------------------
-
-local harpoon = require("harpoon")
-local harpoon_extensions = require("harpoon.extensions")
-
-harpoon:setup({})
-
--- managing harpoons
-vim.keymap.set("n", "<leader>a", function() harpoon:list():add() end)
-vim.keymap.set("n", "<leader>h", function() harpoon.ui:toggle_quick_menu(harpoon:list()) end)
-
--- harpooning
-vim.keymap.set("n", "<leader>1", function() harpoon:list():select(1) end)
-vim.keymap.set("n", "<leader>2", function() harpoon:list():select(2) end)
-vim.keymap.set("n", "<leader>3", function() harpoon:list():select(3) end)
-vim.keymap.set("n", "<leader>4", function() harpoon:list():select(4) end)
-
--- cycle through harpoons
-vim.keymap.set("n", "<C-P>", function() harpoon:list():prev() end)
-vim.keymap.set("n", "<C-N>", function() harpoon:list():next() end)
-
--- extensions
-harpoon:extend(harpoon_extensions.builtins.highlight_current_file())
-harpoon:extend({
-  UI_CREATE = function(cx)
-    vim.keymap.set("n", "<C-v>", function()
-      harpoon.ui:select_menu_item({ vsplit = true })
-    end, { buffer = cx.bufnr })
-
-    vim.keymap.set("n", "<C-s>", function()
-      harpoon.ui:select_menu_item({ split = true })
-    end, { buffer = cx.bufnr })
-
-    vim.keymap.set("n", "<C-t>", function()
-      harpoon.ui:select_menu_item({ tabedit = true })
-    end, { buffer = cx.bufnr })
-  end,
-})

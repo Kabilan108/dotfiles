@@ -6,7 +6,9 @@ local help_prompt =
 
 local ghola = require 'ghola'
 
-local function chatgpt_completion(mode)
+local M = {}
+
+M.chatgpt_completion = function(mode)
   return function()
     ghola.invoke_llm_and_stream_into_editor({
       url = 'https://api.openai.com/v1/chat/completions',
@@ -18,7 +20,7 @@ local function chatgpt_completion(mode)
   end
 end
 
-local function sonnet_completion(mode)
+M.sonnet_completion = function(mode)
   return function()
     ghola.invoke_llm_and_stream_into_editor({
       url = 'https://openrouter.ai/api/v1/chat/completions',
@@ -30,7 +32,7 @@ local function sonnet_completion(mode)
   end
 end
 
-local function gemini_flash_completion(mode)
+M.gemini_flash_completion = function(mode)
   return function()
     ghola.invoke_llm_and_stream_into_editor({
       url = 'https://openrouter.ai/api/v1/chat/completions',
@@ -42,9 +44,4 @@ local function gemini_flash_completion(mode)
   end
 end
 
-vim.keymap.set({ 'n', 'v' }, '<leader>C', chatgpt_completion("help"), { desc = 'help - GPT 4.1' })
-vim.keymap.set({ 'n', 'v' }, '<leader>c', chatgpt_completion("edit"), { desc = 'edit - GPT 4.1' })
-vim.keymap.set({ 'n', 'v' }, '<leader>A', sonnet_completion("help"), { desc = 'help - 3.6 Sonnet' })
-vim.keymap.set({ 'n', 'v' }, '<leader>a', sonnet_completion("edit"), { desc = 'edit - 3.6 Sonnet' })
-vim.keymap.set({ 'n', 'v' }, '<leader>G', gemini_flash_completion("help"), { desc = 'help - Gemini 2.0 Flash' })
-vim.keymap.set({ 'n', 'v' }, '<leader>g', gemini_flash_completion("edit"), { desc = 'edit - Gemini 2.0 Flash' })
+return M

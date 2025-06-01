@@ -1,6 +1,14 @@
 ---@diagnostic disable: deprecated
 -- based on yacineMTB/dingllm.nvim
 
+
+-- TODO: replace this with droid
+-- set up the ability to have multi turn convos with delimiters between user and assistant messages
+-- need to be able to dynamically update the message history from the bufffer
+-- potentially persistence to sqlite or json
+--
+-- also, telescope picker for selecting the active llm instead of having different keymaps
+
 local M = {}
 local Job = require 'plenary.job'
 
@@ -150,7 +158,7 @@ function M.handle_openai_spec_data(data_stream)
   end
 end
 
-local group = vim.api.nvim_create_augroup('DING_LLM_AutoGroup', { clear = true })
+local group = vim.api.nvim_create_augroup('Droid_AutoGroup', { clear = true })
 local active_job = nil
 function M.invoke_llm_and_stream_into_editor(opts, make_curl_args_fn, handle_data_fn)
   vim.api.nvim_clear_autocmds { group = group }
@@ -193,7 +201,7 @@ function M.invoke_llm_and_stream_into_editor(opts, make_curl_args_fn, handle_dat
 
   vim.api.nvim_create_autocmd('User', {
     group = group,
-    pattern = 'DING_LLM_Escape',
+    pattern = 'Droid_Escape',
     callback = function()
       if active_job then
         active_job:shutdown()
@@ -203,7 +211,6 @@ function M.invoke_llm_and_stream_into_editor(opts, make_curl_args_fn, handle_dat
     end,
   })
 
-  vim.api.nvim_set_keymap('n', '<Esc>', ':doautocmd User DING_LLM_Escape<CR>', { noremap = true, silent = true })
   return active_job
 end
 

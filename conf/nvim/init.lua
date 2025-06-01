@@ -13,6 +13,5 @@ require "keymaps"
 require "config.debug"
 require "config.editor"
 require "config.ghola"
-require "config.harpoon"
 require "config.lualine"
 require("config.snippets").setup()

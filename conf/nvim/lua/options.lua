@@ -49,7 +49,6 @@ opt.signcolumn = 'yes'
 opt.updatetime = 250
 
 -- decrease mapped sequence wait time
--- will show which-key pop up faster
 opt.timeoutlen = 300
 
 -- configure how splits are opened

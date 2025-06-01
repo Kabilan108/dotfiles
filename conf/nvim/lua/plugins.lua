@@ -26,10 +26,9 @@ return {
   },
 
   { dir = local_plugins .. '/ghola',       name = "ghola" },
-  { "kabilan108/pyrepl.nvim" },
+  { "kabilan108/pyrepl.nvim",              config = function() require("pyrepl").setup({}) end },
 
-  { "folke/which-key.nvim",                event = "VimEnter" },
-  { "lukas-reineke/indent-blankline.nvim", main = "ibl",                          opts = {} },
+  { "lukas-reineke/indent-blankline.nvim", main = "ibl",                                       opts = {} },
   { "neovim/nvim-lspconfig",               dependencies = { "j-hui/fidget.nvim" } },
 
   -- debugger
@@ -124,21 +123,21 @@ return {
   },
 
 
-  {
-    'ggml-org/llama.vim',
-    init = function()
-      -- get the LLAMA_SERVER url env var
-      local url = os.getenv("LLAMA_SERVER_URL") or "http://localhost:8012"
-      vim.g.llama_config = {
-        endpoint = url .. "/infill",
-        show_info = 1,
-        keymap_trigger = "<C-c>",
-        keymap_accept_full = "<C-s>",
-        keymap_accept_line = "<C-l>",
-        keymap_accept_word = "<C-w>",
-      }
-    end
-  },
+  -- {
+  --   'ggml-org/llama.vim',
+  --   init = function()
+  --     -- get the LLAMA_SERVER url env var
+  --     local url = os.getenv("LLAMA_SERVER_URL") or "http://localhost:8012"
+  --     vim.g.llama_config = {
+  --       endpoint = url .. "/infill",
+  --       show_info = 1,
+  --       keymap_trigger = "<C-c>",
+  --       keymap_accept_full = "<C-s>",
+  --       keymap_accept_line = "<C-l>",
+  --       keymap_accept_word = "<C-w>",
+  --     }
+  --   end
+  -- },
 
   -- mini.nvim
   { -- Collection of various small independent plugins/modules

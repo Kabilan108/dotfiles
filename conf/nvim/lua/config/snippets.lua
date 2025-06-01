@@ -2,7 +2,6 @@ local M = {}
 
 local luasnip = require "luasnip"
 local types = require "luasnip.util.types"
-local events = require "luasnip.util.events"
 
 local s = luasnip.snippet
 local t = luasnip.text_node
@@ -35,25 +34,6 @@ function M.setup()
   })
 
   load_snippets(M.snippets)
-
-  -- Key mappings
-  vim.keymap.set({ "i", "s" }, "<C-k>", function()
-    if luasnip.expand_or_jumpable() then
-      luasnip.expand_or_jump()
-    end
-  end, { silent = true, desc = "LuaSnip forward jump" })
-
-  vim.keymap.set({ "i", "s" }, "<C-j>", function()
-    if luasnip.jumpable(-1) then
-      luasnip.jump(-1)
-    end
-  end, { silent = true, desc = "LuaSnip backward jump" })
-
-  vim.keymap.set({ "i", "s" }, "<C-l>", function()
-    if luasnip.choice_active() then
-      luasnip.change_choice(1)
-    end
-  end, { silent = true, desc = "LuaSnip next choice" })
 end
 
 M.snippets = {}
