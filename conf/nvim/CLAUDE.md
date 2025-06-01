@@ -2,67 +2,58 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Neovim Configuration Overview
+## Neovim Configuration Architecture
 
-This is a comprehensive Neovim configuration built with Lua, featuring modern development tools and LSP integration.
+This is a highly modular Lua-based Neovim configuration with advanced features for development and AI assistance.
 
-### Core Architecture
-- **Entry Point**: `init.lua` loads options, lazy plugin manager, keymaps, and plugin configurations
-- **Plugin Management**: Lazy.nvim with auto-installation and lazy loading
-- **Configuration Structure**: Modular setup with separate files for options, keymaps, and plugin configs
-- **Theme**: Catppuccin Mocha with extensive plugin integrations
+### Core Structure
+- **init.lua** - Entry point that loads all modules in order: options, lazy, keymaps, then config modules
+- **lua/plugins.lua** - Lazy.nvim plugin specifications with inline configurations
+- **lua/config/** - Configuration modules for LSP, completion, debugging, statusline, snippets, and autocmds
+- **lua/custom/** - Custom integrations (droid AI plugin interface, telescope extensions)
+- **plugins/droid/lua/droid.lua** - Local AI assistance plugin for streaming LLM completions
 
-### Plugin Configuration Files
-- `lua/config/editor.lua` - LSP servers, autocompletion, and code execution setup
-- `lua/config/debug.lua` - DAP (Debug Adapter Protocol) configuration
-- `lua/config/harpoon.lua` - Quick file navigation setup
-- `lua/config/lualine.lua` - Status line configuration
-- `lua/config/telescope.lua` - Fuzzy finder customization
-- `lua/keymaps.lua` - All key mappings including LSP bindings
+### Key Plugins and Features
+- **LSP Configuration**: Multi-language support via `lua/config/lsp.lua` with servers for Lua, Python (pyright+ruff), TypeScript, Go, Rust, C/C++, Nix, Docker, and Biome
+- **AI Integration**: Custom "droid" plugin with streaming completions from multiple LLM providers
+- **Navigation**: Harpoon for file marking, Telescope for fuzzy finding, Oil for directory editing
+- **Development Tools**: nvim-dap for debugging, gitsigns for Git integration, treesitter for syntax highlighting
+- **Code Execution**: In-buffer execution for Lua and Python via custom executors in `keymaps.lua`
+- **Completion**: nvim-cmp with LSP, snippets, and path completion
 
-### Language Server Setup
-Located in `lua/config/editor.lua` with these LSPs:
-- **JavaScript/TypeScript**: ts_ls + biome (formatting/linting)
-- **Python**: pyright (type checking) + ruff (linting/formatting) 
-- **Go**: gopls with staticcheck, gofumpt, and enhanced completion
-- **Rust**: rust_analyzer with default configuration
-- **C/C++**: clangd with semantic highlighting and compile commands
-- **Lua**: lua_ls optimized for Neovim development
-- **Nix**: nixd + nixfmt for language support and formatting
-- **Docker**: dockerls for Dockerfile support
+### AI Assistant Usage
+The droid plugin provides streaming AI completions with these keybindings:
+- `<leader>c` / `<leader>C` - GPT-4.1 (edit/help modes)
+- `<leader>la` / `<leader>lA` - Claude Sonnet 4 (edit/help modes)  
+- `<leader>g` / `<leader>G` - Gemini 2.0 Flash (edit/help modes)
+- `<leader>lc` - Cancel streaming completion
 
-### Key Features
-- **File Navigation**: Oil.nvim for buffer-like directory editing (keymap: `-`)
-- **Fuzzy Finding**: Telescope with custom file/grep/buffer searches
-- **Autocompletion**: nvim-cmp with LSP, snippets, and path sources
-- **Code Execution**: PyREPL integration for Python development
-- **Git Integration**: Gitsigns for inline git status and operations
-- **Debugging**: Full DAP setup with UI and virtual text
-- **Custom Plugins**: Local ghola plugin and typing practice (typr)
+**Environment Variables Required:**
+- `OPENAI_API_KEY` for GPT-4.1 completions
+- `OPENROUTER_API_KEY` for Claude Sonnet 4 and Gemini 2.0 Flash
+
+### Code Execution
+The configuration supports in-buffer code execution:
+- Lua: `<leader>xl` (line) / `<leader>xs` (selection) / `<leader>xb` (buffer)
+- Python: Uses pyrepl.nvim for interactive execution
 
 ### Development Workflow
-1. Use `<leader>sf` to find files, `<leader>sg` for live grep
-2. Navigate with LSP: `gd` (definition), `gr` (references), `gi` (implementation)
-3. Code actions: `<leader>ca`, rename: `<leader>rn`, format: `<leader>fb`
-4. Execute Python code with `<leader>xp` in visual mode
-5. Access terminal with `<Ctrl-`>`, exit with `<Ctrl-n>`
+1. Use `<leader>sf` for file finding, `<leader>sg` for live grep
+2. Mark important files with Harpoon (`<leader>a` to add, `<leader>h` to view)
+3. Use AI assistance for code editing and help via droid plugin
+4. Debug with nvim-dap (keybindings prefixed with `d`)
+5. Execute code snippets in-place for rapid prototyping
 
-### Custom Keymaps
-- **Leader Key**: `<space>` for most operations
-- **LSP Navigation**: Standard `gd`, `gr`, `gi`, `gt` pattern
-- **Diagnostics**: `[d`/`]d` for navigation, `<leader>e` for float, `K` for hover
-- **Telescope**: `<leader>sf/sg/sh/sk/rs/sr` for various searches
-- **Buffer/Tab Management**: `bn/bp` (buffer nav), `nt/tn/tp` (tab nav)
-- **Window Resizing**: `<Ctrl-Alt-t/s/w/n>` for directional resizing
+### Plugin Management
+Uses lazy.nvim with local plugin support. The droid plugin is loaded from `plugins/droid/` as a local plugin.
 
-### Editing Behavior
-- **Indentation**: 2 spaces default, language-specific overrides (Python/Go: 4, Go uses tabs)
-- **Folding**: Indent-based method with all folds open initially
-- **Visual Aids**: Relative line numbers, 88-character ruler, visible whitespace
-- **Clipboard**: System clipboard integration via `unnamedplus`
-- **Auto-formatting**: Enabled for supported languages via LSP
+### Custom Utilities
+- **utils.lua** - Keymap utilities and executor setup functions
+- **custom/telescope.lua** - Extended telescope functionality
+- **config/snippets.lua** - LuaSnip configuration with friendly-snippets
 
-### Local Plugins
-- **Ghola**: Custom plugin located at `plugins/ghola/` 
-- **PyREPL**: Execute Python code in terminal splits
-- **Custom Configurations**: Stored in `lua/custom/` directory
+### Important Implementation Details
+- LSP capabilities are extended with nvim-cmp for autocompletion
+- The droid plugin validates options and provides type annotations via EmmyLua
+- Keymaps are centralized in `keymaps.lua` using utility functions
+- Theme is Catppuccin Mocha with extensive integration configurations
