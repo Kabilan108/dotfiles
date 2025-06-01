@@ -158,7 +158,6 @@ local servers = {
     },
   },
   nixd = {},
-  nixfmt = {},
   pyright = {
     settings = {
       pyright = {
