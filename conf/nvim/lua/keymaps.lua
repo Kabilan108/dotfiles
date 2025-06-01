@@ -8,7 +8,7 @@ local sessions = require "mini.sessions"
 local trailspace = require "mini.trailspace"
 
 local utils = require "utils"
-local llm = require "custom.ghola"
+local llm = require "custom.droid"
 local custom_ts = require "custom.telescope"
 
 ---------------------------------------------------------------------------------------

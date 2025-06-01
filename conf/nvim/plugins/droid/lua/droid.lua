@@ -2,19 +2,54 @@
 -- based on yacineMTB/dingllm.nvim
 
 
--- TODO: replace this with droid
 -- set up the ability to have multi turn convos with delimiters between user and assistant messages
 -- need to be able to dynamically update the message history from the bufffer
 -- potentially persistence to sqlite or json
 --
 -- also, telescope picker for selecting the active llm instead of having different keymaps
 
-local M = {}
 local Job = require 'plenary.job'
 
 local function get_api_key(name)
   return os.getenv(name)
 end
+
+local function write_string_at_cursor(str)
+  vim.schedule(function()
+    local current_window = vim.api.nvim_get_current_win()
+    local cursor_position = vim.api.nvim_win_get_cursor(current_window)
+    local row, col = cursor_position[1], cursor_position[2]
+
+    local lines = vim.split(str, '\n')
+    vim.api.nvim_put(lines, 'c', true, true)
+
+    local num_lines = #lines
+    local last_line_length = #lines[num_lines]
+    vim.api.nvim_win_set_cursor(current_window, { row + num_lines - 1, col + last_line_length })
+  end)
+end
+
+local function get_prompt(opts)
+  local replace = opts.replace
+  local visual_lines = M.get_visual_selection()
+  local prompt = ''
+
+  if visual_lines then
+    prompt = table.concat(visual_lines, '\n')
+    if replace then
+      vim.api.nvim_command 'normal! d'
+      vim.api.nvim_command 'normal! k'
+    else
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', false, true, true), 'nx', false)
+    end
+  else
+    prompt = M.get_lines_until_cursor()
+  end
+
+  return prompt
+end
+
+local M = {}
 
 function M.get_lines_until_cursor()
   local current_buffer = vim.api.nvim_get_current_buf()
@@ -102,41 +137,6 @@ function M.make_openai_spec_curl_args(opts, prompt, system_prompt)
   return args
 end
 
-local function write_string_at_cursor(str)
-  vim.schedule(function()
-    local current_window = vim.api.nvim_get_current_win()
-    local cursor_position = vim.api.nvim_win_get_cursor(current_window)
-    local row, col = cursor_position[1], cursor_position[2]
-
-    local lines = vim.split(str, '\n')
-    vim.api.nvim_put(lines, 'c', true, true)
-
-    local num_lines = #lines
-    local last_line_length = #lines[num_lines]
-    vim.api.nvim_win_set_cursor(current_window, { row + num_lines - 1, col + last_line_length })
-  end)
-end
-
-local function get_prompt(opts)
-  local replace = opts.replace
-  local visual_lines = M.get_visual_selection()
-  local prompt = ''
-
-  if visual_lines then
-    prompt = table.concat(visual_lines, '\n')
-    if replace then
-      vim.api.nvim_command 'normal! d'
-      vim.api.nvim_command 'normal! k'
-    else
-      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', false, true, true), 'nx', false)
-    end
-  else
-    prompt = M.get_lines_until_cursor()
-  end
-
-  return prompt
-end
-
 function M.handle_anthropic_spec_data(data_stream, event_state)
   if event_state == 'content_block_delta' then
     local json = vim.json.decode(data_stream)
@@ -164,7 +164,7 @@ function M.invoke_llm_and_stream_into_editor(opts, make_curl_args_fn, handle_dat
   vim.api.nvim_clear_autocmds { group = group }
   local prompt = get_prompt(opts)
   local system_prompt = opts.system_prompt or
-  'You are a tsundere uwu anime. Yell at me for not setting my configuration for my llm plugin correctly'
+      'You are a tsundere uwu anime. Yell at me for not setting my configuration for my llm plugin correctly'
   local args = make_curl_args_fn(opts, prompt, system_prompt)
   local curr_event_state = nil
 
