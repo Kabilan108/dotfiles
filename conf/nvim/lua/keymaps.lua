@@ -168,12 +168,8 @@ local executors = {
     end
   },
   python = {
-    line = function(line)
-      vim.cmd("RunInPyrepl")
-    end,
-    lines = function(lines)
-      vim.cmd("RunInPyrepl")
-    end
+    line = require('pyrepl').execute_line,
+    lines = require('pyrepl').execute_lines
   }
 }
 for lang, exec in pairs(executors) do
