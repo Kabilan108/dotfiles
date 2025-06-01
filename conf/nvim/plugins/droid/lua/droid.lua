@@ -10,10 +10,23 @@
 
 local Job = require 'plenary.job'
 
+---@class CompletionOpts
+---@field base_url string
+---@field model string
+---@field api_key_name string
+---@field system_prompt string
+---@field replace boolean
+
+--- retrieves an api key from environment variables
+---@param name string the environment variable name
+---@return string? the api key value or nil if not found
 local function get_api_key(name)
   return os.getenv(name)
 end
 
+--- writes a string at the current cursor position in the buffer
+---@param str string the text to insert
+---@return nil
 local function write_string_at_cursor(str)
   vim.schedule(function()
     local current_window = vim.api.nvim_get_current_win()
@@ -29,14 +42,34 @@ local function write_string_at_cursor(str)
   end)
 end
 
+--- validates and sets default values for completion options
+---@param opts CompletionOpts? the options to validate
+---@return CompletionOpts the validated options with defaults applied
+local function validate_opts(opts)
+  opts = opts or {}
+  opts.base_url = opts.base_url or "https://openrouter.ai/api/v1"
+  opts.model = opts.model or "openai/gpt-4o"
+  opts.api_key_name = opts.api_key_name or nil
+  opts.system_prompt = opts.system_prompt or
+      "You are a tsundere uwu anime. Yell at me for not setting my configuration for my llm plugin correctly"
+  opts.replace = opts.replace == nil and false or opts.replace
+
+  if not opts.api_key_name or opts.api_key_name == "" then
+    error("api_key_name must be provided in CompletionOpts")
+  end
+  return opts
+end
+
+--- extracts the prompt text from visual selection or text until cursor
+---@param opts CompletionOpts the completion options
+---@return string the extracted prompt text
 local function get_prompt(opts)
-  local replace = opts.replace
   local visual_lines = M.get_visual_selection()
   local prompt = ''
 
   if visual_lines then
     prompt = table.concat(visual_lines, '\n')
-    if replace then
+    if opts.replace then
       vim.api.nvim_command 'normal! d'
       vim.api.nvim_command 'normal! k'
     else
@@ -51,6 +84,8 @@ end
 
 local M = {}
 
+--- gets all lines from the start of buffer until the current cursor position
+---@return string concatenated text from buffer start to cursor
 function M.get_lines_until_cursor()
   local current_buffer = vim.api.nvim_get_current_buf()
   local current_window = vim.api.nvim_get_current_win()
@@ -62,6 +97,8 @@ function M.get_lines_until_cursor()
   return table.concat(lines, '\n')
 end
 
+--- extracts the currently selected text in visual mode
+---@return table? Array of selected lines, or nil if no selection
 function M.get_visual_selection()
   local _, srow, scol = unpack(vim.fn.getpos 'v')
   local _, erow, ecol = unpack(vim.fn.getpos '.')
@@ -98,11 +135,15 @@ function M.get_visual_selection()
   end
 end
 
-function M.make_anthropic_spec_curl_args(opts, prompt, system_prompt)
-  local url = opts.url
+--- creates curl arguments for anthropic api requests
+---@param opts CompletionOpts the completion configuration
+---@param prompt string the user prompt to send
+---@return string[] Array of curl command arguments
+function M.make_anthropic_spec_curl_args(opts, prompt)
+  local base_url = opts.base_url
   local api_key = opts.api_key_name and get_api_key(opts.api_key_name)
   local data = {
-    system = system_prompt,
+    system = opts.system_prompt,
     messages = { { role = 'user', content = prompt } },
     model = opts.model,
     stream = true,
@@ -115,15 +156,19 @@ function M.make_anthropic_spec_curl_args(opts, prompt, system_prompt)
     table.insert(args, '-H')
     table.insert(args, 'anthropic-version: 2023-06-01')
   end
-  table.insert(args, url)
+  table.insert(args, base_url)
   return args
 end
 
-function M.make_openai_spec_curl_args(opts, prompt, system_prompt)
-  local url = opts.url
+--- creates curl arguments for openai-compatible api requests
+---@param opts CompletionOpts the completion configuration
+---@param prompt string the user prompt to send
+---@return string[] Array of curl command arguments
+function M.make_openai_spec_curl_args(opts, prompt)
+  local base_url = opts.base_url
   local api_key = opts.api_key_name and get_api_key(opts.api_key_name)
   local data = {
-    messages = { { role = 'system', content = system_prompt }, { role = 'user', content = prompt } },
+    messages = { { role = 'system', content = opts.system_prompt }, { role = 'user', content = prompt } },
     model = opts.model,
     temperature = 0.7,
     stream = true,
@@ -133,10 +178,14 @@ function M.make_openai_spec_curl_args(opts, prompt, system_prompt)
     table.insert(args, '-H')
     table.insert(args, 'Authorization: Bearer ' .. api_key)
   end
-  table.insert(args, url)
+  table.insert(args, base_url)
   return args
 end
 
+--- handles streaming response data from anthropic api
+---@param data_stream string the json data from the stream
+---@param event_state string? the current sse event type
+---@return nil
 function M.handle_anthropic_spec_data(data_stream, event_state)
   if event_state == 'content_block_delta' then
     local json = vim.json.decode(data_stream)
@@ -146,6 +195,9 @@ function M.handle_anthropic_spec_data(data_stream, event_state)
   end
 end
 
+--- handles streaming response data from openai-compatible apis
+---@param data_stream string the json data from the stream
+---@return nil
 function M.handle_openai_spec_data(data_stream)
   if data_stream:match '"delta":' then
     local json = vim.json.decode(data_stream)
@@ -160,12 +212,19 @@ end
 
 local group = vim.api.nvim_create_augroup('Droid_AutoGroup', { clear = true })
 local active_job = nil
-function M.invoke_llm_and_stream_into_editor(opts, make_curl_args_fn, handle_data_fn)
+
+--- invokes an llm api and streams the response directly into the editor
+---@param opts CompletionOpts
+---@param make_curl_args fun(opts: CompletionOpts, prompt: string): string[] function to create curl arguments
+---@param handle_data_fn fun(data: string, event_state: string?): nil function to handle streaming data
+---@return table? the active job instance
+function M.invoke_llm_and_stream_into_editor(opts, make_curl_args, handle_data_fn)
   vim.api.nvim_clear_autocmds { group = group }
+
+  opts = validate_opts(opts)
   local prompt = get_prompt(opts)
-  local system_prompt = opts.system_prompt or
-      'You are a tsundere uwu anime. Yell at me for not setting my configuration for my llm plugin correctly'
-  local args = make_curl_args_fn(opts, prompt, system_prompt)
+  -- TODO: implement parsing for file, lsp, folder references
+  local args = make_curl_args(opts, prompt)
   local curr_event_state = nil
 
   local function parse_and_call(line)

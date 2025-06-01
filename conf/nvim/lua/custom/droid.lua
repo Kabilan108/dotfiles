@@ -11,7 +11,7 @@ local M = {}
 M.chatgpt_completion = function(mode)
   return function()
     droid.invoke_llm_and_stream_into_editor({
-      url = 'https://api.openai.com/v1/chat/completions',
+      base_url = 'https://api.openai.com/v1/chat/completions',
       model = 'gpt-4.1-2025-04-14',
       api_key_name = 'OPENAI_API_KEY',
       system_prompt = mode == 'edit' and edit_prompt or help_prompt,
@@ -23,7 +23,7 @@ end
 M.sonnet_completion = function(mode)
   return function()
     droid.invoke_llm_and_stream_into_editor({
-      url = 'https://openrouter.ai/api/v1/chat/completions',
+      base_url = 'https://openrouter.ai/api/v1/chat/completions',
       model = 'anthropic/claude-sonnet-4',
       api_key_name = 'OPENROUTER_API_KEY',
       system_prompt = mode == 'edit' and edit_prompt or help_prompt,
@@ -35,7 +35,7 @@ end
 M.gemini_flash_completion = function(mode)
   return function()
     droid.invoke_llm_and_stream_into_editor({
-      url = 'https://openrouter.ai/api/v1/chat/completions',
+      base_url = 'https://openrouter.ai/api/v1/chat/completions',
       model = 'google/gemini-2.0-flash-001',
       api_key_name = 'OPENROUTER_API_KEY',
       system_prompt = mode == 'edit' and edit_prompt or help_prompt,
