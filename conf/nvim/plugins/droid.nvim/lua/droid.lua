@@ -2,7 +2,11 @@
 -- based on yacineMTB/dingllm.nvim
 
 local Job = require "plenary.job"
-local Menu = require "nui.menu"
+local pickers = require "telescope.pickers"
+local finders = require "telescope.finders"
+local conf = require("telescope.config").values
+local actions = require "telescope.actions"
+local action_state = require "telescope.actions.state"
 local mini_notify = require('mini.notify')
 
 mini_notify.setup()
@@ -290,8 +294,8 @@ local function invoke_llm_and_stream_into_editor(mode)
     end
     local data_match = line:match '^data: (.+)$'
     if data_match then
-      -- handle_openai_spec_data(data_match, curr_event_state)
       handle_openai_spec_data(data_match)
+      -- handle_anthropic_spec_data(data_match, curr_event_state)
     end
   end
 
@@ -320,43 +324,49 @@ local function invoke_llm_and_stream_into_editor(mode)
   return active_job
 end
 
---- @param models string[]
 --- @param on_submit fun(model: string)
-local function create_model_picker(models, on_submit)
-  local lines = vim.tbl_map(function(model)
+local function create_model_picker(on_submit)
+  local entries = vim.tbl_map(function(model)
     local prefix = (model == config.current_model) and "● " or "  "
-    return Menu.item(prefix .. model, { model = model })
-  end, models)
+    return {
+      display = prefix .. model,
+      model = model,
+      ordinal = model, -- search key
+    }
+  end, config.available_models)
 
-  return Menu({
-    position = "50%",
-    size = {
-      width = 80,
-      height = math.min(#models + 2, 15),
+  pickers.new({}, {
+    prompt_title = "select model (current: " .. config.current_model .. ")",
+    finder = finders.new_table {
+      results = entries,
+      entry_maker = function(entry)
+        return {
+          value = entry,
+          display = entry.display,
+          ordinal = entry.ordinal,
+        }
+      end
     },
-    border = {
-      style = "single",
-      text = {
-        top = " select model (current: " .. config.current_model .. ") ",
-        top_align = "center",
-      },
+    sorter = conf.generic_sorter({}),
+    previewer = false,
+    layout_strategy = "cursor",
+    layout_config = {
+      cursor = {
+        height = math.min(#config.available_models + 2, 15),
+        width = 60,
+      }
     },
-    win_options = {
-      winhighlight = "Normal:Normal,FloatBorder:Normal",
-    },
-  }, {
-    lines = lines,
-    max_width = 60,
-    keymap = {
-      focus_next = { "j", "<Down>", "<Tab>" },
-      focus_prev = { "k", "<Up>", "<S-Tab>" },
-      close = { "<Esc>", "<C-c>" },
-      submit = { "<CR>", "<Space>" },
-    },
-    on_submit = function(item)
-      on_submit(item.model)
+    attach_mappings = function(prompt_bufnr, map)
+      actions.select_default:replace(function()
+        actions.close(prompt_bufnr)
+        local selection = action_state.get_selected_entry()
+        if selection and selection.value then
+          on_submit(selection.value.model)
+        end
+      end)
+      return true
     end,
-  })
+  }):find()
 end
 
 function M.cancel_completion()
@@ -386,10 +396,7 @@ function M.select_model()
     error("droid.setup() must be called before using completions")
   end
 
-  create_model_picker(
-    config.available_models,
-    M.set_current_model
-  ):mount()
+  create_model_picker(M.set_current_model)
 end
 
 return M
