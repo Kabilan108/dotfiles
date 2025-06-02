@@ -212,7 +212,6 @@ return {
             scope_color = "lavender",
             color_indent_levels = false,
           },
-          mason = true,
           neotree = true,
           native_lsp = {
             enabled = true,
