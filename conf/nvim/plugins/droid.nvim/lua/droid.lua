@@ -111,18 +111,6 @@ local function write_string_at_cursor(str)
   end)
 end
 
---- gets all lines from the start of buffer until the current cursor position
---- @return string concatenated text from buffer start to cursor
-local function get_lines_until_cursor()
-  local current_buffer = vim.api.nvim_get_current_buf()
-  local current_window = vim.api.nvim_get_current_win()
-  local cursor_position = vim.api.nvim_win_get_cursor(current_window)
-  local row = cursor_position[1]
-
-  local lines = vim.api.nvim_buf_get_lines(current_buffer, 0, row, true)
-  return table.concat(lines, '\n')
-end
-
 --- extracts the currently selected text in visual mode
 --- @return table? Array selected lines
 local function get_visual_selection()
@@ -167,15 +155,97 @@ local function get_visual_selection()
   end
 end
 
+--- @class Message
+--- @field role "user"|"assistant"
+--- @field content string
+--- @field model string? only for assistant messages
+
+--- parse conversation from buffer lines
+--- @param lines string[]
+--- @return Message[]?
+--- @return string? error
+local function parse_conversation(lines)
+  local messages = {}
+  local current_content = {}
+  local in_assistant_block = false
+  local assistant_model = nil
+  local last_was_assistant = false
+
+  local assistant_begin_pattern = "^=== ASSISTANT BEGIN %[(.-)%] ===$"
+  local assistant_end_pattern = "^=== ASSISTANT END %[(.-)%] ===$"
+
+  for i, line in ipairs(lines) do
+    local begin_model = line:match(assistant_begin_pattern)
+    local end_model = line:match(assistant_end_pattern)
+
+    if begin_model then
+      -- store pending user message
+      if #current_content > 0 then
+        local content = table.concat(current_content, '\n'):gsub("^%s*(.-)%s*$", "%1")
+        if content ~= "" then
+          table.insert(messages, { role = "user", content = content })
+          last_was_assistant = false
+        end
+        current_content = {}
+      end
+
+      in_assistant_block = true
+      assistant_model = begin_model
+    elseif end_model then
+      if not in_assistant_block or end_model ~= assistant_model then
+        return nil, "malformed conversation: mismatched assistant markers at line " .. i
+      end
+
+      -- store assistant message
+      local content = table.concat(current_content, '\n'):gsub("^%s*(.-)%s*$", "%1")
+      if content == "" and last_was_assistant then
+        return nil, "malformed conversation: consecutive assistant messages without user input"
+      end
+
+      table.insert(messages, {
+        role = "assistant", content = content, model = assistant_model
+      })
+
+      in_assistant_block = false
+      assistant_model = nil
+      current_content = {}
+      last_was_assistant = true
+    else
+      table.insert(current_content, line)
+    end
+  end
+
+  -- hanlde remaining content
+  if in_assistant_block then
+    return nil, "malformed conversation: unclosed assistant block"
+  end
+
+  if #current_content > 0 then
+    local content = table.concat(current_content, '\n'):gsub("^%s*(.-)%s*$", "%1")
+    if content ~= "" then
+      table.insert(messages, { role = "user", content = content })
+    end
+  end
+
+  -- validate we don't end with empty user message
+  if #messages > 0 and messages[#messages].role == "user" and messages[#messages].content == "" then
+    table.remove(messages)
+  end
+
+  return messages, nil
+end
+
 --- extracts the prompt text from visual selection or text until cursor
 --- @param mode "edit"|"help"
---- @return string
-local function get_prompt(mode)
+--- @return Message[]?
+--- @return string? error
+local function get_conversation_context(mode)
   local visual_lines = get_visual_selection()
-  local prompt = ''
+  local lines
 
   if visual_lines then
-    prompt = table.concat(visual_lines, '\n')
+    -- in visual mode, only use selected text as latest userr message
+    local content = table.concat(visual_lines, '\n')
     if mode == "edit" then
       -- delete selected text if we're in edit mode (llm will overwrite selection)
       vim.api.nvim_command 'normal! d'
@@ -184,12 +254,33 @@ local function get_prompt(mode)
       -- exit visual mode without modifying selection (llm appends after selection)
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', false, true, true), 'nx', false)
     end
+    return { { role = "user", content = content } }, nil
   else
-    -- use all text from buffer start to cursor as context
-    prompt = get_lines_until_cursor()
+    -- parse entire buffer up to cursor for conversation history
+    local current_buffer = vim.api.nvim_get_current_buf()
+    local current_window = vim.api.nvim_get_current_win()
+    local cursor_position = vim.api.nvim_win_get_cursor(current_window)
+    local row = cursor_position[1]
+    lines = vim.api.nvim_buf_get_lines(current_buffer, 0, row, true)
   end
 
-  return prompt
+  local messages, err = parse_conversation(lines)
+  if err or messages == nil then
+    return nil, err
+  end
+
+  -- ensure we have at least one user message
+  if #messages == 0 or messages[#messages].role ~= "user" then
+    -- if no proper conversation structure, treat all content as a single user message
+    local content = table.concat(lines, '\n'):gsub("^%s*(.-)%s*$", "%1")
+    if content ~= "" then
+      return { { role = "user", content = content } }, nil
+    else
+      return nil, "No content to send"
+    end
+  end
+
+  return messages, nil
 end
 
 --- creates curl arguments for anthropic api requests
@@ -221,18 +312,25 @@ end
 --- @param mode "edit"|"help"
 --- @param prompt string
 --- @return string[] Array curl command arguments
-local function make_openai_spec_curl_args(mode, prompt)
+local function make_openai_spec_curl_args(mode, messages)
   local base_url = config.base_url .. "/chat/completions"
   local api_key = config.api_key_name and get_api_key(config.api_key_name)
+
+  local convhist = {
+    { role = 'system', content = mode == "edit" and config.edit_prompt or config.help_prompt }
+  }
+
+  for _, msg in ipairs(messages) do
+    table.insert(convhist, { role = msg.role, content = msg.content })
+  end
+
   local data = {
-    messages = {
-      { role = 'system', content = mode == "edit" and config.edit_prompt or config.help_prompt, },
-      { role = 'user',   content = prompt }
-    },
+    messages = convhist,
     model = config.current_model,
     temperature = 0.7,
     stream = true,
   }
+
   local args = { '-N', '-X', 'POST', '-H', 'Content-Type: application/json', '-d', vim.json.encode(data) }
   if api_key then
     table.insert(args, '-H')
@@ -276,11 +374,21 @@ end
 local function invoke_llm_and_stream_into_editor(mode)
   vim.api.nvim_clear_autocmds { group = group }
 
-  local prompt = get_prompt(mode)
+  local messages, err = get_conversation_context(mode)
+  if err then
+    notify("droid: " .. err, vim.log.levels.ERROR)
+    return nil
+  end
+
   -- TODO: implement parsing for file, lsp, folder references
 
-  local args = make_openai_spec_curl_args(mode, prompt)
+  local args = make_openai_spec_curl_args(mode, messages)
   local curr_event_state = nil
+
+  -- track assistant markers
+  local first_output = true
+  local marker_prefix = "\n\n=== ASSISTANT BEGIN [" .. config.current_model .. "] ===\n"
+  local marker_suffix = "\n=== ASSISTANT END [" .. config.current_model .. "] ==="
 
   -- parse server-sent events (sse) format: "event: type\ndata: json"
   local function parse_and_call(line)
@@ -291,6 +399,14 @@ local function invoke_llm_and_stream_into_editor(mode)
     end
     local data_match = line:match '^data: (.+)$'
     if data_match then
+      -- add opening marker on first content
+      if first_output and data_match:match '"delta":' then
+        local json = vim.json.decode(data_match)
+        if mode == "help" and json.choices and json.choices[1] and json.choices[1].delta and json.choices[1].delta.content then
+          write_string_at_cursor(marker_prefix)
+          first_output = false
+        end
+      end
       handle_openai_spec_data(data_match)
       -- handle_anthropic_spec_data(data_match, curr_event_state)
     end
@@ -309,12 +425,17 @@ local function invoke_llm_and_stream_into_editor(mode)
     on_stdout = function(_, out)
       parse_and_call(out)
     end,
-    on_stderr = function(_, _) end,
-    on_exit = function()
+    on_stderr = function(_, errdata)
+      notify("droid: api error - " .. errdata, vim.log.levels.DEBUG)
+    end,
+    on_exit = function(_, return_val)
+      if mode == "help" and return_val == 0 and not first_output then
+        -- add closing marker on successful completion
+        write_string_at_cursor(marker_suffix)
+      end
       active_job = nil
     end,
   }
-
 
   notify("droid: generating " .. mode .. " completion", vim.log.levels.INFO)
   active_job:start()
@@ -394,6 +515,20 @@ function M.select_model()
   end
 
   create_model_picker(M.set_current_model)
+end
+
+function M.jump_to_new()
+  local buf = vim.api.nvim_get_current_buf()
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+
+  -- add some spacing if buffer isn't empty
+  if #lines > 0 and lines[#lines] ~= "" then
+    vim.api.nvim_buf_set_lines(buf, -1, -1, false, { "", "", "---", "", "" })
+  end
+
+  -- move cursor to end
+  local last_line = vim.api.nvim_buf_line_count(buf)
+  vim.api.nvim_win_set_cursor(0, { last_line, 0 })
 end
 
 return M
