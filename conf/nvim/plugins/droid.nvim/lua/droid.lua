@@ -20,9 +20,6 @@ local notify = mini_notify.make_notify({
 -- need to be able to dynamically update the message history from the bufffer
 -- potentially persistence to sqlite or json
 
---- @enum Mode
-local Mode = { edit = "edit", help = "help" }
-
 --- @class CompletionOpts
 --- @field base_url string?
 --- @field api_key_name string
@@ -171,7 +168,7 @@ local function get_visual_selection()
 end
 
 --- extracts the prompt text from visual selection or text until cursor
---- @param mode Mode
+--- @param mode "edit"|"help"
 --- @return string
 local function get_prompt(mode)
   local visual_lines = get_visual_selection()
@@ -179,7 +176,7 @@ local function get_prompt(mode)
 
   if visual_lines then
     prompt = table.concat(visual_lines, '\n')
-    if mode == Mode.edit then
+    if mode == "edit" then
       -- delete selected text if we're in edit mode (llm will overwrite selection)
       vim.api.nvim_command 'normal! d'
       vim.api.nvim_command 'normal! k'
@@ -196,14 +193,14 @@ local function get_prompt(mode)
 end
 
 --- creates curl arguments for anthropic api requests
---- @param mode Mode
+--- @param mode "edit"|"help"
 --- @param prompt string
 --- @return string[] Array curl command arguments
 local function make_anthropic_spec_curl_args(mode, prompt)
   local base_url = config.base_url .. "/chat/completions"
   local api_key = config.api_key_name and get_api_key(config.api_key_name)
   local data = {
-    system = mode == Mode.edit and config.edit_prompt or config.help_prompt,
+    system = mode == "edit" and config.edit_prompt or config.help_prompt,
     messages = { { role = 'user', content = prompt } },
     model = config.current_model,
     stream = true,
@@ -221,7 +218,7 @@ local function make_anthropic_spec_curl_args(mode, prompt)
 end
 
 --- creates curl arguments for openai-compatible api requests
---- @param mode Mode
+--- @param mode "edit"|"help"
 --- @param prompt string
 --- @return string[] Array curl command arguments
 local function make_openai_spec_curl_args(mode, prompt)
@@ -229,7 +226,7 @@ local function make_openai_spec_curl_args(mode, prompt)
   local api_key = config.api_key_name and get_api_key(config.api_key_name)
   local data = {
     messages = {
-      { role = 'system', content = mode == Mode.edit and config.edit_prompt or config.help_prompt, },
+      { role = 'system', content = mode == "edit" and config.edit_prompt or config.help_prompt, },
       { role = 'user',   content = prompt }
     },
     model = config.current_model,
@@ -274,7 +271,7 @@ local function handle_openai_spec_data(data_stream)
 end
 
 --- invokes an llm api and streams the response directly into the editor
---- @param mode Mode
+--- @param mode "edit"|"help"
 --- @return table? active job instance
 local function invoke_llm_and_stream_into_editor(mode)
   vim.api.nvim_clear_autocmds { group = group }
@@ -381,14 +378,14 @@ function M.help_completion()
   if not config.api_key_name then
     error("droid.setup() must be called before using completions")
   end
-  invoke_llm_and_stream_into_editor(Mode.help)
+  invoke_llm_and_stream_into_editor("help")
 end
 
 function M.edit_completion()
   if not config.api_key_name then
     error("droid.setup() must be called before using completions")
   end
-  invoke_llm_and_stream_into_editor(Mode.edit)
+  invoke_llm_and_stream_into_editor("edit")
 end
 
 function M.select_model()
