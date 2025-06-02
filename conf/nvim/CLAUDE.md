@@ -2,58 +2,110 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Neovim Configuration Architecture
-
-This is a highly modular Lua-based Neovim configuration with advanced features for development and AI assistance.
-
-### Core Structure
-- **init.lua** - Entry point that loads all modules in order: options, lazy, keymaps, then config modules
-- **lua/plugins.lua** - Lazy.nvim plugin specifications with inline configurations
-- **lua/config/** - Configuration modules for LSP, completion, debugging, statusline, snippets, and autocmds
-- **lua/custom/** - Custom integrations (droid AI plugin interface, telescope extensions)
-- **plugins/droid/lua/droid.lua** - Local AI assistance plugin for streaming LLM completions
-
-### Key Plugins and Features
-- **LSP Configuration**: Multi-language support via `lua/config/lsp.lua` with servers for Lua, Python (pyright+ruff), TypeScript, Go, Rust, C/C++, Nix, Docker, and Biome
-- **AI Integration**: Custom "droid" plugin with streaming completions from multiple LLM providers
-- **Navigation**: Harpoon for file marking, Telescope for fuzzy finding, Oil for directory editing
-- **Development Tools**: nvim-dap for debugging, gitsigns for Git integration, treesitter for syntax highlighting
-- **Code Execution**: In-buffer execution for Lua and Python via custom executors in `keymaps.lua`
-- **Completion**: nvim-cmp with LSP, snippets, and path completion
-
-### AI Assistant Usage
-The droid plugin provides streaming AI completions with these keybindings:
-- `<leader>c` / `<leader>C` - GPT-4.1 (edit/help modes)
-- `<leader>la` / `<leader>lA` - Claude Sonnet 4 (edit/help modes)  
-- `<leader>g` / `<leader>G` - Gemini 2.0 Flash (edit/help modes)
-- `<leader>lc` - Cancel streaming completion
-
-**Environment Variables Required:**
-- `OPENAI_API_KEY` for GPT-4.1 completions
-- `OPENROUTER_API_KEY` for Claude Sonnet 4 and Gemini 2.0 Flash
-
-### Code Execution
-The configuration supports in-buffer code execution:
-- Lua: `<leader>xl` (line) / `<leader>xs` (selection) / `<leader>xb` (buffer)
-- Python: Uses pyrepl.nvim for interactive execution
+## Common Commands
 
 ### Development Workflow
-1. Use `<leader>sf` for file finding, `<leader>sg` for live grep
-2. Mark important files with Harpoon (`<leader>a` to add, `<leader>h` to view)
-3. Use AI assistance for code editing and help via droid plugin
-4. Debug with nvim-dap (keybindings prefixed with `d`)
-5. Execute code snippets in-place for rapid prototyping
+```bash
+# Test configuration changes
+nvim --noplugin -u init.lua
 
-### Plugin Management
-Uses lazy.nvim with local plugin support. The droid plugin is loaded from `plugins/droid/` as a local plugin.
+# Check for Lua syntax errors
+lua -c "loadfile('init.lua')"
 
-### Custom Utilities
-- **utils.lua** - Keymap utilities and executor setup functions
-- **custom/telescope.lua** - Extended telescope functionality
-- **config/snippets.lua** - LuaSnip configuration with friendly-snippets
+# Plugin management (run from within Neovim)
+:Lazy sync          # Update all plugins
+:Lazy clean         # Remove unused plugins
+:Lazy profile       # Check startup performance
+```
 
-### Important Implementation Details
-- LSP capabilities are extended with nvim-cmp for autocompletion
-- The droid plugin validates options and provides type annotations via EmmyLua
-- Keymaps are centralized in `keymaps.lua` using utility functions
-- Theme is Catppuccin Mocha with extensive integration configurations
+### Testing Changes
+```bash
+# Start with minimal config for debugging
+nvim -u NONE
+
+# Test specific plugin
+nvim -c "lua require('lazy').load({name='plugin-name'})"
+```
+
+## Architecture Overview
+
+This is a modern Neovim configuration built around **Lazy.nvim** plugin management with modular organization and AI integration.
+
+### Core Structure
+- **init.lua** - Entry point that loads modules in order: options → lazy → keymaps → configs
+- **lua/plugins.lua** - All plugin specifications with lazy loading configurations
+- **lua/config/** - Specialized configuration modules (LSP, completion, debugging, AI)
+- **lua/custom/** - Custom extensions and enhanced functionality
+- **plugins/droid.nvim/** - Custom AI assistant plugin with streaming support
+
+### Key Components
+
+#### Plugin Management (Lazy.nvim)
+- Plugins defined in `lua/plugins.lua` with sophisticated loading strategies
+- Custom plugins supported in `/plugins/` directory
+- Performance-optimized with lazy loading and caching
+
+#### LSP Configuration (`lua/config/lsp.lua`)
+- Centralized LSP server management with 10+ language servers
+- Python: Pyright + Ruff combination for comprehensive analysis
+- Auto-configuration with sensible defaults and enhanced capabilities
+
+#### AI Integration (`lua/config/llm.lua` + `droid.nvim`)
+- **Streaming AI responses** directly into buffers
+- **Multiple AI providers** via OpenRouter (OpenAI, Anthropic, Google)
+- **Two modes**: Edit (replaces selection) vs Help (appends response)
+- **Model switching** via Telescope picker
+
+#### Enhanced Navigation
+- **Telescope** with custom live grep supporting `<query>  <glob>` syntax
+- **Harpoon** for quick file navigation with numbered marks
+- **Oil.nvim** for directory editing as buffers
+
+### Development Patterns
+
+#### Adding New Plugins
+1. Add specification to `lua/plugins.lua`
+2. Use lazy loading with appropriate events/keys/commands
+3. Configuration can be inline or in separate `lua/config/` module
+
+#### Custom Keymaps
+- Use `utils.map()` function for consistent keymap creation
+- Follow leader key conventions: `<leader>s` (search), `<leader>l` (LLM), `<leader>d` (debug)
+
+#### LSP Server Addition
+1. Add server name to `servers` table in `lua/config/lsp.lua`
+2. Custom configuration via `server_configs[server_name]` if needed
+3. Mason will auto-install missing servers
+
+#### AI Assistance Workflow
+- `<leader>ll` - Get help/explanation for current context
+- `<leader>le` - Edit/replace selected text with AI suggestions
+- `<leader>lm` - Switch between AI models via Telescope picker
+
+### Special Features
+
+#### Code Execution
+- Execute Lua code directly in buffers with `<leader>x`
+- Python code execution support for rapid prototyping
+
+#### Language-Specific Settings
+- Automatic indentation detection and language-specific configurations
+- Use `utils.setup_custom_indentation()` for new languages
+
+#### Performance Optimizations
+- Lazy plugin loading reduces startup time
+- Conditional configurations based on file types and events
+- Smart LSP server activation only when needed
+
+### File Organization Conventions
+- **configs**: `lua/config/` for complex, standalone configurations
+- **utilities**: `lua/utils.lua` for reusable helper functions
+- **customizations**: `lua/custom/` for enhanced or modified plugin behaviors
+- **plugins**: Local plugins in `/plugins/` directory with proper lua module structure
+
+### Notable Dependencies
+- **Lazy.nvim** - Plugin manager (auto-bootstrapped)
+- **Mason** - LSP/DAP/linter installer
+- **Telescope** - Fuzzy finder with extensive integrations
+- **nvim-cmp** - Completion engine with multiple sources
+- **droid.nvim** - Custom AI assistant (local plugin)
