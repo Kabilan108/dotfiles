@@ -144,6 +144,24 @@ return {
   --   end
   -- },
 
+  {
+    "supermaven-inc/supermaven-nvim",
+    config = function()
+      local colors = require("catppuccin.palettes").get_palette "mocha"
+      require("supermaven-nvim").setup({
+        keymaps = {
+          accept_suggestion = "<C-s>",
+          clear_suggestion = "<C-]>",
+          accept_word = "<C-w>",
+        },
+        color = {
+          suggestion_color = colors.subtext0,
+          cterm = 244,
+        },
+      })
+    end,
+  },
+
   -- mini.nvim
   { -- Collection of various small independent plugins/modules
     'echasnovski/mini.nvim',
