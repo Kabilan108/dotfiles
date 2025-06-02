@@ -192,6 +192,7 @@ in
       nixfmt-rfc-style
       nodejs_20
       python312Full
+      pnpm
       uv
       zig
 
