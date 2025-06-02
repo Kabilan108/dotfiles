@@ -49,7 +49,6 @@ opt.signcolumn = 'yes'
 opt.updatetime = 250
 
 -- decrease mapped sequence wait time
--- will show which-key pop up faster
 opt.timeoutlen = 300
 
 -- configure how splits are opened
@@ -82,24 +81,3 @@ opt.softtabstop = 2
 
 -- show a ruler
 opt.colorcolumn = "88"
-
--- custom indentation for some languages
-vim.api.nvim_create_autocmd('FileType', {
-  pattern = { 'python', 'kotlin' },
-  callback = function()
-    vim.opt_local.shiftwidth = 4
-    vim.opt_local.tabstop = 4
-    vim.opt_local.softtabstop = 4
-  end,
-})
-
--- Add custom indentation settings for Go files.
-vim.api.nvim_create_autocmd("FileType", {
-  pattern = "go",
-  callback = function()
-    vim.opt_local.expandtab = false   -- Use tabs instead of spaces for Go.
-    vim.opt_local.tabstop = 4           -- Set tab width to 4.
-    vim.opt_local.shiftwidth = 4        -- Set shifted indent to 4.
-    vim.opt_local.softtabstop = 4       -- Use a soft tabstop of 4 for proper tab insertion.
-  end,
-})

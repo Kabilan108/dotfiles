@@ -1,38 +1,25 @@
 -- keymaps.lua
 
----- VARS -----------------------------------------------------------------------------
-local api = vim.api
-local cmd = vim.cmd
-local ts = require("telescope.builtin")
-local custom_ts = require("config.telescope")
+local dap = require "dap"
+local harpoon = require "harpoon"
+local luasnip = require "luasnip"
+local ts = require "telescope.builtin"
+local sessions = require "mini.sessions"
+local trailspace = require "mini.trailspace"
 
----- FUNCS ----------------------------------------------------------------------------
-local function map(keys, func, desc, mode)
-  local opts = { noremap = true, silent = true, desc = desc }
-  vim.keymap.set(mode or "n", keys, func, opts)
-end
+local utils = require "utils"
+local custom_ts = require "custom.telescope"
 
-local function echo(msg)
-  cmd('echo "' .. msg .. '"')
-  vim.defer_fn(function()
-    cmd('echon ""')
-  end, 3000)
-end
+---------------------------------------------------------------------------------------
 
----- KEYMAPS --------------------------------------------------------------------------
--- global replace
-map("<A-r>", ":%s/", "replace", { "n", "v" })
-
--- oil
-map("-", "<CMD>Oil<CR>", "Open parent directory")
-
--- clear search highlights
-map("<Esc>", "<CMD>nohlsearch<CR>")
+-- general keymaps
+utils.map("-", "n", "<CMD>Oil<CR>", "edit directory")
+utils.map("<Esc>", "n", "<CMD>nohlsearch<CR>", "clear search")
 
 -- telescope
-map("<leader>b", function() ts.buffers({ sort_mru = true }) end, "search [b]uffers")
-map(
-  "<leader>sf",
+utils.map("<leader>b", "n", function() ts.buffers({ sort_mru = true }) end, "search buffers")
+utils.map(
+  "<leader>sf", "n",
   function()
     ts.find_files({
       hidden = true,
@@ -40,227 +27,127 @@ map(
       find_command = { "rg", "--files", "--color", "never", "-g", "!.git/**" }
     })
   end,
-  "[s]earch [f]iles"
+  "search files"
 )
-map("<leader>sg", custom_ts.livegrep, "[s]earch [g]rep")
-map("<leader>sh", ts.help_tags, "[s]earch [h]elp tags")
-map("<leader>sk", ts.keymaps, "[s]earch [k]eymaps")
-map("<leader>rs", ts.resume, "[r]esume [s]earch")
-map("<leader>sr", ts.oldfiles, "[s]earch [r]ecent files")
+utils.map("<leader>sg", "n", custom_ts.livegrep, "search everything")
+utils.map("<leader>sh", "n", ts.help_tags, "search help")
+utils.map("<leader>sk", "n", ts.keymaps, "search keymaps")
+utils.map("<leader>rs", "n", ts.resume, "resume search")
+utils.map("<leader>sr", "n", ts.oldfiles, "search recent files")
 
--- folding
-map("zc", "<CMD>foldclose<CR>", "close fold under cursor")
-map("zo", "<CMD>foldopen<CR>", "open fold under cursor")
-map("za", "<CMD>foldclose<CR>", "toggle fold under cursor")
-map("<leader>z", "za", "toggle fold")
-map("<leader>Z", "zA", "toggle fold recursively")
-
--- mini.sessions
-map(
-  "<leader>ls",
-  function() require('mini.sessions').read() end,
-  "[l]oad [s]ession"
-)
-map("<leader>ss", "<CMD>mksession<CR>", "[s]ave [s]ession")
+-- sessions
+utils.map("<leader>sl", "n", sessions.read, "session load")
+utils.map("<leader>ss", "n", "<CMD>mksession<CR>", "session save")
 
 -- trim whitespace
-map(
-  "<leader>tw",
-  require("mini.trailspace").trim,
-  "[t]rim [w]hitespace"
-)
+utils.map("<leader>tw", "n", trailspace.trim, "trim whitespace")
 
--- Disable arrow keys in normal mode
+-- disable arrow keys in normal mode
 local keys = { '<left>', '<right>', '<up>', '<down>' }
 for i = 1, #keys do
-  map(keys[i], function() echo("retard.") end)
+  utils.map(keys[i], "n", function()
+    vim.cmd('echo "retard."')
+    vim.defer_fn(function()
+      vim.cmd('echon ""')
+    end, 3000)
+  end)
 end
 
 -- window resizing
-map('<C-A-t>', '<CMD>resize +2<CR>', 'resize [t]aller')
-map('<C-A-s>', '<CMD>resize -2<CR>', 'resize [s]horter')
-map('<C-A-w>', '<CMD>vertical resize +2<CR>', 'resize [w]ider')
-map('<C-A-n>', '<CMD>vertical resize -2<CR>', 'resize [n]arrower')
+utils.map('<C-A-t>', 'n', '<CMD>resize +2<CR>', 'resize: taller')
+utils.map('<C-A-s>', 'n', '<CMD>resize -2<CR>', 'resize: shorter')
+utils.map('<C-A-w>', 'n', '<CMD>vertical resize +2<CR>', 'resize: wider')
+utils.map('<C-A-n>', 'n', '<CMD>vertical resize -2<CR>', 'resize: narrower')
 
 -- tab navigation
-map("nt", "<CMD>tabnew<CR>", "[n]ew [t]ab")
-map("tn", "<CMD>tabnext<CR>", "[t]ab [n]ext")
-map("tp", "<CMD>tabprevious<CR>", "[t]ab [p]revious")
+utils.map("<leader>tt", "n", "<CMD>tabnew<CR>", "new tab")
+utils.map("<leader>tn", "n", "<CMD>tabnext<CR>", "next tab")
+utils.map("<leader>tp", "n", "<CMD>tabprevious<CR>", "previous tab")
 
 -- buffer navigation
-map("bp", "<CMD>bp<CR>", "[b]uffer [p]revious")
-map("bn", "<CMD>bn<CR>", "[b]uffer [n]ext")
-map("cb", "<CMD>enew<CR>", "[c]lear [b]uffer")
+utils.map("bp", "n", "<CMD>bp<CR>", "previous buffer")
+utils.map("bn", "n", "<CMD>bn<CR>", "next bugger")
+utils.map("bcc", "n", "<CMD>enew<CR>", "clear buffer")
 
 -- increment & decrement numbers
-map("<C-i>", "<C-a>", "increment")
-map("<C-d>", "<C-x>", "decrement")
+utils.map("<C-i>", "n", "<C-a>", "increment")
+utils.map("<C-d>", "n", "<C-x>", "decrement")
 
 -- terminal mode
-map(
-  "<C-`>",
+utils.map(
+  "<C-`>", "n",
   function() vim.cmd("split | terminal") end,
-  "Open horizontal terminal split"
+  "open horizontal terminal split"
 )
-map("<C-n>", "<C-\\><C-n>", "Exit terminal mode", "t")
+utils.map("<C-n>", "t", "<C-\\><C-n>", "exit terminal mode")
 
--- highlight when yanking
-api.nvim_create_autocmd('TextYankPost', {
-  desc = 'Highlight when yanking (copying) text',
-  group = api.nvim_create_augroup('kickstart-highlight-yank', { clear = true }),
-  callback = function()
-    vim.highlight.on_yank()
+-- harpoon
+utils.map("<leader>a", "n", function() harpoon:list():add() end, "add harpoon")
+utils.map("<leader>h", "n", function() harpoon.ui:toggle_quick_menu(harpoon:list()) end, "list harpoons")
+utils.map("<leader>1", "n", function() harpoon:list():select(1) end)
+utils.map("<leader>2", "n", function() harpoon:list():select(2) end)
+utils.map("<leader>3", "n", function() harpoon:list():select(3) end)
+utils.map("<leader>4", "n", function() harpoon:list():select(4) end)
+utils.map("<C-P>", "n", function() harpoon:list():prev() end)
+utils.map("<C-N>", "n", function() harpoon:list():next() end)
+harpoon:extend({
+  UI_CREATE = function(cx)
+    utils.map("<C-v>", "n", function()
+      harpoon.ui:select_menu_item({ vsplit = true })
+    end, "", { buffer = cx.bufnr })
+    utils.map("<C-s>", "n", function()
+      harpoon.ui:select_menu_item({ split = true })
+    end, "", { buffer = cx.bufnr })
+    utils.map("<C-t>", "n", function()
+      harpoon.ui:select_menu_item({ tabedit = true })
+    end, "", { buffer = cx.bufnr })
   end,
 })
 
--- LSP keymaps
--- these will only be enabled when a LSP attaches to the buffer
-api.nvim_create_autocmd("LspAttach", {
-  group = api.nvim_create_augroup("lsp-attach", { clear = true }),
+-- debugger
+utils.map("dt", "n", dap.toggle_breakpoint, "toggle breakpoint")
+utils.map("dr", "n", dap.run_to_cursor, "run to cursor")
+utils.map("dv", "n", function() require("dapui").eval(nil, { enter = true }) end, "check value")
+utils.map("dc", "n", dap.continue, "continue")
+utils.map("di", "n", dap.step_into, "step into")
+utils.map("do", "n", dap.step_over, "step over")
+utils.map("du", "n", dap.step_out, "step out")
+utils.map("db", "n", dap.step_back, "step back")
+utils.map("dr", "n", dap.restart, "restart debugger")
+utils.map("de", "n", dap.close, "close debugger")
 
-  callback = function(event)
-    local function lsp_map(keys, func, desc)
-      local opts = {
-        noremap = true, silent = true, buffer = event.buf, desc = "LSP: " .. desc
-      }
-      vim.keymap.set("n", keys, func, opts)
-    end
+-- snippets
+utils.map("<C-k>", { "i", "s" }, function()
+  if luasnip.expand_or_jumpable() then
+    luasnip.expand_or_jump()
+  end
+end, "LuaSnip forward jump")
 
-    -- Jump to the definition of the word under your cursor.
-    --  To jump back, press <C-t>.
-    lsp_map("gd", ts.lsp_definitions, "[g]oto [d]efinition")
+utils.map("<C-j>", { "i", "s" }, function()
+  if luasnip.jumpable(-1) then
+    luasnip.jump(-1)
+  end
+end, "LuaSnip backward jump")
 
-    -- Find references for the word under your cursor.
-    lsp_map("gr", ts.lsp_references, "[g]oto [r]eferences")
+utils.map("<C-l>", { "i", "s" }, function()
+  if luasnip.choice_active() then
+    luasnip.change_choice(1)
+  end
+end, "LuaSnip next choice")
 
-    -- Jump to the implementation of the word under your cursor.
-    --  Useful when your language has ways of declaring types without an actual implementation.
-    lsp_map("gi", ts.lsp_implementations, "[g]oto [i]mplementation")
-
-    -- Jump to the type of the word under your cursor.
-    --  Useful when you"re not sure what type a variable is and you want to see
-    --  the definition of its *type*, not where it was *defined*.
-    lsp_map("gt", ts.lsp_type_definitions, "[g]oto [t]ype definition")
-
-    -- Fuzzy find all the symbols in your current document.
-    --  Symbols are things like variables, functions, types, etc.
-    lsp_map("<leader>ds", ts.lsp_document_symbols, "[d]ocument [s]ymbols")
-
-    -- Fuzzy find all the symbols in your current workspace.
-    --  Similar to document symbols, except searches over your entire project.
-    lsp_map("<leader>ws", ts.lsp_dynamic_workspace_symbols, "[w]orkspace [s]ymbols")
-
-    -- Rename the variable under your cursor.
-    --  Most Language Servers support renaming across files, etc.
-    lsp_map("<leader>rn", vim.lsp.buf.rename, "[R]e[n]ame")
-
-    -- Execute a code action, usually your cursor needs to be on top of an error
-    -- or a suggestion from your LSP for this to activate.
-    lsp_map("<leader>ca", vim.lsp.buf.code_action, "[c]ode [a]ction")
-
-    -- interact with diagnostic messages
-    map("[d", vim.diagnostic.goto_prev, "prev [d]iagnostic message")
-    map("]d", vim.diagnostic.goto_next, "next [d]iagnostic message")
-    map("<leader>e", vim.diagnostic.open_float, "show [e]rror message")
-    map("<leader>q", vim.diagnostic.setloclist, "show [q]uick fix")
-
-    -- Opens a popup that displays documentation about the word under your cursor
-    --  See `<CMD>help K` for why this keymap.
-    lsp_map("K", vim.lsp.buf.hover, "[K] Hover Documentation")
-
-    -- WARN<CMD> This is not Goto Definition, this is Goto Declaration.
-    --  For example, in C this would take you to the header.
-    lsp_map("gD", vim.lsp.buf.declaration, "[g]oto [D]eclaration")
-
-    -- formatting
-    lsp_map("<leader>fb", vim.lsp.buf.format, "[f]ormat [b]uffer")
-
-    -- The following two autocommands are used to highlight references of the
-    -- word under your cursor when your cursor rests there for a little while.
-    --    See `:help CursorHold` for information about when this is executed
-    --
-    -- When you move your cursor, the highlights will be cleared (the second autocommand).
-    local client = vim.lsp.get_client_by_id(event.data.client_id)
-
-    if client and client.server_capabilities.documentHighlightProvider then
-      local highlight_augroup = api.nvim_create_augroup(
-        "lsp-highlight", { clear = false }
-      )
-
-      api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
-        buffer = event.buf,
-        group = highlight_augroup,
-        callback = vim.lsp.buf.document_highlight,
-      })
-
-      api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
-        buffer = event.buf,
-        group = highlight_augroup,
-        callback = vim.lsp.buf.clear_references,
-      })
-
-      api.nvim_create_autocmd("LspDetach", {
-        group = api.nvim_create_augroup("lsp-detach", { clear = true }),
-        callback = function(event2)
-          vim.lsp.buf.clear_references()
-          api.nvim_clear_autocmds { group = "lsp-highlight", buffer = event2.buf }
-        end,
-      })
-    end
-
-    -- The following autocommand is used to enable inlay hints in your
-    -- code, if the language server you are using supports them
-    --
-    -- This may be unwanted, since they displace some of your code
-    if client and client.server_capabilities.inlayHintProvider and vim.lsp.inlay_hint then
-      map(
-        "<leader>th",
-        function() vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled()) end,
-        "[t]oggle inlay [h]ints"
-      )
-    end
-  end,
-})
-
-api.nvim_create_autocmd("FileType", {
-  pattern = "lua",
-  callback = function(event)
-    local function lua_map(keys, func, desc, mode)
-      local opts = {
-        noremap = true,
-        silent = true,
-        buffer = event.buf,
-        desc = "Lua: " .. desc
-      }
-      vim.keymap.set(mode or "n", keys, func, opts)
-    end
-
-    -- Execute current line
-    lua_map("<leader>xl", function()
-      local line = vim.api.nvim_get_current_line()
+-- code execution
+---@type table<string, utils.Executor>
+local executors = {
+  lua = {
+    line = function(line)
       local ok, result = pcall(load(line))
       if ok and result ~= nil then
         print(vim.inspect(result))
       elseif not ok then
         print("Error: " .. tostring(result))
       end
-    end, "e[x]ecute [l]ine")
-
-    -- Execute visual selection
-    lua_map("<leader>xs", function()
-      -- Get visual selection
-      local _, start_row, start_col = unpack(vim.fn.getpos("'<"))
-      local _, end_row, end_col = unpack(vim.fn.getpos("'>"))
-
-      local lines = vim.api.nvim_buf_get_text(
-        0,
-        start_row - 1,
-        start_col - 1,
-        end_row - 1,
-        end_col,
-        {}
-      )
-
+    end,
+    lines = function(lines)
       local code = table.concat(lines, "\n")
       local ok, result = pcall(load(code))
       if ok and result ~= nil then
@@ -268,28 +155,13 @@ api.nvim_create_autocmd("FileType", {
       elseif not ok then
         print("Error: " .. tostring(result))
       end
-    end, "e[x]ecute [s]election", "v")
-  end,
-})
-
--- Define groups for which-key
-local wk = require("which-key")
-wk.add({
-  { "<leader>c",  group = "[c]ode" },
-  { "<leader>c_", hidden = true },
-  { "<leader>d",  group = "[d]ocument" },
-  { "<leader>d_", hidden = true },
-  { "<leader>h",  group = "git [h]unk" },
-  { "<leader>h_", hidden = true },
-  { "<leader>r",  group = "[r]ename" },
-  { "<leader>r_", hidden = true },
-  { "<leader>s",  group = "[s]earch" },
-  { "<leader>s_", hidden = true },
-  { "<leader>t",  group = "[t]oggle" },
-  { "<leader>t_", hidden = true },
-  { "<leader>w",  group = "[w]orkspace" },
-  { "<leader>w_", hidden = true },
-  { "<leader>z",  group = "[z] fold" },
-  { "<leader>z_", hidden = true },
-  { "<leader>h",  desc = "git [h]unk",  mode = "v" },
-})
+    end
+  },
+  python = {
+    line = require('pyrepl').execute_line,
+    lines = require('pyrepl').execute_lines
+  }
+}
+for lang, exec in pairs(executors) do
+  utils.setup_exec_kmaps(lang, exec)
+end

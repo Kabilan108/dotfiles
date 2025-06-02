@@ -25,11 +25,10 @@ return {
     lazy = false,
   },
 
-  { dir = local_plugins .. '/ghola',       name = "ghola" },
-  { "kabilan108/pyrepl.nvim" },
+  { dir = local_plugins .. '/droid.nvim',  name = "droid" },
+  { "kabilan108/pyrepl.nvim",              config = function() require("pyrepl").setup({}) end },
 
-  { "folke/which-key.nvim",                event = "VimEnter" },
-  { "lukas-reineke/indent-blankline.nvim", main = "ibl",                          opts = {} },
+  { "lukas-reineke/indent-blankline.nvim", main = "ibl",                                       opts = {} },
   { "neovim/nvim-lspconfig",               dependencies = { "j-hui/fidget.nvim" } },
 
   -- debugger
@@ -120,25 +119,30 @@ return {
   {
     "ThePrimeagen/harpoon",
     branch = "harpoon2",
-    dependencies = { "nvim-lua/plenary.nvim" }
-  },
-
-
-  {
-    'ggml-org/llama.vim',
-    init = function()
-      -- get the LLAMA_SERVER url env var
-      local url = os.getenv("LLAMA_SERVER_URL") or "http://localhost:8012"
-      vim.g.llama_config = {
-        endpoint = url .. "/infill",
-        show_info = 1,
-        keymap_trigger = "<C-c>",
-        keymap_accept_full = "<C-s>",
-        keymap_accept_line = "<C-l>",
-        keymap_accept_word = "<C-w>",
-      }
+    dependencies = { "nvim-lua/plenary.nvim" },
+    config = function()
+      local harpoon = require("harpoon")
+      local harpoon_extensions = require("harpoon.extensions")
+      harpoon:setup({})
+      harpoon:extend(harpoon_extensions.builtins.highlight_current_file())
     end
   },
+
+  -- {
+  --   'ggml-org/llama.vim',
+  --   init = function()
+  --     -- get the LLAMA_SERVER url env var
+  --     local url = os.getenv("LLAMA_SERVER_URL") or "http://localhost:8012"
+  --     vim.g.llama_config = {
+  --       endpoint = url .. "/infill",
+  --       show_info = 1,
+  --       keymap_trigger = "<C-c>",
+  --       keymap_accept_full = "<C-s>",
+  --       keymap_accept_line = "<C-l>",
+  --       keymap_accept_word = "<C-w>",
+  --     }
+  --   end
+  -- },
 
   -- mini.nvim
   { -- Collection of various small independent plugins/modules
@@ -208,7 +212,6 @@ return {
             scope_color = "lavender",
             color_indent_levels = false,
           },
-          mason = true,
           neotree = true,
           native_lsp = {
             enabled = true,
