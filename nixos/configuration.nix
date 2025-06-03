@@ -181,6 +181,7 @@ in
       ghostty
       kitty.kitten
       neofetch
+      pre-commit
       ripgrep
       sd
 
