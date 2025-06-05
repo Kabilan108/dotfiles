@@ -83,7 +83,7 @@ M.setup_exec_kmaps = function(lang, exec)
     pattern = lang,
     callback = function(event)
       -- execute current line
-      M.map("<leader>xx", "n", function()
+      M.map("<leader>x", "n", function()
         local line = M.get_current_line()
         exec.line(line)
       end, "execute line", { buffer = event.buf })
