@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+
+usage() {
+    cat <<EOF
+Usage: ws COMMAND [ARGS]
+
+Commands:
+  new NAME        Create a new workspace folder in /vault/workspaces
+  add WS PATH     Symlink a folder to the workspace directory
+  list            List all workspace directories
+
+Examples:
+  ws new workspace
+  ws add workspace /path/to/existing/folder
+  ws list
+EOF
+    exit 1
+}
+
+error() {
+    echo "Error: $1" >&2
+    exit 1
+}
+
+create_workspace() {
+    local name="$1"
+    local workspace_dir="/vault/workspaces/$name"
+
+    if [ -z "$name" ]; then
+        error "Workspace name is required"
+    fi
+
+    if [ -e "$workspace_dir" ]; then
+        error "Workspace '$name' already exists"
+    fi
+
+    mkdir -p "$workspace_dir" || error "Failed to create workspace directory"
+    echo "Created workspace: $workspace_dir"
+}
+
+add_to_workspace() {
+    local ws_name="$1"
+    local path="$2"
+    local workspace_dir="/vault/workspaces/$ws_name"
+
+    if [ -z "$ws_name" ] || [ -z "$path" ]; then
+        error "Both workspace name and path are required"
+    fi
+
+    if [ ! -d "$workspace_dir" ]; then
+        error "Workspace '$ws_name' does not exist"
+    fi
+
+    if [ ! -e "$path" ]; then
+        error "Path '$path' does not exist"
+    fi
+
+    local abs_path=$(realpath "$path")
+    local basename=$(basename "$abs_path")
+    local link_path="$workspace_dir/$basename"
+
+    if [ -e "$link_path" ]; then
+        error "Link '$basename' already exists in workspace '$ws_name'"
+    fi
+
+    ln -s "$abs_path" "$link_path" || error "Failed to create symlink"
+    echo "Added '$abs_path' to workspace '$ws_name'"
+}
+
+list_workspaces() {
+    local workspaces_dir="/vault/workspaces"
+    
+    if [ ! -d "$workspaces_dir" ]; then
+        error "Workspaces directory does not exist: $workspaces_dir"
+    fi
+    
+    for workspace in $(find "$workspaces_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort); do
+        echo "$workspace:"
+        ls -1 "$workspaces_dir/$workspace" 2>/dev/null | sed 's/^/  /'
+        echo
+    done
+}
+
+if [ $# -eq 0 ]; then
+    usage
+fi
+
+command="$1"
+shift
+
+case "$command" in
+    new)
+        create_workspace "$@"
+        ;;
+    add)
+        add_to_workspace "$@"
+        ;;
+    list)
+        list_workspaces
+        ;;
+    *)
+        usage
+        ;;
+esac
