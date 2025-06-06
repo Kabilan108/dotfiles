@@ -6,7 +6,7 @@ start_polybar() {
     | tee -a /tmp/polybar-$1.log & disown
 }
 
-kill $(ps aux | grep 'polybar main --config' | awk 'NR==1{print $2}')
+ps aux | grep '[p]olybar main --config' | awk '{print $2}' | xargs -I {} kill {}
 sleep 1
 
 for monitor in $(xrandr --query | grep " connected" | cut -d" " -f1); do
