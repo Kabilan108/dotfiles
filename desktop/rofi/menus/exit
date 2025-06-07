@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-options="   Lock\n   Suspend\n   Logout\n   Restart\n   Power Off"
+options="   lock\n   suspend\n   logout\n   reboot\n   shutdown"
 
 selected=$(echo -e "$options" | rofi \
   -theme-str 'window { width: 250px; height:280px; } inputbar { children: [entry]; } entry {margin: 20px 20px 0px 20px;}' \
@@ -11,19 +11,19 @@ selected=$(echo -e "$options" | rofi \
   -kb-row-tab '')
 
 case $selected in
-  *Lock)
+  *lock)
     betterlockscreen -l dim
     ;;
-  *Suspend)
+  *suspend)
     systemctl suspend
     ;;
-  *Logout)
+  *logout)
     i3-msg exit
     ;;
-  *Restart)
+  *reboot)
     systemctl reboot
     ;;
-  *"Power Off")
+  *shutdown)
     systemctl poweroff
     ;;
 esac
