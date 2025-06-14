@@ -61,6 +61,7 @@ in
       "networkmanager"
       "wheel"
       "docker"
+      "plugdev"
     ];
     packages = with pkgs; [ ];
     shell = pkgs.bashInteractive;
@@ -99,6 +100,7 @@ in
     blueman.enable = true;
     gnome.gnome-keyring.enable = true;
     hardware.openrgb.enable = true;
+    gvfs.enable = true;
     openssh = {
       enable = true;
       settings.PasswordAuthentication = true;
@@ -112,6 +114,7 @@ in
       pulse.enable = true;
     };
     tailscale.enable = true;
+    udisks2.enable = true;
   };
 
   programs = {
@@ -133,6 +136,7 @@ in
     [
       brave
       baobab
+      code-cursor
       discord
       gparted
       inkscape
@@ -149,6 +153,12 @@ in
       whitesur-icon-theme
       zotero
       zoom-us
+
+      # mtp support
+      libmtp
+      jmtpfs
+      gvfs
+      udisks2
 
       bashInteractive
       cmake
