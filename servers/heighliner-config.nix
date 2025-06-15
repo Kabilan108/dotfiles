@@ -1,9 +1,14 @@
 {
   pkgs,
   modulesPath,
+  lib,
   ...
 }:
 
+let
+  dotfilesRepo = "https://github.com/kabilan108/dotfiles.git";
+  dotfilesPath = "/etc/dotfiles";
+in
 {
   imports = [
     (modulesPath + "/virtualisation/digital-ocean-config.nix")
@@ -93,13 +98,72 @@
     };
   };
 
+  programs.direnv.enable = true;
+  programs.neovim = {
+    enable = true;
+    defaultEditor = true;
+    viAlias = true;
+    vimAlias = true;
+  };
+
   environment.systemPackages = with pkgs; [
-    neovim
-    git
-    htop
+    bash
+    clang
     curl
+    fd
+    git
+    gnumake
+    htop
+    jq
+    llm
+    ripgrep
+    tmux
     wget
+    xclip
   ];
+
+  # Activation script to setup dotfiles for root user
+  system.activationScripts.setupDotfiles = lib.stringAfter [ "users" ] ''
+    echo "Setting up dotfiles for root user..."
+
+    # Clone or update dotfiles
+    if [ ! -d "${dotfilesPath}" ]; then
+      ${pkgs.git}/bin/git clone ${dotfilesRepo} ${dotfilesPath}
+    else
+      cd ${dotfilesPath}
+      ${pkgs.git}/bin/git pull || true
+    fi
+
+    # Create root directories
+    mkdir -p /root/.config
+
+    # Symlink bash configs
+    for file in .bashrc .bash_profile .gitconfig .tmux.conf .vimrc; do
+      if [ -f "${dotfilesPath}/conf/$file" ]; then
+        ln -sf "${dotfilesPath}/conf/$file" "/root/$file"
+      fi
+    done
+
+    # Symlink config directories
+    if [ -d "${dotfilesPath}/conf/nvim" ]; then
+      rm -rf "/root/.config/nvim"
+      ln -sf "${dotfilesPath}/conf/nvim" "/root/.config/nvim"
+    fi
+
+    # Setup tmux plugins
+    if [ ! -d "/root/.tmux/plugins/tpm" ]; then
+      mkdir -p /root/.tmux/plugins
+      ${pkgs.git}/bin/git clone https://github.com/tmux-plugins/tpm /root/.tmux/plugins/tpm || true
+      ${pkgs.git}/bin/git clone -b v2.1.3 https://github.com/catppuccin/tmux.git /root/.tmux/plugins/catppuccin/tmux || true
+    fi
+
+    # Symlink bin directory if it exists
+    if [ -d "${dotfilesPath}/bin" ]; then
+      ln -sf "${dotfilesPath}/bin" /root/bin
+    fi
+
+    echo "Dotfiles setup complete for root user!"
+  '';
 
   nix.gc = {
     automatic = true;
@@ -111,4 +175,12 @@
     "nix-command"
     "flakes"
   ];
+
+  services.openssh = {
+    enable = true;
+    settings = {
+      PermitRootLogin = "prohibit-password";
+      PasswordAuthentication = false;
+    };
+  };
 }
