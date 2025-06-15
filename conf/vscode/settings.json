@@ -206,5 +206,6 @@
 	"cursor.composer.renderPillsInsteadOfBlocks": true,
 	"cursor.terminal.usePreviewBox": true,
 	"cursor.composer.cmdPFilePicker2": true,
-	"cursor.diffs.useCharacterLevelDiffs": true
+	"cursor.diffs.useCharacterLevelDiffs": true,
+	"cursor.composer.shouldAllowCustomModes": true
 }
