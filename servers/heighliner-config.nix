@@ -1,101 +1,62 @@
 {
-  pkgs,
-  modulesPath,
+  config,
   lib,
+  modulesPath,
+  pkgs,
   ...
 }:
 
 let
+  appsPath = ./apps;
+  appFiles = builtins.attrNames (builtins.readDir appsPath);
+  importedApps = map (file: import (appsPath + "/${file}")) appFiles;
+
+  # merge imported app configs into attrset
+  appsConfig = lib.foldl lib.recursiveUpdate { } importedApps;
+
   dotfilesRepo = "https://github.com/kabilan108/dotfiles.git";
   dotfilesPath = "/etc/dotfiles";
 in
-{
-  imports = [
-    (modulesPath + "/virtualisation/digital-ocean-config.nix")
-  ];
+lib.recursiveUpdate {
+  imports = [ (modulesPath + "/virtualisation/digital-ocean-config.nix") ];
 
   system.stateVersion = "25.05";
+  networking.hostName = "heighliner";
 
-  networking = {
-    hostName = "heighliner";
+  virtualisation.docker.enable = true;
+  virtualisation.docker.enableOnBoot = true;
 
-    firewall = {
-      enable = true;
-      allowedTCPPorts = [
-        22
-        80
-        443
-      ];
-    };
+  services.traefik = {
+    enable = true;
+    dataDir = "/var/lib/traefik";
+    staticConfigFile = ./traefik.yml;
+    dynamicConfigOptions.providers.docker.exposedbydefault = false;
   };
 
-  services.nginx = {
-    enable = true;
+  users.users.traefik.extraGroups = [ "docker" ];
 
-    virtualHosts."default" = {
-      default = true;
-      root = pkgs.runCommand "testdir" { } ''
-        mkdir -p $out
-        cat > $out/index.html <<EOF
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Deploy-rs Test Server</title>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    max-width: 600px;
-                    margin: 50px auto;
-                    padding: 20px;
-                    background-color: #f0f0f0;
-                }
-                .container {
-                    background-color: white;
-                    padding: 30px;
-                    border-radius: 10px;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                }
-                h1 { color: #333; }
-                .status { 
-                    color: #27ae60; 
-                    font-weight: bold;
-                }
-                .info {
-                    margin-top: 20px;
-                    padding: 15px;
-                    background-color: #ecf0f1;
-                    border-radius: 5px;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>Deploy-rs Test Server</h1>
-                <p class="status">Deployment Successful!</p>
-                <div class="info">
-                    <p><strong>Server:</strong> heighliner</p>
-                    <p><strong>Deployed with:</strong> deploy-rs + NixOS</p>
-                    <p><strong>Timestamp:</strong> <script>document.write(new Date().toLocaleString());</script></p>
-                </div>
-                <p>If you can see this page, your deployment is working correctly!</p>
-            </div>
-        </body>
-        </html>
-        EOF
-      '';
-
-      locations."/" = {
-        index = "index.html";
-      };
-    };
+  systemd.services.traefik.serviceConfig = {
+    EnvironmentFile = "/root/servers/secrets/cloudflare.env";
   };
 
-  virtualisation.docker = {
+  systemd.tmpfiles.rules = [
+    "d /var/lib/traefik 0700 traefik traefik -"
+    "f /var/lib/traefik/acme.json 0600 traefik traefik -"
+    "d /etc/traefik 0755 root root -"
+  ];
+
+  environment.etc."traefik/dynamic-config.yml" = {
+    source = ./dynamic-config.yml;
+    mode = "0644";
+  };
+
+  networking.firewall = {
     enable = true;
-    autoPrune = {
-      enable = true;
-      dates = "weekly";
-    };
+    allowedTCPPorts = [
+      22
+      80
+      443
+    ];
   };
 
   programs.direnv.enable = true;
@@ -122,7 +83,6 @@ in
     xclip
   ];
 
-  # Activation script to setup dotfiles for root user
   system.activationScripts.setupDotfiles = lib.stringAfter [ "users" ] ''
     echo "Setting up dotfiles for root user..."
 
@@ -183,4 +143,5 @@ in
       PasswordAuthentication = false;
     };
   };
-}
+
+} appsConfig

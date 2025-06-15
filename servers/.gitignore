@@ -5,3 +5,5 @@ result-*
 
 .direnv/
 .envrc
+
+secrets/

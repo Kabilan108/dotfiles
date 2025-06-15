@@ -1,0 +1,22 @@
+http:
+  middlewares:
+    traefik-auth:
+      basicAuth:
+        users:
+          - "admin:$2y$10$cbITIxrrpVg10C6nMMEyO.7PDAy289NJMs1PbqxKPfx5Kx0rr1ptu"
+    redirect-www:
+      redirectRegex:
+        regex: "^https?://www\\.(.*)"
+        replacement: "https://${1}"
+        permanent: true
+
+  routers:
+    traefik-dashboard:
+      rule: "Host(`traefik.kabilan108.com`)"
+      entryPoints:
+        - "websecure"
+      service: "api@internal"
+      tls:
+        certResolver: "letsencrypt"
+      middlewares:
+        - "traefik-auth"
