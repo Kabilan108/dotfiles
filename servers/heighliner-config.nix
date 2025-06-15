@@ -25,6 +25,7 @@ lib.recursiveUpdate {
 
   virtualisation.docker.enable = true;
   virtualisation.docker.enableOnBoot = true;
+  virtualisation.oci-containers.backend = "docker";
 
   services.traefik = {
     enable = true;

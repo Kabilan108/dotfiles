@@ -1,5 +1,4 @@
 {
-  virtualisation.oci-containers.backend = "docker";
   virtualisation.oci-containers.containers."kabilan108dotcom" = rec {
     image = "ghcr.io/kabilan108/kabilan108.com:latest";
     ports = [ "127.0.0.1:10080:80" ];
