@@ -1,0 +1,7 @@
+result
+result-*
+
+.deploy-gc/
+
+.direnv/
+.envrc
