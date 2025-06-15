@@ -37,6 +37,7 @@
 
       deploy.nodes.heighliner = {
         hostname = "heighliner";
+        sshUser = "root";
         profiles.system = {
           user = "root";
           path = deployPkgs.deploy-rs.lib.activate.nixos self.nixosConfigurations.heighliner;
@@ -47,7 +48,17 @@
       checks = builtins.mapAttrs (system: deployLib: deployLib.deployChecks self.deploy) deploy-rs.lib;
 
       devShells.${system}.default = pkgs.mkShell {
-        buildInputs = [ deploy-rs.packages.${system}.default ];
+        buildInputs = [ deploy-rs.packages.${system}.default pkgs.nodejs_20 ];
+        shellHook = ''
+          export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+          export PATH="$HOME/.npm-global/bin:$PATH"
+          if [ ! -f "$HOME/.npm-global/bin/claude" ]; then
+            npm install -g @anthropic-ai/claude-code
+          fi
+          if [ ! -f "$HOME/.npm-global/bin/ccusage" ]; then
+            npm install -g ccusage
+          fi
+        '';
       };
     };
 }
