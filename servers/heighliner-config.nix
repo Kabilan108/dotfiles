@@ -61,7 +61,7 @@ lib.recursiveUpdate {
       WorkingDirectory = "/root/servers";
       User = "root";
       Environment = [
-        "PATH-/run/current-system/sw/bin:/usr/bin:/bin"
+        "PATH=/run/current-system/sw/bin:/usr/bin:/bin"
         "NIX_PATH=/nix/var/nix/profiles/per-user/root/channels"
       ];
     };
