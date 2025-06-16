@@ -53,6 +53,19 @@ lib.recursiveUpdate {
     };
   };
 
+  systemd.services.nixos-rebuild-flake = {
+    description = "rebuild nixos config from flake";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.nixos-rebuild}/bin/nixos-rebuild switch --flake github:kabilan108/dotfiles?dir=servers#heighliner --refresh";
+      WorkingDirectory = "/root/servers";
+      User = "root";
+      Environment = [
+        "PATH-/run/current-system/sw/bin:/usr/bin:/bin"
+        "NIX_PATH=/nix/var/nix/profiles/per-user/root/channels"
+      ];
+    };
+  };
 
   systemd.tmpfiles.rules = [
     "d /var/lib/traefik 0700 traefik traefik -"
