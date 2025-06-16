@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     deploy-rs.url = "github:serokell/deploy-rs";
+    rollout.url = "github:kabilan108/rollout";
   };
 
   outputs =
@@ -11,6 +12,7 @@
       self,
       nixpkgs,
       deploy-rs,
+      rollout,
     }:
     let
       system = "x86_64-linux";
@@ -32,7 +34,12 @@
     {
       nixosConfigurations.heighliner = nixpkgs.lib.nixosSystem {
         inherit system;
-        modules = [ ./heighliner-config.nix ];
+        modules = [
+          ./heighliner-config.nix
+          {
+            _module.args.rolloutPkg = rollout.packages.${system}.default;
+          }
+        ];
       };
 
       deploy.nodes.heighliner = {
@@ -48,7 +55,10 @@
       checks = builtins.mapAttrs (system: deployLib: deployLib.deployChecks self.deploy) deploy-rs.lib;
 
       devShells.${system}.default = pkgs.mkShell {
-        buildInputs = [ deploy-rs.packages.${system}.default pkgs.nodejs_20 ];
+        buildInputs = [
+          deploy-rs.packages.${system}.default
+          pkgs.nodejs_20
+        ];
         shellHook = ''
           export NPM_CONFIG_PREFIX="$HOME/.npm-global"
           export PATH="$HOME/.npm-global/bin:$PATH"

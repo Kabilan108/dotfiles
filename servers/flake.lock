@@ -68,10 +68,45 @@
         "type": "github"
       }
     },
+    "nixpkgs_3": {
+      "locked": {
+        "lastModified": 1748026106,
+        "narHash": "sha256-6m1Y3/4pVw1RWTsrkAK2VMYSzG4MMIj7sqUy7o8th1o=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "063f43f2dbdef86376cc29ad646c45c46e93234c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "rollout": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_3"
+      },
+      "locked": {
+        "lastModified": 1750031817,
+        "narHash": "sha256-9f402TxNK8nq6bwiYkSbIBFbQZS+pHTmunohopg6C7Q=",
+        "owner": "kabilan108",
+        "repo": "rollout",
+        "rev": "9f4e5efc99b0a420738afd4c3f801212e2723497",
+        "type": "github"
+      },
+      "original": {
+        "owner": "kabilan108",
+        "repo": "rollout",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "deploy-rs": "deploy-rs",
-        "nixpkgs": "nixpkgs_2"
+        "nixpkgs": "nixpkgs_2",
+        "rollout": "rollout"
       }
     },
     "systems": {

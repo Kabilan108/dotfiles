@@ -3,6 +3,7 @@
   lib,
   modulesPath,
   pkgs,
+  rolloutPkg,
   ...
 }:
 
@@ -82,7 +83,20 @@ lib.recursiveUpdate {
     tmux
     wget
     xclip
+
+    rolloutPkg
   ];
+
+  systemd.services.rollout-webhook = {
+    description = "rollout webhook server";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" ];
+    serviceConfig = {
+      ExecStart = "${rolloutPkg}/bin/rollout webhook";
+      Restart = "always";
+      User = "root";
+    };
+  };
 
   system.activationScripts.setupDotfiles = lib.stringAfter [ "users" ] ''
     echo "Setting up dotfiles for root user..."
