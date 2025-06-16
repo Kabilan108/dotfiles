@@ -38,8 +38,21 @@ lib.recursiveUpdate {
   users.users.traefik.extraGroups = [ "docker" ];
 
   systemd.services.traefik.serviceConfig = {
-    EnvironmentFile = "/root/servers/secrets/cloudflare.env";
+    EnvironmentFile = "/root/servers/secrets/rollout.env";
   };
+
+  systemd.services.rollout-webhook = {
+    description = "rollout webhook server";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" ];
+    serviceConfig = {
+      EnvironmentFile = "/root/servers/secrets/rollout.env";
+      ExecStart = "${rolloutPkg}/bin/rollout webhook --port $ROLLOUT_WEBHOOK_PORT --token $ROLLOUT_WEBHOOK_TOKEN";
+      Restart = "always";
+      User = "root";
+    };
+  };
+
 
   systemd.tmpfiles.rules = [
     "d /var/lib/traefik 0700 traefik traefik -"
@@ -86,17 +99,6 @@ lib.recursiveUpdate {
 
     rolloutPkg
   ];
-
-  systemd.services.rollout-webhook = {
-    description = "rollout webhook server";
-    wantedBy = [ "multi-user.target" ];
-    after = [ "network.target" ];
-    serviceConfig = {
-      ExecStart = "${rolloutPkg}/bin/rollout webhook";
-      Restart = "always";
-      User = "root";
-    };
-  };
 
   system.activationScripts.setupDotfiles = lib.stringAfter [ "users" ] ''
     echo "Setting up dotfiles for root user..."
