@@ -5,6 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     deploy-rs.url = "github:serokell/deploy-rs";
     rollout.url = "github:kabilan108/rollout";
+    agenix.url = "github:ryantm/agenix";
   };
 
   outputs =
@@ -13,6 +14,7 @@
       nixpkgs,
       deploy-rs,
       rollout,
+      agenix,
     }:
     let
       system = "x86_64-linux";
@@ -39,6 +41,7 @@
           {
             _module.args.rolloutPkg = rollout.packages.${system}.default;
           }
+          agenix.nixosModules.default
         ];
       };
 
@@ -56,6 +59,7 @@
 
       devShells.${system}.default = pkgs.mkShell {
         buildInputs = [
+          agenix.packages.${system}.default
           deploy-rs.packages.${system}.default
           pkgs.nodejs_20
         ];

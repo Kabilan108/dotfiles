@@ -24,6 +24,8 @@ lib.recursiveUpdate {
   system.stateVersion = "25.05";
   networking.hostName = "heighliner";
 
+  age.secrets.rollout.file = ./rollout.age;
+
   virtualisation.docker.enable = true;
   virtualisation.docker.enableOnBoot = true;
   virtualisation.oci-containers.backend = "docker";
@@ -38,7 +40,7 @@ lib.recursiveUpdate {
   users.users.traefik.extraGroups = [ "docker" ];
 
   systemd.services.traefik.serviceConfig = {
-    EnvironmentFile = "/root/servers/secrets/rollout.env";
+    EnvironmentFile = "${config.age.secrets.rollout.path}";
   };
 
   systemd.services.rollout-webhook = {
@@ -46,7 +48,7 @@ lib.recursiveUpdate {
     wantedBy = [ "multi-user.target" ];
     after = [ "network.target" ];
     serviceConfig = {
-      EnvironmentFile = "/root/servers/secrets/rollout.env";
+      EnvironmentFile = "${config.age.secrets.rollout.path}";
       ExecStart = "${rolloutPkg}/bin/rollout webhook --port $ROLLOUT_WEBHOOK_PORT --token $ROLLOUT_WEBHOOK_TOKEN";
       Restart = "always";
       User = "root";
