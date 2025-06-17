@@ -73,6 +73,7 @@ lib.recursiveUpdate {
 
   environment.systemPackages = with pkgs; [
     bash
+    cachix
     clang
     curl
     fd
