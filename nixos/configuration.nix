@@ -49,7 +49,7 @@ in
           22
           80
           443
-          8000 
+          8000
         ];
       };
     };
@@ -71,13 +71,16 @@ in
     ];
   };
 
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 30d";
+  };
+  nix.extraOptions = ''trusted-users = root kabilan'';
   nix.settings.experimental-features = [
     "nix-command"
     "flakes"
   ];
-  nix.extraOptions = ''
-    trusted-users = root kabilan
-  '';
 
   virtualisation.docker = {
     enable = true;
