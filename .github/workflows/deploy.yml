@@ -7,6 +7,10 @@ on:
     branches: [nixos]
   workflow_dispatch:
 
+concurrency:
+  group: heighliner-deploy
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -24,6 +28,13 @@ jobs:
           mkdir -p ~/.config/nix
           echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
           nix --version
+
+      - name: Install cachix
+        run: |
+          . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+          nix profile install --accept-flake-config nixpkgs#cachix
+          cachix authtoken ${{ secrets.CACHIX_AUTH_TOKEN }}
+          cachix use heighliner
 
       - name: Add SSH key for deploy-rs
         env:
