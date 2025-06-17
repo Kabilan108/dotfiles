@@ -4,7 +4,7 @@ on:
   repository_dispatch: # triggered from other repos
     types: [deploy]
   push:
-    branches: [main]
+    branches: [nixos]
   workflow_dispatch:
 
 jobs:
@@ -21,6 +21,8 @@ jobs:
           set -euo pipefail
           curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
           . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+          mkdir -p ~/.config/nix
+          echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
           nix --version
 
       - name: Add SSH key for deploy-rs
