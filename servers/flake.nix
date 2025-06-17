@@ -4,7 +4,6 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     deploy-rs.url = "github:serokell/deploy-rs";
-    rollout.url = "github:kabilan108/rollout";
     agenix.url = "github:ryantm/agenix";
   };
 
@@ -13,7 +12,6 @@
       self,
       nixpkgs,
       deploy-rs,
-      rollout,
       agenix,
     }:
     let
@@ -38,9 +36,6 @@
         inherit system;
         modules = [
           ./heighliner-config.nix
-          {
-            _module.args.rolloutPkg = rollout.packages.${system}.default;
-          }
           agenix.nixosModules.default
         ];
       };

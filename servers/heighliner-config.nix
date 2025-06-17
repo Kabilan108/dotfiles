@@ -3,7 +3,6 @@
   lib,
   modulesPath,
   pkgs,
-  rolloutPkg,
   ...
 }:
 
@@ -24,7 +23,7 @@ lib.recursiveUpdate {
   system.stateVersion = "25.05";
   networking.hostName = "heighliner";
 
-  age.secrets.rollout.file = ./rollout.age;
+  age.secrets.env.file = ./env.age;
 
   virtualisation.docker.enable = true;
   virtualisation.docker.enableOnBoot = true;
@@ -41,34 +40,7 @@ lib.recursiveUpdate {
 
   systemd.services.traefik.serviceConfig = {
     User = "traefik";
-    EnvironmentFile = "${config.age.secrets.rollout.path}";
-  };
-
-  systemd.services.rollout-webhook = {
-    description = "rollout webhook server";
-    wantedBy = [ "multi-user.target" ];
-    after = [ "network.target" ];
-    serviceConfig = {
-      EnvironmentFile = "${config.age.secrets.rollout.path}";
-      ExecStart = "${rolloutPkg}/bin/rollout webhook --port $ROLLOUT_WEBHOOK_PORT --token $ROLLOUT_WEBHOOK_TOKEN";
-      Restart = "always";
-      User = "root";
-    };
-  };
-
-  systemd.services.nixos-rebuild-flake = {
-    description = "rebuild nixos config from flake";
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = "${pkgs.nixos-rebuild}/bin/nixos-rebuild switch --flake github:kabilan108/dotfiles?dir=servers#heighliner --refresh";
-      Mutex = "yes";
-      WorkingDirectory = "/root/servers";
-      User = "root";
-      Environment = [
-        "PATH=/run/current-system/sw/bin:/usr/bin:/bin"
-        "NIX_PATH=/nix/var/nix/profiles/per-user/root/channels"
-      ];
-    };
+    EnvironmentFile = "${config.age.secrets.env.path}";
   };
 
   systemd.tmpfiles.rules = [
@@ -113,8 +85,6 @@ lib.recursiveUpdate {
     tmux
     wget
     xclip
-
-    rolloutPkg
   ];
 
   system.activationScripts.setupDotfiles = lib.stringAfter [ "users" ] ''
