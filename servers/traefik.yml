@@ -22,7 +22,7 @@ providers:
     network: "web"
     watch: true
   file:
-    filename: "/etc/traefik/dynamic-config.yml"
+    filename: "/etc/traefik/traefik-dynamic.yml"
     watch: true
 
 certificatesResolvers:

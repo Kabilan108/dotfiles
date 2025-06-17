@@ -40,6 +40,7 @@ lib.recursiveUpdate {
   users.users.traefik.extraGroups = [ "docker" ];
 
   systemd.services.traefik.serviceConfig = {
+    User = "traefik";
     EnvironmentFile = "${config.age.secrets.rollout.path}";
   };
 
@@ -60,6 +61,7 @@ lib.recursiveUpdate {
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${pkgs.nixos-rebuild}/bin/nixos-rebuild switch --flake github:kabilan108/dotfiles?dir=servers#heighliner --refresh";
+      Mutex = "yes";
       WorkingDirectory = "/root/servers";
       User = "root";
       Environment = [
@@ -75,8 +77,8 @@ lib.recursiveUpdate {
     "d /etc/traefik 0755 root root -"
   ];
 
-  environment.etc."traefik/dynamic-config.yml" = {
-    source = ./dynamic-config.yml;
+  environment.etc."traefik/traefik-dynamic.yml" = {
+    source = ./traefik-dynamic.yml;
     mode = "0644";
   };
 
