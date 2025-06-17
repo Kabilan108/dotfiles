@@ -1,0 +1,53 @@
+name: deploy-heighliner
+
+on:
+  repository_dispatch: # triggered from other repos
+    types: [deploy]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout server repo
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        run: |
+          set -euo pipefail
+          curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
+          . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+          nix --version
+
+      - name: Add SSH key for deploy-rs
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          echo "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+          cat >> ~/.ssh/config <<EOF
+          Host heighliner
+            HostName $DEPLOY_HOST
+            User root
+            IdentitiesOnly yes
+            IdentityFile ~/.ssh/id_ed25519
+          EOF
+          chmod 600 ~/.ssh/config
+
+          ssh-keyscan -H $DEPLOY_HOST >> ~/.ssh/known_hosts
+
+      - name: Deploy
+        run: |
+          set -euo pipefail
+          . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+          nix run github:serokell/deploy-rs -- .#heighliner
