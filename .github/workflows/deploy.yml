@@ -52,4 +52,4 @@ jobs:
         run: |
           set -euo pipefail
           . "$HOME/.nix-profile/etc/profile.d/nix.sh"
-          nix run github:serokell/deploy-rs -- .#heighliner
+          nix run github:serokell/deploy-rs -- ./servers#heighliner
