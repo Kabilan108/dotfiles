@@ -30,10 +30,12 @@ jobs:
           nix --version
 
       - name: Install cachix
+        env:
+          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
         run: |
           . "$HOME/.nix-profile/etc/profile.d/nix.sh"
           nix profile install --accept-flake-config nixpkgs#cachix
-          cachix authtoken ${{ secrets.CACHIX_AUTH_TOKEN }}
+          cachix authtoken "$CACHIX_AUTH_TOKEN"
           cachix use kabilan108
 
       - name: Add SSH key for deploy-rs
@@ -63,4 +65,5 @@ jobs:
         run: |
           set -euo pipefail
           . "$HOME/.nix-profile/etc/profile.d/nix.sh"
-          nix run github:serokell/deploy-rs -- ./servers#heighliner
+          cachix watch-exec kabilan108 -- \
+            nix run github:serokell/deploy-rs -- ./servers#heighliner
