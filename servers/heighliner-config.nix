@@ -139,6 +139,13 @@ lib.recursiveUpdate {
     "nix-command"
     "flakes"
   ];
+  nix.settings.substituters = [
+    "https://cache.nixos.org"
+    "https://kabilan108.cachix.org"
+  ];
+  nix.settings.trusted-public-keys = [
+      "kabilan108.cachix.org-1:g8OqmhpqE1Bz9DjKTV17uQ3yzsfGcDB5fDgGfVC4t/o="
+  ];
 
   services.openssh = {
     enable = true;

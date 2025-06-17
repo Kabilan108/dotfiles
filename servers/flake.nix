@@ -56,6 +56,7 @@
         buildInputs = [
           agenix.packages.${system}.default
           deploy-rs.packages.${system}.default
+          pkgs.cachix
           pkgs.nodejs_20
         ];
         shellHook = ''
