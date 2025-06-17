@@ -18,6 +18,7 @@ in
     [
       ./hardware-config.nix
       ./modules/setup-i3.nix
+      ./modules/setup-systemd.nix
     ]
     ++ (lib.optional enableNvidia ./modules/setup-nvidia.nix)
     ++ (lib.optional isFramework13 <nixos-hardware/framework/13-inch/7040-amd>)
@@ -224,7 +225,6 @@ in
       stylua
 
       (builtins.getFlake "github:kabilan108/dump").packages.${builtins.currentSystem}.default
-      (builtins.getFlake "github:kabilan108/dictator").packages.${builtins.currentSystem}.default
       (builtins.getFlake "github:kabilan108/diffgpt").packages.${builtins.currentSystem}.default
       (builtins.getFlake "github:kabilan108/capscreen").packages.${builtins.currentSystem}.default
     ]
