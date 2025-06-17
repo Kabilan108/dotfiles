@@ -230,7 +230,6 @@ in
       (builtins.getFlake "github:kabilan108/capscreen").packages.${builtins.currentSystem}.default
       (builtins.getFlake "github:kabilan108/diffgpt").packages.${builtins.currentSystem}.default
       (builtins.getFlake "github:kabilan108/dump").packages.${builtins.currentSystem}.default
-      (builtins.getFlake "github:kabilan108/rollout").packages.${builtins.currentSystem}.default
     ]
     ++ (lib.optional enableNvidia nvtopPackages.full)
     ++ (lib.optional enableNvidia nvidia-container-toolkit)
