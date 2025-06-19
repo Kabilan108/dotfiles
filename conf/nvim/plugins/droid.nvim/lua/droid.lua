@@ -192,7 +192,11 @@ local function parse_conversation(lines)
       in_assistant_block = true
       assistant_model = begin_model
     elseif end_model then
-      if not in_assistant_block or end_model ~= assistant_model then
+      -- extract just the model name from end marker (ignore usage stats)
+      local end_model_name = end_model:match("^([^|]+)") or end_model
+      end_model_name = end_model_name:gsub("%s+$", "") -- trim trailing spaces
+      
+      if not in_assistant_block or end_model_name ~= assistant_model then
         return nil, "malformed conversation: mismatched assistant markers at line " .. i
       end
 
@@ -343,10 +347,17 @@ end
 --- handles streaming response data from anthropic api
 --- @param data_stream string the json data from the stream
 --- @param event_state string? the current sse event type
+--- @param usage_stats_ref table? reference to store usage stats
 --- @return nil
-local function handle_anthropic_spec_data(data_stream, event_state)
+local function handle_anthropic_spec_data(data_stream, event_state, usage_stats_ref)
   if event_state == 'content_block_delta' then
     local json = vim.json.decode(data_stream)
+
+    -- capture usage stats from final chunk
+    if json.usage and usage_stats_ref then
+      usage_stats_ref.usage = json.usage
+    end
+
     if json.delta and json.delta.text then
       write_string_at_cursor(json.delta.text)
     end
@@ -355,10 +366,17 @@ end
 
 --- handles streaming response data from openai-compatible apis
 --- @param data_stream string the json data from the stream
+--- @param usage_stats_ref table? reference to store usage stats
 --- @return nil
-local function handle_openai_spec_data(data_stream)
+local function handle_openai_spec_data(data_stream, usage_stats_ref)
   if data_stream:match '"delta":' then
     local json = vim.json.decode(data_stream)
+
+    -- capture usage stats from final chunk
+    if json.usage and usage_stats_ref then
+      usage_stats_ref.usage = json.usage
+    end
+
     if json.choices and json.choices[1] and json.choices[1].delta then
       local content = json.choices[1].delta.content
       if content then
@@ -366,6 +384,20 @@ local function handle_openai_spec_data(data_stream)
       end
     end
   end
+end
+
+--- formats usage stats from streaming response for display
+--- @param usage table the usage object from streaming response
+--- @return string formatted stats string
+local function format_usage_stats(usage)
+  local parts = {}
+  if usage.prompt_tokens then
+    table.insert(parts, "P: " .. usage.prompt_tokens .. " toks")
+  end
+  if usage.completion_tokens then
+    table.insert(parts, "C: " .. usage.completion_tokens .. " toks")
+  end
+  return table.concat(parts, " | ")
 end
 
 --- invokes an llm api and streams the response directly into the editor
@@ -385,10 +417,10 @@ local function invoke_llm_and_stream_into_editor(mode)
   local args = make_openai_spec_curl_args(mode, messages)
   local curr_event_state = nil
 
-  -- track assistant markers
+  -- track assistant markers and usage stats
   local first_output = true
+  local usage_stats_ref = {}
   local marker_prefix = "\n\n=== ASSISTANT BEGIN [" .. config.current_model .. "] ===\n"
-  local marker_suffix = "\n=== ASSISTANT END [" .. config.current_model .. "] ==="
 
   -- parse server-sent events (sse) format: "event: type\ndata: json"
   local function parse_and_call(line)
@@ -407,8 +439,8 @@ local function invoke_llm_and_stream_into_editor(mode)
           first_output = false
         end
       end
-      handle_openai_spec_data(data_match)
-      -- handle_anthropic_spec_data(data_match, curr_event_state)
+      handle_openai_spec_data(data_match, usage_stats_ref)
+      -- handle_anthropic_spec_data(data_match, curr_event_state, usage_stats_ref)
     end
   end
 
@@ -430,8 +462,18 @@ local function invoke_llm_and_stream_into_editor(mode)
     end,
     on_exit = function(_, return_val)
       if mode == "help" and return_val == 0 and not first_output then
-        -- add closing marker on successful completion
-        write_string_at_cursor(marker_suffix)
+        -- add closing marker with usage stats if available
+        vim.schedule(function()
+          local stats_text = ""
+          if usage_stats_ref.usage then
+            local formatted_stats = format_usage_stats(usage_stats_ref.usage)
+            if formatted_stats ~= "" then
+              stats_text = " | " .. formatted_stats
+            end
+          end
+          local final_marker = "\n=== ASSISTANT END [" .. config.current_model .. stats_text .. "] ==="
+          write_string_at_cursor(final_marker)
+        end)
       end
       active_job = nil
     end,
