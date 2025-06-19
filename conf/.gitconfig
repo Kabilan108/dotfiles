@@ -82,3 +82,5 @@
   stp = stash pop
   t = tag
   td = tag -d
+  wc = whatchanged
+  wt = worktree
