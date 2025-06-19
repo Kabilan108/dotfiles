@@ -7,6 +7,7 @@ local finders = require "telescope.finders"
 local conf = require("telescope.config").values
 local actions = require "telescope.actions"
 local action_state = require "telescope.actions.state"
+local previewers = require "telescope.previewers"
 local mini_notify = require('mini.notify')
 
 mini_notify.setup()
@@ -16,9 +17,13 @@ local notify = mini_notify.make_notify({
   INFO = { duration = 3000 },
 })
 
--- set up the ability to have multi turn convos with delimiters between user and assistant messages
--- need to be able to dynamically update the message history from the bufffer
--- potentially persistence to sqlite or json
+-- TODO: there should be a way to persist the current model across sessions
+
+-- TODO: there should be a way to persist the conversation to a sqlite db or json file
+--       need to figure out a writing strategy that won't hang the editor
+--       potentially as an after-effect after a completion is done.
+--       the record would be updaetd every time a new generation is made to account for
+--       changes in the prompts.
 
 --- @class CompletionOpts
 --- @field base_url string?
@@ -33,6 +38,10 @@ local M = {}
 local config = {}
 local active_job = nil
 local group = vim.api.nvim_create_augroup('Droid_AutoGroup', { clear = true })
+
+-- droid buffer management
+local droid_buffer_counter = 0
+local droid_buffers = {} -- track active droid buffers
 
 M.available_models = {
   "openai/gpt-4.1",
@@ -195,7 +204,7 @@ local function parse_conversation(lines)
       -- extract just the model name from end marker (ignore usage stats)
       local end_model_name = end_model:match("^([^|]+)") or end_model
       end_model_name = end_model_name:gsub("%s+$", "") -- trim trailing spaces
-      
+
       if not in_assistant_block or end_model_name ~= assistant_model then
         return nil, "malformed conversation: mismatched assistant markers at line " .. i
       end
@@ -571,6 +580,182 @@ function M.jump_to_new()
   -- move cursor to end
   local last_line = vim.api.nvim_buf_line_count(buf)
   vim.api.nvim_win_set_cursor(0, { last_line, 0 })
+end
+
+--- creates a new dedicated droid buffer for llm conversations
+--- @return number buffer id of the created buffer
+function M.create_droid_buffer()
+  droid_buffer_counter = droid_buffer_counter + 1
+  local buffer_name = "droid://chat-" .. droid_buffer_counter
+
+  -- create new buffer (unlisted to hide from regular buffer list)
+  local buf = vim.api.nvim_create_buf(false, false) -- listed=false, scratch=false
+  vim.api.nvim_buf_set_name(buf, buffer_name)
+
+  -- set buffer options for markdown and better chat experience
+  vim.api.nvim_buf_set_option(buf, 'filetype', 'markdown')
+  vim.api.nvim_buf_set_option(buf, 'wrap', true)
+  vim.api.nvim_buf_set_option(buf, 'linebreak', true)
+  vim.api.nvim_buf_set_option(buf, 'conceallevel', 2)
+  vim.api.nvim_buf_set_option(buf, 'concealcursor', 'nc')
+
+  -- add initial content template
+  local initial_content = {
+    "# Droid Chat " .. droid_buffer_counter,
+    "",
+    "Welcome to your dedicated LLM chat buffer! Start typing your message below.",
+    "",
+    "---",
+    "",
+    ""
+  }
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, initial_content)
+
+  -- track the buffer
+  droid_buffers[buf] = {
+    id = droid_buffer_counter,
+    name = buffer_name,
+    created = os.time(),
+    model = config.current_model
+  }
+
+  -- set up autocommand to clean up when buffer is deleted
+  vim.api.nvim_create_autocmd("BufDelete", {
+    buffer = buf,
+    callback = function()
+      droid_buffers[buf] = nil
+    end,
+    group = group
+  })
+
+  -- switch to the new buffer in current window
+  vim.api.nvim_set_current_buf(buf)
+
+  -- position cursor at end
+  local last_line = vim.api.nvim_buf_line_count(buf)
+  vim.api.nvim_win_set_cursor(0, { last_line, 0 })
+
+  notify("droid: created new chat buffer " .. buffer_name, vim.log.levels.INFO)
+  return buf
+end
+
+--- lists all active droid buffers
+--- @return table list of droid buffer info
+function M.list_droid_buffers()
+  local active_buffers = {}
+  for buf_id, info in pairs(droid_buffers) do
+    if vim.api.nvim_buf_is_valid(buf_id) then
+      table.insert(active_buffers, {
+        buffer = buf_id,
+        id = info.id,
+        name = info.name,
+        created = info.created,
+        model = info.model
+      })
+    else
+      -- cleanup invalid buffers
+      droid_buffers[buf_id] = nil
+    end
+  end
+  return active_buffers
+end
+
+--- checks if a buffer is a droid buffer
+--- @param buf_id number? buffer id (defaults to current buffer)
+--- @return boolean
+function M.is_droid_buffer(buf_id)
+  buf_id = buf_id or vim.api.nvim_get_current_buf()
+  return droid_buffers[buf_id] ~= nil
+end
+
+--- creates a telescope picker for droid chat buffers
+function M.pick_droid_buffer()
+  if not config.api_key_name then
+    error("droid.setup() must be called before using completions")
+  end
+
+  local active_buffers = M.list_droid_buffers()
+
+  if #active_buffers == 0 then
+    notify("droid: no active chat buffers", vim.log.levels.INFO)
+    return
+  end
+
+  -- prepare entries for telescope
+  local entries = vim.tbl_map(function(buf_info)
+    local time_str = os.date("%H:%M", buf_info.created)
+    return {
+      display = string.format("Chat %d • %s • %s", buf_info.id, buf_info.model, time_str),
+      buffer = buf_info.buffer,
+      id = buf_info.id,
+      name = buf_info.name,
+      model = buf_info.model,
+      created = buf_info.created,
+      ordinal = string.format("chat %d %s %s", buf_info.id, buf_info.model, buf_info.name)
+    }
+  end, active_buffers)
+
+  pickers.new({}, {
+    prompt_title = "Droid Chat Buffers",
+    finder = finders.new_table {
+      results = entries,
+      entry_maker = function(entry)
+        return {
+          value = entry,
+          display = entry.display,
+          ordinal = entry.ordinal,
+          buffer = entry.buffer
+        }
+      end
+    },
+    sorter = conf.generic_sorter({}),
+    previewer = previewers.new_buffer_previewer({
+      title = "Chat Preview",
+      define_preview = function(self, entry, status)
+        -- preview the buffer content
+        if entry.buffer and vim.api.nvim_buf_is_valid(entry.buffer) then
+          local lines = vim.api.nvim_buf_get_lines(entry.buffer, 0, -1, false)
+          vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
+          -- set markdown filetype for syntax highlighting in preview
+          vim.api.nvim_buf_set_option(self.state.bufnr, 'filetype', 'markdown')
+        end
+      end
+    }),
+    layout_strategy = "horizontal",
+    layout_config = {
+      horizontal = {
+        width = 0.9,
+        height = 0.8,
+        preview_width = 0.6,
+      }
+    },
+    attach_mappings = function(prompt_bufnr, map)
+      actions.select_default:replace(function()
+        actions.close(prompt_bufnr)
+        local selection = action_state.get_selected_entry()
+        if selection and selection.buffer then
+          -- switch to the selected droid buffer
+          vim.api.nvim_set_current_buf(selection.buffer)
+          -- position cursor at end
+          local last_line = vim.api.nvim_buf_line_count(selection.buffer)
+          vim.api.nvim_win_set_cursor(0, { last_line, 0 })
+        end
+      end)
+
+      -- add mapping to delete buffer
+      map('i', '<C-d>', function()
+        local selection = action_state.get_selected_entry()
+        if selection and selection.buffer then
+          vim.api.nvim_buf_delete(selection.buffer, { force = true })
+          -- refresh the picker
+          actions.close(prompt_bufnr)
+          M.pick_droid_buffer()
+        end
+      end)
+
+      return true
+    end,
+  }):find()
 end
 
 return M
