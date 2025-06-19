@@ -257,6 +257,13 @@ return {
           treesitter = true,
           which_key = true,
         },
+        custom_highlights = function(colors)
+          return {
+            -- Better folding colors
+            Folded = { bg = colors.surface0, fg = colors.overlay1, style = { "italic" } },
+            FoldColumn = { bg = colors.base, fg = colors.surface2 },
+          }
+        end,
       })
       vim.cmd.colorscheme "catppuccin-mocha"
     end
