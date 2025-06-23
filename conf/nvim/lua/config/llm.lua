@@ -17,7 +17,9 @@ droid.setup({
 })
 
 utils.map("<leader>ll", { "n", "v" }, droid.help_completion, "llm: help")
+utils.map("<leader>ln", { "n", "v" }, droid.create_droid_buffer, "llm: create buffer")
+utils.map("<leader>lb", { "n", "v" }, droid.pick_droid_buffer, "llm: list buffers")
 utils.map("<leader>le", { "n", "v" }, droid.edit_completion, "llm: edit")
 utils.map("<leader>lm", { "n", "v" }, droid.select_model, "llm: select model")
-utils.map("<leader>ln", { "n", "v" }, droid.jump_to_new, "llm: jump to new")
+utils.map("<leader>lG", { "n", "v" }, droid.jump_to_new, "llm: jump to new")
 utils.map("<leader>lc", "n", droid.cancel_completion, "llm: cancel stream")
