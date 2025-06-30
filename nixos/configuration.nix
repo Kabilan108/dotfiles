@@ -176,6 +176,7 @@ in
       htop
       imagemagick
       jq
+      lazygit
       openssl
       openvpn
       portaudio
