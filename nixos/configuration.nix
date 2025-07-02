@@ -21,6 +21,7 @@ in
       ./hardware-config.nix
       ./modules/setup-i3.nix
       ./modules/setup-systemd.nix
+      ./modules/setup-xbox-controller.nix
     ]
     ++ (lib.optional enableNvidia ./modules/setup-nvidia.nix)
     ++ (lib.optional isFramework13 <nixos-hardware/framework/13-inch/7040-amd>)
