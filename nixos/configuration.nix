@@ -21,6 +21,7 @@ in
       ./hardware-config.nix
       ./modules/setup-i3.nix
       ./modules/setup-systemd.nix
+      ./modules/setup-xbox-controller.nix
     ]
     ++ (lib.optional enableNvidia ./modules/setup-nvidia.nix)
     ++ (lib.optional isFramework13 <nixos-hardware/framework/13-inch/7040-amd>)
@@ -72,6 +73,16 @@ in
       ./authorized_keys
     ];
   };
+
+  system.activationScripts.code-agents.text = ''
+    export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+    export PATH="$HOME/.npm-global/bin:$PATH"
+    for pkg in @anthropic-ai/claude-code opencode-ai@latest; do
+      if ! command -v "$(basename "$pkg")" >/dev/null 2>&1; then
+        npm install -g "$pkg" || echo "yo npm borked installing $pkg"
+      fi
+    done
+  '';
 
   nix.gc = {
     automatic = true;
@@ -133,6 +144,7 @@ in
       viAlias = true;
       vimAlias = true;
     };
+    nix-ld.enable = true;
     nm-applet.enable = true;
     steam.enable = true;
   };
@@ -184,7 +196,6 @@ in
       tailscale
       tree
       tree-sitter
-      texliveMedium
       tmux
       wget
       xclip
