@@ -74,6 +74,16 @@ in
     ];
   };
 
+  system.activationScripts.code-agents.text = ''
+    export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+    export PATH="$HOME/.npm-global/bin:$PATH"
+    for pkg in @anthropic-ai/claude-code opencode-ai@latest; do
+      if ! command -v "$(basename "$pkg")" >/dev/null 2>&1; then
+        npm install -g "$pkg" || echo "yo npm borked installing $pkg"
+      fi
+    done
+  '';
+
   nix.gc = {
     automatic = true;
     dates = "weekly";
@@ -134,6 +144,7 @@ in
       viAlias = true;
       vimAlias = true;
     };
+    nix-ld.enable = true;
     nm-applet.enable = true;
     steam.enable = true;
   };
@@ -184,7 +195,6 @@ in
       tailscale
       tree
       tree-sitter
-      texliveMedium
       tmux
       wget
       xclip
