@@ -118,6 +118,7 @@ export PROMPT_DIRTRIM=4
 paths=(
     "$HOME/bin"
     "$HOME/.local/bin"
+    "$HOME/.npm-global/bin"
     "$GOPATH"
 )
 for dir in "${paths[@]}"; do
