@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dunstify -u normal \"Claude: $(jq -r '.message')\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '\"\\(.session_id), \\(.tool_input.command), \\(.tool_input.description // \"No description\")\"' >> $HOME/.claude/logs/bash-commands.txt"
+          }
+        ]
+      }
+    ]
+  }
+}
