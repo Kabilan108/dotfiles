@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+
+usage() {
+  cat << EOF
+usage: claude-check [--help] [format|lint]
+
+post-tool-use hook for Claude Code that runs linters and formatters
+
+commands:
+  format    format files changed by claude
+  lint      lint files and block if issues found
+
+options:
+  -h, --help    show this help and exit
+
+supported file types:
+  *.go          gofmt
+EOF
+}
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  usage
+  exit 0
+fi
+
+set -euo pipefail
+trap 'echo "internal error at line $LINENO" >&2; exit 1' ERR
+
+if [ $# -lt 1 ]; then
+  usage
+  exit 1
+fi
+cmd="$1"
+
+if [ "$cmd" != "format" ] && [ "$cmd" != "lint" ]; then
+  echo "unknown command: $cmd" >&2; exit 1
+fi
+
+# read hook input
+input="$(cat)"
+input >> inputs.json
+file_path=$(jq -r '.tool_input.file_path' <<<"$input") \
+  || { echo "no file_path in input" >&2; exit 2; }
+
+# sanitize & ensure absolute path
+if [[ "$file_path" == *".."* ]]; then
+  echo "path traversal detected: $file_path" >&2
+  exit 2
+fi
+file_path=$(realpath --canonicalize-existing "$file_path") \
+  || { echo "file not found: $file_path" >&2; exit 2; }
+
+run_format() {
+  local tool_cmd=$1
+  local args=( "${@:2}" )
+  if ! command -v "$tool_cmd" >/dev/null; then
+    echo "tool not found: $tool_cmd" >&2
+    exit 1
+  fi
+
+  if ! "$tool_cmd" "${args[@]}" >&2; then exit 1; fi
+  exit 0
+}
+
+run_lint() {
+  local tool_cmd=$1
+  local args=( "${@:2}" )
+  if ! command -v "$tool_cmd" >/dev/null; then
+    echo "tool not found: $tool_cmd" >&2
+    exit 1
+  fi
+
+  out=$("$tool_cmd" "${args[@]}" 2>&1)
+  if [[ -z "$out" ]]; then exit 0; fi
+  jq -n --arg msg "linter messages:\n$out" '{decision: "block", reason: $msg}'
+  exit 0
+}
+
+if [[ "$file_path" == *.go ]]; then
+  if [[ "$cmd" == "format" ]]; then
+    run_format 0 gofmt -w "$file_path"
+  elif [[ "$cmd" == "lint" ]]; then
+    run_lint gofmt -w "$file_path"
+  fi
+else
+  echo "$0: error: unsupported file type: $file_path" >&2
+  exit 1
+fi
