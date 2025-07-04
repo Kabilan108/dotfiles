@@ -1,0 +1,37 @@
+git:
+  paging:
+    pager: "delta --paging=never"
+
+gui:
+  authorColors:
+    '*': '#b4befe'
+
+  branchColorPatterns:
+    '^main$': '#94e2d5'
+    '^master$': '#94e2d5'
+    '^feat[ure]?/': '#74c7ec'
+    '^bugfix/': '#eba0ac'
+    '^fix/': '#eba0ac'
+
+  nerdFontsVersion: "3"
+
+  theme:
+    activeBorderColor:
+      - '#f9e2af'
+      - bold
+    inactiveBorderColor:
+      - '#a6adc8'
+    optionsTextColor:
+      - '#89b4fa'
+    selectedLineBgColor:
+      - '#313244'
+    cherryPickedCommitBgColor:
+      - '#45475a'
+    cherryPickedCommitFgColor:
+      - '#f9e2af'
+    unstagedChangesColor:
+      - '#f38ba8'
+    defaultFgColor:
+      - '#cdd6f4'
+    searchingActiveBorderColor:
+      - '#f9e2af'
