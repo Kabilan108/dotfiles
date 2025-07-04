@@ -193,6 +193,7 @@ in
       htop
       imagemagick
       jq
+      lazydocker
       lazygit
       openssl
       openvpn
