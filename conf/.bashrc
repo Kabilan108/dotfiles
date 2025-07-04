@@ -184,6 +184,7 @@ alias grep='grep --color=auto'
 alias fgrep='fgrep --color=auto'
 alias egrep='egrep --color=auto'
 
+alias lg='lazygit'
 alias ipy='ipython'
 alias icat='kitten icat'
 alias nohist='HISTFILE=/dev/null'
