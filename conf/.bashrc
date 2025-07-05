@@ -118,6 +118,7 @@ export PROMPT_DIRTRIM=4
 paths=(
     "$HOME/bin"
     "$HOME/.local/bin"
+    "$HOME/.npm-global/bin"
     "$GOPATH"
 )
 for dir in "${paths[@]}"; do
@@ -183,6 +184,7 @@ alias grep='grep --color=auto'
 alias fgrep='fgrep --color=auto'
 alias egrep='egrep --color=auto'
 
+alias lg='lazygit'
 alias ipy='ipython'
 alias icat='kitten icat'
 alias nohist='HISTFILE=/dev/null'

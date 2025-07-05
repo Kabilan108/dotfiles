@@ -74,6 +74,21 @@ in
     ];
   };
 
+  system.activationScripts.code-agents.text = ''
+    ${pkgs.sudo}/bin/sudo -u kabilan ${pkgs.bash}/bin/bash -c '
+      export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+      export PATH="${pkgs.bash}/bin:${pkgs.coreutils}/bin:${pkgs.nodejs_20}/bin:$NPM_CONFIG_PREFIX/bin:$PATH"
+
+      mkdir -p "$NPM_CONFIG_PREFIX/bin"
+
+      for pkg in @anthropic-ai/claude-code opencode-ai@latest ccusage; do
+        if ! command -v "$(basename "$pkg")" >/dev/null 2>&1; then
+          ${pkgs.nodejs_20}/bin/npm install -g "$pkg" || echo "npm failed to install $pkg"
+        fi
+      done
+    '
+  '';
+
   nix.gc = {
     automatic = true;
     dates = "weekly";
@@ -134,6 +149,7 @@ in
       viAlias = true;
       vimAlias = true;
     };
+    nix-ld.enable = true;
     nm-applet.enable = true;
     steam.enable = true;
   };
@@ -177,6 +193,8 @@ in
       htop
       imagemagick
       jq
+      lazydocker
+      lazygit
       openssl
       openvpn
       portaudio
@@ -184,7 +202,6 @@ in
       tailscale
       tree
       tree-sitter
-      texliveMedium
       tmux
       wget
       xclip

@@ -207,5 +207,9 @@
 	"cursor.terminal.usePreviewBox": true,
 	"cursor.composer.cmdPFilePicker2": true,
 	"cursor.diffs.useCharacterLevelDiffs": true,
-	"cursor.composer.shouldAllowCustomModes": true
+	"cursor.composer.shouldAllowCustomModes": true,
+	"cursor.cpp.disabledLanguages": [
+		"plaintext"
+	],
+	"python.defaultInterpreterPath": "/run/current-system/sw/bin/python"
 }
