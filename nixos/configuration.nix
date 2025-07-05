@@ -92,13 +92,15 @@ in
   nix.gc = {
     automatic = true;
     dates = "weekly";
-    options = "--delete-older-than 30d";
+    options = "--delete-older-than 2w";
   };
   nix.extraOptions = ''trusted-users = root kabilan'';
   nix.settings.experimental-features = [
     "nix-command"
     "flakes"
   ];
+  # automatically detect duplicated store paths
+  nix.settings.auto-optimise-store = true;
 
   virtualisation.docker = {
     enable = true;
