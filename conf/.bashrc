@@ -127,41 +127,45 @@ for dir in "${paths[@]}"; do
     fi
 done
 
+if [ -f ~/.bashenv ]; then
+    source ~/.bashenv
+fi
+
 eval "$(direnv hook bash)"
 
 
 #### --> FUNCTIONS
 
 function tmuxa() {
-  if [[ -z "$1" ]]; then
-    echo "Usage: tmuxa <session>"
-    return 1
-  else
-    tmux attach-session -t "$1"
-  fi
+    if [[ -z "$1" ]]; then
+        echo "Usage: tmuxa <session>"
+        return 1
+    else
+        tmux attach-session -t "$1"
+    fi
 }
 
 function tmuxn() {
-  if [[ -z "$1" ]]; then
-    tmux new-session
-  else
-    tmux new-session -s "$1"
-  fi
+    if [[ -z "$1" ]]; then
+        tmux new-session
+    else
+        tmux new-session -s "$1"
+    fi
 }
 
 function tmuxl() {
-  tmux list-sessions 2>/dev/null
+    tmux list-sessions 2>/dev/null
 }
 
 function tmuxk() {
-  if [[ -z "$1" ]]; then
-    echo "Usage: tmuxk <session>"
-    sessions=$(tmuxl | awk -F': ' '{print $1}' | paste -sd '  ' -)
-    [ -n "$sessions" ] && echo "existing sessions:  $sessions"
-    return 1
-  else
-    tmux kill-session -t "$1"
-  fi
+    if [[ -z "$1" ]]; then
+        echo "Usage: tmuxk <session>"
+        sessions=$(tmuxl | awk -F': ' '{print $1}' | paste -sd '  ' -)
+        [ -n "$sessions" ] && echo "existing sessions:  $sessions"
+        return 1
+    else
+        tmux kill-session -t "$1"
+    fi
 }
 
 

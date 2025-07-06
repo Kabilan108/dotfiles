@@ -5,17 +5,7 @@
   ...
 }:
 let
-  loadSecrets =
-    path:
-    if builtins.pathExists path then
-      (
-        let
-          rawSecrets = builtins.fromJSON (builtins.readFile path);
-        in
-        lib.mapAttrs (name: value: toString value) rawSecrets
-      )
-    else
-      { };
+  home = config.users.users.kabilan.home;
 in
 {
   imports = [
@@ -65,10 +55,16 @@ in
     shell = pkgs.bashInteractive;
   };
 
-  age.identityPaths = [ "/home/kabilan/.ssh/id_ed25519" ];
-  age.secrets."secrets/env.json".file = ./secrets/env.json;
+  age.identityPaths = [ "${home}/.ssh/id_ed25519" ];
+  age.secrets."secrets/env.age" = {
+    file = ./secrets/env.age;
+    path = "${home}/.bashenv";
+    mode = "0600"; # read/write for owner only
+    owner = "kabilan";
+    group = "users";
+  };
 
-  environment.variables = lib.attrsets.recursiveUpdate (rec {
+  environment.variables = rec {
     FZF_DEFAULT_OPTS = "--reverse";
     GTK_THEME = "WhiteSur-Dark";
     UV_LINK_MODE = "copy";
@@ -85,7 +81,7 @@ in
     LLM_USER_PATH = "${USER_DATA}/datasette-llm";
     OLLAMA_MODELS = "${USER_DATA}/ollama/models";
     TORCH_HOME = "${USER_DATA}/torch";
-  }) (loadSecrets config.age.secrets."secrets/env.json".path);
+  };
 
   time.timeZone = "America/New_York";
   i18n.defaultLocale = "en_US.UTF-8";
