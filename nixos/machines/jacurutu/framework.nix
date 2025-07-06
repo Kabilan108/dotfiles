@@ -1,10 +1,7 @@
 # Configure Framework 13 with AMD 7040 series
-
-{ config, pkgs, ... }:
-let
-  lib = pkgs.lib;
-in
+{ inputs, ... }:
 {
+  imports = [ inputs.nixos-hardware.nixosModules.framework-13-7040-amd ];
   services.fwupd.enable = true;
 
   services.printing.enable = true;

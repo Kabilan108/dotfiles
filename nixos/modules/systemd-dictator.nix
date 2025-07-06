@@ -1,8 +1,6 @@
-{ pkgs, ... }:
-
+{ pkgs, inputs, ... }:
 let
-  dictator =
-    (builtins.getFlake "github:kabilan108/dictator").packages.${builtins.currentSystem}.default;
+  dictator = inputs.dictator.packages.${pkgs.system}.default;
 in
 {
   environment.systemPackages = [ dictator ];
