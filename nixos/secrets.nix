@@ -7,8 +7,4 @@ in
     sietch
     jacurutu
   ];
-  "secrets/authorized_keys".publicKeys = [
-    sietch
-    jacurutu
-  ];
 }

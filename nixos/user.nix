@@ -63,14 +63,10 @@ in
       yt-dlp
     ];
     shell = pkgs.bashInteractive;
-    openssh.authorizedKeys.keyFiles = [
-      config.age.secrets."secrets/authorized_keys".path
-    ];
   };
 
   age.identityPaths = [ "/home/kabilan/.ssh/id_ed25519" ];
   age.secrets."secrets/env.json".file = ./secrets/env.json;
-  age.secrets."secrets/authorized_keys".file = ./secrets/authorized_keys;
 
   environment.variables = lib.attrsets.recursiveUpdate (rec {
     FZF_DEFAULT_OPTS = "--reverse";

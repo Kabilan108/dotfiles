@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 {
   imports = [
     ./nvidia.nix
@@ -36,4 +36,6 @@
       settings.KbdInteractiveAuthentication = false;
     };
   };
+
+  users.users.kabilan.openssh.authorizedKeys.keyFiles = [ ./autorized_keys ];
 }
