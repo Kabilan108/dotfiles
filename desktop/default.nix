@@ -2,6 +2,10 @@
 
 { pkgs, theme, ... }:
 {
+  imports = [
+    ./apps/ghostty.nix
+  ];
+
   fonts.fontconfig = {
     enable = true;
     defaultFonts = {
