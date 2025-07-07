@@ -1,6 +1,6 @@
-# NixOS Flake Configuration
+# NixOS + Home Manager Flake Configuration
 
-A modular, flake-based NixOS configuration supporting multiple machines with shared and machine-specific settings.
+A modular, flake-based NixOS configuration with Home Manager integration, supporting multiple machines with shared and machine-specific settings.
 
 ## Quick Start
 
@@ -21,32 +21,40 @@ nix flake update
 ### Flake Structure
 
 ```
-nixos/
 ├── flake.nix                 # Main flake definition
 ├── flake.lock               # Pinned input versions
 ├── configuration.nix        # Shared system configuration
-├── user.nix                 # User packages and environment
-├── dev.nix                  # Development tools and languages
 ├── secrets.nix              # Agenix secrets configuration
+├── home/                    # Home Manager configuration
+│   ├── default.nix          # User packages, programs, and dotfiles
+│   ├── systemd-services.nix # User systemd services
+│   └── config/              # Application configurations
+│       ├── nvim/            # Neovim configuration
+│       ├── claude/          # Claude Code settings
+│       └── ...              # Other app configs
+├── desktop/                 # Desktop environment (Home Manager)
+│   ├── default.nix          # i3, polybar, rofi, dunst setup
+│   ├── config/              # Desktop app configurations
+│   └── wallpapers/          # Desktop wallpapers
+├── common/                  # Shared NixOS modules
+│   ├── user.nix             # User configuration with Home Manager
+│   ├── desktop-x11.nix      # X11 and desktop services
+│   ├── nvidia.nix           # NVIDIA/CUDA setup
+│   └── xbox-controller.nix  # Gaming controller support
 ├── machines/                # Machine-specific configurations
 │   ├── sietch/
 │   │   ├── default.nix      # Desktop system config
-│   │   ├── nvidia.nix       # NVIDIA/CUDA setup
 │   │   └── hardware-configuration.nix
 │   └── jacurutu/
 │       ├── default.nix      # Framework laptop config
-│       ├── framework.nix    # Framework-specific settings
 │       └── hardware-configuration.nix
-├── modules/                 # Reusable NixOS modules
-│   ├── agents.nix           # AI agent installations
-│   ├── locale.nix           # Locale configuration
-│   ├── systemd-dictator.nix # Dictator systemd service
-│   └── xbox-controller.nix  # Gaming controller support
-├── desktop/                 # Desktop environment
-│   └── i3.nix              # i3 window manager setup
+├── scripts/                 # Utility scripts
+│   ├── bootstrap.sh         # Legacy dotfile symlinks
+│   └── partitioning.sh      # Disk partitioning helper
+├── selfhost/                # Docker services
+│   └── compose.yml          # Open-WebUI, Jellyfin, etc.
 └── secrets/                 # Encrypted secrets (agenix)
-    ├── env.json             # Environment variables
-    └── authorized_keys      # SSH keys
+    └── env.age              # Environment variables
 ```
 
 ### Machines
@@ -74,11 +82,13 @@ nixos/
 ## Key Features
 
 ### Shared Configuration
-- **i3 Window Manager**: Tiling window manager with custom keybindings
-- **Development Environment**: Comprehensive LSP setup, languages, and tools
+- **Home Manager**: User-level package and configuration management
+- **i3 Window Manager**: Tiling window manager with custom keybindings (via Home Manager)
+- **Development Environment**: Comprehensive LSP setup, languages, and tools (via Home Manager)
 - **Audio**: PipeWire with PulseAudio compatibility
 - **Networking**: NetworkManager with VPN support
 - **Security**: Tailscale VPN, encrypted secrets via agenix
+- **Themes**: Catppuccin Mocha color scheme integrated across applications
 
 ### Custom Packages
 All custom packages are integrated as flake inputs:
@@ -95,26 +105,29 @@ All custom packages are integrated as flake inputs:
 
 ## Development Workflow
 
-1. **Make Changes**: Edit configuration files
+1. **Make Changes**: Edit configuration files (NixOS system config or Home Manager user config)
 2. **Test**: `nix flake check --no-build`
-3. **Deploy**: `sudo nixos-rebuild switch --flake .#<machine>`
+3. **Deploy**: `sudo nixos-rebuild switch --flake .#<machine>` (includes Home Manager)
 4. **Rollback**: `sudo nixos-rebuild switch --rollback` (if needed)
+5. **Home Manager only**: `home-manager switch --flake .#<user>@<machine>` (if needed)
 
 ## File Organization
 
 ### Core Files
 - `flake.nix`: Defines inputs, outputs, and system configurations
 - `configuration.nix`: System-wide settings (boot, networking, services)
-- `user.nix`: User account, packages, and environment variables
-- `dev.nix`: Development tools, languages, and Docker
+- `common/user.nix`: User account configuration with Home Manager integration
+- `home/default.nix`: Home Manager configuration (packages, programs, dotfiles)
+- `desktop/default.nix`: Desktop environment configuration via Home Manager
 
 ### Machine-Specific
 - `machines/<hostname>/default.nix`: Machine-specific configuration
 - `machines/<hostname>/*.nix`: Hardware-specific modules
 
 ### Modules
-- `modules/`: Reusable configuration modules
-- `desktop/`: Desktop environment setup
+- `common/`: Shared NixOS modules
+- `home/`: Home Manager user configuration
+- `desktop/`: Desktop environment setup via Home Manager
 - `secrets/`: Encrypted configuration files
 
 ## Adding New Machines
@@ -124,6 +137,7 @@ All custom packages are integrated as flake inputs:
 3. Include machine-specific modules
 4. Add to `flake.nix` nixosConfigurations
 5. Update `secrets.nix` with new SSH key
+6. Configure Home Manager integration in `common/user.nix`
 
 ## Updating Dependencies
 

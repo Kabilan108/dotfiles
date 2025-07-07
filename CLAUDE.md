@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Common Commands
 
-### System Configuration (NixOS)
+### System Configuration (NixOS + Home Manager)
 ```bash
 # Deploy system configuration using flakes
 sudo nixos-rebuild switch --flake .#sietch
@@ -19,8 +19,8 @@ nix flake update
 
 ### Dotfiles Setup
 ```bash
-# Bootstrap symlinks and directories
-./bootstrap.sh
+# Bootstrap symlinks and directories (for remaining non-Nix configs)
+./scripts/bootstrap.sh
 
 # Enter development shell with Claude Code
 nix develop
@@ -40,25 +40,25 @@ docker-compose down
 
 ## Architecture Overview
 
-This is a complete NixOS-based development workstation configuration with:
+This is a complete NixOS + Home Manager-based development workstation configuration with:
 
 ### Core Components
-- **nixos/flake.nix** - Main flake configuration defining system configurations and inputs
-- **nixos/configuration.nix** - Shared system configuration with i3, development tools, and services
-- **nixos/user.nix** - User configuration with packages, secrets, and environment variables
-- **nixos/dev.nix** - Development environment with languages, LSPs, and tools
-- **nixos/machines/{sietch,jacurutu}/default.nix** - Machine-specific configurations
-- **bootstrap.sh** - Symlink dotfiles and create directory structure
+- **flake.nix** - Main flake configuration defining system configurations and inputs
+- **configuration.nix** - Shared system configuration with services and basic setup
+- **common/user.nix** - User configuration with Home Manager integration
+- **home/default.nix** - Home Manager configuration with packages and programs
+- **desktop/default.nix** - Desktop environment configuration via Home Manager
+- **machines/{sietch,jacurutu}/default.nix** - Machine-specific configurations
+- **scripts/bootstrap.sh** - Symlink remaining dotfiles and create directory structure
 
 ### Directory Structure
-- **conf/** - Application configurations (nvim, kitty, ghostty, etc.)
-- **desktop/** - Desktop environment configs (i3, polybar, rofi, dunst)
-- **bin/** - Utility scripts (sessionizer, polybar starter, pickers)
+- **home/** - Home Manager configuration (user packages, programs, dotfiles)
+- **desktop/** - Desktop environment configs (i3, polybar, rofi, dunst) managed by Home Manager
+- **common/** - Shared NixOS modules (user config, desktop X11, nvidia, etc.)
+- **machines/** - Machine-specific configurations (sietch with NVIDIA/CUDA, jacurutu with Framework laptop support)
 - **selfhost/** - Docker services (Open-WebUI, Jellyfin, Vaultwarden, Nginx)
-- **nixos/modules/** - Reusable NixOS modules (agents, locale, systemd services, xbox controller)
-- **nixos/machines/** - Machine-specific configurations (sietch with NVIDIA/CUDA, jacurutu with Framework laptop support)
-- **nixos/desktop/** - Desktop environment modules (i3 window manager setup)
-- **nixos/secrets/** - Encrypted secrets managed with agenix
+- **scripts/** - Utility scripts (bootstrap, partitioning)
+- **secrets/** - Encrypted secrets managed with agenix
 
 ### Key Features
 - **Vault Storage**: `/vault` directory for persistent data with symlinks to `~/work`, `~/repos`, `~/journal`, `~/userdata`
@@ -68,24 +68,28 @@ This is a complete NixOS-based development workstation configuration with:
 - **Self-Hosted Services**: Open-WebUI for AI chat, Jellyfin for media, Vaultwarden for passwords
 
 ### Configuration Management
-- All configurations are symlinked via `bootstrap.sh`
-- NixOS handles system packages and services declaratively using flakes
-- Machine-specific settings isolated in `nixos/machines/{hostname}/`
-- Development dependencies managed through Nix flakes
+- **Home Manager**: User packages, programs, and dotfiles managed declaratively
+- **NixOS**: System services, hardware, and global configuration
+- **Hybrid approach**: Some configs still symlinked via `scripts/bootstrap.sh` (legacy)
+- Machine-specific settings isolated in `machines/{hostname}/`
+- Development dependencies managed through Home Manager
 - Secrets encrypted with agenix and machine-specific SSH keys
 - Custom packages (capscreen, dictator, diffgpt, dump, rollouts) integrated as flake inputs
 
 ### Development Workflow
 1. Use `sessionizer` for project navigation
-2. Neovim with comprehensive LSP setup for coding
-3. Self-hosted AI services for assistance
-4. Docker for service management
-5. Git workflow with GitHub CLI integration
+2. Neovim with comprehensive LSP setup managed by Home Manager
+3. Development tools (lazygit, lazydocker, etc.) configured via Home Manager
+4. Self-hosted AI services for assistance
+5. Docker for service management
+6. Git workflow with GitHub CLI integration
 
 ## Special Notes
 - **sietch**: Desktop system with NVIDIA GPU and CUDA support, gaming setup
 - **jacurutu**: Framework laptop with fingerprint support and power management
+- **Home Manager**: Manages user-level packages, programs, and configurations
+- **Themes**: Catppuccin Mocha color scheme integrated across applications
 - Tailscale VPN integration for secure remote access
-- Font requirement: FiraMono Nerd Font
-- Default shell: bash with custom configuration
+- Font requirement: FiraMono Nerd Font (managed by Home Manager)
+- Default shell: bash with custom configuration managed by Home Manager
 - Flake-based configuration for reproducible builds and easy rollbacks
