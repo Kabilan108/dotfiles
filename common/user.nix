@@ -9,7 +9,6 @@ let
   home = config.users.users.kabilan.home;
 in
 {
-
   users.users.kabilan = {
     isNormalUser = true;
     description = "Tony Kabilan Okeke";
@@ -27,7 +26,7 @@ in
   age = {
     identityPaths = [ "${home}/.ssh/id_ed25519" ];
     secrets."secrets/env.age" = {
-      file = ./secrets/env.age;
+      file = ../secrets/env.age;
       path = "${home}/.bashenv";
       mode = "0600"; # read/write for owner only
       owner = "kabilan";
@@ -41,8 +40,8 @@ in
     extraSpecialArgs = { inherit inputs theme; };
 
     users.kabilan.imports = [
-      ./home
-      ./desktop
+      ../home
+      ../desktop
     ];
   };
 

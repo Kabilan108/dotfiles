@@ -5,7 +5,7 @@
 }:
 {
   imports = [
-    ./user.nix
+    ./common/user.nix
     ./common/desktop-x11.nix
   ];
 
