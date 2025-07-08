@@ -35,7 +35,7 @@ in
         "alt+7=unbind"
         "alt+8=unbind"
         "alt+9=unbind"
-        "performable:alt+s=text:sessionizer\n"
+        "performable:alt+s=text:sessionizer\\n"
       ];
     };
     themes = {
