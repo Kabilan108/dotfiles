@@ -4,6 +4,7 @@
 {
   imports = [
     ./apps/ghostty.nix
+    ./apps/i3.nix
   ];
 
   fonts.fontconfig = {
@@ -18,14 +19,10 @@
     };
   };
 
-  xsession.windowManager.i3 = {
-    enable = true;
-  };
-
   home.file = {
     ".config/betterlockscreen".source = ./config/betterlockscreen;
     ".config/dunst".source = ./config/dunst;
-    ".config/i3".source = ./config/i3;
+    # ".config/i3".source = ./config/i3;
     ".config/picom".source = ./config/picom;
     ".config/polybar".source = ./config/polybar;
     ".config/rofi".source = ./config/rofi;
