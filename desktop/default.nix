@@ -35,6 +35,7 @@
     arandr
     autorandr
     betterlockscreen
+    cherry-studio
     dunst
     feh
     flameshot
