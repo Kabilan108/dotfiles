@@ -24,6 +24,7 @@ in
 
     ".claude/settings.json".source = ./config/claude/settings.json;
     ".claude/commands".source = ./config/claude/commands;
+    ".claude/CLAUDE.md".source = ./config/claude/CLAUDE.md;
 
     ".config/nvim".source = ./config/nvim;
     ".config/vscode".source = ./config/vscode;
