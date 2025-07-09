@@ -26,6 +26,12 @@
     ".config/picom".source = ./config/picom;
     ".config/polybar".source = ./config/polybar;
     ".config/rofi".source = ./config/rofi;
+
+    ".config/vscode".source = ./config/vscode;
+    ".config/Cursor/User/extensions.json".source = ./config/vscode/extensions.json;
+    ".config/Cursor/User/keybindings.json".source = ./config/vscode/keybindings.json;
+    ".config/Cursor/User/settings.json".source = ./config/vscode/settings.json;
+    ".config/Cursor/User/snippets".source = ./config/vscode/snippets;
   };
 
   home.packages = with pkgs; [

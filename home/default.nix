@@ -27,7 +27,6 @@ in
     ".claude/CLAUDE.md".source = ./config/claude/CLAUDE.md;
 
     ".config/nvim".source = ./config/nvim;
-    ".config/vscode".source = ./config/vscode;
     ".ipython/profile_default/ipython_config.py".source = ./config/ipython_config.py;
 
     "bin".source = ./bin;
