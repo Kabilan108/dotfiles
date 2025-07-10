@@ -211,5 +211,5 @@
 	"cursor.cpp.disabledLanguages": [
 		"plaintext"
 	],
-	"python.defaultInterpreterPath": "/run/current-system/sw/bin/python"
+	"python.defaultInterpreterPath": "/etc/profiles/per-user/kabilan/bin/python"
 }
