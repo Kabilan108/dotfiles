@@ -4,8 +4,6 @@
   imports = [ inputs.nixos-hardware.nixosModules.framework-13-7040-amd ];
   services.fwupd.enable = true;
 
-  services.printing.enable = true;
-
   programs.light.enable = true;
   users.extraGroups.video.members = [ "kabilan" ];
 
