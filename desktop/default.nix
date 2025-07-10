@@ -1,10 +1,11 @@
 # Set up X11 and i3wm
 
-{ pkgs, theme, ... }:
+{ pkgs, ... }:
 {
   imports = [
     ./apps/ghostty.nix
     ./apps/i3.nix
+    ./apps/polybar.nix
   ];
 
   fonts.fontconfig = {
@@ -22,9 +23,7 @@
   home.file = {
     ".config/betterlockscreen".source = ./config/betterlockscreen;
     ".config/dunst".source = ./config/dunst;
-    # ".config/i3".source = ./config/i3;
     ".config/picom".source = ./config/picom;
-    ".config/polybar".source = ./config/polybar;
     ".config/rofi".source = ./config/rofi;
 
     ".config/vscode".source = ./config/vscode;
@@ -48,10 +47,6 @@
     picom
     pavucontrol
     playerctl
-    (polybar.override {
-      i3Support = true;
-      pulseSupport = true;
-    })
     pulseaudio
     rofi
     xorg.xdpyinfo
