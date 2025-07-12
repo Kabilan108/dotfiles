@@ -9,6 +9,7 @@
     ./apps/i3.nix
     ./apps/picom.nix
     ./apps/polybar.nix
+    ./apps/rofi
   ];
 
   fonts.fontconfig = {
@@ -24,8 +25,6 @@
   };
 
   home.file = {
-    ".config/rofi".source = ./config/rofi;
-
     ".config/vscode".source = ./config/vscode;
     ".config/Cursor/User/extensions.json".source = ./config/vscode/extensions.json;
     ".config/Cursor/User/keybindings.json".source = ./config/vscode/keybindings.json;
