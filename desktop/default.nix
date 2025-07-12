@@ -4,6 +4,7 @@
 {
   imports = [
     ./apps/betterlockscreen.nix
+    ./apps/dunst.nix
     ./apps/ghostty.nix
     ./apps/i3.nix
     ./apps/picom.nix
@@ -23,7 +24,6 @@
   };
 
   home.file = {
-    ".config/dunst".source = ./config/dunst;
     ".config/rofi".source = ./config/rofi;
 
     ".config/vscode".source = ./config/vscode;
