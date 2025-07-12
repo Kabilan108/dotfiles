@@ -97,7 +97,6 @@ in
 
   home.sessionVariables = rec {
     FZF_DEFAULT_OPTS = "--reverse";
-    GTK_THEME = "WhiteSur-Dark";
     UV_LINK_MODE = "copy";
     UV_SYSTEM_PYTHON = "1";
 
@@ -143,11 +142,6 @@ in
     vlc
     zoom-us
     zotero
-
-    # themes
-    lxappearance
-    whitesur-gtk-theme
-    whitesur-icon-theme
 
     # media/file handling
     baobab

@@ -24,6 +24,18 @@
     };
   };
 
+  gtk = {
+    enable = true;
+    iconTheme = {
+      name = "WhiteSur-dark";
+      package = pkgs.whitesur-icon-theme;
+    };
+    theme = {
+      name = "WhiteSur-dark";
+      package = pkgs.whitesur-gtk-theme;
+    };
+  };
+
   home.packages = with pkgs; [
     arandr
     autorandr
