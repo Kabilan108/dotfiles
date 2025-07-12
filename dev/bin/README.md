@@ -26,23 +26,20 @@ useful bash tools. some of these are used as part of my desktop env others are j
 - [pickers](./pickers):
   uses fzf to select directories or ssh hosts, and opens them in a new or split tmux window.
 
-- [record.sh](./record.sh):
-  interactively record your screen and audio; supports multiple displays and audio sources.
-
 - [sessionizer](./sessionizer):
   quick tmux session manager and directory jumper, integrates with fzf. inspired by [ThePrimeagen](https://github.com/ThePrimeagen/tmux-sessionizer/tree/master)
-
-- [set-monitors](./set-monitors):
-  sets xrandr monitor layouts based on the value of an environment variable.
 
 - [set-wallpaper](./set-wallpaper):
   sets wallpaper using the `feh` utility, loading the path from a variable.
 
-- [update-cursor](./update-cursor):
-  downloads and updates the cursor code editor AppImage safely.
+- [start-polybar](./start-polybar):
+  launches polybar status bar with proper configuration.
 
-- [update-ghostty](./update-ghostty):
-  fetches and builds the latest release of the ghostty terminal emulator from source.
+- [claude-check](./claude-check):
+  utility for checking claude code integration.
+
+- [ws](./ws):
+  workspace management utility.
 
 - [volctl](./volctl):
   adjusts audio volume and mute/unmute status with notifications; handles mic as well.

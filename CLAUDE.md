@@ -46,14 +46,14 @@ This is a complete NixOS + Home Manager-based development workstation configurat
 - **flake.nix** - Main flake configuration defining system configurations and inputs
 - **configuration.nix** - Shared system configuration with services and basic setup
 - **common/user.nix** - User configuration with Home Manager integration
-- **home/default.nix** - Home Manager configuration with packages and programs
+- **dev/default.nix** - Development environment configuration with packages and programs
 - **desktop/default.nix** - Desktop environment configuration via Home Manager
 - **machines/{sietch,jacurutu}/default.nix** - Machine-specific configurations
 - **scripts/bootstrap.sh** - Symlink remaining dotfiles and create directory structure
 
 ### Directory Structure
-- **home/** - Home Manager configuration (user packages, programs, dotfiles)
-- **desktop/** - Desktop environment configs (i3, polybar, rofi, dunst) managed by Home Manager
+- **dev/** - Development environment and user configuration (Home Manager: packages, programs, dotfiles, custom scripts)
+- **desktop/** - Desktop environment configs (i3, polybar, rofi, dunst) managed declaratively by Home Manager
 - **common/** - Shared NixOS modules (user config, desktop X11, nvidia, etc.)
 - **machines/** - Machine-specific configurations (sietch with NVIDIA/CUDA, jacurutu with Framework laptop support)
 - **selfhost/** - Docker services (Open-WebUI, Jellyfin, Vaultwarden, Nginx)

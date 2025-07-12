@@ -25,16 +25,22 @@ nix flake update
 ├── flake.lock               # Pinned input versions
 ├── configuration.nix        # Shared system configuration
 ├── secrets.nix              # Agenix secrets configuration
-├── home/                    # Home Manager configuration
+├── dev/                     # Development environment (Home Manager)
 │   ├── default.nix          # User packages, programs, and dotfiles
 │   ├── systemd-services.nix # User systemd services
+│   ├── bin/                 # Custom scripts and utilities
 │   └── config/              # Application configurations
 │       ├── nvim/            # Neovim configuration
 │       ├── claude/          # Claude Code settings
+│       ├── vscode/          # VSCode configuration
 │       └── ...              # Other app configs
 ├── desktop/                 # Desktop environment (Home Manager)
 │   ├── default.nix          # i3, polybar, rofi, dunst setup
-│   ├── config/              # Desktop app configurations
+│   ├── apps/                # Desktop app configurations (Nix)
+│   │   ├── rofi/            # Rofi launcher configuration
+│   │   ├── dunst.nix        # Notification daemon setup
+│   │   ├── picom.nix        # Compositor configuration
+│   │   └── polybar.nix      # Status bar configuration
 │   └── wallpapers/          # Desktop wallpapers
 ├── common/                  # Shared NixOS modules
 │   ├── user.nix             # User configuration with Home Manager
@@ -84,6 +90,7 @@ nix flake update
 ### Shared Configuration
 - **Home Manager**: User-level package and configuration management
 - **i3 Window Manager**: Tiling window manager with custom keybindings (via Home Manager)
+- **Desktop Applications**: Fully declarative configuration for rofi, dunst, picom, polybar, and GTK themes
 - **Development Environment**: Comprehensive LSP setup, languages, and tools (via Home Manager)
 - **Audio**: PipeWire with PulseAudio compatibility
 - **Networking**: NetworkManager with VPN support
@@ -117,7 +124,7 @@ All custom packages are integrated as flake inputs:
 - `flake.nix`: Defines inputs, outputs, and system configurations
 - `configuration.nix`: System-wide settings (boot, networking, services)
 - `common/user.nix`: User account configuration with Home Manager integration
-- `home/default.nix`: Home Manager configuration (packages, programs, dotfiles)
+- `dev/default.nix`: Development environment configuration (packages, programs, dotfiles)
 - `desktop/default.nix`: Desktop environment configuration via Home Manager
 
 ### Machine-Specific
@@ -126,8 +133,8 @@ All custom packages are integrated as flake inputs:
 
 ### Modules
 - `common/`: Shared NixOS modules
-- `home/`: Home Manager user configuration
-- `desktop/`: Desktop environment setup via Home Manager
+- `dev/`: Development environment and user configuration (Home Manager)
+- `desktop/`: Desktop environment setup via Home Manager (i3, apps managed declaratively)
 - `secrets/`: Encrypted configuration files
 
 ## Adding New Machines
