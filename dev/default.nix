@@ -21,15 +21,16 @@ in
     ".obsidian.vimrc".source = ./config/.obsidian.vimrc;
     ".tmux.conf".source = ./config/.tmux.conf;
     ".vimrc".source = ./config/.vimrc;
+    "bin".source = ./bin;
 
-    ".claude/settings.json".source = ./config/claude/settings.json;
-    ".claude/commands".source = ./config/claude/commands;
-    ".claude/CLAUDE.md".source = ./config/claude/CLAUDE.md;
+    ".claude".source = ./config/claude;
+    ".claude".recursive = true;
 
     ".config/nvim".source = ./config/nvim;
-    ".ipython/profile_default/ipython_config.py".source = ./config/ipython_config.py;
+    ".config/Cursor/User".source = ./config/vscode;
+    ".config/Cursor/User".recursive = true;
 
-    "bin".source = ./bin;
+    ".ipython/profile_default/ipython_config.py".source = ./config/ipython_config.py;
   };
 
   programs = {

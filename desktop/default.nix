@@ -24,14 +24,6 @@
     };
   };
 
-  home.file = {
-    ".config/vscode".source = ./config/vscode;
-    ".config/Cursor/User/extensions.json".source = ./config/vscode/extensions.json;
-    ".config/Cursor/User/keybindings.json".source = ./config/vscode/keybindings.json;
-    ".config/Cursor/User/settings.json".source = ./config/vscode/settings.json;
-    ".config/Cursor/User/snippets".source = ./config/vscode/snippets;
-  };
-
   home.packages = with pkgs; [
     arandr
     autorandr

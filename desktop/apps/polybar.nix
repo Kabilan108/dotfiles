@@ -10,7 +10,7 @@ in
 {
   services.polybar = {
     enable = true;
-    script = lib.readFile ../../home/bin/start-polybar;
+    script = lib.readFile ../../dev/bin/start-polybar;
     package = pkgs.polybar.override {
       i3Support = true;
       pulseSupport = true;

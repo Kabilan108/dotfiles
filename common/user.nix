@@ -40,8 +40,8 @@ in
     extraSpecialArgs = { inherit inputs theme; };
 
     users.kabilan.imports = [
-      ../home
       ../desktop
+      ../dev
     ];
   };
 
