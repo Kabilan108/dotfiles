@@ -6,6 +6,7 @@
     ./apps/betterlockscreen.nix
     ./apps/ghostty.nix
     ./apps/i3.nix
+    ./apps/picom.nix
     ./apps/polybar.nix
   ];
 
@@ -23,7 +24,6 @@
 
   home.file = {
     ".config/dunst".source = ./config/dunst;
-    ".config/picom".source = ./config/picom;
     ".config/rofi".source = ./config/rofi;
 
     ".config/vscode".source = ./config/vscode;
