@@ -58,64 +58,86 @@
 	"terminal.integrated.fontFamily": "'FiraMono Nerd Font Mono'",
 	"terminal.integrated.cursorBlinking": true,
 	"terminal.integrated.scrollback": 10000,
-	"vim.highlightedyank": {
-		"enable": true,
-		"duration": 250
+	"vim": {
+		"highlightedyank": {
+			"enable": true,
+			"duration": 250
+		},
+		"hlsearch": true,
+		"incsearch": true,
+		"leader": "<Space>",
+		"overrideCopy": "true",
+		"useCtrlKeys": true,
+		"useSystemClipboard": true,
+		"visualstar": true,
+		"insertModeKeyBindings": [],
+		"normalModeKeyBindings": [
+			{
+				"before": ["<Esc>"],
+				"commands": [":nohl"]
+			},
+			{
+				"before": ["\\"],
+				"commands": ["workbench.action.toggleSidebarVisibility"]
+			},
+			{
+				"before": ["<leader>", "s", "f"],
+				"commands": ["workbench.action.quickOpen"]
+			},
+			{
+				"before": ["<leader>", "s", "g"],
+				"commands": ["workbench.action.findInFiles"]
+			},
+			{
+				"before": ["<leader>", "b"],
+				"commands": ["workbench.action.showAllEditors"]
+			},
+			{
+				"before": ["z", "c"],
+				"commands": ["editor.fold"]
+			},
+			{
+				"before": ["z", "o"],
+				"commands": ["editor.unfold"]
+			},
+			{
+				"before": ["<leader>", "z"],
+				"commands": ["editor.toggleFold"]
+			},
+			{
+				"before": ["<leader>", "Z"],
+				"commands": ["editor.toggleFoldRecursively"]
+			},
+			{
+				"before": ["<C-`>"],
+				"commands": ["workbench.action.terminal.openInEditor"]
+			}
+		],
+		"normalModeKeyBindingsNonRecursive": [
+			{
+				"before": ["j"],
+				"after": ["g", "j"]
+			},
+			{
+				"before": ["k"],
+				"after": ["g", "k"]
+			}
+		],
+		"visualModeKeyBindingsNonRecursive": [
+			{
+				"before": ["j"],
+				"after": ["g", "j"]
+			},
+			{
+				"before": ["k"],
+				"after": ["g", "k"]
+			}
+		],
+		"visualModeKeyBindings": []
 	},
-	"vim.hlsearch": true,
-	"vim.incsearch": true,
-	"vim.leader": "<Space>",
-	"vim.overrideCopy": "true",
-	"vim.useCtrlKeys": true,
-	"vim.useSystemClipboard": true,
-	"vim.visualstar": true,
 	"extensions.experimental.affinity": {
 		"vscodevim": 1
 	},
-	"vim.insertModeKeyBindings": [],
-	"vim.normalModeKeyBindings": [
-		{
-			"before": ["<Esc>"],
-			"commands": [":nohl"]
-		},
-		{
-			"before": ["\\"],
-			"commands": ["workbench.action.toggleSidebarVisibility"]
-		},
-		{
-			"before": ["<leader>", "s", "f"],
-			"commands": ["workbench.action.quickOpen"]
-		},
-		{
-			"before": ["<leader>", "s", "g"],
-			"commands": ["workbench.action.findInFiles"]
-		},
-		{
-			"before": ["<leader>", "b"],
-			"commands": ["workbench.action.showAllEditors"]
-		},
-		{
-			"before": ["z", "c"],
-			"commands": ["editor.fold"]
-		},
-		{
-			"before": ["z", "o"],
-			"commands": ["editor.unfold"]
-		},
-		{
-			"before": ["<leader>", "z"],
-			"commands": ["editor.toggleFold"]
-		},
-		{
-			"before": ["<leader>", "Z"],
-			"commands": ["editor.toggleFoldRecursively"]
-		},
-		{
-			"before": ["<C-`>"],
-			"commands": ["workbench.action.terminal.openInEditor"]
-		}
-	],
-	"vim.visualModeKeyBindings": [],
 	"vsicons.dontShowNewVersionMessage": true,
 	"window.commandCenter": 1,
 	"window.customTitleBarVisibility": "auto",
@@ -208,8 +230,6 @@
 	"cursor.composer.cmdPFilePicker2": true,
 	"cursor.diffs.useCharacterLevelDiffs": true,
 	"cursor.composer.shouldAllowCustomModes": true,
-	"cursor.cpp.disabledLanguages": [
-		"plaintext"
-	],
+	"cursor.cpp.disabledLanguages": ["plaintext"],
 	"python.defaultInterpreterPath": "/etc/profiles/per-user/kabilan/bin/python"
 }
