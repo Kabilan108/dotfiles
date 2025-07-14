@@ -6,6 +6,7 @@
     ./apps/betterlockscreen.nix
     ./apps/dunst.nix
     ./apps/ghostty.nix
+    ./apps/gtk.nix
     ./apps/i3.nix
     ./apps/picom.nix
     ./apps/polybar.nix
@@ -21,18 +22,6 @@
         "FiraMono Nerd Font"
         "Fira Mono"
       ];
-    };
-  };
-
-  gtk = {
-    enable = true;
-    iconTheme = {
-      name = "WhiteSur-dark";
-      package = pkgs.whitesur-icon-theme;
-    };
-    theme = {
-      name = "WhiteSur-dark";
-      package = pkgs.whitesur-gtk-theme;
     };
   };
 
