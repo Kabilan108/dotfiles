@@ -11,7 +11,7 @@ in
   xdg.configFile."betterlockscreen/betterlockscreenrc".text = ''
     display_on=all
     span_image=false
-    lock_timeout=300
+    lock_timeout=1800  # 30 minutes
     fx_list=(dim blur dimblur pixel dimpixel color)
     dim_level=40
     blur_level=1
