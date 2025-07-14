@@ -39,7 +39,10 @@
     {
       nixosConfigurations = {
         sietch = makeSystem { name = "sietch"; };
-        jacurutu = makeSystem { name = "jacurutu"; };
+        jacurutu = makeSystem {
+          name = "jacurutu";
+          modules = [ ./common/virt-manager.nix ];
+        };
       };
     };
 
