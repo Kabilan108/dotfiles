@@ -33,15 +33,26 @@
           modules = [
             (./. + "/machines/${name}")
             ./configuration.nix
+            ./common/user.nix
           ] ++ modules;
         };
     in
     {
       nixosConfigurations = {
-        sietch = makeSystem { name = "sietch"; };
+        sietch = makeSystem {
+          name = "sietch";
+          modules = [
+            ./common/desktop-x11.nix
+            ./common/nvidia.nix
+            ./common/xbox-controller.nix
+          ];
+        };
         jacurutu = makeSystem {
           name = "jacurutu";
-          modules = [ ./common/virt-manager.nix ];
+          modules = [
+            ./common/desktop-x11.nix
+            ./common/virt-manager.nix
+          ];
         };
       };
     };

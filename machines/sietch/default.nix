@@ -1,22 +1,13 @@
-{ pkgs, config, ... }:
+{ pkgs, ... }:
 {
   imports = [
     ./hardware-configuration.nix
-    ../../common/nvidia.nix
-    ../../common/xbox-controller.nix
   ];
 
   networking.hostName = "sietch";
 
   environment = {
-    systemPackages = with pkgs; [
-      cudaPackages.cudatoolkit
-      cudaPackages.cudnn
-      nvtopPackages.full
-      nvidia-container-toolkit
-
-      openrgb-with-all-plugins
-    ];
+    systemPackages = [ pkgs.openrgb-with-all-plugins ];
     variables = {
       WALLPAPER = "$HOME/dotfiles/desktop/wallpapers/evangelion-eva-1.png";
     };

@@ -1,6 +1,6 @@
 # Configure Nvidia drivers & CUDA
 
-{ config, ... }:
+{ config, pkgs, ... }:
 {
   # load driver for xorg & wayland
   services.xserver.videoDrivers = [ "nvidia" ];
@@ -20,4 +20,11 @@
 
   hardware.nvidia-container-toolkit.enable = true;
   virtualisation.docker.daemon.settings.features.cdi = true;
+
+  environment.systemPackages = with pkgs; [
+    cudaPackages.cudatoolkit
+    cudaPackages.cudnn
+    nvtopPackages.full
+    nvidia-container-toolkit
+  ];
 }

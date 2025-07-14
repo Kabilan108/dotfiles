@@ -4,11 +4,6 @@
   ...
 }:
 {
-  imports = [
-    ./common/user.nix
-    ./common/desktop-x11.nix
-  ];
-
   config = {
     boot.loader.systemd-boot.enable = true;
     boot.loader.systemd-boot.configurationLimit = 15;
