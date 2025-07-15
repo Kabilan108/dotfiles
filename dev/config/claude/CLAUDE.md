@@ -13,13 +13,23 @@ tools for a variety of languages are installed in the home environment, but wher
 - use type hints wherever possible. if a @pyproject.toml file is present, check the pythonversion and use the appropriate type hints.
 - the only code that belongs in a try except block, is the ccode that is expected to raise and exception.
 
-#### package management
+### package management with uv
 
-- use the `uv` package manager to manage python. 
-- when necessary, uv will be installed via the project's flake.
-- when you need to use uv, refer to the instructions here first. if relevant instructions are not available here, refer to the following url which provides links to more thorough documentation: https://docs.astral.sh/uv/llms.txt
+this project uses the `uv` package manager for dependency management:
 
-- here are some examples of common operations you may need to perform:
+#### common commands:
+- `uv add <package>`: add a new dependency to pyproject.toml
+- `uv add --group dev <package>`: add to development dependencies
+- `uv remove <package>`: remove a dependency
+- `uv sync`: install/update dependencies from lockfile
+- `uv run <script>`: execute scripts in the project environment
+- `uv run python <file>`: run python files with project dependencies
+
+#### development workflow:
+- dependencies are defined in `pyproject.toml`
+- use `uv sync` to ensure environment matches lockfile
+- use `uv run` to execute code with proper dependencies
+- add new dependencies with `uv add` rather than manual editing
 
 ### `lua`
 
