@@ -6,6 +6,7 @@ in
   services.betterlockscreen = {
     enable = true;
     package = pkgs.betterlockscreen;
+    inactiveInterval = 30;
   };
 
   xdg.configFile."betterlockscreen/betterlockscreenrc".text = ''
