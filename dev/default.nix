@@ -25,6 +25,8 @@ in
 
     ".claude".source = ./config/claude;
     ".claude".recursive = true;
+    ".opencode".source = ./config/opencode;
+    ".opencode".recursive = true;
 
     ".config/nvim".source = ./config/nvim;
     ".config/Cursor/User".source = ./config/vscode;
