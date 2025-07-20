@@ -2,6 +2,7 @@
   pkgs,
   lib,
   theme,
+  config,
   ...
 }:
 let
@@ -28,7 +29,7 @@ in
     ".opencode".source = ./config/opencode;
     ".opencode".recursive = true;
 
-    ".config/nvim".source = ./config/nvim;
+    ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/dev/config/nvim";
     ".config/Cursor/User".source = ./config/vscode;
     ".config/Cursor/User".recursive = true;
 
