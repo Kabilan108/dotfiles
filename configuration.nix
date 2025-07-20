@@ -75,7 +75,6 @@
       appimage.binfmt = true;
       nix-ld.enable = true;
       nm-applet.enable = true;
-      steam.enable = true;
     };
 
     virtualisation.docker = {

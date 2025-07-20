@@ -6,8 +6,9 @@
 
   networking.hostName = "sietch";
 
+  programs.steam.enable = true;
   environment = {
-    systemPackages = [ pkgs.openrgb-with-all-plugins ];
+    systemPackages = with pkgs; [ openrgb-with-all-plugins prismlauncher ];
     variables = {
       WALLPAPER = "$HOME/dotfiles/desktop/wallpapers/evangelion-eva-1.png";
     };
