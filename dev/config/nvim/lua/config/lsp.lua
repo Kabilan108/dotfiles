@@ -77,6 +77,41 @@ local servers = {
   ruff = {
     cmd = { 'ruff', 'server' },
   },
+  tailwindcss = {
+    cmd = {'bunx', '--bun', '@tailwindcss/language-server', '--stdio'},
+    filetypes = {
+      'css', 'scss', 'sass', 'postcss',
+      'html', 'htmldjango', 'vue', 'svelte',
+      'javascript', 'javascriptreact', 'typescript', 'typescriptreact',
+      'php', 'markdown', 'mdx'
+    },
+    root_dir = require('lspconfig.util').root_pattern(
+      'tailwind.config.js',
+      'tailwind.config.cjs',
+      'tailwind.config.mjs',
+      'tailwind.config.ts',
+      'postcss.config.js',
+      'postcss.config.cjs',
+      'postcss.config.mjs',
+      'postcss.config.ts',
+      'package.json'
+    ),
+    settings = {
+      tailwindCSS = {
+        classAttributes = { 'class', 'className', 'class:list', 'classList', 'ngClass' },
+        lint = {
+          cssConflict = 'warning',
+          invalidApply = 'error',
+          invalidConfigPath = 'error',
+          invalidScreen = 'error',
+          invalidTailwindDirective = 'error',
+          invalidVariant = 'error',
+          recommendedVariantOrder = 'warning'
+        },
+        validate = true
+      }
+    },
+  },
   ts_ls = {
     filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact' },
     root_dir = require('lspconfig.util').root_pattern('package.json', 'tsconfig.json', 'jsconfig.json'),
