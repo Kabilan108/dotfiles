@@ -34,7 +34,7 @@ utils.map("<leader>sh", "n", ts.help_tags, "search help")
 utils.map("<leader>sk", "n", ts.keymaps, "search keymaps")
 utils.map("<leader>rs", "n", ts.resume, "resume search")
 utils.map("<leader>sr", "n", ts.oldfiles, "search recent files")
-utils.map("<leader>sc", "n", ts.git_status, "search changed files")
+utils.map("<leader>si", "n", ts.git_status, "search git index")
 
 -- sessions
 utils.map("<leader>sl", "n", sessions.read, "session load")
