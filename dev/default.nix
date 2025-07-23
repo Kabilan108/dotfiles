@@ -26,9 +26,9 @@ in
 
     ".claude".source = ./config/claude;
     ".claude".recursive = true;
-    ".opencode".source = ./config/opencode;
-    ".opencode".recursive = true;
 
+    ".config/opencode".source = ./config/opencode;
+    ".config/opencode".recursive = true;
     ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/dev/config/nvim";
     ".config/Cursor/User".source = ./config/vscode;
     ".config/Cursor/User".recursive = true;
