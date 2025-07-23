@@ -42,6 +42,15 @@ utils.map("<leader>gs", "n", "<CMD>Gitsigns stage_hunk<CR>", "git: stage hunk")
 utils.map("<leader>gu", "n", "<CMD>Gitsigns undo_stage_hunk<CR>", "git: unstage hunk")
 utils.map("<leader>gr", "n", "<CMD>Gitsigns reset_hunk<CR>", "git: reset hunk")
 utils.map("<leader>gb", "n", "<CMD>Gitsigns blame_line<CR>", "git: blame line")
+utils.map("<leader>gq", "n", "<CMD>Gitsigns setloclist<CR>", "git: show hunks in quickfix")
+utils.map("<leader>dd", "n", function()
+  vim.cmd [[
+    Gitsigns toggle_deleted
+    Gitsigns toggle_linehl
+    Gitsigns toggle_word_diff
+    Gitsigns toggle_current_line_blame
+  ]]
+end, "git: diff mode")
 
 -- sessions
 utils.map("<leader>sl", "n", sessions.read, "session load")
