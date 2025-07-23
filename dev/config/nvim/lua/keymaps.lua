@@ -36,6 +36,13 @@ utils.map("<leader>rs", "n", ts.resume, "resume search")
 utils.map("<leader>sr", "n", ts.oldfiles, "search recent files")
 utils.map("<leader>si", "n", ts.git_status, "search git index")
 
+-- git staging with gitsigns
+utils.map("<leader>ga", "n", "<CMD>Gitsigns stage_buffer<CR>", "git: stage current file")
+utils.map("<leader>gs", "n", "<CMD>Gitsigns stage_hunk<CR>", "git: stage hunk")
+utils.map("<leader>gu", "n", "<CMD>Gitsigns undo_stage_hunk<CR>", "git: unstage hunk")
+utils.map("<leader>gr", "n", "<CMD>Gitsigns reset_hunk<CR>", "git: reset hunk")
+utils.map("<leader>gb", "n", "<CMD>Gitsigns blame_line<CR>", "git: blame line")
+
 -- sessions
 utils.map("<leader>sl", "n", sessions.read, "session load")
 utils.map("<leader>ss", "n", "<CMD>mksession<CR>", "session save")
