@@ -297,6 +297,10 @@ return {
         watch_gitdir                 = {
           follow_files = true
         },
+        diff_opts                    = {
+          algorithm = 'histogram',
+          internal = true,
+        },
         auto_attach                  = true,
         attach_to_untracked          = false,
         current_line_blame           = true,
