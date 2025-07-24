@@ -1,5 +1,18 @@
 {
-	"$schema": "https://opencode.ai/config.json",
-	"instructions": ["CLAUDE.md"],
-	"log_level": "DEBUG"
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["CLAUDE.md"],
+  "provider": {
+    "openrouter": {
+      "models": {
+        "moonshotai/kimi-k2": {
+          "options": {
+            "provider": {
+              "order": ["groq", "baseten"],
+              "allow_fallbacks": true
+            }
+          }
+        }
+      }
+    }
+  }
 }
