@@ -1,0 +1,6 @@
+local/
+logs/
+projects/
+shell-snapshots/
+statsig/
+todos/

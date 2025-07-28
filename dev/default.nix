@@ -24,12 +24,11 @@ in
     ".vimrc".source = ./config/.vimrc;
     "bin".source = ./bin;
 
-    ".claude".source = ./config/claude;
-    ".claude".recursive = true;
+    ".claude".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/dev/config/claude";
+    ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/dev/config/nvim";
 
     ".config/opencode".source = ./config/opencode;
     ".config/opencode".recursive = true;
-    ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/dev/config/nvim";
     ".config/Cursor/User".source = ./config/vscode;
     ".config/Cursor/User".recursive = true;
 
