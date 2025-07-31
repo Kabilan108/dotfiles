@@ -25,6 +25,8 @@
     };
   };
 
+  home.file.".config/greenclip.toml".source = ../config/greenclip.toml;
+
   home.packages = with pkgs; [
     arandr
     autorandr
@@ -33,6 +35,7 @@
     dunst
     feh
     flameshot
+    haskellPackages.greenclip
     light
     nerd-fonts.fira-mono
     networkmanagerapplet
@@ -41,6 +44,8 @@
     playerctl
     pulseaudio
     rofi
+    xclip
+    xdotool
     xorg.xdpyinfo
     xorg.xev
     xorg.xrandr

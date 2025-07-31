@@ -87,6 +87,11 @@ in
 
       startup = [
         {
+          command = "greenclip daemon -s both >/dev/null 2>&1";
+          always = true;
+          notification = false;
+        }
+        {
           command = "autorandr --change";
           always = true;
         }
@@ -175,6 +180,8 @@ in
         "${mod}+Tab" = "exec --no-startup-id rofi -show window";
         "${mod}+u" = "exec --no-startup-id $HOME/.config/rofi/menus/web-search";
         "${mod}+Shift+e" = "exec --no-startup-id $HOME/.config/rofi/menus/exit";
+        "${mod}+v" = "exec --no-startup-id $HOME/.config/rofi/menus/clippy";
+        "${mod}+Shift+v" = "exec --no-startup-id $HOME/.config/rofi/menus/clippy clear";
 
         # quickstart
         "${mod}+Return" = "exec ghostty";

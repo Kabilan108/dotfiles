@@ -110,8 +110,6 @@
       sshfs-fuse
       tailscale
       wget
-      xclip
-      xdotool
     ];
 
     # link /libexec from dreivations to /run/current-system/sw

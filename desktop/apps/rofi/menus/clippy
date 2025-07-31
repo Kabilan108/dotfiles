@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+
+usage() {
+    cat >&2 <<EOF
+Usage: clippy [-h|--help] [COMMAND]
+
+Commands:
+  clear    Clear clipboard history
+EOF
+  return 1
+}
+
+show_clipboard() {
+    rofi -show clipboard \
+        -modi "clipboard:greenclip print" \
+        -run-command '{cmd}' \
+        -lines 10 \
+        -line-margin 2 \
+        -line-padding 5 \
+        -theme-str 'window { width: 40%; }' \
+        -theme-str 'listview { dynamic: true; }' \
+        -theme-str 'element { padding: 8px 15px 8px 15px; min-height: 60px; max-height: 180px; }' \
+        -theme-str 'element-text { padding: 0px; wrap: true; vertical-align: 0.5; }' \
+        -theme-str 'element-icon { size: 0px; padding: 0px; }' \
+        -theme-str 'inputbar { children: [prompt, entry]; }' \
+        -theme-str 'prompt { margin: 20px 0px 0px 20px; padding: 6px 12px 6px 12px; }' \
+        -theme-str 'entry { margin: 20px 20px 0px 10px; padding: 6px 12px 6px 12px; }'
+
+    return 0
+}
+
+# check dependencies
+missing_deps=()
+for cmd in greenclip rofi xclip; do
+    command -v "$cmd" >/dev/null || missing_deps+=("$cmd")
+done
+[[ ${#missing_deps[@]} -gt 0 ]] && { echo "Missing: ${missing_deps[*]}" >&2; exit 1; }
+
+case "${1}" in
+    clear)
+        greenclip clear
+        exit 0
+        ;;
+    -h|--help|help)
+        usage
+        exit 0
+        ;;
+    *)
+        show_clipboard
+        exit 0
+        ;;
+esac
