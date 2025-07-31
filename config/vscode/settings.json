@@ -139,7 +139,7 @@
 		"vscodevim": 1
 	},
 	"vsicons.dontShowNewVersionMessage": true,
-	"window.commandCenter": 1,
+	"window.commandCenter": true,
 	"window.customTitleBarVisibility": "auto",
 	"window.menuBarVisibility": "compact",
 	"workbench.activityBar.orientation": "vertical",
