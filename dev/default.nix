@@ -18,21 +18,19 @@ in
   home.stateVersion = "25.05";
 
   home.file = {
-    ".gitconfig".source = ./config/.gitconfig;
-    ".obsidian.vimrc".source = ./config/.obsidian.vimrc;
-    ".tmux.conf".source = ./config/.tmux.conf;
-    ".vimrc".source = ./config/.vimrc;
+    ".gitconfig".source = ../config/.gitconfig;
+    ".obsidian.vimrc".source = ../config/.obsidian.vimrc;
+    ".tmux.conf".source = ../config/.tmux.conf;
+    ".vimrc".source = ../config/.vimrc;
     "bin".source = ./bin;
+    ".ipython/profile_default/ipython_config.py".source = ../config/ipython_config.py;
 
-    ".claude".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/dev/config/claude";
-    ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/dev/config/nvim";
+    ".claude".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/config/claude";
+    ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/config/nvim";
+    ".config/Cursor/User".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/config/vscode";
 
-    ".config/opencode".source = ./config/opencode;
+    ".config/opencode".source = ../config/opencode;
     ".config/opencode".recursive = true;
-    ".config/Cursor/User".source = ./config/vscode;
-    ".config/Cursor/User".recursive = true;
-
-    ".ipython/profile_default/ipython_config.py".source = ./config/ipython_config.py;
   };
 
   programs = {
@@ -42,7 +40,7 @@ in
 
   programs.bash = {
     enable = true;
-    initExtra = builtins.readFile ./config/.bashrc;
+    initExtra = builtins.readFile ../config/.bashrc;
   };
 
   programs.lazydocker = {
