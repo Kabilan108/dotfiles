@@ -25,10 +25,28 @@ return {
     lazy = false,
   },
 
-  { "kabilan108/droid.nvim",               config = function() require("droid").setup({}) end },
-  { "kabilan108/pyrepl.nvim",              config = function() require("pyrepl").setup({}) end },
+  { "kabilan108/droid.nvim",  config = function() require("droid").setup({}) end },
+  { "kabilan108/pyrepl.nvim", config = function() require("pyrepl").setup({}) end },
+  {
+    "kabilan108/claude-code.nvim",
+    requires = { "nvim-lua/plenary.nvim" },
+    config = function() 
+      require("claude-code").setup({
+        keymaps = {
+          toggle = {
+            normal = "<leader>cc",
+            terminal = "<leader>cc",
+            variants = {
+              continue = "<leader>cr",
+              verbose = "<leader>cv",
+            },
+          },
+        },
+      })
+    end
+  },
 
-  { "lukas-reineke/indent-blankline.nvim", main = "ibl",                                       opts = {} },
+  { "lukas-reineke/indent-blankline.nvim", main = "ibl",                          opts = {} },
   { "neovim/nvim-lspconfig",               dependencies = { "j-hui/fidget.nvim" } },
 
   -- debugger
