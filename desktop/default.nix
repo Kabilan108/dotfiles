@@ -35,7 +35,6 @@
     dunst
     feh
     flameshot
-    haskellPackages.greenclip
     light
     nerd-fonts.fira-mono
     networkmanagerapplet

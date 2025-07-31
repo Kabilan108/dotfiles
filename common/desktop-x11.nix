@@ -3,6 +3,7 @@
   security.pam.services.i3lock.enable = true;
 
   services.displayManager.defaultSession = "none+i3";
+  services.greenclip.enable = true;
   services.xserver = {
     enable = true;
     desktopManager.xterm.enable = false;

@@ -87,11 +87,6 @@ in
 
       startup = [
         {
-          command = "greenclip daemon -s both >/dev/null 2>&1";
-          always = true;
-          notification = false;
-        }
-        {
           command = "autorandr --change";
           always = true;
         }
