@@ -134,6 +134,16 @@ utils.map("db", "n", dap.step_back, "step back")
 utils.map("dr", "n", dap.restart, "restart debugger")
 utils.map("de", "n", dap.close, "close debugger")
 
+-- window navigation
+utils.map('<C-h>', 'n', '<C-w><C-h>', 'move to left window')
+utils.map('<C-j>', 'n', '<C-w><C-j>', 'move to bottom window')
+utils.map('<C-k>', 'n', '<C-w><C-k>', 'move to top window')
+utils.map('<C-l>', 'n', '<C-w><C-l>', 'move to right window')
+
+-- visual mode indentation that preserves selection
+utils.map('<Tab>', 'v', '>gv', 'indent and keep selection')
+utils.map('<S-Tab>', 'v', '<gv', 'unindent and keep selection')
+
 -- snippets
 utils.map("<C-k>", { "i", "s" }, function()
   if luasnip.expand_or_jumpable() then
