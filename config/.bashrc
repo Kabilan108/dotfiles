@@ -113,19 +113,7 @@ __bash_prompt
 export PROMPT_DIRTRIM=4
 
 
-### -> PATH
-
-paths=(
-    "$HOME/bin"
-    "$HOME/.local/bin"
-    "$HOME/.npm-global/bin"
-    "$GOPATH"
-)
-for dir in "${paths[@]}"; do
-    if [[ -d "$dir" ]]; then
-        PATH="$dir:$PATH"
-    fi
-done
+### -> ENVIRONMENT
 
 if [ -f ~/.bashenv ]; then
     source ~/.bashenv

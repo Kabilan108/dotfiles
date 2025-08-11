@@ -37,4 +37,31 @@ in
       ];
     };
   };
+
+  systemd.user.services.agent-cli-update = {
+    Unit = {
+      Description = "Install/Update Agent CLIs";
+      After = "network-online.target";
+    };
+    Service = {
+      Type = "oneshot";
+      ExecStart = ''
+        ${pkgs.bun}/bin/bun install -g \
+          @anthropic-ai/claude-code@latest \
+          opencode-ai@latest \
+          ccusage@latest
+      '';
+    };
+    Install.WantedBy = [ "default.target" ];
+  };
+
+  systemd.user.timers.agent-cli-update = {
+    Unit.Description = "Daily refresh of Agent CLIs";
+    Timer = {
+      OnBootSec = "5m";
+      OnUnitActiveSec = "24h";
+      Persistent = true;
+    };
+    Install.WantedBy = [ "timers.target" ];
+  };
 }

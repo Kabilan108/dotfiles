@@ -17,6 +17,13 @@ in
   home.homeDirectory = homeDir;
   home.stateVersion = "25.05";
 
+  home.sessionPath = [
+    "$HOME/.bun/bin"
+    "$HOME/.local/bin"
+    "$HOME/bin"
+    "$GOPATH/bin"
+  ];
+
   home.file = {
     ".gitconfig".source = ../config/.gitconfig;
     ".obsidian.vimrc".source = ../config/.obsidian.vimrc;
@@ -27,7 +34,8 @@ in
 
     ".claude".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/config/claude";
     ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/config/nvim";
-    ".config/Cursor/User".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/config/vscode";
+    ".config/Cursor/User".source =
+      config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/config/vscode";
 
     ".config/opencode".source = ../config/opencode;
     ".config/opencode".recursive = true;
@@ -112,20 +120,6 @@ in
     OLLAMA_MODELS = "${USER_DATA}/ollama/models";
     TORCH_HOME = "${USER_DATA}/torch";
   };
-
-  # install coding agents
-  home.activation.code-agents = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    export NPM_CONFIG_PREFIX="$HOME/.npm-global"
-    export PATH="${pkgs.bash}/bin:${pkgs.coreutils}/bin:${pkgs.nodejs_20}/bin:$NPM_CONFIG_PREFIX/bin:$PATH"
-
-    mkdir -p "$NPM_CONFIG_PREFIX/bin"
-
-    for pkg in @anthropic-ai/claude-code opencode-ai@latest ccusage; do
-      if ! command -v "$(basename "$pkg")" >/dev/null 2>&1; then
-        ${pkgs.nodejs_20}/bin/npm install -g "$pkg" || echo "npm failed to install $pkg"
-      fi
-    done
-  '';
 
   home.packages = with pkgs; [
     # desktop apps
