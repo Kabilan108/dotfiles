@@ -129,6 +129,7 @@ in
 
   home.packages = with pkgs; [
     # desktop apps
+    android-studio
     brave
     code-cursor
     discord
