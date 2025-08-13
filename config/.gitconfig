@@ -81,6 +81,7 @@
   st = stash
   stl = stash list
   stp = stash pop
+  std = stash drop
   t = tag
   td = tag -d
   wc = whatchanged
