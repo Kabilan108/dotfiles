@@ -160,6 +160,7 @@ in
     lazygit
     neofetch
     pre-commit
+    rclone
     ripgrep
     sd
     tree
