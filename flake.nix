@@ -46,6 +46,7 @@
             ./common/desktop-x11.nix
             ./common/nvidia.nix
             ./common/xbox-controller.nix
+            ./common/mullvad-vpn.nix
           ];
         };
         jacurutu = makeSystem {
