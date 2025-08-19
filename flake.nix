@@ -34,6 +34,7 @@
             (./. + "/machines/${name}")
             ./configuration.nix
             ./common/user.nix
+            ./common/virt-manager.nix
           ] ++ modules;
         };
     in
@@ -51,7 +52,6 @@
           name = "jacurutu";
           modules = [
             ./common/desktop-x11.nix
-            ./common/virt-manager.nix
           ];
         };
       };
