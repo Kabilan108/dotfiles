@@ -38,7 +38,7 @@ in
     };
   };
 
-  systemd.user.services.agent-cli-update = {
+  systemd.user.services.install-agent-clis = {
     Unit = {
       Description = "Install/Update Agent CLIs";
       After = "network-online.target";
@@ -56,8 +56,34 @@ in
     Install.WantedBy = [ "default.target" ];
   };
 
-  systemd.user.timers.agent-cli-update = {
+  systemd.user.timers.install-agent-clis = {
     Unit.Description = "Daily refresh of Agent CLIs";
+    Timer = {
+      OnBootSec = "5m";
+      OnUnitActiveSec = "24h";
+      Persistent = true;
+    };
+    Install.WantedBy = [ "timers.target" ];
+  };
+
+  systemd.user.services.install-uv-tools = {
+    Unit = {
+      Description = "Install/Update uv tools";
+      After = "network-online.target";
+    };
+    Service = {
+      Type = "oneshot";
+      ExecStart = ''
+        ${pkgs.uv}/bin/uv tool install -U git+https://github.com/karpathy/rendergit
+        ${pkgs.uv}/bin/uv tool install -U llm
+        ${pkgs.uv}/bin/uv tool install -U shell_sage
+      '';
+    };
+    Install.WantedBy = [ "default.target" ];
+  };
+
+  systemd.user.timers.install-uv-tools = {
+    Unit.Description = "Daily refresh of uv tools";
     Timer = {
       OnBootSec = "5m";
       OnUnitActiveSec = "24h";
