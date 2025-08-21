@@ -34,6 +34,7 @@
             (./. + "/machines/${name}")
             ./configuration.nix
             ./common/user.nix
+            ./common/virt-manager.nix
           ] ++ modules;
         };
     in
@@ -45,13 +46,13 @@
             ./common/desktop-x11.nix
             ./common/nvidia.nix
             ./common/xbox-controller.nix
+            ./common/mullvad-vpn.nix
           ];
         };
         jacurutu = makeSystem {
           name = "jacurutu";
           modules = [
             ./common/desktop-x11.nix
-            ./common/virt-manager.nix
           ];
         };
       };
