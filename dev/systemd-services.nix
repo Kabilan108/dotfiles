@@ -75,8 +75,7 @@ in
       Type = "oneshot";
       ExecStart = ''
         ${pkgs.uv}/bin/uv tool install -U git+https://github.com/karpathy/rendergit
-        ${pkgs.uv}/bin/uv tool install -U --with llm-cmd --with llm-anthropic llm
-        ${pkgs.uv}/bin/uv tool install -U shell_sage
+        ${pkgs.uv}/bin/uv tool install -U --with llm-cmd --with llm-anthropic --with llm-tmux-fragments llm
       '';
     };
     Install.WantedBy = [ "default.target" ];
