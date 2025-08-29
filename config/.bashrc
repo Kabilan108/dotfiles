@@ -156,6 +156,10 @@ function tmuxk() {
     fi
 }
 
+function codex-gpt-5() {
+    $HOME/.bun/bin/codex -m gpt-5 -c model_reasoning_effort="${1:-medium}"
+}
+
 
 ### -> ALIASES
 
