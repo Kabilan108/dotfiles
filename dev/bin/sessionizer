@@ -1,16 +1,97 @@
 #!/usr/bin/env bash
 # vim: syn=bash ft=bash
 
+VERSION="0.2.0"
+
+CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/sessionizer/config"
+PANE_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/sessionizer"
+PANE_CACHE_FILE="$PANE_CACHE_DIR/panes.cache"
+
+session_idx=""
+session_cmd=""
+user_selected=""
+split_type=""
+selected=""
+
+
+if [[ -f "$CONFIG_FILE" ]]; then
+    source "$CONFIG_FILE"
+fi
+
+if [[ -z $TS_MAX_DEPTH ]]; then
+    TS_MAX_DEPTH=1
+fi
+
+if [[ ${#TS_SEARCH_PATHS[@]} -eq 0 ]]; then
+    TS_SEARCH_PATHS=(~/ ~/repos ~/dotfiles)
+fi
+
+# add extra search paths to TS_SEARCH_PATHS
+# e.g : EXTRA_SEARCH_PATHS=("$HOME/extra1:4" "$HOME/extra2")
+# note: Path can be suffixed with :number to limit or extend the depth of the search for the Path
+if [[ ${#TS_EXTRA_SEARCH_PATHS[@]} -gt 0 ]]; then
+    TS_SEARCH_PATHS+=("${TS_EXTRA_SEARCH_PATHS[@]}")
+fi
+
+
+# --- utility functions ---------------------------------------------------------------
+
 usage() {
-    echo "Usage: sessionizer"
-    exit 1
+    echo "Usage: sessionizer [OPTIONS] [SEARCH_PATH]"
+    echo "Options:"
+    echo "  -h, --help             Display this help message"
+    echo "  -s, --session <name>   session command index."
+    echo "  --vsplit               Create vertical split (horizontal layout) for session command"
+    echo "  --hsplit               Create horizontal split (vertical layout) for session command"
+    echo "  --init                 Initialize sessionizer config"
+}
+
+init_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        echo "Config file already exists.  Aborting."
+        return
+    fi
+
+    if [[ ! -d $(dirname "$CONFIG_FILE") ]]; then
+        mkdir -p $(dirname "$CONFIG_FILE")
+    fi
+
+    echo "# vim: syn=bash ft=bash
+# if set, this overrides the default TS_SEARCH_PATHS (~/ ~/repos ~/dotfiles)
+TS_SEARCH_PATHS=(~/ ~/repos ~/gists)
+
+# if set, this adds additional search paths to the default TS_SEARCH_PATHS
+# The number prefix is the depth for the Path [OPTIONAL]
+TS_EXTRA_SEARCH_PATHS=(~/work/moberg:1 ~/work/moberg/dev-server:2 /vault/notes:2)
+
+# if set, this overrides the TS_MAX_DEPTH (1)
+TS_MAX_DEPTH=1
+
+# this defines the commands to run when using the -s/--session option
+TS_SESSION_COMMANDS=(claude codex opencode)" > "$CONFIG_FILE"
+    echo "Wrote config file to $CONFIG_FILE"
+}
+
+check_deps() {
+    if ! command -v tmux &>/dev/null; then
+        echo "tmux is not installed. Please install it first."
+        exit 1
+    fi
+    if ! command -v fzf &>/dev/null; then
+        echo "fzf is not installed. Please install it first."
+        exit 1
+    fi
+    if ! command -v fd &>/dev/null; then
+        echo "fd is not installed. Please install it first."
+        exit 1
+    fi
 }
 
 switch_to() {
     if [[ -z $TMUX ]]; then
-        tmux attach-session -t $1
+        tmux attach-session -t "$1"
     else
-        tmux switch-client -t $1
+        tmux switch-client -t "$1"
     fi
 }
 
@@ -19,44 +100,226 @@ has_session() {
 }
 
 hydrate() {
-    if [ -f $2/.tmux-sessionizer ]; then
-        tmux send-keys -t $1 "source $2/.tmux-sessionizer" c-M
-    elif [ -f $HOME/.tmux-sessionizer ]; then
-        tmux send-keys -t $1 "source $HOME/.tmux-sessionizer" c-M
+    if [[ -n "$session_cmd" ]]; then
+        return
+    elif [ -f "$2/.sessionizer" ]; then
+        tmux send-keys -t "$1" "source $2/.sessionizer" c-M
+    elif [ -f $HOME/.sessionizer ]; then
+        tmux send-keys -t "$1" "source $HOME/.sessionizer" c-M
     fi
 }
 
-get_sessions() {
-    tmux list-sessions 2>/dev/null | awk '{print "tmux:" substr($1, 1, length($1)-1)}'
+is_tmux_running() {
+    tmux_running=$(pgrep tmux)
+    if [[ -z $TMUX ]] && [[ -z $tmux_running ]]; then
+        return 1
+    fi
+    return 0
 }
 
-get_dirs() {
-    fd -L -t d -d 3 . $HOME
+find_sessions() {
+    if [[ -n "$TMUX" ]]; then
+        current_session=$(tmux display-message -p '#S')
+        tmux list-sessions -F "[TMUX] #{session_name}" 2>/dev/null | grep -vFx "[TMUX] $current_session"
+    else
+        tmux list-sessions -F "[TMUX] #{session_name}" 2>/dev/null
+    fi
 }
 
-if [[ $# -eq 1 ]]; then
-    selected=$1
-else
-    selected=$({ get_sessions; get_dirs; } | fzf --tmux)
-    selected=${selected#tmux:}
+find_dirs() {
+    # TS_SEARCH_PATHS is an array of paths to search for directories
+    # if the path ends with `:number`, it will search for directories with a max depth of number
+    # if there is no number, it will search for directories with a max depth of TS_MAX_DEPTH
+    for entry in "${TS_SEARCH_PATHS[@]}"; do
+        # check if entry has `:number` suffic
+        if [[ "$entry" =~ ^([^:]+):([0-9]+)$ ]]; then
+            path="${BASH_REMATCH[1]}"
+            depth="${BASH_REMATCH[2]}"
+        else
+            path="$entry"
+        fi
+
+        if [[ -d "$path" ]]; then
+          fd -L -t d -d "${depth:-$TS_MAX_DEPTH}" . "$path"
+        fi
+    done
+}
+
+handle_session_cmd() {
+    if ! is_tmux_running; then
+        echo "Error: tmux is not running.  Please start tmux first before using session commands."
+        exit 1
+    fi
+
+    current_session=$(tmux display-message -p '#S')
+
+    if [[ -n "$split_type" ]]; then
+        handle_split_session_cmd "$current_session"
+    else
+        handle_window_session_cmd "$current_session"
+    fi
+
+    exit 0
+}
+
+handle_window_session_cmd() {
+    local current_session="$1"
+    start_index=$((10 + $session_idx))
+    target="$current_session:$start_index"
+
+    if tmux has-session -t="$target" 2> /dev/null; then
+        switch_to "$target"
+    else
+        tmux neww -dt $target "$session_cmd"
+        hydrate "$target" "$selected"
+        tmux select-window -t $target
+    fi
+}
+
+init_pane_cache() {
+    mkdir -p "$PANE_CACHE_DIR"
+    touch "$PANE_CACHE_FILE"
+}
+
+# remove panes that are no longer active in any session from the cache file
+cleanup_dead_panes() {
+    init_pane_cache
+    local temp_file="${PANE_CACHE_FILE}.tmp"
+
+    while IFS=: read -r idx split pane_id; do
+        if tmux list-panes -a -F "#{pane_id}" 2>/dev/null | grep -q "^${pane_id}$"; then
+            echo "${idx}:${split}:${pane_id}" >> "$temp_file"
+        fi
+    done < "$PANE_CACHE_FILE"
+
+    mv "$temp_file" "$PANE_CACHE_FILE" 2>/dev/null || touch "$PANE_CACHE_FILE"
+}
+
+get_pane_id() {
+    local session_idx="$1"
+    local split_type="$2"
+    init_pane_cache
+    grep "^${session_idx}:${split_type}:" "$PANE_CACHE_FILE" | cut -d: -f3
+}
+
+set_pane_id() {
+    local session_idx="$1"
+    local split_type="$2"
+    local pane_id="$3"
+    init_pane_cache
+
+    # remove existing entry if it exists
+    grep -v "^${session_idx}:${split_type}:" "$PANE_CACHE_FILE" > "${PANE_CACHE_FILE}.tmp" 2>/dev/null || true
+    mv "${PANE_CACHE_FILE}.tmp" "$PANE_CACHE_FILE"
+
+    # add new entry
+    echo "${session_idx}:${split_type}:${pane_id}" >> "$PANE_CACHE_FILE"
+}
+
+handle_split_session_cmd() {
+    local current_session="$1"
+    cleanup_dead_panes
+
+    # check if pane exists
+    local existing_pane_id=$(get_pane_id "$session_idx" "$split_type")
+
+    if [[ -n "$existing_pane_id" ]] && tmux list-panes -a -F "#{pane_id}" 2>/dev/null | grep -q "^${existing_pane_id}$"; then
+        tmux select-pane -t "$existing_pane_id"
+        switch_to "$current_session"
+    else
+        # create a new split
+        local split_flag=""
+        if [[ "$split_type" == "vsplit" ]]; then
+            split_flag="-h"  # horizontal layout (vertical split)
+        else
+            split_flag="-v"  # vertical layout (horizontal split)
+        fi
+
+        local new_pane_id=$(tmux split-window $split_flag -c "$(pwd)" -P -F "#{pane_id}" "$session_cmd")
+
+        if [[ -n "$new_pane_id" ]]; then
+            set_pane_id "$session_idx" "$split_type" "$new_pane_id"
+        fi
+    fi
+}
+
+# --- __main__ ------------------------------------------------------------------------
+
+while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+    -h | --help)
+        usage
+        exit 0
+        ;;
+    -v | --version)
+        echo "sessionizer version $VERSION"
+        exit 0
+        ;;
+    --init)
+        init_config
+        exit 0
+        ;;
+    --vsplit)
+        split_type="vsplit"
+        ;;
+    --hsplit)
+        split_type="hsplit"
+        ;;
+    -s | --session)
+        session_idx="$2"
+        if [[ -z "$session_idx" ]]; then
+            echo "Session index cannot be empty"
+            exit 1
+        fi
+
+        if [[ -z $TS_SESSION_COMMANDS ]]; then
+            echo "TS_SESSION_COMMANDS is not set.  Must have a command set to run when switching to a session"
+            exit 1
+        fi
+        if [[ "$session_idx" -lt 0 || "$session_idx" -ge "${#TS_SESSION_COMMANDS[@]}" ]]; then
+            echo "Error: Invalid index. Please provide an index between 0 and $((${#TS_SESSION_COMMANDS[@]} - 1))."
+            exit 1
+        fi
+
+        session_cmd="${TS_SESSION_COMMANDS[$session_idx]}"
+        shift
+        ;;
+    *)
+        user_selected="$1"
+        ;;
+    esac
+    shift
+done
+
+# validate split options are only used with session commands
+if [[ -n "$split_type" && -z "$session_idx" ]]; then
+    echo "Error: --vsplit and --hsplit can only be used with -s/--session option"
+    exit 1
 fi
 
-if [[ -z $selected ]]; then
+check_deps
+
+if [[ -n "$session_cmd" ]]; then
+    handle_session_cmd
+elif [[ -n "$user_selected" ]]; then
+    selected="$user_selected"
+else
+    selected=$({ find_sessions; find_dirs; } | fzf)
+fi
+
+if [[ -z "$selected" ]]; then
     exit 0
+fi
+
+if [[ "$selected" =~ ^\[TMUX\]\ (.+)$ ]]; then
+    selected="${BASH_REMATCH[1]}"
 fi
 
 selected_name=$(basename "$selected" | tr . _)
-tmux_running=$(pgrep tmux)
 
-if [[ -z $TMUX ]] && [[ -z $tmux_running ]]; then
-    tmux new-session -s $selected_name -c $selected
-    hydrate $selected_name $selected
-    exit 0
+if ! is_tmux_running || ! has_session "$selected_name"; then
+    tmux new-session -ds "$selected_name" -c "$selected"
+    hydrate "$selected_name" "$selected"
 fi
 
-if ! has_session $selected_name; then
-    tmux new-session -ds $selected_name -c $selected
-    hydrate $selected_name $selected
-fi
-
-switch_to $selected_name
+switch_to "$selected_name"
