@@ -235,7 +235,8 @@ handle_split_session_cmd() {
             split_flag="-v"  # vertical layout (horizontal split)
         fi
 
-        local new_pane_id=$(tmux split-window $split_flag -c "$(pwd)" -P -F "#{pane_id}" "$session_cmd")
+        local current_pane=$(tmux display-message -p -F "#{pane_current_path}")
+        local new_pane_id=$(tmux split-window $split_flag -c "$current_pane" -P -F "#{pane_id}" "$session_cmd")
 
         if [[ -n "$new_pane_id" ]]; then
             set_pane_id "$session_idx" "$split_type" "$new_pane_id"

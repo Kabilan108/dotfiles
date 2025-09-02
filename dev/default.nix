@@ -41,6 +41,15 @@ in
     ".config/opencode".recursive = true;
   };
 
+  home.file.".sessionizer".text = ''
+    #!/usr/bin/env bash
+    tmux rename-window -t 0 nvim 2>/dev/null
+    tmux send-keys -t 0 'nvim' C-m
+    if ! tmux list-windows | grep -q '^1:'; then
+      tmux new-window -t 1 -n shell
+    fi
+  '';
+
   programs = {
     direnv.enable = true; # nix-direnv
     home-manager.enable = true;
