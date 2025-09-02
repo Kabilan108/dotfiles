@@ -36,6 +36,8 @@ in
     ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/config/nvim";
     ".config/Cursor/User".source =
       config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/config/vscode";
+    ".config/Code/User".source =
+      config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/config/vscode";
 
     ".config/opencode".source = ../config/opencode;
     ".config/opencode".recursive = true;
@@ -144,6 +146,7 @@ in
     spotify
     telegram-desktop
     vlc
+    vscode-fhs
     zoom-us
     zotero
 

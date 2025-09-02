@@ -231,5 +231,6 @@
 	"cursor.diffs.useCharacterLevelDiffs": true,
 	"cursor.composer.shouldAllowCustomModes": true,
 	"cursor.cpp.disabledLanguages": ["plaintext"],
-	"python.defaultInterpreterPath": "/etc/profiles/per-user/kabilan/bin/python"
+	"python.defaultInterpreterPath": "/etc/profiles/per-user/kabilan/bin/python",
+	"workbench.secondarySideBar.defaultVisibility": "hidden"
 }
