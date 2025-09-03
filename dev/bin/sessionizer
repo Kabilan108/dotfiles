@@ -186,9 +186,9 @@ cleanup_dead_panes() {
     init_pane_cache
     local temp_file="${PANE_CACHE_FILE}.tmp"
 
-    while IFS=: read -r idx split pane_id; do
+    while IFS=: read -r session_name idx split pane_id; do
         if tmux list-panes -a -F "#{pane_id}" 2>/dev/null | grep -q "^${pane_id}$"; then
-            echo "${idx}:${split}:${pane_id}" >> "$temp_file"
+            echo "${session_name}:${idx}:${split}:${pane_id}" >> "$temp_file"
         fi
     done < "$PANE_CACHE_FILE"
 
@@ -196,24 +196,26 @@ cleanup_dead_panes() {
 }
 
 get_pane_id() {
-    local session_idx="$1"
-    local split_type="$2"
+    local session_name="$1"
+    local session_idx="$2"
+    local split_type="$3"
     init_pane_cache
-    grep "^${session_idx}:${split_type}:" "$PANE_CACHE_FILE" | cut -d: -f3
+    grep "^${session_name}:${session_idx}:${split_type}:" "$PANE_CACHE_FILE" | cut -d: -f4
 }
 
 set_pane_id() {
-    local session_idx="$1"
-    local split_type="$2"
-    local pane_id="$3"
+    local session_name="$1"
+    local session_idx="$2"
+    local split_type="$3"
+    local pane_id="$4"
     init_pane_cache
 
     # remove existing entry if it exists
-    grep -v "^${session_idx}:${split_type}:" "$PANE_CACHE_FILE" > "${PANE_CACHE_FILE}.tmp" 2>/dev/null || true
+    grep -v "^${session_name}:${session_idx}:${split_type}:" "$PANE_CACHE_FILE" > "${PANE_CACHE_FILE}.tmp" 2>/dev/null || true
     mv "${PANE_CACHE_FILE}.tmp" "$PANE_CACHE_FILE"
 
     # add new entry
-    echo "${session_idx}:${split_type}:${pane_id}" >> "$PANE_CACHE_FILE"
+    echo "${session_name}:${session_idx}:${split_type}:${pane_id}" >> "$PANE_CACHE_FILE"
 }
 
 handle_split_session_cmd() {
@@ -221,7 +223,7 @@ handle_split_session_cmd() {
     cleanup_dead_panes
 
     # check if pane exists
-    local existing_pane_id=$(get_pane_id "$session_idx" "$split_type")
+    local existing_pane_id=$(get_pane_id "$current_session" "$session_idx" "$split_type")
 
     if [[ -n "$existing_pane_id" ]] && tmux list-panes -a -F "#{pane_id}" 2>/dev/null | grep -q "^${existing_pane_id}$"; then
         tmux select-pane -t "$existing_pane_id"
@@ -239,7 +241,7 @@ handle_split_session_cmd() {
         local new_pane_id=$(tmux split-window $split_flag -c "$current_pane" -P -F "#{pane_id}" "$session_cmd")
 
         if [[ -n "$new_pane_id" ]]; then
-            set_pane_id "$session_idx" "$split_type" "$new_pane_id"
+            set_pane_id "$current_session" "$session_idx" "$split_type" "$new_pane_id"
         fi
     fi
 }
