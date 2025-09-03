@@ -13,7 +13,21 @@ local snippets = {}
 snippets.all = {
   s("shell_script", {
     t({ "#!/usr/bin/env bash", "# vim: syn=bash ft=bash", "" }),
-  })
+  }),
+  s("uv_script", {
+    t({
+      "#!/usr/bin/env -S uv --quiet run --script",
+      "# /// script",
+      "# requires-python = \">=3.11\"",
+      "# dependencies = [\"ipdb\""
+    }),
+    i(1, ""),
+    t({ "]",
+      "# ///",
+      "# vim: syn=python ft=python",
+      "" }),
+    i(0),
+  }),
 }
 
 snippets.go = {

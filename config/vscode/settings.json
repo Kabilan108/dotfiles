@@ -23,7 +23,6 @@
 		"**/.venv": true
 	},
 	"files.simpleDialog.enable": true,
-	"files.trimTrailingWhitespace": true,
 	"files.trimFinalNewlines": true,
 	"git.autofetch": true,
 	"git.confirmSync": false,
@@ -232,5 +231,6 @@
 	"cursor.composer.shouldAllowCustomModes": true,
 	"cursor.cpp.disabledLanguages": ["plaintext"],
 	"python.defaultInterpreterPath": "/etc/profiles/per-user/kabilan/bin/python",
-	"workbench.secondarySideBar.defaultVisibility": "hidden"
+	"workbench.secondarySideBar.defaultVisibility": "hidden",
+	"files.trimTrailingWhitespace": true
 }
