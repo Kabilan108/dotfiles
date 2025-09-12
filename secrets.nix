@@ -7,4 +7,8 @@ in
     sietch
     jacurutu
   ];
+  "secrets/rclone.conf".publicKeys = [
+    sietch
+    jacurutu
+  ];
 }

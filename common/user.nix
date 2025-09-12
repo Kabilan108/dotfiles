@@ -32,6 +32,13 @@ in
       owner = "kabilan";
       group = "users";
     };
+    secrets."secrets/rclone.conf" = {
+      file = ../secrets/rclone.conf;
+      path = "${home}/.config/rclone/rclone.conf";
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
   };
 
   home-manager = {
