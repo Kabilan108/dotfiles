@@ -46,5 +46,9 @@
 	{
 		"key": "ctrl+i",
 		"command": "composerMode.agent"
+	},
+	{
+		"key": "ctrl+l",
+		"command": "composerMode.chat"
 	}
 ]

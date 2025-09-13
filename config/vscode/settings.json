@@ -232,5 +232,9 @@
 	"cursor.cpp.disabledLanguages": ["plaintext"],
 	"python.defaultInterpreterPath": "/etc/profiles/per-user/kabilan/bin/python",
 	"workbench.secondarySideBar.defaultVisibility": "hidden",
-	"files.trimTrailingWhitespace": true
+	"files.trimTrailingWhitespace": true,
+	"remote.SSH.remotePlatform": {
+		"devserver3": "linux",
+		"sietch": "linux"
+	}
 }
