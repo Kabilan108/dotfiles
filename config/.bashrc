@@ -160,6 +160,12 @@ function codex-gpt-5() {
     $HOME/.bun/bin/codex -m gpt-5 -c model_reasoning_effort="${1:-medium}"
 }
 
+function fvi() {
+    local file=$(fd --hidden --type f --exclude .git \
+        | fzf --height 40% --layout=reverse --border \
+            --preview "bat --style=numbers --color=always {}") || return
+    nvim -- "$file"
+}
 
 ### -> ALIASES
 
@@ -187,5 +193,4 @@ alias nohist='HISTFILE=/dev/null'
 alias copy='xclip -selection clipboard'
 alias clipboard='xclip -selection clipboard -o'
 alias svi='sudo -E nvim -u $HOME/.config/nvim/init.lua'
-alias fvi='nvim $(fzf)'
 alias xlsx2csv='libreoffice --headless --convert-to csv'

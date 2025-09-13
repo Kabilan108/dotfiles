@@ -161,6 +161,7 @@ in
     gnumake
 
     # dev utils
+    bat
     direnv
     delta
     fd
