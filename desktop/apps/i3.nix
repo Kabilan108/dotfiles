@@ -80,6 +80,14 @@ in
           command = "move workspace 9";
         }
         {
+          criteria.class = "obsidian";
+          command = "move workspace 2";
+        }
+        {
+          criteria.class = "Slack";
+          command = "move workspace 2";
+        }
+        {
           criteria.class = "^.*";
           command = "border pixel 2";
         }
