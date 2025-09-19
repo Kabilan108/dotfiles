@@ -1,0 +1,12 @@
+{
+  "sietch": {
+    "dirs": ["/home/kabilan/media/screenshots:30"],
+    "target": "gdrive:backups",
+    "max_age_days": 90
+  },
+  "jacurutu": {
+    "dirs": ["/home/kabilan/media/screenshots:30"],
+    "target": "gdrive:backups",
+    "max_age_days": 90
+  }
+}

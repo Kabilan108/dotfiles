@@ -1,0 +1,411 @@
+#!/usr/bin/env -S uv --quiet run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+
+import argparse
+import json
+import os
+import socket
+import subprocess
+import sys
+import tarfile
+import tempfile
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+
+DATE_FORMAT = "%m.%d.%Y"
+DEFAULT_CONFIG_PATH = Path.home() / ".config" / "backup" / "config.json"
+
+
+@dataclass(frozen=True)
+class DirectorySpec:
+    path: Path
+    max_age_days: int | None
+
+
+@dataclass(order=True, frozen=True)
+class BackupRecord:
+    date: datetime
+    folder: str
+    filename: str
+    remote_path: str
+
+
+class ConfigError(RuntimeError):
+    """Raised when the backup configuration is invalid."""
+
+
+def load_config(config_path: Path, host: str) -> tuple[list[DirectorySpec], str, int]:
+    if not config_path.exists():
+        raise ConfigError(f"configuration file not found: {config_path}")
+
+    with config_path.open("r", encoding="utf-8") as fh:
+        try:
+            raw = json.load(fh)
+        except json.JSONDecodeError as exc:
+            raise ConfigError(f"invalid JSON in {config_path}: {exc}") from exc
+
+    if not isinstance(raw, dict) or not raw:
+        raise ConfigError("configuration must map hostnames to settings objects")
+
+    host_config = raw.get(host)
+    if host_config is None:
+        available = ", ".join(sorted(raw))
+        raise ConfigError(
+            f"no configuration found for host '{host}' (available: {available})"
+        )
+
+    if not isinstance(host_config, dict):
+        raise ConfigError(f"configuration for host '{host}' must be a JSON object")
+
+    try:
+        dirs_raw = host_config["dirs"]
+        target_raw = host_config["target"]
+        default_max_age = host_config["max_age_days"]
+    except KeyError as missing:
+        raise ConfigError(
+            f"missing required configuration key for host '{host}': {missing.args[0]}"
+        ) from missing
+
+    if not isinstance(dirs_raw, list) or not dirs_raw:
+        raise ConfigError("'dirs' must be a non-empty array")
+
+    directory_specs: list[DirectorySpec] = []
+    for entry in dirs_raw:
+        if not isinstance(entry, str) or not entry:
+            raise ConfigError("each entry in 'dirs' must be a non-empty string")
+
+        path_str, _, age_str = entry.partition(":")
+        if not path_str or not os.path.isabs(path_str):
+            raise ConfigError(f"directory path must be absolute: {entry}")
+
+        max_age_override: int | None = None
+        if age_str:
+            try:
+                max_age_override = int(age_str)
+            except ValueError as exc:
+                raise ConfigError(
+                    f"invalid max age in '{entry}' (expected integer)"
+                ) from exc
+            if max_age_override < 0:
+                raise ConfigError(f"max age must be non-negative in '{entry}'")
+
+        directory_specs.append(
+            DirectorySpec(path=Path(path_str), max_age_days=max_age_override)
+        )
+
+    if not isinstance(target_raw, str) or not target_raw:
+        raise ConfigError("'target' must be a non-empty string")
+
+    remote_base = normalize_remote_base(target_raw)
+
+    if not isinstance(default_max_age, int) or default_max_age < 0:
+        raise ConfigError("'max_age_days' must be a non-negative integer")
+
+    return directory_specs, remote_base, default_max_age
+
+
+def normalize_remote_base(target: str) -> str:
+    prefix = "rclone:"
+    if target.startswith(prefix):
+        target = target[len(prefix) :]
+    target = target.rstrip("/")
+    if not target:
+        raise ConfigError("rclone remote target resolves to an empty path")
+    return target
+
+
+def run_rclone(
+    args: list[str], *, capture_output: bool = False
+) -> subprocess.CompletedProcess:
+    cmd = ["rclone", *args]
+    try:
+        if capture_output:
+            return subprocess.run(cmd, check=True, capture_output=True, text=True)
+        return subprocess.run(cmd, check=True, text=True)
+    except FileNotFoundError as exc:
+        raise RuntimeError("rclone executable not found in PATH") from exc
+    except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr if exc.stderr else ""
+        stdout = exc.stdout if exc.stdout else ""
+        details = stderr or stdout
+        raise RuntimeError(
+            f"rclone command failed: {' '.join(cmd)}\n{details.strip()}"
+        ) from exc
+
+
+def collect_backups(
+    remote_base: str, host: str, *, missing_ok: bool = False
+) -> dict[str, list[BackupRecord]]:
+    try:
+        result = run_rclone(
+            ["lsf", f"{remote_base}/{host}", "--recursive", "--files-only"],
+            capture_output=True,
+        )
+    except RuntimeError:
+        if missing_ok:
+            return {}
+        raise
+    backups: dict[str, list[BackupRecord]] = {}
+
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split("/")
+        if len(parts) < 2:
+            continue
+        folder, filename = parts[-2], parts[-1]
+        if not filename.endswith(".tar.gz"):
+            continue
+        if not filename.startswith(f"{folder}-"):
+            continue
+        date_str = filename[len(folder) + 1 : -7]
+        try:
+            parsed_date = datetime.strptime(date_str, DATE_FORMAT)
+        except ValueError:
+            continue
+        remote_path = f"{remote_base}/{host}/{folder}/{filename}"
+        record = BackupRecord(
+            date=parsed_date, folder=folder, filename=filename, remote_path=remote_path
+        )
+        backups.setdefault(folder, []).append(record)
+
+    for folder_records in backups.values():
+        folder_records.sort(reverse=True)
+
+    return backups
+
+
+def ensure_directory_exists(path: Path) -> None:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise RuntimeError(f"failed to create directory '{path}': {exc}") from exc
+
+
+def command_push(directories: list[DirectorySpec], remote_base: str, host: str) -> None:
+    for spec in directories:
+        if not spec.path.exists():
+            print(f"warning: skipping missing directory {spec.path}", file=sys.stderr)
+            continue
+        if not spec.path.is_dir():
+            print(f"warning: skipping non-directory path {spec.path}", file=sys.stderr)
+            continue
+
+        folder_name = spec.path.resolve().name
+        date_str = datetime.now().strftime(DATE_FORMAT)
+        archive_name = f"{folder_name}-{date_str}.tar.gz"
+        remote_path = f"{remote_base}/{host}/{folder_name}/{archive_name}"
+
+        with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp_file:
+            tmp_path = Path(tmp_file.name)
+
+        try:
+            with tarfile.open(tmp_path, "w:gz") as archive:
+                # Store contents under the folder name to avoid absolute paths in the archive
+                archive.add(str(spec.path), arcname=folder_name)
+
+            run_rclone(["copyto", tmp_path.as_posix(), remote_path])
+            print(f"uploaded {spec.path} -> {remote_path}")
+        finally:
+            try:
+                tmp_path.unlink()
+            except FileNotFoundError:
+                pass
+
+
+def command_list(remote_base: str, host: str, filters: list[str] | None) -> None:
+    backups = collect_backups(remote_base, host, missing_ok=True)
+
+    if filters:
+        selected = {name for name in filters}
+        backups = {
+            folder: records for folder, records in backups.items() if folder in selected
+        }
+
+    if not backups:
+        print("no backups found")
+        return
+
+    for folder in sorted(backups):
+        print(f"{folder}:")
+        for record in backups[folder]:
+            print(f"  - {record.date.strftime(DATE_FORMAT)}")
+
+
+def command_pull(
+    remote_base: str,
+    host: str,
+    folder: str,
+    date_override: str | None,
+    output_dir: str | None,
+) -> None:
+    backups = collect_backups(remote_base, host)
+    records = backups.get(folder, [])
+    if not records:
+        raise RuntimeError(f"no backups found for folder '{folder}'")
+
+    target_record: BackupRecord | None = None
+
+    if date_override:
+        try:
+            requested_date = datetime.strptime(date_override, DATE_FORMAT)
+        except ValueError as exc:
+            raise RuntimeError(
+                f"invalid date '{date_override}', expected {DATE_FORMAT}"
+            ) from exc
+        for record in records:
+            if record.date == requested_date:
+                target_record = record
+                break
+        if target_record is None:
+            raise RuntimeError(f"no backup dated {date_override} for folder '{folder}'")
+    else:
+        target_record = records[0]
+
+    destination_dir = (
+        Path(output_dir).expanduser().resolve() if output_dir else Path.cwd()
+    )
+    ensure_directory_exists(destination_dir)
+    destination_file = destination_dir / target_record.filename
+
+    run_rclone(["copyto", target_record.remote_path, destination_file.as_posix()])
+    print(f"downloaded to {destination_file}")
+
+
+def command_janitor(
+    directories: list[DirectorySpec], remote_base: str, host: str, default_max_age: int
+) -> None:
+    backups = collect_backups(remote_base, host, missing_ok=True)
+    now = datetime.now()
+    deletions = 0
+
+    for spec in directories:
+        folder = spec.path.name or spec.path.resolve().name
+        records = backups.get(folder)
+        if not records:
+            continue
+        max_age_days = (
+            spec.max_age_days if spec.max_age_days is not None else default_max_age
+        )
+        if max_age_days <= 0:
+            continue
+        cutoff = now - timedelta(days=max_age_days)
+        old_records = [record for record in records if record.date < cutoff]
+        for record in old_records:
+            run_rclone(["deletefile", record.remote_path])
+            print(f"deleted {folder}: {record.filename}")
+            deletions += 1
+
+    if deletions == 0:
+        print("no old backups to delete")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Backup utility backed by rclone")
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="Path to configuration file (default: ~/.config/backup/config.json)",
+    )
+
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    subparsers.add_parser("push", help="Create archives and upload them to the remote")
+
+    list_parser = subparsers.add_parser("list", help="List available backups")
+    list_parser.add_argument(
+        "-d",
+        "--dir",
+        dest="dirs",
+        action="append",
+        help="Limit listing to specific directories",
+    )
+
+    pull_parser = subparsers.add_parser(
+        "pull", help="Download a backup from the remote"
+    )
+    pull_parser.add_argument(
+        "name", help="Directory name whose backup should be downloaded"
+    )
+    pull_parser.add_argument(
+        "-d", "--date", dest="date", help=f"Specific backup date ({DATE_FORMAT})"
+    )
+    pull_parser.add_argument(
+        "-o", "--output", dest="output", help="Directory to download into"
+    )
+
+    subparsers.add_parser(
+        "janitor", help="Delete backups older than the configured retention period"
+    )
+
+    return parser
+
+
+def main(argv: list[str]) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    config_path = Path(args.config).expanduser() if args.config else DEFAULT_CONFIG_PATH
+
+    try:
+        host = socket.gethostname().strip()
+    except OSError:
+        print("error: could not determine hostname;", file=sys.stderr)
+        return 2
+
+    if not host:
+        print("error: hostname cannot be empty", file=sys.stderr)
+        return 2
+
+    try:
+        directories, remote_base, default_max_age = load_config(config_path, host)
+    except ConfigError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    if args.command == "push":
+        try:
+            command_push(directories, remote_base, host)
+        except RuntimeError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.command == "list":
+        try:
+            command_list(remote_base, host, args.dirs)
+        except RuntimeError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.command == "pull":
+        try:
+            command_pull(remote_base, host, args.name, args.date, args.output)
+        except RuntimeError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.command == "janitor":
+        try:
+            command_janitor(directories, remote_base, host, default_max_age)
+        except RuntimeError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    parser.print_help()
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
+
+
+# vim: syn=python ft=python

@@ -1,6 +1,11 @@
 { pkgs, inputs, ... }:
 let
   dictator = inputs.dictator.packages.${pkgs.system}.default;
+  backupJob = pkgs.writeShellScript "backup-weekly-job" ''
+    set -eu
+    "$HOME/bin/backup" push
+    "$HOME/bin/backup" janitor
+  '';
 in
 {
   home.packages = [ dictator ];
@@ -87,6 +92,29 @@ in
     Timer = {
       OnBootSec = "5m";
       OnUnitActiveSec = "24h";
+      Persistent = true;
+    };
+    Install.WantedBy = [ "timers.target" ];
+  };
+
+  systemd.user.services.backup-weekly = {
+    Unit = {
+      Description = "Weekly backup push and janitor";
+      After = "network-online.target";
+    };
+    Service = {
+      Type = "oneshot";
+      ExecStart = backupJob;
+      Environment = [
+        "PATH=%h/bin:${pkgs.lib.makeBinPath [ pkgs.uv pkgs.rclone ]}"
+      ];
+    };
+  };
+
+  systemd.user.timers.backup-weekly = {
+    Unit.Description = "Weekly backup run";
+    Timer = {
+      OnCalendar = "Mon 01:00";
       Persistent = true;
     };
     Install.WantedBy = [ "timers.target" ];

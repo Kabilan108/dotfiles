@@ -1,12 +1,14 @@
 {
   pkgs,
-  lib,
   theme,
   config,
   ...
 }:
 let
   homeDir = "/home/kabilan";
+  confDir = "${homeDir}/dotfiles/config";
+  mkLink = name: config.lib.file.mkOutOfStoreSymlink "${confDir}/${name}";
+  mkPath = name: ../config/${name};
 in
 {
   imports = [
@@ -25,22 +27,21 @@ in
   ];
 
   home.file = {
-    ".gitconfig".source = ../config/.gitconfig;
-    ".obsidian.vimrc".source = ../config/.obsidian.vimrc;
-    ".tmux.conf".source = ../config/.tmux.conf;
-    ".vimrc".source = ../config/.vimrc;
+    ".claude".source = mkLink "claude";
+    ".gitconfig".source = mkPath ".gitconfig";
+    ".ipython/profile_default/ipython_config.py".source = mkPath "ipython_config.py";
+    ".obsidian.vimrc".source = mkPath ".obsidian.vimrc";
+    ".tmux.conf".source = mkPath ".tmux.conf";
+    ".vimrc".source = mkPath ".vimrc";
+
+    ".config/backup".source = mkLink "backup";
+    ".config/Code/User".source = mkLink "vscode";
+    ".config/Cursor/User".source = mkLink "vscode";
+    ".config/sessionizer".source = mkLink "sessionizer";
+    ".config/opencode".source = mkLink "opencode";
+    ".config/nvim".source = mkLink "nvim";
+
     "bin".source = ./bin;
-    ".ipython/profile_default/ipython_config.py".source = ../config/ipython_config.py;
-
-    ".claude".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/config/claude";
-    ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/config/nvim";
-    ".config/Cursor/User".source =
-      config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/config/vscode";
-    ".config/Code/User".source =
-      config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/config/vscode";
-
-    ".config/opencode".source = ../config/opencode;
-    ".config/opencode".recursive = true;
   };
 
   home.file.".sessionizer".text = ''
