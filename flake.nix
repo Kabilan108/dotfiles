@@ -5,14 +5,19 @@
     {
       self,
       nixpkgs,
+      unstable,
       nix-colors,
       ...
     }@inputs:
     let
       system = "x86_64-linux";
+      pkgs-unstable = import unstable { inherit system; };
       pkgs = import nixpkgs {
         system = system;
         config.allowUnfree = true;
+        overlays = [
+          (final: prev: { ghostty = pkgs-unstable.ghostty; })
+        ];
       };
 
       theme = rec {
@@ -35,7 +40,8 @@
             ./configuration.nix
             ./common/user.nix
             ./common/virt-manager.nix
-          ] ++ modules;
+          ]
+          ++ modules;
         };
     in
     {
@@ -60,6 +66,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
     agenix = {

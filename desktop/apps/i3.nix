@@ -188,6 +188,7 @@ in
 
         # quickstart
         "${mod}+Return" = "exec ghostty";
+        "${mod}+b" = "exec brave";
 
         # voice typing
         "${mod}+t" = "exec dictator toggle";

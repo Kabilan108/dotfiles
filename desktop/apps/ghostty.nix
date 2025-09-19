@@ -5,11 +5,13 @@ in
 {
   programs.ghostty = {
     enable = true;
-    enableBashIntegration = true;
     settings = {
       clipboard-read = "allow";
       clipboard-write = "allow";
       clipboard-trim-trailing-spaces = true;
+
+      shell-integration = "bash";
+      app-notifications = "no-clipboard-copy";
 
       adw-toolbar-style = "flat";
       gtk-tabs-location = "bottom";
