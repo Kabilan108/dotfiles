@@ -143,6 +143,7 @@ in
     libreoffice-fresh
     nautilus
     obsidian
+    remmina
     slack
     spotify
     telegram-desktop
