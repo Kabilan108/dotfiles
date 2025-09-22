@@ -13,6 +13,7 @@ in
 {
   imports = [
     ./systemd-services.nix
+    ./bash-completions.nix
   ];
 
   home.username = "kabilan";

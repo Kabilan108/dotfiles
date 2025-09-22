@@ -1,0 +1,76 @@
+#!/bin/bash
+# Bash completion for mg command
+
+_mg_completion() {
+    local cur prev subcommand
+    COMPREPLY=()
+
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    if (( COMP_CWORD > 0 )); then
+        prev="${COMP_WORDS[COMP_CWORD-1]}"
+    else
+        prev=""
+    fi
+
+    local opts="-A --all -e --exclude -f --file -h --help -i --info"
+    local commands="status diff completion"
+
+    if (( COMP_CWORD == 1 )); then
+        if [[ "$cur" == -* ]]; then
+            COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
+        else
+            COMPREPLY=( $(compgen -W "$commands" -- "$cur") )
+        fi
+        return
+    fi
+
+    subcommand="${COMP_WORDS[1]}"
+
+    case "$subcommand" in
+        completion)
+            if (( COMP_CWORD == 2 )); then
+                COMPREPLY=( $(compgen -W "bash" -- "$cur") )
+            fi
+            return
+            ;;
+        status|diff)
+            case "$prev" in
+                -e|--exclude)
+                    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+                        local branches
+                        branches=$(git for-each-ref --format='%(refname:short)' refs/heads 2>/dev/null)
+                        if [[ -n "$branches" ]]; then
+                            COMPREPLY=( $(compgen -W "$branches" -- "$cur") )
+                            return
+                        fi
+                    fi
+                    COMPREPLY=()
+                    return
+                    ;;
+                -f|--file)
+                    COMPREPLY=( $(compgen -f -- "$cur") )
+                    return
+                    ;;
+            esac
+
+            if [[ "$cur" == -* ]]; then
+                COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
+            else
+                COMPREPLY=()
+            fi
+            return
+            ;;
+        *)
+            if [[ "$cur" == -* ]]; then
+                COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
+            else
+                COMPREPLY=()
+            fi
+            return
+            ;;
+    esac
+}
+
+complete -F _mg_completion -o default mg
+
+# vim: set ft=sh ts=4 sw=4 et:
