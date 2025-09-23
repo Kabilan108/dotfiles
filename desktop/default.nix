@@ -25,6 +25,8 @@
     };
   };
 
+  programs.vivaldi.enable = true;
+
   home.file.".config/greenclip.toml".source = ../config/greenclip.toml;
 
   home.packages = with pkgs; [

@@ -11,12 +11,18 @@
     }@inputs:
     let
       system = "x86_64-linux";
-      pkgs-unstable = import unstable { inherit system; };
+      pkgs-unstable = import unstable {
+        system = system;
+        config.allowUnfree = true;
+      };
       pkgs = import nixpkgs {
         system = system;
         config.allowUnfree = true;
         overlays = [
-          (final: prev: { ghostty = pkgs-unstable.ghostty; })
+          (final: prev: {
+            ghostty = pkgs-unstable.ghostty;
+            code-cursor = pkgs-unstable.code-cursor;
+          })
         ];
       };
 
