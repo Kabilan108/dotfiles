@@ -39,6 +39,13 @@ in
       owner = "kabilan";
       group = "users";
     };
+    secrets."secrets/atlas.json" = {
+      file = ../secrets/atlas.json;
+      path = "${home}/.config/atlas/config.json";
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
   };
 
   home-manager = {

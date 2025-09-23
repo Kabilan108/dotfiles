@@ -88,6 +88,7 @@
 
     nix-colors.url = "github:misterio77/nix-colors";
 
+    atlas.url = "github:kabilan108/atlas/go/claude-1";
     capscreen.url = "github:kabilan108/capscreen";
     dictator.url = "github:kabilan108/dictator";
     diffgpt.url = "github:kabilan108/diffgpt";

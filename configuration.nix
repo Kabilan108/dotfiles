@@ -84,6 +84,7 @@
 
     environment.systemPackages = with pkgs; [
       inputs.agenix.packages.${pkgs.system}.default
+      inputs.atlas.packages.${pkgs.system}.default
       inputs.capscreen.packages.${pkgs.system}.default
       inputs.diffgpt.packages.${pkgs.system}.default
       inputs.dump.packages.${pkgs.system}.default

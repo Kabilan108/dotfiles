@@ -1,10 +1,14 @@
 {
   config,
   lib,
+  pkgs,
+  inputs,
   ...
 }:
 let
-  completionsDir = ".local/share/bash-completion/completions";
+  bashCompletionDir = "share/bash-completion/completions";
+  completionsDir = ".local/${bashCompletionDir}";
+
   repoCompletions = lib.filterAttrs (name: type: type == "regular" && !(lib.hasSuffix ".md" name)) (
     builtins.readDir ./completions
   );
@@ -16,19 +20,12 @@ let
       value.source = ./completions + "/${name}";
     }) completions;
 
-  packageCompletionPaths = [
-    # Example: "${pkgs.awscli2}/share/bash-completion/completions/aws"
-  ];
-
-  mkPackageCompletionLinks =
-    paths:
-    lib.listToAttrs (
-      map (path: {
-        name = "${completionsDir}/${baseNameOf path}";
-        value.source = path;
-      }) paths
-    );
+  pkgCompletionLinks = {
+    "${completionsDir}/atlas".source = "${
+      inputs.atlas.packages.${pkgs.system}.default
+    }/${bashCompletionDir}/atlas";
+  };
 in
 {
-  home.file = mkCompletionLinks repoCompletions // mkPackageCompletionLinks packageCompletionPaths;
+  home.file = mkCompletionLinks repoCompletions // pkgCompletionLinks;
 }

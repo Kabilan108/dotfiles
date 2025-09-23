@@ -80,7 +80,6 @@ in
       Type = "oneshot";
       ExecStart = ''
         ${pkgs.uv}/bin/uv tool install -U git+https://github.com/karpathy/rendergit
-        ${pkgs.uv}/bin/uv tool install -U git+https://github.com/kabilan108/atlask
         ${pkgs.uv}/bin/uv tool install -U --with llm-cmd --with llm-anthropic --with llm-tmux-fragments llm
       '';
     };
