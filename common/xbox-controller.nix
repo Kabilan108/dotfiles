@@ -3,8 +3,6 @@
 { config, ... }:
 {
   hardware.bluetooth.settings.General = {
-    experimental = true; # show battery
-    # for pairing controller: https://www.reddit.com/r/NixOS/comments/1ch5d2p/comment/lkbabax/
     Privacy = "device";
     JustWorksRepairing = "always";
     Class = "0x000100";
