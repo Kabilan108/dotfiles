@@ -148,6 +148,7 @@ in
     slack
     spotify
     telegram-desktop
+    transmission_4-gtk
     vlc
     vscode-fhs
     zoom-us
