@@ -93,6 +93,7 @@
       # file system support
       gvfs
       udisks2
+      virtiofsd
 
       # media utils
       ffmpeg-full
