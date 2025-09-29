@@ -1,0 +1,8 @@
+file-history/
+logs/
+projects/
+shell-snapshots/
+statsig/
+todos/
+.update.lock
+history.jsonl

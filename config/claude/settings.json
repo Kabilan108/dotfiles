@@ -23,5 +23,9 @@
       }
     ]
   },
-  "model": "opusplan"
+  "statusLine": {
+    "type": "command",
+    "command": "bash $HOME/.claude/statusline-command.sh"
+  },
+  "alwaysThinkingEnabled": false
 }
