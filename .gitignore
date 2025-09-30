@@ -5,3 +5,12 @@ certs/
 **/vscode/History/
 **/vscode/globalStorage/
 **/vscode/workspaceStorage/
+
+**/claude/file-history/
+**/claude/logs/
+**/claude/projects/
+**/claude/shell-snapshots/
+**/claude/statsig/
+**/claude/todos/
+**/claude/.update.lock
+**/claude/history.jsonl

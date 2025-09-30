@@ -4,7 +4,14 @@ TS_SEARCH_PATHS=(~/ ~/repos ~/gists)
 
 # if set, this adds additional search paths to the default TS_SEARCH_PATHS
 # The number prefix is the depth for the Path [OPTIONAL]
-TS_EXTRA_SEARCH_PATHS=(~/work/moberg:1 ~/work/moberg/dev-server:2 /vault/notes:2 ~/repos/cli:1 ~/repos/sites:1)
+TS_EXTRA_SEARCH_PATHS=(
+  ~/work/moberg
+  ~/work/moberg/dev-server:2
+  ~/repos/cli
+  ~/repos/sites
+  ~/repos/nvim-plugins/
+  /vault/notes:2
+)
 
 # if set, this overrides the TS_MAX_DEPTH (1)
 TS_MAX_DEPTH=1
