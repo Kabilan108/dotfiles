@@ -21,7 +21,7 @@
         overlays = [
           (final: prev: {
             ghostty = pkgs-unstable.ghostty;
-            code-cursor = pkgs-unstable.code-cursor;
+            code-cursor = final.callPackage ./packages/cursor { };
           })
         ];
       };
