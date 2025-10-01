@@ -25,7 +25,14 @@ return {
     lazy = false,
   },
 
-  { "kabilan108/droid.nvim",  config = function() require("droid").setup({}) end },
+  { "kabilan108/droid.nvim",  config = function() require("droid").setup({
+    available_models = {
+      "anthropic/claude-sonnet-4.5",
+      "google/gemini-2.5-flash",
+      "x-ai/grok-4-fast",
+      "openai/gpt-4.1",
+    }
+  }) end },
   { "kabilan108/pyrepl.nvim", config = function() require("pyrepl").setup({}) end },
   {
     "kabilan108/claude-code.nvim",
