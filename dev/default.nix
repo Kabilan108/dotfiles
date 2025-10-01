@@ -186,6 +186,7 @@ in
     tmux
 
     # lsp & formatters
+    bash-language-server
     biome
     dockerfile-language-server-nodejs
     gopls
@@ -195,6 +196,7 @@ in
     pyright
     rust-analyzer
     ruff
+    shfmt
     stylua
 
     # languages

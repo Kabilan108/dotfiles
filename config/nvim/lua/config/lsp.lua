@@ -2,6 +2,7 @@
 -- configure LSPs
 
 local servers = {
+  bashls = {},
   biome = {
     cmd = { 'biome', 'lsp-proxy' },
     filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact', 'json', 'css' },

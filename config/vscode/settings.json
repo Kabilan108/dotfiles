@@ -236,5 +236,7 @@
 		"devserver3": "linux",
 		"sietch": "linux"
 	},
-	"git.blame.editorDecoration.enabled": true
+	"git.blame.editorDecoration.enabled": true,
+	"cursor.agent_layout_browser_beta_setting": true,
+	"cursor.composer.usageSummaryDisplay": "always"
 }
