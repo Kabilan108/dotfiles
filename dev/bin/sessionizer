@@ -9,7 +9,6 @@ PANE_CACHE_FILE="$PANE_CACHE_DIR/panes.cache"
 
 session_idx=""
 session_cmd=""
-user_selected=""
 split_type=""
 selected=""
 
@@ -35,7 +34,7 @@ fi
 # --- utility functions ---------------------------------------------------------------
 
 usage() {
-  echo "Usage: sessionizer [OPTIONS] [SEARCH_PATH]"
+  echo "Usage: sessionizer [OPTIONS] [SEARCH_PATHS]"
   echo "Options:"
   echo "  -h, --help             Display this help message"
   echo "  -s, --session <name>   session command index."
@@ -51,7 +50,7 @@ init_config() {
   fi
 
   if [[ ! -d $(dirname "$CONFIG_FILE") ]]; then
-    mkdir -p $(dirname "$CONFIG_FILE")
+    mkdir -p "$(dirname "$CONFIG_FILE")"
   fi
 
   echo "# vim: syn=bash ft=bash
@@ -102,7 +101,7 @@ hydrate() {
     return
   elif [ -f "$2/.sessionizer" ]; then
     tmux send-keys -t "$1" "source $2/.sessionizer" c-M
-  elif [ -f $HOME/.sessionizer ]; then
+  elif [ -f "$HOME/.sessionizer" ]; then
     tmux send-keys -t "$1" "source $HOME/.sessionizer" c-M
   fi
 }
@@ -128,7 +127,8 @@ find_dirs() {
   # TS_SEARCH_PATHS is an array of paths to search for directories
   # if the path ends with `:number`, it will search for directories with a max depth of number
   # if there is no number, it will search for directories with a max depth of TS_MAX_DEPTH
-  for entry in "${TS_SEARCH_PATHS[@]}"; do
+  local search_paths=("${OVERRIDE_SEARCH_PATHS[@]:-${TS_SEARCH_PATHS[@]}}")
+  for entry in "${search_paths[@]}"; do
     # check if entry has `:number` suffic
     if [[ "$entry" =~ ^([^:]+):([0-9]+)$ ]]; then
       path="${BASH_REMATCH[1]}"
@@ -162,15 +162,15 @@ handle_session_cmd() {
 
 handle_window_session_cmd() {
   local current_session="$1"
-  start_index=$((10 + $session_idx))
+  start_index=$((10 + session_idx))
   target="$current_session:$start_index"
 
   if tmux has-session -t="$target" 2>/dev/null; then
     switch_to "$target"
   else
-    tmux neww -dt $target "$session_cmd"
+    tmux neww -dt "$target" "$session_cmd"
     hydrate "$target" "$selected"
-    tmux select-window -t $target
+    tmux select-window -t "$target"
   fi
 }
 
@@ -286,7 +286,9 @@ while [[ "$#" -gt 0 ]]; do
     shift
     ;;
   *)
-    user_selected="$1"
+    OVERRIDE_SEARCH_PATHS=()
+    OVERRIDE_SEARCH_PATHS+=("$@")
+    break
     ;;
   esac
   shift
@@ -302,8 +304,6 @@ check_deps
 
 if [[ -n "$session_cmd" ]]; then
   handle_session_cmd
-elif [[ -n "$user_selected" ]]; then
-  selected="$user_selected"
 else
   selected=$({
     find_sessions
