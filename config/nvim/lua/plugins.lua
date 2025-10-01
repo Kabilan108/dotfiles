@@ -30,7 +30,7 @@ return {
   {
     "kabilan108/claude-code.nvim",
     requires = { "nvim-lua/plenary.nvim" },
-    config = function() 
+    config = function()
       require("claude-code").setup({
         keymaps = {
           toggle = {
@@ -143,6 +143,19 @@ return {
       local harpoon_extensions = require("harpoon.extensions")
       harpoon:setup({})
       harpoon:extend(harpoon_extensions.builtins.highlight_current_file())
+    end
+  },
+
+  {
+    "natecraddock/workspaces.nvim",
+    config = function()
+      require("workspaces").setup({
+        hooks = {
+          cd_type = "local",
+          open = { "Oil" }
+        }
+      })
+      require("telescope").load_extension("workspaces")
     end
   },
 

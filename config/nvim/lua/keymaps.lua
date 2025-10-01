@@ -35,6 +35,7 @@ utils.map("<leader>sk", "n", ts.keymaps, "search keymaps")
 utils.map("<leader>rs", "n", ts.resume, "resume search")
 utils.map("<leader>sr", "n", ts.oldfiles, "search recent files")
 utils.map("<leader>si", "n", ts.git_status, "search git index")
+utils.map("<leader>sw", "n", "<CMD>Telescope workspaces<CR>", "search workspaces")
 
 -- git staging with gitsigns
 utils.map("<leader>ga", "n", "<CMD>Gitsigns stage_buffer<CR>", "git: stage current file")
