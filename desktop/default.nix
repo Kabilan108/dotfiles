@@ -10,6 +10,7 @@
     ./apps/i3.nix
     ./apps/picom.nix
     ./apps/polybar.nix
+    ./apps/pwas.nix
     ./apps/rofi
   ];
 
@@ -51,4 +52,22 @@
     xorg.xev
     xorg.xrandr
   ];
+
+  programs.pwas = {
+    enable = true;
+    apps = [
+      {
+        name = "ChatGPT";
+        url = "https://chat.openai.com/";
+        icon = "chatgpt";
+        class = "ChatGPT";
+      }
+      {
+        name = "Discord";
+        url = "https://discord.com/channels/@me";
+        icon = "discord";
+        class = "Discord";
+      }
+    ];
+  };
 }

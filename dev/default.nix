@@ -139,7 +139,6 @@ in
     android-studio
     brave
     code-cursor
-    discord
     google-chrome
     inkscape
     libreoffice-fresh

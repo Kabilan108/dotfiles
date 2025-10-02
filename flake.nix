@@ -21,6 +21,7 @@
         overlays = [
           (final: prev: {
             ghostty = pkgs-unstable.ghostty;
+            spotify = pkgs-unstable.spotify;
             code-cursor = final.callPackage ./packages/cursor { };
           })
         ];
