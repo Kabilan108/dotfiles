@@ -68,6 +68,18 @@
         icon = "discord";
         class = "Discord";
       }
+      {
+        name = "WhatsApp";
+        url = "https://web.whatsapp.com";
+        icon = "whatsapp";
+        class = "WhatsApp";
+      }
+      {
+        name = "Telegram";
+        url = "https://web.telegram.org";
+        icon = "telegram";
+        class = "Telegram";
+      }
     ];
   };
 }
