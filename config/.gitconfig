@@ -39,6 +39,7 @@
 	helper = store
 
 [delta]
+  tabs = 2
   navigate = true
   line-numbers = true
   syntax-theme = base16
