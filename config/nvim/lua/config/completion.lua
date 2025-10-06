@@ -1,17 +1,17 @@
 -- completion.lua
 -- configure autocomplete
 
-local cmp = require "cmp"
-local luasnip = require "luasnip"
+local cmp = require 'cmp'
+local luasnip = require 'luasnip'
 
-local utils = require "utils"
+local utils = require 'utils'
 
 cmp.setup {
-  completion = { completeopt = "menu,menuone,noinsert" },
+  completion = { completeopt = 'menu,menuone,noinsert' },
   sources = {
-    { name = "nvim_lsp" },
-    { name = "luasnip" },
-    { name = "path" },
+    { name = 'nvim_lsp' },
+    { name = 'luasnip' },
+    { name = 'path' },
   },
   snippet = {
     expand = function(args)
@@ -25,7 +25,7 @@ cmp.setup {
     ['<C-f>'] = cmp.mapping.scroll_docs(4),
     ['<C-y>'] = cmp.mapping.confirm { select = true },
     ['<C-Space>'] = cmp.mapping.complete {},
-    ["<Tab>"] = cmp.mapping(function(fallback)
+    ['<Tab>'] = cmp.mapping(function(fallback)
       if cmp.visible() then
         cmp.select_next_item()
       elseif luasnip.expand_or_jumpable() then
@@ -33,8 +33,8 @@ cmp.setup {
       else
         fallback()
       end
-    end, { "i", "s" }),
-    ["<S-Tab>"] = cmp.mapping(function(fallback)
+    end, { 'i', 's' }),
+    ['<S-Tab>'] = cmp.mapping(function(fallback)
       if cmp.visible() then
         cmp.select_prev_item()
       elseif luasnip.jumpable(-1) then
@@ -42,7 +42,7 @@ cmp.setup {
       else
         fallback()
       end
-    end, { "i", "s" }),
+    end, { 'i', 's' }),
   },
   formatting = {
     format = function(entry, vim_item)
@@ -50,12 +50,12 @@ cmp.setup {
       vim_item.kind = string.format('%s %s', utils.cmp_icons[vim_item.kind], vim_item.kind)
       -- Source
       vim_item.menu = ({
-        nvim_lsp = "[LSP]",
-        luasnip = "[Snippet]",
-        path = "[Path]",
+        nvim_lsp = '[LSP]',
+        luasnip = '[Snippet]',
+        path = '[Path]',
       })[entry.source.name]
       return vim_item
-    end
+    end,
   },
 }
 
@@ -63,5 +63,5 @@ cmp.setup.filetype({ 'typr' }, {
   window = {
     completion = cmp.config.disable,
     documentation = cmp.config.disable,
-  }
+  },
 })

@@ -3,8 +3,8 @@
 local opt = vim.opt
 
 -- define leaders
-vim.g.mapleader = " "
-vim.g.maplocalleader = " "
+vim.g.mapleader = ' '
+vim.g.maplocalleader = ' '
 
 -- enable nerd font
 vim.g.have_nerd_font = true
@@ -14,7 +14,7 @@ vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
 
 -- use system clipboard
-opt.clipboard:append "unnamedplus"
+opt.clipboard:append 'unnamedplus'
 
 -- highlight on search
 opt.hlsearch = true
@@ -69,9 +69,9 @@ opt.cursorline = true
 opt.scrolloff = 20
 
 -- folding
-opt.foldmethod = "indent"  -- fold based on indentation
-opt.foldlevel = 99        -- start with all folds open
-opt.foldenable = true     -- enable folding
+opt.foldmethod = 'indent' -- fold based on indentation
+opt.foldlevel = 99 -- start with all folds open
+opt.foldenable = true -- enable folding
 
 -- indentation
 opt.expandtab = true
@@ -80,4 +80,4 @@ opt.tabstop = 2
 opt.softtabstop = 2
 
 -- show a ruler
-opt.colorcolumn = "88"
+opt.colorcolumn = '88'

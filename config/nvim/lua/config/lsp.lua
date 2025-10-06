@@ -51,6 +51,7 @@ local servers = {
     },
   },
   lua_ls = {
+    cmd = { 'lua-language-server' },
     settings = {
       Lua = {
         completion = {
@@ -70,21 +71,32 @@ local servers = {
         analysis = {
           -- ignore all files for analysis to exclusively use ruff for linting
           ignore = { '*' },
-        }
-      }
-    }
+        },
+      },
+    },
   },
   rust_analyzer = {},
   ruff = {
     cmd = { 'ruff', 'server' },
   },
   tailwindcss = {
-    cmd = {'bunx', '--bun', '@tailwindcss/language-server', '--stdio'},
+    cmd = { 'bunx', '--bun', '@tailwindcss/language-server', '--stdio' },
     filetypes = {
-      'css', 'scss', 'sass', 'postcss',
-      'html', 'htmldjango', 'vue', 'svelte',
-      'javascript', 'javascriptreact', 'typescript', 'typescriptreact',
-      'php', 'markdown', 'mdx'
+      'css',
+      'scss',
+      'sass',
+      'postcss',
+      'html',
+      'htmldjango',
+      'vue',
+      'svelte',
+      'javascript',
+      'javascriptreact',
+      'typescript',
+      'typescriptreact',
+      'php',
+      'markdown',
+      'mdx',
     },
     root_dir = require('lspconfig.util').root_pattern(
       'tailwind.config.js',
@@ -107,10 +119,10 @@ local servers = {
           invalidScreen = 'error',
           invalidTailwindDirective = 'error',
           invalidVariant = 'error',
-          recommendedVariantOrder = 'warning'
+          recommendedVariantOrder = 'warning',
         },
-        validate = true
-      }
+        validate = true,
+      },
     },
   },
   ts_ls = {
@@ -120,14 +132,16 @@ local servers = {
   },
 }
 
-local lspconfig = require("lspconfig")
 local capabilities = vim.lsp.protocol.make_client_capabilities()
-capabilities = vim.tbl_deep_extend(
-  'force', capabilities, require('cmp_nvim_lsp').default_capabilities()
-)
+capabilities = vim.tbl_deep_extend('force', capabilities, require('cmp_nvim_lsp').default_capabilities())
 for name, opts in pairs(servers) do
-  opts.capabilities = vim.tbl_deep_extend(
-    'force', {}, capabilities, opts.capabilities or {}
-  )
-  lspconfig[name].setup(opts)
+  opts.capabilities = vim.tbl_deep_extend('force', {}, capabilities, opts.capabilities or {})
+  vim.lsp.config(name, opts)
+  vim.lsp.enable(name)
 end
+
+-- enable virtual text diagnostic
+vim.diagnostic.config {
+  virtual_text = true,
+  update_in_insert = false,
+}
