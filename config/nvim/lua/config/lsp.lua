@@ -1,39 +1,30 @@
 -- lsp.lua
 -- configure LSPs
 
+-- enable virtual text diagnostic
+vim.diagnostic.config {
+  virtual_text = true,
+  update_in_insert = false,
+}
+
+-- configure LSPs
+
 local servers = {
-  bashls = {},
-  biome = {
-    cmd = { 'biome', 'lsp-proxy' },
-    filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact', 'json', 'css' },
-    root_dir = require('lspconfig.util').root_pattern('biome.json', 'package.json'),
-    single_file_support = true,
-  },
-  clangd = {
-    cmd = { 'clangd' },
-    filetypes = { 'c', 'cpp', 'cc', 'objc', 'objcpp' },
-    root_dir = require('lspconfig.util').root_pattern(
-      '.clangd',
-      '.clang-tidy',
-      '.clang-format',
-      'compile_commands.json',
-      'compile_flags.txt',
-      'configure.ac',
-      '.git'
-    ),
-    init_options = {
-      clangdFileStatus = true,
-      usePlaceholders = true,
-      completeUnimported = true,
-      semanticHighlighting = true,
-    },
-    settings = {},
-  },
-  dockerls = {
-    filetypes = { 'dockerfile' },
-    root_dir = require('lspconfig.util').root_pattern('Dockerfile', '.dockerignore', 'docker-compose.yml', '.git'),
-    single_file_support = true,
-  },
+  'bashls',
+  'biome',
+  'clangd',
+  'dockerls',
+  'gopls',
+  'lua_ls',
+  'nixd',
+  'pyright',
+  'rust_analyzer',
+  'ruff',
+  'tailwindcss',
+  'ts_ls',
+}
+
+local custom_cfg = {
   gopls = {
     cmd = { 'gopls' },
     filetypes = { 'go', 'gomod', 'gowork', 'gotmpl' },
@@ -50,17 +41,6 @@ local servers = {
       },
     },
   },
-  lua_ls = {
-    cmd = { 'lua-language-server' },
-    settings = {
-      Lua = {
-        completion = {
-          callSnippet = 'Replace',
-        },
-      },
-    },
-  },
-  nixd = {},
   pyright = {
     settings = {
       pyright = {
@@ -75,73 +55,17 @@ local servers = {
       },
     },
   },
-  rust_analyzer = {},
-  ruff = {
-    cmd = { 'ruff', 'server' },
-  },
   tailwindcss = {
     cmd = { 'bunx', '--bun', '@tailwindcss/language-server', '--stdio' },
-    filetypes = {
-      'css',
-      'scss',
-      'sass',
-      'postcss',
-      'html',
-      'htmldjango',
-      'vue',
-      'svelte',
-      'javascript',
-      'javascriptreact',
-      'typescript',
-      'typescriptreact',
-      'php',
-      'markdown',
-      'mdx',
-    },
-    root_dir = require('lspconfig.util').root_pattern(
-      'tailwind.config.js',
-      'tailwind.config.cjs',
-      'tailwind.config.mjs',
-      'tailwind.config.ts',
-      'postcss.config.js',
-      'postcss.config.cjs',
-      'postcss.config.mjs',
-      'postcss.config.ts',
-      'package.json'
-    ),
-    settings = {
-      tailwindCSS = {
-        classAttributes = { 'class', 'className', 'class:list', 'classList', 'ngClass' },
-        lint = {
-          cssConflict = 'warning',
-          invalidApply = 'error',
-          invalidConfigPath = 'error',
-          invalidScreen = 'error',
-          invalidTailwindDirective = 'error',
-          invalidVariant = 'error',
-          recommendedVariantOrder = 'warning',
-        },
-        validate = true,
-      },
-    },
-  },
-  ts_ls = {
-    filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact' },
-    root_dir = require('lspconfig.util').root_pattern('package.json', 'tsconfig.json', 'jsconfig.json'),
-    single_file_support = true,
   },
 }
 
 local capabilities = vim.lsp.protocol.make_client_capabilities()
 capabilities = vim.tbl_deep_extend('force', capabilities, require('cmp_nvim_lsp').default_capabilities())
-for name, opts in pairs(servers) do
-  opts.capabilities = vim.tbl_deep_extend('force', {}, capabilities, opts.capabilities or {})
-  vim.lsp.config(name, opts)
-  vim.lsp.enable(name)
-end
 
--- enable virtual text diagnostic
-vim.diagnostic.config {
-  virtual_text = true,
-  update_in_insert = false,
-}
+for _, s in pairs(servers) do
+  local opts = custom_cfg[s] or {}
+  opts.capabilities = vim.tbl_deep_extend('force', {}, capabilities, opts.capabilities or {})
+  vim.lsp.config(s, opts)
+  vim.lsp.enable(s)
+end

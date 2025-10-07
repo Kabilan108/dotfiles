@@ -14,3 +14,4 @@ certs/
 **/claude/todos/
 **/claude/.update.lock
 **/claude/history.jsonl
+**/claude/local

@@ -236,10 +236,6 @@ return {
     opts = function()
       return {
         -- run format on save, falling back to LSP if no external formatter
-        format_on_save = {
-          timeout_ms = 800,
-          lsp_format = 'fallback',
-        },
         formatters_by_ft = {
           lua = { 'stylua' },
           python = { 'ruff_organize_imports', 'ruff_format' },
