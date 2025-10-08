@@ -183,6 +183,7 @@ in
     tree
     tree-sitter
     tmux
+    yazi
 
     # lsp & formatters
     bash-language-server
