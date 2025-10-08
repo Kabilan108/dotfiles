@@ -2,10 +2,9 @@
 
 # if not running interactively, don't do anything
 case $- in
-    *i*) ;;
-      *) return;;
+*i*) ;;
+*) return ;;
 esac
-
 
 ### -> GENERAL SETTINGS
 
@@ -19,7 +18,7 @@ PROMPT_DIRTRIM=2
 bind Space:magic-space
 
 # recursive file globbing
-shopt -s globstar 2> /dev/null
+shopt -s globstar 2>/dev/null
 
 # case-insensitive path expansion
 shopt -s nocaseglob
@@ -34,7 +33,6 @@ export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quo
 bind '"\C-l":"clear\n"'
 bind '"\C-A-l":"clear\n"'
 
-
 ### -> SMARTER TAB-COMPLETION
 
 # case insensitive file completion
@@ -45,7 +43,6 @@ bind "set show-all-if-ambiguous on"
 
 # add trailing slash when autocompleting symlinks to directories
 bind "set mark-symlinked-directories on"
-
 
 ### -> HISTORY DEFAULTS
 
@@ -76,26 +73,24 @@ bind '"\e[B": history-search-forward'
 bind '"\e[C": forward-char'
 bind '"\e[D": backward-char'
 
-
 ### -> DIRECTORY NAVIGATION
 
 # correct spelling errors during tab-completion
-shopt -s dirspell 2> /dev/null
+shopt -s dirspell 2>/dev/null
 
 # correct spelling errors in args to cd
-shopt -s cdspell 2> /dev/null
+shopt -s cdspell 2>/dev/null
 
 # this allows you to bookmark locations by setting variables to folder paths
 shopt -s cdable_vars
 
-
 ### -> PROMPT
 
 __bash_prompt() {
-    local userpart='`export XIT=$? \
+  local userpart='`export XIT=$? \
         && echo -n "\[\033[0;32m\]\u\[\033[0;36m\]@$HOSTNAME " \
         && [ "$XIT" -ne "0" ] && echo -n "\[\033[1;31m\]➜" || echo -n "\[\033[0m\]➜"`'
-    local gitbranch='`\
+  local gitbranch='`\
         export BRANCH=$(git --no-optional-locks symbolic-ref --short HEAD 2>/dev/null || git --no-optional-locks rev-parse --short HEAD 2>/dev/null); \
         if [ "${BRANCH}" != "" ]; then \
             echo -n "\[\033[0;36m\](\[\033[1;31m\]${BRANCH}" \
@@ -104,67 +99,65 @@ __bash_prompt() {
             fi \
             && echo -n "\[\033[0;36m\]) "; \
         fi`'
-    local lightblue='\[\033[1;34m\]'
-    local removecolor='\[\033[0m\]'
-    PS1="${userpart} ${lightblue}\w ${gitbranch}${removecolor}\n\$ "
-    unset -f __bash_prompt
+  local lightblue='\[\033[1;34m\]'
+  local removecolor='\[\033[0m\]'
+  PS1="${userpart} ${lightblue}\w ${gitbranch}${removecolor}\n\$ "
+  unset -f __bash_prompt
 }
 __bash_prompt
 export PROMPT_DIRTRIM=2
 
-
 ### -> ENVIRONMENT
 
 if [ -f ~/.bashenv ]; then
-    source ~/.bashenv
+  source ~/.bashenv
 fi
 
 eval "$(direnv hook bash)"
 
-
 #### --> FUNCTIONS
 
 function tmuxa() {
-    if [[ -z "$1" ]]; then
-        echo "Usage: tmuxa <session>"
-        return 1
-    else
-        tmux attach-session -t "$1"
-    fi
+  if [[ -z "$1" ]]; then
+    echo "Usage: tmuxa <session>"
+    return 1
+  else
+    tmux attach-session -t "$1"
+  fi
 }
 
 function tmuxn() {
-    if [[ -z "$1" ]]; then
-        tmux new-session
-    else
-        tmux new-session -s "$1"
-    fi
+  if [[ -z "$1" ]]; then
+    tmux new-session
+  else
+    tmux new-session -s "$1"
+  fi
 }
 
 function tmuxl() {
-    tmux list-sessions 2>/dev/null
+  tmux list-sessions 2>/dev/null
 }
 
 function tmuxk() {
-    if [[ -z "$1" ]]; then
-        echo "Usage: tmuxk <session>"
-        sessions=$(tmuxl | awk -F': ' '{print $1}' | paste -sd '  ' -)
-        [ -n "$sessions" ] && echo "existing sessions:  $sessions"
-        return 1
-    else
-        tmux kill-session -t "$1"
-    fi
+  if [[ -z "$1" ]]; then
+    echo "Usage: tmuxk <session>"
+    sessions=$(tmuxl | awk -F': ' '{print $1}' | paste -sd '  ' -)
+    [ -n "$sessions" ] && echo "existing sessions:  $sessions"
+    return 1
+  else
+    tmux kill-session -t "$1"
+  fi
 }
 
 function codex-gpt-5() {
-    $HOME/.bun/bin/codex -m gpt-5 -c model_reasoning_effort="${1:-medium}"
+  $HOME/.bun/bin/codex -m gpt-5 -c model_reasoning_effort="${1:-medium}"
 }
 
 function fvi() {
-    local file=$(fd --hidden --type f --exclude .git \
-        | fzf --height 40% --layout=reverse --border \
-            --preview "bat --style=numbers --color=always {}") || return
-    nvim -- "$file"
+  local file=$(fd --hidden --type f --exclude .git |
+    fzf --height 40% --layout=reverse --border \
+      --preview "bat --style=numbers --color=always {}") || return
+  nvim -- "$file"
 }
 
 ### -> ALIASES
