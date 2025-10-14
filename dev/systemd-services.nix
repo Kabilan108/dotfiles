@@ -55,7 +55,7 @@ in
           @anthropic-ai/claude-code@latest \
           @openai/codex@latest \
           opencode-ai@latest \
-          ccusage@latest
+          @sourcegraph/amp
       '';
     };
     Install.WantedBy = [ "default.target" ];
