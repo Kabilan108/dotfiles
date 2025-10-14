@@ -1,54 +1,65 @@
 [
-	{
-		"key": "alt+.",
-		"command": "workbench.action.nextEditorInGroup",
-		"when": ["editorTextFocus", "terminalFocus"]
-	},
-	{
-		"key": "alt+,",
-		"command": "workbench.action.previousEditorInGroup",
-		"when": ["editorTextFocus", "terminalFocus"]
-	},
-	{
-		"key": "ctrl+alt+t",
-		"command": "workbench.action.increaseViewHeight",
-		"when": "editorTextFocus"
-	},
-	{
-		"key": "ctrl+alt+s",
-		"command": "workbench.action.decreaseViewHeight",
-		"when": "editorTextFocus"
-	},
-	{
-		"key": "ctrl+alt+w",
-		"command": "workbench.action.increaseViewWidth",
-		"when": "editorTextFocus"
-	},
-	{
-		"key": "ctrl+alt+n",
-		"command": "workbench.action.decreaseViewWidth",
-		"when": "editorTextFocus"
-	},
-	{
-		"key": "alt+c",
-		"command": "workbench.action.closeActiveEditor",
-		"when": "editorTextFocus"
-	},
-	{
-		"key": "alt+c",
-		"command": "workbench.action.terminal.kill",
-		"when": "terminalFocus"
-	},
-	{
-		"key": "ctrl+`",
-		"command": "workbench.action.createTerminalEditor"
-	},
-	{
-		"key": "ctrl+i",
-		"command": "composerMode.agent"
-	},
-	{
-		"key": "ctrl+l",
-		"command": "composerMode.chat"
-	}
+  {
+    "key": "alt+.",
+    "command": "workbench.action.nextEditorInGroup",
+    "when": "editorTextFocus || terminalFocus"
+  },
+  {
+    "key": "alt+,",
+    "command": "workbench.action.previousEditorInGroup",
+    "when": "editorTextFocus || terminalFocus"
+  },
+
+  {
+    "key": "ctrl+alt+t",
+    "command": "workbench.action.increaseViewHeight",
+    "when": "editorTextFocus || terminalFocus"
+  },
+  {
+    "key": "ctrl+alt+s",
+    "command": "workbench.action.decreaseViewHeight",
+    "when": "editorTextFocus || terminalFocus"
+  },
+  {
+    "key": "ctrl+alt+w",
+    "command": "workbench.action.increaseViewWidth",
+    "when": "editorTextFocus || terminalFocus"
+  },
+  {
+    "key": "ctrl+alt+n",
+    "command": "workbench.action.decreaseViewWidth",
+    "when": "editorTextFocus || terminalFocus"
+  },
+
+  {
+    "key": "alt+c",
+    "command": "workbench.action.closeActiveEditor",
+    "when": "editorTextFocus"
+  },
+  {
+    "key": "alt+c",
+    "command": "workbench.action.terminal.kill",
+    "when": "terminalFocus"
+  },
+  {
+    "key": "ctrl+`",
+    "command": "workbench.action.createTerminalEditor"
+  },
+  {
+    "key": "alt+\\",
+    "command": "workbench.action.toggleSidebarVisibility",
+  },
+  { "key": "ctrl+i", "command": "composerMode.agent" },
+  {
+    "key": "ctrl+l",
+    "command": "composerMode.chat"
+  },
+  {
+    "key": "shift+alt+\\",
+    "command": "workbench.action.toggleAuxiliaryBar"
+  },
+  {
+    "key": "ctrl+alt+b",
+    "command": "-workbench.action.toggleAuxiliaryBar"
+  }
 ]

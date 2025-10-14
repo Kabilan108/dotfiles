@@ -58,6 +58,7 @@
 	"terminal.integrated.cursorBlinking": true,
 	"terminal.integrated.scrollback": 10000,
 	"vim": {
+		"overrideCopy": true,
 		"highlightedyank": {
 			"enable": true,
 			"duration": 250
@@ -65,20 +66,15 @@
 		"hlsearch": true,
 		"incsearch": true,
 		"leader": "<Space>",
-		"overrideCopy": "true",
 		"useCtrlKeys": true,
 		"useSystemClipboard": true,
 		"visualstar": true,
+
 		"insertModeKeyBindings": [],
+		"visualModeKeyBindings": [],
+
 		"normalModeKeyBindings": [
-			{
-				"before": ["<Esc>"],
-				"commands": [":nohl"]
-			},
-			{
-				"before": ["\\"],
-				"commands": ["workbench.action.toggleSidebarVisibility"]
-			},
+			{ "before": ["<Esc>"], "commands": [":nohl"] },
 			{
 				"before": ["<leader>", "s", "f"],
 				"commands": ["workbench.action.quickOpen"]
@@ -100,18 +96,11 @@
 				"commands": ["editor.unfold"]
 			},
 			{
-				"before": ["<leader>", "z"],
-				"commands": ["editor.toggleFold"]
-			},
-			{
-				"before": ["<leader>", "Z"],
-				"commands": ["editor.toggleFoldRecursively"]
-			},
-			{
 				"before": ["<C-`>"],
 				"commands": ["workbench.action.terminal.openInEditor"]
 			}
 		],
+
 		"normalModeKeyBindingsNonRecursive": [
 			{
 				"before": ["j"],
@@ -122,6 +111,7 @@
 				"after": ["g", "k"]
 			}
 		],
+
 		"visualModeKeyBindingsNonRecursive": [
 			{
 				"before": ["j"],
@@ -132,7 +122,6 @@
 				"after": ["g", "k"]
 			}
 		],
-		"visualModeKeyBindings": []
 	},
 	"extensions.experimental.affinity": {
 		"vscodevim": 1
@@ -238,5 +227,24 @@
 	},
 	"git.blame.editorDecoration.enabled": true,
 	"cursor.agent_layout_browser_beta_setting": true,
-	"cursor.composer.usageSummaryDisplay": "always"
+	"cursor.composer.usageSummaryDisplay": "always",
+	"cursor.enable_git_worktrees_setting": true,
+	"cursor.general.globalCursorIgnoreList": [
+		"**/.env",
+		"**/.env.*",
+		"**/credentials.json",
+		"**/credentials.*.json",
+		"**/secret.json",
+		"**/secrets.json",
+		"**/*.key",
+		"**/*.pem",
+		"**/*.pfx",
+		"**/*.p12",
+		"**/*.crt",
+		"**/*.cer",
+		"**/id_rsa",
+		"**/id_dsa",
+		"**/.ssh/id_*",
+		"**/.envrc"
+	]
 }
