@@ -79,7 +79,9 @@ utils.map('<C-A-n>', 'n', '<CMD>vertical resize -2<CR>', 'resize: narrower')
 -- tab navigation
 utils.map('<leader>tt', 'n', '<CMD>tabnew<CR>', 'new tab')
 utils.map('<leader>tn', 'n', '<CMD>tabnext<CR>', 'next tab')
+utils.map('<A->>', 'n', '<CMD>tabnext<CR>', 'next tab')
 utils.map('<leader>tp', 'n', '<CMD>tabprevious<CR>', 'previous tab')
+utils.map('<A-<>', 'n', '<CMD>tabprevious<CR>', 'previous tab')
 
 -- buffer navigation
 utils.map('bp', 'n', '<CMD>bp<CR>', 'previous buffer')
@@ -208,3 +210,14 @@ local executors = {
 for lang, exec in pairs(executors) do
   utils.setup_exec_kmaps(lang, exec)
 end
+
+-- setup icat for python plotting
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'python',
+  callback = function(event)
+    utils.map('<leader>xi', 'n', function()
+      local pyrepl = require('pyrepl')
+      pyrepl.execute_lines({ '%load_ext icat', '%plt_icat' })
+    end, 'setup icat for plotting', { buffer = event.buf })
+  end,
+})
