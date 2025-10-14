@@ -1,4 +1,5 @@
 {
+  lib,
   appimageTools,
   fetchurl,
   makeDesktopItem,
@@ -8,7 +9,7 @@ let
   version = "1.7.17";
   src = fetchurl {
     url = "https://api2.cursor.sh/updates/download/golden/linux-x64/cursor/1.7";
-    hash = "sha256-OsZiUXWKNLO8sUqielk0kap0DAkMY8OvWYO0KV3iads=";
+    hash = "sha256-XDKDZYCagr7bEL4HzQFkhdUhPiL5MaRzZTPNrLDPZDM=";
   };
 
   appimageContents = appimageTools.extract { inherit pname version src; };
