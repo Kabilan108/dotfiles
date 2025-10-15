@@ -17,4 +17,4 @@ TS_EXTRA_SEARCH_PATHS=(
 TS_MAX_DEPTH=1
 
 # this defines the commands to run when using the -s/--session option
-TS_SESSION_COMMANDS=(claude 'codex -m gpt-5 -c model_reasoning_effort=high' opencode)
+TS_SESSION_COMMANDS=(claude 'codex -m gpt-5 -c model_reasoning_effort=high' opencode amp)
