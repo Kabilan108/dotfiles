@@ -10,7 +10,7 @@
   environment = {
     systemPackages = with pkgs; [ openrgb-with-all-plugins prismlauncher ];
     variables = {
-      WALLPAPER = "$HOME/dotfiles/desktop/wallpapers/evangelion-eva-1.png";
+      WALLPAPER = "$HOME/dotfiles/desktop/wallpapers/uwide/lucy.png $HOME/dotfiles/desktop/wallpapers/vertical/lanterns.jpeg";
     };
   };
 
