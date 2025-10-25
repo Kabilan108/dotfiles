@@ -9,7 +9,7 @@ let
   version = "1.7.17";
   src = fetchurl {
     url = "https://api2.cursor.sh/updates/download/golden/linux-x64/cursor/1.7";
-    hash = "sha256-XDKDZYCagr7bEL4HzQFkhdUhPiL5MaRzZTPNrLDPZDM=";
+    hash = "sha256-nhDDdXE5/m9uASiQUJ4GHfApkzkf9ju5b8s0h6BhpjQ=";
   };
 
   appimageContents = appimageTools.extract { inherit pname version src; };
