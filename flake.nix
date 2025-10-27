@@ -22,6 +22,7 @@
           (final: prev: {
             ghostty = pkgs-unstable.ghostty;
             spotify = pkgs-unstable.spotify;
+            openrgb = pkgs-unstable.openrgb;
             code-cursor = final.callPackage ./packages/cursor { };
           })
         ];
