@@ -65,7 +65,7 @@
   {
     "key": "] d",
     "command": "editor.action.marker.next",
-    "when": "editorFocus"
+    "when": "editorFocus && editorTextFocus"
   },
   {
     "key": "alt+f8",
@@ -75,7 +75,7 @@
   {
     "key": "[ d",
     "command": "editor.action.marker.prev",
-    "when": "editorFocus"
+    "when": "editorFocus && editorTextFocus"
   },
   {
     "key": "shift+alt+f8",
