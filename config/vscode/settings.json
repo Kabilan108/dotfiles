@@ -228,7 +228,6 @@
 	"git.blame.editorDecoration.enabled": true,
 	"cursor.agent_layout_browser_beta_setting": true,
 	"cursor.composer.usageSummaryDisplay": "always",
-	"cursor.enable_git_worktrees_setting": true,
 	"cursor.general.globalCursorIgnoreList": [
 		"**/.env",
 		"**/.env.*",
@@ -246,5 +245,6 @@
 		"**/id_dsa",
 		"**/.ssh/id_*",
 		"**/.envrc"
-	]
+	],
+	"cursor.enable_git_worktrees_setting": true
 }
