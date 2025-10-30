@@ -139,7 +139,7 @@ in
     android-studio
     brave
     code-cursor
-    google-chrome
+    chromium
     inkscape
     libreoffice-fresh
     nautilus
