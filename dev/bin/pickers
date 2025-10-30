@@ -8,9 +8,11 @@ Usage: pickers [--split] TYPE
 TYPE:
   dirs    Open a directory picker
   hosts   Open an SSH host picker
+  panes   Switch to a pane in the current session
 
 Options:
   --split Open selection in a tmux split instead of a new window
+          (not applicable for panes)
 EOF
     exit 1
 }
@@ -23,6 +25,12 @@ pick_host() {
     grep "^Host " ~/.ssh/config | awk '{print $2}' | fzf --tmux
 }
 
+pick_panes() {
+    tmux list-panes -s -F "#{window_id}:#{pane_id}|[#{window_index},#{pane_index}] #{window_name} > #{pane_current_command}" | \
+        fzf --tmux --delimiter="|" --with-nth=2 | \
+        cut -d'|' -f1
+}
+
 split=0
 type=""
 
@@ -32,7 +40,7 @@ for arg in "$@"; do
         --split)
             split=1
             ;;
-        dirs|hosts)
+        dirs|hosts|panes)
             type="$arg"
             ;;
         *)
@@ -58,5 +66,13 @@ elif [ "$type" = "hosts" ]; then
         pick_host | xargs -I HOST tmux split-window ssh HOST
     else
         pick_host | xargs -I HOST tmux new-window -n HOST ssh HOST
+    fi
+elif [ "$type" = "panes" ]; then
+    target=$(pick_panes)
+    if [ -n "$target" ]; then
+        window_id=$(echo "$target" | cut -d: -f1)
+        pane_id=$(echo "$target" | cut -d: -f2)
+        tmux select-window -t "$window_id"
+        tmux select-pane -t "$pane_id"
     fi
 fi
