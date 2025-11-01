@@ -162,23 +162,26 @@ return {
   --   end
   -- },
 
-  -- {
-  --   "supermaven-inc/supermaven-nvim",
-  --   config = function()
-  --     local colors = require("catppuccin.palettes").get_palette "mocha"
-  --     require("supermaven-nvim").setup({
-  --       keymaps = {
-  --         accept_suggestion = "<C-s>",
-  --         clear_suggestion = "<C-]>",
-  --         accept_word = "<C-w>",
-  --       },
-  --       color = {
-  --         suggestion_color = colors.subtext0,
-  --         cterm = 244,
-  --       },
-  --     })
-  --   end,
-  -- },
+  {
+    'windwp/nvim-ts-autotag',
+    dependencies = { 'nvim-treesitter/nvim-treesitter' },
+    config = function()
+      require('nvim-ts-autotag').setup({
+        opts = {
+          enable_close = true,
+          enable_rename = true,
+          enable_close_on_slash = true
+        },
+        per_filetype = {
+          ["tsx"] = {
+            enable_close = true,
+            enable_rename = true,
+            enable_close_on_slash = true
+          }
+        }
+      })
+    end,
+  },
 
   -- mini.nvim
   { -- Collection of various small independent plugins/modules
