@@ -88,6 +88,10 @@ in
           command = "move workspace 2";
         }
         {
+          criteria.class = "Chromium-browser";
+          command = "move workspace 4";
+        }
+        {
           criteria.class = "^.*";
           command = "border pixel 2";
         }
