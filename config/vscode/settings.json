@@ -246,5 +246,6 @@
 		"**/.ssh/id_*",
 		"**/.envrc"
 	],
-	"cursor.enable_git_worktrees_setting": true
+	"cursor.enable_git_worktrees_setting": true,
+	"editor.fontSize": 12
 }
