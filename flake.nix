@@ -23,6 +23,7 @@
             ghostty = pkgs-unstable.ghostty;
             spotify = pkgs-unstable.spotify;
             openrgb = pkgs-unstable.openrgb;
+            widsurf = pkgs-unstable.windsurf;
             code-cursor = final.callPackage ./packages/cursor { };
           })
         ];

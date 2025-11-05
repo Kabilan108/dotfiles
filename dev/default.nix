@@ -136,21 +136,16 @@ in
 
   home.packages = with pkgs; [
     # desktop apps
-    android-studio
     brave
     code-cursor
-    chromium
-    inkscape
-    libreoffice-fresh
     nautilus
     obsidian
     remmina
     slack
     spotify
-    telegram-desktop
-    transmission_4-gtk
     vlc
     vscode-fhs
+    windsurf
     zoom-us
     zotero
 
@@ -165,6 +160,7 @@ in
     gnumake
 
     # dev utils
+    ast-grep
     bat
     direnv
     delta
