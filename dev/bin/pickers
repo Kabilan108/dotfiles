@@ -2,7 +2,7 @@
 # vim: syn=bash ft=bash
 
 usage() {
-    cat <<EOF
+  cat <<EOF
 Usage: pickers [--split] TYPE
 
 TYPE:
@@ -14,21 +14,30 @@ Options:
   --split Open selection in a tmux split instead of a new window
           (not applicable for panes)
 EOF
-    exit 1
+  exit 1
 }
 
 pick_dir() {
-    fd -L -t d -d 4 . $HOME | fzf --tmux
+  FD_BIN="fd"
+  if command -v fd &>/dev/null; then
+    FD_BIN="fd"
+  elif command -v fdfind &>/dev/null; then
+    FD_BIN="fdfind"
+  else
+    echo "fd is not installed. Please install it first."
+    exit 1
+  fi
+  $FD_BIN -L -t d -d 4 . "$HOME" | fzf --tmux
 }
 
 pick_host() {
-    grep "^Host " ~/.ssh/config | awk '{print $2}' | fzf --tmux
+  grep "^Host " ~/.ssh/config | awk '{print $2}' | fzf --tmux
 }
 
 pick_panes() {
-    tmux list-panes -s -F "#{window_id}:#{pane_id}|[#{window_index},#{pane_index}] #{window_name} > #{pane_current_command}" | \
-        fzf --tmux --delimiter="|" --with-nth=2 | \
-        cut -d'|' -f1
+  tmux list-panes -s -F "#{window_id}:#{pane_id}|[#{window_index},#{pane_index}] #{window_name} > #{pane_current_command}" |
+    fzf --tmux --delimiter="|" --with-nth=2 |
+    cut -d'|' -f1
 }
 
 split=0
@@ -36,43 +45,43 @@ type=""
 
 # Parse command line arguments
 for arg in "$@"; do
-    case "$arg" in
-        --split)
-            split=1
-            ;;
-        dirs|hosts|panes)
-            type="$arg"
-            ;;
-        *)
-            usage
-            ;;
-    esac
+  case "$arg" in
+  --split)
+    split=1
+    ;;
+  dirs | hosts | panes)
+    type="$arg"
+    ;;
+  *)
+    usage
+    ;;
+  esac
 done
 
 # Check if type is provided and valid
 if [ -z "$type" ]; then
-    usage
+  usage
 fi
 
 # Execute the appropriate command based on type and split flag
 if [ "$type" = "dirs" ]; then
-    if [ "$split" -eq 1 ]; then
-        pick_dir | xargs -I DIR tmux split-window -c DIR
-    else
-        pick_dir | xargs -I DIR sh -c 'tmux new-window -c "DIR" -n "$(basename "DIR")"'
-    fi
+  if [ "$split" -eq 1 ]; then
+    pick_dir | xargs -I DIR tmux split-window -c DIR
+  else
+    pick_dir | xargs -I DIR sh -c 'tmux new-window -c "DIR" -n "$(basename "DIR")"'
+  fi
 elif [ "$type" = "hosts" ]; then
-    if [ "$split" -eq 1 ]; then
-        pick_host | xargs -I HOST tmux split-window ssh HOST
-    else
-        pick_host | xargs -I HOST tmux new-window -n HOST ssh HOST
-    fi
+  if [ "$split" -eq 1 ]; then
+    pick_host | xargs -I HOST tmux split-window ssh HOST
+  else
+    pick_host | xargs -I HOST tmux new-window -n HOST ssh HOST
+  fi
 elif [ "$type" = "panes" ]; then
-    target=$(pick_panes)
-    if [ -n "$target" ]; then
-        window_id=$(echo "$target" | cut -d: -f1)
-        pane_id=$(echo "$target" | cut -d: -f2)
-        tmux select-window -t "$window_id"
-        tmux select-pane -t "$pane_id"
-    fi
+  target=$(pick_panes)
+  if [ -n "$target" ]; then
+    window_id=$(echo "$target" | cut -d: -f1)
+    pane_id=$(echo "$target" | cut -d: -f2)
+    tmux select-window -t "$window_id"
+    tmux select-pane -t "$pane_id"
+  fi
 fi

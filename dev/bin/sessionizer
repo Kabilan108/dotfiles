@@ -69,6 +69,8 @@ TS_SESSION_COMMANDS=(claude codex opencode)" >"$CONFIG_FILE"
   echo "Wrote config file to $CONFIG_FILE"
 }
 
+FD_BIN=""
+
 check_deps() {
   if ! command -v tmux &>/dev/null; then
     echo "tmux is not installed. Please install it first."
@@ -78,7 +80,11 @@ check_deps() {
     echo "fzf is not installed. Please install it first."
     exit 1
   fi
-  if ! command -v fd &>/dev/null; then
+  if command -v fd &>/dev/null; then
+    FD_BIN="fd"
+  elif command -v fdfind &>/dev/null; then
+    FD_BIN="fdfind"
+  else
     echo "fd is not installed. Please install it first."
     exit 1
   fi
@@ -138,7 +144,7 @@ find_dirs() {
     fi
 
     if [[ -d "$path" ]]; then
-      fd -L -t d -d "${depth:-$TS_MAX_DEPTH}" . "$path"
+      $FD_BIN -L -t d -d "${depth:-$TS_MAX_DEPTH}" . "$path"
     fi
   done
 }
