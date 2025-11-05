@@ -1,14 +1,8 @@
-{ theme, pkgs, ... }:
+{ theme, ... }:
 let
   palette = theme.palette;
 in
 {
-  services.betterlockscreen = {
-    enable = true;
-    package = pkgs.betterlockscreen;
-    inactiveInterval = 30;
-  };
-
   xdg.configFile."betterlockscreen/betterlockscreenrc".text = ''
     display_on=all
     span_image=false
