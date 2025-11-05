@@ -19,7 +19,9 @@ in
 
       font-family = "FiraMono Nerd Font Mono";
 
-      window-decoration = false;
+      confirm-close-surface = false;
+
+      window-decoration = "auto";
       window-padding-x = 4;
       window-padding-y = 4;
       window-theme = "ghostty";
