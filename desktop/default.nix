@@ -12,6 +12,7 @@
     ./apps/polybar.nix
     ./apps/pwas.nix
     ./apps/rofi
+    ./apps/zen
   ];
 
   fonts.fontconfig = {
@@ -25,8 +26,6 @@
       ];
     };
   };
-
-  programs.vivaldi.enable = true;
 
   home.file.".config/greenclip.toml".source = ../config/greenclip.toml;
 
