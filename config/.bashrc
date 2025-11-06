@@ -56,7 +56,7 @@ shopt -s cmdhist
 PROMPT_COMMAND='history -a'
 
 # huge history
-HISTSIZE=500000
+HISTSIZE=100000
 HISTFILESIZE=100000
 
 # avoid duplicate entries

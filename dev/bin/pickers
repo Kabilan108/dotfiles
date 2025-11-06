@@ -9,10 +9,11 @@ TYPE:
   dirs    Open a directory picker
   hosts   Open an SSH host picker
   panes   Switch to a pane in the current session
+  history Search and insert bash history commands into prompt
 
 Options:
   --split Open selection in a tmux split instead of a new window
-          (not applicable for panes)
+          (not applicable for panes, history)
 EOF
   exit 1
 }
@@ -40,6 +41,19 @@ pick_panes() {
     cut -d'|' -f1
 }
 
+pick_history() {
+  awk '/^#/ {
+    if (cmd) print cmd;
+    cmd="";
+    next
+  } !/^#/ {
+    gsub(/^[ \t]+|[ \t]+$/, "");
+    if (length($0) > 0) cmd = cmd $0 " "
+  } END {
+    if (cmd) print cmd
+  }' "$HOME/.bash_history" | fzf --tmux --tac --no-sort
+}
+
 split=0
 type=""
 
@@ -49,7 +63,7 @@ for arg in "$@"; do
   --split)
     split=1
     ;;
-  dirs | hosts | panes)
+  dirs | hosts | panes | history)
     type="$arg"
     ;;
   *)
@@ -83,5 +97,10 @@ elif [ "$type" = "panes" ]; then
     pane_id=$(echo "$target" | cut -d: -f2)
     tmux select-window -t "$window_id"
     tmux select-pane -t "$pane_id"
+  fi
+elif [ "$type" = "history" ]; then
+  cmd=$(pick_history)
+  if [ -n "$cmd" ]; then
+    tmux send-keys -t "$TMUX_PANE" "$cmd"
   fi
 fi
