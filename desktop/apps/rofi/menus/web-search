@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # vim: syn=bash ft=bash
 
-BRAVE_CMD="brave"
+BROWSER_BIN="zen-beta"
 SEARCH_URL="https://unduck.link?q=%s"
 
 chosen=$(rofi -dmenu -p "Search" -theme-str 'window { width: 600px; height: 75px; }')
@@ -25,7 +25,7 @@ encoded_chosen=$(printf %s "$chosen" | jq -sRr @uri)
 final_url=$(printf "$SEARCH_URL" "$encoded_chosen")
 
 if [[ -n "$final_url" ]]; then
-    setsid "$BRAVE_CMD" "$final_url" >/dev/null 2>&1 &
+    setsid "$BROWSER_BIN" "$final_url" >/dev/null 2>&1 &
 fi
 
 exit 0

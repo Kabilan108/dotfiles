@@ -136,7 +136,6 @@ in
 
   home.packages = with pkgs; [
     # desktop apps
-    brave
     code-cursor
     nautilus
     obsidian

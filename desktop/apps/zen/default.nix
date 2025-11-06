@@ -29,7 +29,10 @@
     profiles."default".extensions.packages =
       with inputs.firefox-addons.packages.${pkgs.stdenv.hostPlatform.system}; [
         bitwarden
+        react-devtools
         ublock-origin
       ];
   };
+
+  home.file.".zen/default/zen-keyboard-shortcuts.json".source = ./keyboard-shortcuts.json;
 }

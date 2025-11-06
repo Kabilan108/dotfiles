@@ -5,9 +5,6 @@
 
     activeOpacity = 1.0;
     inactiveOpacity = 1.0;
-    opacityRules = [
-      "100:class_g = 'Brave-browser'"
-    ];
 
     backend = "glx";
     fade = true;

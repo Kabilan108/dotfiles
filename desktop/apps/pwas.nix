@@ -20,7 +20,7 @@ let
       profile = app.profile;
       cats = app.categories;
       iconPath = "${iconDir}/${iconSlug}.png";
-      exec = "${pkgs.brave}/bin/brave --profile-directory=${profile} --class=${wmClass} --new-window --app=${url}";
+      exec = "${pkgs.ungoogled-chromium}/bin/chromium --profile-directory=${profile} --class=${wmClass} --new-window --app=${url}";
     in
     {
       name = lib.replaceStrings [ " " ] [ "-" ] (lib.toLower name);
@@ -57,7 +57,7 @@ let
 in
 {
   options.programs.pwas = {
-    enable = lib.mkEnableOption "Brave PWA desktop entries";
+    enable = lib.mkEnableOption "PWA desktop entries";
     apps = lib.mkOption {
       type =
         with lib.types;
@@ -83,7 +83,7 @@ in
             profile = lib.mkOption {
               type = nullOr str;
               default = "Default";
-              description = "Brave profile directory";
+              description = "Profile directory";
             };
             categories = lib.mkOption {
               type = listOf str;
@@ -98,8 +98,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # ensure brave is available
-    home.packages = [ pkgs.brave ];
+    home.packages = [ pkgs.ungoogled-chromium ];
 
     # create .desktop entries
     xdg.desktopEntries = builtins.listToAttrs (map mkEntry cfg.apps);

@@ -56,12 +56,6 @@
     enable = true;
     apps = [
       {
-        name = "ChatGPT";
-        url = "https://chat.openai.com/";
-        icon = "chatgpt";
-        class = "ChatGPT";
-      }
-      {
         name = "Discord";
         url = "https://discord.com/channels/@me";
         icon = "discord";
