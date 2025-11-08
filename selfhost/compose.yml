@@ -53,7 +53,7 @@ services:
     build:
       context: https://github.com/kabilan108/siren.git
       dockerfile: Dockerfile.gpu
-    restart: unless-stopped
+    restart: always
     networks:
       - proxynet
     environment:
@@ -62,45 +62,6 @@ services:
       - ${HF_HOME}:/root/.cache/huggingface
     devices:
       - nvidia.com/gpu=all
-
-  open-webui:
-    container_name: open-webui
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    environment:
-      - ENV=dev  # enable /docs
-      - ENABLE_SIGNUP=True
-      - DEFAULT_USER_ROLE=admin
-
-      # set model for title generation, web search
-      - TASK_MODEL_EXTERNAL=openai/gpt-4o-mini
-
-      # - ENABLE_RAG_WEB_SEARCH=True
-      # - RAG_WEB_SEARCH_ENGINE=google_pse
-
-      - RAG_EMBEDDING_MODEL_AUTO_UPDATE=True
-      - RAG_RERANKING_MODEL_AUTO_UPDATE=True
-      - RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True
-      - RAG_RERANKING_MODEL_TRUST_REMOTE_CODE=True
-
-      - WHISPER_MODEL=base
-
-      - ENABLE_OLLAMA_API=False
-
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-    image: ghcr.io/open-webui/open-webui:main
-    networks:
-      - proxynet
-    ports:
-      - "7000:8080"
-    restart: unless-stopped
-    volumes:
-      - open-webui-data:/app/backend/data
 
 networks:
   proxynet:
