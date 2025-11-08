@@ -247,5 +247,5 @@
 		"**/.envrc"
 	],
 	"cursor.enable_git_worktrees_setting": true,
-	"editor.fontSize": 12
+	"editor.fontSize": 13
 }

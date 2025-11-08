@@ -61,15 +61,11 @@ in
         }
         {
           criteria.class = "zoom";
-          command = "floating enable, resize set 800 600";
+          command = "floating enable, sticky enable resize set 800 600, move position center";
         }
         {
           criteria.class = "pavucontrol";
-          command = "floating enable";
-        }
-        {
-          criteria.class = "Dictator";
-          command = "floating enable";
+          command = "floating enable, sticky enable, resize set 600 300, move position center";
         }
         {
           criteria.class = "steam";

@@ -21,7 +21,7 @@ in
 
       confirm-close-surface = false;
 
-      window-decoration = "auto";
+      window-decoration = "none";
       window-padding-x = 4;
       window-padding-y = 4;
       window-theme = "ghostty";
