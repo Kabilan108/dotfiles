@@ -146,21 +146,21 @@ return {
     end,
   },
 
-  -- {
-  --   'ggml-org/llama.vim',
-  --   init = function()
-  --     -- get the LLAMA_SERVER url env var
-  --     local url = os.getenv("LLAMA_SERVER_URL") or "http://localhost:8012"
-  --     vim.g.llama_config = {
-  --       endpoint = url .. "/infill",
-  --       show_info = 1,
-  --       keymap_trigger = "<C-c>",
-  --       keymap_accept_full = "<C-s>",
-  --       keymap_accept_line = "<C-l>",
-  --       keymap_accept_word = "<C-w>",
-  --     }
-  --   end
-  -- },
+  {
+    'ggml-org/llama.vim',
+    init = function()
+      local url = os.getenv("LLAMA_SERVER_URL") or "http://localhost:8012"
+      vim.g.llama_config = {
+        endpoint = url .. "/infill",
+        show_info = 1,
+        keymap_trigger = "<C-c>",
+        keymap_accept_full = "<C-s>",
+        keymap_accept_line = "<C-l>",
+        keymap_accept_word = "<C-w>",
+      }
+      vim.api.nvim_set_hl(0, "llama_hl_hint", {fg = "#f2cdcd", ctermfg=209})
+    end
+  },
 
   {
     'windwp/nvim-ts-autotag',

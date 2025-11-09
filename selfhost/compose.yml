@@ -63,6 +63,28 @@ services:
     devices:
       - nvidia.com/gpu=all
 
+  llama-server:
+    container_name: llama-server
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    restart: unless-stopped
+    networks:
+      - proxynet
+    volumes:
+      - /vault/userdata/ggufs:/models
+    devices:
+      - nvidia.com/gpu=all
+    command: >
+      -m /models/zed-industries_zeta-Q6_K_L.gguf
+      --port 8012
+      --host 0.0.0.0
+      -ngl 99
+      -fa on
+      -dt 0.1
+      --ubatch-size 512
+      --batch-size 1024
+      --ctx-size 0
+      --cache-reuse 256
+
 networks:
   proxynet:
 
