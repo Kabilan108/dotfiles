@@ -182,17 +182,18 @@ in
 
     # lsp & formatters
     bash-language-server
+    basedpyright
     biome
     dockerfile-language-server-nodejs
     gopls
     lua-language-server
     nil
     nodePackages.typescript-language-server
-    pyright
     rust-analyzer
     ruff
     shfmt
     stylua
+    yaml-language-server
 
     # languages
     bun
