@@ -85,14 +85,21 @@ in
         }
         {
           criteria.class = "Chromium-browser";
-          command = "move workspace 4";
+          command = "move workspace 3";
+        }
+        {
+          criteria.class = "zen-beta";
+          command = "move workspace 1";
         }
         {
           criteria.class = "^.*";
           command = "border pixel 2";
         }
+        {
+          criteria.window_role = "PictureInPicture";
+          command = "floating enable, sticky enable";
+        }
       ];
-
       startup = [
         {
           command = "autorandr --change";
