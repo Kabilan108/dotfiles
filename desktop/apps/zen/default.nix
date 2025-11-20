@@ -9,6 +9,14 @@
   programs.zen-browser = {
     enable = true;
     policies = {
+      Preferences = {
+        "extensions.openPopupWithoutUserGesture.enabled" = {
+          Value = true;
+          Status = "locked";
+        };
+      };
+    };
+    policies = {
       AutofillAddressEnabled = true;
       AutofillCreditCardEnabled = false;
       DisableAppUpdate = true;
@@ -31,6 +39,7 @@
         bitwarden
         react-devtools
         ublock-origin
+        web-clipper-obsidian
       ];
   };
 
