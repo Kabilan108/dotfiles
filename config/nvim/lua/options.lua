@@ -81,3 +81,7 @@ opt.softtabstop = 2
 
 -- show a ruler
 opt.colorcolumn = '88'
+
+-- enable project-local config files
+vim.o.exrc = true
+vim.o.secure = true

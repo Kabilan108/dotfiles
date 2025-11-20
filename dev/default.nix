@@ -187,6 +187,7 @@ in
     lua-language-server
     nil
     nodePackages.typescript-language-server
+    pyright
     rust-analyzer
     ruff
     shfmt
