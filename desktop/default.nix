@@ -1,6 +1,18 @@
 # Set up X11 and i3wm
 
 { pkgs, ... }:
+let
+  nomacs-configured = pkgs.symlinkJoin {
+    name = "nomacs";
+    paths = [ pkgs.nomacs ];
+    buildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram $out/bin/nomacs \
+        --run "mkdir -p \$HOME/.config/nomacs" \
+        --run "if [ ! -f \"\$HOME/.config/nomacs/Image Lounge.ini\" ]; then cp ${../config/nomacs.conf} \"\$HOME/.config/nomacs/Image Lounge.conf\"; chmod u+w \"\$HOME/.config/nomacs/Image Lounge.conf\"; fi"
+    '';
+  };
+in
 {
   imports = [
     ./apps/betterlockscreen.nix
@@ -33,13 +45,14 @@
     arandr
     autorandr
     betterlockscreen
-    cherry-studio
     dunst
+    evince
     feh
     flameshot
     light
     nerd-fonts.fira-mono
     networkmanagerapplet
+    nomacs-configured
     picom
     pavucontrol
     playerctl
@@ -74,5 +87,36 @@
         class = "Telegram";
       }
     ];
+  };
+
+  xdg.mimeApps = {
+    enable = true;
+    defaultApplications = {
+      "image/*" = "org.nomacs.ImageLounge.desktop";
+
+      "application/pdf" = "org.gnome.Evince.desktop";
+      "application/epub+zip" = "org.gnome.Evince.desktop";
+      "application/x-mobipocket-ebook" = "org.gnome.Evince.desktop";
+      "application/vnd.comicbook+zip" = "org.gnome.Evince.desktop";
+      "application/x-cbz" = "org.gnome.Evince.desktop";
+
+      # default browser
+      "application/xhtml+xml" = "zen-beta.desktop";
+      "application/x-extension-htm" = "zen-beta.desktop";
+      "application/x-extension-html" = "zen-beta.desktop";
+      "application/x-extension-shtml" = "zen-beta.desktop";
+      "application/x-extension-xht" = "zen-beta.desktop";
+      "application/x-extension-xhtml" = "zen-beta.desktop";
+      "text/html" = "zen-beta.desktop";
+      "x-scheme-handler/http" = "zen-beta.desktop";
+      "x-scheme-handler/https" = "zen-beta.desktop";
+      "x-scheme-handler/mailto" = "zen-beta.desktop";
+
+      # chromium
+      "x-scheme-handler/chrome" = "chromium-browser.desktop";
+
+      "x-scheme-handler/tg" = "org.telegram.desktop.desktop";
+      "x-scheme-handler/tonsite" = "org.telegram.desktop.desktop";
+    };
   };
 }

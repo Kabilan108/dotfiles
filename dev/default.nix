@@ -163,14 +163,13 @@ in
     bat
     direnv
     delta
+    fastfetch
     fd
     fzf
     gh
     ghostty
     kitty.kitten
-    lazydocker
     lazygit
-    neofetch
     pre-commit
     rclone
     ripgrep
@@ -178,7 +177,6 @@ in
     tree
     tree-sitter
     tmux
-    yazi
 
     # lsp & formatters
     bash-language-server
