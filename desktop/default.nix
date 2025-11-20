@@ -58,6 +58,7 @@ in
     playerctl
     pulseaudio
     rofi
+    signal-desktop
     xclip
     xdotool
     xorg.xdpyinfo

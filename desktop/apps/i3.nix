@@ -64,6 +64,10 @@ in
           command = "floating enable, sticky enable resize set 800 600, move position center";
         }
         {
+          criteria.class = "Signal";
+          command = "floating enable, sticky enable resize set 1000 600, move position center";
+        }
+        {
           criteria.class = "pavucontrol";
           command = "floating enable, sticky enable, resize set 600 300, move position center";
         }
