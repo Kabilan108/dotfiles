@@ -81,7 +81,7 @@ in
         }
         {
           criteria.class = "Evince";
-          command = "floating enable, sticky enable, resize set 600 800";
+          command = "floating enable";
         }
         {
           criteria.class = "feh";
