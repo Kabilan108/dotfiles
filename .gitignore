@@ -1,6 +1,9 @@
-.envrc
 certs/
-.direnv
+.direnv/
+
+.envrc
+.cursorrules
+CLAUDE.md
 
 **/vscode/History/
 **/vscode/globalStorage/
