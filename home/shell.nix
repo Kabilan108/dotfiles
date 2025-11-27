@@ -1,7 +1,6 @@
 {
-  pkgs,
-  theme,
   config,
+  theme,
   ...
 }:
 let
@@ -11,14 +10,7 @@ let
   mkPath = name: ../config/${name};
 in
 {
-  imports = [
-    ./systemd-services.nix
-    ./bash-completions.nix
-  ];
-
-  home.username = "kabilan";
-  home.homeDirectory = homeDir;
-  home.stateVersion = "25.05";
+  imports = [ ./completions ];
 
   home.sessionPath = [
     "$HOME/.bun/bin"
@@ -26,6 +18,24 @@ in
     "$HOME/bin"
     "$GOPATH/bin"
   ];
+
+  home.sessionVariables = rec {
+    FZF_DEFAULT_OPTS = "--reverse";
+    UV_LINK_MODE = "copy";
+    UV_SYSTEM_PYTHON = "1";
+
+    CAPSCREEN_OUTPUT_DIR = "$HOME/media/screencasts";
+    PYREPL_PORT = "5678";
+
+    USER_DATA = "/vault/userdata";
+    FASTAI_HOME = "${USER_DATA}/fastai";
+    GOPATH = "${USER_DATA}/go";
+    HF_HOME = "${USER_DATA}/huggingface";
+    HF_DATASETS_CACHE = "$HF_HOME/datasets";
+    LLM_USER_PATH = "${USER_DATA}/datasette-llm";
+    OLLAMA_MODELS = "${USER_DATA}/ollama/models";
+    TORCH_HOME = "${USER_DATA}/torch";
+  };
 
   home.file = {
     ".claude".source = mkLink "claude";
@@ -42,7 +52,7 @@ in
     ".config/opencode".source = mkLink "opencode";
     ".config/nvim".source = mkLink "nvim";
 
-    "bin".source = ./bin;
+    "bin".source = ../bin;
   };
 
   home.file.".sessionizer".text = ''
@@ -53,11 +63,6 @@ in
       tmux new-window -t 1 -n shell
     fi
   '';
-
-  programs = {
-    direnv.enable = true; # nix-direnv
-    home-manager.enable = true;
-  };
 
   programs.bash = {
     enable = true;
@@ -115,99 +120,4 @@ in
     viAlias = true;
     vimAlias = true;
   };
-
-  home.sessionVariables = rec {
-    FZF_DEFAULT_OPTS = "--reverse";
-    UV_LINK_MODE = "copy";
-    UV_SYSTEM_PYTHON = "1";
-
-    CAPSCREEN_OUTPUT_DIR = "$HOME/media/screencasts";
-    PYREPL_PORT = "5678";
-
-    USER_DATA = "/vault/userdata";
-    FASTAI_HOME = "${USER_DATA}/fastai";
-    GOPATH = "${USER_DATA}/go";
-    HF_HOME = "${USER_DATA}/huggingface";
-    HF_DATASETS_CACHE = "$HF_HOME/datasets";
-    LLM_USER_PATH = "${USER_DATA}/datasette-llm";
-    OLLAMA_MODELS = "${USER_DATA}/ollama/models";
-    TORCH_HOME = "${USER_DATA}/torch";
-  };
-
-  home.packages = with pkgs; [
-    # desktop apps
-    code-cursor
-    nautilus
-    obsidian
-    remmina
-    slack
-    spotify
-    vlc
-    vscode-fhs
-    windsurf
-    zoom-us
-    zotero
-
-    # media/file handling
-    baobab
-    gparted
-    yt-dlp
-
-    # build tools
-    clang-tools
-    cmake
-    gnumake
-
-    # dev utils
-    ast-grep
-    bat
-    direnv
-    delta
-    fastfetch
-    fd
-    fzf
-    gh
-    ghostty
-    kitty.kitten
-    lazygit
-    pre-commit
-    rclone
-    ripgrep
-    sd
-    tree
-    tree-sitter
-    tmux
-
-    # lsp & formatters
-    bash-language-server
-    basedpyright
-    biome
-    dockerfile-language-server-nodejs
-    gopls
-    lua-language-server
-    nil
-    nodePackages.typescript-language-server
-    pyright
-    rust-analyzer
-    ruff
-    shfmt
-    stylua
-    yaml-language-server
-
-    # languages
-    bun
-    cargo
-    clang
-    go
-    lua
-    luajitPackages.luarocks
-    luajitPackages.magick
-    nixd
-    nixfmt-rfc-style
-    nodejs_20
-    python312Full
-    pnpm
-    uv
-    zig
-  ];
 }

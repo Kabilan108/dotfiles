@@ -25,28 +25,35 @@ nix flake update
 ├── flake.lock               # Pinned input versions
 ├── configuration.nix        # Shared system configuration
 ├── secrets.nix              # Agenix secrets configuration
-├── dev/                     # Development environment (Home Manager)
-│   ├── default.nix          # User packages, programs, and dotfiles
-│   ├── systemd-services.nix # User systemd services
-│   ├── bin/                 # Custom scripts and utilities
-│   └── config/              # Application configurations
-│       ├── nvim/            # Neovim configuration
-│       ├── claude/          # Claude Code settings
-│       ├── vscode/          # VSCode configuration
-│       └── ...              # Other app configs
-├── desktop/                 # Desktop environment (Home Manager)
-│   ├── default.nix          # i3, polybar, rofi, dunst setup
-│   ├── apps/                # Desktop app configurations (Nix)
-│   │   ├── rofi/            # Rofi launcher configuration
-│   │   ├── dunst.nix        # Notification daemon setup
-│   │   ├── picom.nix        # Compositor configuration
-│   │   └── polybar.nix      # Status bar configuration
-│   └── wallpapers/          # Desktop wallpapers
-├── common/                  # Shared NixOS modules
-│   ├── user.nix             # User configuration with Home Manager
-│   ├── desktop-x11.nix      # X11 and desktop services
-│   ├── nvidia.nix           # NVIDIA/CUDA setup
-│   └── xbox-controller.nix  # Gaming controller support
+├── user.nix                 # User configuration with Home Manager
+├── bin/                     # Custom scripts and utilities
+├── config/                  # Application configurations
+│   ├── nvim/                # Neovim configuration
+│   ├── claude/              # Claude Code settings
+│   ├── vscode/              # VSCode configuration
+│   └── ...                  # Other app configs
+├── home/                    # Home Manager configuration
+│   ├── default.nix          # Main HM config (packages, programs, desktop)
+│   ├── shell.nix            # Shell environment and dotfiles
+│   ├── services.nix         # User systemd services
+│   ├── completions/         # Custom shell completions
+│   └── desktop/             # Desktop environment configs
+│       ├── x11/             # X11 desktop (i3, polybar, rofi, dunst, picom)
+│       └── wayland/         # Wayland desktop (future)
+├── modules/                 # Reusable modules
+│   ├── home/                # Home Manager modules
+│   │   ├── fonts.nix        # Font configuration
+│   │   ├── ghostty.nix      # Terminal emulator
+│   │   ├── gtk.nix          # GTK theme configuration
+│   │   ├── pwas.nix         # Progressive web apps
+│   │   └── zen/             # Zen browser configuration
+│   └── nixos/               # NixOS modules
+│       ├── deskotp-x11.nix  # X11 and desktop services
+│       ├── desktop-wayland.nix # Wayland desktop services
+│       ├── nvidia.nix       # NVIDIA/CUDA setup
+│       ├── mullvad-vpn.nix  # VPN configuration
+│       ├── virt-manager.nix # Virtualization
+│       └── xbox-controller.nix # Gaming controller support
 ├── machines/                # Machine-specific configurations
 │   ├── sietch/
 │   │   ├── default.nix      # Desktop system config
@@ -54,6 +61,10 @@ nix flake update
 │   └── jacurutu/
 │       ├── default.nix      # Framework laptop config
 │       └── hardware-configuration.nix
+├── packages/                # Custom packages
+│   ├── cursor.nix           # Cursor IDE
+│   └── nomacs-viewer.nix    # Image viewer
+├── wallpapers/              # Desktop wallpapers
 ├── scripts/                 # Utility scripts
 │   ├── bootstrap.sh         # Legacy dotfile symlinks
 │   └── partitioning.sh      # Disk partitioning helper
@@ -123,28 +134,30 @@ All custom packages are integrated as flake inputs:
 ### Core Files
 - `flake.nix`: Defines inputs, outputs, and system configurations
 - `configuration.nix`: System-wide settings (boot, networking, services)
-- `common/user.nix`: User account configuration with Home Manager integration
-- `dev/default.nix`: Development environment configuration (packages, programs, dotfiles)
-- `desktop/default.nix`: Desktop environment configuration via Home Manager
+- `user.nix`: User account configuration with Home Manager integration
+- `home/default.nix`: Main Home Manager configuration (packages, programs, desktop)
+- `home/shell.nix`: Shell environment and dotfiles
+- `home/services.nix`: User systemd services
 
 ### Machine-Specific
 - `machines/<hostname>/default.nix`: Machine-specific configuration
 - `machines/<hostname>/*.nix`: Hardware-specific modules
 
 ### Modules
-- `common/`: Shared NixOS modules
-- `dev/`: Development environment and user configuration (Home Manager)
-- `desktop/`: Desktop environment setup via Home Manager (i3, apps managed declaratively)
+- `modules/nixos/`: Shared NixOS modules (X11, Wayland, NVIDIA, VPN, etc.)
+- `modules/home/`: Reusable Home Manager modules (fonts, terminal, themes)
+- `home/`: User environment and configuration (Home Manager)
+- `home/desktop/`: Desktop environment setup (x11, wayland) managed declaratively
 - `secrets/`: Encrypted configuration files
 
 ## Adding New Machines
 
 1. Create `machines/<hostname>/default.nix`
 2. Add hardware configuration
-3. Include machine-specific modules
-4. Add to `flake.nix` nixosConfigurations
+3. Include machine-specific modules from `modules/nixos/`
+4. Add to `flake.nix` nixosConfigurations using `makeSystem`
 5. Update `secrets.nix` with new SSH key
-6. Configure Home Manager integration in `common/user.nix`
+6. Configure Home Manager integration in `user.nix`
 
 ## Updating Dependencies
 

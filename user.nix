@@ -3,6 +3,7 @@
   pkgs,
   inputs,
   theme,
+  displayServer,
   ...
 }:
 let
@@ -26,21 +27,21 @@ in
   age = {
     identityPaths = [ "${home}/.ssh/id_ed25519" ];
     secrets."secrets/env.age" = {
-      file = ../secrets/env.age;
+      file = ./secrets/env.age;
       path = "${home}/.bashenv";
       mode = "0600"; # read/write for owner only
       owner = "kabilan";
       group = "users";
     };
     secrets."secrets/rclone.conf" = {
-      file = ../secrets/rclone.conf;
+      file = ./secrets/rclone.conf;
       path = "${home}/.config/rclone/rclone.conf";
       mode = "0600";
       owner = "kabilan";
       group = "users";
     };
     secrets."secrets/atlas.json" = {
-      file = ../secrets/atlas.json;
+      file = ./secrets/atlas.json;
       path = "${home}/.config/atlas/config.json";
       mode = "0600";
       owner = "kabilan";
@@ -51,11 +52,10 @@ in
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
-    extraSpecialArgs = { inherit inputs theme; };
+    extraSpecialArgs = { inherit inputs theme displayServer; };
 
     users.kabilan.imports = [
-      ../desktop
-      ../dev
+      ./home
     ];
   };
 

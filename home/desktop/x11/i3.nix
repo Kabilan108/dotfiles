@@ -151,17 +151,17 @@ in
           always = true;
         }
         {
-          command = "${../../dev/bin/set-wallpaper}";
+          command = "${../../../bin/set-wallpaper}";
           notification = false;
           always = true;
         }
         {
-          command = "${../../dev/bin/start-polybar}";
+          command = "${../../../bin/start-polybar}";
           notification = false;
           always = true;
         }
         {
-          command = "${../../dev/bin/battery-watcher}";
+          command = "${../../../bin/battery-watcher}";
           notification = false;
         }
       ];
@@ -260,12 +260,12 @@ in
         "XF86AudioPause" = "exec playerctl play-pause";
         "XF86AudioNext" = "exec playerctl next";
         "XF86AudioPrev" = "exec playerctl previous";
-        "XF86AudioRaiseVolume" = "exec --no-startup-id ${../../dev/bin/volctl} +5";
-        "XF86AudioLowerVolume" = "exec --no-startup-id ${../../dev/bin/volctl} -5";
-        "XF86AudioMute" = "exec --no-startup-id ${../../dev/bin/volctl} mute";
-        "XF86AudioMicMute" = "exec --no-startup-id ${../../dev/bin/volctl} mute-mic";
-        "XF86MonBrightnessUp" = "exec --no-startup-id ${../../dev/bin/brightctl} +5";
-        "XF86MonBrightnessDown" = "exec --no-startup-id ${../../dev/bin/brightctl} -5";
+        "XF86AudioRaiseVolume" = "exec --no-startup-id ${../../../bin/volctl} +5";
+        "XF86AudioLowerVolume" = "exec --no-startup-id ${../../../bin/volctl} -5";
+        "XF86AudioMute" = "exec --no-startup-id ${../../../bin/volctl} mute";
+        "XF86AudioMicMute" = "exec --no-startup-id ${../../../bin/volctl} mute-mic";
+        "XF86MonBrightnessUp" = "exec --no-startup-id ${../../../bin/brightctl} +5";
+        "XF86MonBrightnessDown" = "exec --no-startup-id ${../../../bin/brightctl} -5";
 
         # switch to workspace
         "${mod}+0" = "workspace number 0";

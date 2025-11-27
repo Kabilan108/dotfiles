@@ -24,7 +24,8 @@
             spotify = pkgs-unstable.spotify;
             openrgb = pkgs-unstable.openrgb;
             widsurf = pkgs-unstable.windsurf;
-            code-cursor = final.callPackage ./packages/cursor { };
+            code-cursor = final.callPackage ./packages/cursor.nix { };
+            nomacs = final.callPackage ./packages/nomacs-viewer.nix { nomacs = prev.nomacs; };
           })
         ];
       };
@@ -40,16 +41,23 @@
         {
           name,
           modules ? [ ],
+          displayServer ? "x11",
         }:
         nixpkgs.lib.nixosSystem {
           inherit system pkgs;
-          specialArgs = { inherit inputs theme; };
+          specialArgs = { inherit inputs theme displayServer; };
           modules = [
             (./. + "/machines/${name}")
             ./configuration.nix
-            ./common/user.nix
-            ./common/virt-manager.nix
+            ./user.nix
+            ./modules/nixos/virt-manager.nix
           ]
+          ++ (
+            if displayServer == "x11" then
+              [ ./modules/nixos/deskotp-x11.nix ]
+            else
+              [ ./modules/nixos/desktop-wayland.nix ]
+          )
           ++ modules;
         };
     in
@@ -57,18 +65,17 @@
       nixosConfigurations = {
         sietch = makeSystem {
           name = "sietch";
+          displayServer = "x11";
           modules = [
-            ./common/desktop-x11.nix
-            ./common/nvidia.nix
-            ./common/xbox-controller.nix
-            ./common/mullvad-vpn.nix
+            ./modules/nixos/nvidia.nix
+            ./modules/nixos/xbox-controller.nix
+            ./modules/nixos/mullvad-vpn.nix
           ];
         };
         jacurutu = makeSystem {
           name = "jacurutu";
-          modules = [
-            ./common/desktop-x11.nix
-          ];
+          displayServer = "x11";
+          modules = [ ];
         };
       };
     };

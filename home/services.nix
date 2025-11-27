@@ -1,11 +1,28 @@
-{ pkgs, inputs, ... }:
+{
+  pkgs,
+  inputs,
+  displayServer,
+  ...
+}:
 let
-  dictator = inputs.dictator.packages.${pkgs.system}.default;
   backupJob = pkgs.writeShellScript "backup-weekly-job" ''
     set -eu
     "$HOME/bin/backup" push
     "$HOME/bin/backup" janitor
   '';
+
+  dictator = inputs.dictator.packages.${pkgs.system}.default;
+  clipboardDeps =
+    if displayServer == "x11" then
+      [
+        pkgs.xclip
+        pkgs.xdotool
+      ]
+    else
+      [
+        pkgs.wl-clipboard
+        pkgs.wtype
+      ];
 in
 {
   home.packages = [ dictator ];
@@ -27,19 +44,14 @@ in
       Restart = "on-failure";
       RestartSec = "5s";
       Environment = [
-        "PATH=${
-          pkgs.lib.makeBinPath [
-            pkgs.xdotool
-            pkgs.xclip
-            pkgs.portaudio
-          ]
-        }"
+        "PATH=${pkgs.lib.makeBinPath (clipboardDeps ++ [ pkgs.portaudio ])}"
       ];
       PassEnvironment = [
         "DISPLAY"
         "XAUTHORITY"
         "DBUS_SESSION_BUS_ADDRESS"
-      ];
+      ]
+      ++ (if displayServer == "x11" then [ ] else [ "WAYLAND_DISPLAY" ]);
     };
   };
 
@@ -105,7 +117,12 @@ in
       Type = "oneshot";
       ExecStart = backupJob;
       Environment = [
-        "PATH=%h/bin:${pkgs.lib.makeBinPath [ pkgs.uv pkgs.rclone ]}"
+        "PATH=%h/bin:${
+          pkgs.lib.makeBinPath [
+            pkgs.uv
+            pkgs.rclone
+          ]
+        }"
       ];
     };
   };

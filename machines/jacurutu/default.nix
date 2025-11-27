@@ -10,7 +10,7 @@
   environment = {
     systemPackages = with pkgs; [ fprintd ];
     variables = {
-      WALLPAPER = "$HOME/dotfiles/desktop/wallpapers/evangelion-eva-1.png";
+      WALLPAPER = "$HOME/dotfiles/wallpapers/evangelion-eva-1.png";
     };
   };
 }

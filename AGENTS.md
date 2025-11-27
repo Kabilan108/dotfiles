@@ -45,17 +45,24 @@ This is a complete NixOS + Home Manager-based development workstation configurat
 ### Core Components
 - **flake.nix** - Main flake configuration defining system configurations and inputs
 - **configuration.nix** - Shared system configuration with services and basic setup
-- **common/user.nix** - User configuration with Home Manager integration
-- **dev/default.nix** - Development environment configuration with packages and programs
-- **desktop/default.nix** - Desktop environment configuration via Home Manager
+- **user.nix** - User configuration with Home Manager integration
+- **home/default.nix** - Main Home Manager configuration (packages, programs, desktop)
+- **home/shell.nix** - Shell environment and dotfiles
+- **home/services.nix** - User systemd services
 - **machines/{sietch,jacurutu}/default.nix** - Machine-specific configurations
 - **scripts/bootstrap.sh** - Symlink remaining dotfiles and create directory structure
 
 ### Directory Structure
-- **dev/** - Development environment and user configuration (Home Manager: packages, programs, dotfiles, custom scripts)
-- **desktop/** - Desktop environment configs (i3, polybar, rofi, dunst) managed declaratively by Home Manager
-- **common/** - Shared NixOS modules (user config, desktop X11, nvidia, etc.)
+- **home/** - Home Manager configuration (shell, services, completions, desktop environments)
+- **home/desktop/x11/** - X11 desktop environment (i3, polybar, rofi, dunst, picom)
+- **home/desktop/wayland/** - Wayland desktop environment (future)
+- **modules/home/** - Reusable Home Manager modules (fonts, ghostty, gtk, pwas, zen browser)
+- **modules/nixos/** - Shared NixOS modules (desktop X11/Wayland, nvidia, VPN, virt-manager, etc.)
+- **bin/** - Custom scripts and utilities
+- **config/** - Application configurations (nvim, claude, vscode, etc.)
 - **machines/** - Machine-specific configurations (sietch with NVIDIA/CUDA, jacurutu with Framework laptop support)
+- **packages/** - Custom package definitions (cursor, nomacs-viewer)
+- **wallpapers/** - Desktop wallpapers
 - **selfhost/** - Docker services (Open-WebUI, Jellyfin, Vaultwarden, Nginx)
 - **scripts/** - Utility scripts (bootstrap, partitioning)
 - **secrets/** - Encrypted secrets managed with agenix
@@ -68,13 +75,16 @@ This is a complete NixOS + Home Manager-based development workstation configurat
 - **Self-Hosted Services**: Open-WebUI for AI chat, Jellyfin for media, Vaultwarden for passwords
 
 ### Configuration Management
-- **Home Manager**: User packages, programs, and dotfiles managed declaratively
+- **Home Manager**: User packages, programs, and dotfiles managed declaratively in `home/`
 - **NixOS**: System services, hardware, and global configuration
+- **Modular design**: Reusable modules in `modules/nixos/` and `modules/home/`
+- **Display server support**: X11 and Wayland configurations in `home/desktop/`
 - **Hybrid approach**: Some configs still symlinked via `scripts/bootstrap.sh` (legacy)
 - Machine-specific settings isolated in `machines/{hostname}/`
 - Development dependencies managed through Home Manager
 - Secrets encrypted with agenix and machine-specific SSH keys
 - Custom packages (capscreen, dictator, diffgpt, dump, rollouts) integrated as flake inputs
+- Local packages (cursor, nomacs-viewer) defined in `packages/`
 
 ### Development Workflow
 1. Use `sessionizer` for project navigation

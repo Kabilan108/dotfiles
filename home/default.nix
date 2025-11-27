@@ -1,70 +1,26 @@
-# Set up X11 and i3wm
-
-{ pkgs, ... }:
+{ pkgs, displayServer, ... }:
 let
-  nomacs-configured = pkgs.symlinkJoin {
-    name = "nomacs";
-    paths = [ pkgs.nomacs ];
-    buildInputs = [ pkgs.makeWrapper ];
-    postBuild = ''
-      wrapProgram $out/bin/nomacs \
-        --run "mkdir -p \$HOME/.config/nomacs" \
-        --run "if [ ! -f \"\$HOME/.config/nomacs/Image Lounge.ini\" ]; then cp ${../config/nomacs.conf} \"\$HOME/.config/nomacs/Image Lounge.conf\"; chmod u+w \"\$HOME/.config/nomacs/Image Lounge.conf\"; fi"
-    '';
-  };
+  homeDir = "/home/kabilan";
 in
 {
   imports = [
-    ./apps/betterlockscreen.nix
-    ./apps/dunst.nix
-    ./apps/ghostty.nix
-    ./apps/gtk.nix
-    ./apps/i3.nix
-    ./apps/picom.nix
-    ./apps/polybar.nix
-    ./apps/pwas.nix
-    ./apps/rofi
-    ./apps/zen
-  ];
+    ./services.nix
+    ./shell.nix
 
-  fonts.fontconfig = {
-    enable = true;
-    defaultFonts = {
-      serif = [ "Noto Serif" ];
-      sansSerif = [ "Noto Sans" ];
-      monospace = [
-        "FiraMono Nerd Font"
-        "Fira Mono"
-      ];
-    };
-  };
+    ../modules/home/fonts.nix
+    ../modules/home/ghostty.nix
+    ../modules/home/gtk.nix
+    ../modules/home/pwas.nix
+    ../modules/home/zen
+  ]
+  ++ (if displayServer == "x11" then [ ./desktop/x11 ] else [ ./desktop/wayland ]);
 
-  home.file.".config/greenclip.toml".source = ../config/greenclip.toml;
+  home.username = "kabilan";
+  home.homeDirectory = homeDir;
+  home.stateVersion = "25.05";
 
-  home.packages = with pkgs; [
-    arandr
-    autorandr
-    betterlockscreen
-    dunst
-    evince
-    feh
-    flameshot
-    light
-    nerd-fonts.fira-mono
-    networkmanagerapplet
-    nomacs-configured
-    picom
-    pavucontrol
-    playerctl
-    pulseaudio
-    rofi
-    signal-desktop
-    xclip
-    xdotool
-    xorg.xdpyinfo
-    xorg.xev
-    xorg.xrandr
-  ];
+  programs.direnv.enable = true; # nix-direnv
+  programs.home-manager.enable = true;
 
   programs.pwas = {
     enable = true;
@@ -120,4 +76,88 @@ in
       "x-scheme-handler/tonsite" = "org.telegram.desktop.desktop";
     };
   };
+
+  home.packages = with pkgs; [
+    # desktop apps
+    code-cursor
+    evince
+    nautilus
+    networkmanagerapplet
+    nomacs
+    obsidian
+    pavucontrol
+    playerctl
+    pulseaudio
+    remmina
+    signal-desktop
+    slack
+    spotify
+    vlc
+    vscode-fhs
+    windsurf
+    zoom-us
+    zotero
+
+    # media/file handling
+    baobab
+    gparted
+    yt-dlp
+
+    # build tools
+    clang-tools
+    cmake
+    gnumake
+
+    # dev utils
+    ast-grep
+    bat
+    direnv
+    delta
+    fastfetch
+    fd
+    fzf
+    gh
+    ghostty
+    kitty.kitten
+    lazygit
+    pre-commit
+    rclone
+    ripgrep
+    sd
+    tree
+    tree-sitter
+    tmux
+
+    # lsp & formatters
+    bash-language-server
+    basedpyright
+    biome
+    dockerfile-language-server-nodejs
+    gopls
+    lua-language-server
+    nil
+    nodePackages.typescript-language-server
+    pyright
+    rust-analyzer
+    ruff
+    shfmt
+    stylua
+    yaml-language-server
+
+    # languages
+    bun
+    cargo
+    clang
+    go
+    lua
+    luajitPackages.luarocks
+    luajitPackages.magick
+    nixd
+    nixfmt-rfc-style
+    nodejs_20
+    python312Full
+    pnpm
+    uv
+    zig
+  ];
 }
