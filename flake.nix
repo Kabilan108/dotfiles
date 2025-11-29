@@ -74,7 +74,7 @@
         };
         jacurutu = makeSystem {
           name = "jacurutu";
-          displayServer = "x11";
+          displayServer = "wayland";
           modules = [ ];
         };
       };
@@ -107,6 +107,18 @@
     };
 
     nix-colors.url = "github:misterio77/nix-colors";
+
+    hyprland.url = "github:hyprwm/Hyprland/v0.52.0";
+    elephant.url = "github:abenz1267/elephant";
+    walker = {
+      url = "github:abenz1267/walker";
+      inputs.elephant.follows = "elephant";
+    };
+
+    hy3 = {
+      url = "github:outfoxxed/hy3?ref=hl0.52.0";
+      inputs.hyprland.follows = "hyprland";
+    };
 
     atlas.url = "github:kabilan108/atlas/go/claude-1";
     capscreen.url = "github:kabilan108/capscreen";

@@ -9,9 +9,10 @@
   programs.steam.enable = true;
   environment = {
     systemPackages = with pkgs; [ openrgb-with-all-plugins prismlauncher ];
-    variables = {
-      WALLPAPER = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
-    };
+  };
+
+  home-manager.users.kabilan = {
+    wallpaper.desktop = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [

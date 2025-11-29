@@ -33,6 +33,13 @@ in
         vertical_alignment = "center";
         corner_radius = 10;
         corners = "all";
+        progress_bar = true;
+        progress_bar_height = 8;
+        progress_bar_frame_width = 0;
+        progress_bar_corner_radius = 6;
+        progress_bar_min_width = 150;
+        progress_bar_max_width = 320;
+        progress_bar_horizontal_alignment = "left";
         padding = 10;
         horizontal_padding = 15;
 

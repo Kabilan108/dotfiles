@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HISTORY_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/elephant/clipboard.gob"
+
+systemctl --user stop elephant >/dev/null 2>&1 || true
+rm -f "${HISTORY_FILE}"
+systemctl --user start elephant >/dev/null 2>&1 || true

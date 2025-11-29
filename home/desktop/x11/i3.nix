@@ -151,11 +151,6 @@ in
           always = true;
         }
         {
-          command = "${../../../bin/set-wallpaper}";
-          notification = false;
-          always = true;
-        }
-        {
           command = "${../../../bin/start-polybar}";
           notification = false;
           always = true;

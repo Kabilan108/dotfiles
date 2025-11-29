@@ -54,9 +54,7 @@ in
     useUserPackages = true;
     extraSpecialArgs = { inherit inputs theme displayServer; };
 
-    users.kabilan.imports = [
-      ./home
-    ];
+    users.kabilan.imports = [ ./home ];
   };
 
   imports = [

@@ -9,8 +9,10 @@
 
   environment = {
     systemPackages = with pkgs; [ fprintd ];
-    variables = {
-      WALLPAPER = "$HOME/dotfiles/wallpapers/evangelion-eva-1.png";
-    };
+  };
+
+  home-manager.users.kabilan = {
+    wallpaper.desktop = "$HOME/dotfiles/wallpapers/witcher.png";
+    wallpaper.lockscreen = "$HOME/dotfiles/wallpapers/witcher.png";
   };
 }
