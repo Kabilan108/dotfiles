@@ -81,6 +81,7 @@ in
     # desktop apps
     code-cursor
     evince
+    mpv
     nautilus
     networkmanagerapplet
     nomacs
@@ -92,7 +93,6 @@ in
     signal-desktop
     slack
     spotify
-    vlc
     vscode-fhs
     windsurf
     zoom-us
