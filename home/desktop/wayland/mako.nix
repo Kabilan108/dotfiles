@@ -31,13 +31,13 @@ in
       };
       "urgency=normal" = {
         default-timeout = 5000;
-        background-color = "#${palette.base00}40";
+        background-color = "#${palette.base00}80";
         border-color = "#${palette.base04}";
         text-color = "#${palette.base0D}";
       };
       "urgency=critical" = {
         default-timeout = 7000;
-        background-color = "#${palette.base08}40";
+        background-color = "#${palette.base08}80";
         border-color = "#${palette.base04}";
         text-color = "#${palette.base08}";
       };

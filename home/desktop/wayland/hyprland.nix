@@ -20,8 +20,9 @@ in
     settings = {
       # TODO: machine-specific settings
       monitor = [
-        "eDP-1,2256x1504@60Hz,0x0,1"
-        "desc: AOC CU34G2XP 1Q1R6HA001347,3440x1440@60Hz,2256x0,1"
+        "eDP-1,2256x1504@60Hz,0x0,1" # laptop display
+        "desc:AOC CU34G2XP 1Q1R6HA001347,3440x1440@60Hz,2256x0,1" # right of laptop
+        "desc:Dell Inc. DELL S2721H 7B6XB23,1920x1080@60Hz,168x-1080,1" # centered above laptop
       ];
 
       env = [
