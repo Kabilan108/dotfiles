@@ -20,6 +20,7 @@
         config.allowUnfree = true;
         overlays = [
           (final: prev: {
+            bun = pkgs-unstable.bun;
             ghostty = pkgs-unstable.ghostty;
             spotify = pkgs-unstable.spotify;
             openrgb = pkgs-unstable.openrgb;
