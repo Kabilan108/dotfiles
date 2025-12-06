@@ -236,6 +236,9 @@ in
 
         "$mod, Escape, workspace, previous"
 
+        "$mod, bracketleft, cyclenext"
+        "$mod, bracketright, cyclenext, prev"
+
         "$mod, F, fullscreen, 0"
         "$mod SHIFT, space, togglefloating"
         "$mod, space, hy3:togglefocuslayer"
