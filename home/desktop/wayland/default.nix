@@ -11,7 +11,8 @@
 
   home.packages = with pkgs; [
     hyprshot
-    wl-clipboard
     hyprpicker
+    wl-clipboard
+    wtype
   ];
 }
