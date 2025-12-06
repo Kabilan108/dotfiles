@@ -65,7 +65,7 @@
       nixosConfigurations = {
         sietch = makeSystem {
           name = "sietch";
-          displayServer = "x11";
+          displayServer = "wayland";
           modules = [
             ./modules/nixos/nvidia.nix
             ./modules/nixos/xbox-controller.nix

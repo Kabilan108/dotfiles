@@ -176,7 +176,7 @@ in
         "pin, title:^(Picture.in.[Pp]icture)$"
         "keepaspectratio, title:^(Picture.in.[Pp]icture)$"
 
-        "opacity 0.97 0.9, class:^.*$"
+        "opacity 0.99 0.95, class:^.*$"
         "opacity 1.0 1.0, title:(YouTube|Zoom)"
       ];
 

@@ -11,7 +11,7 @@
 
   hardware.nvidia = {
     modesetting.enable = true;
-    powerManagement.enable = false;
+    powerManagement.enable = true;
     powerManagement.finegrained = false;
     open = true;
     nvidiaSettings = true;
@@ -20,6 +20,11 @@
 
   hardware.nvidia-container-toolkit.enable = true;
   virtualisation.docker.daemon.settings.features.cdi = true;
+
+  environment.sessionVariables = {
+    LIBVA_DRIVER_NAME = "nvidia";
+    __GLX_VENDOR_LIBRARY_NAME = "nvidia";
+  };
 
   environment.systemPackages = with pkgs; [
     cudaPackages.cudatoolkit
