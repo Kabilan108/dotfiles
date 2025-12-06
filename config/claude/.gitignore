@@ -7,3 +7,4 @@ todos/
 .update.lock
 history.jsonl
 plans/
+.credentials.json

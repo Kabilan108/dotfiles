@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+
+(cd ~ && sed -i.bak '/"opencode-gemini-auth"/d' .cache/opencode/package.json &&
+  rm -rf .cache/opencode/node_modules/opencode-gemini-auth &&
+  echo "Plugin update script finished successfully.")
