@@ -21,6 +21,7 @@ let
     else
       [
         pkgs.wl-clipboard
+        pkgs.coreutils # wl-copy needs cat
         pkgs.wtype
       ];
 in
