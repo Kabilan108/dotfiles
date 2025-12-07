@@ -1,6 +1,5 @@
 { pkgs, inputs, ... }:
 {
-  # Use Hyprland from nixpkgs (stable, well-tested for NixOS 25.05)
   programs.hyprland = {
     enable = true;
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;

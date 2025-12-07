@@ -18,7 +18,7 @@ in
 
   home.username = "kabilan";
   home.homeDirectory = homeDir;
-  home.stateVersion = "25.05";
+  home.stateVersion = "25.11";
 
   programs.direnv.enable = true; # nix-direnv
   programs.home-manager.enable = true;
@@ -174,7 +174,7 @@ in
     nixd
     nixfmt-rfc-style
     nodejs_20
-    python312Full
+    python312
     pnpm
     uv
     zig
