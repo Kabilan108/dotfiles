@@ -52,7 +52,7 @@ services:
     container_name: siren
     build:
       context: https://github.com/kabilan108/siren.git
-      dockerfile: Dockerfile.gpu
+      dockerfile: Dockerfile
     restart: always
     networks:
       - proxynet
