@@ -129,7 +129,6 @@ in
     # dev utils
     ast-grep
     bat
-    direnv
     delta
     fastfetch
     fd

@@ -37,9 +37,10 @@
     profiles."default".extensions.packages =
       with inputs.firefox-addons.packages.${pkgs.stdenv.hostPlatform.system}; [
         bitwarden
+ 	      raindropio
         react-devtools
-        ublock-origin
         web-clipper-obsidian
+        ublock-origin
       ];
   };
 

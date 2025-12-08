@@ -21,6 +21,7 @@
         overlays = [
           (final: prev: {
             bun = pkgs-unstable.bun;
+            direnv = pkgs-unstable.direnv;
             ghostty = pkgs-unstable.ghostty;
             spotify = pkgs-unstable.spotify;
             openrgb = pkgs-unstable.openrgb;
