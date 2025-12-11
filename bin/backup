@@ -1,20 +1,22 @@
 #!/usr/bin/env -S uv --quiet run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = [ "typer" ]
 # ///
 
-import argparse
 import json
 import os
 import socket
-import subprocess
 import sys
+import subprocess
 import tarfile
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import TypedDict, cast
+
+import typer
 
 DATE_FORMAT = "%m.%d.%Y"
 DEFAULT_CONFIG_PATH = Path.home() / ".config" / "backup" / "config.json"
@@ -34,88 +36,62 @@ class BackupRecord:
     remote_path: str
 
 
-class ConfigError(RuntimeError):
-    """Raised when the backup configuration is invalid."""
+class HostConfig(TypedDict):
+    dirs: list[str]
+    target: str
+    max_age_days: int
+
+
+BackupConfig = dict[str, HostConfig]
 
 
 def load_config(config_path: Path, host: str) -> tuple[list[DirectorySpec], str, int]:
-    if not config_path.exists():
-        raise ConfigError(f"configuration file not found: {config_path}")
-
     with config_path.open("r", encoding="utf-8") as fh:
-        try:
-            raw = json.load(fh)
-        except json.JSONDecodeError as exc:
-            raise ConfigError(f"invalid JSON in {config_path}: {exc}") from exc
+        raw = cast(BackupConfig, json.load(fh))
 
-    if not isinstance(raw, dict) or not raw:
-        raise ConfigError("configuration must map hostnames to settings objects")
-
-    host_config = raw.get(host)
+    host_config = raw.get(host, None)
     if host_config is None:
         available = ", ".join(sorted(raw))
-        raise ConfigError(
+        raise Exception(
             f"no configuration found for host '{host}' (available: {available})"
         )
-
-    if not isinstance(host_config, dict):
-        raise ConfigError(f"configuration for host '{host}' must be a JSON object")
 
     try:
         dirs_raw = host_config["dirs"]
         target_raw = host_config["target"]
         default_max_age = host_config["max_age_days"]
     except KeyError as missing:
-        raise ConfigError(
+        raise Exception(
             f"missing required configuration key for host '{host}': {missing.args[0]}"
         ) from missing
 
-    if not isinstance(dirs_raw, list) or not dirs_raw:
-        raise ConfigError("'dirs' must be a non-empty array")
-
     directory_specs: list[DirectorySpec] = []
     for entry in dirs_raw:
-        if not isinstance(entry, str) or not entry:
-            raise ConfigError("each entry in 'dirs' must be a non-empty string")
-
         path_str, _, age_str = entry.partition(":")
         if not path_str or not os.path.isabs(path_str):
-            raise ConfigError(f"directory path must be absolute: {entry}")
+            raise Exception(f"directory path must be absolute: {entry}")
 
         max_age_override: int | None = None
         if age_str:
             try:
                 max_age_override = int(age_str)
             except ValueError as exc:
-                raise ConfigError(
+                raise Exception(
                     f"invalid max age in '{entry}' (expected integer)"
                 ) from exc
             if max_age_override < 0:
-                raise ConfigError(f"max age must be non-negative in '{entry}'")
+                raise Exception(f"max age must be non-negative in '{entry}'")
 
         directory_specs.append(
-            DirectorySpec(path=Path(path_str), max_age_days=max_age_override)
+            DirectorySpec(
+                path=Path(path_str).resolve(), max_age_days=max_age_override
+            )
         )
 
-    if not isinstance(target_raw, str) or not target_raw:
-        raise ConfigError("'target' must be a non-empty string")
-
-    remote_base = normalize_remote_base(target_raw)
-
     if not isinstance(default_max_age, int) or default_max_age < 0:
-        raise ConfigError("'max_age_days' must be a non-negative integer")
+        raise Exception("'max_age_days' must be a non-negative integer")
 
-    return directory_specs, remote_base, default_max_age
-
-
-def normalize_remote_base(target: str) -> str:
-    prefix = "rclone:"
-    if target.startswith(prefix):
-        target = target[len(prefix) :]
-    target = target.rstrip("/")
-    if not target:
-        raise ConfigError("rclone remote target resolves to an empty path")
-    return target
+    return directory_specs, target_raw.rstrip("/"), default_max_age
 
 
 def run_rclone(
@@ -123,32 +99,35 @@ def run_rclone(
 ) -> subprocess.CompletedProcess:
     cmd = ["rclone", *args]
     try:
-        if capture_output:
-            return subprocess.run(cmd, check=True, capture_output=True, text=True)
-        return subprocess.run(cmd, check=True, text=True)
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        if not capture_output:
+            if result.stdout:
+                print(result.stdout, end="")
+            if result.stderr:
+                print(result.stderr, end="", file=sys.stderr)
+        return result
     except FileNotFoundError as exc:
         raise RuntimeError("rclone executable not found in PATH") from exc
     except subprocess.CalledProcessError as exc:
         stderr = exc.stderr if exc.stderr else ""
         stdout = exc.stdout if exc.stdout else ""
-        details = stderr or stdout
         raise RuntimeError(
-            f"rclone command failed: {' '.join(cmd)}\n{details.strip()}"
+            "rclone command failed:\n"
+            "<stdout>\n"
+            f"{stdout}\n"
+            "</stdout>\n"
+            "<stderr>\n"
+            f"{stderr}\n"
+            "</stderr>"
         ) from exc
 
 
-def collect_backups(
-    remote_base: str, host: str, *, missing_ok: bool = False
-) -> dict[str, list[BackupRecord]]:
-    try:
-        result = run_rclone(
-            ["lsf", f"{remote_base}/{host}", "--recursive", "--files-only"],
-            capture_output=True,
-        )
-    except RuntimeError:
-        if missing_ok:
-            return {}
-        raise
+def collect_backups(remote_base: str, host: str) -> dict[str, list[BackupRecord]]:
+    result = run_rclone(
+        ["lsf", f"{remote_base}/{host}", "--recursive", "--files-only"],
+        capture_output=True,
+    )
+
     backups: dict[str, list[BackupRecord]] = {}
 
     for line in result.stdout.splitlines():
@@ -180,20 +159,32 @@ def collect_backups(
     return backups
 
 
-def ensure_directory_exists(path: Path) -> None:
+app = typer.Typer(help="Backup utility powered by rclone")
+
+
+@app.command()
+def push(
+    config: str | None = typer.Option(
+        None,
+        help="Path to configuration file (default: ~/.config/backup/config.json)",
+    ),
+):
+    """Create archives and upload them to the remote"""
+    config_path = Path(config).expanduser() if config else DEFAULT_CONFIG_PATH
+    host = socket.gethostname().strip()
+
     try:
-        path.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        raise RuntimeError(f"failed to create directory '{path}': {exc}") from exc
+        directories, remote_base, _ = load_config(config_path, host)
+    except Exception as exc:
+        typer.echo(f"config error: {exc}", err=True)
+        raise typer.Exit(2)
 
-
-def command_push(directories: list[DirectorySpec], remote_base: str, host: str) -> None:
     for spec in directories:
         if not spec.path.exists():
-            print(f"warning: skipping missing directory {spec.path}", file=sys.stderr)
+            typer.echo(f"warning: skipping missing directory {spec.path}", err=True)
             continue
         if not spec.path.is_dir():
-            print(f"warning: skipping non-directory path {spec.path}", file=sys.stderr)
+            typer.echo(f"warning: skipping non-directory path {spec.path}", err=True)
             continue
 
         folder_name = spec.path.resolve().name
@@ -206,11 +197,10 @@ def command_push(directories: list[DirectorySpec], remote_base: str, host: str) 
 
         try:
             with tarfile.open(tmp_path, "w:gz") as archive:
-                # Store contents under the folder name to avoid absolute paths in the archive
                 archive.add(str(spec.path), arcname=folder_name)
 
             run_rclone(["copyto", tmp_path.as_posix(), remote_path])
-            print(f"uploaded {spec.path} -> {remote_path}")
+            typer.echo(f"uploaded {spec.path} -> {remote_path}")
         finally:
             try:
                 tmp_path.unlink()
@@ -218,69 +208,135 @@ def command_push(directories: list[DirectorySpec], remote_base: str, host: str) 
                 pass
 
 
-def command_list(remote_base: str, host: str, filters: list[str] | None) -> None:
-    backups = collect_backups(remote_base, host, missing_ok=True)
+@app.command("list")
+def list_backups(
+    dirs: list[str] | None = typer.Option(
+        None,
+        "-d",
+        "--dir",
+        help="Limit listing to specific directories",
+    ),
+    config: str | None = typer.Option(
+        None,
+        help="Path to configuration file (default: ~/.config/backup/config.json)",
+    ),
+):
+    """List available backups"""
+    config_path = Path(config).expanduser() if config else DEFAULT_CONFIG_PATH
+    host = socket.gethostname().strip()
 
-    if filters:
-        selected = {name for name in filters}
-        backups = {
-            folder: records for folder, records in backups.items() if folder in selected
-        }
+    try:
+        _, remote_base, _ = load_config(config_path, host)
+    except Exception as exc:
+        typer.echo(f"config error: {exc}", err=True)
+        raise typer.Exit(2)
+
+    try:
+        backups = collect_backups(remote_base, host)
+    except RuntimeError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1)
+    if dirs is not None:
+        backups = {dir: records for dir, records in backups.items() if dir in dirs}
 
     if not backups:
-        print("no backups found")
+        typer.echo("no backups found")
         return
 
     for folder in sorted(backups):
-        print(f"{folder}:")
+        typer.echo(f"{folder}:")
         for record in backups[folder]:
-            print(f"  - {record.date.strftime(DATE_FORMAT)}")
+            typer.echo(f"  - {record.date.strftime(DATE_FORMAT)}")
 
 
-def command_pull(
-    remote_base: str,
-    host: str,
-    folder: str,
-    date_override: str | None,
-    output_dir: str | None,
-) -> None:
+@app.command()
+def pull(
+    name: str = typer.Argument(
+        ..., help="Directory name whose backup should be downloaded"
+    ),
+    date: str | None = typer.Option(
+        None,
+        "-d",
+        "--date",
+        help=f"Specific backup date ({DATE_FORMAT})",
+    ),
+    output: str | None = typer.Option(
+        None,
+        "-o",
+        "--output",
+        help="Directory to download into",
+    ),
+    config: str | None = typer.Option(
+        None,
+        help="Path to configuration file (default: ~/.config/backup/config.json)",
+    ),
+):
+    """Download a backup from the remote"""
+    config_path = Path(config).expanduser() if config else DEFAULT_CONFIG_PATH
+    host = socket.gethostname().strip()
+
+    try:
+        _, remote_base, _ = load_config(config_path, host)
+    except Exception as exc:
+        typer.echo(f"config error: {exc}", err=True)
+        raise typer.Exit(2)
+
     backups = collect_backups(remote_base, host)
-    records = backups.get(folder, [])
+    records = backups.get(name, [])
     if not records:
-        raise RuntimeError(f"no backups found for folder '{folder}'")
+        typer.echo(f"no backups found for folder '{name}'", err=True)
+        raise typer.Exit(1)
 
     target_record: BackupRecord | None = None
 
-    if date_override:
+    if date:
         try:
-            requested_date = datetime.strptime(date_override, DATE_FORMAT)
-        except ValueError as exc:
-            raise RuntimeError(
-                f"invalid date '{date_override}', expected {DATE_FORMAT}"
-            ) from exc
+            requested_date = datetime.strptime(date, DATE_FORMAT)
+        except ValueError:
+            typer.echo(f"invalid date '{date}', expected {DATE_FORMAT}", err=True)
+            raise typer.Exit(1)
+
         for record in records:
             if record.date == requested_date:
                 target_record = record
                 break
+
         if target_record is None:
-            raise RuntimeError(f"no backup dated {date_override} for folder '{folder}'")
+            typer.echo(f"no backup dated {date} for folder '{name}'", err=True)
+            raise typer.Exit(1)
     else:
         target_record = records[0]
 
-    destination_dir = (
-        Path(output_dir).expanduser().resolve() if output_dir else Path.cwd()
-    )
-    ensure_directory_exists(destination_dir)
+    destination_dir = Path(output).expanduser().resolve() if output else Path.cwd()
+    destination_dir.mkdir(parents=True, exist_ok=True)
     destination_file = destination_dir / target_record.filename
 
     run_rclone(["copyto", target_record.remote_path, destination_file.as_posix()])
-    print(f"downloaded to {destination_file}")
+    typer.echo(f"downloaded to {destination_file}")
 
 
-def command_janitor(
-    directories: list[DirectorySpec], remote_base: str, host: str, default_max_age: int
-) -> None:
-    backups = collect_backups(remote_base, host, missing_ok=True)
+@app.command()
+def janitor(
+    config: str | None = typer.Option(
+        None,
+        help="Path to configuration file (default: ~/.config/backup/config.json)",
+    ),
+):
+    """Delete backups older than the configured retention period"""
+    config_path = Path(config).expanduser() if config else DEFAULT_CONFIG_PATH
+    host = socket.gethostname().strip()
+
+    try:
+        directories, remote_base, default_max_age = load_config(config_path, host)
+    except Exception as exc:
+        typer.echo(f"config error: {exc}", err=True)
+        raise typer.Exit(2)
+
+    try:
+        backups = collect_backups(remote_base, host)
+    except RuntimeError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1)
     now = datetime.now()
     deletions = 0
 
@@ -298,114 +354,14 @@ def command_janitor(
         old_records = [record for record in records if record.date < cutoff]
         for record in old_records:
             run_rclone(["deletefile", record.remote_path])
-            print(f"deleted {folder}: {record.filename}")
+            typer.echo(f"deleted {folder}: {record.filename}")
             deletions += 1
 
     if deletions == 0:
-        print("no old backups to delete")
-
-
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Backup utility backed by rclone")
-    parser.add_argument(
-        "--config",
-        type=str,
-        help="Path to configuration file (default: ~/.config/backup/config.json)",
-    )
-
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    subparsers.add_parser("push", help="Create archives and upload them to the remote")
-
-    list_parser = subparsers.add_parser("list", help="List available backups")
-    list_parser.add_argument(
-        "-d",
-        "--dir",
-        dest="dirs",
-        action="append",
-        help="Limit listing to specific directories",
-    )
-
-    pull_parser = subparsers.add_parser(
-        "pull", help="Download a backup from the remote"
-    )
-    pull_parser.add_argument(
-        "name", help="Directory name whose backup should be downloaded"
-    )
-    pull_parser.add_argument(
-        "-d", "--date", dest="date", help=f"Specific backup date ({DATE_FORMAT})"
-    )
-    pull_parser.add_argument(
-        "-o", "--output", dest="output", help="Directory to download into"
-    )
-
-    subparsers.add_parser(
-        "janitor", help="Delete backups older than the configured retention period"
-    )
-
-    return parser
-
-
-def main(argv: list[str]) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
-
-    config_path = Path(args.config).expanduser() if args.config else DEFAULT_CONFIG_PATH
-
-    try:
-        host = socket.gethostname().strip()
-    except OSError:
-        print("error: could not determine hostname;", file=sys.stderr)
-        return 2
-
-    if not host:
-        print("error: hostname cannot be empty", file=sys.stderr)
-        return 2
-
-    try:
-        directories, remote_base, default_max_age = load_config(config_path, host)
-    except ConfigError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
-
-    if args.command == "push":
-        try:
-            command_push(directories, remote_base, host)
-        except RuntimeError as exc:
-            print(f"error: {exc}", file=sys.stderr)
-            return 1
-        return 0
-
-    if args.command == "list":
-        try:
-            command_list(remote_base, host, args.dirs)
-        except RuntimeError as exc:
-            print(f"error: {exc}", file=sys.stderr)
-            return 1
-        return 0
-
-    if args.command == "pull":
-        try:
-            command_pull(remote_base, host, args.name, args.date, args.output)
-        except RuntimeError as exc:
-            print(f"error: {exc}", file=sys.stderr)
-            return 1
-        return 0
-
-    if args.command == "janitor":
-        try:
-            command_janitor(directories, remote_base, host, default_max_age)
-        except RuntimeError as exc:
-            print(f"error: {exc}", file=sys.stderr)
-            return 1
-        return 0
-
-    parser.print_help()
-    return 1
+        typer.echo("no old backups to delete")
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
-
+    app()
 
 # vim: syn=python ft=python
