@@ -150,7 +150,7 @@ in
     bash-language-server
     basedpyright
     biome
-    dockerfile-language-server-nodejs
+    dockerfile-language-server
     gopls
     lua-language-server
     nil
