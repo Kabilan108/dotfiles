@@ -7,8 +7,8 @@
 import json
 import os
 import socket
-import sys
 import subprocess
+import sys
 import tarfile
 import tempfile
 from dataclasses import dataclass
@@ -83,9 +83,7 @@ def load_config(config_path: Path, host: str) -> tuple[list[DirectorySpec], str,
                 raise Exception(f"max age must be non-negative in '{entry}'")
 
         directory_specs.append(
-            DirectorySpec(
-                path=Path(path_str).resolve(), max_age_days=max_age_override
-            )
+            DirectorySpec(path=Path(path_str).resolve(), max_age_days=max_age_override)
         )
 
     if not isinstance(default_max_age, int) or default_max_age < 0:
@@ -159,7 +157,7 @@ def collect_backups(remote_base: str, host: str) -> dict[str, list[BackupRecord]
     return backups
 
 
-app = typer.Typer(help="Backup utility powered by rclone")
+app = typer.Typer(help="Backup utility powered by rclone", rich_markup_mode=None)
 
 
 @app.command()
