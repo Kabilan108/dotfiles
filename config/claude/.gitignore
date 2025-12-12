@@ -8,3 +8,5 @@ todos/
 history.jsonl
 plans/
 .credentials.json
+installed_plugins.json
+stats-cache.json
