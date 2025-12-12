@@ -69,6 +69,13 @@ in
     initExtra = builtins.readFile ../config/.bashrc;
   };
 
+  # nix-direnv
+  programs.direnv = {
+    enable = true;
+    enableBashIntegration = true;
+    nix-direnv.enable = true;
+  };
+
   programs.lazydocker = {
     enable = true;
     settings.gui.theme = with theme.palette; {

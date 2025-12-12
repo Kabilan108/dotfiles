@@ -20,7 +20,6 @@ in
   home.homeDirectory = homeDir;
   home.stateVersion = "25.11";
 
-  programs.direnv.enable = true; # nix-direnv
   programs.home-manager.enable = true;
 
   programs.pwas = {
