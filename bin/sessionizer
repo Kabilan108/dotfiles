@@ -123,9 +123,18 @@ is_tmux_running() {
 find_sessions() {
   if [[ -n "$TMUX" ]]; then
     current_session=$(tmux display-message -p '#S')
-    tmux list-sessions -F "[TMUX] #{session_name}" 2>/dev/null | grep -vFx "[TMUX] $current_session"
+    tmux list-sessions -F "#{session_activity} #{session_name}" 2>/dev/null \
+      | grep -v " $current_session$" \
+      | sort -rn \
+      | while read -r _ name; do
+          echo "[TMUX] ${name}"
+        done
   else
-    tmux list-sessions -F "[TMUX] #{session_name}" 2>/dev/null
+    tmux list-sessions -F "#{session_activity} #{session_name}" 2>/dev/null \
+      | sort -rn \
+      | while read -r _ name; do
+          echo "[TMUX] ${name}"
+        done
   fi
 }
 
