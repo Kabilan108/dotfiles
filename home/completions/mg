@@ -12,8 +12,8 @@ _mg_completion() {
         prev=""
     fi
 
-    local opts="-A --all -e --exclude -f --file -h --help -i --info"
-    local commands="status diff completion"
+    local opts="-A --all -b --base -e --exclude -f --file -h --help -i --info"
+    local commands="status diff ahead-behind run completion"
 
     if (( COMP_CWORD == 1 )); then
         if [[ "$cur" == -* ]]; then
@@ -33,9 +33,9 @@ _mg_completion() {
             fi
             return
             ;;
-        status|diff)
+        status|diff|ahead-behind)
             case "$prev" in
-                -e|--exclude)
+                -b|--base|-e|--exclude)
                     if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
                         local branches
                         branches=$(git for-each-ref --format='%(refname:short)' refs/heads 2>/dev/null)
@@ -58,6 +58,11 @@ _mg_completion() {
             else
                 COMPREPLY=()
             fi
+            return
+            ;;
+        run)
+            # after 'run', defer to git's completion or allow any args
+            COMPREPLY=()
             return
             ;;
         *)
