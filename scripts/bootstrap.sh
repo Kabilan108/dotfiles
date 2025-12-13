@@ -38,9 +38,10 @@ mkdir -p "$HOME/downloads" \
          "$HOME/media/wallpapers"
 
 if [ -d "/vault" ]; then
-  mkdir -p "/vault/work" "/vault/repos" "/vault/journal" "/vault/userdata"
+  mkdir -p "/vault/work" "/vault/repos" "/vault/journal" "/vault/userdata" "/vault/experiments"
   create_symlink "/vault/work" "$HOME/work"
   create_symlink "/vault/repos" "$HOME/repos"
+  create_symlink "/vault/experiments" "$HOME/experiments"
 fi
 
 if [ ! -d $HOME/.tmux/plugins ]; then

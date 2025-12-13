@@ -1,6 +1,8 @@
 {
+  inputs,
   config,
   theme,
+  pkgs,
   ...
 }:
 let
@@ -10,7 +12,10 @@ let
   mkPath = name: ../config/${name};
 in
 {
-  imports = [ ./completions ];
+  imports = [
+    ./completions
+    inputs.try.homeManagerModules.default
+  ];
 
   home.sessionPath = [
     "$HOME/.bun/bin"
@@ -126,5 +131,10 @@ in
     defaultEditor = true;
     viAlias = true;
     vimAlias = true;
+  };
+
+  programs.try = {
+    enable = true;
+    path = "~/experiments";
   };
 }

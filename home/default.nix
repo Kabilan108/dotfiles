@@ -155,6 +155,7 @@ in
     nil
     nodePackages.typescript-language-server
     pyright
+    ruby
     rust-analyzer
     ruff
     shfmt
