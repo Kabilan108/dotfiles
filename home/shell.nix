@@ -14,7 +14,7 @@ in
 {
   imports = [
     ./completions
-    inputs.try.homeManagerModules.default
+    inputs.try.homeModules.default
   ];
 
   home.sessionPath = [

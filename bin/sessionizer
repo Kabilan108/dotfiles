@@ -153,7 +153,7 @@ find_dirs() {
     fi
 
     if [[ -d "$path" ]]; then
-      $FD_BIN -L -t d -d "${depth:-$TS_MAX_DEPTH}" . "$path"
+      $FD_BIN -L -I -t d -d "${depth:-$TS_MAX_DEPTH}" . "$path"
     fi
   done
 }

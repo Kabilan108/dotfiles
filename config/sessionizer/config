@@ -10,6 +10,7 @@ TS_EXTRA_SEARCH_PATHS=(
   ~/repos/cli
   ~/repos/sites
   ~/repos/nvim-plugins/
+  ~/experiments
   /vault/notes:2
 )
 
