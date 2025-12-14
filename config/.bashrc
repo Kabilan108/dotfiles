@@ -208,6 +208,6 @@ fi
 # - Only runs if not already in a graphical session ($DISPLAY check)
 # - Only runs on TTY1 (preserves TTY2-6 for troubleshooting)
 # - exec replaces shell process, so exiting Hyprland logs you out cleanly
-if [ -z "$DISPLAY" ] && [ "$XDG_VTNR" = "1" ]; then
+if [ -z "$DISPLAY" ] && [ "$XDG_VTNR" = "1" ] && [ -z "$SSH_CONNECTION" ]; then
   exec Hyprland
 fi
