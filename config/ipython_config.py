@@ -6,9 +6,6 @@ c = get_config()
 ## list of dotted module names of IPython extensions to load.
 c.InteractiveShellApp.extensions = ["autoreload", "icat"]
 
-## lines of code to run at IPython startup.
-c.InteractiveShellApp.exec_lines = ["%autoreload 2", "%plt_icat"]
-
 ## load icat plugin
 try:
     import icat
@@ -16,6 +13,9 @@ try:
     c.InteractiveShellApp.extensions.append("icat")
 except ImportError:
     pass
+
+## lines of code to run at IPython startup.
+c.InteractiveShellApp.exec_lines = ["%autoreload 2", "%icat on"]
 
 ## reraise exceptions encountered loading IPython extensions
 c.InteractiveShellApp.reraise_ipython_extension_failures = True
