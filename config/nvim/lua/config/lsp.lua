@@ -10,7 +10,6 @@ vim.diagnostic.config {
 -- configure LSPs
 
 local servers = {
-  'basedpyright',
   'bashls',
   'biome',
   'clangd',
@@ -22,6 +21,7 @@ local servers = {
   'ruff',
   'tailwindcss',
   'ts_ls',
+  'ty',
   'yamlls',
 }
 

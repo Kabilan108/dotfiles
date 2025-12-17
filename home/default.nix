@@ -147,7 +147,6 @@ in
 
     # lsp & formatters
     bash-language-server
-    basedpyright
     biome
     dockerfile-language-server
     gopls
