@@ -26,8 +26,12 @@ in
 
   home.sessionVariables = rec {
     FZF_DEFAULT_OPTS = "--reverse";
+
+    BUN_INSTALL_CACHE_DIR = "/vault/userdata/cache/uv/bun-install";
+
+    UV_CACHE_DIR = "/vault/userdata/cache/uv";
     UV_LINK_MODE = "copy";
-    UV_SYSTEM_PYTHON = "1";
+    UV_SYSTEM_PYTHON = "0";
 
     CAPSCREEN_OUTPUT_DIR = "$HOME/media/screencasts";
     PYREPL_PORT = "5678";
