@@ -168,7 +168,7 @@ in
         "workspace 9 silent, class:^(spotify)$"
         "workspace 2 silent, class:^(obsidian)$"
         "workspace 2 silent, class:^(Slack)$"
-        "workspace 3 silent, class:^(Chromium-browser)$"
+        "workspace 1 silent, class:^(Chromium-browser)$"
         "workspace 1 silent, class:^(zen-beta)$"
 
         # picture-in-picture
