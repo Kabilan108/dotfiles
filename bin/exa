@@ -1,0 +1,132 @@
+#!/usr/bin/env bun
+// vim: syn=typescript ft=typescript
+
+interface CostDollars {
+  total: number;
+  search?: { neural: number };
+}
+
+interface ExaContextResponse {
+  requestId: string;
+  query: string;
+  response: string;
+  resultsCount: number;
+  costDollars: string | CostDollars; // API returns this as JSON string
+  searchTime: number;
+  outputTokens: number;
+}
+
+interface ExaContextRequest {
+  query: string;
+  tokensNum?: number | "dynamic";
+}
+
+async function searchContext(query: string, tokens: number | "dynamic" = "dynamic"): Promise<ExaContextResponse> {
+  const apiKey = process.env.EXA_API_KEY;
+
+  if (!apiKey) {
+    console.error("Error: EXA_API_KEY environment variable not set");
+    console.error("Set it with: export EXA_API_KEY=your-api-key");
+    process.exit(1);
+  }
+
+  const payload: ExaContextRequest = {
+    query,
+    tokensNum: tokens,
+  };
+
+  const response = await fetch("https://api.exa.ai/context", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Exa API error (${response.status}): ${errorText}`);
+  }
+
+  return response.json() as Promise<ExaContextResponse>;
+}
+
+function printUsage(): void {
+  console.log(`Usage: exa <query> [options]
+
+Search for code documentation and examples using Exa's Context API.
+
+Arguments:
+  query              The search query (required)
+
+Options:
+  --tokens <n>       Token limit for response (50-100000, default: dynamic)
+  --json             Output raw JSON response
+  --help, -h         Show this help message
+
+Examples:
+  exa "how to use htmx hx-swap"
+  exa "fastapi authentication jwt" --tokens 5000
+  exa "react useEffect cleanup" --json
+
+Environment:
+  EXA_API_KEY        Your Exa API key (required)`);
+}
+
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+
+  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
+    printUsage();
+    process.exit(args.length === 0 ? 1 : 0);
+  }
+
+  let query = "";
+  let tokens: number | "dynamic" = "dynamic";
+  let jsonOutput = false;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    if (arg === "--tokens" && args[i + 1]) {
+      const tokenValue = parseInt(args[i + 1], 10);
+      if (isNaN(tokenValue) || tokenValue < 50 || tokenValue > 100000) {
+        console.error("Error: --tokens must be a number between 50 and 100000");
+        process.exit(1);
+      }
+      tokens = tokenValue;
+      i++;
+    } else if (arg === "--json") {
+      jsonOutput = true;
+    } else if (!arg.startsWith("--")) {
+      query = query ? `${query} ${arg}` : arg;
+    }
+  }
+
+  if (!query) {
+    console.error("Error: No query provided");
+    printUsage();
+    process.exit(1);
+  }
+
+  try {
+    const result = await searchContext(query, tokens);
+
+    if (jsonOutput) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(result.response);
+      console.log("\n---");
+      const cost = typeof result.costDollars === "string"
+        ? JSON.parse(result.costDollars) as CostDollars
+        : result.costDollars;
+      console.log(`Sources: ${result.resultsCount} | Tokens: ${result.outputTokens} | Cost: $${cost.total.toFixed(4)}`);
+    }
+  } catch (error) {
+    console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
+}
+
+main();

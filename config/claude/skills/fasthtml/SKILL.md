@@ -1,6 +1,6 @@
 ---
 name: fasthtml
-description: Build interactive web dashboards and data apps in pure Python using FastHTML. Use when the user wants to prototype dashboards, admin panels, data visualization apps, CRUD interfaces, or any server-rendered web application in Python without JavaScript frameworks. FastHTML combines HTMX for interactivity, Starlette for routing, and Python "FastTags" for HTML generation. Ideal for rapid prototyping with real-time updates, forms, charts, and database-backed UIs.
+description: Build interactive web apps in pure Python using FastHTML. Use when the user wants to prototype web apps in Python without JavaScript frameworks. FastHTML combines HTMX for interactivity, Starlette for routing, and Python "FastTags" for HTML generation. Ideal for rapid prototyping with real-time updates, forms, charts, and database-backed UIs.
 ---
 
 # FastHTML Dashboard Development

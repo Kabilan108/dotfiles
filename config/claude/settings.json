@@ -1,5 +1,4 @@
 {
-  "model": "opus",
   "hooks": {
     "Notification": [
       {
@@ -7,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "dunstify -u normal \"Claude: $(jq -r '.message')\""
+            "command": "send-notify -u normal \"Claude: $(jq -r '.message')\""
           }
         ]
       }
@@ -27,6 +26,8 @@
   "statusLine": {
     "type": "command",
     "command": "bash $HOME/.claude/statusline-command.sh"
+  },
+  "enabledPlugins": {
   },
   "alwaysThinkingEnabled": true,
   "model": "opus"
