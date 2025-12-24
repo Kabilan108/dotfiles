@@ -8,7 +8,8 @@
 let
   homeDir = "/home/kabilan";
   confDir = "${homeDir}/dotfiles/config";
-  mkLink = name: config.lib.file.mkOutOfStoreSymlink "${confDir}/${name}";
+  cfgLink = name: config.lib.file.mkOutOfStoreSymlink "${confDir}/${name}";
+  agentLink = name: config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/agents/${name}";
   mkPath = name: ../config/${name};
 in
 {
@@ -47,19 +48,20 @@ in
   };
 
   home.file = {
-    ".claude".source = mkLink "claude";
+    ".claude".source = agentLink "claude";
+    ".config/opencode".source = agentLink "opencode";
+
     ".gitconfig".source = mkPath ".gitconfig";
     ".ipython/profile_default/ipython_config.py".source = mkPath "ipython_config.py";
     ".obsidian.vimrc".source = mkPath ".obsidian.vimrc";
     ".tmux.conf".source = mkPath ".tmux.conf";
     ".vimrc".source = mkPath ".vimrc";
 
-    ".config/backup".source = mkLink "backup";
-    ".config/Code/User".source = mkLink "vscode";
-    ".config/Cursor/User".source = mkLink "vscode";
-    ".config/sessionizer".source = mkLink "sessionizer";
-    ".config/opencode".source = mkLink "opencode";
-    ".config/nvim".source = mkLink "nvim";
+    ".config/backup".source = cfgLink "backup";
+    ".config/Code/User".source = cfgLink "vscode";
+    ".config/Cursor/User".source = cfgLink "vscode";
+    ".config/sessionizer".source = cfgLink "sessionizer";
+    ".config/nvim".source = cfgLink "nvim";
 
     "bin".source = ../bin;
   };
