@@ -11,6 +11,9 @@ let
   cfgLink = name: config.lib.file.mkOutOfStoreSymlink "${confDir}/${name}";
   agentLink = name: config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/agents/${name}";
   mkPath = name: ../config/${name};
+
+  themeName = theme.name;
+  palette = theme.palette;
 in
 {
   imports = [
@@ -85,6 +88,33 @@ in
     enable = true;
     enableBashIntegration = true;
     nix-direnv.enable = true;
+  };
+
+  programs.atuin = {
+    enable = true;
+    enableBashIntegration = true;
+    flags = [ "--disable-up-arrow" ];
+    settings = {
+      style = "compact";
+      inline_height = 20;
+      keymap_mode = "vim-insert";
+      theme.name = themeName;
+    };
+    themes = {
+      "${themeName}" = {
+        theme.name = themeName;
+        colors = {
+          AlertInfo = "#${palette.base0B}";
+          AlertWarn = "#${palette.base09}";
+          AlertError = "#${palette.base08}";
+          Annotation = "#${palette.base0E}";
+          Base = "#${palette.base05}";
+          Guidance = "#${palette.base04}";
+          Important = "#${palette.base08}";
+          Title = "#${palette.base0E}";
+        };
+      };
+    };
   };
 
   programs.lazydocker = {

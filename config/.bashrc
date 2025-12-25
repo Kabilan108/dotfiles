@@ -52,8 +52,8 @@ shopt -s histappend
 # save multi-line commands as one command
 shopt -s cmdhist
 
-# record each line as it gets issued
-PROMPT_COMMAND='history -a'
+# record each line as it gets issued (append, don't overwrite - needed for bash-preexec)
+PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}history -a"
 
 # huge history
 HISTSIZE=100000
@@ -112,8 +112,6 @@ export PROMPT_DIRTRIM=2
 if [ -f ~/.bashenv ]; then
   source ~/.bashenv
 fi
-
-eval "$(direnv hook bash)"
 
 #### --> FUNCTIONS
 
