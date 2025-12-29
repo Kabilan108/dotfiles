@@ -26,12 +26,6 @@ in
     enable = true;
     apps = [
       {
-        name = "Discord";
-        url = "https://discord.com/channels/@me";
-        icon = "discord";
-        class = "Discord";
-      }
-      {
         name = "WhatsApp";
         url = "https://web.whatsapp.com";
         icon = "whatsapp";
@@ -97,6 +91,7 @@ in
   home.packages = with pkgs; [
     # desktop apps
     code-cursor
+    discord
     evince
     mpv
     nautilus
