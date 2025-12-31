@@ -128,5 +128,6 @@
     dump.url = "github:kabilan108/dump";
     rollouts.url = "github:kabilan108/rollouts";
     try.url = "github:tobi/try";
+    worktrunk.url = "github:kabilan108/worktrunk";
   };
 }
