@@ -1,4 +1,4 @@
-{ pkgs, displayServer, ... }:
+{ pkgs, displayServer, inputs, ... }:
 let
   homeDir = "/home/kabilan";
 in
@@ -13,6 +13,8 @@ in
     ../modules/home/pwas.nix
     ../modules/home/wallpaper.nix
     ../modules/home/zen
+
+    inputs.dictator.homeManagerModules.dictator
   ]
   ++ (if displayServer == "x11" then [ ./desktop/x11 ] else [ ./desktop/wayland ]);
 
@@ -38,6 +40,33 @@ in
         class = "Telegram";
       }
     ];
+  };
+
+  services.dictator = {
+    enable = true;
+    displayServer = "wayland"; # or "x11" / "auto"
+    logLevel = "INFO";
+    settings = {
+      api = {
+        active_provider = "siren";
+        timeout = 60;
+        providers = {
+          siren = {
+            endpoint = "https://sietch.sole-pierce.ts.net/siren/v1/audio/transcriptions";
+            key = "\${env:SIREN_API_KEY}";
+            model = "nvidia/parakeet-tdt-0.6b-v2";
+          };
+          openai = {
+            endpoint = "https://api.openai.com/v1/audio/transcriptions";
+            key = "\${env:OPENAI_API_KEY}";
+            model = "gpt-4o-transcribe";
+          };
+        };
+      };
+      audio = {
+        max_duration_min = 20;
+      };
+    };
   };
 
   xdg.mimeApps = {
@@ -107,7 +136,6 @@ in
     spotify
     vscode-fhs
     windsurf
-    zoom-us
     zotero
 
     # media/file handling
