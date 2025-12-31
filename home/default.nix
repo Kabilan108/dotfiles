@@ -1,4 +1,9 @@
-{ pkgs, displayServer, inputs, ... }:
+{
+  displayServer,
+  inputs,
+  pkgs,
+  ...
+}:
 let
   homeDir = "/home/kabilan";
 in
@@ -44,8 +49,9 @@ in
 
   services.dictator = {
     enable = true;
-    displayServer = "wayland"; # or "x11" / "auto"
+    displayServer = displayServer; # "x11" | "wayland" | "auto"
     logLevel = "INFO";
+    environmentFile = "/run/agenix/secrets/dictator-env";
     settings = {
       api = {
         active_provider = "siren";

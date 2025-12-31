@@ -26,10 +26,11 @@ in
 
   age = {
     identityPaths = [ "${home}/.ssh/id_ed25519" ];
+    secretsDir = "/run/agenix";
     secrets."secrets/env.age" = {
       file = ./secrets/env.age;
       path = "${home}/.bashenv";
-      mode = "0600"; # read/write for owner only
+      mode = "0600";
       owner = "kabilan";
       group = "users";
     };
@@ -43,6 +44,12 @@ in
     secrets."secrets/atlas.json" = {
       file = ./secrets/atlas.json;
       path = "${home}/.config/atlas/config.json";
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
+    secrets."secrets/dictator-env" = {
+      file = ./secrets/dictator-env;
       mode = "0600";
       owner = "kabilan";
       group = "users";

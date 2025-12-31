@@ -15,4 +15,8 @@ in
     sietch
     jacurutu
   ];
+  "secrets/dictator-env".publicKeys = [
+    sietch
+    jacurutu
+  ];
 }

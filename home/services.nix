@@ -1,7 +1,5 @@
 {
   pkgs,
-  inputs,
-  displayServer,
   ...
 }:
 let
@@ -10,52 +8,8 @@ let
     "$HOME/bin/backup" push
     "$HOME/bin/backup" janitor
   '';
-
-  dictator = inputs.dictator.packages.${pkgs.system}.default;
-  clipboardDeps =
-    if displayServer == "x11" then
-      [
-        pkgs.xclip
-        pkgs.xdotool
-      ]
-    else
-      [
-        pkgs.wl-clipboard
-        pkgs.coreutils # wl-copy needs cat
-        pkgs.wtype
-      ];
 in
 {
-  home.packages = [ dictator ];
-
-  systemd.user.services.dictator = {
-    Unit = {
-      Description = "Dictator voice typing daemon";
-      Documentation = "https://github.com/kabilan108/dictator";
-      After = "graphical-session.target";
-    };
-
-    Install = {
-      WantedBy = [ "default.target" ];
-    };
-
-    Service = {
-      Type = "simple";
-      ExecStart = "${dictator}/bin/dictator daemon --log-level INFO";
-      Restart = "on-failure";
-      RestartSec = "5s";
-      Environment = [
-        "PATH=${pkgs.lib.makeBinPath (clipboardDeps ++ [ pkgs.portaudio ])}"
-      ];
-      PassEnvironment = [
-        "DISPLAY"
-        "XAUTHORITY"
-        "DBUS_SESSION_BUS_ADDRESS"
-      ]
-      ++ (if displayServer == "x11" then [ ] else [ "WAYLAND_DISPLAY" ]);
-    };
-  };
-
   systemd.user.services.install-agent-clis = {
     Unit = {
       Description = "Install/Update Agent CLIs";

@@ -202,11 +202,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1765594513,
-        "narHash": "sha256-QkvbNQuAdVsvnKsqhX6/dCCk1oNRJcUjQ/h3hPemn7o=",
+        "lastModified": 1767158074,
+        "narHash": "sha256-8m+C+DD7mP1S6aSB3LNPNHBOgw0LWOFjwj4ZC8K4QKo=",
         "owner": "kabilan108",
         "repo": "dictator",
-        "rev": "df85e4e8292db802fb274449bf4d7bdb00c709bc",
+        "rev": "8450cf6264a2332599360c4e21937740f29d0921",
         "type": "github"
       },
       "original": {
