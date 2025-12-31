@@ -268,7 +268,8 @@ in
         ", XF86MonBrightnessDown, exec, $HOME/dotfiles/bin/brightctl -5"
 
         # screenshots
-        ", Print, exec, hyprshot -m output -o $HOME/media/screenshots -f $(date +%Y.%m.%d-%H.%M.%S).png"
+        "SHIFT, Print, exec, hyprshot -m output -o $HOME/media/screenshots -f $(date +%Y.%m.%d-%H.%M.%S).png"
+        ", Print, exec, hyprshot -m region -o $HOME/media/screenshots -f $(date +%Y.%m.%d-%H.%M.%S).png"
 
         # workspaces
         "$mod, 0, workspace, name:0"
