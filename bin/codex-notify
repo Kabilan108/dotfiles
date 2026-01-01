@@ -1,0 +1,35 @@
+#!/usr/bin/env -S uv --quiet run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+
+import json
+import subprocess
+import sys
+
+
+def main() -> int:
+    notification = json.loads(sys.argv[1])
+    if notification.get("type") != "agent-turn-complete":
+        return 0
+    title = f"Codex: {notification.get('last-assistant-message', 'Turn Complete!')}"
+    message = " ".join(notification.get("input-messages", []))
+    subprocess.check_output(
+        [
+            "notify-send",
+            title,
+            message,
+            "-a",
+            "codex",
+            "-u",
+            "normal",
+        ]
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+# vim: syn=python ft=python
