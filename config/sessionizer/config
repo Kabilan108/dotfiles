@@ -7,6 +7,7 @@ TS_SEARCH_PATHS=(~/ ~/repos ~/gists)
 TS_EXTRA_SEARCH_PATHS=(
   ~/work/moberg
   ~/work/moberg/dev-server:2
+  ~/work/xploit
   ~/repos/cli
   ~/repos/sites
   ~/repos/nvim-plugins/
