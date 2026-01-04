@@ -191,6 +191,7 @@ in
         "blueman-applet"
         "hypridle"
         "obsidian"
+        "[workspace name:0 silent] ghostty"
         "$HOME/dotfiles/bin/battery-watcher"
       ];
 
