@@ -161,6 +161,21 @@ utils.map('<C-l>', 'n', '<C-w><C-l>', 'move to right window')
 utils.map('<Tab>', 'v', '>gv', 'indent and keep selection')
 utils.map('<S-Tab>', 'v', '<gv', 'unindent and keep selection')
 
+-- yank with file context (for pasting into Claude Code, etc.)
+utils.map('<leader>cc', 'v', function()
+  local filepath = vim.fn.expand '%:.'
+  local filetype = vim.bo.filetype
+  local start_line = vim.fn.line "'<"
+  local end_line = vim.fn.line "'>"
+
+  vim.cmd 'normal! "zy'
+  local text = vim.fn.getreg 'z'
+
+  local formatted = string.format('file: %s:%d-%d\n```%s\n%s```', filepath, start_line, end_line, filetype, text)
+  vim.fn.setreg('+', formatted)
+  vim.fn.system({ 'tmux', 'set-buffer', formatted })
+end, 'yank selection with file context')
+
 -- snippets
 utils.map('<C-k>', { 'i', 's' }, function()
   if luasnip.expand_or_jumpable() then
