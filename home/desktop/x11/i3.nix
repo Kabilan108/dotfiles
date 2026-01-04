@@ -104,7 +104,7 @@ in
           command = "move workspace 2";
         }
         {
-          criteria.class = "Chromium-browser";
+          criteria.class = "Google-chrome";
           command = "move workspace 3";
         }
         {

@@ -134,7 +134,7 @@ in
       "x-scheme-handler/mailto" = "zen-beta.desktop";
 
       # chromium
-      "x-scheme-handler/chrome" = "chromium-browser.desktop";
+      "x-scheme-handler/chrome" = "google-chrome.desktop";
 
       "x-scheme-handler/tg" = "org.telegram.desktop.desktop";
       "x-scheme-handler/tonsite" = "org.telegram.desktop.desktop";

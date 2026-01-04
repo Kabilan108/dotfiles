@@ -168,7 +168,7 @@ in
         "workspace 9 silent, class:^(spotify)$"
         "workspace 2 silent, class:^(obsidian)$"
         "workspace 2 silent, class:^(Slack)$"
-        "workspace 1 silent, class:^(Chromium-browser)$"
+        "workspace 1 silent, class:^(Google-chrome)$"
         "workspace 1 silent, class:^(zen-beta)$"
 
         # picture-in-picture
@@ -209,6 +209,7 @@ in
         # quick launch
         "$mod, Return, exec, ghostty"
         "$mod, B, exec, zen-beta"
+        "$mod, C, exec, google-chrome-stable"
 
         # color picker
         "$mod, P, exec, hyprpicker -a -f hex"
