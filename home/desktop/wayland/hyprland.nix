@@ -168,8 +168,11 @@ in
         "workspace 9 silent, class:^(spotify)$"
         "workspace 2 silent, class:^(obsidian)$"
         "workspace 2 silent, class:^(Slack)$"
-        "workspace 1 silent, class:^(Google-chrome)$"
+        "workspace 1 silent, class:^(google-chrome)$"
         "workspace 1 silent, class:^(zen-beta)$"
+
+        "workspace 1 silent, class:^(chrome-.*)$"
+        "float, class:^(chrome-.*)$"
 
         # picture-in-picture
         "float, title:^(Picture.in.[Pp]icture)$"
