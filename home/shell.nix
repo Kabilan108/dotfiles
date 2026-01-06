@@ -93,11 +93,11 @@ in
   programs.atuin = {
     enable = true;
     enableBashIntegration = true;
-    flags = [ "--disable-up-arrow" ];
     settings = {
       style = "compact";
       inline_height = 20;
       keymap_mode = "vim-insert";
+      enter_accept = true;
       theme.name = themeName;
     };
     themes = {
