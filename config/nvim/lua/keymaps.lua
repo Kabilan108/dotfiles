@@ -157,6 +157,11 @@ utils.map('<C-j>', 'n', '<C-w><C-j>', 'move to bottom window')
 utils.map('<C-k>', 'n', '<C-w><C-k>', 'move to top window')
 utils.map('<C-l>', 'n', '<C-w><C-l>', 'move to right window')
 
+-- treesitter context: jump to sticky context
+utils.map('[c', 'n', function()
+  require('treesitter-context').go_to_context(vim.v.count1)
+end, 'jump to context')
+
 -- visual mode indentation that preserves selection
 utils.map('<Tab>', 'v', '>gv', 'indent and keep selection')
 utils.map('<S-Tab>', 'v', '<gv', 'unindent and keep selection')
