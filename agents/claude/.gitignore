@@ -12,3 +12,4 @@ installed_plugins.json
 stats-cache.json
 known_marketplaces.json
 plugins/marketplaces/
+chrome/

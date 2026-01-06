@@ -21,6 +21,17 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claude-track-edit"
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
