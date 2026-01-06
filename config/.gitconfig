@@ -42,7 +42,7 @@
   tabs = 2
   navigate = true
   line-numbers = true
-  syntax-theme = base16
+  syntax-theme = "Catppuccin Mocha"
   file-style = bold yellow
   max-line-length = 0
   hunk-header-style = omit
