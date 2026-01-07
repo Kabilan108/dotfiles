@@ -329,6 +329,23 @@ return {
     end,
   },
 
+  -- diffview for reviewing changes
+  {
+    'sindrets/diffview.nvim',
+    cmd = { 'DiffviewOpen', 'DiffviewFileHistory' },
+    keys = {
+      { '<leader>gd', '<cmd>DiffviewOpen<cr>', desc = 'Open diffview' },
+      { '<leader>gh', '<cmd>DiffviewFileHistory %<cr>', desc = 'File history' },
+      { '<leader>gq', '<cmd>DiffviewClose<cr>', desc = 'Close diffview' },
+    },
+    opts = {
+      enhanced_diff_hl = true,
+      default_args = {
+        DiffviewOpen = { '--imply-local' },
+      },
+    },
+  },
+
   -- git signs
   {
     'lewis6991/gitsigns.nvim',
