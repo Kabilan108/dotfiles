@@ -85,3 +85,14 @@ opt.colorcolumn = '88'
 -- enable project-local config files
 vim.o.exrc = true
 vim.o.secure = true
+
+-- auto-reload files changed outside vim
+vim.o.autoread = true
+vim.api.nvim_create_autocmd({ 'FocusGained', 'BufEnter', 'CursorHold' }, {
+  group = vim.api.nvim_create_augroup('AutoReload', { clear = true }),
+  callback = function()
+    if vim.fn.getcmdwintype() == '' then
+      vim.cmd 'checktime'
+    end
+  end,
+})
