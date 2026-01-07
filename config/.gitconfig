@@ -42,7 +42,7 @@
   tabs = 2
   navigate = true
   line-numbers = true
-  syntax-theme = "Catppuccin Mocha"
+  syntax-theme = "Monokai Extended"
   file-style = bold yellow
   max-line-length = 0
   hunk-header-style = omit
