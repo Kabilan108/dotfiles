@@ -149,37 +149,37 @@ return {
   {
     'ggml-org/llama.vim',
     init = function()
-      local url = os.getenv("LLAMA_SERVER_URL") or "http://localhost:8012"
+      local url = os.getenv 'LLAMA_SERVER_URL' or 'http://localhost:8012'
       vim.g.llama_config = {
-        endpoint = url .. "/infill",
+        endpoint = url .. '/infill',
         show_info = 1,
-        keymap_trigger = "<C-c>",
-        keymap_accept_full = "<C-s>",
-        keymap_accept_line = "<C-l>",
-        keymap_accept_word = "<C-w>",
+        keymap_trigger = '<C-c>',
+        keymap_accept_full = '<C-s>',
+        keymap_accept_line = '<C-l>',
+        keymap_accept_word = '<C-w>',
       }
-      vim.api.nvim_set_hl(0, "llama_hl_hint", {fg = "#f2cdcd", ctermfg=209})
-    end
+      vim.api.nvim_set_hl(0, 'llama_hl_hint', { fg = '#f2cdcd', ctermfg = 209 })
+    end,
   },
 
   {
     'windwp/nvim-ts-autotag',
     dependencies = { 'nvim-treesitter/nvim-treesitter' },
     config = function()
-      require('nvim-ts-autotag').setup({
+      require('nvim-ts-autotag').setup {
         opts = {
           enable_close = true,
           enable_rename = true,
-          enable_close_on_slash = true
+          enable_close_on_slash = true,
         },
         per_filetype = {
-          ["tsx"] = {
+          ['tsx'] = {
             enable_close = true,
             enable_rename = true,
-            enable_close_on_slash = true
-          }
-        }
-      })
+            enable_close_on_slash = true,
+          },
+        },
+      }
     end,
   },
 
