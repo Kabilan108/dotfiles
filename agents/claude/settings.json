@@ -1,4 +1,5 @@
 {
+  "model": "opus",
   "hooks": {
     "Notification": [
       {
@@ -39,7 +40,7 @@
     "command": "bash $HOME/.claude/statusline-command.sh"
   },
   "enabledPlugins": {
+    "typescript-lsp@claude-plugins-official": true
   },
-  "alwaysThinkingEnabled": true,
-  "model": "opus"
+  "alwaysThinkingEnabled": true
 }
