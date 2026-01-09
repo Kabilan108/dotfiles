@@ -13,3 +13,5 @@ stats-cache.json
 known_marketplaces.json
 plugins/marketplaces/
 chrome/
+*cache/
+plugins/install-counts-cache.json
