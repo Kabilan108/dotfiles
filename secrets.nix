@@ -35,8 +35,4 @@ in
     sietch
     jacurutu
   ];
-  "secrets/wayvnc-config.age".publicKeys = [
-    sietch
-    jacurutu
-  ];
 }

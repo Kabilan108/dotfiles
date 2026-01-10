@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 {
   imports = [
     ./hardware-configuration.nix
@@ -14,7 +19,10 @@
 
   programs.steam.enable = true;
   environment = {
-    systemPackages = with pkgs; [ openrgb-with-all-plugins prismlauncher ];
+    systemPackages = with pkgs; [
+      openrgb-with-all-plugins
+      prismlauncher
+    ];
   };
 
   home-manager.users.kabilan = {
@@ -22,12 +30,13 @@
 
     services.wayvnc = {
       enable = true;
-      autoStart = true;
+      autoStart = false;
+      settings = {
+        address = "0.0.0.0";
+        port = 5900;
+        enable_auth = false;
+      };
     };
-
-    # mkForce overrides the module's generated config with our agenix secret
-    xdg.configFile."wayvnc/config".source =
-      lib.mkForce config.age.secrets.wayvnc-config.path;
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
