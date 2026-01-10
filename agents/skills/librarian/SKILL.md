@@ -1,7 +1,6 @@
 ---
 name: librarian
 description: Gather and create documentation files for libraries and frameworks using Exa's code search. Creates organized markdown docs in config/claude/docs/ for future reference.
-model: sonnet
 ---
 
 # Documentation Librarian
