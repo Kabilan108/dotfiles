@@ -1,6 +1,6 @@
 ---
 name: tmux
-description: Instructions for using tmux to spawn multiple processes, inspect them, and capture their output. Useful for running servers or long-running tasks in the background.
+description: Manage concurrent processes using tmux. Use when running servers, long tasks, or orchestrating multiple agents in separate panes. Essential for sending multi-line text or instructions to other tmux panes safely.
 allowed-tools:
   - Bash
 ---
@@ -45,7 +45,51 @@ To run a command (e.g., a dev server) in a way that persists and can be inspecte
     ```
     _(`C-m` simulates the Enter key)_
 
-## 3. Inspect Output (Read Logs)
+## 3. Sending Text to Panes
+
+**Warning**: `send-keys` interprets control sequences. Multi-line text or text with special characters can trigger tmux modes (like `C-r` for search). Use the right method:
+
+| Content Type | Method |
+|--------------|--------|
+| Simple shell command | `send-keys "cmd" C-m` |
+| Single line, may have special chars | `send-keys -l "text"` then `send-keys C-m` |
+| Multi-line text or instructions | `load-buffer` + `paste-buffer` |
+
+**Literal mode** (`-l` flag) prevents interpreting escape sequences:
+
+```bash
+tmux send-keys -l -t "target" "text with C-r and other chars"
+tmux send-keys -t "target" C-m
+```
+
+**Multi-line content** — always use load-buffer:
+
+```bash
+cat > /tmp/msg.txt << 'EOF'
+Your multi-line content here.
+Can include any characters safely.
+EOF
+tmux load-buffer /tmp/msg.txt && tmux paste-buffer -t "target"
+tmux send-keys -t "target" C-m
+```
+
+## 4. Interacting with Other Agents
+
+When sending instructions to another Claude instance running in a tmux pane:
+
+```bash
+cat > /tmp/instructions.txt << 'EOF'
+Fix the authentication bug in src/auth.ts:
+1. The token validation is missing null checks
+2. Add proper error handling for expired tokens
+EOF
+tmux load-buffer /tmp/instructions.txt && tmux paste-buffer -t %31
+tmux send-keys -t %31 C-m
+```
+
+Never use `send-keys` directly for prompts or instructions — the text will likely contain characters that trigger tmux modes.
+
+## 5. Inspect Output (Read Logs)
 
 You can read the output of that pane at any time without switching your context.
 
@@ -63,7 +107,7 @@ tmux capture-pane -p -S - -t "server-log"
 
 _Use this if the output might have scrolled off the screen._
 
-## 4. Interact with the Process
+## 6. Interact with the Process
 
 If you need to stop or restart the process:
 
@@ -79,7 +123,7 @@ tmux send-keys -t "server-log" C-c
 tmux kill-window -t "server-log"
 ```
 
-## 5. Advanced: Chaining Commands
+## 7. Advanced: Chaining Commands
 
 You can chain multiple tmux commands in a single invocation using `';'` (note the quotes to avoid interpretation by the shell). This is faster and cleaner than running multiple `tmux` commands.
 
@@ -89,8 +133,14 @@ Example: Create window and start process in one go:
 tmux new-window -n "server-log" -d ';' send-keys -t "server-log" "npm start" C-m
 ```
 
-## Summary of Pattern
+## Quick Reference
 
-1. `tmux new-window -n "ID" -d`
-2. `tmux send-keys -t "ID" "CMD" C-m`
-3. `tmux capture-pane -p -t "ID"`
+| Task | Command |
+|------|---------|
+| Create window | `tmux new-window -n "ID" -d` |
+| Run command | `tmux send-keys -t "ID" "cmd" C-m` |
+| Send literal text | `tmux send-keys -l -t "ID" "text"` |
+| Send multi-line | `tmux load-buffer file && tmux paste-buffer -t "ID"` |
+| Read output | `tmux capture-pane -p -t "ID"` |
+| Interrupt | `tmux send-keys -t "ID" C-c` |
+| Kill window | `tmux kill-window -t "ID"` |
