@@ -11,12 +11,6 @@
 
   networking.hostName = "sietch";
 
-  age.secrets.wayvnc-config = {
-    file = ../../secrets/wayvnc-config.age;
-    owner = "kabilan";
-    mode = "400";
-  };
-
   programs.steam.enable = true;
   environment = {
     systemPackages = with pkgs; [
@@ -27,23 +21,12 @@
 
   home-manager.users.kabilan = {
     wallpaper.desktop = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
-
-    services.wayvnc = {
-      enable = true;
-      autoStart = false;
-      settings = {
-        address = "0.0.0.0";
-        port = 5900;
-        enable_auth = false;
-      };
-    };
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
     22
     80
     443
-    5900
   ];
 
   services = {
