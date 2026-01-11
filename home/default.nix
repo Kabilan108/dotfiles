@@ -197,6 +197,7 @@ in
     biome
     dockerfile-language-server
     gopls
+    just-lsp
     lua-language-server
     nil
     nodePackages.typescript-language-server

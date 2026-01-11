@@ -15,6 +15,7 @@ local servers = {
   'clangd',
   'dockerls',
   'gopls',
+  'just',
   'lua_ls',
   'nixd',
   'rust_analyzer',
