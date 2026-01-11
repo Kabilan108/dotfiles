@@ -166,6 +166,7 @@ in
         "float, class:^(steam)$"
 
         "float, class:^(com.dictator.overlay)$"
+        "float, class:^(Emulator)$"
 
         "workspace 9 silent, class:^(spotify)$"
         "workspace 2 silent, class:^(obsidian)$"
