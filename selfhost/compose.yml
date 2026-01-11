@@ -33,10 +33,14 @@ services:
   jellyfin:
     container_name: jellyfin
     devices:
-      - /dev/dri:/dev/dri  # hardware acceleration
+      - nvidia.com/gpu=all
     entrypoint: ["/entrypoint.sh"]
     environment:
       - JELLYFIN_PublishedServerUrl=https://${TAILSCALE_URL}/jellyfin
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
+    group_add:
+      - "video"
     image: jellyfin/jellyfin:latest
     networks:
       - proxynet
@@ -44,6 +48,7 @@ services:
     user: 1000:1000
     volumes:
       - jellyfin-data:/config
+      - jellyfin-cache:/cache
       - ./jellyfin/entrypoint.sh:/entrypoint.sh
       - /library:/media
       - /etc/localtime:/etc/localtime:ro
@@ -91,4 +96,5 @@ networks:
 volumes:
   vaultwarden-data:
   jellyfin-data:
+  jellyfin-cache:
   open-webui-data:

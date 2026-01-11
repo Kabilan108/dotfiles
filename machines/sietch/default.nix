@@ -38,5 +38,30 @@
     };
   };
 
+  systemd.services.selfhost-update = {
+    description = "Pull latest Docker images and restart selfhost services";
+    serviceConfig = {
+      Type = "oneshot";
+      WorkingDirectory = "/home/kabilan/dotfiles/selfhost";
+      User = "kabilan";
+    };
+    path = [ pkgs.docker pkgs.docker-compose ];
+    script = ''
+      source .envrc
+      docker-compose pull
+      docker-compose up -d
+    '';
+  };
+
+  systemd.timers.selfhost-update = {
+    description = "Monthly Docker image update for selfhost";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "monthly";
+      Persistent = true;
+      RandomizedDelaySec = "1h";
+    };
+  };
+
   users.users.kabilan.openssh.authorizedKeys.keyFiles = [ ./autorized_keys ];
 }
