@@ -165,6 +165,8 @@ in
         "float, class:^(Evince)$"
         "float, class:^(steam)$"
 
+        "float, class:^(com.dictator.overlay)$"
+
         "workspace 9 silent, class:^(spotify)$"
         "workspace 2 silent, class:^(obsidian)$"
         "workspace 2 silent, class:^(Slack)$"
