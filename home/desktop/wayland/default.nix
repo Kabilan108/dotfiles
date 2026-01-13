@@ -13,6 +13,7 @@
     hyprshot
     hyprpicker
     wl-clipboard
+    wf-recorder
     wtype
   ];
 }

@@ -119,11 +119,11 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1751467342,
-        "narHash": "sha256-X2YPKkLokzmpWNKMC+AfJY+LNh9N18xrXLmEjoKOp+I=",
+        "lastModified": 1768239261,
+        "narHash": "sha256-LWXjRcSxkiVzMfoyL1p9iJvu/1CzzAMyfAzs7hUCbak=",
         "owner": "kabilan108",
         "repo": "capscreen",
-        "rev": "efd77c5abc0c99627facb539ce3a982256baf496",
+        "rev": "c6b7f295a5e305567b30912c931278055473513d",
         "type": "github"
       },
       "original": {
