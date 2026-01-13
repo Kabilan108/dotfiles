@@ -250,5 +250,5 @@
 	"editor.fontSize": 13,
 	"amp.url": "https://ampcode.com/",
 	"editor.wordBasedSuggestions": "off",
-	"amp.tab.enabled": true
+	"claudeCode.preferredLocation": "panel"
 }
