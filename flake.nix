@@ -124,7 +124,7 @@
       inputs.hyprland.follows = "hyprland";
     };
 
-    atlas.url = "github:kabilan108/atlas/go/claude-1";
+    atlas.url = "github:kabilan108/atlas";
     capscreen.url = "github:kabilan108/capscreen";
     dictator.url = "github:kabilan108/dictator";
     diffgpt.url = "github:kabilan108/diffgpt";

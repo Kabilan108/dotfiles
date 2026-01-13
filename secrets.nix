@@ -11,10 +11,6 @@ in
     sietch
     jacurutu
   ];
-  "secrets/atlas.json".publicKeys = [
-    sietch
-    jacurutu
-  ];
   "secrets/dictator-env".publicKeys = [
     sietch
     jacurutu

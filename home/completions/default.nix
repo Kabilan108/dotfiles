@@ -1,9 +1,4 @@
-{
-  lib,
-  pkgs,
-  inputs,
-  ...
-}:
+{ lib, ... }:
 let
   bashCompletionDir = "share/bash-completion/completions";
   completionsDir = ".local/${bashCompletionDir}";
@@ -18,13 +13,7 @@ let
       name = "${completionsDir}/${name}";
       value.source = ./. + "/${name}";
     }) completions;
-
-  pkgCompletionLinks = {
-    "${completionsDir}/atlas".source = "${
-      inputs.atlas.packages.${pkgs.system}.default
-    }/${bashCompletionDir}/atlas";
-  };
 in
 {
-  home.file = mkCompletionLinks repoCompletions // pkgCompletionLinks;
+  home.file = mkCompletionLinks repoCompletions;
 }

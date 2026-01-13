@@ -19,6 +19,7 @@ in
     ../modules/home/wallpaper.nix
     ../modules/home/zen
 
+    inputs.atlas.homeManagerModules.default
     inputs.dictator.homeManagerModules.dictator
     inputs.worktrunk.homeManagerModules.worktrunk
   ]
@@ -62,6 +63,15 @@ in
       pre-merge = {
         notify = "notify-send 'Merging {{ branch }}'";
       };
+    };
+  };
+
+  programs.atlas = {
+    enable = true;
+    settings = {
+      workspace = "moberg-analytics";
+      username = "tonykabilanokeke@gmail.com";
+      app_password = "\${env:ATLAS_APP_PASSWORD}";
     };
   };
 
