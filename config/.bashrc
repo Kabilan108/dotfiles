@@ -1,4 +1,4 @@
-# bashrc
+# vim: syn=bash ft=bash
 
 # if not running interactively, don't do anything
 case $- in
@@ -172,6 +172,8 @@ alias ta="tmuxa"
 alias tn="tmuxn"
 alias tl="tmuxl"
 alias tk="tmuxk"
+
+alias cc="bunx --bun @anthropic-ai/claude-code --dangerously-skip-permissions --chrome"
 
 alias ls='ls --color=auto'
 alias ll='ls -alF'
