@@ -176,6 +176,8 @@ in
     baobab
     gparted
     yt-dlp
+    zip
+    unzip
 
     # build tools
     clang-tools
