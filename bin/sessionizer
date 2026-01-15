@@ -64,6 +64,9 @@ TS_EXTRA_SEARCH_PATHS=(~/work/moberg:1 ~/work/moberg/dev-server:2 /vault/notes:2
 # if set, this overrides the TS_MAX_DEPTH (1)
 TS_MAX_DEPTH=1
 
+# glob patterns to exclude from the picker (passed to fd --exclude)
+TS_IGNORE=(node_modules .git target)
+
 # this defines the commands to run when using the -s/--session option
 TS_SESSION_COMMANDS=(claude codex opencode)" >"$CONFIG_FILE"
   echo "Wrote config file to $CONFIG_FILE"
@@ -143,6 +146,13 @@ find_dirs() {
   # if the path ends with `:number`, it will search for directories with a max depth of number
   # if there is no number, it will search for directories with a max depth of TS_MAX_DEPTH
   local search_paths=("${OVERRIDE_SEARCH_PATHS[@]:-${TS_SEARCH_PATHS[@]}}")
+
+  # build exclude flags from TS_IGNORE
+  local exclude_flags=()
+  for pattern in "${TS_IGNORE[@]}"; do
+    exclude_flags+=(-E "$pattern")
+  done
+
   for entry in "${search_paths[@]}"; do
     # check if entry has `:number` suffic
     if [[ "$entry" =~ ^([^:]+):([0-9]+)$ ]]; then
@@ -153,7 +163,7 @@ find_dirs() {
     fi
 
     if [[ -d "$path" ]]; then
-      $FD_BIN -L -I -t d -d "${depth:-$TS_MAX_DEPTH}" . "$path"
+      $FD_BIN -L -I -t d -d "${depth:-$TS_MAX_DEPTH}" "${exclude_flags[@]}" . "$path"
     fi
   done
 }
