@@ -49,3 +49,59 @@ exa "<query>" [--tokens <n>] [--json]
 exa "fastapi dependency injection"
 exa "htmx hx-swap examples" --tokens 5000
 ```
+
+## `browser` Sub-Agent
+
+Executes browser automation tasks efficiently using the Claude-in-Chrome MCP tools. Faster than step-by-step browser interaction because it runs with less deliberation overhead.
+
+**When to use:** When you have a clear sequence of browser actions to perform. Delegate to this agent instead of executing browser steps yourself.
+
+**Invocation format:**
+
+When calling the Task tool with `subagent_type: "browser"`, use this prompt structure:
+
+```
+Goal: [What we're trying to accomplish]
+Tab ID: [The browser tab to work in, from tabs_context_mcp]
+
+Steps:
+1. [Specific action with clear target]
+2. [Specific action]
+...
+
+Success criteria: [How to verify the task succeeded]
+Extract: [Any data to capture and return, optional]
+```
+
+Set the Task tool's `model` parameter to `"haiku"` for simple navigation/extraction or `"sonnet"` for complex interactions.
+
+**Example invocation:**
+
+```
+Goal: Search for "claude code documentation" and extract the first 3 result titles
+Tab ID: 12345
+
+Steps:
+1. Navigate to google.com
+2. Type "claude code documentation" in the search box
+3. Press Enter to search
+4. Wait for results to load
+5. Extract the titles of the first 3 search results
+
+Success criteria: Search results page is visible with results
+Extract: First 3 result titles as a list
+```
+
+**Model selection:**
+- `haiku` - Simple navigation, form filling, data extraction
+- `sonnet` - Complex multi-step flows, error recovery, ambiguous UI
+
+**Guidelines:**
+- Always get tab ID from `tabs_context_mcp` before invoking
+- Be specific in steps - "click the blue Submit button" not "submit the form"
+- The sub-agent will return a structured result with Status, Outcome, Data, and Issues
+
+**When NOT to use:**
+- Single quick actions (one click, one navigation) - faster to do directly
+- Exploratory browsing where next steps depend on what you find
+- Tasks requiring visual judgment that needs to come back to main conversation
