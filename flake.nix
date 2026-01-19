@@ -24,6 +24,7 @@
             ghostty = pkgs-unstable.ghostty;
             spotify = pkgs-unstable.spotify;
             openrgb = pkgs-unstable.openrgb;
+            openrgb-with-all-plugins = pkgs-unstable.openrgb-with-all-plugins;
             widsurf = pkgs-unstable.windsurf;
             code-cursor = final.callPackage ./packages/cursor.nix { };
             nomacs = final.callPackage ./packages/nomacs-viewer.nix { nomacs = prev.nomacs; };
