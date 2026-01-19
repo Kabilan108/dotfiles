@@ -31,7 +31,7 @@ in
   home.sessionVariables = rec {
     FZF_DEFAULT_OPTS = "--reverse";
 
-    BUN_INSTALL_CACHE_DIR = "/vault/userdata/cache/uv/bun-install";
+    BUN_INSTALL_CACHE_DIR = "/vault/userdata/cache/bun-install";
 
     UV_CACHE_DIR = "/vault/userdata/cache/uv";
     UV_LINK_MODE = "copy";
