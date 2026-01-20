@@ -139,6 +139,9 @@ in
       ];
 
       windowrulev2 = [
+        "float, initialTitle:^(floating-nvim)$"
+        "size 600 900, initialTitle:^(floating-nvim)$"
+
         "float, class:^(org.pulseaudio.pavucontrol)$"
         "pin, class:^(org.pulseaudio.pavucontrol)$"
 
@@ -215,6 +218,7 @@ in
 
         # quick launch
         "$mod, Return, exec, ghostty"
+        "$mod SHIFT, Return, exec, ghostty --title=floating-nvim -e nvim ~/notes/scratch/$(date +%Y%m%d-%H%M%S).md"
         "$mod, B, exec, zen-beta"
         "$mod, C, exec, google-chrome-stable"
 
