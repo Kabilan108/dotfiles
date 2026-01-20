@@ -28,7 +28,18 @@ pick_dir() {
     echo "fd is not installed. Please install it first."
     exit 1
   fi
-  $FD_BIN -L -t d -d 4 . "$HOME" | fzf --tmux
+
+  if [ -n "$context" ] && [ -d "$context" ]; then
+    parent1="$(dirname "$context")"
+    parent2="$(dirname "$parent1")"
+
+    {
+      [ -d "$parent2" ] && $FD_BIN -L -t d -d 3 . "$parent2" 2>/dev/null
+      $FD_BIN -L -t d -d 4 -I . "$HOME" 2>/dev/null
+    } | awk '!seen[$0]++' | fzf --tmux --tiebreak=index
+  else
+    $FD_BIN -L -t d -d 4 . "$HOME" | fzf --tmux
+  fi
 }
 
 pick_host() {
@@ -56,20 +67,26 @@ pick_history() {
 
 split=0
 type=""
+context=""
 
 # Parse command line arguments
-for arg in "$@"; do
-  case "$arg" in
+while [ $# -gt 0 ]; do
+  case "$1" in
   --split)
     split=1
     ;;
+  --context)
+    shift
+    context="$1"
+    ;;
   dirs | hosts | panes | history)
-    type="$arg"
+    type="$1"
     ;;
   *)
     usage
     ;;
   esac
+  shift
 done
 
 # Check if type is provided and valid
