@@ -42,6 +42,9 @@ if [ -d "/vault" ]; then
   create_symlink "/vault/work" "$HOME/work"
   create_symlink "/vault/repos" "$HOME/repos"
   create_symlink "/vault/experiments" "$HOME/experiments"
+  if [ -d "/vault/notes/coppermind" ]; then
+    create_symlink "/vault/notes/coppermind" "$HOME/notes"
+  fi
 fi
 
 if [ ! -d $HOME/.tmux/plugins ]; then
