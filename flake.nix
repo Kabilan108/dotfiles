@@ -72,15 +72,12 @@
             ./modules/nixos/nvidia.nix
             ./modules/nixos/xbox-controller.nix
             ./modules/nixos/mullvad-vpn.nix
-            ./modules/nixos/moberg-vpn.nix
           ];
         };
         jacurutu = makeSystem {
           name = "jacurutu";
           displayServer = "wayland";
-          modules = [
-            ./modules/nixos/moberg-vpn.nix
-          ];
+          modules = [];
         };
       };
     };

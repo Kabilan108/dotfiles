@@ -23,6 +23,9 @@
       tls-auth ${config.age.secrets.moberg-vpn-ta.path} 1
       remote-cert-tls server
       route 10.1.10.0 255.255.255.0
+
+      # Keep connection alive
+      keepalive 5 30
     '';
   };
 }
