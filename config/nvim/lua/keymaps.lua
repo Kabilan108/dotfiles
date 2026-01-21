@@ -170,11 +170,13 @@ utils.map('<S-Tab>', 'v', '<gv', 'unindent and keep selection')
 utils.map('<leader>cc', 'v', function()
   local filepath = vim.fn.expand '%:.'
   local filetype = vim.bo.filetype
-  local start_line = vim.fn.line "'<"
-  local end_line = vim.fn.line "'>"
 
+  -- yank first to exit visual mode and set '< '> marks
   vim.cmd 'normal! "zy'
   local text = vim.fn.getreg 'z'
+
+  local start_line = vim.fn.line "'<"
+  local end_line = vim.fn.line "'>"
 
   local formatted = string.format('file: %s:%d-%d\n```%s\n%s```', filepath, start_line, end_line, filetype, text)
   vim.fn.setreg('+', formatted)
