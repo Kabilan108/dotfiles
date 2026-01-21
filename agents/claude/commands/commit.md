@@ -3,10 +3,6 @@ allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git
 description: Create a git commit
 ---
 
-## resetting staged
-
-`!git reset HEAD .`
-
 ## Context
 
 - Current git status: !`git status`
