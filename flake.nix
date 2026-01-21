@@ -124,6 +124,7 @@
 
     atlas.url = "github:kabilan108/atlas";
     capscreen.url = "github:kabilan108/capscreen";
+    claude-bar.url = "github:kabilan108/claude-bar";
     dictator.url = "github:kabilan108/dictator";
     diffgpt.url = "github:kabilan108/diffgpt";
     dump.url = "github:kabilan108/dump";

@@ -20,6 +20,7 @@ in
     ../modules/home/zen
 
     inputs.atlas.homeManagerModules.default
+    inputs.claude-bar.homeManagerModules.default
     inputs.dictator.homeManagerModules.dictator
     inputs.worktrunk.homeManagerModules.worktrunk
   ]
@@ -72,6 +73,22 @@ in
       workspace = "moberg-analytics";
       username = "tonykabilanokeke@gmail.com";
       app_password = "\${env:ATLAS_APP_PASSWORD}";
+    };
+  };
+
+  services.claude-bar = {
+    enable =true;
+    package = inputs.claude-bar.packages.${pkgs.system}.default;
+    settings = {
+      providers = {
+        claude.enabled = true;
+        codex.enabled = true;
+        merge_icons = false;
+      };
+      notifications = {
+        enabled = true;
+        threshold = 0.9;
+      };
     };
   };
 
