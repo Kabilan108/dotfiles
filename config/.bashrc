@@ -173,7 +173,7 @@ alias tn="tmuxn"
 alias tl="tmuxl"
 alias tk="tmuxk"
 
-alias cc="$HOME/.local/bin/claude"
+alias cc="$HOME/.local/bin/claude --dangerously-skip-permissions --chrome"
 
 alias ls='ls --color=auto'
 alias ll='ls -alF'
