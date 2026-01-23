@@ -79,6 +79,7 @@ in
   services.claude-bar = {
     enable =true;
     package = inputs.claude-bar.packages.${pkgs.system}.default;
+    theme.mode = "dark";
     settings = {
       providers = {
         claude.enabled = true;
