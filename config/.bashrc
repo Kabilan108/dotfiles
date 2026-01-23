@@ -173,7 +173,7 @@ alias tn="tmuxn"
 alias tl="tmuxl"
 alias tk="tmuxk"
 
-alias cc="bunx --bun @anthropic-ai/claude-code --dangerously-skip-permissions --chrome"
+alias cc="$HOME/.local/bin/claude"
 
 alias ls='ls --color=auto'
 alias ll='ls -alF'

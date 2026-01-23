@@ -19,7 +19,6 @@ in
       Type = "oneshot";
       ExecStart = ''
         ${pkgs.bun}/bin/bun install -g \
-          @anthropic-ai/claude-code@latest \
           @openai/codex@latest \
           opencode-ai@latest \
           @sourcegraph/amp
