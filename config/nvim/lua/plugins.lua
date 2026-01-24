@@ -146,19 +146,50 @@ return {
     end,
   },
 
+  -- llama.vim (disabled in favor of sweep.nvim)
+  -- {
+  --   'ggml-org/llama.vim',
+  --   init = function()
+  --     local url = os.getenv 'LLAMA_SERVER_URL' or 'http://localhost:8012'
+  --     vim.g.llama_config = {
+  --       endpoint = url .. '/infill',
+  --       show_info = 1,
+  --       keymap_trigger = '<C-c>',
+  --       keymap_accept_full = '<C-s>',
+  --       keymap_accept_line = '<C-l>',
+  --       keymap_accept_word = '<C-w>',
+  --     }
+  --     vim.api.nvim_set_hl(0, 'llama_hl_hint', { fg = '#f2cdcd', ctermfg = 209 })
+  --   end,
+  -- },
+
+  -- sweep.nvim - AI autocomplete using Sweep's next-edit model
   {
-    'ggml-org/llama.vim',
-    init = function()
-      local url = os.getenv 'LLAMA_SERVER_URL' or 'http://localhost:8012'
-      vim.g.llama_config = {
-        endpoint = url .. '/infill',
-        show_info = 1,
-        keymap_trigger = '<C-c>',
-        keymap_accept_full = '<C-s>',
-        keymap_accept_line = '<C-l>',
-        keymap_accept_word = '<C-w>',
+    dir = vim.fn.expand '~/dotfiles/sweep.nvim',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    config = function()
+      require('sweep').setup {
+        debounce_ms = 100,
+        keymaps = {
+          trigger = '<C-c>',
+          accept_full = '<C-s>',
+          accept_line = '<C-l>',
+          accept_word = '<C-w>',
+          dismiss = '<C-]>',
+        },
+        server = {
+          endpoint = os.getenv 'LLAMA_SERVER_URL' or 'http://localhost:8012',
+          timeout = 5000,
+          n_predict = 128,
+          temperature = 0.1,
+          cache_prompt = true,
+        },
+        ui = {
+          hl_group = 'SweepGhostText',
+        },
       }
-      vim.api.nvim_set_hl(0, 'llama_hl_hint', { fg = '#f2cdcd', ctermfg = 209 })
+      -- Match llama.vim highlight style
+      vim.api.nvim_set_hl(0, 'SweepGhostText', { fg = '#f2cdcd', ctermfg = 209 })
     end,
   },
 
