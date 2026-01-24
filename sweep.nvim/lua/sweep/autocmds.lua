@@ -91,9 +91,26 @@ local function on_buf_leave(bufnr)
   add_visible_to_ring('buffer_leave')
 end
 
---- Handle BufEnter event - add visible content to ring
+--- Handle BufEnter event - add visible content to ring and attach edit tracking
 local function on_buf_enter()
+  local bufnr = vim.api.nvim_get_current_buf()
+
+  -- Skip special buffers (terminals, quickfix, etc.)
+  if vim.bo[bufnr].buftype ~= '' then
+    return
+  end
+
+  -- Skip excluded filetypes
+  if is_filetype_excluded(bufnr) then
+    return
+  end
+
+  -- Add visible content to ring buffer
   add_visible_to_ring('buffer_enter')
+
+  -- Attach edit tracking for next-edit prediction
+  local edits = require('sweep.edits')
+  edits.attach(bufnr)
 end
 
 --- Handle BufWritePost event - add visible content to ring

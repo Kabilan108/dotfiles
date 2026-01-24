@@ -12,6 +12,7 @@ local ui
 local cache
 local context
 local ring
+local edits
 
 -- Internal state
 local state = {
@@ -34,6 +35,7 @@ local function load_deps()
     cache = require('sweep.cache')
     context = require('sweep.context')
     ring = require('sweep.ring')
+    edits = require('sweep.edits')
   end
 end
 
@@ -74,6 +76,59 @@ local function cancel_current_request()
     http.cancel(state.current_handle)
     state.current_handle = nil
   end
+end
+
+--- Deduplicate completion by removing text that already exists after cursor
+---@param lines string[] The completion lines
+---@param bufnr number Buffer number
+---@param row number 0-indexed row
+---@param col number 0-indexed column
+---@return string[]|nil Deduplicated lines or nil if nothing left
+local function deduplicate_completion(lines, bufnr, row, col)
+  if not lines or #lines == 0 then
+    return nil
+  end
+
+  -- Get text after cursor on current line
+  local ok, current_lines = pcall(vim.api.nvim_buf_get_lines, bufnr, row, row + 1, false)
+  if not ok or #current_lines == 0 then
+    return lines
+  end
+
+  local current_line = current_lines[1] or ''
+  local text_after_cursor = current_line:sub(col + 1)
+
+  -- If there's text after cursor, check if completion duplicates it
+  if text_after_cursor ~= '' then
+    local first_line = lines[1]
+
+    -- Check if completion starts with what's already there
+    if first_line:sub(1, #text_after_cursor) == text_after_cursor then
+      -- Make a copy to avoid modifying original
+      local deduped = {}
+      for i, line in ipairs(lines) do
+        deduped[i] = line
+      end
+
+      -- Trim the duplicate part from first line
+      deduped[1] = first_line:sub(#text_after_cursor + 1)
+
+      -- If first line is now empty
+      if deduped[1] == '' then
+        if #deduped > 1 then
+          -- Remove empty first line, keep rest
+          table.remove(deduped, 1)
+        else
+          -- Nothing left to suggest
+          return nil
+        end
+      end
+
+      return deduped
+    end
+  end
+
+  return lines
 end
 
 --- Handle successful completion response
@@ -119,6 +174,13 @@ local function on_completion_success(response, cache_key)
   local col = cursor[2]
   local bufnr = vim.api.nvim_get_current_buf()
 
+  -- Deduplicate: remove text that already exists after cursor
+  local display_lines = deduplicate_completion(result.lines, bufnr, row, col)
+  if not display_lines or #display_lines == 0 then
+    ui.clear()
+    return
+  end
+
   -- Build info for display
   local info = {
     tokens = result.tokens_predicted,
@@ -127,7 +189,7 @@ local function on_completion_success(response, cache_key)
 
   -- Show completion in UI
   ui.show({
-    lines = result.lines,
+    lines = display_lines,
     bufnr = bufnr,
     row = row,
     col = col,
@@ -151,6 +213,68 @@ local function on_completion_error(error_msg)
 
   -- Clear the request handle
   state.current_handle = nil
+end
+
+--- Send the HTTP request with the built context
+---@param full_prefix string The complete prefix with all context
+---@param input_suffix string The suffix from FIM
+---@param cache_key string The cache key for storing results
+local function send_completion_request(full_prefix, input_suffix, cache_key)
+  load_deps()
+  local cfg = config.get()
+
+  -- Build the full request body for llama.cpp
+  local request_body = {
+    input_prefix = full_prefix,
+    input_suffix = input_suffix,
+    n_predict = cfg.server.n_predict,
+    temperature = cfg.server.temperature,
+    cache_prompt = cfg.server.cache_prompt,
+    stop = { '\n\n', '<|endoftext|>' },
+  }
+
+  -- Track request start time and pending state
+  state.request_start_time = vim.loop.now()
+  state.pending = true
+
+  -- Make HTTP request
+  state.current_handle = http.request({
+    endpoint = cfg.server.endpoint .. '/infill',
+    body = request_body,
+    timeout = cfg.server.timeout,
+    on_success = function(response)
+      vim.schedule(function()
+        on_completion_success(response, cache_key)
+      end)
+    end,
+    on_error = function(err)
+      vim.schedule(function()
+        on_completion_error(err)
+      end)
+    end,
+  })
+end
+
+--- Add sync context (ring buffer, edit tracking) to prefix
+---@param prefix string The current prefix
+---@return string The prefix with sync context added
+local function add_sync_context(prefix)
+  local full_prefix = prefix
+
+  -- Add ring buffer context
+  local ring_context = ring.get_context()
+  if ring_context and ring_context ~= '' then
+    full_prefix = ring_context .. '\n\n' .. full_prefix
+  end
+
+  -- Add edit tracking context (Sweep's next-edit format)
+  -- This goes first in the prompt as it's most relevant for predicting next edits
+  local edit_context = edits.get_context()
+  if edit_context and edit_context ~= '' then
+    full_prefix = edit_context .. '\n\n' .. full_prefix
+  end
+
+  return full_prefix
 end
 
 --- Make a completion request
@@ -200,62 +324,63 @@ local function make_request()
     return
   end
 
-  -- Build the base prefix with additional context
-  local full_prefix = fim_request.input_prefix
-
-  -- Add rich context if enabled
+  -- Build the base prefix
+  local base_prefix = fim_request.input_prefix
+  local input_suffix = fim_request.input_suffix
   local ctx_config = cfg.context or {}
-  if ctx_config.use_lsp or ctx_config.use_treesitter then
-    local ctx_result = context.get({
+
+  -- Check if we need async LSP context
+  if ctx_config.use_lsp then
+    -- Use async context gathering to get LSP definitions and type info
+    context.get_async({
       bufnr = bufnr,
       row = row,
       col = col,
-      use_lsp = ctx_config.use_lsp,
+      use_lsp = true,
       use_treesitter = ctx_config.use_treesitter,
-    })
-    if ctx_result.formatted and ctx_result.formatted ~= '' then
-      -- Prepend formatted context to prefix
-      full_prefix = ctx_result.formatted .. '\n\n' .. full_prefix
+    }, function(ctx_result)
+      -- This callback runs after LSP responds (or times out)
+      -- Check if request was cancelled while waiting for LSP
+      if not state.enabled then
+        return
+      end
+
+      local full_prefix = base_prefix
+
+      -- Add LSP/treesitter context
+      if ctx_result.formatted and ctx_result.formatted ~= '' then
+        full_prefix = ctx_result.formatted .. '\n\n' .. full_prefix
+      end
+
+      -- Add sync context (ring buffer, edits)
+      full_prefix = add_sync_context(full_prefix)
+
+      -- Send the request
+      send_completion_request(full_prefix, input_suffix, cache_key)
+    end)
+  else
+    -- Sync path: treesitter only (no LSP)
+    local full_prefix = base_prefix
+
+    if ctx_config.use_treesitter then
+      local ctx_result = context.get({
+        bufnr = bufnr,
+        row = row,
+        col = col,
+        use_lsp = false,
+        use_treesitter = true,
+      })
+      if ctx_result.formatted and ctx_result.formatted ~= '' then
+        full_prefix = ctx_result.formatted .. '\n\n' .. full_prefix
+      end
     end
+
+    -- Add sync context (ring buffer, edits)
+    full_prefix = add_sync_context(full_prefix)
+
+    -- Send the request
+    send_completion_request(full_prefix, input_suffix, cache_key)
   end
-
-  -- Add ring buffer context
-  local ring_context = ring.get_context()
-  if ring_context and ring_context ~= '' then
-    -- Prepend ring context before file context
-    full_prefix = ring_context .. '\n\n' .. full_prefix
-  end
-
-  -- Build the full request body for llama.cpp
-  local request_body = {
-    input_prefix = full_prefix,
-    input_suffix = fim_request.input_suffix,
-    n_predict = cfg.server.n_predict,
-    temperature = cfg.server.temperature,
-    cache_prompt = cfg.server.cache_prompt,
-    stop = { '\n\n', '<|endoftext|>' },
-  }
-
-  -- Track request start time and pending state
-  state.request_start_time = vim.loop.now()
-  state.pending = true
-
-  -- Make HTTP request
-  state.current_handle = http.request({
-    endpoint = cfg.server.endpoint .. '/infill',
-    body = request_body,
-    timeout = cfg.server.timeout,
-    on_success = function(response)
-      vim.schedule(function()
-        on_completion_success(response, cache_key)
-      end)
-    end,
-    on_error = function(err)
-      vim.schedule(function()
-        on_completion_error(err)
-      end)
-    end,
-  })
 end
 
 --- Trigger a completion request with debouncing
