@@ -133,11 +133,6 @@ function M.request(opts)
       -- Success!
       if opts.on_success then
         vim.schedule(function()
-          -- Double-check cancellation in case it happened during schedule
-          local req = active_requests[request_id]
-          if req and req.cancelled then
-            return
-          end
           opts.on_success(parsed)
         end)
       end

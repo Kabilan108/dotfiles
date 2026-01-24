@@ -44,7 +44,7 @@ local function trim(str)
 end
 
 --- Parse llama.cpp server response and extract completion
----@param response_body string JSON response from llama.cpp server
+---@param response_body string|table JSON string or already-parsed table from llama.cpp server
 ---@param opts table Options: stop_tokens, trim_whitespace, max_lines
 ---@return table Parsed result with content, lines, timings, etc.
 function M.parse(response_body, opts)
@@ -64,24 +64,28 @@ function M.parse(response_body, opts)
     error = nil,
   }
 
-  -- Try to parse JSON
-  local ok, data = pcall(vim.json.decode, response_body)
-  if not ok or type(data) ~= 'table' then
-    result.error = 'Failed to parse JSON response'
-    return result
+  -- Handle both string and table input
+  local data
+  if type(response_body) == 'table' then
+    data = response_body
+  else
+    local ok, parsed = pcall(vim.json.decode, response_body)
+    if not ok or type(parsed) ~= 'table' then
+      result.error = 'Failed to parse JSON response'
+      return result
+    end
+    data = parsed
   end
 
-  -- Extract content
-  local content = data.content or ''
-  if content == '' and data.content == nil then
-    -- Content field is missing
-    result.content = ''
-    result.lines = {}
+  -- Extract content (handle missing content field)
+  if data.content == nil then
     result.tokens_predicted = data.tokens_predicted or 0
     result.stopped = data.stop or false
     result.stop_reason = result.stopped and 'eos' or 'length'
     return result
   end
+
+  local content = data.content
 
   -- Check for stop tokens and strip them
   local found_stop_token = false

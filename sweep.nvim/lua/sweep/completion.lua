@@ -94,8 +94,8 @@ local function on_completion_success(response, cache_key)
   state.last_latency_ms = latency_ms
   state.pending = false
 
-  -- Parse the response
-  local result = parser.parse(vim.json.encode(response), {
+  -- Parse the response (parser accepts both string and table)
+  local result = parser.parse(response, {
     stop_tokens = { '\n\n', '<|endoftext|>' },
   })
 
@@ -145,12 +145,6 @@ local function on_completion_error(error_msg)
 
   -- Update pending state
   state.pending = false
-
-  -- Log the error (optional)
-  vim.schedule(function()
-    -- Uncomment for debugging:
-    -- vim.notify('Sweep completion error: ' .. error_msg, vim.log.levels.DEBUG)
-  end)
 
   -- Clear UI on error
   ui.clear()
@@ -402,14 +396,10 @@ function M.accept_word()
     return
   end
 
-  -- Get full content
-  local content = table.concat(current.lines, '\n')
-
-  -- Extract first word (preserving leading whitespace)
-  local leading_ws = content:match('^(%s*)') or ''
-  local rest = content:sub(#leading_ws + 1)
-  local word = rest:match('^([%w_]+)') or ''
-  local text = leading_ws .. word
+  -- Use parser's first_word extraction (handles leading whitespace)
+  local text = parser.first_word({
+    content = table.concat(current.lines, '\n'),
+  })
 
   -- Clear UI first
   ui.clear()

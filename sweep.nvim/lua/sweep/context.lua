@@ -39,28 +39,24 @@ local DEFAULT_MAX_FORMATTED_LINES = 200
 local DEFAULT_MAX_IMPORT_SCAN_LINES = 50
 
 -- Scope node types to look for when walking up the tree
+-- Note: All languages share the same node type names where applicable
 local SCOPE_NODE_TYPES = {
-  -- Lua
+  -- Function-like scopes (Lua, Python, JS/TS, Go)
   ['function_declaration'] = 'function',
   ['function_definition'] = 'function',
   ['local_function'] = 'function',
   ['function'] = 'function',
-  -- Python
-  ['function_definition'] = 'function',
-  ['class_definition'] = 'class',
-  -- JavaScript/TypeScript
-  ['function_declaration'] = 'function',
-  ['method_definition'] = 'method',
-  ['class_declaration'] = 'class',
   ['arrow_function'] = 'function',
-  -- Go
-  ['function_declaration'] = 'function',
+  ['function_item'] = 'function',  -- Rust
+  -- Method scopes
+  ['method_definition'] = 'method',
   ['method_declaration'] = 'method',
+  -- Class-like scopes
+  ['class_definition'] = 'class',
+  ['class_declaration'] = 'class',
   ['type_declaration'] = 'class',
-  -- Rust
-  ['function_item'] = 'function',
-  ['impl_item'] = 'class',
-  ['struct_item'] = 'class',
+  ['impl_item'] = 'class',  -- Rust
+  ['struct_item'] = 'class',  -- Rust
 }
 
 -- Import patterns by filetype
@@ -108,17 +104,6 @@ local function get_config()
       use_treesitter = true,
     },
   }
-end
-
---- Safely get treesitter parser for buffer
----@param bufnr number Buffer number
----@return any|nil parser Parser or nil if not available
-local function get_treesitter_parser(bufnr)
-  local ok, parser = pcall(vim.treesitter.get_parser, bufnr)
-  if not ok or not parser then
-    return nil
-  end
-  return parser
 end
 
 --- Get buffer lines safely
@@ -208,8 +193,8 @@ function M.get_scope(bufnr, row, opts)
   end
 
   -- Get range
-  local start_row, _, _ = scope_node:start()
-  local end_row, _, _ = scope_node:end_()
+  local start_row = scope_node:start()
+  local end_row = scope_node:end_()
 
   -- Get scope name
   local name = get_scope_name(scope_node, bufnr)
@@ -258,7 +243,6 @@ function M.get_imports(bufnr, opts)
 
   local lines = get_buffer_lines(bufnr, 0, max_lines)
   local imports = {}
-  local in_import_section = true
   local blank_line_count = 0
 
   for i, line in ipairs(lines) do

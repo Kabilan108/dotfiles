@@ -13,6 +13,7 @@ local defaults = {
 local config = {}
 local entries = {}       -- key -> { value, created_at, accessed_at }
 local access_order = {}  -- ordered list of keys by access time (oldest first)
+local entry_count = 0    -- track count for O(1) lookup
 local stats = {
   hits = 0,
   misses = 0,
@@ -71,6 +72,7 @@ local function evict_lru()
     if entry and is_expired(entry) then
       table.remove(access_order, i)
       entries[key] = nil
+      entry_count = entry_count - 1
       stats.evictions = stats.evictions + 1
       return
     end
@@ -80,18 +82,9 @@ local function evict_lru()
   local lru_key = table.remove(access_order, 1)
   if lru_key and entries[lru_key] then
     entries[lru_key] = nil
+    entry_count = entry_count - 1
     stats.evictions = stats.evictions + 1
   end
-end
-
---- Get the current number of entries
----@return number
-local function entry_count()
-  local count = 0
-  for _ in pairs(entries) do
-    count = count + 1
-  end
-  return count
 end
 
 --- Initialize the cache with options
@@ -103,6 +96,7 @@ function M.setup(opts)
   -- Clear cache on setup
   entries = {}
   access_order = {}
+  entry_count = 0
   stats = {
     hits = 0,
     misses = 0,
@@ -130,7 +124,7 @@ function M.set(key, value)
     touch(key)
   else
     -- Check if we need to evict
-    while entry_count() >= config.max_entries do
+    while entry_count >= config.max_entries do
       evict_lru()
     end
 
@@ -141,6 +135,7 @@ function M.set(key, value)
       accessed_at = current_time,
     }
     table.insert(access_order, key)
+    entry_count = entry_count + 1
   end
 end
 
@@ -193,6 +188,7 @@ function M.remove(key)
   if entries[key] then
     entries[key] = nil
     remove_from_access_order(key)
+    entry_count = entry_count - 1
   end
 end
 
@@ -200,6 +196,7 @@ end
 function M.clear()
   entries = {}
   access_order = {}
+  entry_count = 0
   -- Note: stats are preserved
 end
 
@@ -207,7 +204,7 @@ end
 ---@return table
 function M.stats()
   return {
-    entries = entry_count(),
+    entries = entry_count,
     hits = stats.hits,
     misses = stats.misses,
     evictions = stats.evictions,
