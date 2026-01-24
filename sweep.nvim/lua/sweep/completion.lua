@@ -1,5 +1,5 @@
 -- sweep.nvim - Completion trigger and debouncing orchestration module
--- Ties together FIM, HTTP, parser, and UI modules
+-- Ties together FIM, HTTP, parser, UI, cache, context, and ring buffer modules
 
 local M = {}
 
@@ -9,6 +9,9 @@ local http
 local fim
 local parser
 local ui
+local cache
+local context
+local ring
 
 -- Internal state
 local state = {
@@ -16,6 +19,8 @@ local state = {
   current_handle = nil,   -- Current HTTP request handle
   enabled = true,         -- Whether completion is enabled
   request_start_time = nil, -- For latency tracking
+  last_latency_ms = nil,  -- Last request latency
+  pending = false,        -- Whether a request is currently pending
 }
 
 --- Load dependencies lazily
@@ -26,6 +31,9 @@ local function load_deps()
     fim = require('sweep.fim')
     parser = require('sweep.parser')
     ui = require('sweep.ui')
+    cache = require('sweep.cache')
+    context = require('sweep.context')
+    ring = require('sweep.ring')
   end
 end
 
@@ -70,7 +78,8 @@ end
 
 --- Handle successful completion response
 ---@param response table The parsed JSON response from llama.cpp
-local function on_completion_success(response)
+---@param cache_key string|nil The cache key to store the result under
+local function on_completion_success(response, cache_key)
   load_deps()
 
   local cfg = config.get()
@@ -81,6 +90,10 @@ local function on_completion_success(response)
     latency_ms = math.floor((vim.loop.now() - state.request_start_time))
   end
 
+  -- Track latency for debug info
+  state.last_latency_ms = latency_ms
+  state.pending = false
+
   -- Parse the response
   local result = parser.parse(vim.json.encode(response), {
     stop_tokens = { '\n\n', '<|endoftext|>' },
@@ -90,6 +103,14 @@ local function on_completion_success(response)
   if parser.is_empty(result) then
     ui.clear()
     return
+  end
+
+  -- Store in cache if we have a cache key
+  if cache_key and result.lines and #result.lines > 0 then
+    cache.set(cache_key, {
+      lines = result.lines,
+      tokens_predicted = result.tokens_predicted,
+    })
   end
 
   -- Get current cursor position
@@ -122,6 +143,9 @@ end
 local function on_completion_error(error_msg)
   load_deps()
 
+  -- Update pending state
+  state.pending = false
+
   -- Log the error (optional)
   vim.schedule(function()
     -- Uncomment for debugging:
@@ -144,6 +168,7 @@ local function make_request()
   local cursor = vim.api.nvim_win_get_cursor(0)
   local row = cursor[1] - 1 -- Convert to 0-indexed
   local col = cursor[2]
+  local filename = vim.api.nvim_buf_get_name(bufnr)
 
   -- Cancel any existing request
   cancel_current_request()
@@ -157,9 +182,59 @@ local function make_request()
     suffix_lines = cfg.context.suffix_lines,
   })
 
+  -- Build cache key
+  local cache_key = cache.make_key({
+    prefix = fim_request.input_prefix,
+    suffix = fim_request.input_suffix,
+    filename = filename,
+  })
+
+  -- Check cache first
+  local cached_result = cache.get(cache_key)
+  if cached_result then
+    -- Use cached result directly
+    ui.show({
+      lines = cached_result.lines,
+      bufnr = bufnr,
+      row = row,
+      col = col,
+      info = {
+        tokens = cached_result.tokens_predicted,
+        latency_ms = 0, -- Cached, no latency
+      },
+    })
+    return
+  end
+
+  -- Build the base prefix with additional context
+  local full_prefix = fim_request.input_prefix
+
+  -- Add rich context if enabled
+  local ctx_config = cfg.context or {}
+  if ctx_config.use_lsp or ctx_config.use_treesitter then
+    local ctx_result = context.get({
+      bufnr = bufnr,
+      row = row,
+      col = col,
+      use_lsp = ctx_config.use_lsp,
+      use_treesitter = ctx_config.use_treesitter,
+    })
+    if ctx_result.formatted and ctx_result.formatted ~= '' then
+      -- Prepend formatted context to prefix
+      full_prefix = ctx_result.formatted .. '\n\n' .. full_prefix
+    end
+  end
+
+  -- Add ring buffer context
+  local ring_context = ring.get_context()
+  if ring_context and ring_context ~= '' then
+    -- Prepend ring context before file context
+    full_prefix = ring_context .. '\n\n' .. full_prefix
+  end
+
   -- Build the full request body for llama.cpp
   local request_body = {
-    input_prefix = fim_request.input_prefix,
+    input_prefix = full_prefix,
     input_suffix = fim_request.input_suffix,
     n_predict = cfg.server.n_predict,
     temperature = cfg.server.temperature,
@@ -167,8 +242,9 @@ local function make_request()
     stop = { '\n\n', '<|endoftext|>' },
   }
 
-  -- Track request start time
+  -- Track request start time and pending state
   state.request_start_time = vim.loop.now()
+  state.pending = true
 
   -- Make HTTP request
   state.current_handle = http.request({
@@ -177,7 +253,7 @@ local function make_request()
     timeout = cfg.server.timeout,
     on_success = function(response)
       vim.schedule(function()
-        on_completion_success(response)
+        on_completion_success(response, cache_key)
       end)
     end,
     on_error = function(err)
@@ -375,6 +451,16 @@ end
 ---@return boolean
 function M.is_enabled()
   return state.enabled
+end
+
+--- Get completion state for debugging
+---@return table
+function M.get_state()
+  return {
+    pending = state.pending,
+    last_latency_ms = state.last_latency_ms,
+    enabled = state.enabled,
+  }
 end
 
 return M

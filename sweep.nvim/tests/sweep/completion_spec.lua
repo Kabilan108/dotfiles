@@ -45,6 +45,11 @@ describe('sweep.completion', function()
   -- Original vim.loop.new_timer
   local original_new_timer
 
+  -- Additional mocks for cache, context, and ring
+  local mock_cache
+  local mock_context
+  local mock_ring
+
   before_each(function()
     -- Reset module state before each test
     package.loaded['sweep.completion'] = nil
@@ -53,12 +58,19 @@ describe('sweep.completion', function()
     package.loaded['sweep.fim'] = nil
     package.loaded['sweep.parser'] = nil
     package.loaded['sweep.ui'] = nil
+    package.loaded['sweep.cache'] = nil
+    package.loaded['sweep.context'] = nil
+    package.loaded['sweep.ring'] = nil
 
     -- Setup config
     config = require('sweep.config')
     config.setup({
       debounce_ms = 100,
       filetypes_exclude = { 'help', 'TelescopePrompt' },
+      context = {
+        use_lsp = false,
+        use_treesitter = false,
+      },
     })
 
     -- Create mock http module
@@ -156,11 +168,72 @@ describe('sweep.completion', function()
       end,
     }
 
+    -- Create mock cache module
+    mock_cache = {
+      _entries = {},
+      _hits = 0,
+      _misses = 0,
+      _last_key = nil,
+      _last_value = nil,
+      setup = function(opts) end,
+      get = function(key)
+        mock_cache._last_key = key
+        if mock_cache._entries[key] then
+          mock_cache._hits = mock_cache._hits + 1
+          return mock_cache._entries[key]
+        end
+        mock_cache._misses = mock_cache._misses + 1
+        return nil
+      end,
+      set = function(key, value)
+        mock_cache._last_key = key
+        mock_cache._last_value = value
+        mock_cache._entries[key] = value
+      end,
+      make_key = function(opts)
+        return (opts.filename or '') .. '|' .. (opts.prefix or ''):sub(-50) .. '|' .. (opts.suffix or ''):sub(1, 25)
+      end,
+      stats = function()
+        local count = 0
+        for _ in pairs(mock_cache._entries) do count = count + 1 end
+        return { entries = count, hits = mock_cache._hits, misses = mock_cache._misses }
+      end,
+      clear = function()
+        mock_cache._entries = {}
+      end,
+    }
+
+    -- Create mock context module
+    mock_context = {
+      get = function(opts)
+        return {
+          definitions = {},
+          scope = nil,
+          imports = {},
+          formatted = '',
+        }
+      end,
+    }
+
+    -- Create mock ring module
+    mock_ring = {
+      _chunks = {},
+      setup = function(opts) end,
+      add = function(chunk) table.insert(mock_ring._chunks, chunk) end,
+      get_context = function() return '' end,
+      get_chunks = function(opts) return mock_ring._chunks end,
+      stats = function() return { count = #mock_ring._chunks, max = 16, filetypes = {} } end,
+      clear = function() mock_ring._chunks = {} end,
+    }
+
     -- Inject mocks into package.loaded before requiring completion
     package.loaded['sweep.http'] = mock_http
     package.loaded['sweep.fim'] = mock_fim
     package.loaded['sweep.parser'] = mock_parser
     package.loaded['sweep.ui'] = mock_ui
+    package.loaded['sweep.cache'] = mock_cache
+    package.loaded['sweep.context'] = mock_context
+    package.loaded['sweep.ring'] = mock_ring
 
     -- Mock vim.loop.new_timer
     created_timers = {}
@@ -206,6 +279,9 @@ describe('sweep.completion', function()
     package.loaded['sweep.fim'] = nil
     package.loaded['sweep.parser'] = nil
     package.loaded['sweep.ui'] = nil
+    package.loaded['sweep.cache'] = nil
+    package.loaded['sweep.context'] = nil
+    package.loaded['sweep.ring'] = nil
   end)
 
   describe('trigger', function()
@@ -645,6 +721,130 @@ describe('sweep.completion', function()
       local lines = vim.api.nvim_buf_get_lines(test_bufnr, 0, -1, false)
       -- Should have more lines now
       assert.is_true(#lines >= 4)
+    end)
+  end)
+
+  describe('cache integration', function()
+    it('should check cache before making HTTP request', function()
+      completion.trigger()
+
+      local timer = created_timers[#created_timers]
+      timer._callback()
+
+      -- Cache get should have been called
+      assert.is_not_nil(mock_cache._last_key)
+    end)
+
+    it('should use cached result and skip HTTP request on cache hit', function()
+      -- Pre-populate cache with a result
+      local cache_key = mock_cache.make_key({
+        prefix = 'prefix_code',
+        suffix = 'suffix_code',
+        filename = '',
+      })
+      mock_cache._entries[cache_key] = {
+        lines = { 'cached completion' },
+        tokens_predicted = 5,
+      }
+
+      completion.trigger()
+
+      local timer = created_timers[#created_timers]
+      timer._callback()
+
+      -- Should have used cache (no HTTP request made)
+      assert.are.equal(0, mock_http._request_count)
+
+      -- UI should have been updated with cached result
+      assert.is_not_nil(mock_ui._shown)
+      assert.are.same({ 'cached completion' }, mock_ui._shown.lines)
+    end)
+
+    it('should store successful completion in cache', function()
+      completion.trigger()
+
+      local timer = created_timers[#created_timers]
+      timer._callback()
+
+      -- Simulate successful HTTP response
+      local on_success = mock_http._last_request.on_success
+      on_success({ content = 'new completion', tokens_predicted = 10 })
+
+      -- Cache should have been updated
+      assert.is_not_nil(mock_cache._last_value)
+      assert.is_not_nil(mock_cache._last_value.lines)
+    end)
+
+    it('should show latency of 0 for cached results', function()
+      -- Pre-populate cache
+      local cache_key = mock_cache.make_key({
+        prefix = 'prefix_code',
+        suffix = 'suffix_code',
+        filename = '',
+      })
+      mock_cache._entries[cache_key] = {
+        lines = { 'cached' },
+        tokens_predicted = 5,
+      }
+
+      completion.trigger()
+
+      local timer = created_timers[#created_timers]
+      timer._callback()
+
+      -- Latency should be 0 for cached result
+      assert.is_not_nil(mock_ui._shown.info)
+      assert.are.equal(0, mock_ui._shown.info.latency_ms)
+    end)
+  end)
+
+  describe('get_state', function()
+    it('should return completion state for debugging', function()
+      local state = completion.get_state()
+
+      assert.is_table(state)
+      assert.is_boolean(state.pending)
+      assert.is_boolean(state.enabled)
+    end)
+
+    it('should track pending state during request', function()
+      completion.trigger()
+
+      local timer = created_timers[#created_timers]
+      timer._callback()
+
+      -- Should be pending after request starts
+      local state = completion.get_state()
+      assert.is_true(state.pending)
+    end)
+
+    it('should clear pending state after response', function()
+      completion.trigger()
+
+      local timer = created_timers[#created_timers]
+      timer._callback()
+
+      -- Simulate successful response
+      local on_success = mock_http._last_request.on_success
+      on_success({ content = 'code', tokens_predicted = 10 })
+
+      -- Should no longer be pending
+      local state = completion.get_state()
+      assert.is_false(state.pending)
+    end)
+
+    it('should track last latency', function()
+      completion.trigger()
+
+      local timer = created_timers[#created_timers]
+      timer._callback()
+
+      local on_success = mock_http._last_request.on_success
+      on_success({ content = 'code', tokens_predicted = 10 })
+
+      local state = completion.get_state()
+      -- Latency should be set (may be 0 in tests due to timing)
+      assert.is_not_nil(state.last_latency_ms)
     end)
   end)
 end)
