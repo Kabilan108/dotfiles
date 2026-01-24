@@ -22,6 +22,7 @@ local state = {
   request_start_time = nil, -- For latency tracking
   last_latency_ms = nil,  -- Last request latency
   pending = false,        -- Whether a request is currently pending
+  request_id = 0,         -- Monotonic counter to detect stale async callbacks
 }
 
 --- Load dependencies lazily
@@ -288,6 +289,10 @@ local function make_request()
   local col = cursor[2]
   local filename = vim.api.nvim_buf_get_name(bufnr)
 
+  -- Increment request ID to invalidate any pending async callbacks
+  state.request_id = state.request_id + 1
+  local current_request_id = state.request_id
+
   -- Cancel any existing request
   cancel_current_request()
 
@@ -310,9 +315,15 @@ local function make_request()
   -- Check cache first
   local cached_result = cache.get(cache_key)
   if cached_result then
-    -- Use cached result directly
+    -- Deduplicate cached result before showing (cursor context may differ)
+    local display_lines = deduplicate_completion(cached_result.lines, bufnr, row, col)
+    if not display_lines or #display_lines == 0 then
+      ui.clear()
+      return
+    end
+
     ui.show({
-      lines = cached_result.lines,
+      lines = display_lines,
       bufnr = bufnr,
       row = row,
       col = col,
@@ -340,6 +351,11 @@ local function make_request()
       use_treesitter = ctx_config.use_treesitter,
     }, function(ctx_result)
       -- This callback runs after LSP responds (or times out)
+      -- Check if this callback is stale (a new request has been started)
+      if current_request_id ~= state.request_id then
+        return
+      end
+
       -- Check if request was cancelled while waiting for LSP
       if not state.enabled then
         return
