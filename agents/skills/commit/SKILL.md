@@ -1,6 +1,7 @@
 ---
+description: Creates logical commits from uncommitted changes
 allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git reset:*), Bash(git add:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*)
-description: Create a git commit
+context: fork
 ---
 
 ## Context
