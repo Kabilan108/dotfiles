@@ -127,4 +127,58 @@ M.cmp_icons = {
   TypeParameter = '󰅲',
 }
 
+---@param bufnr integer
+---@param start_line integer 1-indexed
+---@param end_line integer 1-indexed
+---@return string[]
+M.get_diagnostics_in_range = function(bufnr, start_line, end_line)
+  local diags = {}
+  for lnum = start_line - 1, end_line - 1 do
+    for _, d in ipairs(vim.diagnostic.get(bufnr, { lnum = lnum })) do
+      local sev = vim.diagnostic.severity[d.severity]
+      table.insert(diags, string.format('%s (line %d): %s', sev, d.lnum + 1, d.message))
+    end
+  end
+  return diags
+end
+
+---@class utils.YankContextOpts
+---@field include_diagnostics? boolean
+
+---@param opts? utils.YankContextOpts
+M.yank_with_context = function(opts)
+  opts = opts or {}
+  local filepath = vim.fn.expand '%:.'
+  local filetype = vim.bo.filetype
+
+  vim.cmd 'normal! "zy'
+  local text = vim.fn.getreg 'z'
+
+  local start_line = vim.fn.line "'<"
+  local end_line = vim.fn.line "'>"
+
+  local parts = {
+    string.format('<file path="%s:%d-%d">', filepath, start_line, end_line),
+    string.format('<snippet lang="%s">', filetype),
+    text .. '</snippet>',
+  }
+
+  if opts.include_diagnostics then
+    local diags = M.get_diagnostics_in_range(vim.api.nvim_get_current_buf(), start_line, end_line)
+    if #diags > 0 then
+      table.insert(parts, '<diagnostics>')
+      for _, diag in ipairs(diags) do
+        table.insert(parts, diag)
+      end
+      table.insert(parts, '</diagnostics>')
+    end
+  end
+
+  table.insert(parts, '</file>')
+
+  local formatted = table.concat(parts, '\n')
+  vim.fn.setreg('+', formatted)
+  vim.fn.system({ 'tmux', 'set-buffer', formatted })
+end
+
 return M

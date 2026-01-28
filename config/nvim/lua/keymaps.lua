@@ -168,20 +168,12 @@ utils.map('<S-Tab>', 'v', '<gv', 'unindent and keep selection')
 
 -- yank with file context (for pasting into Claude Code, etc.)
 utils.map('<leader>cc', 'v', function()
-  local filepath = vim.fn.expand '%:.'
-  local filetype = vim.bo.filetype
-
-  -- yank first to exit visual mode and set '< '> marks
-  vim.cmd 'normal! "zy'
-  local text = vim.fn.getreg 'z'
-
-  local start_line = vim.fn.line "'<"
-  local end_line = vim.fn.line "'>"
-
-  local formatted = string.format('file: %s:%d-%d\n```%s\n%s```', filepath, start_line, end_line, filetype, text)
-  vim.fn.setreg('+', formatted)
-  vim.fn.system({ 'tmux', 'set-buffer', formatted })
+  utils.yank_with_context()
 end, 'yank selection with file context')
+
+utils.map('<leader>cd', 'v', function()
+  utils.yank_with_context { include_diagnostics = true }
+end, 'yank selection with file context and diagnostics')
 
 -- snippets
 utils.map('<C-k>', { 'i', 's' }, function()
