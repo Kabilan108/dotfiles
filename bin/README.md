@@ -11,6 +11,9 @@ useful bash tools. some of these are used as part of my desktop env others are j
 - [cmp-branches](./cmp-branches):
   compares all local git branches with a reference branch, showing ahead and behind commits.
 
+- [git-extract](./git-extract):
+  extracts a subdirectory from a remote git repo using sparse checkout, without cloning the whole thing.
+
 - [tkncount](./tkncount):
   counts tokens in stdin using anthropic’s token-counting API.
 

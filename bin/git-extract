@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+set -euo pipefail
+
+show_help() {
+  echo "Usage: $(basename "$0") <repo-url> [-r|--ref <gitref>] [-d|--dest <dir>] <path/to/subdir>"
+  echo
+  echo "Extract a subdirectory from a git repo without cloning the whole thing."
+  echo
+  echo "Options:"
+  echo "  -r, --ref <ref>    Branch, tag, or commit hash (default: remote HEAD)"
+  echo "  -d, --dest <dir>   Destination directory (default: ./<subdir-basename>)"
+  echo "  -h, --help         Show this help"
+}
+
+repo=""
+ref=""
+subdir=""
+dest=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -h|--help) show_help; exit 0 ;;
+    -r|--ref) ref="$2"; shift 2 ;;
+    -d|--dest) dest="$2"; shift 2 ;;
+    *)
+      if [[ -z "$repo" ]]; then
+        repo="$1"
+      elif [[ -z "$subdir" ]]; then
+        subdir="$1"
+      else
+        echo "Error: unexpected argument '$1'" >&2
+        show_help >&2
+        exit 1
+      fi
+      shift
+      ;;
+  esac
+done
+
+if [[ -z "$repo" || -z "$subdir" ]]; then
+  echo "Error: repo URL and subdir path are required" >&2
+  show_help >&2
+  exit 1
+fi
+
+tmpdir=$(mktemp -d)
+trap 'rm -rf "$tmpdir"' EXIT
+
+is_hash() {
+  [[ "$1" =~ ^[0-9a-f]{7,40}$ ]]
+}
+
+if [[ -n "$ref" ]] && is_hash "$ref"; then
+  git clone --no-checkout --filter=blob:none "$repo" "$tmpdir" 2>&1
+  git -C "$tmpdir" checkout "$ref" -- 2>&1
+elif [[ -n "$ref" ]]; then
+  git clone --no-checkout --filter=blob:none --depth=1 --branch "$ref" "$repo" "$tmpdir" 2>&1
+else
+  git clone --no-checkout --filter=blob:none --depth=1 "$repo" "$tmpdir" 2>&1
+fi
+
+git -C "$tmpdir" sparse-checkout set "$subdir"
+git -C "$tmpdir" checkout
+
+src="$tmpdir/$subdir"
+if [[ ! -d "$src" ]]; then
+  echo "Error: '$subdir' not found in the repository" >&2
+  exit 1
+fi
+
+dest="${dest:-./$(basename "$subdir")}"
+mkdir -p "$dest"
+cp -a "$src"/. "$dest"/
+
+echo "Extracted to $dest"
