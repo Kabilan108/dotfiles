@@ -138,11 +138,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1769185505,
-        "narHash": "sha256-HsRm23LGNi820mQoEwjQwU8G1yCR/iAi+15PNU6Cjxk=",
+        "lastModified": 1769706059,
+        "narHash": "sha256-IlwJM/vraFHJCsGVZ53wXRCo9VMJHCX9ZGaczoeOqEg=",
         "owner": "kabilan108",
         "repo": "claude-bar",
-        "rev": "5d02fdcffd07cc43d23fb41ab7fea34ac597a39e",
+        "rev": "f1d0e591254e3c338edda86365c9321eb40e264c",
         "type": "github"
       },
       "original": {
