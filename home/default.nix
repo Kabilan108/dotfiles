@@ -22,7 +22,6 @@ in
     inputs.atlas.homeManagerModules.default
     inputs.claude-bar.homeManagerModules.default
     inputs.dictator.homeManagerModules.dictator
-    inputs.worktrunk.homeManagerModules.worktrunk
   ]
   ++ (if displayServer == "x11" then [ ./desktop/x11 ] else [ ./desktop/wayland ]);
 
@@ -48,23 +47,6 @@ in
         class = "Telegram";
       }
     ];
-  };
-
-  programs.worktrunk = {
-    enable = true;
-    settings = {
-      worktree-path = ".worktrees/{{ branch | sanitize }}";
-      commit-generation = {
-        command = "llm";
-        args = [
-          "-m"
-          "openrouter/google/gemini-3-flash-preview"
-        ];
-      };
-      pre-merge = {
-        notify = "notify-send 'Merging {{ branch }}'";
-      };
-    };
   };
 
   programs.atlas = {
@@ -203,6 +185,7 @@ in
     gnumake
 
     # dev utils
+    inputs.worktrunk.packages.${pkgs.system}.default
     ast-grep
     bat
     delta
