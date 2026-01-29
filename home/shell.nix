@@ -67,7 +67,7 @@ in
     ".config/nvim".source = cfgLink "nvim";
     ".config/wt.toml".source = cfgLink "wt.toml";
 
-    "bin".source = ../bin;
+    "bin".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/bin";
   };
 
   home.file.".sessionizer".text = ''
