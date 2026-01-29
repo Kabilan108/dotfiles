@@ -18,3 +18,5 @@ CLAUDE.md
 **/claude/history.jsonl
 **/claude/local
 **/claude/debug
+
+__pycache__/
