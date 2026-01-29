@@ -95,6 +95,17 @@ local config = {
         cond = conditions.hide_in_width,
       },
       {
+        function()
+          local ok, wt = pcall(require, 'custom.worktree')
+          if ok then
+            return wt.statusline_symbols()
+          end
+          return ''
+        end,
+        color = { fg = colors.peach },
+        cond = conditions.check_git_workspace,
+      },
+      {
         'branch',
         icon = '',
         color = { fg = colors.violet, gui = 'bold' },

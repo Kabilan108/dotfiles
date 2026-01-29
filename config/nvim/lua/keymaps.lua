@@ -9,6 +9,7 @@ local trailspace = require 'mini.trailspace'
 
 local utils = require 'utils'
 local custom_ts = require 'custom.telescope'
+local custom_wt = require 'custom.worktree'
 
 ---------------------------------------------------------------------------------------
 
@@ -34,6 +35,11 @@ utils.map('<leader>rs', 'n', ts.resume, 'resume search')
 utils.map('<leader>sr', 'n', ts.oldfiles, 'search recent files')
 utils.map('<leader>si', 'n', ts.git_status, 'search git index')
 utils.map('<leader>sw', 'n', '<CMD>Telescope workspaces<CR>', 'search workspaces')
+
+-- worktree management
+utils.map('<leader>wt', 'n', custom_wt.pick, 'worktree: switch')
+utils.map('<leader>w-', 'n', custom_wt.switch_previous, 'worktree: previous')
+utils.map('<leader>wc', 'n', custom_wt.create, 'worktree: create')
 
 -- git staging with gitsigns
 utils.map('<leader>ga', 'n', '<CMD>Gitsigns stage_buffer<CR>', 'git: stage current file')
@@ -230,8 +236,8 @@ vim.api.nvim_create_autocmd('FileType', {
   pattern = 'python',
   callback = function(event)
     utils.map('<leader>xi', 'n', function()
-      local pyrepl = require('pyrepl')
-      pyrepl.execute_lines({ '%load_ext icat', '%plt_icat' })
+      local pyrepl = require 'pyrepl'
+      pyrepl.execute_lines { '%load_ext icat', '%plt_icat' }
     end, 'setup icat for plotting', { buffer = event.buf })
   end,
 })
