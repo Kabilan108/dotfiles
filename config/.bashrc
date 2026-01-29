@@ -109,9 +109,13 @@ export PROMPT_DIRTRIM=2
 
 ### -> ENVIRONMENT
 
-if [ -f ~/.bashenv ]; then
-  source ~/.bashenv
+if [ -f "$HOME/.bashenv" ]; then
+  source "$HOME/.bashenv"
 fi
+
+### -> Shell integrations
+
+eval "$(wt config shell init bash)"
 
 #### --> FUNCTIONS
 
