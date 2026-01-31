@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # vim: syn=bash ft=bash
 
-LOG_FILE="/home/kabilan/dotfiles/try-session.log"
+LOG_FILE=/dev/null
 log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG_FILE"; }
 
 log "=== try-session started ==="
