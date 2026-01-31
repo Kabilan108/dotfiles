@@ -280,6 +280,7 @@ return {
     config = function()
       require('catppuccin').setup {
         compile_path = vim.fn.stdpath 'cache' .. '/catppuccin',
+        transparent_background = true,
         default_integrations = false,
         integrations = {
           cmp = true,
@@ -321,7 +322,7 @@ return {
           return {
             -- Better folding colors
             Folded = { bg = colors.surface0, fg = colors.overlay1, style = { 'italic' } },
-            FoldColumn = { bg = colors.base, fg = colors.surface2 },
+            FoldColumn = { bg = 'NONE', fg = colors.surface2 },
           }
         end,
       }
