@@ -23,6 +23,21 @@ fi
 # Change to workspace directory for git operations
 cd "$workspace_dir" 2>/dev/null || cd "$HOME"
 
+# Get worktree information
+worktree_path=$(git --no-optional-locks rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+if [ -n "$worktree_path" ]; then
+    # Check if we're in a worktree (not the main repository)
+    if [[ "$worktree_path" == *"/.git/worktrees/"* ]]; then
+        # Extract worktree name from the path
+        worktree_name=$(basename "$(git --no-optional-locks rev-parse --path-format=absolute --git-dir 2>/dev/null)" 2>/dev/null)
+        is_worktree=true
+    else
+        # We're in the main repository
+        worktree_name="main"
+        is_worktree=false
+    fi
+fi
+
 # Get git branch
 branch=$(git --no-optional-locks symbolic-ref --short HEAD 2>/dev/null || git --no-optional-locks rev-parse --short HEAD 2>/dev/null)
 
@@ -67,6 +82,18 @@ if [ -n "$branch" ]; then
     if [ -n "$output" ]; then
         output="${output} \033[0;90m|\033[0m "
     fi
+
+    # Add worktree information if available
+    if [ -n "$worktree_name" ]; then
+        if [ "$is_worktree" = true ]; then
+            # Show worktree name in magenta with [WT] indicator
+            output="${output}\033[0;35m[WT]\033[0m \033[1;35m${worktree_name}\033[0m \033[0;90m│\033[0m "
+        else
+            # Show main repository indicator in blue
+            output="${output}\033[0;34m[main]\033[0m \033[0;90m│\033[0m "
+        fi
+    fi
+
     output="${output}\033[0;36m${branch}\033[0m \033[0;33m${indicators}\033[0m"
 fi
 
