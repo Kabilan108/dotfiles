@@ -35,7 +35,7 @@
       gc = {
         automatic = true;
         dates = "weekly";
-        options = "--delete-older-than 2w";
+        options = "--delete-older-than 14d";
       };
       extraOptions = ''trusted-users = root kabilan'';
       settings = {

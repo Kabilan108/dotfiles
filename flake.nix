@@ -53,6 +53,7 @@
             ./configuration.nix
             ./user.nix
             ./modules/nixos/virt-manager.nix
+            ./modules/nixos/syncthing.nix
           ]
           ++ (
             if displayServer == "x11" then

@@ -31,4 +31,8 @@ in
     sietch
     jacurutu
   ];
+  "secrets/syncthing/jacurutu-cert.age".publicKeys = [ jacurutu ];
+  "secrets/syncthing/jacurutu-key.age".publicKeys = [ jacurutu ];
+  "secrets/syncthing/sietch-cert.age".publicKeys = [ sietch ];
+  "secrets/syncthing/sietch-key.age".publicKeys = [ sietch ];
 }
