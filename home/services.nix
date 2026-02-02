@@ -21,7 +21,6 @@ in
         ${pkgs.bun}/bin/bun install -g \
           @openai/codex@latest \
           opencode-ai@latest \
-          @sourcegraph/amp
       '';
     };
     Install.WantedBy = [ "default.target" ];
