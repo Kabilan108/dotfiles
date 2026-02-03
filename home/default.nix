@@ -72,6 +72,9 @@ in
         enabled = true;
         threshold = 0.9;
       };
+      popup = {
+        display_timeout_ms = 2000;
+      };
     };
   };
 
