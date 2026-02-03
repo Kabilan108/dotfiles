@@ -89,7 +89,22 @@ tmux send-keys -t %31 C-m
 
 Never use `send-keys` directly for prompts or instructions — the text will likely contain characters that trigger tmux modes.
 
-## 5. Inspect Output (Read Logs)
+## 5. Helper Scripts
+
+For orchestration workflows, prefer these scripts over raw tmux commands:
+
+| Task | Script | Example |
+|------|--------|---------|
+| Send text to pane | `send-to-pane` | `echo "cmd" \| send-to-pane %31` |
+| Send file to pane | `send-to-pane` | `send-to-pane %31 /tmp/prompt.txt` |
+| Launch agent pane | `launch-agent` | `pane=$(launch-agent -d /path -t task-id)` |
+| Monitor panes | `poll-agents` | `poll-agents -p %31 %32` |
+
+These wrap the tmux boilerplate (temp files, load-buffer, paste-buffer) into single commands. Run any script with `--help` for full usage.
+
+The raw tmux commands in the sections below remain useful for understanding what the scripts do and for ad-hoc operations.
+
+## 6. Inspect Output (Read Logs)
 
 You can read the output of that pane at any time without switching your context.
 
@@ -107,7 +122,7 @@ tmux capture-pane -p -S - -t "server-log"
 
 _Use this if the output might have scrolled off the screen._
 
-## 6. Interact with the Process
+## 7. Interact with the Process
 
 If you need to stop or restart the process:
 
@@ -123,7 +138,7 @@ tmux send-keys -t "server-log" C-c
 tmux kill-window -t "server-log"
 ```
 
-## 7. Advanced: Chaining Commands
+## 8. Advanced: Chaining Commands
 
 You can chain multiple tmux commands in a single invocation using `';'` (note the quotes to avoid interpretation by the shell). This is faster and cleaner than running multiple `tmux` commands.
 
@@ -144,3 +159,6 @@ tmux new-window -n "server-log" -d ';' send-keys -t "server-log" "npm start" C-m
 | Read output | `tmux capture-pane -p -t "ID"` |
 | Interrupt | `tmux send-keys -t "ID" C-c` |
 | Kill window | `tmux kill-window -t "ID"` |
+| **Send to pane** | `echo "text" \| send-to-pane %ID` |
+| **Launch agent** | `pane=$(launch-agent -d /path -t task-id)` |
+| **Poll agents** | `poll-agents -p %ID1 %ID2` |

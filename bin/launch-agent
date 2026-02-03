@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: launch-agent [options] [-- agent-args...]
+
+Launch an agent in a new tmux pane. Creates the pane in the current window
+by default, keeping subagents visible alongside the orchestrator.
+
+Prints the new pane ID (e.g., %42) to stdout.
+
+Options:
+  -a, --agent <name>    agent to launch (default: claude)
+  -d, --dir <path>      working directory (default: \$PWD)
+  -t, --task-id <id>    sets CLAUDE_CODE_TASK_LIST_ID env var
+  -n, --name <name>     pane title for identification
+  -w, --window <id>     target window (default: current window)
+  -h, --help            show this help
+
+Everything after -- is passed as extra args to the agent command.
+When no -- args are provided, claude defaults to --dangerously-skip-permissions.
+
+Examples:
+  launch-agent -d /path/to/worktree
+  launch-agent -d ./project -t "abc-123" -n "phase-1"
+  launch-agent -a claude -d ./project -- --dangerously-skip-permissions --verbose
+  pane=\$(launch-agent -d ./worktree -t "\$TASK_ID")
+EOF
+}
+
+error() {
+  echo "error: $1" >&2
+  exit 1
+}
+
+agent="claude"
+dir="$PWD"
+task_id=""
+name=""
+window=""
+agent_args=()
+parsing_agent_args=false
+
+while [[ $# -gt 0 ]]; do
+  if [[ "$parsing_agent_args" == true ]]; then
+    agent_args+=("$1")
+    shift
+    continue
+  fi
+  case $1 in
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  -a | --agent)
+    agent="$2"
+    shift 2
+    ;;
+  -d | --dir)
+    dir="$2"
+    shift 2
+    ;;
+  -t | --task-id)
+    task_id="$2"
+    shift 2
+    ;;
+  -n | --name)
+    name="$2"
+    shift 2
+    ;;
+  -w | --window)
+    window="$2"
+    shift 2
+    ;;
+  --)
+    parsing_agent_args=true
+    shift
+    ;;
+  *)
+    echo "error: unexpected argument '$1'" >&2
+    usage >&2
+    exit 1
+    ;;
+  esac
+done
+
+if [[ -z "$TMUX" ]]; then
+  error "must be running inside tmux"
+fi
+
+[[ -d "$dir" ]] || error "directory '$dir' does not exist"
+dir=$(realpath "$dir")
+
+case "$agent" in
+claude) agent_cmd="claude" ;;
+*) error "unknown agent: '$agent'" ;;
+esac
+
+if [[ ${#agent_args[@]} -eq 0 ]]; then
+  case "$agent" in
+  claude) agent_args=("--dangerously-skip-permissions") ;;
+  esac
+fi
+
+split_args=(-d -P -F '#{pane_id}' -c "$dir")
+if [[ -n "$window" ]]; then
+  split_args+=(-t "$window")
+fi
+
+pane_id=$(tmux split-window "${split_args[@]}") ||
+  error "failed to create tmux pane"
+
+if [[ -n "$name" ]]; then
+  tmux select-pane -t "$pane_id" -T "$name"
+fi
+
+launch_cmd=""
+if [[ -n "$task_id" ]]; then
+  launch_cmd="CLAUDE_CODE_TASK_LIST_ID='$task_id' "
+fi
+launch_cmd+="$agent_cmd ${agent_args[*]}"
+
+tmux send-keys -t "$pane_id" "$launch_cmd" C-m
+
+echo "$pane_id"

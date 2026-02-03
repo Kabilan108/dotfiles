@@ -1,0 +1,286 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: poll-agents [options] <pane-id> [pane-id...]
+
+Monitor tmux pane agents for completion, blockers, or errors.
+
+Checks pane output for sentinel strings and optionally verifies git activity.
+
+Options:
+  -s, --sentinel <str>   completion string (default: "PHASE COMPLETE")
+  -b, --blocker <str>    blocker prefix (default: "BLOCKED:")
+  -e, --error <str>      error sentinel (default: "PHASE ERROR")
+  -w, --worktree <path>  check git log for commits since --since
+      --since <ref>      git commit hash baseline for -w (default: auto-detected HEAD)
+  -p, --poll             repeat every --interval until all done
+  -i, --interval <sec>   poll interval in seconds (default: 30)
+  -j, --json             output as JSON
+  -q, --quiet            suppress intermediate output in poll mode
+  -h, --help             show this help
+
+Status values:
+  RUNNING    agent is still working
+  COMPLETE   sentinel string found in pane output
+  BLOCKED    blocker prefix found in pane output (reason extracted)
+  ERROR      error sentinel found in pane output
+  EXITED     pane no longer exists
+
+Exit codes:
+  0  all panes COMPLETE
+  1  any pane BLOCKED or ERROR
+  2  any pane still RUNNING (single-check mode only)
+
+Examples:
+  poll-agents %31 %32                                     # single check
+  poll-agents -p -i 15 %31 %32                            # poll every 15s
+  poll-agents -w /repo/.worktrees/infra --since abc123 %31
+  poll-agents -j %31 %32                                  # JSON output
+EOF
+}
+
+error() {
+  echo "error: $1" >&2
+  exit 1
+}
+
+sentinel="PHASE COMPLETE"
+blocker="BLOCKED:"
+error_sentinel="PHASE ERROR"
+worktree=""
+since=""
+poll=false
+interval=30
+json=false
+quiet=false
+panes=()
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  -s | --sentinel)
+    sentinel="$2"
+    shift 2
+    ;;
+  -b | --blocker)
+    blocker="$2"
+    shift 2
+    ;;
+  -e | --error)
+    error_sentinel="$2"
+    shift 2
+    ;;
+  -w | --worktree)
+    worktree="$2"
+    shift 2
+    ;;
+  --since)
+    since="$2"
+    shift 2
+    ;;
+  -p | --poll)
+    poll=true
+    shift
+    ;;
+  -i | --interval)
+    interval="$2"
+    shift 2
+    ;;
+  -j | --json)
+    json=true
+    shift
+    ;;
+  -q | --quiet)
+    quiet=true
+    shift
+    ;;
+  -*)
+    echo "error: unknown option '$1'" >&2
+    usage >&2
+    exit 1
+    ;;
+  *)
+    panes+=("$1")
+    shift
+    ;;
+  esac
+done
+
+if [[ ${#panes[@]} -eq 0 ]]; then
+  echo "error: at least one pane-id required" >&2
+  usage >&2
+  exit 1
+fi
+
+if [[ -z "$TMUX" ]]; then
+  error "must be running inside tmux"
+fi
+
+if [[ -n "$worktree" && -z "$since" ]]; then
+  if [[ -d "$worktree/.git" ]] || git -C "$worktree" rev-parse --git-dir >/dev/null 2>&1; then
+    since=$(git -C "$worktree" rev-parse HEAD 2>/dev/null || echo "")
+  fi
+fi
+
+check_pane() {
+  local pane="$1"
+  local status="RUNNING"
+  local reason=""
+  local commits=0
+
+  if ! tmux display-message -t "$pane" -p '#{pane_id}' >/dev/null 2>&1; then
+    echo "EXITED||0"
+    return
+  fi
+
+  local output
+  output=$(tmux capture-pane -p -t "$pane" -S -50 2>/dev/null || echo "")
+
+  if echo "$output" | grep -qF "$sentinel"; then
+    status="COMPLETE"
+  elif echo "$output" | grep -qF "$blocker"; then
+    status="BLOCKED"
+    reason=$(echo "$output" | grep -F "$blocker" | tail -1)
+    reason="${reason#*$blocker}"
+    reason="${reason# }"
+  elif echo "$output" | grep -qF "$error_sentinel"; then
+    status="ERROR"
+  fi
+
+  if [[ -n "$worktree" && -n "$since" ]] &&
+    git -C "$worktree" rev-parse --git-dir >/dev/null 2>&1; then
+    commits=$(git -C "$worktree" log --oneline "$since"..HEAD 2>/dev/null | wc -l || echo 0)
+    commits=$((commits + 0))
+  fi
+
+  echo "$status|$reason|$commits"
+}
+
+format_output() {
+  local -n _panes=$1
+  local -n _statuses=$2
+  local -n _reasons=$3
+  local -n _commits=$4
+
+  if [[ "$json" == true ]]; then
+    echo -n "["
+    local first=true
+    for i in "${!_panes[@]}"; do
+      if [[ "$first" == true ]]; then
+        first=false
+      else
+        echo -n ","
+      fi
+      local escaped_reason="${_reasons[$i]//\"/\\\"}"
+      local entry="{\"pane\":\"${_panes[$i]}\",\"status\":\"${_statuses[$i]}\""
+      if [[ -n "$escaped_reason" ]]; then
+        entry+=",\"reason\":\"${escaped_reason}\""
+      fi
+      if [[ -n "$worktree" ]]; then
+        entry+=",\"commits\":${_commits[$i]}"
+      fi
+      echo -n "$entry}"
+    done
+    echo "]"
+  else
+    for i in "${!_panes[@]}"; do
+      local line="${_panes[$i]}: ${_statuses[$i]}"
+      if [[ -n "${_reasons[$i]}" ]]; then
+        line+=" ${_reasons[$i]}"
+      fi
+      if [[ -n "$worktree" && ${_commits[$i]} -gt 0 ]]; then
+        line+=" (${_commits[$i]} commits)"
+      fi
+      echo "$line"
+    done
+  fi
+}
+
+compute_exit_code() {
+  local -n _st=$1
+  local has_running=false
+  local has_failure=false
+
+  for s in "${_st[@]}"; do
+    case "$s" in
+    BLOCKED | ERROR) has_failure=true ;;
+    RUNNING) has_running=true ;;
+    esac
+  done
+
+  if [[ "$has_failure" == true ]]; then
+    return 1
+  elif [[ "$has_running" == true ]]; then
+    return 2
+  fi
+  return 0
+}
+
+run_check() {
+  local statuses=()
+  local reasons=()
+  local commit_counts=()
+
+  for pane in "${panes[@]}"; do
+    local result
+    result=$(check_pane "$pane")
+    IFS='|' read -r status reason commits <<<"$result"
+    statuses+=("$status")
+    reasons+=("$reason")
+    commit_counts+=("$commits")
+  done
+
+  format_output panes statuses reasons commit_counts
+
+  compute_exit_code statuses
+}
+
+all_terminal() {
+  local -n _st=$1
+  for s in "${_st[@]}"; do
+    case "$s" in
+    RUNNING) return 1 ;;
+    esac
+  done
+  return 0
+}
+
+if [[ "$poll" == true ]]; then
+  while true; do
+    statuses=()
+    reasons=()
+    commit_counts=()
+
+    for pane in "${panes[@]}"; do
+      result=$(check_pane "$pane")
+      IFS='|' read -r status reason commits <<<"$result"
+      statuses+=("$status")
+      reasons+=("$reason")
+      commit_counts+=("$commits")
+    done
+
+    if [[ "$quiet" != true ]]; then
+      format_output panes statuses reasons commit_counts
+      echo "---"
+    fi
+
+    if all_terminal statuses; then
+      if [[ "$quiet" == true ]]; then
+        format_output panes statuses reasons commit_counts
+      fi
+      compute_exit_code statuses
+      exit $?
+    fi
+
+    sleep "$interval"
+  done
+else
+  run_check
+  exit $?
+fi
