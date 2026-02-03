@@ -104,6 +104,7 @@
       # system utils
       fuse
       git
+      git-lfs
       htop
       jq
       openssl
