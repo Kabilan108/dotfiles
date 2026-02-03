@@ -88,4 +88,21 @@ in
     };
     Install.WantedBy = [ "timers.target" ];
   };
+
+  systemd.user.services.clean-spotify-cache = {
+    Unit.Description = "Delete Spotify cache";
+    Service = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.coreutils}/bin/rm -rf %h/.cache/spotify";
+    };
+  };
+
+  systemd.user.timers.clean-spotify-cache = {
+    Unit.Description = "Weekly Spotify cache cleanup";
+    Timer = {
+      OnCalendar = "Sun 03:00";
+      Persistent = true;
+    };
+    Install.WantedBy = [ "timers.target" ];
+  };
 }
