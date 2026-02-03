@@ -178,6 +178,7 @@ alias tl="tmuxl"
 alias tk="tmuxk"
 
 alias cc="$HOME/.local/bin/claude --dangerously-skip-permissions --chrome"
+alias oc="OPENCODE_EXPERIMENTAL=true opencode"
 
 alias ls='ls --color=auto'
 alias ll='ls -alF'
