@@ -3,74 +3,135 @@
 set -euo pipefail
 
 show_help() {
-  echo "Usage: $(basename "$0") <repo-url> [-r|--ref <gitref>] [-d|--dest <dir>] <path/to/subdir>"
+  echo "Usage: $(basename "$0") <github-url> [-d|--dest <dir>]"
   echo
-  echo "Extract a subdirectory from a git repo without cloning the whole thing."
+  echo "Extract a file or directory from GitHub without cloning the whole repo."
   echo
   echo "Options:"
-  echo "  -r, --ref <ref>    Branch, tag, or commit hash (default: remote HEAD)"
-  echo "  -d, --dest <dir>   Destination directory (default: ./<subdir-basename>)"
+  echo "  -d, --dest <dir>   Destination (default: ./<basename>)"
   echo "  -h, --help         Show this help"
+  echo
+  echo "Examples:"
+  echo "  $(basename "$0") https://github.com/owner/repo/tree/main/path/to/dir"
+  echo "  $(basename "$0") https://github.com/owner/repo/blob/main/path/to/file.md"
+  echo "  $(basename "$0") https://github.com/owner/repo/blob/feat/new-thing/src/lib.rs"
 }
 
-repo=""
-ref=""
-subdir=""
+urldecode() {
+  local url="$1"
+  printf '%b' "${url//%/\\x}"
+}
+
+parse_github_url() {
+  local url="$1"
+  if [[ "$url" =~ ^https://github\.com/([^/]+/[^/]+)/(blob|tree)/(.+)$ ]]; then
+    parsed_repo="https://github.com/${BASH_REMATCH[1]}"
+    parsed_remainder="$(urldecode "${BASH_REMATCH[3]}")"
+    return 0
+  fi
+  return 1
+}
+
+resolve_ref_and_path() {
+  local repo="$1"
+  local remainder="$2"
+
+  local branches
+  branches=$(git ls-remote --heads "$repo" 2>/dev/null | sed 's|.*refs/heads/||' | sort -r)
+
+  for branch in $branches; do
+    if [[ "$remainder" == "$branch/"* ]]; then
+      resolved_ref="$branch"
+      resolved_path="${remainder#"$branch"/}"
+      return 0
+    fi
+    if [[ "$remainder" == "$branch" ]]; then
+      resolved_ref="$branch"
+      resolved_path=""
+      return 0
+    fi
+  done
+
+  if [[ "$remainder" == */* ]]; then
+    resolved_ref="${remainder%%/*}"
+    resolved_path="${remainder#*/}"
+  else
+    resolved_ref="$remainder"
+    resolved_path=""
+  fi
+  return 0
+}
+
+url=""
 dest=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    -h|--help) show_help; exit 0 ;;
-    -r|--ref) ref="$2"; shift 2 ;;
-    -d|--dest) dest="$2"; shift 2 ;;
-    *)
-      if [[ -z "$repo" ]]; then
-        repo="$1"
-      elif [[ -z "$subdir" ]]; then
-        subdir="$1"
-      else
-        echo "Error: unexpected argument '$1'" >&2
-        show_help >&2
-        exit 1
-      fi
-      shift
-      ;;
+  -h | --help)
+    show_help
+    exit 0
+    ;;
+  -d | --dest)
+    dest="$2"
+    shift 2
+    ;;
+  *)
+    if [[ -z "$url" ]]; then
+      url="$1"
+    else
+      echo "Error: unexpected argument '$1'" >&2
+      show_help >&2
+      exit 1
+    fi
+    shift
+    ;;
   esac
 done
 
-if [[ -z "$repo" || -z "$subdir" ]]; then
-  echo "Error: repo URL and subdir path are required" >&2
+if [[ -z "$url" ]]; then
+  echo "Error: GitHub URL is required" >&2
   show_help >&2
+  exit 1
+fi
+
+if ! parse_github_url "$url"; then
+  echo "Error: not a valid GitHub blob/tree URL" >&2
+  echo "Expected: https://github.com/owner/repo/blob|tree/ref/path" >&2
+  exit 1
+fi
+
+resolve_ref_and_path "$parsed_repo" "$parsed_remainder"
+repo="$parsed_repo"
+ref="$resolved_ref"
+subdir="$resolved_path"
+
+if [[ -z "$subdir" ]]; then
+  echo "Error: URL must include a file or directory path" >&2
   exit 1
 fi
 
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
 
-is_hash() {
-  [[ "$1" =~ ^[0-9a-f]{7,40}$ ]]
-}
-
-if [[ -n "$ref" ]] && is_hash "$ref"; then
-  git clone --no-checkout --filter=blob:none "$repo" "$tmpdir" 2>&1
-  git -C "$tmpdir" checkout "$ref" -- 2>&1
-elif [[ -n "$ref" ]]; then
-  git clone --no-checkout --filter=blob:none --depth=1 --branch "$ref" "$repo" "$tmpdir" 2>&1
-else
-  git clone --no-checkout --filter=blob:none --depth=1 "$repo" "$tmpdir" 2>&1
-fi
+git clone --no-checkout --filter=blob:none --depth=1 --branch "$ref" "$repo" "$tmpdir" 2>&1
 
 git -C "$tmpdir" sparse-checkout set "$subdir"
 git -C "$tmpdir" checkout
 
 src="$tmpdir/$subdir"
-if [[ ! -d "$src" ]]; then
+if [[ ! -e "$src" ]]; then
   echo "Error: '$subdir' not found in the repository" >&2
   exit 1
 fi
 
 dest="${dest:-./$(basename "$subdir")}"
-mkdir -p "$dest"
-cp -a "$src"/. "$dest"/
+
+if [[ -d "$src" ]]; then
+  mkdir -p "$dest"
+  cp -a "$src"/. "$dest"/
+else
+  mkdir -p "$(dirname "$dest")"
+  cp -a "$src" "$dest"
+fi
 
 echo "Extracted to $dest"
