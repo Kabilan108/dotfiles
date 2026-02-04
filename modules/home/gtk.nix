@@ -1,4 +1,10 @@
-{ pkgs, config, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  waylandCompositor,
+  ...
+}:
 let
   gtk-theme = "WhiteSur-Dark";
   gtk-icon-theme = "Adwaita";
@@ -7,14 +13,16 @@ in
 {
   home.sessionVariables.GTK_THEME = gtk-theme;
 
-  # Configure XDG portals to use GTK backend for settings
-  xdg.configFile."xdg-desktop-portal/portals.conf".text = ''
-    [preferred]
-    default=gtk
-    org.freedesktop.impl.portal.ScreenCast=hyprland
-    org.freedesktop.impl.portal.Screenshot=hyprland
-    org.freedesktop.impl.portal.GlobalShortcuts=hyprland
-  '';
+  # Configure XDG portals to use GTK backend for settings (Hyprland only).
+  xdg.configFile."xdg-desktop-portal/portals.conf" = lib.mkIf (waylandCompositor == "hyprland") {
+    text = ''
+      [preferred]
+      default=gtk
+      org.freedesktop.impl.portal.ScreenCast=hyprland
+      org.freedesktop.impl.portal.Screenshot=hyprland
+      org.freedesktop.impl.portal.GlobalShortcuts=hyprland
+    '';
+  };
 
   dconf.settings = {
     "org/gnome/desktop/interface" = {
