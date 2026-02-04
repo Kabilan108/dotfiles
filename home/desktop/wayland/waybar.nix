@@ -1,6 +1,20 @@
-{ theme, ... }:
+{
+  theme,
+  waylandCompositor,
+  ...
+}:
 let
   palette = theme.palette;
+  workspaceModule =
+    if waylandCompositor == "niri" then
+      "niri/workspaces"
+    else
+      "hyprland/workspaces";
+  windowModule =
+    if waylandCompositor == "niri" then
+      "niri/window"
+    else
+      "hyprland/window";
 in
 {
   programs.waybar = {
@@ -17,8 +31,8 @@ in
 
         modules-left = [
           "custom/menu"
-          "hyprland/workspaces"
-          "hyprland/window"
+          workspaceModule
+          windowModule
         ];
         modules-center = [ "clock" ];
         modules-right = [
@@ -36,14 +50,14 @@ in
           tooltip = false;
         };
 
-        "hyprland/workspaces" = {
+        "${workspaceModule}" = {
           format = "{name}";
           on-click = "activate";
           sort-by-number = false;
           sort-by = "id";
         };
 
-        "hyprland/window" = {
+        "${windowModule}" = {
           format = "{title}";
           max-length = 60;
           separate-outputs = true;
