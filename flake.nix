@@ -86,6 +86,7 @@
           waylandCompositor = "niri";
           modules = [
             inputs."niri-flake".nixosModules.niri
+            ./modules/nixos/wayland/niri.nix
           ];
         };
       };
