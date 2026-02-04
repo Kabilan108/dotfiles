@@ -45,10 +45,11 @@
           name,
           modules ? [ ],
           displayServer ? "x11",
+          waylandCompositor ? "hyprland",
         }:
         nixpkgs.lib.nixosSystem {
           inherit system pkgs;
-          specialArgs = { inherit inputs theme displayServer; };
+          specialArgs = { inherit inputs theme displayServer waylandCompositor; };
           modules = [
             (./. + "/machines/${name}")
             ./configuration.nix
@@ -71,6 +72,7 @@
         sietch = makeSystem {
           name = "sietch";
           displayServer = "wayland";
+          waylandCompositor = "hyprland";
           modules = [
             ./modules/nixos/nvidia.nix
             ./modules/nixos/xbox-controller.nix
@@ -80,6 +82,7 @@
         jacurutu = makeSystem {
           name = "jacurutu";
           displayServer = "wayland";
+          waylandCompositor = "niri";
           modules = [
             inputs."niri-flake".nixosModules.niri
           ];

@@ -1,12 +1,14 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  waylandCompositor,
+  ...
+}:
 {
   imports = [
-    ./hyprland.nix
     ./waybar.nix
     ./mako.nix
-    ./hyprlock.nix
-    ./hypridle.nix
     ./walker.nix
+    (./compositors + "/${waylandCompositor}")
   ];
 
   home.packages = with pkgs; [

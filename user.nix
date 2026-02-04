@@ -4,6 +4,7 @@
   inputs,
   theme,
   displayServer,
+  waylandCompositor,
   ...
 }:
 let
@@ -52,7 +53,7 @@ in
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
-    extraSpecialArgs = { inherit inputs theme displayServer; };
+    extraSpecialArgs = { inherit inputs theme displayServer waylandCompositor; };
 
     users.kabilan.imports = [ ./home ];
   };
