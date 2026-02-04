@@ -77,6 +77,7 @@
             ./modules/nixos/nvidia.nix
             ./modules/nixos/xbox-controller.nix
             ./modules/nixos/mullvad-vpn.nix
+            ./modules/nixos/wayland/hyprland.nix
           ];
         };
         jacurutu = makeSystem {

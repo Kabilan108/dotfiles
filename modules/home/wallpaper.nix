@@ -20,19 +20,6 @@
   };
 
   config = lib.mkMerge [
-    # wayland configuration (hyprpaper)
-    (lib.mkIf (displayServer == "wayland") {
-      services.hyprpaper = {
-        enable = true;
-        settings = {
-          ipc = "on";
-          splash = false;
-          preload = [ config.wallpaper.desktop ];
-          wallpaper = [ ", ${config.wallpaper.desktop}" ];
-        };
-      };
-    })
-
     # x11 configuration (feh via systemd)
     (lib.mkIf (displayServer == "x11") {
       systemd.user.services.wallpaper = {
