@@ -60,6 +60,7 @@
             if displayServer == "x11" then
               [ ./modules/nixos/deskotp-x11.nix ]
             else
+              # Wayland compositor configs live in HM; niri uses niri-flake for packaging/caching while keeping manual config files.
               [ ./modules/nixos/desktop-wayland.nix ]
           )
           ++ modules;
@@ -79,7 +80,9 @@
         jacurutu = makeSystem {
           name = "jacurutu";
           displayServer = "wayland";
-          modules = [];
+          modules = [
+            inputs."niri-flake".nixosModules.niri
+          ];
         };
       };
     };
@@ -113,6 +116,7 @@
     nix-colors.url = "github:misterio77/nix-colors";
 
     hyprland.url = "github:hyprwm/Hyprland/v0.52.0";
+    "niri-flake".url = "github:sodiboo/niri-flake";
     elephant.url = "github:abenz1267/elephant";
     walker = {
       url = "github:abenz1267/walker";
