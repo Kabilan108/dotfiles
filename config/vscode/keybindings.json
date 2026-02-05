@@ -9,7 +9,12 @@
     "command": "workbench.action.previousEditorInGroup",
     "when": "editorTextFocus || terminalFocus"
   },
-
+  {
+    "key": "shift+enter",
+    "command": "workbench.action.terminal.sendSequence",
+    "args": { "text": "\u001b\r" },
+    "when": "terminalFocus"
+  },
   {
     "key": "ctrl+alt+t",
     "command": "workbench.action.increaseViewHeight",
