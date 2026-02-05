@@ -1,4 +1,7 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
+let
+  homeDir = "/home/kabilan";
+in
 {
   home.packages = with pkgs; [
     swayidle
@@ -7,5 +10,6 @@
     xwayland-satellite
   ];
 
-  xdg.configFile."niri/config.kdl".source = ./config.kdl;
+  # xdg.configFile."niri/config.kdl".source =
+  #   config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/home/desktop/wayland/compositors/niri/config.kdl";
 }

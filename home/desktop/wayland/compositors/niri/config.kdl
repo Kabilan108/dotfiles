@@ -75,7 +75,7 @@ input {
 // Find more information on the wiki:
 // https://yalter.github.io/niri/Configuration:-Outputs
 // Remember to uncomment the node by removing "/-"!
-/-output "eDP-1" {
+output "eDP-1" {
     // Uncomment this line to disable this output.
     // off
 
@@ -88,7 +88,7 @@ input {
     mode "1920x1080@120.030"
 
     // You can use integer or fractional scale, for example use 1.5 for 150% scale.
-    scale 2
+    scale 1
 
     // Transform allows to rotate the output counter-clockwise, valid values are:
     // normal, 90, 180, 270, flipped, flipped-90, flipped-180 and flipped-270.
@@ -111,7 +111,7 @@ input {
 // https://yalter.github.io/niri/Configuration:-Layout
 layout {
     // Set gaps around windows in logical pixels.
-    gaps 16
+    gaps 6
 
     // When to center a column when changing focus, options are:
     // - "never", default behavior, focusing an off-screen column will keep at the left
@@ -159,21 +159,10 @@ layout {
         // off
 
         // How many logical pixels the ring extends out from the windows.
-        width 4
+        width 2
 
-        // Colors can be set in a variety of ways:
-        // - CSS named colors: "red"
-        // - RGB hex: "#rgb", "#rgba", "#rrggbb", "#rrggbbaa"
-        // - CSS-like notation: "rgb(255, 127, 0)", rgba(), hsl() and a few others.
-
-        // Color of the ring on the active monitor.
-        active-color "#7fc8ff"
-
-        // Color of the ring on inactive monitors.
-        //
-        // The focus ring only draws around the active window, so the only place
-        // where you can see its inactive-color is on other monitors.
-        inactive-color "#505050"
+        active-color "#89b4faee"
+        inactive-color "#45475aaa"
 
         // You can also use gradients. They take precedence over solid colors.
         // Gradients are rendered the same as CSS linear-gradient(angle, from, to).
@@ -255,8 +244,8 @@ layout {
     // Top and bottom struts will simply add outer gaps in addition to the area occupied by
     // layer-shell panels and regular gaps.
     struts {
-        // left 64
-        // right 64
+        // left 16
+        // right 20
         // top 64
         // bottom 64
     }
@@ -267,8 +256,6 @@ layout {
 // which may be more convenient to use.
 // See the binds section below for more spawn examples.
 
-// This line starts waybar, a commonly used bar for Wayland compositors.
-spawn-at-startup "waybar"
 spawn-at-startup "mako"
 spawn-at-startup "swayidle" "-w"
 spawn-at-startup "nm-applet" "--indicator"
@@ -289,7 +276,7 @@ hotkey-overlay {
 // Additionally, clients will be informed that they are tiled, removing some client-side rounded corners.
 // This option will also fix border/focus ring drawing behind some semitransparent windows.
 // After enabling or disabling this, you need to restart the apps for this to take effect.
-// prefer-no-csd
+prefer-no-csd
 
 // You can change the path where screenshots are saved.
 // A ~ at the front will be expanded to the home directory.
@@ -330,6 +317,11 @@ window-rule {
     open-floating true
 }
 
+window-rule {
+    match app-id=r#"^com\.dictator\.overlay$"#
+    open-floating true
+}
+
 // Open the Firefox picture-in-picture player as floating by default.
 window-rule {
     // This app-id regular expression will work for both:
@@ -351,10 +343,8 @@ window-rule {
     // block-out-from "screencast"
 }
 
-// Example: enable rounded corners for all windows.
-// (This example rule is commented out with a "/-" in front.)
-/-window-rule {
-    geometry-corner-radius 12
+window-rule {
+    geometry-corner-radius 5
     clip-to-geometry true
 }
 
@@ -379,36 +369,36 @@ binds {
     Mod+D hotkey-overlay-title="Run an Application: walker" { spawn "walker" "--set" "combi" "--width" "450"; }
     Mod+Tab hotkey-overlay-title="Switch Window: walker" { spawn "walker" "--provider" "windows" "--width" "600" "--height" "400"; }
     Mod+Shift+E hotkey-overlay-title="Power Menu: walker" { spawn "walker" "--provider" "menus:power" "--width" "300" "--height" "400"; }
-    Mod+V hotkey-overlay-title="Clipboard: walker" { spawn "walker" "--provider" "clipboard" "--placeholder" "clipboard"; }
+    Mod+Ctrl+V hotkey-overlay-title="Clipboard: walker" { spawn "walker" "--provider" "clipboard" "--placeholder" "clipboard"; }
     Mod+B hotkey-overlay-title="Open Browser: zen-beta" { spawn "zen-beta"; }
     Mod+Shift+C hotkey-overlay-title="Open Browser: chrome" { spawn "google-chrome-stable"; }
     Super+Alt+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "swaylock"; }
+
+    Mod+T { spawn "dictator" "toggle"; }
+    F3 { spawn "dictator" "cancel"; }
+    Mod+Shift+T { spawn "dictator" "transcript" "last" "--clip"; }
 
     // Use spawn-sh to run a shell command. Do this if you need pipes, multiple commands, etc.
     // Note: the entire command goes as a single argument. It's passed verbatim to `sh -c`.
     // For example, this is a standard bind to toggle the screen reader (orca).
     Super+Alt+S allow-when-locked=true hotkey-overlay-title=null { spawn-sh "pkill orca || exec orca"; }
 
-    // Example volume keys mappings for PipeWire & WirePlumber.
-    // The allow-when-locked=true property makes them work even when the session is locked.
-    // Using spawn-sh allows to pass multiple arguments together with the command.
-    XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+"; }
-    XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1-"; }
-    XF86AudioMute        allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"; }
-    XF86AudioMicMute     allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"; }
+    // Volume keys - uses volctl script for notifications
+    XF86AudioRaiseVolume allow-when-locked=true { spawn "volctl" "+5"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn "volctl" "-5"; }
+    XF86AudioMute        allow-when-locked=true { spawn "volctl" "mute"; }
+    XF86AudioMicMute     allow-when-locked=true { spawn "volctl" "mute-mic"; }
 
-    // Example brightness key mappings for brightnessctl.
-    // You can use regular spawn with multiple arguments too (to avoid going through "sh"),
-    // but you need to manually put each argument in separate "" quotes.
-    XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "+10%"; }
-    XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "10%-"; }
+    // Brightness keys - uses brightctl script for notifications
+    XF86MonBrightnessUp allow-when-locked=true { spawn "brightctl" "+10"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn "brightctl" "-10"; }
 
     // Open/close the Overview: a zoomed-out view of workspaces and windows.
     // You can also move the mouse into the top-left hot corner,
     // or do a four-finger swipe up on a touchpad.
     Mod+O repeat=false { toggle-overview; }
 
-    Mod+Q repeat=false { close-window; }
+    Mod+Shift+Q repeat=false { close-window; }
 
     Mod+Left  { focus-column-left; }
     Mod+Down  { focus-window-down; }

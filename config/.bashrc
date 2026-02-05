@@ -209,10 +209,14 @@ fi
 
 ### -> AUTO-START HYPRLAND
 
-# Auto-start Hyprland on TTY1
+# Auto-start compositor on TTY1
 # - Only runs if not already in a graphical session ($DISPLAY check)
 # - Only runs on TTY1 (preserves TTY2-6 for troubleshooting)
-# - exec replaces shell process, so exiting Hyprland logs you out cleanly
+# - exec replaces shell process, so exiting the compositor logs you out cleanly
 if [ -z "$DISPLAY" ] && [ "$XDG_VTNR" = "1" ] && [ -z "$SSH_CONNECTION" ]; then
-  exec Hyprland
+  if command -v niri-session >/dev/null 2>&1; then
+    exec niri-session
+  elif command -v Hyprland >/dev/null 2>&1; then
+    exec Hyprland
+  fi
 fi

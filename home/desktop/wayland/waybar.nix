@@ -10,6 +10,11 @@ let
       "niri/workspaces"
     else
       "hyprland/workspaces";
+  workspaceFormat =
+    if waylandCompositor == "niri" then
+      "{value}"
+    else
+      "{name}";
   windowModule =
     if waylandCompositor == "niri" then
       "niri/window"
@@ -26,7 +31,7 @@ in
         layer = "top";
         position = "top";
         height = 34;
-        margin = "4 6 0 6";
+        margin = "6 18 2 18";
         spacing = 0;
 
         modules-left = [
@@ -51,7 +56,7 @@ in
         };
 
         "${workspaceModule}" = {
-          format = "{name}";
+          format = workspaceFormat;
           on-click = "activate";
           sort-by-number = false;
           sort-by = "id";
