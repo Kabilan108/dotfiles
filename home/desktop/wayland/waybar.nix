@@ -15,11 +15,6 @@ let
       "{value}"
     else
       "{name}";
-  windowModule =
-    if waylandCompositor == "niri" then
-      "niri/window"
-    else
-      "hyprland/window";
 in
 {
   programs.waybar = {
@@ -31,13 +26,12 @@ in
         layer = "top";
         position = "top";
         height = 34;
-        margin = "6 18 2 18";
+        margin = "0";
         spacing = 0;
 
         modules-left = [
           "custom/menu"
           workspaceModule
-          windowModule
         ];
         modules-center = [ "clock" ];
         modules-right = [
@@ -60,12 +54,6 @@ in
           on-click = "activate";
           sort-by-number = false;
           sort-by = "id";
-        };
-
-        "${windowModule}" = {
-          format = "{title}";
-          max-length = 60;
-          separate-outputs = true;
         };
 
         clock = {
@@ -135,16 +123,16 @@ in
       }
 
       window#waybar {
-        background: alpha(#${palette.base00}, 0.75);
+        background: alpha(#${palette.base00}, 0.95);
         color: #${palette.base05};
-        padding: 2px;
-        border-radius: 8px;
-        border: 2px solid alpha(#${palette.base0D}, 0.8);
+        padding: 2px 8px;
+        border-radius: 0;
+        border: none;
       }
 
       #workspaces button {
-        padding: 2px 4px;
-        margin: 6px 2px;
+        padding: 1px 2px;
+        margin: 4px 2px;
         color: #${palette.base04};
         background: transparent;
         border-radius: 3px;
@@ -168,11 +156,6 @@ in
         padding: 0;
         margin: 0 15px 0 10px;
         font-size: 20px;
-      }
-
-      #window {
-        color: #${palette.base05};
-        padding: 0 10px;
       }
 
       #clock {
