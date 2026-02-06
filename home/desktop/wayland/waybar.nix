@@ -25,12 +25,11 @@ in
       mainBar = {
         layer = "top";
         position = "top";
-        height = 34;
+        height = 28;
         margin = "0";
         spacing = 0;
 
         modules-left = [
-          "custom/menu"
           workspaceModule
         ];
         modules-center = [ "clock" ];
@@ -41,13 +40,6 @@ in
           "cpu"
           "battery"
         ];
-
-        "custom/menu" = {
-          format = "󱄅";
-          on-click = "walker --provider desktopapplications";
-          on-click-right = "walker --provider menus:power";
-          tooltip = false;
-        };
 
         "${workspaceModule}" = {
           format = workspaceFormat;
@@ -130,12 +122,16 @@ in
         border: none;
       }
 
+      #workspaces {
+        margin-left: 8px;
+      }
+
       #workspaces button {
-        padding: 1px 2px;
+        padding: 0px;
         margin: 4px 2px;
         color: #${palette.base04};
         background: transparent;
-        border-radius: 3px;
+        border-radius: 2px;
       }
 
       #workspaces button.active {
@@ -149,13 +145,6 @@ in
 
       #workspaces button.urgent {
         color: #${palette.base08};
-      }
-
-      #custom-menu {
-        color: #${palette.base0D};
-        padding: 0;
-        margin: 0 15px 0 10px;
-        font-size: 20px;
       }
 
       #clock {
@@ -188,6 +177,7 @@ in
 
       #battery {
         color: #${palette.base07};
+        margin-right: 8px;
       }
 
       #battery.charging {
