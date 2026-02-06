@@ -62,7 +62,7 @@ input {
     }
 
     // make the mouse warp to the center of newly focused windows.
-    warp-mouse-to-focus
+    // warp-mouse-to-focus
 
     // Focus windows and outputs automatically when moving the mouse into them.
     // Setting max-scroll-amount="0%" makes it work only on windows already fully on screen.
@@ -354,6 +354,13 @@ window-rule {
 }
 
 window-rule {
+    match app-id=r#"^org\.gnome\.baobab$"#
+    open-floating true
+    default-column-width { fixed 900; }
+    default-window-height { fixed 700; }
+}
+
+window-rule {
     match app-id=r#"^\.blueman-manager-wrapped$"#
     open-floating true
 }
@@ -413,6 +420,7 @@ window-rule {
 window-rule {
     geometry-corner-radius 5
     clip-to-geometry true
+    draw-border-with-background false
 }
 
 binds {
