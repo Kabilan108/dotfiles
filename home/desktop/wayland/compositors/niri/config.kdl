@@ -443,6 +443,12 @@ binds {
     // For example, this is a standard bind to toggle the screen reader (orca).
     Super+Alt+S allow-when-locked=true hotkey-overlay-title=null { spawn-sh "pkill orca || exec orca"; }
 
+    // Media keys
+    XF86AudioPlay  allow-when-locked=true { spawn "playerctl" "play-pause"; }
+    XF86AudioPause allow-when-locked=true { spawn "playerctl" "play-pause"; }
+    XF86AudioNext  allow-when-locked=true { spawn "playerctl" "next"; }
+    XF86AudioPrev  allow-when-locked=true { spawn "playerctl" "previous"; }
+
     // Volume keys - uses volctl script for notifications
     XF86AudioRaiseVolume allow-when-locked=true { spawn "volctl" "+5"; }
     XF86AudioLowerVolume allow-when-locked=true { spawn "volctl" "-5"; }
