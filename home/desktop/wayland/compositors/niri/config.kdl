@@ -326,6 +326,12 @@ window-rule {
     default-column-width {}
 }
 
+// Hide windows from screen capture
+window-rule {
+    match app-id=r#"^obsidian$"#
+    block-out-from "screen-capture"
+}
+
 // Float scratch ghostty windows launched with --title=floating-nvim.
 window-rule {
     match title="^floating-nvim$"
