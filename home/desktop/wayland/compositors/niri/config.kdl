@@ -107,10 +107,18 @@ output "eDP-1" {
     position x=0 y=0
 }
 
+// This expects my ultrawide monitor (connected to jacurutu)
 output "DP-4" {
   mode "3440x1440@59.973"
   scale 1
   position x=2256 y=0
+}
+
+// This expects my 27" Dell (connected to jacurutu)
+output "DP-2" {
+  mode "1920x1080@60.000"
+  scale 1
+  position x=0 y=-1080
 }
 
 // Settings that influence how windows are positioned and sized.
