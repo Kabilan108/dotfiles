@@ -103,3 +103,9 @@ This is a complete NixOS + Home Manager-based development workstation configurat
 - Font requirement: FiraMono Nerd Font (managed by Home Manager)
 - Default shell: bash with custom configuration managed by Home Manager
 - Flake-based configuration for reproducible builds and easy rollbacks
+
+## Instructions
+
+- When you make changes that necessitate rebuilding the flake, use `send-notify` to inform the user. Never attempt to rebuild the flake yourself.
+- When making changes to my niri config `home/desktop/wayland/compositors/niri/config.kdl`, make sure to run `niri validate` and resolve any config errors.
+
