@@ -179,6 +179,7 @@ in
     # media/file handling
     baobab
     gparted
+    obs-studio
     yt-dlp
     zip
     unzip
