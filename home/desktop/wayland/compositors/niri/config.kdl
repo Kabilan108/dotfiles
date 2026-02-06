@@ -267,7 +267,7 @@ spawn-at-startup "mako"
 spawn-at-startup "swayidle" "-w"
 spawn-at-startup "nm-applet" "--indicator"
 spawn-at-startup "blueman-applet"
-spawn-sh-at-startup "swaybg -i $HOME/dotfiles/wallpapers/witcher.png -m fill"
+spawn-sh-at-startup "swaybg -i $HOME/dotfiles/wallpapers/astronaut.png -m fill"
 spawn-sh-at-startup "$HOME/dotfiles/bin/battery-watcher"
 
 // To run a shell command (with variables, pipes, etc.), use spawn-sh-at-startup:
