@@ -108,6 +108,7 @@ output "eDP-1" {
     position x=0 y=0
 }
 
+// TODO: replace display name with output name from `niri msg outputs`
 // This expects my ultrawide monitor (connected to jacurutu)
 output "DP-4" {
   mode "3440x1440@59.973"
@@ -121,6 +122,12 @@ output "DP-2" {
   scale 1
   position x=0 y=-1080
 }
+
+// output "Office Samsung" {
+//   mode "3840x2160@30.000"
+//   scale 2
+//   position x=2256 y=0
+// }
 
 // Settings that influence how windows are positioned and sized.
 // Find more information on the wiki:
