@@ -116,8 +116,7 @@ in
           border: 2px solid @border;
           padding: 16px;
           min-width: 250px;
-          max-width: 800px;
-          margin: 0 auto;
+          margin: 0;
         }
 
         .search-container {
@@ -185,6 +184,8 @@ in
           border-radius: 12px;
           padding: 10px;
           color: @text;
+          min-width: 300px;
+          max-width: 400px;
         }
 
         .keybinds {
@@ -321,7 +322,7 @@ in
                               <property name="min-content-width">200</property>
                               <property name="max-content-height">400</property>
                               <property name="propagate-natural-height">true</property>
-                              <property name="propagate-natural-width">true</property>
+                              <property name="propagate-natural-width">false</property>
                               <property name="hscrollbar-policy">automatic</property>
                               <property name="vscrollbar-policy">automatic</property>
                               <child>
