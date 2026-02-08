@@ -22,6 +22,7 @@ in
     inputs.atlas.homeManagerModules.default
     inputs.claude-bar.homeManagerModules.default
     inputs.dictator.homeManagerModules.dictator
+    inputs.raindrop.homeManagerModules.default
   ]
   ++ (if displayServer == "x11" then [ ./desktop/x11 ] else [ ./desktop/wayland ]);
 
@@ -58,26 +59,6 @@ in
     };
   };
 
-  services.claude-bar = {
-    enable =true;
-    package = inputs.claude-bar.packages.${pkgs.system}.default;
-    theme.mode = "dark";
-    settings = {
-      providers = {
-        claude.enabled = true;
-        codex.enabled = true;
-        merge_icons = false;
-      };
-      notifications = {
-        enabled = true;
-        threshold = 0.9;
-      };
-      popup = {
-        display_timeout_ms = 2000;
-      };
-    };
-  };
-
   services.dictator = {
     enable = true;
     displayServer = displayServer; # "x11" | "wayland" | "auto"
@@ -103,6 +84,34 @@ in
       audio = {
         max_duration_min = 20;
       };
+    };
+  };
+
+  services.claude-bar = {
+    enable = true;
+    package = inputs.claude-bar.packages.${pkgs.system}.default;
+    theme.mode = "dark";
+    settings = {
+      providers = {
+        claude.enabled = true;
+        codex.enabled = true;
+        merge_icons = false;
+      };
+      notifications = {
+        enabled = true;
+        threshold = 0.9;
+      };
+      popup = {
+        display_timeout_ms = 2000;
+      };
+    };
+  };
+
+  programs.raindrop = {
+    enable = true;
+    package = inputs.raindrop.packages.${pkgs.system}.default;
+    settings = {
+      token = "\${env:RAINDROP_TOKEN}";
     };
   };
 
