@@ -660,8 +660,4 @@ binds {
     // which ensures niri always processes them, even when an inhibitor is active.
     Mod+Escape { focus-workspace-previous; }
     Mod+Shift+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
-
-    // Powers off the monitors. To turn them back on, do any input like
-    // moving the mouse or pressing any other key.
-    Mod+Shift+P { power-off-monitors; }
 }
