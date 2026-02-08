@@ -3,9 +3,12 @@ let
   homeDir = "/home/kabilan";
 in
 {
+  imports = [
+    ../../swaylock.nix
+  ];
+
   home.packages = with pkgs; [
     swayidle
-    swaylock
     swaybg
     xwayland-satellite
   ];
