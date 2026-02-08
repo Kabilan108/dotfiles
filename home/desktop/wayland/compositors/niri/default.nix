@@ -10,6 +10,6 @@ in
     xwayland-satellite
   ];
 
-  # xdg.configFile."niri/config.kdl".source =
-  #   config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/home/desktop/wayland/compositors/niri/config.kdl";
+  xdg.configFile."niri/config.kdl".source =
+    config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/home/desktop/wayland/compositors/niri/config.kdl";
 }
