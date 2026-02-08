@@ -72,11 +72,7 @@ in
 
   home.file.".sessionizer".text = ''
     #!/usr/bin/env bash
-    tmux rename-window -t 0 nvim 2>/dev/null
-    tmux send-keys -t 0 'nvim' C-m
-    if ! tmux list-windows | grep -q '^1:'; then
-      tmux new-window -t 1 -n shell
-    fi
+    tmux rename-window -t 0 driver 2>/dev/null
   '';
 
   programs.bash = {
