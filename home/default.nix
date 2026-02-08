@@ -1,6 +1,5 @@
 {
   displayServer,
-  waylandCompositor,
   inputs,
   pkgs,
   ...

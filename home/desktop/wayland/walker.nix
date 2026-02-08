@@ -2,11 +2,18 @@
   pkgs,
   theme,
   inputs,
+  waylandCompositor,
   ...
 }:
 let
   palette = theme.palette;
   themeName = theme.name;
+  lockCmd =
+    if waylandCompositor == "niri" then "swaylock" else "hyprlock";
+  logoutCmd =
+    if waylandCompositor == "niri"
+    then "bash -lc 'systemctl --user stop waybar.service walker.service; niri msg action quit'"
+    else "bash -lc 'systemctl --user stop waybar.service walker.service; hyprctl dispatch exit'";
 in
 {
   imports = [ inputs.walker.homeManagerModules.default ];
@@ -440,7 +447,7 @@ in
         entries = [
           {
             text = "Lock";
-            value = "hyprlock";
+            value = lockCmd;
             icon = "system-lock-screen";
             keywords = [
               "lock"
@@ -458,7 +465,7 @@ in
           }
           {
             text = "Logout";
-            value = "bash -lc 'systemctl --user stop waybar.service walker.service; hyprctl dispatch exit'";
+            value = logoutCmd;
             icon = "system-log-out";
             keywords = [
               "logout"
