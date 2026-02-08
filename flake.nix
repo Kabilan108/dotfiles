@@ -134,12 +134,9 @@
     };
 
     atlas.url = "github:kabilan108/atlas";
-    capscreen.url = "github:kabilan108/capscreen";
     claude-bar.url = "github:kabilan108/claude-bar";
     dictator.url = "github:kabilan108/dictator";
-    diffgpt.url = "github:kabilan108/diffgpt";
     dump.url = "github:kabilan108/dump";
-    rollouts.url = "github:kabilan108/rollouts";
     try.url = "github:tobi/try/55baadc3f90ee7b7cbfa3d6c7b2c29db22151d5d";
     worktrunk.url = "github:max-sixty/worktrunk";
   };

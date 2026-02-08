@@ -110,11 +110,11 @@ nix flake update
 
 ### Custom Packages
 All custom packages are integrated as flake inputs:
-- **capscreen**: Screen capture utility
+- **atlas**: CLI for bitbucket and confluence
+- **claude-bar**: System tray popup for tracking usage across Claude COde, and Codex. 
 - **dictator**: Voice dictation tool
-- **diffgpt**: AI-powered diff analysis
 - **dump**: Data dump utility
-- **rollouts**: Deployment management
+- **raindrop**: CLI for managing raindrop bookmarks
 
 ### Secrets Management
 - **Encryption**: agenix for secret management

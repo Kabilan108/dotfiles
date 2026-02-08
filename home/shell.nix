@@ -37,7 +37,6 @@ in
     UV_LINK_MODE = "copy";
     UV_SYSTEM_PYTHON = "0";
 
-    CAPSCREEN_OUTPUT_DIR = "$HOME/media/screencasts";
     PYREPL_PORT = "5678";
 
     USER_DATA = "/vault/userdata";
