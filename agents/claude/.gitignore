@@ -15,3 +15,5 @@ plugins/marketplaces/
 chrome/
 *cache/
 plugins/install-counts-cache.json
+telemetry
+usage-data/
