@@ -261,6 +261,22 @@ layout {
         color "#0007"
     }
 
+    tab-indicator {
+        width 10
+        gap 8
+        length total-proportion=0.2
+        position "left"
+        gaps-between-tabs 10
+        corner-radius 9999
+
+        hide-when-single-tab
+        place-within-column
+
+  active-color  "#11111bff" // crust
+  inactive-color "#6c7086ff" // surface 2
+  urgent-color   "#f38ba8ff" // red
+    }
+
     // Struts shrink the area occupied by windows, similarly to layer-shell panels.
     // You can think of them as a kind of outer gaps. They are set in logical pixels.
     // Left and right struts will cause the next window to the side to always be visible.

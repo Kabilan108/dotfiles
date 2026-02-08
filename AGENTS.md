@@ -106,6 +106,6 @@ This is a complete NixOS + Home Manager-based development workstation configurat
 
 ## Instructions
 
-- When you make changes that necessitate rebuilding the flake, use `send-notify` to inform the user. Never attempt to rebuild the flake yourself.
+- When you make changes that necessitate rebuilding the flake, use `notify-send` to inform the user. Never attempt to rebuild the flake yourself.
 - When making changes to my niri config `home/desktop/wayland/compositors/niri/config.kdl`, make sure to run `niri validate` and resolve any config errors.
 
