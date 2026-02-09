@@ -67,6 +67,7 @@ in
     settings = {
       api = {
         active_provider = "siren";
+        streaming = true;
         timeout = 60;
         providers = {
           siren = {
