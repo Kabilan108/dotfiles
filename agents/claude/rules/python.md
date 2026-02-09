@@ -16,6 +16,7 @@ Before formatting with ruff, check if the project already uses it (look for `[to
 - Add type hints to all function signatures and class attributes
 - Check `pyproject.toml` for the target Python version and use appropriate type syntax
 - Only wrap code in try/except if that specific code is expected to raise an exception
+- Use `pathlib.Path` for file handling instead of `os.path`, `os.makedirs`, `open()`, etc. — unless the project already uses `os.*` patterns consistently
 
 ### Package Management (uv)
 
