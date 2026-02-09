@@ -20,5 +20,6 @@ CLAUDE.md
 **/claude/local
 **/claude/debug
 **/claude/tasks
+**/claude/teams
 
 __pycache__/
