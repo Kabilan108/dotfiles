@@ -1,6 +1,6 @@
 ---
 name: oracle
-description: Consult OpenAI Codex (GPT-5.2) for a second opinion on hard problems. Use when stuck on a difficult bug, need to validate an architectural approach, want fresh eyes on a tricky implementation, or the user asks to "consult the oracle", "ask codex", or "get a second opinion". Launches Codex CLI non-interactively in a dedicated tmux Oracle window with xhigh reasoning.
+description: Consult OpenAI Codex (GPT-5.3) for a second opinion on hard problems. Use when stuck on a difficult bug, need to validate an architectural approach, want fresh eyes on a tricky implementation, or the user asks to "consult the oracle", "ask codex", or "get a second opinion". Launches Codex CLI non-interactively in a dedicated tmux Oracle window with xhigh reasoning.
 ---
 
 # Oracle
@@ -49,10 +49,10 @@ eval "$(bash agents/skills/oracle/scripts/oracle-run.sh /tmp/${ORACLE_ID}-prompt
 This sets `ORACLE_ID`, `ORACLE_OUT`, and `ORACLE_DONE` variables. The script:
 - Creates an "Oracle" tmux window if one doesn't exist
 - Adds a new pane in the Oracle window if one already exists (concurrent queries tile together)
-- Runs `codex exec --full-auto -m gpt-5.2-codex -c model_reasoning_effort="xhigh" -o <output> - < <prompt>`
+- Runs `codex exec --full-auto -m gpt-5.3-codex -c model_reasoning_effort="xhigh" -o <output> - < <prompt>`
 - Writes a sentinel file when codex finishes
 
-**Defaults:** model `gpt-5.2-codex`, reasoning `xhigh`. Override with positional args:
+**Defaults:** model `gpt-5.3-codex`, reasoning `xhigh`. Override with positional args:
 
 ```bash
 eval "$(bash agents/skills/oracle/scripts/oracle-run.sh /tmp/${ORACLE_ID}-prompt.txt gpt-5-codex high)"
@@ -94,7 +94,7 @@ rm -f /tmp/${ORACLE_ID}-{prompt,output,done}.txt
 
 | Parameter | Default | Override |
 |-----------|---------|---------|
-| Model | `gpt-5.2-codex` | 2nd arg to `oracle-run.sh` |
+| Model | `gpt-5.3-codex` | 2nd arg to `oracle-run.sh` |
 | Reasoning effort | `xhigh` | 3rd arg to `oracle-run.sh` |
 | Working directory | `$PWD` | `cd` before running the script |
 
