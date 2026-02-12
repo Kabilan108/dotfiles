@@ -128,7 +128,9 @@ in
 
   programs.lazygit = {
     enable = true;
-    settings.git.paging.pager = "delta --paging=never";
+    settings.git.pagers = [
+      { pager = "delta --paging=never"; }
+    ];
     settings.gui = with theme.palette; {
       authorColors = {
         "*" = "#${base07}";
