@@ -68,6 +68,15 @@ services:
     devices:
       - nvidia.com/gpu=all
 
+  exa-mcp:
+    container_name: exa-mcp
+    image: ghcr.io/kabilan108/exa-mcp-server:latest
+    restart: unless-stopped
+    networks:
+      - proxynet
+    environment:
+      - EXA_API_KEY=${EXA_API_KEY}
+
   llama-server:
     container_name: llama-server
     image: ghcr.io/ggml-org/llama.cpp:server-cuda
