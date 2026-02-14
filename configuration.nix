@@ -105,6 +105,7 @@
       git-lfs
       htop
       jq
+      lsof
       openssl
       openvpn
       portaudio
