@@ -231,6 +231,36 @@ for lang, exec in pairs(executors) do
   utils.setup_exec_kmaps(lang, exec)
 end
 
+-- format json with jq
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'json',
+  callback = function(event)
+    utils.map('<leader>jq', 'n', function()
+      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      local input = table.concat(lines, '\n')
+      local result = vim.fn.system('jq .', input)
+      if vim.v.shell_error == 0 then
+        vim.api.nvim_buf_set_lines(0, 0, -1, false, vim.split(result, '\n', { trimempty = true }))
+      else
+        local filename = vim.fn.expand '%:.' or 'buffer'
+        local qf = {}
+        for _, err_line in ipairs(vim.split(result, '\n', { trimempty = true })) do
+          local lnum = err_line:match 'at line (%d+)'
+          local col = err_line:match 'column (%d+)'
+          table.insert(qf, {
+            filename = filename,
+            lnum = tonumber(lnum) or 0,
+            col = tonumber(col) or 0,
+            text = err_line,
+          })
+        end
+        vim.fn.setqflist(qf, 'r')
+        vim.cmd 'copen'
+      end
+    end, 'format json with jq', { buffer = event.buf })
+  end,
+})
+
 -- setup icat for python plotting
 vim.api.nvim_create_autocmd('FileType', {
   pattern = 'python',
