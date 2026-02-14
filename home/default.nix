@@ -218,6 +218,7 @@ in
     tree
     tree-sitter
     tmux
+    vhs
 
     # lsp & formatters
     bash-language-server
