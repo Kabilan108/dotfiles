@@ -36,7 +36,7 @@ Use the LSP tool to check for errors, explore code, and debug. The following ope
 
 ## `browser` Sub-Agent
 
-Executes browser automation tasks efficiently using the Claude-in-Chrome MCP tools. Faster than step-by-step browser interaction because it runs with less deliberation overhead.
+Executes browser automation tasks using dev-browser (Playwright). Faster than step-by-step browser interaction because it runs with less deliberation overhead.
 
 **When to use:** When you have a clear sequence of browser actions to perform. Delegate to this agent instead of executing browser steps yourself.
 
@@ -46,7 +46,6 @@ When calling the Task tool with `subagent_type: "browser"`, use this prompt stru
 
 ```
 Goal: [What we're trying to accomplish]
-Tab ID: [The browser tab to work in, from tabs_context_mcp]
 
 Steps:
 1. [Specific action with clear target]
@@ -63,7 +62,6 @@ Set the Task tool's `model` parameter to `"haiku"` for simple navigation/extract
 
 ```
 Goal: Search for "claude code documentation" and extract the first 3 result titles
-Tab ID: 12345
 
 Steps:
 1. Navigate to google.com
@@ -81,7 +79,7 @@ Extract: First 3 result titles as a list
 - `sonnet` - Complex multi-step flows, error recovery, ambiguous UI
 
 **Guidelines:**
-- Always get tab ID from `tabs_context_mcp` before invoking
+- The agent writes and runs TypeScript scripts against the dev-browser server (Playwright)
 - Be specific in steps - "click the blue Submit button" not "submit the form"
 - The sub-agent will return a structured result with Status, Outcome, Data, and Issues
 
