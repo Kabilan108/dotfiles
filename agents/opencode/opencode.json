@@ -1,5 +1,22 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": ["CLAUDE.md"],
-  "plugin": ["opencode-gemini-auth"]
+  "instructions": [
+    "CLAUDE.md",
+    "AGENTS.md"
+  ],
+  "plugin": [
+    "opencode-gemini-auth"
+  ],
+  "mcp": {
+    "exa": {
+      "type": "remote",
+      "url": "https://sietch.sole-pierce.ts.net/exa-mcp/mcp?tools=web_search_exa,get_code_context_exa,crawling_exa,deep_researcher_start,deep_researcher_check",
+      "enabled": true
+    },
+    "deepwiki": {
+      "type": "remote",
+      "url": "https://mcp.deepwiki.com/mcp",
+      "enabled": true
+    }
+  }
 }
