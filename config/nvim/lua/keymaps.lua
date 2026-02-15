@@ -163,9 +163,13 @@ utils.map('<C-j>', 'n', '<C-w><C-j>', 'move to bottom window')
 utils.map('<C-k>', 'n', '<C-w><C-k>', 'move to top window')
 utils.map('<C-l>', 'n', '<C-w><C-l>', 'move to right window')
 
--- treesitter context: jump to sticky context
+-- treesitter context: jump to sticky context (defers to native [c in diff mode)
 utils.map('[c', 'n', function()
-  require('treesitter-context').go_to_context(vim.v.count1)
+  if vim.wo.diff then
+    vim.cmd('normal! [c')
+  else
+    require('treesitter-context').go_to_context(vim.v.count1)
+  end
 end, 'jump to context')
 
 -- visual mode indentation that preserves selection
