@@ -6,11 +6,13 @@ let
   tailscaleIPs = {
     sietch = "100.71.183.33";
     jacurutu = "100.108.28.4";
+    pixel = "100.126.253.59";
   };
 
   deviceIDs = {
     sietch = "FXOR5QA-TYXM3MA-KZ2B2N3-TDYBRDW-MIR6QTS-7PHOJ6T-WRMFKXK-3P7SUAO";
     jacurutu = "6BMQFGS-CVYNPKR-YVEJVJK-E3IRXG5-R4QE6GH-CHQIBGR-5NUPUAC-WGD33QG";
+    pixel = "7JOV3CC-Z3YCMVH-25V7NT7-72I7VV4-QAWNJXY-UIR7DBW-4XOFPJU-RZUFQQN";
   };
 in
 {
@@ -60,9 +62,27 @@ in
         urAccepted = -1;
       };
 
+      folders.coppermind = {
+        path = "/vault/notes/coppermind";
+        devices = [
+          otherHost
+          "pixel"
+        ];
+        type = "sendreceive";
+        fsWatcherEnabled = true;
+        versioning = {
+          type = "staggered";
+          params.maxAge = "2592000"; # 30 days
+        };
+      };
+
       devices.${otherHost} = {
         id = deviceIDs.${otherHost};
         addresses = [ "tcp://${tailscaleIPs.${otherHost}}:22000" ];
+      };
+      devices.pixel = {
+        id = deviceIDs.pixel;
+        addresses = [ "tcp://${tailscaleIPs.pixel}:22000" ];
       };
     };
   };
