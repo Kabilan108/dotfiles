@@ -151,12 +151,12 @@ return {
     init = function()
       local url = os.getenv 'LLAMA_SERVER_URL' or 'http://localhost:8012'
       vim.g.llama_config = {
-        endpoint = url .. '/infill',
+        endpoint_fim = url .. '/infill',
         show_info = 1,
-        keymap_trigger = '<C-c>',
-        keymap_accept_full = '<C-s>',
-        keymap_accept_line = '<C-l>',
-        keymap_accept_word = '<C-w>',
+        keymap_fim_trigger = '<C-c>',
+        keymap_fim_accept_full = '<C-s>',
+        keymap_fim_accept_line = '<C-l>',
+        keymap_fim_accept_word = '<C-w>',
       }
       vim.api.nvim_set_hl(0, 'llama_hl_hint', { fg = '#f2cdcd', ctermfg = 209 })
     end,
