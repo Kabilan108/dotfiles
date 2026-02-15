@@ -1,4 +1,5 @@
 ---
+name: spec-interview
 allowed-tools: Bash(ls:*), Bash(fd:*), Bash(find:*), Bash(rg:*), Bash(grep:*), Bash(ast-grep:*), Bash(git log:*)
 description: Revise a spec by interviewing the developer
 ---

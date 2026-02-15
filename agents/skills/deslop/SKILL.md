@@ -1,4 +1,5 @@
 ---
+name: deslop
 allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git reset:*), Bash(git add:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*)
 description: Remove AI code slop
 ---

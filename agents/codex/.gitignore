@@ -1,0 +1,12 @@
+log/
+policy/
+sessions/
+shell_snapshots/
+skills/
+tmp/
+auth.json
+history.jsonl
+internal_storage.json
+models_cache.json
+version.json
+.personality_migration

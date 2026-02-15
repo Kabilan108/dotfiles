@@ -1,0 +1,90 @@
+model = "gpt-5.3-codex"
+
+model_reasoning_effort = "high"
+model_supports_reasoning_summaries = true
+
+sandbox_mode = "workspace-write"
+
+notify = ["/home/kabilan/dotfiles/bin/codex-notify"]
+personality = "pragmatic"
+
+[sandbox_workspace_write]
+network_access = true
+
+[shell_environment_policy]
+inheri = "core"
+include_only = ["PATH", "HOME", "EXA_API_KEY", "GEMINI_API_KEY"]
+
+[features]
+skills = true
+unified_exec = true
+shell_snapshot = true
+steer = true
+
+[history]
+persistence = "save-all"
+
+[mcp_servers.nixos]
+command = "nix"
+args = ["run", "github:utensils/mcp-nixos"]
+
+[mcp_servers.exa]
+url = "https://sietch.sole-pierce.ts.net/exa-mcp/mcp?tools=web_search_exa,get_code_context_exa,crawling_exa,deep_researcher_start,deep_researcher_check"
+
+[mcp_servers.deepwiki]
+url = "https://mcp.deepwiki.com/mcp"
+
+[notice]
+hide_gpt5_1_migration_prompt = true
+"hide_gpt-5.1-codex-max_migration_prompt" = true
+
+[notice.model_migrations]
+"gpt-5.2" = "gpt-5.2-codex"
+
+[projects."/vault/repos/OtakuDex"]
+trust_level = "trusted"
+
+[projects."/vault/repos/cli/dump"]
+trust_level = "trusted"
+
+[projects."/vault/repos/rollouts"]
+trust_level = "trusted"
+
+[projects."/home/kabilan/dotfiles"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server"]
+trust_level = "trusted"
+
+[projects."/vault/repos/cli/atlassian-cli"]
+trust_level = "trusted"
+
+[projects."/vault/repos/cli/atlask"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server/dashboard"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server/moberg-data-query-api"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server/python-modules/moberg-signal-processing"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server/python-modules/cns-utils"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server/utils/git-utils"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server/cns-manager"]
+trust_level = "trusted"
+
+[projects."/vault/repos/cli/atlas"]
+trust_level = "trusted"
+
+[projects."/vault/repos/dictator"]
+trust_level = "trusted"
+
+[projects."/vault/repos/nvim-plugins/pyrepl.nvim"]
+trust_level = "trusted"

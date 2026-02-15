@@ -1,4 +1,5 @@
 ---
+name: learn-skill
 description: Review the current session and propose new skills that could be created. Use when the user says "propose skills", "what skills could help", "find skill opportunities", "learn-skill", or after a long session to identify reusable patterns worth codifying into skills.
 context: fork
 ---

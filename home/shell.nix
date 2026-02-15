@@ -51,6 +51,7 @@ in
 
   home.file = {
     ".claude".source = agentLink "claude";
+    ".codex".source = agentLink "codex";
     ".config/opencode".source = agentLink "opencode";
 
     ".gitconfig".source = mkPath ".gitconfig";

@@ -34,22 +34,6 @@ Use the LSP tool to check for errors, explore code, and debug. The following ope
 
 # Tools
 
-## `exa` - Code Documentation Search
-
-Search for code documentation, examples, and implementations using Exa's Context API. Searches GitHub repos, official docs, and Stack Overflow.
-
-```bash
-exa "<query>" [--tokens <n>] [--json]
-```
-
-**When to use:** For library/framework documentation lookups where code examples are needed. More targeted than general web search for programming questions.
-
-**Examples:**
-```bash
-exa "fastapi dependency injection"
-exa "htmx hx-swap examples" --tokens 5000
-```
-
 ## `browser` Sub-Agent
 
 Executes browser automation tasks efficiently using the Claude-in-Chrome MCP tools. Faster than step-by-step browser interaction because it runs with less deliberation overhead.

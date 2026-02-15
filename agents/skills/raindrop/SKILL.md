@@ -1,4 +1,5 @@
 ---
+name: raindrop
 description: Manage Raindrop.io bookmarks using the raindrop CLI. Use when organizing, categorizing, tagging, or searching bookmarks.
 allowed-tools: Bash(raindrop *)
 ---
