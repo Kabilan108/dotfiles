@@ -1,6 +1,7 @@
 ---
 name: code-reference
 description: Explore external codebases to answer questions about their architecture, implementation, and behavior. Use when needing to understand how a library, framework, or external project works internally — for debugging dependency behavior, making architecture decisions, understanding API internals, or learning implementation patterns. Triggers on repo slugs or URLs with questions (e.g., "how does X implement Y"), "look at the source of", "check how [dep] works", "explore [repo]", or when answering a question would benefit from reading source code of an external project. Also invoke proactively when the user's question about a dependency could be answered more accurately by reading the actual source rather than relying on training data.
+context: fork
 ---
 
 # Code Reference
