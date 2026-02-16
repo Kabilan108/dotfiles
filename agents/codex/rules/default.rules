@@ -26,3 +26,4 @@ prefix_rule(pattern=["uv", "run", "ruff", "check", "--fix", "xploit/executor/cam
 prefix_rule(pattern=["uv", "run", "ruff", "check", "xploit/utils/pricing.py", "xploit/executor/campaign.py", "xploit/executor/wave_executor.py", "tests/test_pricing.py", "tests/test_campaign_wave_regressions.py"], decision="allow")
 prefix_rule(pattern=["uv", "run", "ruff", "check", "xploit/utils/pricing.py", "xploit/executor/campaign.py", "xploit/executor/wave_executor.py", "tests/test_pricing.py", "tests/test_campaign_wave_regressions.py", "pyproject.toml"], decision="allow")
 prefix_rule(pattern=["uv", "run", "--with", "websockets"], decision="allow")
+prefix_rule(pattern=["uv", "run", "pytest"], decision="allow")

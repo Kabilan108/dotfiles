@@ -12,4 +12,23 @@ notify = "notify-send 'Merging {{ branch }}'"
 approved-commands = [
     "cd campaign-viewer && bun run build",
     "cd campaign-viewer && bun run lint",
+    """
+if [ -n "$TMUX" ]; then
+  tmux new-window -n {{ branch | sanitize }} -c {{ worktree_path }}
+  tmux split-window -h -t {{ branch | sanitize }} -c {{ worktree_path }}
+  tmux send-keys -t {{ branch | sanitize }}.0 'cc' Enter
+  tmux send-keys -t {{ branch | sanitize }}.1 'just install && just start-campaign-viewer' Enter
+fi
+""",
+    "wt step copy-ignored",
+    """
+if [ -n "$TMUX" ]; then
+  tmux new-window -n {{ branch | sanitize }} -c {{ worktree_path }}
+  tmux split-window -h -t {{ branch | sanitize }} -c {{ worktree_path }}
+  tmux send-keys -t {{ branch | sanitize }}.0 'direnv allow && cc' Enter
+  tmux send-keys -t {{ branch | sanitize }}.1 'direnv allow && just install && just start-campaign-viewer' Enter
+fi
+""",
+    "direnv allow",
+    "ln -s {{ primary_worktree_path }}/data {{ worktree_path }}/data",
 ]
