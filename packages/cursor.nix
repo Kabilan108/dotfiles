@@ -7,8 +7,8 @@ let
   pname = "cursor";
   version = "2.2.44";
   src = fetchurl {
-    url = "https://api2.cursor.sh/updates/download/golden/linux-x64/cursor/2.2";
-    hash = "sha256-hit0L6vE893jPq4QQqteT6T08hghX5hE/NZLUWTqqvY=";
+    url = "https://api2.cursor.sh/updates/download/golden/linux-x64/cursor/2.5";
+    hash = "sha256-tUVqfxkUUMXGFzI2lGgoIDuQxI9LSrspDuz4xPGpQig=";
   };
 
   appimageContents = appimageTools.extract { inherit pname version src; };
