@@ -10,6 +10,8 @@ local trailspace = require 'mini.trailspace'
 local utils = require 'utils'
 local custom_ts = require 'custom.telescope'
 local custom_wt = require 'custom.worktree'
+local custom_ws = require 'custom.workspaces'
+custom_ws.setup()
 
 ---------------------------------------------------------------------------------------
 
@@ -34,12 +36,18 @@ utils.map('<leader>sk', 'n', ts.keymaps, 'search keymaps')
 utils.map('<leader>rs', 'n', ts.resume, 'resume search')
 utils.map('<leader>sr', 'n', ts.oldfiles, 'search recent files')
 utils.map('<leader>si', 'n', ts.git_status, 'search git index')
-utils.map('<leader>sw', 'n', '<CMD>Telescope workspaces<CR>', 'search workspaces')
 
 -- worktree management
 utils.map('<leader>wt', 'n', custom_wt.pick, 'worktree: switch')
 utils.map('<leader>w-', 'n', custom_wt.switch_previous, 'worktree: previous')
 utils.map('<leader>wc', 'n', custom_wt.create, 'worktree: create')
+
+-- workspace management
+utils.map('<leader>pp', 'n', custom_ws.pick, 'workspace: pick')
+utils.map('<leader>pa', 'n', function()
+  custom_ws.add()
+end, 'workspace: add cwd')
+utils.map('<leader>pr', 'n', custom_ws.pick_remove, 'workspace: remove')
 
 -- git staging with gitsigns
 utils.map('<leader>ga', 'n', '<CMD>Gitsigns stage_buffer<CR>', 'git: stage current file')
@@ -166,7 +174,7 @@ utils.map('<C-l>', 'n', '<C-w><C-l>', 'move to right window')
 -- treesitter context: jump to sticky context (defers to native [c in diff mode)
 utils.map('[c', 'n', function()
   if vim.wo.diff then
-    vim.cmd('normal! [c')
+    vim.cmd 'normal! [c'
   else
     require('treesitter-context').go_to_context(vim.v.count1)
   end

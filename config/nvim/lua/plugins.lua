@@ -134,19 +134,6 @@ return {
   },
 
   {
-    'natecraddock/workspaces.nvim',
-    config = function()
-      require('workspaces').setup {
-        hooks = {
-          cd_type = 'local',
-          open = { 'Oil' },
-        },
-      }
-      require('telescope').load_extension 'workspaces'
-    end,
-  },
-
-  {
     'ggml-org/llama.vim',
     init = function()
       local url = os.getenv 'LLAMA_SERVER_URL' or 'http://localhost:8012'

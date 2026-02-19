@@ -96,6 +96,17 @@ local config = {
       },
       {
         function()
+          local ok, ws = pcall(require, 'custom.workspaces')
+          if ok then
+            return ws.statusline_name()
+          end
+          return ''
+        end,
+        icon = ' ',
+        color = { fg = colors.green },
+      },
+      {
+        function()
           local ok, wt = pcall(require, 'custom.worktree')
           if ok then
             return wt.statusline_symbols()
