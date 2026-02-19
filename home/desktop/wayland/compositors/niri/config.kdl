@@ -113,7 +113,8 @@ output "eDP-1" {
 output "DP-4" {
   mode "3440x1440@59.973"
   scale 1
-  position x=2256 y=0
+  // position x=2256 y=0
+  position x=0 y=-1504
 }
 
 // This expects my 27" Dell (connected to jacurutu)
