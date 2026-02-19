@@ -17,3 +17,5 @@ chrome/
 plugins/install-counts-cache.json
 telemetry
 usage-data/
+backups/
+plugins/blocklist.json

@@ -251,5 +251,6 @@
 	"amp.url": "https://ampcode.com/",
 	"editor.wordBasedSuggestions": "off",
 	"claudeCode.preferredLocation": "panel",
-	"remote.autoForwardPortsSource": "hybrid"
+	"remote.autoForwardPortsSource": "hybrid",
+	"gitlens.currentLine.enabled": false
 }

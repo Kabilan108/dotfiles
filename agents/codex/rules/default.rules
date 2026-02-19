@@ -33,3 +33,4 @@ prefix_rule(pattern=["uv", "run", "python", "examples/crucible_attack.py", "--he
 prefix_rule(pattern=["uv", "run", "python", "examples/rasa_financial_attack.py", "--help"], decision="allow")
 prefix_rule(pattern=["uv", "run", "ruff", "check", "examples/crucible_attack.py", "examples/rasa_financial_attack.py", "xploit/targets/crucible_target.py", "xploit/targets/rasa_target.py", "tests/test_target_observability_compat.py"], decision="allow")
 prefix_rule(pattern=["uv", "run", "ty"], decision="allow")
+prefix_rule(pattern=["uv", "run", "python", "-m", "py_compile"], decision="allow")
