@@ -36,7 +36,7 @@ Use the LSP tool to check for errors, explore code, and debug. The following ope
 
 ## `browser` Sub-Agent
 
-Executes browser automation tasks using dev-browser (Playwright). Faster than step-by-step browser interaction because it runs with less deliberation overhead.
+Executes browser automation tasks using Rodney (Chrome CLI). Faster than step-by-step browser interaction because it runs with less deliberation overhead.
 
 **When to use:** When you have a clear sequence of browser actions to perform. Delegate to this agent instead of executing browser steps yourself.
 
@@ -79,11 +79,10 @@ Extract: First 3 result titles as a list
 - `sonnet` - Complex multi-step flows, error recovery, ambiguous UI
 
 **Guidelines:**
-- The agent writes and runs TypeScript scripts against the dev-browser server (Playwright)
+- The agent runs `rodney` CLI commands against a persistent Chrome instance
 - Be specific in steps - "click the blue Submit button" not "submit the form"
 - The sub-agent will return a structured result with Status, Outcome, Data, and Issues
 
 **When NOT to use:**
 - Single quick actions (one click, one navigation) - faster to do directly
 - Exploratory browsing where next steps depend on what you find
-- Tasks requiring visual judgment that needs to come back to main conversation
