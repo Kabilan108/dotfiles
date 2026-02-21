@@ -12,14 +12,14 @@ personality = "pragmatic"
 network_access = true
 
 [shell_environment_policy]
-inheri = "core"
-include_only = ["PATH", "HOME", "EXA_API_KEY", "GEMINI_API_KEY"]
+inherit = "all"
 
 [features]
 skills = true
 unified_exec = true
 shell_snapshot = true
 steer = true
+multi-agent = true
 
 [history]
 persistence = "save-all"
