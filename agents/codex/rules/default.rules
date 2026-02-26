@@ -35,3 +35,4 @@ prefix_rule(pattern=["uv", "run", "ruff", "check", "examples/crucible_attack.py"
 prefix_rule(pattern=["uv", "run", "ty"], decision="allow")
 prefix_rule(pattern=["uv", "run", "python", "-m", "py_compile"], decision="allow")
 prefix_rule(pattern=["kubectl", "-n", "feature", "logs"], decision="allow")
+prefix_rule(pattern=["uv", "run", "ruff"], decision="allow")

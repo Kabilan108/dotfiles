@@ -10,3 +10,8 @@ internal_storage.json
 models_cache.json
 version.json
 .personality_migration
+.codex-global-state.json
+sqlite/
+*.sqlite
+*.sqlite-[shmwal]*
+vendor_imports/
