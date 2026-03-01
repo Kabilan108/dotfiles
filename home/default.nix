@@ -203,6 +203,7 @@ in
     inputs.codex-desktop.packages.${pkgs.system}.default
     ast-grep
     bat
+    cloudflared
     delta
     fastfetch
     fd

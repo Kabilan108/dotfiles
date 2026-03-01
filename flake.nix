@@ -27,6 +27,7 @@
             openrgb-with-all-plugins = pkgs-unstable.openrgb-with-all-plugins;
             widsurf = pkgs-unstable.windsurf;
             obsidian = pkgs-unstable.obsidian;
+            cloudflared = pkgs-unstable.cloudflared;
             code-cursor = final.callPackage ./packages/cursor.nix { };
             nomacs = final.callPackage ./packages/nomacs-viewer.nix { nomacs = prev.nomacs; };
           })
