@@ -24,6 +24,7 @@ in
   home.sessionPath = [
     "$HOME/.bun/bin"
     "$HOME/.local/bin"
+    "$HOME/.npm-global/bin"
     "$HOME/bin"
     "$GOPATH/bin"
   ];
