@@ -200,6 +200,7 @@ in
 
     # dev utils
     inputs.worktrunk.packages.${pkgs.system}.default
+    inputs.codex-desktop.packages.${pkgs.system}.default
     ast-grep
     bat
     delta
