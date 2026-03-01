@@ -18,6 +18,7 @@ local servers = {
   'just',
   'lua_ls',
   'nixd',
+  'oxlint',
   'rust_analyzer',
   'ruff',
   'tailwindcss',
