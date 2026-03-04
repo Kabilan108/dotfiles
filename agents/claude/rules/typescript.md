@@ -12,7 +12,7 @@ description: TypeScript and JavaScript guidelines
 ### Preferences
 
 - Always use TypeScript over plain JavaScript
-- Use `bun` for global package installs and as the default package manager when no other is configured
+- Use `bun` as the default package manager for new projects. In existing projects, detect the configured package manager (look for `bun.lock`, `pnpm-lock.yaml`, or `package-lock.json`) and use that (`bun`, `pnpm`, or `npm`)
 - Prefer `const` over `let`; avoid `var`
 - Use explicit return types on exported functions
 - Prefer `interface` over `type` for object shapes
