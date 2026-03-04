@@ -1,6 +1,6 @@
 model = "gpt-5.3-codex"
 
-model_reasoning_effort = "high"
+model_reasoning_effort = "xhigh"
 model_supports_reasoning_summaries = true
 
 sandbox_mode = "workspace-write"
