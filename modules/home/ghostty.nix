@@ -11,6 +11,7 @@ in
       clipboard-trim-trailing-spaces = true;
 
       shell-integration = "bash";
+      shell-integration-features = "no-title";
       app-notifications = "no-clipboard-copy";
 
       adw-toolbar-style = "flat";
