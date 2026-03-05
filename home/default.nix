@@ -188,6 +188,7 @@ in
     # media/file handling
     baobab
     gparted
+    jellyfin-desktop
     obs-studio
     yt-dlp
     zip
