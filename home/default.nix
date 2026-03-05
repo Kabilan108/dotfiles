@@ -189,6 +189,7 @@ in
     baobab
     gparted
     jellyfin-desktop
+    nirius
     obs-studio
     yt-dlp
     zip

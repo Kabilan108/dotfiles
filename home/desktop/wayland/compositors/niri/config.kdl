@@ -296,6 +296,7 @@ layout {
 // which may be more convenient to use.
 // See the binds section below for more spawn examples.
 
+spawn-at-startup "niriusd"
 spawn-at-startup "mako"
 spawn-at-startup "swayidle" "-w"
 spawn-at-startup "nm-applet" "--indicator"
@@ -505,6 +506,8 @@ binds {
     // You can also move the mouse into the top-left hot corner,
     // or do a four-finger swipe up on a touchpad.
     Mod+O repeat=false { toggle-overview; }
+
+    Mod+S hotkey-overlay-title="Toggle Sticky Window: nirius" { spawn "nirius" "toggle-follow-mode"; }
 
     Mod+Shift+Q repeat=false { close-window; }
 
