@@ -347,6 +347,10 @@ window-rule {
     block-out-from "screen-capture"
 }
 
+debug {
+    honor-xdg-activation-with-invalid-serial
+}
+
 // Float scratch ghostty windows launched with --title=floating-nvim.
 window-rule {
     match title="^floating-nvim$"
