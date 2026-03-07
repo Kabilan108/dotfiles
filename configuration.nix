@@ -74,6 +74,11 @@
       appimage.enable = true;
       appimage.binfmt = true;
       nix-ld.enable = true;
+      nix-ld.libraries = with pkgs; [
+        glibc
+        stdenv.cc.cc.lib
+        vulkan-loader
+      ];
       nm-applet.enable = true;
     };
 

@@ -8,7 +8,6 @@
 
   programs.zen-browser = {
     enable = true;
-    suppressXdgMigrationWarning = true;
     policies = {
       Preferences = {
         "extensions.openPopupWithoutUserGesture.enabled" = {
