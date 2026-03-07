@@ -117,11 +117,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1772338338,
-        "narHash": "sha256-cfT6WkyFJqd4Kv+jsDWQYDdFRYeBO+u0rzmKQy5bBuk=",
+        "lastModified": 1772858690,
+        "narHash": "sha256-OstWap9bVZbMCi8Bhskz3dQy/5tfPwi37NaO8H9ZXaM=",
         "owner": "kabilan108",
         "repo": "codex-app-nix",
-        "rev": "f45bd2359e2e748856f87053dbed897591f22b78",
+        "rev": "b63a4814df4234f6c3b19ff88a31aeef95fec3ac",
         "type": "github"
       },
       "original": {
