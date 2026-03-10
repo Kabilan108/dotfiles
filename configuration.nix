@@ -52,6 +52,10 @@
     hardware = {
       bluetooth.enable = true;
       bluetooth.powerOnBoot = true;
+      logitech.wireless = {
+        enable = true;
+        enableGraphical = true;
+      };
     };
     security.rtkit.enable = true;
 
