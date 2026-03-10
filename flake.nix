@@ -21,7 +21,7 @@
         overlays = [
           (final: prev: {
             bun = pkgs-unstable.bun;
-            ghostty = pkgs-unstable.ghostty;
+            ghostty = inputs.ghostty.packages.${system}.default;
             spotify = pkgs-unstable.spotify;
             openrgb = pkgs-unstable.openrgb;
             openrgb-with-all-plugins = pkgs-unstable.openrgb-with-all-plugins;
@@ -122,6 +122,7 @@
     nix-colors.url = "github:misterio77/nix-colors";
 
     hyprland.url = "github:hyprwm/Hyprland/v0.52.0";
+    ghostty.url = "github:ghostty-org/ghostty/v1.3.0";
     "niri-flake".url = "github:sodiboo/niri-flake";
     elephant.url = "github:abenz1267/elephant";
     walker = {
