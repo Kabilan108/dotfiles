@@ -44,5 +44,5 @@
       ];
   };
 
-  home.file.".zen/default/zen-keyboard-shortcuts.json".source = ./keyboard-shortcuts.json;
+  home.file.".config/zen/default/zen-keyboard-shortcuts.json".source = ./keyboard-shortcuts.json;
 }
