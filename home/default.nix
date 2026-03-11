@@ -207,6 +207,7 @@ in
     bat
     cloudflared
     delta
+    difftastic
     fastfetch
     fd
     fzf
