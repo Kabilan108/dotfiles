@@ -7,6 +7,7 @@ sandbox_mode = "workspace-write"
 
 notify = ["/home/kabilan/dotfiles/bin/codex-notify"]
 personality = "pragmatic"
+service_tier = "fast"
 
 [sandbox_workspace_write]
 network_access = true
@@ -89,4 +90,16 @@ trust_level = "trusted"
 trust_level = "trusted"
 
 [projects."/vault/repos/nvim-plugins/pyrepl.nvim"]
+trust_level = "trusted"
+
+[projects."/vault/experiments/2026-03-10-claude-trippy-bs"]
+trust_level = "trusted"
+
+[projects."/vault/experiments/2026-03-06-pingdotgg-t3code"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/maestro"]
+trust_level = "trusted"
+
+[projects."/vault/experiments/2026-03-03-tracer-cli"]
 trust_level = "trusted"
