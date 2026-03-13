@@ -191,6 +191,7 @@ in
     jellyfin-desktop
     nirius
     obs-studio
+    sox
     yt-dlp
     zip
     unzip
