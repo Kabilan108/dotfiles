@@ -52,9 +52,6 @@ shopt -s histappend
 # save multi-line commands as one command
 shopt -s cmdhist
 
-# record each line as it gets issued (append, don't overwrite - needed for bash-preexec)
-PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}history -a"
-
 # huge history
 HISTSIZE=100000
 HISTFILESIZE=100000
@@ -87,24 +84,44 @@ shopt -s cdable_vars
 ### -> PROMPT
 
 __bash_prompt() {
-  local userpart='`export XIT=$? \
-        && echo -n "\[\033[0;32m\]\u\[\033[0;36m\]@$HOSTNAME " \
-        && [ "$XIT" -ne "0" ] && echo -n "\[\033[1;31m\]➜" || echo -n "\[\033[0m\]➜"`'
-  local gitbranch='`\
-        export BRANCH=$(git --no-optional-locks symbolic-ref --short HEAD 2>/dev/null || git --no-optional-locks rev-parse --short HEAD 2>/dev/null); \
-        if [ "${BRANCH}" != "" ]; then \
-            echo -n "\[\033[0;36m\](\[\033[1;31m\]${BRANCH}" \
-            && if git --no-optional-locks ls-files --error-unmatch -m --directory --no-empty-directory -o --exclude-standard ":/*" > /dev/null 2>&1; then \
-                echo -n " \[\033[1;33m\]✗"; \
-            fi \
-            && echo -n "\[\033[0;36m\]) "; \
-        fi`'
-  local lightblue='\[\033[1;34m\]'
-  local removecolor='\[\033[0m\]'
-  PS1="${userpart} ${lightblue}\w ${gitbranch}${removecolor}\n\$ "
-  unset -f __bash_prompt
+  local exit_code=$1
+  local branch
+  local arrow='\[\033[0m\]➜'
+  local gitbranch=''
+
+  if [ "$exit_code" -ne 0 ]; then
+    arrow='\[\033[1;31m\]➜'
+  fi
+
+  branch=$(git --no-optional-locks symbolic-ref --short HEAD 2>/dev/null || git --no-optional-locks rev-parse --short HEAD 2>/dev/null) || branch=''
+
+  if [ -n "$branch" ]; then
+    gitbranch="\[\033[0;36m\](\[\033[1;31m\]${branch}"
+
+    if git --no-optional-locks ls-files --error-unmatch -m --directory --no-empty-directory -o --exclude-standard ":/*" >/dev/null 2>&1; then
+      gitbranch="${gitbranch} \[\033[1;33m\]✗"
+    fi
+
+    gitbranch="${gitbranch}\[\033[0;36m\]) "
+  fi
+
+  PS1="\[\033[0;32m\]${USER}\[\033[0;36m\]@${HOSTNAME} ${arrow} \[\033[1;34m\]\w ${gitbranch}\[\033[0m\]\n\\$ "
 }
-__bash_prompt
+
+__bash_prompt_command() {
+  local exit_code=$?
+  history -a
+  __bash_prompt "$exit_code"
+}
+
+case ";${PROMPT_COMMAND};" in
+  *";__bash_prompt_command;"*) ;;
+  *)
+    PROMPT_COMMAND="__bash_prompt_command${PROMPT_COMMAND:+;${PROMPT_COMMAND}}"
+    ;;
+esac
+
+__bash_prompt 0
 export PROMPT_DIRTRIM=2
 
 ### -> ENVIRONMENT
