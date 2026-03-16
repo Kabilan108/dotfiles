@@ -103,3 +103,6 @@ trust_level = "trusted"
 
 [projects."/vault/experiments/2026-03-03-tracer-cli"]
 trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server/eboost-scripts"]
+trust_level = "trusted"
