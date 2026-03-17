@@ -122,7 +122,7 @@
     nix-colors.url = "github:misterio77/nix-colors";
 
     hyprland.url = "github:hyprwm/Hyprland/v0.52.0";
-    ghostty.url = "github:ghostty-org/ghostty/v1.3.0";
+    ghostty.url = "github:ghostty-org/ghostty/v1.3.1";
     "niri-flake".url = "github:sodiboo/niri-flake";
     elephant.url = "github:abenz1267/elephant";
     walker = {
