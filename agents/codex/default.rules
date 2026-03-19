@@ -1,23 +1,156 @@
-prefix_rule(pattern=["nix", "shell", "nixpkgs#nodejs", "--command", "npm", "run", "build"], decision="allow")
-prefix_rule(pattern=["nix", "shell", "nixpkgs#nodejs_16", "--command", "npm", "run", "build"], decision="allow")
-prefix_rule(pattern=["nix", "shell", "nixpkgs#nodejs_20", "--command", "env", "NODE_OPTIONS=--openssl-legacy-provider", "npm", "run", "build"], decision="allow")
+prefix_rule(
+  pattern=[["python3", "python"]],
+  decision="forbidden",
+  justification="Use `uv run` instead of `python` to keep the interpreter and dependencies consistent.",
+)
+prefix_rule(
+  pattern=[["pip3", "pip"]],
+  decision="forbidden",
+  justification="Use `uv add/remove` for dependencies or `uv run --with` for one-off scripts instead of `pip`.",
+)
+
+prefix_rule(
+    pattern=["nix", "shell", "nixpkgs#nodejs", "--command", "npm", "run", "build"],
+    decision="allow",
+)
+prefix_rule(
+    pattern=["nix", "shell", "nixpkgs#nodejs_16", "--command", "npm", "run", "build"],
+    decision="allow",
+)
+prefix_rule(
+    pattern=[
+        "nix",
+        "shell",
+        "nixpkgs#nodejs_20",
+        "--command",
+        "env",
+        "NODE_OPTIONS=--openssl-legacy-provider",
+        "npm",
+        "run",
+        "build",
+    ],
+    decision="allow",
+)
 prefix_rule(pattern=["nix", "flake", "check"], decision="allow")
 prefix_rule(pattern=["nix", "develop", "-c", "cargo", "test"], decision="allow")
-prefix_rule(pattern=["nix", "develop", "-c", "cargo", "clippy", "--", "-W", "clippy::all"], decision="allow")
+prefix_rule(
+    pattern=["nix", "develop", "-c", "cargo", "clippy", "--", "-W", "clippy::all"],
+    decision="allow",
+)
 prefix_rule(pattern=["git", "add"], decision="allow")
 prefix_rule(pattern=["docker", "build"], decision="allow")
-prefix_rule(pattern=["perl", "-0pi", "-e", "s/    def _span\\(self, name: str, \\*\\*attrs\\) -> LogfireSpan \\| ContextManager\\[None\\]:\\n        \"\"\"Create a Logfire span if enabled, otherwise return nullcontext\\.\"\"\"\\n        if self\\._logfire_enabled:\\n            return logfire\\.span\\(name, \\*\\*attrs\\)\\n        return nullcontext\\(\\)/    @property\\n    def logfire_enabled(self) -> bool:\\n        \"\"\"Whether Logfire span creation is enabled for this observer.\"\"\"\\n        return self._logfire_enabled\\n\\n    def span(self, name: str, **attrs) -> LogfireSpan | ContextManager[None]:\\n        \"\"\"Create a Logfire span if enabled, otherwise return nullcontext.\"\"\"\\n        if self._logfire_enabled:\\n            return logfire.span(name, **attrs)\\n        return nullcontext()\\n\\n    def current_span_ids(self) -> tuple[str | None, str | None]:\\n        \"\"\"Get current trace/span IDs when Logfire is enabled, otherwise None IDs.\"\"\"\\n        if not self._logfire_enabled:\\n            return None, None\\n        return get_current_span_ids()/s", "xploit/observability/observer.py"], decision="allow")
-prefix_rule(pattern=["uv", "run", "pytest", "tests/test_pricing.py", "tests/test_campaign_wave_regressions.py"], decision="allow")
+prefix_rule(
+    pattern=[
+        "perl",
+        "-0pi",
+        "-e",
+        's/    def _span\\(self, name: str, \\*\\*attrs\\) -> LogfireSpan \\| ContextManager\\[None\\]:\\n        """Create a Logfire span if enabled, otherwise return nullcontext\\."""\\n        if self\\._logfire_enabled:\\n            return logfire\\.span\\(name, \\*\\*attrs\\)\\n        return nullcontext\\(\\)/    @property\\n    def logfire_enabled(self) -> bool:\\n        """Whether Logfire span creation is enabled for this observer."""\\n        return self._logfire_enabled\\n\\n    def span(self, name: str, **attrs) -> LogfireSpan | ContextManager[None]:\\n        """Create a Logfire span if enabled, otherwise return nullcontext."""\\n        if self._logfire_enabled:\\n            return logfire.span(name, **attrs)\\n        return nullcontext()\\n\\n    def current_span_ids(self) -> tuple[str | None, str | None]:\\n        """Get current trace/span IDs when Logfire is enabled, otherwise None IDs."""\\n        if not self._logfire_enabled:\\n            return None, None\\n        return get_current_span_ids()/s',
+        "xploit/observability/observer.py",
+    ],
+    decision="allow",
+)
+prefix_rule(
+    pattern=[
+        "uv",
+        "run",
+        "pytest",
+        "tests/test_pricing.py",
+        "tests/test_campaign_wave_regressions.py",
+    ],
+    decision="allow",
+)
 prefix_rule(pattern=["sort"], decision="allow")
 prefix_rule(pattern=["mkdir", "-p", "xploit/utils/data"], decision="allow")
-prefix_rule(pattern=["uv", "run", "ruff", "check", "--fix", "xploit/executor/campaign.py", "tests/test_pricing.py"], decision="allow")
-prefix_rule(pattern=["uv", "run", "ruff", "check", "xploit/utils/pricing.py", "xploit/executor/campaign.py", "xploit/executor/wave_executor.py", "tests/test_pricing.py", "tests/test_campaign_wave_regressions.py", "pyproject.toml"], decision="allow")
-prefix_rule(pattern=["git", "check-ignore", "-v", "xploit/utils/data/pricing-models.dev.json"], decision="allow")
-prefix_rule(pattern=["uv", "run", "ruff", "check", "xploit/utils/pricing.py", "xploit/executor/campaign.py", "xploit/executor/wave_executor.py", "tests/test_pricing.py", "tests/test_campaign_wave_regressions.py"], decision="allow")
-prefix_rule(pattern=["git", "commit", "-m", "Improve observability spans and campaign pricing initialization", "-m", "- route wave phase spans through Observer wrappers", "-m", "- prepare pricing once at campaign start with fetch/cache/bundled fallbacks", "-m", "- vendor a bundled models.dev snapshot and include it in wheel builds", "-m", "- expand pricing and campaign regression tests"], decision="allow")
-prefix_rule(pattern=["/run/current-system/sw/bin/bash", "-lc", "gzip -c xploit/utils/data/pricing-models.dev.json > xploit/utils/data/pricing-models.dev.json.gz && rm xploit/utils/data/pricing-models.dev.json && ls -lh xploit/utils/data"], decision="allow")
-prefix_rule(pattern=["git", "commit", "-m", "Improve observability spans and campaign pricing initialization", "-m", "- route wave phase spans through Observer wrappers", "-m", "- prepare pricing once at campaign start with fetch/cache/bundled fallbacks", "-m", "- vendor a compressed models.dev snapshot and include it in wheel builds", "-m", "- expand pricing and campaign regression tests"], decision="allow")
-prefix_rule(pattern=["git", "ls-files", "campaign-viewer/node_modules"], decision="allow")
+prefix_rule(
+    pattern=[
+        "uv",
+        "run",
+        "ruff",
+        "check",
+        "--fix",
+        "xploit/executor/campaign.py",
+        "tests/test_pricing.py",
+    ],
+    decision="allow",
+)
+prefix_rule(
+    pattern=[
+        "uv",
+        "run",
+        "ruff",
+        "check",
+        "xploit/utils/pricing.py",
+        "xploit/executor/campaign.py",
+        "xploit/executor/wave_executor.py",
+        "tests/test_pricing.py",
+        "tests/test_campaign_wave_regressions.py",
+        "pyproject.toml",
+    ],
+    decision="allow",
+)
+prefix_rule(
+    pattern=["git", "check-ignore", "-v", "xploit/utils/data/pricing-models.dev.json"],
+    decision="allow",
+)
+prefix_rule(
+    pattern=[
+        "uv",
+        "run",
+        "ruff",
+        "check",
+        "xploit/utils/pricing.py",
+        "xploit/executor/campaign.py",
+        "xploit/executor/wave_executor.py",
+        "tests/test_pricing.py",
+        "tests/test_campaign_wave_regressions.py",
+    ],
+    decision="allow",
+)
+prefix_rule(
+    pattern=[
+        "git",
+        "commit",
+        "-m",
+        "Improve observability spans and campaign pricing initialization",
+        "-m",
+        "- route wave phase spans through Observer wrappers",
+        "-m",
+        "- prepare pricing once at campaign start with fetch/cache/bundled fallbacks",
+        "-m",
+        "- vendor a bundled models.dev snapshot and include it in wheel builds",
+        "-m",
+        "- expand pricing and campaign regression tests",
+    ],
+    decision="allow",
+)
+prefix_rule(
+    pattern=[
+        "/run/current-system/sw/bin/bash",
+        "-lc",
+        "gzip -c xploit/utils/data/pricing-models.dev.json > xploit/utils/data/pricing-models.dev.json.gz && rm xploit/utils/data/pricing-models.dev.json && ls -lh xploit/utils/data",
+    ],
+    decision="allow",
+)
+prefix_rule(
+    pattern=[
+        "git",
+        "commit",
+        "-m",
+        "Improve observability spans and campaign pricing initialization",
+        "-m",
+        "- route wave phase spans through Observer wrappers",
+        "-m",
+        "- prepare pricing once at campaign start with fetch/cache/bundled fallbacks",
+        "-m",
+        "- vendor a compressed models.dev snapshot and include it in wheel builds",
+        "-m",
+        "- expand pricing and campaign regression tests",
+    ],
+    decision="allow",
+)
+prefix_rule(
+    pattern=["git", "ls-files", "campaign-viewer/node_modules"], decision="allow"
+)
 prefix_rule(pattern=["git", "ls-files", "campaign-viewer/dist"], decision="allow")
 prefix_rule(pattern=["nix", "develop", "path:.", "-c", "./server.sh"], decision="allow")
 prefix_rule(pattern=["nix", "shell"], decision="allow")
