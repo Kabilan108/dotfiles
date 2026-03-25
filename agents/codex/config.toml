@@ -21,6 +21,10 @@ unified_exec = true
 shell_snapshot = true
 steer = true
 multi-agent = true
+undo = true
+js_repl = false
+memories = false
+personality = true
 
 [history]
 persistence = "save-all"
@@ -105,4 +109,19 @@ trust_level = "trusted"
 trust_level = "trusted"
 
 [projects."/vault/work/moberg/dev-server/eboost-scripts"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server/iam"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server-1"]
+trust_level = "trusted"
+
+[projects."/home/kabilan/experiments/2026-02-21-dnakov-litter"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/artifact-detection"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/artifact-detection/oss-models"]
 trust_level = "trusted"

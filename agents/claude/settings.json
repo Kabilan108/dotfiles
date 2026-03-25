@@ -38,6 +38,6 @@
     "gopls-lsp@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
-  "skipDangerousModePermissionPrompt": true,
-  "effortLevel": "high"
+  "effortLevel": "medium",
+  "skipDangerousModePermissionPrompt": true
 }

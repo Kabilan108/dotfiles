@@ -20,3 +20,4 @@ usage-data/
 backups/
 plugins/blocklist.json
 mcp-needs-auth-cache.json
+sessions/
