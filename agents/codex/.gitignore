@@ -16,3 +16,4 @@ sqlite/
 *.sqlite-[shmwal]*
 vendor_imports/
 memories/
+session_index.jsonl
