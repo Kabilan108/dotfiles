@@ -48,6 +48,13 @@ in
       owner = "kabilan";
       group = "users";
     };
+    secrets."secrets/gog-creds" = {
+      file = ./secrets/gog-creds;
+      path = "${home}/.config/gogcli/credentials.json";
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
   };
 
   home-manager = {

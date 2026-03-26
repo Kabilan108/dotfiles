@@ -15,6 +15,11 @@ in
     sietch
     jacurutu
   ];
+  "secrets/gog-creds".publicKeys = [
+    sietch
+    jacurutu
+  ];
+
   "secrets/moberg-vpn/key.age".publicKeys = [
     sietch
     jacurutu
@@ -31,6 +36,7 @@ in
     sietch
     jacurutu
   ];
+
   "secrets/syncthing/jacurutu-cert.age".publicKeys = [ jacurutu ];
   "secrets/syncthing/jacurutu-key.age".publicKeys = [ jacurutu ];
   "secrets/syncthing/sietch-cert.age".publicKeys = [ sietch ];
