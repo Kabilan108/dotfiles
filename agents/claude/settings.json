@@ -30,7 +30,7 @@
     "type": "command",
     "command": "bash $HOME/.claude/statusline-command.sh"
   },
-  "cleanupPeriodDays": 99999,
+  "cleanupPeriodDays": 99999999,
   "enabledPlugins": {
     "code-simplifier@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
