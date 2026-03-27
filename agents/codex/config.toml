@@ -125,3 +125,9 @@ trust_level = "trusted"
 
 [projects."/vault/work/moberg/artifact-detection/oss-models"]
 trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server-2"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server-2/moberg-data-query-api"]
+trust_level = "trusted"
