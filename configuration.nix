@@ -129,6 +129,10 @@
       "/share/bash-completion"
     ];
 
+    systemd.tmpfiles.rules = [
+      "L+ /usr/bin/bwrap - - - - ${pkgs.bubblewrap}/bin/bwrap"
+    ];
+
     time.timeZone = "America/New_York";
     i18n.defaultLocale = "en_US.UTF-8";
     i18n.extraLocaleSettings = {
