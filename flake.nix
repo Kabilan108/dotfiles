@@ -28,6 +28,7 @@
             widsurf = pkgs-unstable.windsurf;
             obsidian = pkgs-unstable.obsidian;
             cloudflared = pkgs-unstable.cloudflared;
+            prek = pkgs-unstable.prek;
             code-cursor = final.callPackage ./packages/cursor.nix { };
             nomacs = final.callPackage ./packages/nomacs-viewer.nix { nomacs = prev.nomacs; };
           })

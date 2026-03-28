@@ -217,7 +217,7 @@ in
     kitty.kitten
     lazygit
     libnotify
-    pre-commit
+    prek
     rclone
     ripgrep
     sd
