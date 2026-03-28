@@ -133,6 +133,7 @@ fi
 ### -> Shell integrations
 
 eval "$(wt config shell init bash)"
+. "$HOME/.vite-plus/env"
 
 #### --> FUNCTIONS
 
