@@ -187,6 +187,7 @@ in
 
     # media/file handling
     baobab
+    bubblewrap
     gparted
     jellyfin-desktop
     nirius
