@@ -179,6 +179,10 @@ return {
       }
     end,
   },
+  {
+    "davidmh/mdx.nvim",
+    dependencies = {"nvim-treesitter/nvim-treesitter"}
+  },
 
   -- mini.nvim
   { -- Collection of various small independent plugins/modules
