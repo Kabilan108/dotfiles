@@ -17,3 +17,5 @@ sqlite/
 vendor_imports/
 memories/
 session_index.jsonl
+.tmp/
+cache/
