@@ -131,3 +131,9 @@ trust_level = "trusted"
 
 [projects."/vault/work/moberg/dev-server-2/moberg-data-query-api"]
 trust_level = "trusted"
+
+[projects."/vault/experiments/2026-03-28-meetring-transcription"]
+trust_level = "trusted"
+
+[projects."/vault/work/xploit/xploit-site"]
+trust_level = "trusted"
