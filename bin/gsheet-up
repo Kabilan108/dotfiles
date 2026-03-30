@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DEST_FOLDER_ID=1bgW4t0wtfVKKMfu2kLj5jxR3Z9zZEPff
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: gsheet-up <file.csv> [gog upload flags...]" >&2
+  exit 1
+fi
+
+file="$1"
+shift
+
+if [[ ! -f "$file" ]]; then
+  echo "Error: $file not found" >&2
+  exit 1
+fi
+
+id=$(gog upload "$file" --convert-to sheet --parent "$DEST_FOLDER_ID" --json | jq -r '.file.id')
+url=$(gog open "$id" 2>&1)
+
+echo "$url"
+xdg-open "$url" >/dev/null 2>&1
