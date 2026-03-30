@@ -32,14 +32,6 @@ consider refactoring to make it clearer.
 - Use `mkOption` with proper types for module options
 - Format with `nixfmt` or `alejandra`
 
-#### NixOS MCP Tool
-
-Use the `mcp__nixos__nix` tool to query packages and options:
-- `action: "search"` to find packages or options
-- `action: "info"` for detailed package/option information
-- `source: "home-manager"` for home-manager options
-- `source: "darwin"` for nix-darwin options
-
 ### Python
 
 #### LSP
@@ -81,3 +73,9 @@ Always use `uv add` to add dependencies rather than editing `pyproject.toml` man
 - Prefer `const` over `let`; avoid `var`
 - Use explicit return types on exported functions
 - Prefer `interface` over `type` for object shapes
+
+## Browser Tools
+
+- Use `agent-browser` for most interactive browser work. It is the default choice for agent-driven exploration, iterative UI interaction, screenshots, and stateful sessions. Prefer it when you want AI-friendly page discovery via `snapshot` and stable element refs like `@e1`.
+- Use `dev-browser` when you need programmable browser automation with Playwright-style APIs. Prefer it for scripted multi-step flows, reusable inspection scripts, or cases where `snapshotForAI()` plus direct `page` methods are the best fit.
+- On this machine, `dev-browser` may work better with `--connect` to an existing Chrome/CDP session than by launching its bundled browser directly.

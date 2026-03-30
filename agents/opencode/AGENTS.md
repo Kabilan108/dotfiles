@@ -57,3 +57,9 @@ this project uses the `uv` package manager for dependency management:
 - *lsp:* `lua_ls`
 - write type annotations for function definitions
 - make sure to define a type/class annotation for types/classes that are used in multiple places
+
+# Browser Tools
+
+- Use `agent-browser` for most interactive browser work. It is the default choice for agent-driven exploration, iterative UI interaction, screenshots, and stateful sessions. Prefer it when you want AI-friendly page discovery via `snapshot` and stable element refs like `@e1`.
+- Use `dev-browser` when you need programmable browser automation with Playwright-style APIs. Prefer it for scripted multi-step flows, reusable inspection scripts, or cases where `snapshotForAI()` plus direct `page` methods are the best fit.
+- On this machine, `dev-browser` may work better with `--connect` to an existing Chrome/CDP session than by launching its bundled browser directly.
