@@ -144,6 +144,15 @@ return {
   },
 
   {
+    dir = '/vault/repos/zeta.nvim',
+    name = 'zeta.nvim',
+    lazy = false,
+    config = function()
+      require 'config.zeta'
+    end,
+  },
+
+  {
     'ggml-org/llama.vim',
     init = function()
       local url = os.getenv 'LLAMA_SERVER_URL' or 'http://localhost:8012'
@@ -180,8 +189,8 @@ return {
     end,
   },
   {
-    "davidmh/mdx.nvim",
-    dependencies = {"nvim-treesitter/nvim-treesitter"}
+    'davidmh/mdx.nvim',
+    dependencies = { 'nvim-treesitter/nvim-treesitter' },
   },
 
   -- mini.nvim
