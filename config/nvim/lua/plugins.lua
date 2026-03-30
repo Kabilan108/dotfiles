@@ -154,6 +154,7 @@ return {
 
   {
     'ggml-org/llama.vim',
+    enabled = false,
     init = function()
       local url = os.getenv 'LLAMA_SERVER_URL' or 'http://localhost:8012'
       vim.g.llama_config = {

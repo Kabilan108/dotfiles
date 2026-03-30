@@ -206,7 +206,7 @@ utils.map('<C-j>', { 'i', 's' }, function()
   end
 end, 'LuaSnip backward jump')
 
-utils.map('<C-l>', { 'i', 's' }, function()
+utils.map('<M-l>', { 'i', 's' }, function()
   if luasnip.choice_active() then
     luasnip.change_choice(1)
   end
