@@ -51,6 +51,7 @@ in
   };
 
   home.file = {
+    ".pi".source = agentLink "pi";
     ".claude".source = agentLink "claude";
     ".codex".source = agentLink "codex";
     ".config/opencode".source = agentLink "opencode";
