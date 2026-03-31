@@ -41,6 +41,7 @@ in
         "alt+8=unbind"
         "alt+9=unbind"
         "ctrl+shift+t=unbind"
+        "ctrl+shift+p=unbind"
       ];
     };
     themes = {
