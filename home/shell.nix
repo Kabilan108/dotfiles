@@ -66,8 +66,10 @@ in
     ".config/Code/User".source = cfgLink "vscode";
     ".config/Cursor/User".source = cfgLink "vscode";
     ".config/sessionizer".source = cfgLink "sessionizer";
+    ".config/uv/uv.toml".source = cfgLink "uv/uv.toml";
     ".config/nvim".source = cfgLink "nvim";
     ".config/worktrunk".source = cfgLink "worktrunk";
+    ".npmrc".source = cfgLink "npm/npmrc";
 
     "bin".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/bin";
   };
