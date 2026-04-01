@@ -197,23 +197,11 @@ function tmuxk() {
   fi
 }
 
-function codex-gpt-5() {
-  $HOME/.bun/bin/codex -m gpt-5 -c model_reasoning_effort="${1:-medium}"
-}
-
 function fvi() {
   local file=$(fd --hidden --type f --exclude .git |
     fzf --height 40% --layout=reverse --border \
       --preview "bat --style=numbers --color=always {}") || return
   nvim -- "$file"
-}
-
-function y() {
-  local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
-  yazi "$@" --cwd-file="$tmp"
-  IFS= read -r -d '' cwd <"$tmp"
-  [ -n "$cwd" ] && [ "$cwd" != "$PWD" ] && builtin cd -- "$cwd" || exit 1
-  rm -f -- "$tmp"
 }
 
 ### -> ALIASES
