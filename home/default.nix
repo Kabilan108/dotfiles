@@ -32,6 +32,24 @@ in
 
   programs.home-manager.enable = true;
 
+  programs.yazi = {
+    enable = true;
+    enableBashIntegration = true;
+    settings = {
+      opener = {
+        h5 = [
+          { run = ''viewh5 "$@"''; block = true; desc = "View HDF5 file"; }
+        ];
+      };
+      open = {
+        prepend_rules = [
+          { name = "*.h5"; use = ["h5"]; }
+          { name = "*.hdf5"; use = ["h5"]; }
+        ];
+      };
+    };
+  };
+
   programs.pwas = {
     enable = true;
     apps = [
