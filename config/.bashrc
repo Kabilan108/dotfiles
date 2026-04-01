@@ -114,12 +114,40 @@ __bash_prompt_command() {
   __bash_prompt "$exit_code"
 }
 
-case ";${PROMPT_COMMAND};" in
-  *";__bash_prompt_command;"*) ;;
-  *)
-    PROMPT_COMMAND="__bash_prompt_command${PROMPT_COMMAND:+;${PROMPT_COMMAND}}"
-    ;;
-esac
+__repair_bash_preexec() {
+  declare -F __bp_preexec_invoke_exec >/dev/null 2>&1 || return
+
+  local install_snippet=$'__bp_trap_string="$(trap -p DEBUG)"\ntrap - DEBUG\n__bp_install'
+  local prompt_command_decl
+  prompt_command_decl=$(declare -p PROMPT_COMMAND 2>/dev/null)
+
+  if [[ $prompt_command_decl == "declare -a"* ]]; then
+    local repaired_prompt_command=()
+    local command
+
+    for command in "${PROMPT_COMMAND[@]}"; do
+      command=${command//$install_snippet/}
+      command=${command%$'\n'}
+      [[ -n "$command" ]] && repaired_prompt_command+=("$command")
+    done
+
+    PROMPT_COMMAND=("${repaired_prompt_command[@]}")
+  elif [[ -n ${PROMPT_COMMAND:-} ]]; then
+    PROMPT_COMMAND=${PROMPT_COMMAND//$install_snippet/}
+    PROMPT_COMMAND=${PROMPT_COMMAND%$'\n'}
+  fi
+
+  local debug_trap
+  debug_trap=$(trap -p DEBUG)
+  if [[ $debug_trap != *'__bp_preexec_invoke_exec'* ]]; then
+    trap '__bp_preexec_invoke_exec "$_"' DEBUG
+  fi
+}
+
+precmd() {
+  __repair_bash_preexec
+  __bash_prompt_command
+}
 
 __bash_prompt 0
 export PROMPT_DIRTRIM=2
