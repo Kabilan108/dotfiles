@@ -37,8 +37,17 @@ enabled = false
 [mcp_servers.exa]
 url = "https://sietch.sole-pierce.ts.net/exa-mcp/mcp?tools=web_search_exa,get_code_context_exa,crawling_exa,deep_researcher_start,deep_researcher_check"
 
+[mcp_servers.exa.tools.crawling_exa]
+approval_mode = "approve"
+
 [mcp_servers.deepwiki]
 url = "https://mcp.deepwiki.com/mcp"
+
+[mcp_servers.deepwiki.tools.ask_question]
+approval_mode = "approve"
+
+[mcp_servers.deepwiki.tools.read_wiki_structure]
+approval_mode = "approve"
 
 [notice]
 hide_gpt5_1_migration_prompt = true
@@ -136,4 +145,7 @@ trust_level = "trusted"
 trust_level = "trusted"
 
 [projects."/vault/work/xploit/xploit-site"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server/moberg-jupyterhub"]
 trust_level = "trusted"
