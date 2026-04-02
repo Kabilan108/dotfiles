@@ -29,6 +29,7 @@
             obsidian = pkgs-unstable.obsidian;
             cloudflared = pkgs-unstable.cloudflared;
             prek = pkgs-unstable.prek;
+            yazi = pkgs-unstable.yazi;
             code-cursor = final.callPackage ./packages/cursor.nix { };
             nomacs = final.callPackage ./packages/nomacs-viewer.nix { nomacs = prev.nomacs; };
           })
