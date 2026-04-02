@@ -35,16 +35,53 @@ in
   programs.yazi = {
     enable = true;
     enableBashIntegration = true;
+    plugins = {
+      piper = pkgs.yaziPlugins.piper;
+    };
     settings = {
+      mgr = {
+        show_hidden = true;
+        show_symlink = true;
+      };
       opener = {
         h5 = [
-          { run = ''viewh5 "$@"''; block = true; desc = "View HDF5 file"; }
+          {
+            run = ''viewh5 open "$@"'';
+            block = true;
+            desc = "View HDF5 file";
+          }
         ];
       };
       open = {
         prepend_rules = [
-          { name = "*.h5"; use = ["h5"]; }
-          { name = "*.hdf5"; use = ["h5"]; }
+          {
+            url = "*.h5";
+            use = [ "h5" ];
+          }
+          {
+            url = "*.hdf5";
+            use = [ "h5" ];
+          }
+          {
+            url = "*.hdf";
+            use = [ "h5" ];
+          }
+        ];
+      };
+      plugin = {
+        prepend_previewers = [
+          {
+            url = "*.h5";
+            run = ''piper -- viewh5 describe --width "$w" --height "$h" "$1"'';
+          }
+          {
+            url = "*.hdf5";
+            run = ''piper -- viewh5 describe --width "$w" --height "$h" "$1"'';
+          }
+          {
+            url = "*.hdf";
+            run = ''piper -- viewh5 describe --width "$w" --height "$h" "$1"'';
+          }
         ];
       };
     };
