@@ -15,6 +15,7 @@ in
     ../modules/home/fonts.nix
     ../modules/home/ghostty.nix
     ../modules/home/gtk.nix
+    ../modules/home/appimages.nix
     ../modules/home/pwas.nix
     ../modules/home/wallpaper.nix
     ../modules/home/zen
@@ -168,6 +169,34 @@ in
     package = inputs.raindrop.packages.${pkgs.system}.default;
     settings = {
       token = "\${env:RAINDROP_TOKEN}";
+    };
+  };
+
+  programs.appimages = {
+    enable = true;
+    apps = {
+      helium = {
+        repo = "imputnet/helium-linux";
+        pattern = "helium-*.AppImage";
+        downloadPattern = "*x86_64.AppImage";
+        desktopName = "Helium";
+        comment = "Helium Code Editor";
+        categories = [
+          "Development"
+          "IDE"
+        ];
+      };
+      t3code = {
+        repo = "pingdotgg/t3code";
+        pattern = "T3-Code-*.AppImage";
+        downloadPattern = "*x86_64.AppImage";
+        desktopName = "T3 Code";
+        comment = "T3 Code Editor";
+        categories = [
+          "Development"
+          "TextEditor"
+        ];
+      };
     };
   };
 
