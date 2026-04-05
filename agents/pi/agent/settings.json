@@ -1,14 +1,18 @@
 {
   "lastChangelogVersion": "0.64.0",
   "defaultThinkingLevel": "medium",
-  "defaultProvider": "anthropic",
-  "defaultModel": "claude-opus-4-6",
+  "defaultProvider": "openai",
+  "defaultModel": "gpt-5.4",
   "hideThinkingBlock": false,
   "enabledModels": [
-    "anthropic/claude-opus-4-6",
     "openai/gpt-5.4",
-    "anthropic/claude-sonnet-4-6",
     "openai/gpt-5.4-mini",
-    "openai/gpt-5.4-pro"
-  ]
+    "openai/gpt-5.4-pro",
+    "anthropic/claude-opus-4-6",
+    "anthropic/claude-sonnet-4-6"
+  ],
+  "theme": "dark",
+  "editorPaddingX": 2,
+  "doubleEscapeAction": "tree",
+  "treeFilterMode": "default"
 }
