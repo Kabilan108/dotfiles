@@ -337,7 +337,7 @@ in
     luajitPackages.magick
     nixd
     nixfmt-rfc-style
-    nodejs_22
+    nodejs_24
     python312
     pnpm
     uv
