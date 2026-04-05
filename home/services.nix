@@ -8,8 +8,44 @@ let
     "$HOME/bin/backup" push
     "$HOME/bin/backup" janitor
   '';
+
+  agentServerStart = pkgs.writeShellScript "agent-server-start" ''
+    set -eu
+    source "$HOME/.bashenv"
+
+    export PATH="${
+      pkgs.lib.makeBinPath [
+        pkgs.gcc
+        pkgs.gnumake
+        pkgs.python3
+      ]
+    }:$PATH"
+
+    TAILNET_IP="$(${pkgs.tailscale}/bin/tailscale ip -4)"
+
+    ${pkgs.tmux}/bin/tmux new-session -d -s agents \
+      "npx t3 --host $TAILNET_IP --port 3773 --no-browser"
+
+    ${pkgs.tmux}/bin/tmux split-window -t agents \
+      "codex app-server --listen ws://$TAILNET_IP:8390"
+  '';
 in
 {
+  systemd.user.services.agent-server = {
+    Unit = {
+      Description = "Persistent agent servers (Tailscale)";
+      After = [ "network-online.target" ];
+    };
+    Service = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStartPre = "-${pkgs.tmux}/bin/tmux kill-session -t agents";
+      ExecStart = agentServerStart;
+      ExecStop = "${pkgs.tmux}/bin/tmux kill-session -t agents";
+    };
+    Install.WantedBy = [ "default.target" ];
+  };
+
   systemd.user.services.install-agent-clis = {
     Unit = {
       Description = "Install/Update Agent CLIs";

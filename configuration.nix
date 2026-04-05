@@ -24,7 +24,9 @@
         interfaces."tailscale0" = {
           allowedTCPPorts = [
             3000
+            3773
             8000
+            8390
             5173
           ];
         };
