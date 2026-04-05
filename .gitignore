@@ -23,3 +23,6 @@ CLAUDE.md
 **/claude/teams
 
 __pycache__/
+
+# btca local data
+.btca/

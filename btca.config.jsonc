@@ -1,0 +1,26 @@
+{
+  "$schema": "https://btca.dev/btca.schema.json",
+  "dataDirectory": ".btca",
+  "resources": [
+    {
+      "type": "git",
+      "name": "DankMaterialShell",
+      "url": "https://github.com/AvengeMedia/DankMaterialShell",
+      "branch": "master"
+    },
+    {
+      "type": "git",
+      "name": "caelestia-dots-shell",
+      "url": "https://github.com/caelestia-dots/shell",
+      "branch": "main"
+    },
+    {
+      "type": "git",
+      "name": "noctalia-shell",
+      "url": "https://github.com/noctalia-dev/noctalia-shell",
+      "branch": "main"
+    }
+  ],
+  "model": "glm-5",
+  "provider": "opencode"
+}
