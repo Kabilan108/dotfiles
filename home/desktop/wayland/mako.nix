@@ -42,19 +42,7 @@ in
         text-color = "#${palette.base08}";
       };
 
-      "app-name=brightctl" = {
-        group-by = "app-name";
-        text-color = "#${palette.base0A}";
-        border-color = "#${palette.base0A}";
-        progress-color = "over #${palette.base0A}40";
-      };
-      "app-name=volctl" = {
-        group-by = "app-name";
-        text-color = "#${palette.base0D}";
-        border-color = "#${palette.base0D}";
-        progress-color = "over #${palette.base0D}40";
-      };
-      "app-name=battery" = {
+"app-name=battery" = {
         group-by = "app-name";
         border-color = "#${palette.base0B}";
       };

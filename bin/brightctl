@@ -14,21 +14,3 @@ if [ "$sign" = "+" ]; then
 else
   light -U "$value"
 fi
-
-brightness=$(printf "%.0f" "$(light -G)")
-((brightness > 100)) && brightness=100
-
-if [[ "$brightness" -ge 70 ]]; then
-  icon="󰃠"
-elif [[ "$brightness" -ge 40 ]]; then
-  icon="󰃟"
-else
-  icon="󰃞"
-fi
-
-notify-send \
-  -a "brightctl" \
-  -u "low" \
-  -h "string:x-dunst-stack-tag:brightctl" \
-  -h "int:value:${brightness}" \
-  "$icon  ${brightness}%"

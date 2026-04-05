@@ -8,6 +8,7 @@
     ./waybar.nix
     ./mako.nix
     ./walker.nix
+    ./quickshell
     (./compositors + "/${waylandCompositor}")
   ];
 

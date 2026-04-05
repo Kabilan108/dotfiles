@@ -9,36 +9,6 @@ usage() {
   exit 1
 }
 
-notify() {
-  local volume progress icon text left
-  volume=$(pactl get-sink-volume @DEFAULT_SINK@ | grep -Po '\d+(?=%)' | head -1)
-
-  if pactl get-sink-mute @DEFAULT_SINK@ | grep -q "yes"; then
-    icon="󰖁"
-    text="$icon  Muted"
-    progress=0
-  else
-    if [[ "$volume" -ge 70 ]]; then
-      icon="󰕾"
-    elif [[ "$volume" -ge 40 ]]; then
-      icon="󰖀"
-    else
-      icon="󰕿"
-    fi
-    progress=$volume
-    ((progress > 100)) && progress=100
-    left="$icon  ${volume}%"
-    text="$left"
-  fi
-
-  notify-send \
-    -a "volctl" \
-    -u "low" \
-    -h "string:x-dunst-stack-tag:volctl" \
-    -h "int:value:${progress}" \
-    "$text"
-}
-
 if [ $# -ne 1 ]; then
   usage
 fi
@@ -46,19 +16,12 @@ fi
 case "$1" in
 mute)
   pactl set-sink-mute @DEFAULT_SINK@ toggle
-  notify
   ;;
 mute-mic)
   pactl set-source-mute @DEFAULT_SOURCE@ toggle
-  if pactl get-source-mute @DEFAULT_SOURCE@ | grep -q "yes"; then
-    notify-send -a "volctl" -u "low" "󰍭  Mic Muted" ""
-  else
-    notify-send -a "volctl" -u "low" "󰍬  Mic On" ""
-  fi
   ;;
 [+-][1-9] | [+-][1-9][0-9])
   pactl set-sink-volume @DEFAULT_SINK@ "$1%"
-  notify
   ;;
 *)
   usage
