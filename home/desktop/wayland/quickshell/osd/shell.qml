@@ -7,4 +7,7 @@ ShellRoot {
     BrightnessOsd {
         stackOffset: volumeOsd.shouldShow ? 54 : 0
     }
+    AudioMixer {}
+    BluetoothPanel {}
+    NotificationCenter {}
 }

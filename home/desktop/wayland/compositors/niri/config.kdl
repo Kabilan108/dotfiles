@@ -470,6 +470,11 @@ binds {
     Mod+Shift+E hotkey-overlay-title="Power Menu: walker" { spawn "walker" "--provider" "menus:power" "--width" "300" "--height" "400"; }
     Mod+V hotkey-overlay-title="Clipboard: walker" { spawn "walker" "--provider" "clipboard" "--width" "1000" "--height" "400"; }
 
+    // quickshell panels
+    Mod+A hotkey-overlay-title="Audio Mixer" { spawn "qs" "ipc" "-c" "osd" "call" "mixer" "toggle"; }
+    Mod+Shift+B hotkey-overlay-title="Bluetooth" { spawn "qs" "ipc" "-c" "osd" "call" "bluetooth" "toggle"; }
+    Mod+N hotkey-overlay-title="Notification Center" { spawn "qs" "ipc" "-c" "osd" "call" "notifications" "toggleCenter"; }
+
     // lock
     Mod+Alt+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "swaylock"; }
 
