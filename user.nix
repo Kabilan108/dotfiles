@@ -21,6 +21,7 @@ in
       "plugdev"
     ];
     shell = pkgs.bashInteractive;
+    linger = true;
   };
 
   environment.systemPackages = [ pkgs.bashInteractive ];
