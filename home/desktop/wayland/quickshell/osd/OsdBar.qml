@@ -11,8 +11,8 @@ Rectangle {
 
     implicitWidth: 280
     implicitHeight: 44
-    radius: height / 2
-    color: "#e0181825"
+    radius: Theme.radiusPill
+    color: Theme.panelBg
 
     RowLayout {
         anchors {
@@ -25,8 +25,8 @@ Rectangle {
         Text {
             text: root.icon
             color: root.accentColor
-            font.family: "FiraMono Nerd Font"
-            font.pixelSize: 20
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeIcon
             Layout.preferredWidth: 24
             horizontalAlignment: Text.AlignHCenter
         }
@@ -35,7 +35,7 @@ Rectangle {
             Layout.fillWidth: true
             implicitHeight: 6
             radius: 3
-            color: "#30cdd6f4"
+            color: "#1fcdd6f4"
 
             Rectangle {
                 anchors {
@@ -55,9 +55,9 @@ Rectangle {
 
         Text {
             text: root.label
-            color: "#cdd6f4"
-            font.family: "FiraMono Nerd Font"
-            font.pixelSize: 12
+            color: Theme.text
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeSmall
             Layout.preferredWidth: 36
             horizontalAlignment: Text.AlignRight
         }
