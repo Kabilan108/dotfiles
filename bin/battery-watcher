@@ -1,69 +1,27 @@
 #!/usr/bin/env bash
 # vim: syn=bash ft=bash
 
-THRESHOLD_LOW=20     # Low battery threshold in percent
-THRESHOLD_CRITICAL=5 # Critical battery threshold in percent
-CHECK_INTERVAL=60    # How often (in seconds) to check the battery
+THRESHOLD_LOW=20
+THRESHOLD_CRITICAL=5
+CHECK_INTERVAL=60
 
-# Battery paths
 BATTERY_PATH="/sys/class/power_supply/BAT1"
 [ ! -d "$BATTERY_PATH" ] && BATTERY_PATH="/sys/class/power_supply/BAT0"
-
-icon_path() {
-  echo "/run/current-system/sw/share/icons/WhiteSur-dark/status/symbolic/$1-symbolic.svg"
-}
-
-get_battery_icon() {
-  local capacity=$1
-  local status=$2
-  local charging_suffix
-
-  [ "$status" = "Charging" ] && charging_suffix="-charging" || charging_suffix=""
-
-  if   [ "$capacity" -ge 90 ]; then icon_path "battery-100$charging_suffix"
-  elif [ "$capacity" -ge 80 ]; then icon_path "battery-080$charging_suffix"
-  elif [ "$capacity" -ge 60 ]; then icon_path "battery-060$charging_suffix"
-  elif [ "$capacity" -ge 40 ]; then icon_path "battery-040$charging_suffix"
-  elif [ "$capacity" -ge 20 ]; then icon_path "battery-020$charging_suffix"
-  else                              icon_path "battery-000$charging_suffix"
-  fi
-}
 
 while true; do
   if [ -d "$BATTERY_PATH" ]; then
     capacity=$(cat "$BATTERY_PATH/capacity")
     status=$(cat "$BATTERY_PATH/status")
-    icon=$(get_battery_icon "$capacity" "$status")
 
     if [ "$status" = "Charging" ]; then
-      # Charging notification
       if [ "$capacity" -ge 95 ]; then
-        dunstify \
-          -a "battery" \
-          -u "normal" \
-          -h "string:x-dunst-stack-tag:battery" \
-          -h "string:category:battery-full" \
-          -i "$icon" \
-          "battery charged"
+        notify-send -a "battery" -u "normal" "Battery Charged" "${capacity}%"
       fi
     else
-      # Discharging notifications
       if [ "$capacity" -le "$THRESHOLD_CRITICAL" ]; then
-        dunstify \
-          -a "battery" \
-          -u "critical" \
-          -h "string:x-dunst-stack-tag:battery" \
-          -h "string:category:battery-critical" \
-          -i "$icon" \
-          "battery crically low ($capacity%)"
+        notify-send -a "battery" -u "critical" "Battery Critically Low" "${capacity}% — plug in now"
       elif [ "$capacity" -le "$THRESHOLD_LOW" ]; then
-        dunstify \
-          -a "battery" \
-          -u "normal" \
-          -h "string:x-dunst-stack-tag:battery" \
-          -h "string:category:battery-low" \
-          -i "$icon" \
-          "low battery ($capacity%)"
+        notify-send -a "battery" -u "normal" "Low Battery" "${capacity}% remaining"
       fi
     fi
   fi

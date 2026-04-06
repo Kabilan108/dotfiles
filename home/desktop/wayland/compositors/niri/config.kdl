@@ -297,7 +297,6 @@ layout {
 // See the binds section below for more spawn examples.
 
 spawn-at-startup "niriusd"
-spawn-at-startup "mako"
 spawn-at-startup "swayidle" "-w"
 spawn-at-startup "nm-applet" "--indicator"
 spawn-at-startup "blueman-applet"
