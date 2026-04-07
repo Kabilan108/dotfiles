@@ -143,14 +143,14 @@ return {
     end,
   },
 
-  {
-    dir = '/vault/repos/zeta.nvim',
-    name = 'zeta.nvim',
-    lazy = false,
-    config = function()
-      require 'config.zeta'
-    end,
-  },
+  -- {
+  --   dir = '/vault/repos/zeta.nvim',
+  --   name = 'zeta.nvim',
+  --   lazy = false,
+  --   config = function()
+  --     require 'config.zeta'
+  --   end,
+  -- },
 
   {
     'ggml-org/llama.vim',
