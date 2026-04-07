@@ -16,6 +16,7 @@
     systemPackages = with pkgs; [
       openrgb-with-all-plugins
       prismlauncher
+      jdk25
     ];
   };
 
