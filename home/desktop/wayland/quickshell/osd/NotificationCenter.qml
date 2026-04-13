@@ -87,7 +87,7 @@ Scope {
             implicitWidth: popupColumn.implicitWidth
             implicitHeight: popupColumn.implicitHeight
             color: "transparent"
-            mask: Region {}
+            mask: Region { item: popupColumn }
 
             ColumnLayout {
                 id: popupColumn
