@@ -106,4 +106,3 @@ volumes:
   vaultwarden-data:
   jellyfin-data:
   jellyfin-cache:
-  open-webui-data:
