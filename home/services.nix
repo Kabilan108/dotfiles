@@ -24,7 +24,7 @@ let
     TAILNET_IP="$(${pkgs.tailscale}/bin/tailscale ip -4)"
 
     ${pkgs.tmux}/bin/tmux new-session -d -s agents \
-      "npx t3 --host $TAILNET_IP --port 3773 --no-browser"
+      "npx t3 serve --host $TAILNET_IP --port 3773 --no-browser"
 
     ${pkgs.tmux}/bin/tmux split-window -t agents \
       "codex app-server --listen ws://$TAILNET_IP:8390"
