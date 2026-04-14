@@ -9,6 +9,9 @@ notify = ["/home/kabilan/dotfiles/bin/codex-notify"]
 personality = "pragmatic"
 service_tier = "fast"
 
+[agents]
+max_threads = 12
+
 [sandbox_workspace_write]
 network_access = true
 
