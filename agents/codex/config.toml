@@ -152,3 +152,9 @@ trust_level = "trusted"
 
 [projects."/home/kabilan"]
 trust_level = "trusted"
+
+[projects."/home/kabilan/experiments/2026-02-13-Kabilan108-exa-mcp-server"]
+trust_level = "trusted"
+
+[projects."/vault/repos/stt/siren"]
+trust_level = "trusted"
