@@ -210,7 +210,8 @@ alias tn="tmuxn"
 alias tl="tmuxl"
 alias tk="tmuxk"
 
-alias cc="$HOME/.local/bin/claude --dangerously-skip-permissions --chrome"
+alias cc="claude --dangerously-skip-permissions"
+alias cx="codex --yolo"
 alias oc="OPENCODE_EXPERIMENTAL=true opencode"
 
 alias ls='ls --color=auto'
