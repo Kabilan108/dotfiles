@@ -111,6 +111,7 @@
       libmtp
 
       # system utils
+      btop
       fuse
       git
       git-lfs
