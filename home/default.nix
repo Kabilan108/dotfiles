@@ -276,10 +276,11 @@ in
     jellyfin-desktop
     nirius
     obs-studio
+    rsync
     sox
+    unzip
     yt-dlp
     zip
-    unzip
 
     # build tools
     clang-tools
