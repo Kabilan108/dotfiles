@@ -12,10 +12,11 @@ in
     ./services.nix
     ./shell.nix
 
+    ../modules/home/appimages.nix
+    ../modules/home/btop.nix
     ../modules/home/fonts.nix
     ../modules/home/ghostty.nix
     ../modules/home/gtk.nix
-    ../modules/home/appimages.nix
     ../modules/home/pwas.nix
     ../modules/home/wallpaper.nix
     ../modules/home/zen
