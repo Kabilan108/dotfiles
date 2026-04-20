@@ -35,8 +35,8 @@ in
 
   home-manager.users.kabilan = {
     programs.niri.config = null;
-    wallpaper.desktop = "$HOME/dotfiles/wallpapers/witcher.png";
-    wallpaper.lockscreen = "$HOME/dotfiles/wallpapers/witcher.png";
+    wallpaper.desktop = "$HOME/dotfiles/wallpapers/shoggoth-001.png";
+    wallpaper.lockscreen = "$HOME/dotfiles/wallpapers/mecha.png";
 
     systemd.user.services.mic-volume-enforce = {
       Unit = {
