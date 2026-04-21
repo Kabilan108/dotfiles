@@ -10,6 +10,8 @@ import {
 	withFileMutationQueue,
 } from "@mariozechner/pi-coding-agent";
 import { StringEnum } from "@mariozechner/pi-ai";
+import type { Theme } from "@mariozechner/pi-coding-agent";
+import { Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 
 const EXA_API_BASE = "https://api.exa.ai";
@@ -44,6 +46,50 @@ interface FinalizedOutput {
 	text: string;
 	truncated: boolean;
 	fullOutputPath?: string;
+}
+
+interface SearchResultItem {
+	title: string;
+	url: string;
+	author?: string;
+	publishedDate?: string;
+	score?: number;
+	highlights: string[];
+	textPreview?: string;
+}
+
+interface WebSearchDetails {
+	query: string;
+	searchType: string;
+	contentMode: string;
+	resultCount: number;
+	requestId?: string;
+	truncated: boolean;
+	fullOutputPath?: string;
+	items: SearchResultItem[];
+}
+
+interface CodeSearchDetails extends WebSearchDetails {
+	focus: string;
+}
+
+interface ReadWebPageItem {
+	title: string;
+	url: string;
+	highlights: string[];
+	textPreview?: string;
+	summaryPreview?: string;
+}
+
+interface ReadWebPagesDetails {
+	urls: string[];
+	contentMode: string;
+	query?: string;
+	resultCount: number;
+	requestId?: string;
+	truncated: boolean;
+	fullOutputPath?: string;
+	items: ReadWebPageItem[];
 }
 
 const WebSearchParams = Type.Object({
@@ -172,6 +218,29 @@ function compactWhitespace(text: string): string {
 	return text.replace(/\s+/g, " ").trim();
 }
 
+function displayUrl(value: string): string {
+	try {
+		const url = new URL(value);
+		return `${url.hostname}${url.pathname}`.replace(/\/$/, "") || value;
+	} catch {
+		return value;
+	}
+}
+
+function collectTopHosts(urls: string[], limit = 2): string[] {
+	const hosts: string[] = [];
+	for (const value of urls) {
+		try {
+			const host = new URL(value).hostname.replace(/^www\./, "");
+			if (!hosts.includes(host)) hosts.push(host);
+			if (hosts.length >= limit) break;
+		} catch {
+			continue;
+		}
+	}
+	return hosts;
+}
+
 function previewText(text: string, maxCharacters: number): string {
 	const compact = compactWhitespace(text);
 	if (compact.length <= maxCharacters) return compact;
@@ -186,6 +255,120 @@ function formatStructuredSummary(summary: unknown): string | undefined {
 	} catch {
 		return String(summary);
 	}
+}
+
+function toSearchResultItems(
+	response: ExaSearchResponse,
+	contentMode: (typeof SEARCH_CONTENT_MODES)[number],
+): SearchResultItem[] {
+	return (response.results ?? []).map((result) => ({
+		title: result.title?.trim() || "(untitled)",
+		url: result.url,
+		author: result.author,
+		publishedDate: result.publishedDate,
+		score: result.score,
+		highlights: (result.highlights ?? []).map((highlight) => previewText(highlight, 220)),
+		textPreview:
+			contentMode === "text" || contentMode === "both"
+				? result.text?.trim()
+					? previewText(result.text, 260)
+					: undefined
+				: undefined,
+	}));
+}
+
+function toReadWebPageItems(response: ExaSearchResponse): ReadWebPageItem[] {
+	return (response.results ?? []).map((result) => {
+		const summary = formatStructuredSummary(result.summary);
+		return {
+			title: result.title?.trim() || result.url || "(untitled)",
+			url: result.url,
+			highlights: (result.highlights ?? []).map((highlight) => previewText(highlight, 220)),
+			textPreview: result.text?.trim() ? previewText(result.text, 260) : undefined,
+			summaryPreview: summary ? previewText(summary, 220) : undefined,
+		};
+	});
+}
+
+function renderSearchToolResult(
+	label: string,
+	details: WebSearchDetails | CodeSearchDetails | undefined,
+	expanded: boolean,
+	isPartial: boolean,
+	theme: Theme,
+): Text {
+	if (isPartial) return new Text(theme.fg("warning", `${label}...`), 0, 0);
+	if (!details) return new Text(theme.fg("error", "No search details"), 0, 0);
+
+	let text = theme.fg("success", `${details.resultCount} result${details.resultCount === 1 ? "" : "s"}`);
+	if (details.truncated) text += theme.fg("warning", " • truncated");
+	if (!expanded) return new Text(text, 0, 0);
+
+	const hosts = collectTopHosts(details.items.map((item) => item.url), 3);
+	if (hosts.length > 0) {
+		text += `\n${theme.fg("dim", `sources: ${hosts.join(", ")}`)}`;
+	}
+
+	const visibleItems = details.items.slice(0, 4);
+	for (const item of visibleItems) {
+		text += `\n${theme.fg("accent", item.title)}`;
+		text += `\n${theme.fg("muted", displayUrl(item.url))}`;
+
+		const meta: string[] = [];
+		if (item.publishedDate) meta.push(item.publishedDate.slice(0, 10));
+		if (typeof item.score === "number") meta.push(`score ${item.score.toFixed(3)}`);
+		if (item.author) meta.push(item.author);
+		if (meta.length > 0) {
+			text += `\n${theme.fg("dim", meta.join(" • "))}`;
+		}
+
+		if (item.highlights[0]) text += `\n${theme.fg("dim", `• ${item.highlights[0]}`)}`;
+		else if (item.textPreview) text += `\n${theme.fg("dim", item.textPreview)}`;
+	}
+	if (details.items.length > visibleItems.length) {
+		text += `\n${theme.fg("dim", `… ${details.items.length - visibleItems.length} more result(s)`)}`;
+	}
+	if (details.requestId) text += `\n${theme.fg("dim", `request ${details.requestId}`)}`;
+	if (details.fullOutputPath) text += `\n${theme.fg("dim", `full output: ${details.fullOutputPath}`)}`;
+	return new Text(text, 0, 0);
+}
+
+function renderReadWebPagesResult(
+	details: ReadWebPagesDetails | undefined,
+	expanded: boolean,
+	isPartial: boolean,
+	theme: Theme,
+): Text {
+	if (isPartial) return new Text(theme.fg("warning", "Reading pages..."), 0, 0);
+	if (!details) return new Text(theme.fg("error", "No page details"), 0, 0);
+
+	let text = theme.fg("success", `${details.resultCount} page${details.resultCount === 1 ? "" : "s"} extracted`);
+	if (details.truncated) text += theme.fg("warning", " • truncated");
+	if (!expanded) return new Text(text, 0, 0);
+
+	const visibleItems = details.items.slice(0, 4);
+	for (const item of visibleItems) {
+		text += `\n${theme.fg("accent", item.title)}`;
+		text += `\n${theme.fg("muted", displayUrl(item.url))}`;
+
+		const availableModes: string[] = [];
+		if (item.highlights.length > 0) availableModes.push("highlights");
+		if (item.summaryPreview) availableModes.push("summary");
+		if (item.textPreview) availableModes.push("text");
+		if (availableModes.length > 0) {
+			text += `\n${theme.fg("dim", availableModes.join(" • "))}`;
+		}
+
+		if (item.highlights[0]) text += `\n${theme.fg("dim", `• ${item.highlights[0]}`)}`;
+		else if (item.summaryPreview) text += `\n${theme.fg("dim", item.summaryPreview)}`;
+		else if (item.textPreview) text += `\n${theme.fg("dim", item.textPreview)}`;
+	}
+	if (details.items.length > visibleItems.length) {
+		text += `\n${theme.fg("dim", `… ${details.items.length - visibleItems.length} more page(s)`)}`;
+	}
+	if (details.requestId) text += `\n${theme.fg("dim", `request ${details.requestId}`)}`;
+	if (details.fullOutputPath) text += `\n${theme.fg("dim", `full output: ${details.fullOutputPath}`)}`;
+	return new Text(text, 0, 0);
 }
 
 function buildSearchContents(
@@ -407,6 +590,15 @@ export default function exaSearchExtension(pi: ExtensionAPI) {
 			"Prefer highlights for fast agent workflows; use text only when more context is genuinely needed.",
 		],
 		parameters: WebSearchParams,
+		renderCall(args, theme) {
+			let text = theme.fg("toolTitle", theme.bold("web_search "));
+			text += theme.fg("accent", `"${previewText(args.query, 56)}"`);
+			text += theme.fg("dim", ` • ${args.searchType ?? "auto"} • ${args.contentMode ?? "highlights"}`);
+			return new Text(text, 0, 0);
+		},
+		renderResult(result, { expanded, isPartial }, theme) {
+			return renderSearchToolResult("Searching", result.details as WebSearchDetails | undefined, expanded, isPartial, theme);
+		},
 		async execute(_toolCallId, params, signal) {
 			const contentMode = params.contentMode ?? "highlights";
 			const body: Record<string, unknown> = {
@@ -426,6 +618,8 @@ export default function exaSearchExtension(pi: ExtensionAPI) {
 			const rawText = formatSearchResults("Web search", params.query, response, contentMode);
 			const finalized = await finalizeOutput("pi-exa-web-search", rawText);
 
+			const items = toSearchResultItems(response, contentMode);
+
 			return {
 				content: [{ type: "text", text: finalized.text }],
 				details: {
@@ -436,7 +630,8 @@ export default function exaSearchExtension(pi: ExtensionAPI) {
 					requestId: response.requestId,
 					truncated: finalized.truncated,
 					fullOutputPath: finalized.fullOutputPath,
-				},
+					items,
+				} satisfies WebSearchDetails,
 			};
 		},
 	});
@@ -451,6 +646,15 @@ export default function exaSearchExtension(pi: ExtensionAPI) {
 			"Prefer focus=docs for official documentation and focus=source for repository/code hunting.",
 		],
 		parameters: CodeSearchParams,
+		renderCall(args, theme) {
+			let text = theme.fg("toolTitle", theme.bold("code_search "));
+			text += theme.fg("accent", `"${previewText(args.query, 56)}"`);
+			text += theme.fg("dim", ` • ${args.focus ?? "mixed"} • ${args.contentMode ?? "highlights"}`);
+			return new Text(text, 0, 0);
+		},
+		renderResult(result, { expanded, isPartial }, theme) {
+			return renderSearchToolResult("Searching code", result.details as CodeSearchDetails | undefined, expanded, isPartial, theme);
+		},
 		async execute(_toolCallId, params, signal) {
 			const focus = params.focus ?? "mixed";
 			const contentMode = params.contentMode ?? "highlights";
@@ -476,6 +680,8 @@ export default function exaSearchExtension(pi: ExtensionAPI) {
 			const rawText = formatSearchResults("Code search", params.query, response, contentMode);
 			const finalized = await finalizeOutput("pi-exa-code-search", rawText);
 
+			const items = toSearchResultItems(response, contentMode);
+
 			return {
 				content: [{ type: "text", text: finalized.text }],
 				details: {
@@ -487,7 +693,8 @@ export default function exaSearchExtension(pi: ExtensionAPI) {
 					requestId: response.requestId,
 					truncated: finalized.truncated,
 					fullOutputPath: finalized.fullOutputPath,
-				},
+					items,
+				} satisfies CodeSearchDetails,
 			};
 		},
 	});
@@ -502,6 +709,16 @@ export default function exaSearchExtension(pi: ExtensionAPI) {
 			"Prefer highlights first; request text when you need more context from a small number of URLs.",
 		],
 		parameters: ReadWebPagesParams,
+		renderCall(args, theme) {
+			let text = theme.fg("toolTitle", theme.bold("read_web_pages "));
+			text += theme.fg("accent", `${args.urls.length} URL${args.urls.length === 1 ? "" : "s"}`);
+			text += theme.fg("dim", ` • ${args.contentMode ?? "highlights"}`);
+			if (args.query) text += theme.fg("dim", ` • ${previewText(args.query, 40)}`);
+			return new Text(text, 0, 0);
+		},
+		renderResult(result, { expanded, isPartial }, theme) {
+			return renderReadWebPagesResult(result.details as ReadWebPagesDetails | undefined, expanded, isPartial, theme);
+		},
 		async execute(_toolCallId, params, signal) {
 			const urls = uniqueUrls(params.urls);
 			if (!urls || urls.length === 0) {
@@ -527,6 +744,8 @@ export default function exaSearchExtension(pi: ExtensionAPI) {
 			const rawText = formatContentsResults(urls, response, contentMode);
 			const finalized = await finalizeOutput("pi-exa-read-web-pages", rawText);
 
+			const items = toReadWebPageItems(response);
+
 			return {
 				content: [{ type: "text", text: finalized.text }],
 				details: {
@@ -537,7 +756,8 @@ export default function exaSearchExtension(pi: ExtensionAPI) {
 					requestId: response.requestId,
 					truncated: finalized.truncated,
 					fullOutputPath: finalized.fullOutputPath,
-				},
+					items,
+				} satisfies ReadWebPagesDetails,
 			};
 		},
 	});
