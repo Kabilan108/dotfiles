@@ -5,9 +5,8 @@ description: Go guidelines
 
 ## Go
 
-### LSP
-
-`gopls` with staticcheck, gofumpt, unused params analysis, and auto-complete for unimported packages.
+- `gopls` with staticcheck, gofumpt, unused params analysis, and auto-complete for unimported packages.
+- use `go doc` and `gopls` for inspecting dependency documentation and APIs
 
 ### Preferences
 
