@@ -164,3 +164,9 @@ trust_level = "trusted"
 
 [projects."/vault/experiments/2026-04-14-remotion-demos"]
 trust_level = "trusted"
+
+[projects."/vault/repos/viewh5"]
+trust_level = "trusted"
+
+[projects."/vault/work/xploit/XploitAgent"]
+trust_level = "trusted"
