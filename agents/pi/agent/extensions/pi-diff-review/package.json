@@ -1,0 +1,22 @@
+{
+  "name": "pi-diff-review",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "postinstall": "node ./scripts/postinstall.mjs",
+    "check": "tsc --noEmit"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "dependencies": {
+    "glimpseui": "0.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.2"
+  }
+}
