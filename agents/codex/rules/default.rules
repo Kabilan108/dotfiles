@@ -55,3 +55,5 @@ prefix_rule(pattern=["/run/current-system/sw/bin/bash", "-lc", "GIT_SSH_COMMAND=
 prefix_rule(pattern=["uv", "tree"], decision="allow")
 prefix_rule(pattern=["ssh", "sietch"], decision="allow")
 prefix_rule(pattern=["uv", "run", "--project", "/vault/work/moberg/dev-server/eboost-scripts", "pytest", "/vault/work/moberg/dev-server/eboost-scripts/PRECICECAP/tests/test_precicecap_pipeline.py", "-q"], decision="allow")
+prefix_rule(pattern=["uv", "run", "--project", "/vault/work/moberg/dev-server/python-modules/cns-utils", "pytest"], decision="allow")
+prefix_rule(pattern=["ssh", "-F", "/dev/null", "-o", "StrictHostKeyChecking=accept-new", "-o", "UserKnownHostsFile=/home/kabilan/.ssh/known_hosts", "sietch"], decision="allow")
