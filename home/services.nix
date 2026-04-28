@@ -29,6 +29,17 @@ let
     ${pkgs.tmux}/bin/tmux split-window -t agents \
       "codex app-server --listen ws://$TAILNET_IP:8390"
   '';
+
+  # moberg crons
+  # TODO: remove this after E-BOOST study is complete (07/2026)
+  mobergEBOOSTReviewerReport = pkgs.writeShellScript "eboost-reviewer-report" ''
+    set -euo pipefail
+    cd /vault/work/moberg/dev-server
+    source "$HOME/.bashenv"
+
+    ${pkgs.direnv}/bin/direnv exec . \
+      eboost-scripts/EBOOST/change-points/scripts/check-eboost-reviewer-progress.sh
+  '';
 in
 {
   systemd.user.services.agent-server = {
@@ -138,6 +149,28 @@ in
     Unit.Description = "Weekly Spotify cache cleanup";
     Timer = {
       OnCalendar = "Sun 03:00";
+      Persistent = true;
+    };
+    Install.WantedBy = [ "timers.target" ];
+  };
+
+  # moberg crons
+  systemd.user.services.moberg-eboost-reviewer-report = {
+    Unit = {
+      Description = "Generate EBOOST reviewer progress report";
+      After = [ "network-online.target" ];
+    };
+
+    Service = {
+      Type = "oneshot";
+      ExecStart = mobergEBOOSTReviewerReport;
+    };
+  };
+
+  systemd.user.timers.moberg-eboost-reviewer-report = {
+    Unit.Description = "Weekly EBOOST reviewer progress report";
+    Timer = {
+      OnCalendar = "Mon 11:30";
       Persistent = true;
     };
     Install.WantedBy = [ "timers.target" ];
