@@ -39,7 +39,7 @@
         dates = "weekly";
         options = "--delete-older-than 14d";
       };
-      extraOptions = ''trusted-users = root kabilan'';
+      extraOptions = "trusted-users = root kabilan";
       settings = {
         experimental-features = [
           "nix-command"
@@ -63,6 +63,10 @@
 
     services = {
       blueman.enable = true;
+      cron = {
+        enable = true;
+        systemCronJobs = [ ];
+      };
       gnome.gnome-keyring.enable = true;
       gvfs.enable = true;
       pulseaudio.enable = false;
