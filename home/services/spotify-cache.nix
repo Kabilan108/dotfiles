@@ -1,0 +1,31 @@
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+let
+  cfg = config.dotfiles.services.spotify-cache;
+in
+{
+  options.dotfiles.services.spotify-cache.enable = lib.mkEnableOption "Spotify cache cleanup";
+
+  config = lib.mkIf cfg.enable {
+    systemd.user.services.clean-spotify-cache = {
+      Unit.Description = "Delete Spotify cache";
+      Service = {
+        Type = "oneshot";
+        ExecStart = "${pkgs.coreutils}/bin/rm -rf %h/.cache/spotify";
+      };
+    };
+
+    systemd.user.timers.clean-spotify-cache = {
+      Unit.Description = "Weekly Spotify cache cleanup";
+      Timer = {
+        OnCalendar = "Mon 09:00";
+        Persistent = true;
+      };
+      Install.WantedBy = [ "timers.target" ];
+    };
+  };
+}

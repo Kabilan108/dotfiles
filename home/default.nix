@@ -9,7 +9,7 @@ let
 in
 {
   imports = [
-    ./services.nix
+    ./services
     ./shell.nix
 
     ../modules/home/appimages.nix

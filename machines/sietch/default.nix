@@ -21,6 +21,11 @@
   };
 
   home-manager.users.kabilan = {
+    dotfiles.services = {
+      agent-server.enable = true;
+      moberg.eboostReviewerReport.enable = true;
+    };
+
     wallpaper.desktop = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
   };
 
@@ -46,7 +51,10 @@
       WorkingDirectory = "/home/kabilan/dotfiles/selfhost";
       User = "kabilan";
     };
-    path = [ pkgs.docker pkgs.docker-compose ];
+    path = [
+      pkgs.docker
+      pkgs.docker-compose
+    ];
     script = ''
       source .envrc
       docker-compose pull
