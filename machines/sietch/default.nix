@@ -26,7 +26,7 @@
       moberg.eboostReviewerReport.enable = true;
     };
 
-    wallpaper.desktop = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
+    dotfiles.wallpaper.desktop = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [

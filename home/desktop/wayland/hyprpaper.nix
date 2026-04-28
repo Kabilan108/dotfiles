@@ -5,8 +5,8 @@
     settings = {
       ipc = "on";
       splash = false;
-      preload = [ config.wallpaper.desktop ];
-      wallpaper = [ ", ${config.wallpaper.desktop}" ];
+      preload = [ config.dotfiles.wallpaper.desktop ];
+      wallpaper = [ ", ${config.dotfiles.wallpaper.desktop}" ];
     };
   };
 }

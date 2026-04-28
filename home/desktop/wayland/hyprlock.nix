@@ -14,7 +14,7 @@ in
 
       background = [
         {
-          path = config.wallpaper.lockscreen;
+          path = config.dotfiles.wallpaper.lockscreen;
           blur_passes = 2;
           blur_size = 5;
           contrast = 0.8916;

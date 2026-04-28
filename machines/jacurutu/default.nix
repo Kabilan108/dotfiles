@@ -21,7 +21,7 @@
     dotfiles.services.mic-volume-enforce.enable = true;
 
     programs.niri.config = null;
-    wallpaper.desktop = "$HOME/dotfiles/wallpapers/shoggoth-001.png";
-    wallpaper.lockscreen = "$HOME/dotfiles/wallpapers/war-claude.png";
+    dotfiles.wallpaper.desktop = "$HOME/dotfiles/wallpapers/shoggoth-001.png";
+    dotfiles.wallpaper.lockscreen = "$HOME/dotfiles/wallpapers/war-claude.png";
   };
 }

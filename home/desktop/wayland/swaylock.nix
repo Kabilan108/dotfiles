@@ -1,4 +1,9 @@
-{ config, theme, pkgs, ... }:
+{
+  config,
+  theme,
+  pkgs,
+  ...
+}:
 let
   palette = theme.palette;
 in
@@ -9,7 +14,7 @@ in
   };
 
   xdg.configFile."swaylock/config".text = ''
-    image=${config.wallpaper.lockscreen}
+    image=${config.dotfiles.wallpaper.lockscreen}
     fade-in=0
 
     clock

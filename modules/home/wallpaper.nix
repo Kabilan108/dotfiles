@@ -6,7 +6,7 @@
   ...
 }:
 {
-  options.wallpaper = {
+  options.dotfiles.wallpaper = {
     desktop = lib.mkOption {
       type = lib.types.str;
       description = "Path to desktop wallpaper image";
@@ -14,7 +14,7 @@
 
     lockscreen = lib.mkOption {
       type = lib.types.str;
-      default = config.wallpaper.desktop;
+      default = config.dotfiles.wallpaper.desktop;
       description = "Path to lockscreen wallpaper image (defaults to desktop wallpaper)";
     };
   };
@@ -30,7 +30,7 @@
         };
         Service = {
           Type = "oneshot";
-          ExecStart = "${pkgs.feh}/bin/feh --bg-scale ${config.wallpaper.desktop}";
+          ExecStart = "${pkgs.feh}/bin/feh --bg-scale ${config.dotfiles.wallpaper.desktop}";
           RemainAfterExit = true;
         };
         Install.WantedBy = [ "graphical-session.target" ];
