@@ -4,7 +4,7 @@
   ...
 }:
 let
-  niriPackage = inputs."niri-flake".packages.${pkgs.system}.niri-stable.overrideAttrs (_: {
+  niriPackage = inputs."niri-flake".packages.${pkgs.system}.niri-unstable.overrideAttrs (_: {
     doCheck = false;
   });
 in

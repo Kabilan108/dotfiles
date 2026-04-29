@@ -21,14 +21,14 @@
         overlays = [
           (final: prev: {
             bun = pkgs-unstable.bun;
+            cloudflared = pkgs-unstable.cloudflared;
             ghostty = inputs.ghostty.packages.${system}.default;
-            spotify = pkgs-unstable.spotify;
+            obsidian = pkgs-unstable.obsidian;
             openrgb = pkgs-unstable.openrgb;
             openrgb-with-all-plugins = pkgs-unstable.openrgb-with-all-plugins;
-            widsurf = pkgs-unstable.windsurf;
-            obsidian = pkgs-unstable.obsidian;
-            cloudflared = pkgs-unstable.cloudflared;
             prek = pkgs-unstable.prek;
+            spotify = pkgs-unstable.spotify;
+            widsurf = pkgs-unstable.windsurf;
             yazi = pkgs-unstable.yazi;
             code-cursor = final.callPackage ./packages/cursor.nix { };
             nomacs = final.callPackage ./packages/nomacs-viewer.nix { nomacs = prev.nomacs; };
