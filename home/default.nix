@@ -25,6 +25,7 @@ in
     inputs.claude-bar.homeManagerModules.default
     inputs.dictator.homeManagerModules.dictator
     inputs.raindrop.homeManagerModules.default
+    inputs.tracer.homeManagerModules.default
   ]
   ++ (if displayServer == "x11" then [ ./desktop/x11 ] else [ ./desktop/wayland ]);
 
@@ -170,6 +171,20 @@ in
     package = inputs.raindrop.packages.${pkgs.system}.default;
     settings = {
       token = "\${env:RAINDROP_TOKEN}";
+    };
+  };
+
+  programs.tracer = {
+    enable = true;
+    package = inputs.tracer.packages.${pkgs.system}.tracer;
+    watch.enable = true;
+    settings = {
+      archive.root_dir = "~/.local/share/tracer/archive";
+      ingest.enabled_providers = [
+        "claude"
+        "codex"
+      ];
+      ingest.exclude_path_globs = [ "/home/kabilan/experiments/*" ];
     };
   };
 
