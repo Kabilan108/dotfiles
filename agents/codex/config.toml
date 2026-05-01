@@ -28,6 +28,7 @@ undo = true
 js_repl = false
 memories = false
 personality = true
+goals = true
 
 [history]
 persistence = "save-all"
@@ -175,6 +176,12 @@ trust_level = "trusted"
 trust_level = "trusted"
 
 [projects."/vault/experiments/2026-04-30-wterm/wterm"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server/python-modules/export-utils"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server-2/dashboard"]
 trust_level = "trusted"
 
 [tui.model_availability_nux]
