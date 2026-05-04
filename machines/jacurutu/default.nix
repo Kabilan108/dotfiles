@@ -18,7 +18,10 @@
   };
 
   home-manager.users.kabilan = {
-    dotfiles.services.mic-volume-enforce.enable = true;
+    dotfiles.services = {
+      mic-volume-enforce.enable = true;
+      moberg.eboostReviewerReport.enable = true;
+    };
 
     programs.niri.config = null;
     dotfiles.wallpaper.desktop = "$HOME/dotfiles/wallpapers/shoggoth-001.png";

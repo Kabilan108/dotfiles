@@ -23,7 +23,6 @@
   home-manager.users.kabilan = {
     dotfiles.services = {
       agent-server.enable = true;
-      moberg.eboostReviewerReport.enable = true;
     };
 
     dotfiles.wallpaper.desktop = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
