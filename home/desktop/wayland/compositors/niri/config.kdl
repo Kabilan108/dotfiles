@@ -444,6 +444,14 @@ window-rule {
     draw-border-with-background false
 }
 
+window-rule {
+    match app-id=r#"^com\.mitchellh\.ghostty$"#
+    opacity 0.85
+    background-effect {
+        blur true
+    }
+}
+
 overview {
     backdrop-color "#11111b"
 }
