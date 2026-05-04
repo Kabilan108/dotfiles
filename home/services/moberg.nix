@@ -36,7 +36,7 @@ in
     systemd.user.timers.moberg-eboost-reviewer-report = {
       Unit.Description = "Weekly EBOOST reviewer progress report";
       Timer = {
-        OnCalendar = "Mon 11:30";
+        OnCalendar = "Mon 10:30";
         Persistent = true;
       };
       Install.WantedBy = [ "timers.target" ];
