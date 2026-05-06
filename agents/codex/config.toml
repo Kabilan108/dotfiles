@@ -184,6 +184,15 @@ trust_level = "trusted"
 [projects."/vault/work/moberg/dev-server-2/dashboard"]
 trust_level = "trusted"
 
+[projects."/vault/experiments/2026-05-04-tab-namer"]
+trust_level = "trusted"
+
+[projects."/vault/repos/chrome-extensions"]
+trust_level = "trusted"
+
+[projects."/vault/experiments/2026-05-05-bjarneo-cliamp"]
+trust_level = "trusted"
+
 [tui.model_availability_nux]
 "gpt-5.5" = 4
 

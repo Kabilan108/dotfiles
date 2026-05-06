@@ -20,3 +20,4 @@ session_index.jsonl
 .tmp/
 cache/
 installation_id
+*.bak
