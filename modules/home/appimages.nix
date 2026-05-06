@@ -11,6 +11,9 @@ let
 
   mkWrapper =
     name: app:
+    let
+      args = lib.escapeShellArgs app.args;
+    in
     pkgs.writeShellScriptBin name ''
       latest=$(find "${appDir}" -maxdepth 1 -name '${app.pattern}' -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n1 | cut -d' ' -f2-)
       if [ -z "$latest" ]; then
@@ -18,7 +21,7 @@ let
         exit 1
       fi
       chmod +x "$latest"
-      exec "$latest" "$@"
+      exec "$latest" ${args} "$@"
     '';
 
   bootstrapper = pkgs.writeShellScript "bootstrap-appimages" ''
@@ -64,6 +67,11 @@ in
             comment = lib.mkOption {
               type = lib.types.str;
               default = "";
+            };
+            args = lib.mkOption {
+              type = lib.types.listOf lib.types.str;
+              default = [ ];
+              description = "Default arguments to pass to the AppImage before caller-provided arguments";
             };
             categories = lib.mkOption {
               type = lib.types.listOf lib.types.str;

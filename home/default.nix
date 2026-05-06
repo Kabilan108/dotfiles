@@ -208,6 +208,7 @@ in
         downloadPattern = "*x86_64.AppImage";
         desktopName = "T3 Code";
         comment = "T3 Code Editor";
+        args = [ "--password-store=gnome-libsecret" ];
         categories = [
           "Development"
           "TextEditor"
