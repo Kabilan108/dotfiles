@@ -1,6 +1,6 @@
 model = "gpt-5.5"
 
-model_reasoning_effort = "low"
+model_reasoning_effort = "medium"
 model_supports_reasoning_summaries = true
 
 sandbox_mode = "workspace-write"
@@ -191,6 +191,12 @@ trust_level = "trusted"
 trust_level = "trusted"
 
 [projects."/vault/experiments/2026-05-05-bjarneo-cliamp"]
+trust_level = "trusted"
+
+[projects."/vault/repos/cli/bbui"]
+trust_level = "trusted"
+
+[projects."/vault/repos/jot"]
 trust_level = "trusted"
 
 [tui.model_availability_nux]
