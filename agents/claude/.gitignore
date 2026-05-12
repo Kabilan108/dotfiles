@@ -22,3 +22,5 @@ mcp-needs-auth-cache.json
 sessions/
 session-env
 policy-limits.json
+.last-cleanup
+daemon
