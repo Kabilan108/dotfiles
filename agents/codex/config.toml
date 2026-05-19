@@ -10,7 +10,7 @@ personality = "pragmatic"
 service_tier = "fast"
 
 [agents]
-max_threads = 12
+max_threads = 16
 
 [sandbox_workspace_write]
 network_access = true
@@ -196,10 +196,16 @@ trust_level = "trusted"
 [projects."/vault/repos/cli/bbui"]
 trust_level = "trusted"
 
-[projects."/vault/repos/jot"]
+[projects."/vault/notes/coppermind"]
 trust_level = "trusted"
 
-[projects."/vault/notes/coppermind"]
+[projects."/vault/work/moberg/dev-server-3"]
+trust_level = "trusted"
+
+[projects."/vault/repos/hunk"]
+trust_level = "trusted"
+
+[projects."/vault/repos/jot"]
 trust_level = "trusted"
 
 [tui.model_availability_nux]
