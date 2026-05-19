@@ -39,6 +39,7 @@ in
     UV_SYSTEM_PYTHON = "0";
 
     PYREPL_PORT = "5678";
+    AGENT_BROWSER_EXECUTABLE_PATH = "${pkgs.google-chrome}/bin/google-chrome-stable";
 
     USER_DATA = "/vault/userdata";
     FASTAI_HOME = "${USER_DATA}/fastai";
