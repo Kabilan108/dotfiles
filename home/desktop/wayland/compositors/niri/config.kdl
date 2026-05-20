@@ -446,6 +446,10 @@ window-rule {
 
 window-rule {
     match app-id=r#"^com\.mitchellh\.ghostty$"#
+    match app-id=r#"^spotify$"#
+    match app-id=r#"^Slack$"#
+    match app-id=r#"^obsidian$"#
+
     opacity 0.85
     background-effect {
         blur true
@@ -628,7 +632,7 @@ binds {
     Mod+Ctrl+R { reset-window-height; }
 
     Mod+F { maximize-column; }
-    Mod+Shift+F { fullscreen-window; }
+    Mod+Shift+F { spawn-sh "niri msg action toggle-windowed-fullscreen && niri msg action maximize-window-to-edges"; }
 
     Mod+C { center-column; }
 
