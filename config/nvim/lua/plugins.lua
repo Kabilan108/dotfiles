@@ -8,7 +8,6 @@ return {
   'nvim-lua/plenary.nvim',
   'nvim-lualine/lualine.nvim',
   'nvim-tree/nvim-web-devicons',
-  'wakatime/vim-wakatime',
 
   {
     'stevearc/oil.nvim',
@@ -44,16 +43,6 @@ return {
 
   { 'lukas-reineke/indent-blankline.nvim', main = 'ibl', opts = {} },
   { 'neovim/nvim-lspconfig', dependencies = { 'j-hui/fidget.nvim' } },
-
-  -- debugger
-  {
-    'mfussenegger/nvim-dap',
-    dependencies = {
-      'rcarriga/nvim-dap-ui',
-      'theHamsta/nvim-dap-virtual-text',
-      'nvim-neotest/nvim-nio',
-    },
-  },
 
   -- autocompletion
   {
@@ -100,16 +89,6 @@ return {
         },
       }
     end,
-  },
-
-  {
-    'iamcco/markdown-preview.nvim',
-    cmd = { 'MarkdownPreviewToggle', 'MarkdownPreview', 'MarkdownPreviewStop' },
-    build = 'cd app && npm ci',
-    init = function()
-      vim.g.mkdp_filetypes = { 'markdown' }
-    end,
-    ft = { 'markdown' },
   },
 
   -- telescope
@@ -190,15 +169,6 @@ return {
     end,
   },
 
-  -- {
-  --   dir = '/vault/repos/zeta.nvim',
-  --   name = 'zeta.nvim',
-  --   lazy = false,
-  --   config = function()
-  --     require 'config.zeta'
-  --   end,
-  -- },
-
   {
     'ggml-org/llama.vim',
     enabled = false,
@@ -236,6 +206,7 @@ return {
       }
     end,
   },
+
   {
     'davidmh/mdx.nvim',
     dependencies = { 'nvim-treesitter/nvim-treesitter' },

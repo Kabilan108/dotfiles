@@ -6,7 +6,6 @@ require 'keymaps'
 
 require 'config.autocmd'
 require 'config.completion'
-require 'config.debug'
 require 'config.llm'
 require 'config.lsp'
 require 'config.lualine'

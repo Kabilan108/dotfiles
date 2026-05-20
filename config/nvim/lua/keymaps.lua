@@ -1,6 +1,5 @@
 -- keymaps.lua
 
-local dap = require 'dap'
 local harpoon = require 'harpoon'
 local luasnip = require 'luasnip'
 local ts = require 'telescope.builtin'
@@ -150,20 +149,6 @@ harpoon:extend {
     end, '', { buffer = cx.bufnr })
   end,
 }
-
--- debugger
-utils.map('dt', 'n', dap.toggle_breakpoint, 'toggle breakpoint')
-utils.map('dtc', 'n', dap.run_to_cursor, 'run to cursor')
-utils.map('dv', 'n', function()
-  require('dapui').eval(nil, { enter = true })
-end, 'check value')
-utils.map('dc', 'n', dap.continue, 'continue')
-utils.map('di', 'n', dap.step_into, 'step into')
-utils.map('do', 'n', dap.step_over, 'step over')
-utils.map('du', 'n', dap.step_out, 'step out')
-utils.map('db', 'n', dap.step_back, 'step back')
-utils.map('dr', 'n', dap.restart, 'restart debugger')
-utils.map('de', 'n', dap.close, 'close debugger')
 
 -- window navigation
 utils.map('<C-h>', 'n', '<C-w><C-h>', 'move to left window')
