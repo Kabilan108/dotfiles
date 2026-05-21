@@ -2,7 +2,7 @@
   imports = [
     ./agent-server.nix
     ./backup.nix
-    ./install-uv-tools.nix
+    ./install-tools.nix
     ./mic-volume-enforce.nix
     ./moberg.nix
     ./spotify-cache.nix
@@ -11,7 +11,7 @@
 
   dotfiles.services = {
     backup.enable = true;
-    install-uv-tools.enable = true;
+    install-tools.enable = true;
     spotify-cache.enable = true;
     update-agents.enable = true;
   };
