@@ -15,7 +15,7 @@ let
     ${pkgs.uv}/bin/uv tool install -U --with llm-cmd --with llm-openrouter --with llm-tmux-fragments llm
     ${pkgs.uv}/bin/uv tool install -U --from git+https://github.com/kabilan108/viewh5 viewh5
 
-    ${pkgs.pnpm}/bin/pnpm add -g @steipete/summarize ccusage
+    ${pkgs.pnpm}/bin/pnpm add -g @steipete/summarize ccusage kittylitter
   '';
 in
 {
