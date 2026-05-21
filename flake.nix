@@ -144,7 +144,7 @@
     raindrop.url = "github:kabilan108/raindrop";
     tracer.url = "github:kabilan108/tracer";
 
-    try.url = "github:tobi/try/55baadc3f90ee7b7cbfa3d6c7b2c29db22151d5d";
+    try.url = "github:tobi/try";
     worktrunk.url = "github:max-sixty/worktrunk";
   };
 }
