@@ -146,11 +146,6 @@ in
           notification = false;
         }
         {
-          command = "setxkbmap -option caps:escape";
-          notification = false;
-          always = true;
-        }
-        {
           command = "${../../../bin/start-polybar}";
           notification = false;
           always = true;

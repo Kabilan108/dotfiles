@@ -69,6 +69,16 @@
       };
       gnome.gnome-keyring.enable = true;
       gvfs.enable = true;
+      keyd = {
+        enable = true;
+        keyboards.default = {
+          ids = [ "*" ];
+          settings.main = {
+            capslock = "esc";
+            rightalt = "backspace";
+          };
+        };
+      };
       pulseaudio.enable = false;
       pipewire = {
         enable = true;
