@@ -62,20 +62,6 @@ in
         urAccepted = -1;
       };
 
-      folders.coppermind = {
-        path = "/vault/notes/coppermind";
-        devices = [
-          otherHost
-          "pixel"
-        ];
-        type = "sendreceive";
-        fsWatcherEnabled = true;
-        versioning = {
-          type = "staggered";
-          params.maxAge = "2592000"; # 30 days
-        };
-      };
-
       devices.${otherHost} = {
         id = deviceIDs.${otherHost};
         addresses = [ "tcp://${tailscaleIPs.${otherHost}}:22000" ];
