@@ -22,3 +22,6 @@ cache/
 installation_id
 *.bak
 generated_images
+app-server-control
+app-server-daemon
+packages
