@@ -68,6 +68,7 @@ in
     ".config/Cursor/User".source = cfgLink "vscode";
     ".config/sessionizer".source = cfgLink "sessionizer";
     ".config/uv/uv.toml".source = cfgLink "uv/uv.toml";
+    ".config/.bunfig.toml".source = cfgLink "bunfig.toml";
     ".config/nvim".source = cfgLink "nvim";
     ".config/worktrunk".source = cfgLink "worktrunk";
     ".npmrc".source = cfgLink "npm/npmrc";
