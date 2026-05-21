@@ -6,7 +6,7 @@
   ...
 }:
 let
-  homeDir = "/home/kabilan";
+  homeDir = config.home.homeDirectory;
   confDir = "${homeDir}/dotfiles/config";
   cfgLink = name: config.lib.file.mkOutOfStoreSymlink "${confDir}/${name}";
   agentLink = name: config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/agents/${name}";
@@ -22,10 +22,10 @@ in
   ];
 
   home.sessionPath = [
-    "$HOME/.bun/bin"
-    "$HOME/.local/bin"
-    "$HOME/.npm-global/bin"
-    "$HOME/bin"
+    "${homeDir}/.bun/bin"
+    "${homeDir}/.local/bin"
+    "${homeDir}/.local/share/pnpm"
+    "${homeDir}/bin"
     "$GOPATH/bin"
   ];
 
@@ -33,6 +33,8 @@ in
     FZF_DEFAULT_OPTS = "--reverse";
 
     BUN_INSTALL_CACHE_DIR = "/vault/userdata/cache/bun-install";
+
+    PNPM_HOME = "${homeDir}/.local/share/pnpm";
 
     UV_CACHE_DIR = "/vault/userdata/cache/uv";
     UV_LINK_MODE = "copy";
@@ -69,6 +71,7 @@ in
     ".config/sessionizer".source = cfgLink "sessionizer";
     ".config/uv/uv.toml".source = cfgLink "uv/uv.toml";
     ".config/.bunfig.toml".source = cfgLink "bunfig.toml";
+    ".config/pnpm/rc".source = mkPath "pnpm/rc";
     ".config/nvim".source = cfgLink "nvim";
     ".config/worktrunk".source = cfgLink "worktrunk";
     ".npmrc".source = cfgLink "npm/npmrc";
