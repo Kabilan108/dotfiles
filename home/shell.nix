@@ -1,7 +1,6 @@
 {
   inputs,
   config,
-  theme,
   pkgs,
   ...
 }:
@@ -11,8 +10,8 @@ let
   cfgLink = name: config.lib.file.mkOutOfStoreSymlink "${confDir}/${name}";
   agentLink = name: config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/agents/${name}";
 
-  themeName = theme.name;
-  palette = theme.palette;
+  colors = config.lib.stylix.colors.withHashtag;
+  themeName = "stylix";
 in
 {
   imports = [
@@ -109,14 +108,14 @@ in
       "${themeName}" = {
         theme.name = themeName;
         colors = {
-          AlertInfo = "#${palette.base0B}";
-          AlertWarn = "#${palette.base09}";
-          AlertError = "#${palette.base08}";
-          Annotation = "#${palette.base0E}";
-          Base = "#${palette.base05}";
-          Guidance = "#${palette.base04}";
-          Important = "#${palette.base08}";
-          Title = "#${palette.base0E}";
+          AlertInfo = colors.base0B;
+          AlertWarn = colors.base09;
+          AlertError = colors.base08;
+          Annotation = colors.base0E;
+          Base = colors.base05;
+          Guidance = colors.base04;
+          Important = colors.base08;
+          Title = colors.base0E;
         };
       };
     };
@@ -124,48 +123,36 @@ in
 
   programs.lazydocker = {
     enable = true;
-    settings.gui.theme = with theme.palette; {
+    settings.gui.theme = {
       activeBorderColor = [
-        "#${base0A}"
+        colors.base0A
         "bold"
       ];
-      inactiveBorderColor = [ "#${base03}" ];
-      selectedLineBgColor = [ "#${base02}" ];
-      optionsTextColor = [ "#${base0D}" ];
+      inactiveBorderColor = [ colors.base03 ];
+      selectedLineBgColor = [ colors.base02 ];
+      optionsTextColor = [ colors.base0D ];
     };
   };
+
+  stylix.targets.lazygit.enable = true;
 
   programs.lazygit = {
     enable = true;
     settings.git.pagers = [
       { pager = "delta --paging=never"; }
     ];
-    settings.gui = with theme.palette; {
+    settings.gui = {
       authorColors = {
-        "*" = "#${base07}";
+        "*" = colors.base07;
       };
       branchColorPatterns = {
-        "^main$" = "#94e2d5";
-        "^master$" = "#94e2d5";
-        "^feat[ure]?/" = "#74c7ec";
-        "^bugfix/" = "#eba0ac";
-        "^fix/" = "#eba0ac";
+        "^main$" = colors.base0C;
+        "^master$" = colors.base0C;
+        "^feat[ure]?/" = colors.base0D;
+        "^bugfix/" = colors.base08;
+        "^fix/" = colors.base08;
       };
       nerdFontsVersion = "3";
-      theme = {
-        activeBorderColor = [
-          "#${base0A}"
-          "bold"
-        ];
-        cherryPickedCommitBgColor = [ "#${base03}" ];
-        cherryPickedCommitFgColor = [ "#${base0A}" ];
-        defaultFgColor = [ "#${base05}" ];
-        inactiveBorderColor = [ "#${base03}" ];
-        optionsTextColor = [ "#${base0D}" ];
-        searchingActiveBorderColor = [ "#${base0A}" ];
-        selectedLineBgColor = [ "#${base02}" ];
-        unstagedChangesColor = [ "#${base08}" ];
-      };
     };
   };
 
