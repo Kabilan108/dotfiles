@@ -23,6 +23,7 @@
   home-manager.users.kabilan = {
     dotfiles.services = {
       agent-server.enable = true;
+      wayvnc.enable = true;
     };
 
     dotfiles.wallpaper.desktop = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
@@ -32,6 +33,7 @@
     22
     80
     443
+    5900
   ];
 
   services = {

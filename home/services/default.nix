@@ -8,6 +8,7 @@
     ./moberg.nix
     ./spotify-cache.nix
     ./update-agents.nix
+    ./wayvnc.nix
   ];
 
   dotfiles.services = {
