@@ -7,6 +7,7 @@
 let
   cfg = config.dotfiles.services.kittylitter;
   homeDir = config.home.homeDirectory;
+  profileBin = "${config.home.profileDirectory}/bin";
   pnpmHome = "${homeDir}/.local/share/pnpm";
 in
 {
@@ -27,7 +28,7 @@ in
               pkgs.gnused
               pkgs.nodejs_24
             ]
-          }:${pnpmHome}:${homeDir}/.bun/bin:${homeDir}/.local/bin:${homeDir}/bin:/run/current-system/sw/bin"
+          }:${profileBin}:${pnpmHome}:${homeDir}/.bun/bin:${homeDir}/.local/bin:${homeDir}/bin:/run/current-system/sw/bin"
         ];
         ExecStart = "${pnpmHome}/kittylitter serve";
         Restart = "on-failure";
