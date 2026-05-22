@@ -10,7 +10,6 @@ let
   confDir = "${homeDir}/dotfiles/config";
   cfgLink = name: config.lib.file.mkOutOfStoreSymlink "${confDir}/${name}";
   agentLink = name: config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/agents/${name}";
-  mkPath = name: ../config/${name};
 
   themeName = theme.name;
   palette = theme.palette;
@@ -59,11 +58,11 @@ in
     ".codex".source = agentLink "codex";
     ".config/opencode".source = agentLink "opencode";
 
-    ".gitconfig".source = mkPath ".gitconfig";
-    ".ipython/profile_default/ipython_config.py".source = mkPath "ipython_config.py";
-    ".obsidian.vimrc".source = mkPath ".obsidian.vimrc";
-    ".tmux.conf".source = mkPath ".tmux.conf";
-    ".vimrc".source = mkPath ".vimrc";
+    ".gitconfig".source = cfgLink ".gitconfig";
+    ".ipython/profile_default/ipython_config.py".source = cfgLink "ipython_config.py";
+    ".obsidian.vimrc".source = cfgLink ".obsidian.vimrc";
+    ".tmux.conf".source = cfgLink ".tmux.conf";
+    ".vimrc".source = cfgLink ".vimrc";
 
     ".config/backup".source = cfgLink "backup";
     ".config/Code/User".source = cfgLink "vscode";
@@ -71,7 +70,7 @@ in
     ".config/sessionizer".source = cfgLink "sessionizer";
     ".config/uv/uv.toml".source = cfgLink "uv/uv.toml";
     ".config/.bunfig.toml".source = cfgLink "bunfig.toml";
-    ".config/pnpm/rc".source = mkPath "pnpm/rc";
+    ".config/pnpm/rc".source = cfgLink "pnpm/rc";
     ".config/nvim".source = cfgLink "nvim";
     ".config/worktrunk".source = cfgLink "worktrunk";
     ".npmrc".source = cfgLink "npm/npmrc";
