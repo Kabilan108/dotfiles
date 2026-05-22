@@ -1,1 +1,2 @@
 global-bin-dir=${PNPM_HOME}
+minimumReleaseAge=2880
