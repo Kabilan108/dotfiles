@@ -52,11 +52,20 @@
         }:
         nixpkgs.lib.nixosSystem {
           inherit system pkgs;
-          specialArgs = { inherit inputs theme displayServer waylandCompositor; };
+          specialArgs = {
+            inherit
+              inputs
+              theme
+              displayServer
+              waylandCompositor
+              ;
+          };
           modules = [
             (./. + "/machines/${name}")
             ./configuration.nix
             ./user.nix
+            inputs.stylix.nixosModules.stylix
+            ./modules/nixos/theme.nix
             ./modules/nixos/virt-manager.nix
             ./modules/nixos/syncthing.nix
           ]
@@ -122,6 +131,11 @@
     };
 
     nix-colors.url = "github:misterio77/nix-colors";
+
+    stylix = {
+      url = "github:nix-community/stylix/release-25.11";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     hyprland.url = "github:hyprwm/Hyprland/v0.52.0";
     ghostty.url = "github:ghostty-org/ghostty/v1.3.1";

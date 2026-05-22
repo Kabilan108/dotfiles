@@ -18,6 +18,7 @@ in
     ../modules/home/ghostty.nix
     ../modules/home/gtk.nix
     ../modules/home/pwas.nix
+    ../modules/home/stylix.nix
     ../modules/home/wallpaper.nix
     ../modules/home/zen
 
