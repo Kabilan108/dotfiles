@@ -4,7 +4,7 @@ set -euo pipefail
 
 usage() {
   cat <<EOF
-Usage: poll-agents [options] <pane-id> [pane-id...]
+Usage: poll-agents [options] <target> [target...]
 
 Monitor tmux pane agents for completion, blockers, or errors.
 
@@ -14,6 +14,7 @@ Options:
   -s, --sentinel <str>   completion string (default: "PHASE COMPLETE")
   -b, --blocker <str>    blocker prefix (default: "BLOCKED:")
   -e, --error <str>      error sentinel (default: "PHASE ERROR")
+  -t, --target <target>  tmux pane target to monitor (repeatable)
   -w, --worktree <path>  check git log for commits since --since
       --since <ref>      git commit hash baseline for -w (default: auto-detected HEAD)
   -p, --poll             repeat every --interval until all done
@@ -35,10 +36,11 @@ Exit codes:
   2  any pane still RUNNING (single-check mode only)
 
 Examples:
-  poll-agents %31 %32                                     # single check
-  poll-agents -p -i 15 %31 %32                            # poll every 15s
+  poll-agents %31 %32                                      # single check
+  poll-agents -t atlas:1.2                                 # explicit target
+  poll-agents -p -i 15 %31 %32                             # poll every 15s
   poll-agents -w /repo/.worktrees/infra --since abc123 %31
-  poll-agents -j %31 %32                                  # JSON output
+  poll-agents -j %31 %32                                   # JSON output
 EOF
 }
 
@@ -74,6 +76,10 @@ while [[ $# -gt 0 ]]; do
     ;;
   -e | --error)
     error_sentinel="$2"
+    shift 2
+    ;;
+  -t | --target)
+    panes+=("$2")
     shift 2
     ;;
   -w | --worktree)
@@ -116,10 +122,6 @@ if [[ ${#panes[@]} -eq 0 ]]; then
   echo "error: at least one pane-id required" >&2
   usage >&2
   exit 1
-fi
-
-if [[ -z "$TMUX" ]]; then
-  error "must be running inside tmux"
 fi
 
 if [[ -n "$worktree" && -z "$since" ]]; then

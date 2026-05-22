@@ -4,16 +4,18 @@ set -euo pipefail
 
 usage() {
   cat <<EOF
-Usage: send-to-pane <pane-id> [file]
+Usage: send-to-pane [options] [target] [file]
 
 Send text content to a tmux pane safely via load-buffer.
 Reads from file or stdin, loads into tmux buffer, and pastes to the target pane.
 
 Arguments:
-  pane-id    tmux pane target (e.g., %31, session:window.pane)
+  target     tmux pane target (e.g., %31, session:window.pane)
   file       content source (default: stdin)
 
 Options:
+  -t, --target <target>
+               tmux target pane (same as positional target)
   --no-enter   skip sending Enter (C-m) after paste
   -h, --help   show this help
 EOF
@@ -25,7 +27,7 @@ error() {
 }
 
 send_enter=true
-pane_id=""
+target=""
 file=""
 
 while [[ $# -gt 0 ]]; do
@@ -38,9 +40,13 @@ while [[ $# -gt 0 ]]; do
     send_enter=false
     shift
     ;;
+  -t | --target)
+    target="$2"
+    shift 2
+    ;;
   *)
-    if [[ -z "$pane_id" ]]; then
-      pane_id="$1"
+    if [[ -z "$target" ]]; then
+      target="$1"
     elif [[ -z "$file" ]]; then
       file="$1"
     else
@@ -53,18 +59,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "$pane_id" ]]; then
-  echo "error: pane-id is required" >&2
+if [[ -z "$target" ]]; then
+  echo "error: target is required" >&2
   usage >&2
   exit 1
 fi
 
-if [[ -z "$TMUX" ]]; then
-  error "tmux is not running"
-fi
-
-tmux display-message -t "$pane_id" -p '#{pane_id}' >/dev/null 2>&1 ||
-  error "pane '$pane_id' does not exist"
+tmux display-message -t "$target" -p '#{pane_id}' >/dev/null 2>&1 ||
+  error "target '$target' does not exist"
 
 tmpfile=""
 cleanup() { [[ -n "$tmpfile" ]] && rm -f "$tmpfile"; }
@@ -83,8 +85,8 @@ else
 fi
 
 tmux load-buffer "$buf_source"
-tmux paste-buffer -t "$pane_id"
+tmux paste-buffer -t "$target"
 
 if [[ "$send_enter" == true ]]; then
-  tmux send-keys -t "$pane_id" C-m
+  tmux send-keys -t "$target" C-m
 fi

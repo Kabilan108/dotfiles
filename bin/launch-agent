@@ -6,17 +6,19 @@ usage() {
   cat <<EOF
 Usage: launch-agent [options] [-- agent-args...]
 
-Launch an agent in a new tmux pane. Creates the pane in the current window
-by default, keeping subagents visible alongside the orchestrator.
+Launch an agent in a new tmux pane. Creates the pane in the current window by
+default when running inside tmux. Use --target to launch into an explicit tmux
+target from either inside or outside tmux.
 
 Prints the new pane ID (e.g., %42) to stdout.
 
 Options:
-  -a, --agent <name>    agent to launch (default: claude)
+  -a, --agent <name>    agent to launch: claude or codex (default: claude)
   -d, --dir <path>      working directory (default: \$PWD)
-  -t, --task-id <id>    sets CLAUDE_CODE_TASK_LIST_ID env var
+  -t, --target <target> tmux target window/pane (e.g., atlas:1, %31)
+      --task-id <id>    sets CLAUDE_CODE_TASK_LIST_ID env var
   -n, --name <name>     pane title for identification
-  -w, --window <id>     target window (default: current window)
+  -w, --window <target> deprecated alias for --target
   -h, --help            show this help
 
 Everything after -- is passed as extra args to the agent command.
@@ -24,9 +26,10 @@ When no -- args are provided, claude defaults to --dangerously-skip-permissions.
 
 Examples:
   launch-agent -d /path/to/worktree
-  launch-agent -d ./project -t "abc-123" -n "phase-1"
+  launch-agent -t atlas:1 -d ./project --task-id "abc-123" -n "phase-1"
   launch-agent -a claude -d ./project -- --dangerously-skip-permissions --verbose
-  pane=\$(launch-agent -d ./worktree -t "\$TASK_ID")
+  launch-agent -a codex -t atlas:1 -d ./project
+  pane=\$(launch-agent -t atlas:1 -d ./worktree --task-id "\$TASK_ID")
 EOF
 }
 
@@ -39,7 +42,7 @@ agent="claude"
 dir="$PWD"
 task_id=""
 name=""
-window=""
+target=""
 agent_args=()
 parsing_agent_args=false
 
@@ -62,7 +65,11 @@ while [[ $# -gt 0 ]]; do
     dir="$2"
     shift 2
     ;;
-  -t | --task-id)
+  -t | --target)
+    target="$2"
+    shift 2
+    ;;
+  --task-id)
     task_id="$2"
     shift 2
     ;;
@@ -71,7 +78,7 @@ while [[ $# -gt 0 ]]; do
     shift 2
     ;;
   -w | --window)
-    window="$2"
+    target="$2"
     shift 2
     ;;
   --)
@@ -86,8 +93,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "$TMUX" ]]; then
-  error "must be running inside tmux"
+if [[ -z "${TMUX:-}" && -z "$target" ]]; then
+  error "must be running inside tmux or pass --target"
 fi
 
 [[ -d "$dir" ]] || error "directory '$dir' does not exist"
@@ -95,6 +102,7 @@ dir=$(realpath "$dir")
 
 case "$agent" in
 claude) agent_cmd="claude" ;;
+codex) agent_cmd="codex" ;;
 *) error "unknown agent: '$agent'" ;;
 esac
 
@@ -105,8 +113,8 @@ if [[ ${#agent_args[@]} -eq 0 ]]; then
 fi
 
 split_args=(-d -P -F '#{pane_id}' -c "$dir")
-if [[ -n "$window" ]]; then
-  split_args+=(-t "$window")
+if [[ -n "$target" ]]; then
+  split_args+=(-t "$target")
 fi
 
 pane_id=$(tmux split-window "${split_args[@]}") ||
@@ -118,9 +126,12 @@ fi
 
 launch_cmd=""
 if [[ -n "$task_id" ]]; then
-  launch_cmd="CLAUDE_CODE_TASK_LIST_ID='$task_id' "
+  launch_cmd="CLAUDE_CODE_TASK_LIST_ID=$(printf '%q' "$task_id") "
 fi
-launch_cmd+="$agent_cmd ${agent_args[*]}"
+launch_cmd+="$(printf '%q' "$agent_cmd")"
+for arg in "${agent_args[@]}"; do
+  launch_cmd+=" $(printf '%q' "$arg")"
+done
 
 tmux send-keys -t "$pane_id" "$launch_cmd" C-m
 

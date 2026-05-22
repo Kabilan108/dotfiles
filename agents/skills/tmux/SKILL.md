@@ -19,13 +19,25 @@ First, verify you are running inside tmux:
 echo $TMUX
 ```
 
-If this returns empty, you are not running inside tmux and these commands will not work as expected.
+If this returns empty, you are not running inside tmux. Use explicit tmux targets such as `session:window.pane` with the helper scripts.
 
 Once verified, check your current windows:
 
 ```bash
 tmux list-windows
 ```
+
+If you are outside tmux but need to operate on an existing session, use the helper scripts with explicit tmux targets:
+
+```bash
+tmux list-sessions
+tmux list-windows -t "session-name"
+pane=$(launch-agent -a codex -t "session-name:window-name" -d /repo -- exec --help)
+send-to-pane -t "session-name:window-name.pane" /tmp/prompt.txt
+poll-agents -t "$pane"
+```
+
+Before launching an interactive agent or other long-running CLI in a pane, check the installed CLI's `--help` output for the exact flags supported on that machine. Agent CLI flags change over time, and a rejected flag can leave the pane in a failed or idle state.
 
 ## 2. Spawn a Background Process
 
@@ -53,7 +65,7 @@ To run a command (e.g., a dev server) in a way that persists and can be inspecte
 |--------------|--------|
 | Simple shell command | `send-keys "cmd" C-m` |
 | Single line, may have special chars | `send-keys -l "text"` then `send-keys C-m` |
-| Multi-line text or instructions | `load-buffer` + `paste-buffer` |
+| Multi-line text or instructions | `send-to-pane -t <target> <file>` |
 
 **Literal mode** (`-l` flag) prevents interpreting escape sequences:
 
@@ -62,15 +74,14 @@ tmux send-keys -l -t "target" "text with C-r and other chars"
 tmux send-keys -t "target" C-m
 ```
 
-**Multi-line content** — always use load-buffer:
+**Multi-line content** — use `send-to-pane`, which wraps `load-buffer` safely:
 
 ```bash
 cat > /tmp/msg.txt << 'EOF'
 Your multi-line content here.
 Can include any characters safely.
 EOF
-tmux load-buffer /tmp/msg.txt && tmux paste-buffer -t "target"
-tmux send-keys -t "target" C-m
+send-to-pane -t "target" /tmp/msg.txt
 ```
 
 ## 4. Interacting with Other Agents
@@ -83,8 +94,7 @@ Fix the authentication bug in src/auth.ts:
 1. The token validation is missing null checks
 2. Add proper error handling for expired tokens
 EOF
-tmux load-buffer /tmp/instructions.txt && tmux paste-buffer -t %31
-tmux send-keys -t %31 C-m
+send-to-pane -t %31 /tmp/instructions.txt
 ```
 
 Never use `send-keys` directly for prompts or instructions — the text will likely contain characters that trigger tmux modes.
@@ -95,14 +105,16 @@ For orchestration workflows, prefer these scripts over raw tmux commands:
 
 | Task | Script | Example |
 |------|--------|---------|
-| Send text to pane | `send-to-pane` | `echo "cmd" \| send-to-pane %31` |
-| Send file to pane | `send-to-pane` | `send-to-pane %31 /tmp/prompt.txt` |
-| Launch agent pane | `launch-agent` | `pane=$(launch-agent -d /path -t task-id)` |
-| Monitor panes | `poll-agents` | `poll-agents -p %31 %32` |
+| Send text to pane | `send-to-pane` | `echo "cmd" \| send-to-pane -t %31` |
+| Send file to pane | `send-to-pane` | `send-to-pane -t atlas:review.1 /tmp/prompt.txt` |
+| Launch agent pane | `launch-agent` | `pane=$(launch-agent -a codex -t atlas:review -d /path)` |
+| Monitor panes | `poll-agents` | `poll-agents -p -t %31 -t atlas:review.2` |
 
 These wrap the tmux boilerplate (temp files, load-buffer, paste-buffer) into single commands. Run any script with `--help` for full usage.
 
-The raw tmux commands in the sections below remain useful for understanding what the scripts do and for ad-hoc operations.
+Prefer tmux-native targets (`%31`, `atlas:review`, `atlas:review.2`) over separate session/window flags. The raw tmux commands in the sections below remain useful for understanding what the scripts do and for ad-hoc operations.
+
+When using `poll-agents`, choose a completion sentinel that does not appear literally in the command line or prompt visible in pane scrollback. For example, ask the agent to output "the words PHASE and COMPLETE separated by one space" instead of embedding `PHASE COMPLETE` directly in the prompt.
 
 ## 6. Inspect Output (Read Logs)
 
@@ -155,10 +167,10 @@ tmux new-window -n "server-log" -d ';' send-keys -t "server-log" "npm start" C-m
 | Create window | `tmux new-window -n "ID" -d` |
 | Run command | `tmux send-keys -t "ID" "cmd" C-m` |
 | Send literal text | `tmux send-keys -l -t "ID" "text"` |
-| Send multi-line | `tmux load-buffer file && tmux paste-buffer -t "ID"` |
+| Send multi-line | `send-to-pane -t "ID" file` |
 | Read output | `tmux capture-pane -p -t "ID"` |
 | Interrupt | `tmux send-keys -t "ID" C-c` |
 | Kill window | `tmux kill-window -t "ID"` |
-| **Send to pane** | `echo "text" \| send-to-pane %ID` |
-| **Launch agent** | `pane=$(launch-agent -d /path -t task-id)` |
-| **Poll agents** | `poll-agents -p %ID1 %ID2` |
+| **Send to pane** | `echo "text" \| send-to-pane -t %ID` |
+| **Launch agent** | `pane=$(launch-agent -a codex -t atlas:review -d /path)` |
+| **Poll agents** | `poll-agents -p -t %ID1 -t %ID2` |
