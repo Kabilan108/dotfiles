@@ -1,6 +1,6 @@
-{ config, theme, ... }:
+{ config, ... }:
 let
-  palette = theme.palette;
+  colors = config.lib.stylix.colors;
 in
 {
   # TODO: verify this Hyprland-only lock screen theme against Stylix colors on sietch.
@@ -22,7 +22,7 @@ in
           brightness = 0.8172;
           vibrancy = 0.1696;
           vibrancy_darkness = 0.0;
-          color = "rgb(${palette.base00})";
+          color = "rgb(${colors.base00})";
         }
       ];
 
@@ -48,9 +48,9 @@ in
           dots_center = true;
           outer_color = "rgba(0, 0, 0, 0)";
           inner_color = "rgba(255, 255, 255, 0.1)";
-          font_color = "rgb(${palette.base05})";
+          font_color = "rgb(${colors.base05})";
           fade_on_empty = false;
-          placeholder_text = "<i><span foreground=\"##${palette.base05}\">Password</span></i>";
+          placeholder_text = "<i><span foreground=\"##${colors.base05}\">Password</span></i>";
           font_family = "FiraMono Nerd Font";
           position = "0, -650";
           halign = "center";
@@ -68,7 +68,7 @@ in
           text = "cmd[update:1000] echo \"<span>$(date +\"%I:%M\")</span>\"";
           font_size = 120;
           font_family = "FiraMono Nerd Font";
-          color = "rgba(${palette.base05}, 0.70)";
+          color = "rgba(${colors.base05}, 0.70)";
           position = "0, 550";
           halign = "center";
           valign = "center";
@@ -78,7 +78,7 @@ in
           text = "cmd[update:1000] echo \"$(date +\"%A, %B %d\")\"";
           font_size = 25;
           font_family = "FiraMono Nerd Font";
-          color = "rgba(${palette.base05}, 0.70)";
+          color = "rgba(${colors.base05}, 0.70)";
           position = "0, 650";
           halign = "center";
           valign = "center";
@@ -88,7 +88,7 @@ in
           text = "    $USER";
           font_size = 18;
           font_family = "FiraMono Nerd Font";
-          color = "rgba(${palette.base05}, 0.80)";
+          color = "rgba(${colors.base05}, 0.80)";
           position = "0, -580";
           halign = "center";
           valign = "center";

@@ -1,17 +1,8 @@
-{ config, theme, ... }:
+{ config, ... }:
 let
   inherit (config.lib.formats.rasi) mkLiteral;
 
-  colors = with theme; {
-    bg = "#${palette.base00}"; # base
-    fg = "#${palette.base05}"; # text
-    primary = "#${palette.base08}"; # red
-    accent = "#${palette.base0E}"; # mauve/lavender
-    border = "#${palette.base0E}"; # lavender
-    selected = "#${palette.base02}"; # surface0
-    surface0 = "#${palette.base02}"; # surface0
-    surface1 = "#${palette.base03}"; # surface1
-  };
+  colors = config.lib.stylix.colors.withHashtag;
 in
 {
   # TODO: verify this X11-only launcher theme against Stylix's desktop helper color guide.
@@ -101,27 +92,27 @@ in
         font = "FiraMono Nerd Font 12";
       };
 
-      mainbox.background-color = mkLiteral colors.bg;
+      mainbox.background-color = mkLiteral colors.base00;
 
       window = {
         width = mkLiteral "20%";
         border = mkLiteral "2px";
-        border-color = mkLiteral colors.border;
-        background-color = mkLiteral colors.bg;
+        border-color = mkLiteral colors.base0E;
+        background-color = mkLiteral colors.base00;
         border-radius = mkLiteral "5px";
       };
 
       inputbar = {
         children = mkLiteral "[ prompt, entry ]";
-        background-color = mkLiteral colors.bg;
+        background-color = mkLiteral colors.base00;
         border-radius = mkLiteral "0";
         padding = mkLiteral "0";
       };
 
       prompt = {
-        background-color = mkLiteral colors.primary;
+        background-color = mkLiteral colors.base08;
         padding = mkLiteral "6px";
-        text-color = mkLiteral colors.bg;
+        text-color = mkLiteral colors.base00;
         border-radius = mkLiteral "5px";
         margin = mkLiteral "20px 0px 0px 20px";
       };
@@ -134,8 +125,8 @@ in
       entry = {
         padding = mkLiteral "6px";
         margin = mkLiteral "20px 20px 0px 10px";
-        text-color = mkLiteral colors.fg;
-        background-color = mkLiteral colors.surface0;
+        text-color = mkLiteral colors.base05;
+        background-color = mkLiteral colors.base02;
         border-radius = mkLiteral "5px";
       };
 
@@ -145,13 +136,13 @@ in
         margin = mkLiteral "10px 20px 20px 20px";
         columns = 1;
         lines = 10;
-        background-color = mkLiteral colors.bg;
+        background-color = mkLiteral colors.base00;
       };
 
       element = {
         padding = mkLiteral "5px 10px 5px 10px";
-        background-color = mkLiteral colors.bg;
-        text-color = mkLiteral colors.fg;
+        background-color = mkLiteral colors.base00;
+        text-color = mkLiteral colors.base05;
         border-radius = mkLiteral "5px";
       };
 
@@ -161,8 +152,8 @@ in
       };
 
       "element selected" = {
-        background-color = mkLiteral colors.selected;
-        text-color = mkLiteral colors.accent;
+        background-color = mkLiteral colors.base02;
+        text-color = mkLiteral colors.base0E;
       };
 
       "element-text, element-icon, mode-switcher" = {
@@ -172,18 +163,18 @@ in
 
       button = {
         padding = mkLiteral "10px";
-        background-color = mkLiteral colors.accent;
+        background-color = mkLiteral colors.base0E;
         vertical-align = mkLiteral "0.5";
         horizontal-align = mkLiteral "0.5";
       };
 
       "button selected" = {
-        background-color = mkLiteral colors.bg;
-        text-color = mkLiteral colors.primary;
+        background-color = mkLiteral colors.base00;
+        text-color = mkLiteral colors.base08;
       };
 
       message = {
-        background-color = mkLiteral colors.accent;
+        background-color = mkLiteral colors.base0E;
         margin = mkLiteral "2px";
         padding = mkLiteral "2px";
         border-radius = mkLiteral "5px";
@@ -192,8 +183,8 @@ in
       textbox = {
         padding = mkLiteral "6px";
         margin = mkLiteral "20px 0px 0px 20px";
-        text-color = mkLiteral colors.primary;
-        background-color = mkLiteral colors.accent;
+        text-color = mkLiteral colors.base08;
+        background-color = mkLiteral colors.base0E;
       };
     };
   };

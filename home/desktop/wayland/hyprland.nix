@@ -1,12 +1,12 @@
 {
   pkgs,
-  theme,
+  config,
   inputs,
   ...
 }:
 let
   mod = "SUPER";
-  palette = theme.palette;
+  colors = config.lib.stylix.colors;
 in
 {
   # TODO: verify this Hyprland-only WM theme against Stylix's WM color guide on sietch.
@@ -36,8 +36,8 @@ in
         gaps_in = 4;
         gaps_out = 4;
         border_size = 2;
-        "col.active_border" = "rgba(${palette.base0D}ee)";
-        "col.inactive_border" = "rgba(${palette.base03}aa)";
+        "col.active_border" = "rgba(${colors.base0D}ee)";
+        "col.inactive_border" = "rgba(${colors.base03}aa)";
         layout = "hy3";
       };
 
@@ -95,37 +95,37 @@ in
           opacity = 1.0;
 
           # active tab (focused tab in focused container)
-          "col.active" = "rgba(${palette.base00}aa)";
-          "col.active.border" = "rgba(${palette.base0D}ee)";
-          "col.active.text" = "rgb(${palette.base0D})";
+          "col.active" = "rgba(${colors.base00}aa)";
+          "col.active.border" = "rgba(${colors.base0D}ee)";
+          "col.active.text" = "rgb(${colors.base0D})";
 
           # active tab on unfocused monitor
-          "col.active_alt_monitor" = "rgba(${palette.base00}aa)";
-          "col.active_alt_monitor.border" = "rgba(${palette.base03}aa)";
-          "col.active_alt_monitor.text" = "rgb(${palette.base04})";
+          "col.active_alt_monitor" = "rgba(${colors.base00}aa)";
+          "col.active_alt_monitor.border" = "rgba(${colors.base03}aa)";
+          "col.active_alt_monitor.text" = "rgb(${colors.base04})";
 
           # focused tab in unfocused container (you can see it but container not active)
-          "col.focused" = "rgba(${palette.base00}aa)";
-          "col.focused.border" = "rgba(${palette.base0C}aa)";
-          "col.focused.text" = "rgb(${palette.base0C})";
+          "col.focused" = "rgba(${colors.base00}aa)";
+          "col.focused.border" = "rgba(${colors.base0C}aa)";
+          "col.focused.text" = "rgb(${colors.base0C})";
 
           # inactive tabs
-          "col.inactive" = "rgba(${palette.base00}aa)";
-          "col.inactive.border" = "rgba(${palette.base02}88)";
-          "col.inactive.text" = "rgb(${palette.base05})";
+          "col.inactive" = "rgba(${colors.base00}aa)";
+          "col.inactive.border" = "rgba(${colors.base02}88)";
+          "col.inactive.text" = "rgb(${colors.base05})";
 
           # urgent tabs - red border/text to stand out
-          "col.urgent" = "rgba(${palette.base00}aa)";
-          "col.urgent.border" = "rgba(${palette.base08}ee)";
-          "col.urgent.text" = "rgb(${palette.base08})";
+          "col.urgent" = "rgba(${colors.base00}aa)";
+          "col.urgent.border" = "rgba(${colors.base08}ee)";
+          "col.urgent.text" = "rgb(${colors.base08})";
 
           # locked tabs - purple accent
-          "col.locked" = "rgba(${palette.base00}aa)";
-          "col.locked.border" = "rgba(${palette.base0E}aa)";
-          "col.locked.text" = "rgb(${palette.base0E})";
+          "col.locked" = "rgba(${colors.base00}aa)";
+          "col.locked.border" = "rgba(${colors.base0E}aa)";
+          "col.locked.text" = "rgb(${colors.base0E})";
 
-          "col.text.active" = "rgb(${palette.base05})";
-          "col.text.inactive" = "rgb(${palette.base04})";
+          "col.text.active" = "rgb(${colors.base05})";
+          "col.text.inactive" = "rgb(${colors.base04})";
         };
       };
 

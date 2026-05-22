@@ -1,6 +1,6 @@
-{ theme, ... }:
+{ config, ... }:
 let
-  palette = theme.palette;
+  colors = config.lib.stylix.colors.withHashtag;
 in
 {
   xdg.configFile."betterlockscreen/betterlockscreenrc".text = ''
@@ -15,30 +15,30 @@ in
     quiet=false
 
     # theme
-    solid_color=${palette.base00}
-    loginbox=${palette.base00}99
+    solid_color=${colors.base00}
+    loginbox=${colors.base00}99
     loginshadow=00000000
     locktext=""
     font="FiraMono Nerd Font"
-    ringcolor=${palette.base0E}ff
-    insidecolor=${palette.base00}99
+    ringcolor=${colors.base0E}ff
+    insidecolor=${colors.base00}99
     separatorcolor=00000000
-    ringvercolor=${palette.base0B}ff
-    insidevercolor=${palette.base00}99
-    ringwrongcolor=${palette.base08}ff
-    insidewrongcolor=${palette.base00}99
-    timecolor=${palette.base05}ff
+    ringvercolor=${colors.base0B}ff
+    insidevercolor=${colors.base00}99
+    ringwrongcolor=${colors.base08}ff
+    insidewrongcolor=${colors.base00}99
+    timecolor=${colors.base05}ff
     time_format="%H:%M:%S"
-    greetercolor=${palette.base05}ff
-    layoutcolor=${palette.base05}ff
-    keyhlcolor=${palette.base08}ff
-    bshlcolor=${palette.base08}ff
+    greetercolor=${colors.base05}ff
+    layoutcolor=${colors.base05}ff
+    keyhlcolor=${colors.base08}ff
+    bshlcolor=${colors.base08}ff
     veriftext="verifying..."
-    verifcolor=${palette.base05}ff
+    verifcolor=${colors.base05}ff
     wrongtext="failure!"
-    wrongcolor=${palette.base08}ff
-    modifcolor=${palette.base08}ff
-    bgcolor=${palette.base00}ff
+    wrongcolor=${colors.base08}ff
+    modifcolor=${colors.base08}ff
+    bgcolor=${colors.base00}ff
 
     suspend_command="systemctl suspend"
     lockargs=()

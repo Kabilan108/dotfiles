@@ -6,7 +6,6 @@
       self,
       nixpkgs,
       unstable,
-      nix-colors,
       ...
     }@inputs:
     let
@@ -36,13 +35,6 @@
         ];
       };
 
-      theme = rec {
-        name = "catppuccin-mocha";
-        variant = "dark";
-        colorScheme = nix-colors.colorSchemes.${name};
-        palette = colorScheme.palette;
-      };
-
       makeSystem =
         {
           name,
@@ -55,7 +47,6 @@
           specialArgs = {
             inherit
               inputs
-              theme
               displayServer
               waylandCompositor
               ;
@@ -129,8 +120,6 @@
       url = "gitlab:rycee/nur-expressions?dir=pkgs/firefox-addons";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    nix-colors.url = "github:misterio77/nix-colors";
 
     stylix = {
       url = "github:nix-community/stylix/release-25.11";

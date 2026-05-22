@@ -1,6 +1,6 @@
-{ pkgs, theme, ... }:
+{ config, pkgs, ... }:
 let
-  palette = theme.palette;
+  colors = config.lib.stylix.colors.withHashtag;
 in
 {
   # TODO: verify this X11-only notification theme against Stylix's popup color guide.
@@ -20,11 +20,10 @@ in
         indicate_hidden = true;
         shrink = false;
 
-        # colors (using theme palette)
-        background = "#${palette.base02}";
-        foreground = "#${palette.base05}";
-        frame_color = "#${palette.base0E}";
-        separator_color = "#${palette.base00}";
+        background = "${colors.base02}";
+        foreground = "${colors.base05}";
+        frame_color = "${colors.base0E}";
+        separator_color = "${colors.base00}";
 
         # styling
         separator_height = 1;
@@ -87,20 +86,20 @@ in
 
       urgency_low.timeout = 7;
       urgency_normal.timeout = 10;
-      urgency_critical.foreground = "#${palette.base08}";
+      urgency_critical.foreground = "${colors.base08}";
       urgency_critical.timeout = 15;
 
       "stack-brightness" = {
         appname = "brightctl";
         set_stack_tag = "brightctl";
-        foreground = "#${palette.base0A}";
+        foreground = "${colors.base0A}";
         format = "<b>%s</b>";
       };
 
       "stack-volume" = {
         set_stack_tag = "volctl";
         appname = "volctl";
-        foreground = "#${palette.base0D}";
+        foreground = "${colors.base0D}";
         format = "<b>%s</b>";
       };
 
@@ -113,13 +112,13 @@ in
       "battery-full" = {
         appname = "battery";
         category = "battery-full";
-        foreground = "#${palette.base0B}";
+        foreground = "${colors.base0B}";
       };
 
       "battery-low" = {
         appname = "battery";
         category = "battery-low";
-        foreground = "#${palette.base09}";
+        foreground = "${colors.base09}";
       };
 
       "battery-critical" = {

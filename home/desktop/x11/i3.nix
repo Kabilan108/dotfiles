@@ -1,7 +1,7 @@
-{ theme, ... }:
+{ config, ... }:
 let
   mod = "Mod4";
-  palette = theme.palette;
+  colors = config.lib.stylix.colors.withHashtag;
 in
 {
   # TODO: verify this X11-only window-manager theme against Stylix's WM color guide.
@@ -158,35 +158,35 @@ in
       ];
 
       colors = {
-        background = "#${palette.base00}"; # base
+        background = "${colors.base00}"; # base
 
         focused = {
-          border = "#${palette.base01}"; # mantle
-          background = "#${palette.base01}"; # mantle
-          text = "#${palette.base0E}"; # mauve
-          indicator = "#${palette.base07}"; # lavender
-          childBorder = "#${palette.base07}"; # lavender
+          border = "${colors.base01}"; # mantle
+          background = "${colors.base01}"; # mantle
+          text = "${colors.base0E}"; # mauve
+          indicator = "${colors.base07}"; # lavender
+          childBorder = "${colors.base07}"; # lavender
         };
         focusedInactive = {
-          border = "#${palette.base02}"; # surface0
-          background = "#${palette.base01}"; # mantle
-          text = "#${palette.base05}"; # text
-          indicator = "#${palette.base03}"; # surface1
-          childBorder = "#${palette.base03}"; # surface1
+          border = "${colors.base02}"; # surface0
+          background = "${colors.base01}"; # mantle
+          text = "${colors.base05}"; # text
+          indicator = "${colors.base03}"; # surface1
+          childBorder = "${colors.base03}"; # surface1
         };
         unfocused = {
-          border = "#${palette.base03}"; # surface1
-          background = "#${palette.base02}"; # text
-          text = "#${palette.base06}"; # rosewater
-          indicator = "#${palette.base04}"; # surface2
-          childBorder = "#${palette.base04}"; # surface2
+          border = "${colors.base03}"; # surface1
+          background = "${colors.base02}"; # text
+          text = "${colors.base06}"; # rosewater
+          indicator = "${colors.base04}"; # surface2
+          childBorder = "${colors.base04}"; # surface2
         };
         urgent = {
-          border = "#${palette.base09}"; # peach
-          background = "#${palette.base09}"; # peach
-          text = "#${palette.base00}"; # base
-          indicator = "#${palette.base08}"; # red
-          childBorder = "#${palette.base08}"; # red
+          border = "${colors.base09}"; # peach
+          background = "${colors.base09}"; # peach
+          text = "${colors.base00}"; # base
+          indicator = "${colors.base08}"; # red
+          childBorder = "${colors.base08}"; # red
         };
       };
 

@@ -1,11 +1,11 @@
 {
   lib,
   pkgs,
-  theme,
+  config,
   ...
 }:
 let
-  palette = theme.palette;
+  colors = config.lib.stylix.colors.withHashtag;
 in
 {
   # TODO: verify this X11-only bar theme against Stylix's desktop helper color guide.
@@ -27,8 +27,8 @@ in
         height = "25pt";
         radius = 10;
         fixed-center = true;
-        background = "#${palette.base00}";
-        foreground = "#${palette.base05}";
+        background = "${colors.base00}";
+        foreground = "${colors.base05}";
 
         line-size = "2pt";
         border-top = 4;
@@ -41,7 +41,7 @@ in
         module-margin = 1;
 
         separator = "|";
-        separator-foreground = "#${palette.base03}";
+        separator-foreground = "${colors.base03}";
 
         font-0 = "FiraMono Nerd Font:size=12;4";
         font-1 = "FiraMono Nerd Font:size=12;4";
@@ -58,7 +58,7 @@ in
       "module/menu" = {
         type = "custom/text";
         format = " ";
-        format-foreground = "#${palette.base09}";
+        format-foreground = "${colors.base09}";
         content-padding = 1;
         click-left = "rofi -show combi";
         click-right = "$HOME/.config/rofi/menus/exit";
@@ -84,25 +84,25 @@ in
 
         label-mode = "%mode%";
         label-mode-padding = 1;
-        label-mode-foreground = "#${palette.base09}";
-        label-mode-underline = "#${palette.base09}";
+        label-mode-foreground = "${colors.base09}";
+        label-mode-underline = "${colors.base09}";
 
         label-focused = "%name%";
-        label-focused-background = "#${palette.base02}";
-        label-focused-underline = "#${palette.base0D}";
+        label-focused-background = "${colors.base02}";
+        label-focused-underline = "${colors.base0D}";
         label-focused-padding = 1;
 
         label-unfocused = "%name%";
         label-unfocused-padding = 1;
-        label-unfocused-foreground = "#${palette.base03}";
+        label-unfocused-foreground = "${colors.base03}";
 
         label-visible = "%name%";
         label-visible-padding = 1;
 
         label-urgent = "%name%";
-        label-urgent-background = "#${palette.base02}";
-        label-urgent-foreground = "#${palette.base08}";
-        label-urgent-underline = "#${palette.base08}";
+        label-urgent-background = "${colors.base02}";
+        label-urgent-foreground = "${colors.base08}";
+        label-urgent-underline = "${colors.base08}";
         label-urgent-padding = 1;
       };
 
@@ -116,10 +116,10 @@ in
         format-volume = "<ramp-volume>  <label-volume>";
 
         label-volume = "%percentage%%";
-        label-volume-foreground = "#${palette.base0C}";
+        label-volume-foreground = "${colors.base0C}";
 
         label-muted = "󰝟 ";
-        label-muted-foreground = "#${palette.base03}";
+        label-muted-foreground = "${colors.base03}";
 
         ramp-volume-0 = "";
         ramp-volume-1 = "";
@@ -128,25 +128,25 @@ in
         ramp-volume-4 = "";
         ramp-volume-5 = "";
         ramp-volume-6 = "";
-        ramp-volume-foreground = "#${palette.base0C}";
+        ramp-volume-foreground = "${colors.base0C}";
       };
 
       "module/memory" = {
         type = "internal/memory";
         interval = 2;
         format-prefix = " ";
-        format-prefix-foreground = "#${palette.base07}";
+        format-prefix-foreground = "${colors.base07}";
         label = "%percentage_used:2%%";
-        label-foreground = "#${palette.base07}";
+        label-foreground = "${colors.base07}";
       };
 
       "module/cpu" = {
         type = "internal/cpu";
         interval = 2;
         format-prefix = " ";
-        format-prefix-foreground = "#${palette.base0A}";
+        format-prefix-foreground = "${colors.base0A}";
         label = "%percentage:2%%";
-        label-foreground = "#${palette.base0A}";
+        label-foreground = "${colors.base0A}";
       };
 
       "module/date" = {
@@ -155,7 +155,7 @@ in
         date = "%m-%d-%Y %H:%M:%S";
         date-alt = "%H:%M";
         label = "%date%";
-        label-foreground = "#${palette.base0D}";
+        label-foreground = "${colors.base0D}";
       };
 
       "module/battery" = {
@@ -165,9 +165,9 @@ in
         full-at = 90;
 
         format-charging = "<animation-charging> <label-charging>";
-        format-charging-foreground = "#${palette.base0B}";
+        format-charging-foreground = "${colors.base0B}";
         format-discharging = "<ramp-capacity> <label-discharging>";
-        format-discharging-foreground = "#${palette.base06}";
+        format-discharging-foreground = "${colors.base06}";
         format-full = "<ramp-capacity> <label-full>";
 
         label-charging = "%percentage%%";

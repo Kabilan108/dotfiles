@@ -2,7 +2,6 @@
   config,
   pkgs,
   inputs,
-  theme,
   displayServer,
   waylandCompositor,
   ...
@@ -61,7 +60,7 @@ in
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
-    extraSpecialArgs = { inherit inputs theme displayServer waylandCompositor; };
+    extraSpecialArgs = { inherit inputs displayServer waylandCompositor; };
 
     users.kabilan.imports = [ ./home ];
   };
