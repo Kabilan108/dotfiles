@@ -9,6 +9,7 @@ let
   palette = theme.palette;
 in
 {
+  # TODO: verify this Hyprland-only WM theme against Stylix's WM color guide on sietch.
   wayland.windowManager.hyprland = {
     enable = true;
     xwayland.enable = true;

@@ -4,6 +4,7 @@ let
   palette = theme.palette;
 in
 {
+  # TODO: verify this X11-only window-manager theme against Stylix's WM color guide.
   xsession.windowManager.i3 = {
     enable = true;
     config = {

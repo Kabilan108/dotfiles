@@ -3,6 +3,7 @@ let
   palette = theme.palette;
 in
 {
+  # TODO: verify this X11-only notification theme against Stylix's popup color guide.
   services.dunst = {
     enable = true;
     iconTheme = {

@@ -8,6 +8,7 @@ let
   palette = theme.palette;
 in
 {
+  # TODO: verify this X11-only bar theme against Stylix's desktop helper color guide.
   services.polybar = {
     enable = true;
     script = lib.readFile ../../../bin/start-polybar;

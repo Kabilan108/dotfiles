@@ -8,12 +8,12 @@
 let
   palette = theme.palette;
   themeName = theme.name;
-  lockCmd =
-    if waylandCompositor == "niri" then "swaylock" else "hyprlock";
+  lockCmd = if waylandCompositor == "niri" then "swaylock" else "hyprlock";
   logoutCmd =
-    if waylandCompositor == "niri"
-    then "bash -lc 'systemctl --user stop waybar.service walker.service; niri msg action quit'"
-    else "bash -lc 'systemctl --user stop waybar.service walker.service; hyprctl dispatch exit'";
+    if waylandCompositor == "niri" then
+      "bash -lc 'systemctl --user stop waybar.service walker.service; niri msg action quit'"
+    else
+      "bash -lc 'systemctl --user stop waybar.service walker.service; hyprctl dispatch exit'";
 in
 {
   imports = [ inputs.walker.homeManagerModules.default ];
@@ -95,13 +95,12 @@ in
       style = ''
         @define-color window_bg #${palette.base00};
         @define-color surface alpha(#${palette.base01}, 0.95);
-        @define-color overlay alpha(#${palette.base02}, 0.60);
+        @define-color overlay #${palette.base02};
         @define-color accent #${palette.base0D};
         @define-color accent_alt #${palette.base0E};
-        @define-color accent_bright #${palette.base0C};
         @define-color text #${palette.base05};
         @define-color muted #${palette.base04};
-        @define-color border alpha(#${palette.base0D}, 0.75);
+        @define-color border #${palette.base0D};
         @define-color error #${palette.base08};
 
         * {
@@ -111,7 +110,7 @@ in
         }
 
         popover {
-          background: lighter(@window_bg);
+          background: @window_bg;
           border: 2px solid alpha(@border, 0.75);
           border-radius: 14px;
           padding: 10px;
@@ -159,7 +158,7 @@ in
         }
 
         child:selected .item-box {
-          background: alpha(@accent, 0.22);
+          background: alpha(@overlay, 0.85);
           box-shadow: none;
           border: 2px solid alpha(@border, 0.75);
         }
@@ -170,7 +169,7 @@ in
         }
 
         child:selected .item-text {
-          color: @accent_alt;
+          color: @text;
         }
 
         .item-subtext {
@@ -180,7 +179,7 @@ in
         }
 
         .item-quick-activation {
-          background: alpha(@accent, 0.18);
+          background: alpha(@overlay, 0.85);
           border-radius: 8px;
           padding: 6px 10px;
         }
@@ -198,7 +197,7 @@ in
         .keybinds {
           padding-top: 10px;
           margin-top: 8px;
-          border-top: 1px solid alpha(@overlay, 0.4);
+          border-top: 1px solid alpha(@overlay, 0.7);
           color: @muted;
           font-size: 12px;
         }
@@ -223,7 +222,7 @@ in
 
         .item-image,
         .item-icon {
-          color: @accent_bright;
+          color: @accent;
         }
 
         .error {

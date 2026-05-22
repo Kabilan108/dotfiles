@@ -3,6 +3,7 @@ let
   palette = theme.palette;
 in
 {
+  # TODO: verify this Hyprland-only lock screen theme against Stylix colors on sietch.
   programs.hyprlock = {
     enable = true;
     settings = {

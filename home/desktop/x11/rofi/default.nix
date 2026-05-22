@@ -14,6 +14,7 @@ let
   };
 in
 {
+  # TODO: verify this X11-only launcher theme against Stylix's desktop helper color guide.
   home.file.".config/rofi/menus".source = ./menus;
 
   programs.rofi = {

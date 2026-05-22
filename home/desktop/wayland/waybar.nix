@@ -5,16 +5,8 @@
 }:
 let
   palette = theme.palette;
-  workspaceModule =
-    if waylandCompositor == "niri" then
-      "niri/workspaces"
-    else
-      "hyprland/workspaces";
-  workspaceFormat =
-    if waylandCompositor == "niri" then
-      "{value}"
-    else
-      "{name}";
+  workspaceModule = if waylandCompositor == "niri" then "niri/workspaces" else "hyprland/workspaces";
+  workspaceFormat = if waylandCompositor == "niri" then "{value}" else "{name}";
 in
 {
   programs.waybar = {
@@ -140,11 +132,12 @@ in
       }
 
       #workspaces button:hover {
-        background: alpha(#${palette.base0C}, 0.1);
+        background: alpha(#${palette.base01}, 0.85);
       }
 
       #workspaces button.urgent {
         color: #${palette.base08};
+        background: alpha(#${palette.base01}, 0.85);
       }
 
       #clock {
@@ -168,7 +161,7 @@ in
       }
 
       #memory {
-        color: #${palette.base07};
+        color: #${palette.base05};
       }
 
       #cpu {
@@ -176,7 +169,7 @@ in
       }
 
       #battery {
-        color: #${palette.base07};
+        color: #${palette.base05};
         margin-right: 8px;
       }
 
@@ -194,7 +187,8 @@ in
 
       tooltip {
         background: #${palette.base00};
-        border: 1px solid #${palette.base02};
+        color: #${palette.base05};
+        border: 1px solid #${palette.base0D};
         border-radius: 6px;
       }
     '';
