@@ -63,7 +63,7 @@ Scope {
                 icon: root.brightness > 0.66 ? "󰃠" :
                       root.brightness > 0.33 ? "󰃟" : "󰃞"
                 value: root.brightness
-                accentColor: "#f9e2af"
+                accentColor: Theme.yellow
                 label: Math.round(root.brightness * 100) + "%"
             }
         }

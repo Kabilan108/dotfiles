@@ -35,7 +35,7 @@ Rectangle {
             Layout.fillWidth: true
             implicitHeight: 6
             radius: 3
-            color: "#1fcdd6f4"
+            color: Theme.osdTrack
 
             Rectangle {
                 anchors {

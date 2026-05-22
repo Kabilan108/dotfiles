@@ -60,7 +60,7 @@ Scope {
                       root.volume > 0.66 ? "󰕾" :
                       root.volume > 0.33 ? "󰖀" : "󰕿"
                 value: root.muted ? 0 : root.volume
-                accentColor: root.muted ? "#f38ba8" : "#89b4fa"
+                accentColor: root.muted ? Theme.red : Theme.accent
                 label: root.muted ? "Mute" : Math.round(root.volume * 100) + "%"
             }
         }
