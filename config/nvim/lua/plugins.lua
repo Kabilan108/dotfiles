@@ -6,6 +6,7 @@
 return {
   'numToStr/Comment.nvim',
   'nvim-lua/plenary.nvim',
+  'christoomey/vim-tmux-navigator',
   'nvim-lualine/lualine.nvim',
   'nvim-tree/nvim-web-devicons',
 

@@ -150,11 +150,8 @@ harpoon:extend {
   end,
 }
 
--- window navigation
-utils.map('<C-h>', 'n', '<C-w><C-h>', 'move to left window')
-utils.map('<C-j>', 'n', '<C-w><C-j>', 'move to bottom window')
-utils.map('<C-k>', 'n', '<C-w><C-k>', 'move to top window')
-utils.map('<C-l>', 'n', '<C-w><C-l>', 'move to right window')
+-- window navigation is handled by vim-tmux-navigator (<C-h/j/k/l> cross
+-- seamlessly between nvim splits and tmux panes)
 
 -- treesitter context: jump to sticky context (defers to native [c in diff mode)
 utils.map('[c', 'n', function()
