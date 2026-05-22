@@ -1,10 +1,10 @@
 {
-  theme,
+  config,
   waylandCompositor,
   ...
 }:
 let
-  palette = theme.palette;
+  colors = config.lib.stylix.colors.withHashtag;
   workspaceModule = if waylandCompositor == "niri" then "niri/workspaces" else "hyprland/workspaces";
   workspaceFormat = if waylandCompositor == "niri" then "{value}" else "{name}";
 in
@@ -107,8 +107,8 @@ in
       }
 
       window#waybar {
-        background: alpha(#${palette.base00}, 0.95);
-        color: #${palette.base05};
+        background: alpha(${colors.base00}, 0.95);
+        color: ${colors.base05};
         padding: 2px 8px;
         border-radius: 0;
         border: none;
@@ -121,27 +121,27 @@ in
       #workspaces button {
         padding: 0px;
         margin: 4px 2px;
-        color: #${palette.base04};
+        color: ${colors.base04};
         background: transparent;
         border-radius: 2px;
       }
 
       #workspaces button.active {
-        color: #${palette.base0C};
-        background: alpha(#${palette.base0C}, 0.25);
+        color: ${colors.base0C};
+        background: alpha(${colors.base0C}, 0.25);
       }
 
       #workspaces button:hover {
-        background: alpha(#${palette.base01}, 0.85);
+        background: alpha(${colors.base01}, 0.85);
       }
 
       #workspaces button.urgent {
-        color: #${palette.base08};
-        background: alpha(#${palette.base01}, 0.85);
+        color: ${colors.base08};
+        background: alpha(${colors.base01}, 0.85);
       }
 
       #clock {
-        color: #${palette.base05};
+        color: ${colors.base05};
         font-weight: 500;
       }
 
@@ -157,38 +157,38 @@ in
       }
 
       #pulseaudio {
-        color: #${palette.base0C};
+        color: ${colors.base0C};
       }
 
       #memory {
-        color: #${palette.base05};
+        color: ${colors.base05};
       }
 
       #cpu {
-        color: #${palette.base0A};
+        color: ${colors.base0A};
       }
 
       #battery {
-        color: #${palette.base05};
+        color: ${colors.base05};
         margin-right: 8px;
       }
 
       #battery.charging {
-        color: #${palette.base0B};
+        color: ${colors.base0B};
       }
 
       #battery.warning {
-        color: #${palette.base09};
+        color: ${colors.base09};
       }
 
       #battery.critical {
-        color: #${palette.base08};
+        color: ${colors.base08};
       }
 
       tooltip {
-        background: #${palette.base00};
-        color: #${palette.base05};
-        border: 1px solid #${palette.base0D};
+        background: ${colors.base00};
+        color: ${colors.base05};
+        border: 1px solid ${colors.base0D};
         border-radius: 6px;
       }
     '';

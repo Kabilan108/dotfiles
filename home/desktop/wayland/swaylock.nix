@@ -1,11 +1,10 @@
 {
   config,
-  theme,
   pkgs,
   ...
 }:
 let
-  palette = theme.palette;
+  colors = config.lib.stylix.colors.withHashtag;
 in
 {
   programs.swaylock = {
@@ -27,25 +26,25 @@ in
     indicator-radius=100
     indicator-thickness=8
 
-    ring-color=${palette.base05}cc
-    inside-color=${palette.base00}cc
-    text-color=${palette.base05}
+    ring-color=${colors.base05}cc
+    inside-color=${colors.base00}cc
+    text-color=${colors.base05}
     line-color=00000000
     separator-color=00000000
-    key-hl-color=${palette.base0B}
-    bs-hl-color=${palette.base08}
+    key-hl-color=${colors.base0B}
+    bs-hl-color=${colors.base08}
 
-    ring-ver-color=${palette.base0B}cc
-    inside-ver-color=${palette.base00}cc
-    text-ver-color=${palette.base05}
+    ring-ver-color=${colors.base0B}cc
+    inside-ver-color=${colors.base00}cc
+    text-ver-color=${colors.base05}
 
-    ring-wrong-color=${palette.base08}cc
-    inside-wrong-color=${palette.base00}cc
-    text-wrong-color=${palette.base08}
+    ring-wrong-color=${colors.base08}cc
+    inside-wrong-color=${colors.base00}cc
+    text-wrong-color=${colors.base08}
 
-    ring-clear-color=${palette.base0A}cc
-    inside-clear-color=${palette.base00}cc
-    text-clear-color=${palette.base05}
+    ring-clear-color=${colors.base0A}cc
+    inside-clear-color=${colors.base00}cc
+    text-clear-color=${colors.base05}
 
     show-failed-attempts
   '';

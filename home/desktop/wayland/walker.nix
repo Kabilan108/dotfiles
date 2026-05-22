@@ -1,13 +1,13 @@
 {
   pkgs,
-  theme,
+  config,
   inputs,
   waylandCompositor,
   ...
 }:
 let
-  palette = theme.palette;
-  themeName = theme.name;
+  colors = config.lib.stylix.colors.withHashtag;
+  themeName = "stylix";
   lockCmd = if waylandCompositor == "niri" then "swaylock" else "hyprlock";
   logoutCmd =
     if waylandCompositor == "niri" then
@@ -93,15 +93,15 @@ in
 
     themes.${themeName} = {
       style = ''
-        @define-color window_bg #${palette.base00};
-        @define-color surface alpha(#${palette.base01}, 0.95);
-        @define-color overlay #${palette.base02};
-        @define-color accent #${palette.base0D};
-        @define-color accent_alt #${palette.base0E};
-        @define-color text #${palette.base05};
-        @define-color muted #${palette.base04};
-        @define-color border #${palette.base0D};
-        @define-color error #${palette.base08};
+        @define-color window_bg ${colors.base00};
+        @define-color surface alpha(${colors.base01}, 0.95);
+        @define-color overlay ${colors.base02};
+        @define-color accent ${colors.base0D};
+        @define-color accent_alt ${colors.base0E};
+        @define-color text ${colors.base05};
+        @define-color muted ${colors.base04};
+        @define-color border ${colors.base0D};
+        @define-color error ${colors.base08};
 
         * {
           all: unset;
