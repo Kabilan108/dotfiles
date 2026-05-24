@@ -1,4 +1,5 @@
 {
+  config,
   displayServer,
   inputs,
   pkgs,
@@ -145,10 +146,15 @@ in
         };
       };
       audio = {
+        sample_rate = 48000;
         max_duration_min = 20;
       };
     };
   };
+
+  systemd.user.services.dictator.Unit.X-Restart-Triggers = [
+    config.xdg.configFile."dictator/config.json".source
+  ];
 
   services.claude-bar = {
     enable = true;
