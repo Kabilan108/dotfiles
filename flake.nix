@@ -135,6 +135,5 @@
     tracer.url = "github:kabilan108/tracer";
 
     try.url = "github:tobi/try";
-    worktrunk.url = "github:max-sixty/worktrunk";
   };
 }
