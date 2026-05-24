@@ -61,7 +61,7 @@ This is a complete NixOS + Home Manager-based development workstation configurat
 - **bin/** - Custom scripts and utilities
 - **config/** - Application configurations (nvim, claude, vscode, etc.)
 - **machines/** - Machine-specific configurations (sietch with NVIDIA/CUDA, jacurutu with Framework laptop support)
-- **packages/** - Custom package definitions (cursor, nomacs-viewer)
+- **packages/** - Custom package definitions
 - **wallpapers/** - Desktop wallpapers
 - **selfhost/** - Docker services (Open-WebUI, Jellyfin, Vaultwarden, Nginx)
 - **scripts/** - Utility scripts (bootstrap, partitioning)
@@ -84,7 +84,7 @@ This is a complete NixOS + Home Manager-based development workstation configurat
 - Development dependencies managed through Home Manager
 - Secrets encrypted with agenix and machine-specific SSH keys
 - Custom packages (dictator, dump, atlas, raindrop) integrated as flake inputs
-- Local packages (cursor, nomacs-viewer) defined in `packages/`
+- Local packages defined in `packages/`
 
 ### Development Workflow
 1. Use `sessionizer` for project navigation

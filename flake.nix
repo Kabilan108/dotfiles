@@ -13,7 +13,6 @@
         (final: prev: {
           ghostty = inputs.ghostty.packages.${final.stdenv.hostPlatform.system}.default;
           code-cursor = final.callPackage ./packages/cursor.nix { };
-          nomacs = final.callPackage ./packages/nomacs-viewer.nix { nomacs = prev.nomacs; };
         })
       ];
 

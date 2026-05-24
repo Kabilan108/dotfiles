@@ -63,7 +63,6 @@ nix flake update
 │       └── hardware-configuration.nix
 ├── packages/                # Custom packages
 │   ├── cursor.nix           # Cursor IDE
-│   └── nomacs-viewer.nix    # Image viewer
 ├── wallpapers/              # Desktop wallpapers
 ├── scripts/                 # Utility scripts
 │   ├── bootstrap.sh         # Legacy dotfile symlinks

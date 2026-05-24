@@ -6,7 +6,7 @@
 - i should be able to send instructons to claude/codex from telegram/discord -> ageent gopes off and works -> give me feedback saying i did xyz, review it here
 
 
-when i take screensshots, if i click the notification, should open in nomacs
+when i take screensshots, if i click the notification, should open in loupe
 
 
 change the set of layouts tmux switches through

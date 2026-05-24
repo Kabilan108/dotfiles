@@ -225,23 +225,23 @@ in
     enable = true;
     defaultApplications = {
       # Images - explicit MIME types (wildcards don't work in XDG)
-      "image/avif" = "org.nomacs.ImageLounge.desktop";
-      "image/bmp" = "org.nomacs.ImageLounge.desktop";
-      "image/gif" = "org.nomacs.ImageLounge.desktop";
-      "image/heic" = "org.nomacs.ImageLounge.desktop";
-      "image/heif" = "org.nomacs.ImageLounge.desktop";
-      "image/jpeg" = "org.nomacs.ImageLounge.desktop";
-      "image/jxl" = "org.nomacs.ImageLounge.desktop";
-      "image/png" = "org.nomacs.ImageLounge.desktop";
-      "image/tiff" = "org.nomacs.ImageLounge.desktop";
-      "image/webp" = "org.nomacs.ImageLounge.desktop";
-      "image/x-eps" = "org.nomacs.ImageLounge.desktop";
-      "image/x-ico" = "org.nomacs.ImageLounge.desktop";
-      "image/x-portable-bitmap" = "org.nomacs.ImageLounge.desktop";
-      "image/x-portable-graymap" = "org.nomacs.ImageLounge.desktop";
-      "image/x-portable-pixmap" = "org.nomacs.ImageLounge.desktop";
-      "image/x-xbitmap" = "org.nomacs.ImageLounge.desktop";
-      "image/x-xpixmap" = "org.nomacs.ImageLounge.desktop";
+      "image/avif" = "org.gnome.Loupe.desktop";
+      "image/bmp" = "org.gnome.Loupe.desktop";
+      "image/gif" = "org.gnome.Loupe.desktop";
+      "image/heic" = "org.gnome.Loupe.desktop";
+      "image/heif" = "org.gnome.Loupe.desktop";
+      "image/jpeg" = "org.gnome.Loupe.desktop";
+      "image/jxl" = "org.gnome.Loupe.desktop";
+      "image/png" = "org.gnome.Loupe.desktop";
+      "image/tiff" = "org.gnome.Loupe.desktop";
+      "image/webp" = "org.gnome.Loupe.desktop";
+      "image/x-eps" = "org.gnome.Loupe.desktop";
+      "image/x-ico" = "org.gnome.Loupe.desktop";
+      "image/x-portable-bitmap" = "org.gnome.Loupe.desktop";
+      "image/x-portable-graymap" = "org.gnome.Loupe.desktop";
+      "image/x-portable-pixmap" = "org.gnome.Loupe.desktop";
+      "image/x-xbitmap" = "org.gnome.Loupe.desktop";
+      "image/x-xpixmap" = "org.gnome.Loupe.desktop";
 
       "application/pdf" = "org.gnome.Evince.desktop";
       "application/epub+zip" = "org.gnome.Evince.desktop";
@@ -274,10 +274,10 @@ in
     code-cursor
     discord
     evince
+    loupe
     mpv
     nautilus
     networkmanagerapplet
-    nomacs
     obsidian
     pavucontrol
     playerctl
@@ -286,12 +286,10 @@ in
     signal-desktop
     slack
     spotify
-    vscode-fhs
     zotero
 
     # media/file handling
     baobab
-    bubblewrap
     gparted
     jellyfin-desktop
     nirius
@@ -310,6 +308,7 @@ in
     # dev utils
     ast-grep
     bat
+    bubblewrap
     cloudflared
     delta
     difftastic
@@ -325,9 +324,9 @@ in
     rclone
     ripgrep
     sd
+    tmux
     tree
     tree-sitter
-    tmux
     vhs
     worktrunk
 
@@ -339,13 +338,12 @@ in
     just-lsp
     lua-language-server
     nil
-    typescript-language-server
     pyright
-    ruby
-    rust-analyzer
     ruff
+    rust-analyzer
     shfmt
     stylua
+    typescript-language-server
     yaml-language-server
 
     # languages
@@ -359,8 +357,8 @@ in
     nixd
     nixfmt
     nodejs_24
-    python312
     pnpm
+    python312
     uv
     zig
   ];

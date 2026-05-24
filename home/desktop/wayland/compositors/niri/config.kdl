@@ -376,7 +376,7 @@ window-rule {
 }
 
 window-rule {
-    match app-id=r#"^org\.nomacs\.ImageLounge$"#
+    match app-id=r#"^org\.gnome\.Loupe$"#
     open-floating true
 }
 

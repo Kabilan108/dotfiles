@@ -146,8 +146,8 @@ in
         "float, class:^(org.pulseaudio.pavucontrol)$"
         "pin, class:^(org.pulseaudio.pavucontrol)$"
 
-        "float, class:^(org.nomacs.ImageLounge)$"
-        "pin, class:^(org.nomacs.ImageLounge)$"
+        "float, class:^(org.gnome.Loupe)$"
+        "pin, class:^(org.gnome.Loupe)$"
 
         "float, class:^(org.gnome.Nautilus)$"
         "pin, class:^(org.gnome.Nautilus)$"

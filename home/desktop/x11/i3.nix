@@ -73,11 +73,7 @@ in
           command = "floating enable, sticky enable, resize set 600 300, move position center";
         }
         {
-          criteria.class = "nomacs";
-          command = "floating enable, sticky enable, resize set 800 600, move position center";
-        }
-        {
-          criteria.class = "Image Lounge";
+          criteria.class = "org.gnome.Loupe";
           command = "floating enable, sticky enable, resize set 800 600, move position center";
         }
         {
