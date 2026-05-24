@@ -9,17 +9,13 @@
     }@inputs:
     let
       system = "x86_64-linux";
-      pkgs = import nixpkgs {
-        system = system;
-        config.allowUnfree = true;
-        overlays = [
-          (final: prev: {
-            ghostty = inputs.ghostty.packages.${system}.default;
-            code-cursor = final.callPackage ./packages/cursor.nix { };
-            nomacs = final.callPackage ./packages/nomacs-viewer.nix { nomacs = prev.nomacs; };
-          })
-        ];
-      };
+      overlays = [
+        (final: prev: {
+          ghostty = inputs.ghostty.packages.${final.stdenv.hostPlatform.system}.default;
+          code-cursor = final.callPackage ./packages/cursor.nix { };
+          nomacs = final.callPackage ./packages/nomacs-viewer.nix { nomacs = prev.nomacs; };
+        })
+      ];
 
       makeSystem =
         {
@@ -29,7 +25,6 @@
           waylandCompositor ? "hyprland",
         }:
         nixpkgs.lib.nixosSystem {
-          inherit system pkgs;
           specialArgs = {
             inherit
               inputs
@@ -38,6 +33,13 @@
               ;
           };
           modules = [
+            {
+              nixpkgs = {
+                hostPlatform = system;
+                config.allowUnfree = true;
+                inherit overlays;
+              };
+            }
             (./. + "/machines/${name}")
             ./configuration.nix
             ./user.nix

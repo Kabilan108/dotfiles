@@ -6,6 +6,7 @@
 }:
 let
   homeDir = "/home/kabilan";
+  systemName = pkgs.stdenv.hostPlatform.system;
 in
 {
   imports = [
@@ -121,6 +122,7 @@ in
 
   services.dictator = {
     enable = true;
+    package = inputs.dictator.packages.${systemName}.default;
     displayServer = displayServer; # "x11" | "wayland" | "auto"
     logLevel = "INFO";
     environmentFile = "/run/agenix/secrets/dictator-env";
@@ -150,7 +152,7 @@ in
 
   services.claude-bar = {
     enable = true;
-    package = inputs.claude-bar.packages.${pkgs.stdenv.hostPlatform.system}.default;
+    package = inputs.claude-bar.packages.${systemName}.default;
     theme.mode = "dark";
     settings = {
       providers = {
@@ -170,7 +172,7 @@ in
 
   programs.raindrop = {
     enable = true;
-    package = inputs.raindrop.packages.${pkgs.stdenv.hostPlatform.system}.default;
+    package = inputs.raindrop.packages.${systemName}.default;
     settings = {
       token = "\${env:RAINDROP_TOKEN}";
     };
@@ -178,7 +180,7 @@ in
 
   programs.tracer = {
     enable = true;
-    package = inputs.tracer.packages.${pkgs.stdenv.hostPlatform.system}.tracer;
+    package = inputs.tracer.packages.${systemName}.tracer;
     watch.enable = true;
     settings = {
       archive.root_dir = "~/.local/share/tracer/archive";
@@ -306,7 +308,6 @@ in
     gnumake
 
     # dev utils
-    inputs.worktrunk.packages.${pkgs.stdenv.hostPlatform.system}.default
     ast-grep
     bat
     cloudflared
@@ -328,6 +329,7 @@ in
     tree-sitter
     tmux
     vhs
+    worktrunk
 
     # lsp & formatters
     bash-language-server
