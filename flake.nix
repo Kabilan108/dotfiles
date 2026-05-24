@@ -5,30 +5,16 @@
     {
       self,
       nixpkgs,
-      unstable,
       ...
     }@inputs:
     let
       system = "x86_64-linux";
-      pkgs-unstable = import unstable {
-        system = system;
-        config.allowUnfree = true;
-      };
       pkgs = import nixpkgs {
         system = system;
         config.allowUnfree = true;
         overlays = [
           (final: prev: {
-            bun = pkgs-unstable.bun;
-            cloudflared = pkgs-unstable.cloudflared;
             ghostty = inputs.ghostty.packages.${system}.default;
-            obsidian = pkgs-unstable.obsidian;
-            openrgb = pkgs-unstable.openrgb;
-            openrgb-with-all-plugins = pkgs-unstable.openrgb-with-all-plugins;
-            prek = pkgs-unstable.prek;
-            spotify = pkgs-unstable.spotify;
-            widsurf = pkgs-unstable.windsurf;
-            yazi = pkgs-unstable.yazi;
             code-cursor = final.callPackage ./packages/cursor.nix { };
             nomacs = final.callPackage ./packages/nomacs-viewer.nix { nomacs = prev.nomacs; };
           })
@@ -96,8 +82,7 @@
     };
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
-    unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
     agenix = {
@@ -107,7 +92,7 @@
     };
 
     home-manager = {
-      url = "github:nix-community/home-manager/release-25.11";
+      url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -122,7 +107,7 @@
     };
 
     stylix = {
-      url = "github:nix-community/stylix/release-25.11";
+      url = "github:nix-community/stylix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

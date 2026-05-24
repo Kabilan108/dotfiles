@@ -39,6 +39,7 @@ in
   programs.yazi = {
     enable = true;
     enableBashIntegration = true;
+    shellWrapperName = "yy";
     plugins = {
       piper = pkgs.yaziPlugins.piper;
     };
@@ -149,7 +150,7 @@ in
 
   services.claude-bar = {
     enable = true;
-    package = inputs.claude-bar.packages.${pkgs.system}.default;
+    package = inputs.claude-bar.packages.${pkgs.stdenv.hostPlatform.system}.default;
     theme.mode = "dark";
     settings = {
       providers = {
@@ -169,7 +170,7 @@ in
 
   programs.raindrop = {
     enable = true;
-    package = inputs.raindrop.packages.${pkgs.system}.default;
+    package = inputs.raindrop.packages.${pkgs.stdenv.hostPlatform.system}.default;
     settings = {
       token = "\${env:RAINDROP_TOKEN}";
     };
@@ -177,7 +178,7 @@ in
 
   programs.tracer = {
     enable = true;
-    package = inputs.tracer.packages.${pkgs.system}.tracer;
+    package = inputs.tracer.packages.${pkgs.stdenv.hostPlatform.system}.tracer;
     watch.enable = true;
     settings = {
       archive.root_dir = "~/.local/share/tracer/archive";
@@ -284,7 +285,6 @@ in
     slack
     spotify
     vscode-fhs
-    windsurf
     zotero
 
     # media/file handling
@@ -306,7 +306,7 @@ in
     gnumake
 
     # dev utils
-    inputs.worktrunk.packages.${pkgs.system}.default
+    inputs.worktrunk.packages.${pkgs.stdenv.hostPlatform.system}.default
     ast-grep
     bat
     cloudflared
@@ -337,7 +337,7 @@ in
     just-lsp
     lua-language-server
     nil
-    nodePackages.typescript-language-server
+    typescript-language-server
     pyright
     ruby
     rust-analyzer
@@ -355,7 +355,7 @@ in
     luajitPackages.luarocks
     luajitPackages.magick
     nixd
-    nixfmt-rfc-style
+    nixfmt
     nodejs_24
     python312
     pnpm

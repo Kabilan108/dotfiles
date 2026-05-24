@@ -14,9 +14,10 @@ in
     enable = true;
     xwayland.enable = true;
     systemd.enable = true;
-    package = inputs.hyprland.packages.${pkgs.system}.hyprland;
+    configType = "hyprlang";
+    package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
 
-    plugins = [ inputs.hy3.packages.${pkgs.system}.hy3 ];
+    plugins = [ inputs.hy3.packages.${pkgs.stdenv.hostPlatform.system}.hy3 ];
 
     settings = {
       # TODO: machine-specific settings

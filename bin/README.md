@@ -6,7 +6,7 @@ useful bash tools. some of these are used as part of my desktop env others are j
   monitors battery level and sends desktop notifications when low, critical, or fully charged.
 
 - [brightctl](./brightctl):
-  controls brightness using the `light` utility, with notify feedback.
+  controls brightness using acpilight's `xbacklight` utility.
 
 - [cmp-branches](./cmp-branches):
   compares all local git branches with a reference branch, showing ahead and behind commits.

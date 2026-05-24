@@ -49,11 +49,11 @@ in
     cert = config.age.secrets.syncthing-cert.path;
     key = config.age.secrets.syncthing-key.path;
 
-    guiAddress = "${tailscaleIPs.${hostname}}:8384";
+    guiAddress = "0.0.0.0:8384";
 
     settings = {
       options = {
-        listenAddresses = [ "tcp://${tailscaleIPs.${hostname}}:22000" ];
+        listenAddresses = [ "tcp://0.0.0.0:22000" ];
         globalAnnounceEnabled = false;
         localAnnounceEnabled = false;
         relaysEnabled = false;

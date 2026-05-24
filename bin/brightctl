@@ -10,7 +10,7 @@ sign=${1:0:1}
 value=${1:1}
 
 if [ "$sign" = "+" ]; then
-  light -A "$value"
+  xbacklight -inc "$value"
 else
-  light -U "$value"
+  xbacklight -dec "$value"
 fi

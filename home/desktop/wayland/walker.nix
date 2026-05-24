@@ -21,7 +21,7 @@ in
   programs.walker = {
     enable = true;
     runAsService = true;
-    package = inputs.walker.packages.${pkgs.system}.default;
+    package = inputs.walker.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
     config = {
       columns.symbols = 1;
