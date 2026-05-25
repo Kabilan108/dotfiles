@@ -15,6 +15,9 @@ in
   xdg.configFile."quickshell/osd".source =
     config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/home/desktop/wayland/quickshell/osd";
 
+  xdg.configFile."quickshell/stillsuit".source =
+    config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/home/desktop/wayland/quickshell/stillsuit";
+
   xdg.configFile."quickshell/theme/stylix.json".text = builtins.toJSON {
     palette = {
       crust = colors.base00;
@@ -46,17 +49,33 @@ in
     };
     semantic = {
       panelBg = transparent "e0" colors.base01;
+      panelBgSoft = transparent "c7" colors.base00;
+      panelBgStrong = transparent "f0" colors.base01;
       panelBorder = colors.base02;
+      panelBorderStrong = colors.base03;
+      panelSurface = transparent "b8" colors.base02;
+      panelSurfaceHover = transparent "cc" colors.base03;
+      panelSurfaceActive = transparent "d9" colors.base04;
+      foreground = colors.base05;
       dimText = colors.base04;
+      mutedText = colors.base03;
       accent = colors.base0D;
+      success = colors.base0B;
+      warning = colors.base0A;
+      urgent = colors.base08;
+      info = colors.base0C;
       osdTrack = transparent "1f" colors.base05;
+      osdFillMuted = colors.base03;
+      shadow = transparent "66" colors.base00;
     };
     typography = {
       fontFamily = "FiraMono Nerd Font";
       fontSizeSmall = 11;
       fontSizeMedium = 13;
       fontSizeLarge = 16;
+      fontSizeTitle = 14;
       fontSizeIcon = 20;
+      fontSizeIconLarge = 24;
     };
     geometry = {
       radiusSmall = 6;
@@ -67,6 +86,19 @@ in
       paddingMedium = 14;
       paddingLarge = 20;
       borderWidth = 1;
+      panelWidth = 380;
+      osdWidth = 320;
+      osdHeight = 50;
+      screenMargin = 12;
+      panelGap = 8;
+    };
+    animation = {
+      fast = 120;
+      medium = 180;
+      slow = 260;
+      osdHideMs = 1500;
+      notificationDefaultMs = 5000;
+      notificationLowMs = 4000;
     };
   };
 }

@@ -301,7 +301,7 @@ spawn-at-startup "nm-applet" "--indicator"
 spawn-at-startup "blueman-applet"
 spawn-sh-at-startup "swaybg -i $HOME/dotfiles/wallpapers/shoggoth-001.png -m fill"
 spawn-sh-at-startup "$HOME/dotfiles/bin/battery-watcher"
-spawn-at-startup "qs" "-c" "osd"
+spawn-at-startup "qs" "-c" "stillsuit"
 
 hotkey-overlay {
     // Uncomment this line to disable the "Important Hotkeys" pop-up at startup.
@@ -481,9 +481,9 @@ binds {
     Mod+V hotkey-overlay-title="Clipboard: walker" { spawn "walker" "--provider" "clipboard" "--width" "1000" "--height" "400"; }
 
     // quickshell panels
-    Mod+A hotkey-overlay-title="Audio Mixer" { spawn "qs" "ipc" "-c" "osd" "call" "mixer" "toggle"; }
-    Mod+Shift+B hotkey-overlay-title="Bluetooth" { spawn "qs" "ipc" "-c" "osd" "call" "bluetooth" "toggle"; }
-    Mod+N hotkey-overlay-title="Notification Center" { spawn "qs" "ipc" "-c" "osd" "call" "notifications" "toggleCenter"; }
+    Mod+A hotkey-overlay-title="Audio Mixer" { spawn "qs" "ipc" "-c" "stillsuit" "call" "mixer" "toggle"; }
+    Mod+Shift+B hotkey-overlay-title="Bluetooth" { spawn "qs" "ipc" "-c" "stillsuit" "call" "bluetooth" "toggle"; }
+    Mod+N hotkey-overlay-title="Notification Center" { spawn "qs" "ipc" "-c" "stillsuit" "call" "notifications" "toggleCenter"; }
 
     // lock
     Mod+Alt+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "swaylock"; }

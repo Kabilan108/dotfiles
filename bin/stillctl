@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config="${STILLSUIT_CONFIG:-stillsuit}"
+
+usage() {
+  cat <<USAGE
+Usage: stillctl <command> [args]
+
+Commands:
+  start                 Start qs -c ${config} in the background
+  stop                  Stop the running ${config} shell
+  reload                Restart the ${config} shell
+  status                List running Quickshell instances
+  logs [lines]          Print recent ${config} logs
+  logs -f               Follow ${config} logs
+  ipc <target> <method> [args...]
+  dnd [on|off|toggle]   Read or change notification DND state
+  notifications         Toggle notification center
+USAGE
+}
+
+require_args() {
+  local expected="$1"
+  local actual="$2"
+  if (( actual < expected )); then
+    usage
+    exit 2
+  fi
+}
+
+start_shell() {
+  qs -c "$config" --no-duplicate --daemonize
+}
+
+stop_shell() {
+  qs kill -c "$config" --any-display >/dev/null 2>&1 || true
+}
+
+case "${1:-}" in
+start)
+  start_shell
+  ;;
+stop)
+  stop_shell
+  ;;
+reload | restart)
+  stop_shell
+  sleep 0.2
+  start_shell
+  ;;
+status)
+  qs list --all
+  ;;
+logs)
+  case "${2:-}" in
+  -f | --follow)
+    exec qs log -c "$config" --follow
+    ;;
+  "")
+    exec qs log -c "$config" --tail 120
+    ;;
+  *)
+    exec qs log -c "$config" --tail "$2"
+    ;;
+  esac
+  ;;
+ipc)
+  shift
+  require_args 2 "$#"
+  exec qs ipc -c "$config" call "$@"
+  ;;
+dnd)
+  case "${2:-}" in
+  "")
+    exec qs ipc -c "$config" call notifications dndState
+    ;;
+  toggle)
+    exec qs ipc -c "$config" call notifications toggleDnd
+    ;;
+  on | off)
+    exec qs ipc -c "$config" call notifications setDnd "$2"
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+  esac
+  ;;
+notifications)
+  exec qs ipc -c "$config" call notifications toggleCenter
+  ;;
+"" | -h | --help | help)
+  usage
+  ;;
+*)
+  usage
+  exit 2
+  ;;
+esac
