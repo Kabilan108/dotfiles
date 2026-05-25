@@ -1,0 +1,4 @@
+interface:
+  display_name: "Niri Computer Use"
+  short_description: "Desktop control helpers for niri Wayland sessions"
+  default_prompt: "Use $niri-computer-use to inspect and interact with the current niri desktop."

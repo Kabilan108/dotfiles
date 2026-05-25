@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+
+from libacu import niri_action, windows
+
+
+def find_window(title: str | None, app: str | None) -> int:
+    candidates = windows()
+    for window in candidates:
+        window_title = str(window.get("title") or "").lower()
+        app_id = str(window.get("app_id") or "").lower()
+        if title and title.lower() not in window_title:
+            continue
+        if app and app.lower() not in app_id:
+            continue
+        window_id = window.get("id")
+        if isinstance(window_id, int):
+            return window_id
+    raise SystemExit("no matching window")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Small niri msg wrappers for desktop navigation.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    focus = subparsers.add_parser("focus-window", help="focus a window by id, title, or app id")
+    focus.add_argument("--id", type=int, dest="window_id")
+    focus.add_argument("--title")
+    focus.add_argument("--app")
+
+    action = subparsers.add_parser("action", help="run a niri action")
+    action.add_argument("name")
+    action.add_argument("args", nargs="*")
+
+    args = parser.parse_args()
+
+    if args.command == "focus-window":
+        if args.window_id is None and not (args.title or args.app):
+            parser.error("focus-window needs --id, --title, or --app")
+        window_id = args.window_id if args.window_id is not None else find_window(args.title, args.app)
+        print(niri_action("focus-window", ["--id", str(window_id)]), end="")
+        return
+
+    if args.command == "action":
+        print(niri_action(args.name, args.args), end="")
+
+
+if __name__ == "__main__":
+    main()

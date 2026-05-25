@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+from libacu import niri_json, run_tool
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Capture a niri/Wayland screenshot with grim.")
+    parser.add_argument("output", type=Path, help="output image path")
+    parser.add_argument("--screen", action="store_true", help="capture the focused screen")
+    parser.add_argument("--geometry", help='capture a crop, for example "10,20 800x600"')
+    args = parser.parse_args()
+
+    if args.screen and args.geometry:
+        parser.error("--screen and --geometry are mutually exclusive")
+
+    command = ["grim"]
+    if args.screen:
+        focused = niri_json("focused-output")
+        if not isinstance(focused, dict) or not isinstance(focused.get("name"), str):
+            raise SystemExit("could not determine focused output")
+        command.extend(["-o", focused["name"]])
+    if args.geometry:
+        command.extend(["-g", args.geometry])
+    command.append(str(args.output))
+
+    try:
+        run_tool(command)
+    except Exception as exc:
+        print(f"acu-screenshot failed: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+    print(args.output)
+
+
+if __name__ == "__main__":
+    main()
