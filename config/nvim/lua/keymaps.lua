@@ -107,7 +107,7 @@ utils.map('<C-d>', 'n', '<C-x>', 'decrement')
 
 -- terminal mode
 utils.map('<C-`>', 'n', function()
-  vim.cmd 'split | terminal'
+  vim.cmd 'split | terminal | startinsert'
 end, 'open horizontal terminal split')
 utils.map('<C-n>', 't', '<C-\\><C-n>', 'exit terminal mode')
 
@@ -261,7 +261,7 @@ vim.api.nvim_create_autocmd('FileType', {
   callback = function(event)
     utils.map('<leader>xi', 'n', function()
       local pyrepl = require 'pyrepl'
-      pyrepl.execute_lines { '%load_ext icat', '%plt_icat' }
+      pyrepl.execute_lines { '%load_ext icat', '%icat on' }
     end, 'setup icat for plotting', { buffer = event.buf })
   end,
 })
