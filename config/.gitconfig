@@ -96,3 +96,5 @@
   dshow = -c diff.external=difft show --ext-diff
   dd = -c diff.external=difft diff
   dds = -c diff.external=difft diff --staged
+[safe]
+	directory = /vault/work/xploit/XploitAgent

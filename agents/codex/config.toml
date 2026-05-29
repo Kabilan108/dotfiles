@@ -208,6 +208,15 @@ trust_level = "trusted"
 [projects."/vault/repos/jot"]
 trust_level = "trusted"
 
+[projects."/vault/repos/ipython-icat"]
+trust_level = "trusted"
+
+[projects."/vault/experiments/2026-05-29-gtk-speech-visualizer"]
+trust_level = "trusted"
+
+[projects."/vault/experiments/2026-05-29-peteonrails-voxtype"]
+trust_level = "trusted"
+
 [tui.model_availability_nux]
 "gpt-5.5" = 4
 
