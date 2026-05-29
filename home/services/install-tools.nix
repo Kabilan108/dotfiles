@@ -15,7 +15,11 @@ let
     ${pkgs.uv}/bin/uv tool install -U --with llm-cmd --with llm-openrouter --with llm-tmux-fragments llm
     ${pkgs.uv}/bin/uv tool install -U --from git+https://github.com/kabilan108/viewh5 viewh5
 
-    ${pkgs.pnpm}/bin/pnpm add -g @steipete/summarize ccusage kittylitter
+    ${pkgs.pnpm}/bin/pnpm add -g -y \
+      @steipete/summarize \
+      ccusage \
+      kittylitter \
+      agent-browser
   '';
 in
 {
@@ -38,7 +42,7 @@ in
               pkgs.pnpm
               pkgs.uv
             ]
-          }:${pnpmHome}:${homeDir}/.local/bin"
+          }:${pnpmHome}/bin:${homeDir}/.local/bin"
         ];
         ExecStart = "${installTools}";
       };
