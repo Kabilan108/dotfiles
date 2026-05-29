@@ -1,10 +1,31 @@
 {
   config,
+  lib,
   pkgs,
   ...
 }:
 let
-  colors = config.lib.stylix.colors.withHashtag;
+  colors = config.lib.stylix.colors;
+  lockScreen = pkgs.writeShellScriptBin "lock-screen" ''
+    export XDG_RUNTIME_DIR="''${XDG_RUNTIME_DIR:-/run/user/$(${pkgs.coreutils}/bin/id -u)}"
+
+    if ${pkgs.procps}/bin/pidof swaylock >/dev/null; then
+      exit 0
+    fi
+
+    if [ -z "''${WAYLAND_DISPLAY:-}" ]; then
+      WAYLAND_DISPLAY="$(${pkgs.hyprland}/bin/hyprctl instances \
+        | ${pkgs.gawk}/bin/awk '/wl socket:/ { print $3; exit }')"
+      export WAYLAND_DISPLAY
+    fi
+
+    exec ${pkgs.swaylock-effects}/bin/swaylock "$@"
+  '';
+  lockscreenImage =
+    if lib.hasPrefix "$HOME/" config.dotfiles.wallpaper.lockscreen then
+      "${config.home.homeDirectory}/${lib.removePrefix "$HOME/" config.dotfiles.wallpaper.lockscreen}"
+    else
+      config.dotfiles.wallpaper.lockscreen;
 in
 {
   programs.swaylock = {
@@ -12,8 +33,10 @@ in
     package = pkgs.swaylock-effects;
   };
 
+  home.packages = [ lockScreen ];
+
   xdg.configFile."swaylock/config".text = ''
-    image=${config.dotfiles.wallpaper.lockscreen}
+    image=${lockscreenImage}
     fade-in=0
 
     clock

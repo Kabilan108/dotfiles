@@ -81,6 +81,10 @@ in
         no_hardware_cursors = false;
       };
 
+      misc = {
+        allow_session_lock_restore = true;
+      };
+
       "plugin:hy3" = {
         autotile.enable = false;
         tabs = {

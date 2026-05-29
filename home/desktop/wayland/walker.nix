@@ -8,7 +8,7 @@
 let
   colors = config.lib.stylix.colors.withHashtag;
   themeName = "stylix";
-  lockCmd = if waylandCompositor == "niri" then "swaylock" else "hyprlock";
+  lockCmd = "lock-screen";
   logoutCmd =
     if waylandCompositor == "niri" then
       "bash -lc 'systemctl --user stop waybar.service walker.service; niri msg action quit'"
