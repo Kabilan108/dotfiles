@@ -22,7 +22,7 @@ in
   home.sessionPath = [
     "${homeDir}/.bun/bin"
     "${homeDir}/.local/bin"
-    "${homeDir}/.local/share/pnpm"
+    "${homeDir}/.local/share/pnpm/bin"
     "${homeDir}/bin"
     "$GOPATH/bin"
   ];
