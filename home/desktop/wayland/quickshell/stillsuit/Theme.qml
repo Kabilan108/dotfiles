@@ -59,6 +59,7 @@ Singleton {
         },
         typography: {
             fontFamily: "FiraMono Nerd Font",
+            bodyFontFamily: "Noto Sans",
             fontSizeSmall: 11,
             fontSizeMedium: 13,
             fontSizeLarge: 16,
@@ -76,8 +77,8 @@ Singleton {
             paddingLarge: 20,
             borderWidth: 1,
             panelWidth: 380,
-            osdWidth: 320,
-            osdHeight: 50,
+            osdWidth: 360,
+            osdHeight: 58,
             screenMargin: 12,
             panelGap: 8
         },
@@ -161,6 +162,7 @@ Singleton {
     readonly property string shadow:             value("semantic", "shadow", "#6611111b")
 
     readonly property string fontFamily: value("typography", "fontFamily", "FiraMono Nerd Font")
+    readonly property string bodyFontFamily: value("typography", "bodyFontFamily", "Noto Sans")
     readonly property int fontSizeSmall:  value("typography", "fontSizeSmall", 11)
     readonly property int fontSizeMedium: value("typography", "fontSizeMedium", 13)
     readonly property int fontSizeLarge:  value("typography", "fontSizeLarge", 16)

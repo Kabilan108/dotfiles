@@ -49,8 +49,8 @@ Scope {
             anchors.bottom: true
             margins.bottom: screen.height * 0.02
             exclusiveZone: 0
-            implicitWidth: Theme.osdWidth
-            implicitHeight: Theme.osdHeight
+            implicitWidth: Math.max(Theme.osdWidth, 360)
+            implicitHeight: Math.max(Theme.osdHeight, 58)
             color: "transparent"
             mask: Region {}
 

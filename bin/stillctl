@@ -17,6 +17,7 @@ Commands:
   ipc <target> <method> [args...]
   dnd [on|off|toggle]   Read or change notification DND state
   notifications         Toggle notification center
+  gallery [open|close]  Toggle or set the Stillsuit dev gallery
 USAGE
 }
 
@@ -68,18 +69,18 @@ logs)
 ipc)
   shift
   require_args 2 "$#"
-  exec qs ipc -c "$config" call "$@"
+  exec qs -c "$config" ipc call "$@"
   ;;
 dnd)
   case "${2:-}" in
   "")
-    exec qs ipc -c "$config" call notifications dndState
+    exec qs -c "$config" ipc call notifications dndState
     ;;
   toggle)
-    exec qs ipc -c "$config" call notifications toggleDnd
+    exec qs -c "$config" ipc call notifications toggleDnd
     ;;
   on | off)
-    exec qs ipc -c "$config" call notifications setDnd "$2"
+    exec qs -c "$config" ipc call notifications setDnd "$2"
     ;;
   *)
     usage
@@ -88,7 +89,24 @@ dnd)
   esac
   ;;
 notifications)
-  exec qs ipc -c "$config" call notifications toggleCenter
+  exec qs -c "$config" ipc call notifications toggleCenter
+  ;;
+gallery)
+  case "${2:-toggle}" in
+  open)
+    exec qs -c "$config" ipc call gallery open
+    ;;
+  close)
+    exec qs -c "$config" ipc call gallery close
+    ;;
+  toggle)
+    exec qs -c "$config" ipc call gallery toggle
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+  esac
   ;;
 "" | -h | --help | help)
   usage

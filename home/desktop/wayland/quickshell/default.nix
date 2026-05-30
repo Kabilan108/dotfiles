@@ -7,6 +7,8 @@
 let
   homeDir = "/home/kabilan";
   colors = config.lib.stylix.colors.withHashtag;
+  fontSans = config.stylix.fonts.sansSerif.name or "Noto Sans";
+  fontMono = config.stylix.fonts.monospace.name or "FiraMono Nerd Font";
   transparent = alpha: color: "#${alpha}${lib.removePrefix "#" color}";
 in
 {
@@ -69,7 +71,8 @@ in
       shadow = transparent "66" colors.base00;
     };
     typography = {
-      fontFamily = "FiraMono Nerd Font";
+      fontFamily = fontMono;
+      bodyFontFamily = fontSans;
       fontSizeSmall = 11;
       fontSizeMedium = 13;
       fontSizeLarge = 16;
@@ -87,8 +90,8 @@ in
       paddingLarge = 20;
       borderWidth = 1;
       panelWidth = 380;
-      osdWidth = 320;
-      osdHeight = 50;
+      osdWidth = 360;
+      osdHeight = 58;
       screenMargin = 12;
       panelGap = 8;
     };
@@ -99,6 +102,25 @@ in
       osdHideMs = 1500;
       notificationDefaultMs = 5000;
       notificationLowMs = 4000;
+    };
+  };
+
+  xdg.configFile."quickshell/stillsuit-policy.json".text = builtins.toJSON {
+    notifications = {
+      dndBypass = {
+        critical = true;
+        appNames = [
+          "battery"
+          "Battery"
+        ];
+        appUrgencies = [
+          {
+            appName = "notify-send";
+            urgency = "critical";
+          }
+        ];
+        summaryPatterns = [ ];
+      };
     };
   };
 }

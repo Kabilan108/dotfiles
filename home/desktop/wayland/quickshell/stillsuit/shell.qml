@@ -14,9 +14,10 @@ ShellRoot {
         id: volumeOsd
     }
     BrightnessOsd {
-        stackOffset: volumeOsd.shouldShow ? 54 : 0
+        stackOffset: volumeOsd.shouldShow ? Math.max(Theme.osdHeight, 58) + Theme.panelGap : 0
     }
     AudioMixer {}
     BluetoothPanel {}
     NotificationCenter {}
+    DevGallery {}
 }
