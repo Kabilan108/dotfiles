@@ -26,3 +26,6 @@ __pycache__/
 
 # btca local data
 .btca/
+computer-use
+transcription-history.jsonl
+.last-update-result.json
