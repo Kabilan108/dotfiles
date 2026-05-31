@@ -323,6 +323,7 @@ in
     fzf
     gh
     ghostty
+    inputs.pagebin.packages.${systemName}.default
     kitty.kitten
     lazygit
     libnotify
@@ -363,7 +364,7 @@ in
     nixd
     nixfmt
     nodejs_24
-    ruby  # needed for `try`
+    ruby # needed for `try`
     pnpm
     python312
     uv

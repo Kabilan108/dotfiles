@@ -130,6 +130,10 @@
     claude-bar.url = "github:kabilan108/claude-bar";
     dictator.url = "github:kabilan108/dictator";
     dump.url = "github:kabilan108/dump";
+    pagebin = {
+      url = "github:Kabilan108/pagebin";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     raindrop.url = "github:kabilan108/raindrop";
     tracer.url = "github:kabilan108/tracer";
 

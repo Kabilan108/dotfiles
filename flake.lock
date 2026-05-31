@@ -1173,6 +1173,26 @@
         "type": "github"
       }
     },
+    "pagebin": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1780247153,
+        "narHash": "sha256-kr+xU3W7Z2RW4zzdwGcOHfLuEYFHHrI9nbfGBfVeavQ=",
+        "owner": "Kabilan108",
+        "repo": "pagebin",
+        "rev": "a812ba40dd14d195ee1699288001b2d62d780334",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Kabilan108",
+        "repo": "pagebin",
+        "type": "github"
+      }
+    },
     "pre-commit-hooks": {
       "inputs": {
         "flake-compat": "flake-compat_2",
@@ -1230,6 +1250,7 @@
         "niri-flake": "niri-flake",
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs_9",
+        "pagebin": "pagebin",
         "raindrop": "raindrop",
         "stylix": "stylix",
         "tracer": "tracer",
