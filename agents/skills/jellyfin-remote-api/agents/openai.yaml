@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jellyfin Remote API"
+  short_description: "Control Jellyfin clients through the HTTP remote-control API."
+  default_prompt: "Use the Jellyfin Remote API skill to find the active client session, fetch an API token, and control playback or navigation."
