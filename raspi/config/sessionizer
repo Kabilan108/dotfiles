@@ -1,0 +1,13 @@
+# vim: syn=bash ft=bash
+# if set, this overrides the default TS_SEARCH_PATHS (~/ ~/repos ~/dotfiles)
+TS_SEARCH_PATHS=(~/)
+
+# if set, this adds additional search paths to the default TS_SEARCH_PATHS
+# The number prefix is the depth for the Path [OPTIONAL]
+TS_EXTRA_SEARCH_PATHS=()
+
+# if set, this overrides the TS_MAX_DEPTH (1)
+TS_MAX_DEPTH=1
+
+# glob patterns to exclude from the picker (passed to fd --exclude)
+TS_IGNORE=(node_modules .git dist build *ownloads)

@@ -1,9 +1,34 @@
 {
   config,
+  lib,
   pkgs,
   modulesPath,
   ...
 }:
+let
+  userName = "kabilan";
+  homeDir = "/home/${userName}";
+  linkedBinScripts = [
+    {
+      name = "pickers";
+      path = ./bin/pickers;
+    }
+    {
+      name = "sessionizer";
+      path = ./bin/sessionizer;
+    }
+    {
+      name = "tmux-bootstrap-tpm";
+      path = ./bin/tmux-bootstrap-tpm;
+    }
+  ];
+  raspiDotfilesBin = pkgs.runCommand "raspi-dotfiles-bin" { } ''
+    mkdir -p "$out/bin"
+    ${lib.concatMapStringsSep "\n" (script: ''
+      install -Dm755 ${script.path} "$out/bin/${script.name}"
+    '') linkedBinScripts}
+  '';
+in
 {
   imports = [
     # Produces a complete, bootable SD card *image* (firmware + root), not an installer ISO.
@@ -42,7 +67,10 @@
     };
     # Inbound: closed by default, same posture as sietch/jacurutu.
     # Phase 2 adds egress restriction + Tailscale-only service exposure.
-    firewall.enable = true;
+    firewall = {
+      enable = true;
+      interfaces.tailscale0.allowedTCPPorts = [ 8787 ];
+    };
   };
 
   age.secrets.wifi-env.file = ./secrets/wifi-env.age;
@@ -70,7 +98,7 @@
 
   tleilax.jellyfinClient.enable = true;
 
-  users.users.kabilan = {
+  users.users.${userName} = {
     isNormalUser = true;
     extraGroups = [ "wheel" ];
     openssh.authorizedKeys.keys = [
@@ -90,10 +118,58 @@
   ];
 
   environment.systemPackages = with pkgs; [
+    curl
+    fd
+    fzf
+    gawk
     git
+    gnugrep
     htop
+    jq
     neovim
+    openssh
+    procps
+    raspiDotfilesBin
+    ripgrep
+    tmux
   ];
+
+  environment.localBinInPath = true;
+
+  system.activationScripts.raspiUserFiles = {
+    deps = [ "users" ];
+    text = ''
+      ${pkgs.coreutils}/bin/install -d -m 0755 -o ${userName} -g users ${homeDir}/.config
+
+      if [ -L ${homeDir}/.codex ]; then
+        ${pkgs.coreutils}/bin/rm ${homeDir}/.codex
+      fi
+
+      ${pkgs.coreutils}/bin/install -d -m 0755 -o ${userName} -g users ${homeDir}/.codex
+      if [ -L ${homeDir}/.codex/skills ]; then
+        ${pkgs.coreutils}/bin/rm ${homeDir}/.codex/skills
+      fi
+      ${pkgs.coreutils}/bin/install -d -m 0755 -o ${userName} -g users ${homeDir}/.codex/skills
+
+      for target in \
+        ${homeDir}/.codex/skills/jellyfin-remote-api \
+        ${homeDir}/.tmux.conf \
+        ${homeDir}/.config/sessionizer
+      do
+        if [ -e "$target" ] && [ ! -L "$target" ]; then
+          ${pkgs.coreutils}/bin/rm -rf "$target"
+        fi
+      done
+
+      if [ -L ${homeDir}/.codex/config.toml ]; then
+        ${pkgs.coreutils}/bin/rm ${homeDir}/.codex/config.toml
+      fi
+
+      ${pkgs.coreutils}/bin/ln -sfnT ${./codex/skills/jellyfin-remote-api} ${homeDir}/.codex/skills/jellyfin-remote-api
+      ${pkgs.coreutils}/bin/ln -sfnT ${./config/.tmux.conf} ${homeDir}/.tmux.conf
+      ${pkgs.coreutils}/bin/ln -sfnT ${./config/sessionizer} ${homeDir}/.config/sessionizer
+    '';
+  };
 
   boot.zfs.forceImportRoot = false;
 

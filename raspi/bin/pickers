@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+
+usage() {
+  cat <<EOF
+Usage: pickers [--split] TYPE
+
+TYPE:
+  dirs    Open a directory picker
+  hosts   Open an SSH host picker
+  panes   Switch to a pane in the current session
+  history Search and insert bash history commands into prompt
+
+Options:
+  --split Open selection in a tmux split instead of a new window
+          (not applicable for panes, history)
+EOF
+  exit 1
+}
+
+pick_dir() {
+  FD_BIN="fd"
+  if command -v fd &>/dev/null; then
+    FD_BIN="fd"
+  elif command -v fdfind &>/dev/null; then
+    FD_BIN="fdfind"
+  else
+    echo "fd is not installed. Please install it first."
+    exit 1
+  fi
+
+  if [ -n "$context" ] && [ -d "$context" ]; then
+    parent1="$(dirname "$context")"
+    parent2="$(dirname "$parent1")"
+
+    {
+      [ -d "$parent2" ] && $FD_BIN -L -t d -d 3 . "$parent2" 2>/dev/null
+      $FD_BIN -L -t d -d 4 -I . "$HOME" 2>/dev/null
+    } | awk '!seen[$0]++' | fzf --tmux --tiebreak=index
+  else
+    $FD_BIN -L -t d -d 4 . "$HOME" | fzf --tmux
+  fi
+}
+
+pick_host() {
+  grep "^Host " ~/.ssh/config | awk '{print $2}' | fzf --tmux
+}
+
+pick_panes() {
+  tmux list-panes -s -F "#{window_id}:#{pane_id}|[#{window_index},#{pane_index}] #{window_name} > #{pane_current_command} (#{pane_id})" |
+    fzf --tmux --delimiter="|" --with-nth=2 |
+    cut -d'|' -f1
+}
+
+pick_history() {
+  awk '/^#/ {
+    if (cmd) print cmd;
+    cmd="";
+    next
+  } !/^#/ {
+    gsub(/^[ \t]+|[ \t]+$/, "");
+    if (length($0) > 0) cmd = cmd $0 " "
+  } END {
+    if (cmd) print cmd
+  }' "$HOME/.bash_history" | fzf --tmux --tac --no-sort
+}
+
+split=0
+type=""
+context=""
+
+# Parse command line arguments
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --split)
+    split=1
+    ;;
+  --context)
+    shift
+    context="$1"
+    ;;
+  dirs | hosts | panes | history)
+    type="$1"
+    ;;
+  *)
+    usage
+    ;;
+  esac
+  shift
+done
+
+# Check if type is provided and valid
+if [ -z "$type" ]; then
+  usage
+fi
+
+# Execute the appropriate command based on type and split flag
+if [ "$type" = "dirs" ]; then
+  if [ "$split" -eq 1 ]; then
+    pick_dir | xargs -I DIR tmux split-window -c DIR
+  else
+    pick_dir | xargs -I DIR sh -c 'tmux new-window -c "DIR" -n "$(basename "DIR")"'
+  fi
+elif [ "$type" = "hosts" ]; then
+  if [ "$split" -eq 1 ]; then
+    pick_host | xargs -I HOST tmux split-window ssh HOST
+  else
+    pick_host | xargs -I HOST tmux new-window -n HOST ssh HOST
+  fi
+elif [ "$type" = "panes" ]; then
+  target=$(pick_panes)
+  if [ -n "$target" ]; then
+    window_id=$(echo "$target" | cut -d: -f1)
+    pane_id=$(echo "$target" | cut -d: -f2)
+    tmux select-window -t "$window_id"
+    tmux select-pane -t "$pane_id"
+  fi
+elif [ "$type" = "history" ]; then
+  cmd=$(pick_history)
+  if [ -n "$cmd" ]; then
+    tmux send-keys -t "$TMUX_PANE" "$cmd"
+  fi
+fi

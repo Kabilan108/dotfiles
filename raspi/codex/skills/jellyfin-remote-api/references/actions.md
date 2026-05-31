@@ -3,7 +3,7 @@
 ## Resolve Context
 
 ```bash
-skill=/home/kabilan/dotfiles/agents/skills/jellyfin-remote-api
+skill=/home/kabilan/.codex/skills/jellyfin-remote-api
 ctx=$("$skill/scripts/jellyfin-token.sh")
 token=$(jq -r .token <<<"$ctx")
 user_id=$(jq -r .user_id <<<"$ctx")

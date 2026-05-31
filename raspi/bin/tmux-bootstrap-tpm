@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+plugin_dir="${TMUX_PLUGIN_MANAGER_PATH:-$HOME/.tmux/plugins}"
+tpm_dir="$plugin_dir/tpm"
+catppuccin_dir="$plugin_dir/catppuccin/tmux"
+log_file="${XDG_CACHE_HOME:-$HOME/.cache}/tmux/tpm-bootstrap.log"
+
+mkdir -p "$plugin_dir" "$(dirname "$log_file")"
+
+if [[ ! -d "$tpm_dir/.git" ]]; then
+  rm -rf "$tpm_dir"
+  git clone --depth=1 https://github.com/tmux-plugins/tpm "$tpm_dir" >>"$log_file" 2>&1 || exit 0
+fi
+
+if [[ ! -d "$catppuccin_dir/.git" ]]; then
+  rm -rf "$catppuccin_dir"
+  mkdir -p "$(dirname "$catppuccin_dir")"
+  git clone --depth=1 --branch v2.1.3 https://github.com/catppuccin/tmux.git "$catppuccin_dir" >>"$log_file" 2>&1 || true
+fi
+
+missing_plugin=0
+for plugin in tmux-fzf tmux-sensible vim-tmux-navigator tmux-copycat tmux-open tmux-resurrect tmux-continuum; do
+  if [[ ! -d "$plugin_dir/$plugin" ]]; then
+    missing_plugin=1
+    break
+  fi
+done
+
+if [[ "$missing_plugin" -eq 1 ]]; then
+  "$tpm_dir/bin/install_plugins" >>"$log_file" 2>&1 || true
+fi

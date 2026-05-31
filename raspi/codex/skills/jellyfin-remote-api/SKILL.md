@@ -12,7 +12,7 @@ Use Jellyfin's server API for client control after a Jellyfin client is logged i
 Use the bundled scripts first:
 
 ```bash
-skill=/home/kabilan/dotfiles/agents/skills/jellyfin-remote-api
+skill=/home/kabilan/.codex/skills/jellyfin-remote-api
 
 # Print token/user/server/client context as JSON.
 "$skill/scripts/jellyfin-token.sh"
