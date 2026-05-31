@@ -27,6 +27,7 @@
         modules = [
           agenix.nixosModules.default
           ./raspi-base.nix
+          ./modules/jellyfin-client.nix
           ./modules/network-security.nix
         ];
       };

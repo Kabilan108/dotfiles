@@ -68,6 +68,8 @@
 
   services.tailscale.enable = true;
 
+  tleilax.jellyfinClient.enable = true;
+
   users.users.kabilan = {
     isNormalUser = true;
     extraGroups = [ "wheel" ];
