@@ -246,6 +246,9 @@ trust_level = "trusted"
 [projects."/vault/experiments/2026-05-30-hosth"]
 trust_level = "trusted"
 
+[projects."/vault/repos/cli/pagebin"]
+trust_level = "trusted"
+
 [tui.model_availability_nux]
 "gpt-5.5" = 4
 
