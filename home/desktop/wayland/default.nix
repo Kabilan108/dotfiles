@@ -5,6 +5,7 @@
 }:
 {
   imports = [
+    ./screenshots.nix
     ./waybar.nix
     ./mako.nix
     ./walker.nix
