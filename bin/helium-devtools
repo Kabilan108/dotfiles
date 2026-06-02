@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+port="${HELIUM_DEVTOOLS_PORT:-9222}"
+profile="${HELIUM_DEVTOOLS_PROFILE:-/tmp/helium-devtools-profile}"
+helium_args=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --port)
+      if [[ $# -lt 2 ]]; then
+        printf 'helium-devtools: --port requires a value.\n' >&2
+        exit 2
+      fi
+      port="$2"
+      shift 2
+      ;;
+    --profile)
+      if [[ $# -lt 2 ]]; then
+        printf 'helium-devtools: --profile requires a value.\n' >&2
+        exit 2
+      fi
+      profile="$2"
+      shift 2
+      ;;
+    *)
+      helium_args+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [[ "${profile}" == */Default ]]; then
+  printf 'helium-devtools: profile should be the user-data root, not the Default profile subdirectory.\n' >&2
+  printf 'helium-devtools: using %s instead.\n' "${profile%/Default}" >&2
+  profile="${profile%/Default}"
+fi
+
+exec helium \
+  --user-data-dir="${profile}" \
+  --remote-debugging-address=127.0.0.1 \
+  --remote-debugging-port="${port}" \
+  "${helium_args[@]}"
