@@ -24,3 +24,7 @@ session-env
 policy-limits.json
 .last-cleanup
 daemon
+daemon.lock
+daemon.log
+daemon.status.json
+jobs
