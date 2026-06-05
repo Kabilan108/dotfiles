@@ -1,3 +1,12 @@
+Disable airplane mode via keyboard shortcut and only allow via new quickshell panel
+
+
+
+
+
+
+
+
 - add hook that notifies when claude is using AskUserQuestionTool if it hangs for > 30s
 
 - persist claude sessions to markdown files
