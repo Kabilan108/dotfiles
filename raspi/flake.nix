@@ -70,6 +70,7 @@
         modules = [
           agenix.nixosModules.default
           ./raspi-base.nix
+          ./modules/airplay-receiver.nix
           ./modules/jellyfin-client.nix
           ./modules/network-security.nix
           ./modules/remote.nix

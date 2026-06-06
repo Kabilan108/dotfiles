@@ -21,6 +21,8 @@ JELLYFIN_AUTH_CACHE = Path(
 ).expanduser()
 PORT = int(os.environ.get("REMOTE_PORT", "8787"))
 WORKSPACE = os.environ.get("REMOTE_CODEX_WORKSPACE", str(ROOT))
+SYSTEMCTL = os.environ.get("REMOTE_SYSTEMCTL", "systemctl")
+SUDO = os.environ.get("REMOTE_SUDO", "sudo")
 
 
 def sh(args, timeout=8, check=False):
@@ -290,6 +292,68 @@ def jellyfin_session():
     return remote[0] if remote else None
 
 
+def service_active(service: str) -> bool:
+    code, _out = sh([SYSTEMCTL, "is-active", "--quiet", service], timeout=4)
+    return code == 0
+
+
+def display_payload() -> dict[str, object]:
+    airplay = service_active("uxplay.service")
+    jellyfin = service_active("greetd.service")
+    mode = "idle"
+    if airplay and jellyfin:
+        mode = "conflict"
+    elif airplay:
+        mode = "airplay"
+    elif jellyfin:
+        mode = "jellyfin"
+    return {
+        "mode": mode,
+        "airplay": airplay,
+        "jellyfin": jellyfin,
+    }
+
+
+def switch_display(mode: str) -> tuple[bool, str]:
+    commands = {
+        "airplay": [
+            [SUDO, SYSTEMCTL, "stop", "greetd.service"],
+            [SUDO, SYSTEMCTL, "start", "uxplay.service"],
+        ],
+        "jellyfin": [
+            [SUDO, SYSTEMCTL, "stop", "uxplay.service"],
+            [SUDO, SYSTEMCTL, "start", "greetd.service"],
+        ],
+        "off": [
+            [SUDO, SYSTEMCTL, "stop", "uxplay.service"],
+            [SUDO, SYSTEMCTL, "stop", "greetd.service"],
+        ],
+    }.get(mode)
+    if commands is None:
+        return False, "unknown display mode"
+
+    messages = []
+    for command in commands:
+        code, out = sh(command, timeout=12)
+        if out:
+            messages.append(out)
+        if code != 0:
+            return False, "\n".join(messages) or f"{' '.join(command)} failed"
+
+    expected = "idle" if mode == "off" else mode
+    deadline = time.monotonic() + 12
+    current = display_payload()["mode"]
+    while current != expected and time.monotonic() < deadline:
+        time.sleep(1)
+        current = display_payload()["mode"]
+    if current != expected:
+        detail = "\n".join(messages)
+        if detail:
+            return False, f"Requested {mode}, but display is {current}.\n{detail}"
+        return False, f"Requested {mode}, but display is {current}"
+    return True, f"Display switched to {mode}"
+
+
 def status_payload():
     code, audio = sh(["wpctl", "status"], timeout=4)
     session = jellyfin_session()
@@ -312,6 +376,7 @@ def status_payload():
             "item": session.get("NowPlayingItem") if session else None,
             "playState": session.get("PlayState") if session else None,
         } if session else None,
+        "display": display_payload(),
         "jobs": jobs,
     }
 
@@ -429,6 +494,11 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/audio/hdmi":
             ok, message = switch_hdmi()
             return self.send_json({"ok": ok, "message": message}, 200 if ok else 500)
+        if parsed.path == "/api/display":
+            mode = str(data.get("mode", "")).strip()
+            ok, message = switch_display(mode)
+            payload = {"ok": ok, "message": message, "display": display_payload()}
+            return self.send_json(payload, 200 if ok else 500)
         if parsed.path == "/api/jellyfin":
             return self.jellyfin(data)
         if parsed.path == "/api/codex":
@@ -623,6 +693,16 @@ INDEX_HTML = r"""<!doctype html>
   </section>
 
   <section>
+    <h2>Display</h2>
+    <pre id="display">Loading...</pre>
+    <div class="grid">
+      <button data-display="airplay" class="primary">AirPlay</button>
+      <button data-display="jellyfin">Jellyfin</button>
+      <button data-display="off" class="warn">Off</button>
+    </div>
+  </section>
+
+  <section>
     <h2>Library</h2>
     <div class="row">
       <input id="search" placeholder="Search Jellyfin">
@@ -689,6 +769,9 @@ async function refresh() {
     document.getElementById('host').textContent = s.host + ' : ' + s.port;
     const item = s.jellyfin && s.jellyfin.item;
     const play = s.jellyfin && s.jellyfin.playState;
+    const display = s.display || {};
+    document.getElementById('display').textContent =
+      `Mode: ${display.mode || 'unknown'}\nAirPlay: ${display.airplay ? 'on' : 'off'}  Jellyfin: ${display.jellyfin ? 'on' : 'off'}`;
     document.getElementById('now').textContent = item
       ? `${item.SeriesName || ''} S${item.ParentIndexNumber || '?'}E${item.IndexNumber || '?'}\n${item.Name}\nPaused: ${play && play.IsPaused ? 'yes' : 'no'}  Volume: ${play && play.VolumeLevel || '?'}`
       : 'Nothing playing';
@@ -710,6 +793,9 @@ document.querySelectorAll('[data-jellyfin]').forEach(btn => {
 });
 document.querySelectorAll('[data-seek]').forEach(btn => {
   btn.onclick = async () => { await post('/api/jellyfin', {action:'seek', seconds:Number(btn.dataset.seek)}); await refresh(); };
+});
+document.querySelectorAll('[data-display]').forEach(btn => {
+  btn.onclick = async () => { alert((await post('/api/display', {mode: btn.dataset.display})).message); await refresh(); };
 });
 document.getElementById('hdmi').onclick = async () => { alert((await post('/api/audio/hdmi')).message); await refresh(); };
 document.getElementById('runCodex').onclick = async () => {

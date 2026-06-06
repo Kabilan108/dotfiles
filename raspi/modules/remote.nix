@@ -90,6 +90,8 @@ in
         REMOTE_CODEX_WORKSPACE = cfg.workspace;
         REMOTE_PORT = toString cfg.port;
         REMOTE_PRINT_TOKEN = "0";
+        REMOTE_SUDO = "/run/wrappers/bin/sudo";
+        REMOTE_SYSTEMCTL = "${config.systemd.package}/bin/systemctl";
         REMOTE_STATE_DIR = stateDir;
         REMOTE_TAILSCALE_WAIT_SECONDS = "60";
       }
@@ -104,6 +106,8 @@ in
         curl
         findutils
         gawk
+        sudo
+        systemd
         tailscale
         wireplumber
       ];
@@ -124,5 +128,29 @@ in
         EnvironmentFile = cfg.environmentFile;
       };
     };
+
+    security.sudo.extraRules = [
+      {
+        users = [ cfg.user ];
+        commands =
+          builtins.concatMap
+            (
+              service:
+              map
+                (action: {
+                  command = "${config.systemd.package}/bin/systemctl ${action} ${service}";
+                  options = [ "NOPASSWD" ];
+                })
+                [
+                  "start"
+                  "stop"
+                ]
+            )
+            [
+              "greetd.service"
+              "uxplay.service"
+            ];
+      }
+    ];
   };
 }

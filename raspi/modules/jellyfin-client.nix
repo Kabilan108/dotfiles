@@ -54,7 +54,7 @@ in
       wireplumber.enable = true;
     };
 
-    services.greetd = lib.mkIf cfg.autoStart {
+    services.greetd = {
       enable = true;
       restart = true;
       settings = {
@@ -67,6 +67,10 @@ in
           user = cfg.user;
         };
       };
+    };
+
+    systemd.services.greetd = lib.mkIf (!cfg.autoStart) {
+      wantedBy = lib.mkForce [ ];
     };
 
     users.users.${cfg.user}.extraGroups = [

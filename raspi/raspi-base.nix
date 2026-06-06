@@ -77,6 +77,7 @@ in
     publish = {
       enable = true;
       addresses = true;
+      userServices = true;
       workstation = true;
     };
   };
@@ -91,7 +92,11 @@ in
 
   services.tailscale.enable = true;
 
-  tleilax.jellyfinClient.enable = true;
+  tleilax.airplayReceiver.enable = true;
+  tleilax.jellyfinClient = {
+    enable = true;
+    autoStart = false;
+  };
   tleilax.remote.enable = true;
 
   users.users.${userName} = {
