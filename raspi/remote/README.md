@@ -1,4 +1,4 @@
-# Codex Remote
+# Tleilax Control Center
 
 A small phone-friendly remote for the Raspberry Pi over Tailscale.
 

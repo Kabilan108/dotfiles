@@ -625,124 +625,287 @@ INDEX_HTML = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Codex Remote</title>
+<title>Tleilax Control Center</title>
 <style>
-  :root { color-scheme: dark; --bg:#101114; --panel:#1a1d22; --line:#313741; --text:#f1f3f5; --muted:#9ba3ad; --accent:#47c2a8; --warn:#ffb86c; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background:var(--bg); color:var(--text); }
-  main { max-width: 760px; margin:0 auto; padding: 18px 14px 28px; }
-  header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
-  h1 { font-size:22px; margin:0; letter-spacing:0; }
-  .pill { border:1px solid var(--line); color:var(--muted); padding:6px 9px; border-radius:7px; font-size:13px; }
-  section { border-top:1px solid var(--line); padding:16px 0; }
-  h2 { font-size:15px; margin:0 0 10px; color:var(--muted); font-weight:650; }
-  .grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:9px; }
-  .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  button { min-height:48px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--text); font-size:15px; font-weight:650; }
-  button.primary { background:var(--accent); color:#061411; border-color:var(--accent); }
-  button.warn { color:var(--warn); }
-  textarea, input { width:100%; border:1px solid var(--line); border-radius:8px; background:#0b0c0f; color:var(--text); padding:12px; font:inherit; }
-  textarea { min-height:112px; resize:vertical; }
-  .row { display:flex; gap:9px; align-items:center; }
-  .row input { flex:1; }
-  pre { white-space:pre-wrap; overflow-wrap:anywhere; background:#0b0c0f; border:1px solid var(--line); border-radius:8px; padding:12px; max-height:340px; overflow:auto; }
-  .muted { color:var(--muted); }
-  .job { border:1px solid var(--line); border-radius:8px; padding:10px; margin-top:9px; background:var(--panel); }
-  .list { display:grid; gap:8px; }
-  .item { text-align:left; min-height:54px; padding:9px 11px; display:block; width:100%; }
-  .item small { display:block; color:var(--muted); font-weight:500; margin-top:3px; overflow-wrap:anywhere; }
+  :root{
+    color-scheme:dark;
+    --bg:#0b0c0f; --card:#15171d; --card-2:#1b1e26; --raise:#23272f;
+    --line:rgba(255,255,255,.06); --line-2:rgba(255,255,255,.12);
+    --text:#eceef2; --muted:#888f9c; --faint:#5b626e;
+    --accent:#4cc6ac; --accent-ink:#04130f; --accent-dim:rgba(76,198,172,.14);
+    --warn:#ffb86c; --danger:#ff6b6b; --ok:#7bd88f;
+    --r:14px; --r-sm:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--text);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:
+      radial-gradient(1200px 620px at 50% -12%, rgba(76,198,172,.10), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(90,120,255,.06), transparent 55%),
+      var(--bg);
+    background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  [hidden]{display:none!important}
+  svg{fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
+  .app{max-width:680px; margin:0 auto; padding:0 14px calc(40px + env(safe-area-inset-bottom));}
+
+  /* top bar */
+  .topbar{position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:14px 4px 12px; margin-bottom:6px;
+    background:linear-gradient(var(--bg) 55%, rgba(11,12,15,.55)); backdrop-filter:blur(12px);}
+  .brand{display:flex; align-items:center; gap:10px}
+  .logo{display:grid; place-items:center; width:34px; height:34px; border-radius:10px; color:var(--accent);
+    background:var(--accent-dim); border:1px solid rgba(76,198,172,.3)}
+  .logo svg{width:19px; height:19px}
+  h1{font-size:18px; font-weight:700; margin:0; letter-spacing:-.01em}
+  .topbar-right{display:flex; align-items:center; gap:8px}
+  .status{display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted);
+    border:1px solid var(--line-2); padding:6px 11px; border-radius:999px; font-variant-numeric:tabular-nums}
+  .status .dot{width:7px; height:7px; border-radius:50%; background:var(--faint)}
+  .status.online{color:var(--text)}
+  .status.online .dot{background:var(--accent); animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(76,198,172,.45)}70%{box-shadow:0 0 0 6px rgba(76,198,172,0)}100%{box-shadow:0 0 0 0 rgba(76,198,172,0)}}
+
+  /* cards */
+  .card{background:linear-gradient(180deg,var(--card-2),var(--card)); border:1px solid var(--line);
+    border-radius:var(--r); padding:16px; margin-bottom:12px;
+    box-shadow:0 1px 0 rgba(255,255,255,.02) inset, 0 10px 26px -20px rgba(0,0,0,.9)}
+  .card-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:13px}
+  .eyebrow{font-size:11px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--muted)}
+  .group-label{font-size:10.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); margin:15px 2px 8px}
+
+  /* buttons */
+  button{font:inherit; color:var(--text); cursor:pointer; -webkit-tap-highlight-color:transparent; border:0; background:none}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:46px; padding:0 14px;
+    border:1px solid var(--line-2); border-radius:var(--r-sm); background:var(--raise); font-size:14.5px; font-weight:600;
+    transition:transform .05s, background .15s, border-color .15s, color .15s}
+  .btn:hover{background:#2a2f39}
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:linear-gradient(180deg,#56d4b8,var(--accent)); color:var(--accent-ink); border-color:transparent; font-weight:700}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn.warn{color:var(--warn)} .btn.danger{color:var(--danger)}
+  .btn.active{border-color:var(--accent); color:var(--accent); background:var(--accent-dim)}
+  .icon-btn{display:grid; place-items:center; width:38px; height:38px; border-radius:10px; border:1px solid var(--line-2);
+    background:var(--raise); color:var(--muted)}
+  .icon-btn:hover{color:var(--text)}
+  .btn svg,.icon-btn svg{width:17px; height:17px; flex:0 0 auto}
+
+  /* layout helpers */
+  .row{display:flex; gap:9px; align-items:center}
+  .row input{flex:1}
+  .grid{display:grid; gap:9px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+
+  /* inputs */
+  input,textarea{width:100%; color:var(--text); background:var(--bg); border:1px solid var(--line-2);
+    border-radius:var(--r-sm); padding:12px; font:inherit; transition:border-color .15s, box-shadow .15s}
+  input:focus,textarea:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-dim)}
+  textarea{min-height:96px; resize:vertical; line-height:1.5}
+  ::placeholder{color:var(--faint)}
+  .field-label{display:block; font-size:12px; color:var(--muted); margin-bottom:7px}
+
+  /* now playing */
+  .now-title{font-size:18px; font-weight:700; letter-spacing:-.01em; line-height:1.25; margin-top:2px}
+  .now-sub{color:var(--muted); font-size:13.5px; margin-top:4px; min-height:1em}
+  .chips{display:flex; gap:6px; flex-wrap:wrap; margin-top:11px}
+  .chip{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--muted);
+    background:var(--bg); border:1px solid var(--line-2); padding:4px 9px; border-radius:999px}
+  .chip.live{color:var(--accent); border-color:rgba(76,198,172,.4)}
+  .chip .cdot{width:6px; height:6px; border-radius:50%; background:currentColor}
+  .progress{height:6px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden; margin-top:15px}
+  .progress-bar{height:100%; width:0; border-radius:999px; background:linear-gradient(90deg,#56d4b8,var(--accent)); transition:width .4s}
+  .time-row{display:flex; justify-content:space-between; font-size:11.5px; color:var(--faint); font-variant-numeric:tabular-nums; margin-top:6px}
+
+  /* transport */
+  .transport{display:flex; align-items:center; justify-content:center; gap:12px; margin-top:16px}
+  .t-btn{flex:1; display:grid; place-items:center; gap:3px; min-height:56px; border-radius:12px; border:1px solid var(--line-2);
+    background:var(--raise); color:var(--text); font-size:11px; font-weight:600; transition:transform .05s, background .15s}
+  .t-btn svg{width:20px; height:20px}
+  .t-btn:hover{background:#2a2f39}
+  .t-btn:active{transform:scale(.95)}
+  .t-btn.lg{flex:0 0 auto; width:66px; height:66px; border-radius:50%; border:none;
+    background:linear-gradient(180deg,#56d4b8,var(--accent)); color:var(--accent-ink); box-shadow:0 8px 22px -10px rgba(76,198,172,.7)}
+  .t-btn.lg svg{width:27px; height:27px}
+
+  /* browser list */
+  .list{display:grid; gap:7px}
+  .hint{color:var(--muted); font-size:13px; padding:8px 2px}
+  .item{display:flex; align-items:center; gap:11px; text-align:left; width:100%; min-height:54px; padding:9px 12px;
+    border:1px solid var(--line); border-radius:var(--r-sm); background:var(--bg); transition:background .12s, border-color .12s}
+  .item:hover{background:var(--card-2); border-color:var(--line-2)}
+  .item .ico{flex:0 0 auto; display:grid; place-items:center; width:34px; height:34px; border-radius:9px; background:var(--accent-dim); color:var(--accent)}
+  .item .ico svg{width:17px; height:17px}
+  .item .meta{min-width:0; flex:1}
+  .item .nm{font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .item .sub{display:block; color:var(--muted); font-size:12px; font-weight:500; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .item .chev{flex:0 0 auto; color:var(--faint)}
+  .item .chev svg{width:16px; height:16px; display:block}
+
+  /* jobs */
+  .job{border:1px solid var(--line); border-radius:var(--r-sm); padding:12px; background:var(--bg); margin-bottom:9px}
+  .job:last-child{margin-bottom:0}
+  .job-head{display:flex; align-items:center; gap:9px; font-size:12.5px}
+  .badge{font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:3px 8px; border-radius:999px}
+  .badge.running{color:var(--accent); background:var(--accent-dim)}
+  .badge.done{color:var(--ok); background:rgba(123,216,143,.14)}
+  .badge.failed{color:var(--danger); background:rgba(255,107,107,.14)}
+  .job-time{color:var(--faint); font-variant-numeric:tabular-nums}
+  .job-prompt{margin-top:8px; color:var(--text); font-size:13px; overflow-wrap:anywhere}
+  pre{white-space:pre-wrap; overflow-wrap:anywhere; background:#090a0d; border:1px solid var(--line); border-radius:var(--r-sm);
+    padding:11px; margin:9px 0 0; font-size:12px; line-height:1.5; max-height:300px; overflow:auto; color:var(--muted)}
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <h1>Codex Remote</h1>
-    <span class="pill" id="host">offline</span>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="i-logo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></symbol>
+      <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></symbol>
+      <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+      <symbol id="i-prev" viewBox="0 0 24 24"><path d="M18 5v14M16 12L6 5v14z" fill="currentColor"/></symbol>
+      <symbol id="i-next" viewBox="0 0 24 24"><path d="M6 5v14M8 12l10-7v14z" fill="currentColor"/></symbol>
+      <symbol id="i-vup" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM16 9a3 3 0 0 1 0 6M19 7a7 7 0 0 1 0 10"/></symbol>
+      <symbol id="i-vdown" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM16 9a3 3 0 0 1 0 6"/></symbol>
+      <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM21 9l-6 6M15 9l6 6"/></symbol>
+      <symbol id="i-back15" viewBox="0 0 24 24"><path d="M11 5L5 9l6 4V5z" fill="currentColor"/><path d="M7 9a8 8 0 1 1-2 5"/></symbol>
+      <symbol id="i-fwd15" viewBox="0 0 24 24"><path d="M13 5l6 4-6 4V5z" fill="currentColor"/><path d="M17 9a8 8 0 1 0 2 5"/></symbol>
+      <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="currentColor"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+      <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></symbol>
+      <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+      <symbol id="i-hdmi" viewBox="0 0 24 24"><path d="M4 9h16l-2 4H6zM8 13v3M16 13v3M10 16h4"/></symbol>
+      <symbol id="i-screen" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+      <symbol id="i-run" viewBox="0 0 24 24"><path d="M5 4l14 8-14 8z" fill="currentColor" stroke="none"/></symbol>
+    </g>
+  </defs>
+</svg>
+
+<main class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo"><svg><use href="#i-logo"/></svg></span>
+      <h1>Tleilax Control Center</h1>
+    </div>
+    <div class="topbar-right">
+      <span class="status" id="host"><span class="dot"></span>offline</span>
+      <button class="icon-btn" id="settingsBtn" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
+    </div>
   </header>
 
-  <section>
-    <h2>Auth</h2>
+  <section class="card" id="settings" hidden>
+    <label class="field-label" for="token">Access token</label>
     <div class="row">
-      <input id="token" placeholder="Token" value="__TOKEN__">
-      <button id="saveToken">Save</button>
+      <input id="token" type="password" placeholder="Token" value="__TOKEN__">
+      <button id="saveToken" class="btn" style="width:auto; padding:0 18px">Save</button>
     </div>
   </section>
 
-  <section>
-    <h2>Now Playing</h2>
-    <pre id="now">Loading...</pre>
-    <div class="grid">
-      <button data-jellyfin="pause">Pause</button>
-      <button data-jellyfin="unpause">Play</button>
-      <button data-jellyfin="stop" class="warn">Stop</button>
-      <button data-jellyfin="volumeDown">Vol -</button>
-      <button data-jellyfin="mute">Mute</button>
-      <button data-jellyfin="volumeUp">Vol +</button>
+  <section class="card">
+    <div class="card-head">
+      <span class="eyebrow">Now Playing</span>
+      <div class="chips" id="nowChips" style="margin-top:0"></div>
     </div>
-    <div style="height:9px"></div>
-    <div class="grid">
-      <button data-seek="-60">-60s</button>
-      <button data-seek="-15">-15s</button>
-      <button data-seek="15">+15s</button>
-      <button data-seek="60">+60s</button>
-      <button data-jellyfin="previousEpisode">Prev Ep</button>
-      <button data-jellyfin="nextEpisode">Next Ep</button>
+    <div class="now-title" id="nowTitle">Loading…</div>
+    <div class="now-sub" id="nowSub"></div>
+    <div class="progress"><div class="progress-bar" id="nowProgress"></div></div>
+    <div class="time-row"><span id="nowPos">0:00</span><span id="nowDur">0:00</span></div>
+
+    <div class="transport">
+      <button class="t-btn" data-jellyfin="previousEpisode"><svg><use href="#i-prev"/></svg>Prev Ep</button>
+      <button class="t-btn" data-seek="-15"><svg><use href="#i-back15"/></svg>-15s</button>
+      <button class="t-btn lg" id="playPause" data-jellyfin="unpause"><svg><use href="#i-play"/></svg></button>
+      <button class="t-btn" data-seek="15"><svg><use href="#i-fwd15"/></svg>+15s</button>
+      <button class="t-btn" data-jellyfin="nextEpisode"><svg><use href="#i-next"/></svg>Next Ep</button>
     </div>
-    <div style="height:9px"></div>
-    <button class="primary" data-jellyfin="durararaStart" style="width:100%">Durarara!! S1E1 From Start</button>
+
+    <div class="group-label">Volume</div>
+    <div class="grid g3">
+      <button class="btn" data-jellyfin="volumeDown"><svg><use href="#i-vdown"/></svg>Down</button>
+      <button class="btn" data-jellyfin="mute"><svg><use href="#i-mute"/></svg>Mute</button>
+      <button class="btn" data-jellyfin="volumeUp"><svg><use href="#i-vup"/></svg>Up</button>
+    </div>
+
+    <div class="group-label">Seek</div>
+    <div class="grid g4">
+      <button class="btn" data-seek="-60">-60s</button>
+      <button class="btn" data-seek="-15">-15s</button>
+      <button class="btn" data-seek="15">+15s</button>
+      <button class="btn" data-seek="60">+60s</button>
+    </div>
+
+    <div class="group-label">Quick</div>
+    <div class="grid g2">
+      <button class="btn danger" data-jellyfin="stop"><svg><use href="#i-stop"/></svg>Stop</button>
+      <button class="btn primary" data-jellyfin="durararaStart"><svg><use href="#i-bolt"/></svg>Durarara!! E1</button>
+    </div>
   </section>
 
-  <section>
-    <h2>Display</h2>
-    <pre id="display">Loading...</pre>
-    <div class="grid">
-      <button data-display="airplay" class="primary">AirPlay</button>
-      <button data-display="jellyfin">Jellyfin</button>
-      <button data-display="off" class="warn">Off</button>
-    </div>
-  </section>
-
-  <section>
-    <h2>Library</h2>
+  <section class="card">
+    <div class="card-head"><span class="eyebrow">Library</span></div>
     <div class="row">
       <input id="search" placeholder="Search Jellyfin">
-      <button id="searchBtn">Search</button>
+      <button id="searchBtn" class="btn" style="width:auto; padding:0 16px"><svg><use href="#i-search"/></svg></button>
     </div>
-    <div style="height:9px"></div>
-    <div class="grid two">
-      <button id="collectionsBtn">Collections</button>
-      <button id="backBtn">Back</button>
+    <div class="grid g2" style="margin-top:9px">
+      <button id="collectionsBtn" class="btn"><svg><use href="#i-folder"/></svg>Collections</button>
+      <button id="backBtn" class="btn"><svg><use href="#i-back"/></svg>Back</button>
     </div>
-    <div style="height:9px"></div>
-    <div id="browser" class="list muted">Open collections or search.</div>
+    <div id="browser" class="list" style="margin-top:11px"><div class="hint">Open collections or search.</div></div>
   </section>
 
-  <section>
-    <h2>Pi Audio</h2>
-    <button id="hdmi" class="primary" style="width:100%">Route Audio To HDMI</button>
+  <section class="card">
+    <div class="card-head"><span class="eyebrow">System</span><span class="chip" id="displayState">—</span></div>
+    <div class="group-label" style="margin-top:0">Display Output</div>
+    <div class="grid g3">
+      <button class="btn" data-display="airplay"><svg><use href="#i-screen"/></svg>AirPlay</button>
+      <button class="btn" data-display="jellyfin"><svg><use href="#i-film"/></svg>Jellyfin</button>
+      <button class="btn warn" data-display="off">Off</button>
+    </div>
+    <div class="group-label">Pi Audio</div>
+    <button id="hdmi" class="btn"><svg><use href="#i-hdmi"/></svg>Route Audio To HDMI</button>
   </section>
 
-  <section>
-    <h2>Ask Codex</h2>
-    <textarea id="prompt" placeholder="Tell Codex what to do on this Pi..."></textarea>
-    <div style="height:9px"></div>
-    <button id="runCodex" class="primary" style="width:100%">Run Task</button>
+  <section class="card">
+    <div class="card-head"><span class="eyebrow">Ask Codex</span></div>
+    <textarea id="prompt" placeholder="Tell Codex what to do on this Pi…"></textarea>
+    <button id="runCodex" class="btn primary" style="margin-top:9px"><svg><use href="#i-run"/></svg>Run Task</button>
   </section>
 
-  <section>
-    <h2>Jobs</h2>
-    <div id="jobs" class="muted">No jobs yet.</div>
+  <section class="card">
+    <div class="card-head"><span class="eyebrow">Jobs</span></div>
+    <div id="jobs"><div class="hint">No jobs yet.</div></div>
   </section>
 </main>
 
 <script>
-const tokenEl = document.getElementById('token');
+const $ = id => document.getElementById(id);
+const tokenEl = $('token');
 if (!tokenEl.value) tokenEl.value = localStorage.getItem('remoteToken') || '';
-document.getElementById('saveToken').onclick = () => {
+$('saveToken').onclick = () => {
   localStorage.setItem('remoteToken', tokenEl.value.trim());
+  $('settings').hidden = true;
   refresh();
 };
+$('settingsBtn').onclick = () => { $('settings').hidden = !$('settings').hidden; };
 function token() { return tokenEl.value.trim(); }
+function icon(name) { return '<svg aria-hidden="true"><use href="#i-' + name + '"/></svg>'; }
+function fmt(t) {
+  if (!t || t < 0) return '0:00';
+  t = Math.floor(t);
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+  const mm = h ? String(m).padStart(2, '0') : m;
+  return (h ? h + ':' : '') + mm + ':' + String(s).padStart(2, '0');
+}
 async function api(path, options = {}) {
   const sep = path.includes('?') ? '&' : '?';
   const res = await fetch(path + sep + 'token=' + encodeURIComponent(token()), {
@@ -763,26 +926,67 @@ function itemLabel(item) {
   if (item.productionYear) bits.push(item.productionYear);
   return bits.join(' - ') || item.type || '';
 }
+function setNowChips(chips) { $('nowChips').innerHTML = chips.join(''); }
 async function refresh() {
+  const host = $('host');
   try {
     const s = await api('/api/status');
-    document.getElementById('host').textContent = s.host + ' : ' + s.port;
+    host.innerHTML = '<span class="dot"></span>' + escapeHtml(s.host + ' : ' + s.port);
+    host.classList.add('online');
+
     const item = s.jellyfin && s.jellyfin.item;
-    const play = s.jellyfin && s.jellyfin.playState;
+    const play = (s.jellyfin && s.jellyfin.playState) || {};
+    const playPause = $('playPause');
+    if (item) {
+      const se = (item.ParentIndexNumber || item.IndexNumber)
+        ? `S${item.ParentIndexNumber || '?'} · E${item.IndexNumber || '?'}` : '';
+      const series = item.SeriesName;
+      $('nowTitle').textContent = series || item.Name || 'Unknown';
+      $('nowSub').textContent = series ? [se, item.Name].filter(Boolean).join('  —  ') : se;
+      const pos = Number(play.PositionTicks || 0) / 1e7, dur = Number(item.RunTimeTicks || 0) / 1e7;
+      $('nowProgress').style.width = dur ? Math.min(100, pos / dur * 100) + '%' : '0%';
+      $('nowPos').textContent = fmt(pos);
+      $('nowDur').textContent = fmt(dur);
+      const paused = !!play.IsPaused;
+      const chips = [paused
+        ? '<span class="chip">Paused</span>'
+        : '<span class="chip live"><span class="cdot"></span>Playing</span>'];
+      if (play.VolumeLevel != null) chips.push(`<span class="chip">Vol ${play.VolumeLevel}</span>`);
+      if (play.IsMuted) chips.push('<span class="chip">Muted</span>');
+      setNowChips(chips);
+      playPause.dataset.jellyfin = paused ? 'unpause' : 'pause';
+      playPause.innerHTML = icon(paused ? 'play' : 'pause');
+    } else {
+      $('nowTitle').textContent = 'Nothing playing';
+      $('nowSub').textContent = '';
+      $('nowProgress').style.width = '0%';
+      $('nowPos').textContent = $('nowDur').textContent = '0:00';
+      setNowChips(['<span class="chip">Idle</span>']);
+      playPause.dataset.jellyfin = 'unpause';
+      playPause.innerHTML = icon('play');
+    }
+
     const display = s.display || {};
-    document.getElementById('display').textContent =
-      `Mode: ${display.mode || 'unknown'}\nAirPlay: ${display.airplay ? 'on' : 'off'}  Jellyfin: ${display.jellyfin ? 'on' : 'off'}`;
-    document.getElementById('now').textContent = item
-      ? `${item.SeriesName || ''} S${item.ParentIndexNumber || '?'}E${item.IndexNumber || '?'}\n${item.Name}\nPaused: ${play && play.IsPaused ? 'yes' : 'no'}  Volume: ${play && play.VolumeLevel || '?'}`
-      : 'Nothing playing';
-    document.getElementById('jobs').innerHTML = s.jobs.length ? s.jobs.map(j => `
+    $('displayState').textContent = display.mode || 'unknown';
+    document.querySelectorAll('[data-display]').forEach(btn => {
+      const m = btn.dataset.display;
+      btn.classList.toggle('active', m === display.mode || (m === 'off' && display.mode === 'idle'));
+    });
+
+    const jobs = s.jobs || [];
+    $('jobs').innerHTML = jobs.length ? jobs.map(j => `
       <div class="job">
-        <strong>${j.status}</strong> ${new Date(j.createdAt * 1000).toLocaleTimeString()}<br>
-        <span class="muted">${escapeHtml(j.prompt || '')}</span>
+        <div class="job-head">
+          <span class="badge ${escapeHtml(j.status)}">${escapeHtml(j.status)}</span>
+          <span class="job-time">${new Date(j.createdAt * 1000).toLocaleTimeString()}</span>
+        </div>
+        <div class="job-prompt">${escapeHtml(j.prompt || '')}</div>
         ${j.output ? `<pre>${escapeHtml(j.output)}</pre>` : ''}
-      </div>`).join('') : 'No jobs yet.';
+      </div>`).join('') : '<div class="hint">No jobs yet.</div>';
   } catch (e) {
-    document.getElementById('now').textContent = e.message;
+    host.classList.remove('online');
+    host.innerHTML = '<span class="dot"></span>offline';
+    $('nowTitle').textContent = e.message;
   }
 }
 function escapeHtml(s) {
@@ -797,12 +1001,12 @@ document.querySelectorAll('[data-seek]').forEach(btn => {
 document.querySelectorAll('[data-display]').forEach(btn => {
   btn.onclick = async () => { alert((await post('/api/display', {mode: btn.dataset.display})).message); await refresh(); };
 });
-document.getElementById('hdmi').onclick = async () => { alert((await post('/api/audio/hdmi')).message); await refresh(); };
-document.getElementById('runCodex').onclick = async () => {
-  const prompt = document.getElementById('prompt').value.trim();
+$('hdmi').onclick = async () => { alert((await post('/api/audio/hdmi')).message); await refresh(); };
+$('runCodex').onclick = async () => {
+  const prompt = $('prompt').value.trim();
   if (!prompt) return;
   await post('/api/codex', {prompt});
-  document.getElementById('prompt').value = '';
+  $('prompt').value = '';
   await refresh();
 };
 const stack = [];
@@ -817,17 +1021,24 @@ async function loadChildren(parentId, title, push = true) {
   renderItems(data.items, 'items');
 }
 function renderItems(items) {
-  const el = document.getElementById('browser');
+  const el = $('browser');
   if (!items.length) {
-    el.textContent = 'No results.';
+    el.innerHTML = '<div class="hint">No results.</div>';
     return;
   }
-  el.innerHTML = items.map(item => `
+  el.innerHTML = items.map(item => {
+    const playable = item.type === 'Episode' || item.type === 'Movie';
+    const sub = itemLabel(item);
+    return `
     <button class="item" data-id="${escapeHtml(item.id)}" data-type="${escapeHtml(item.type || '')}">
-      ${escapeHtml(item.name || 'Untitled')}
-      <small>${escapeHtml(itemLabel(item))}</small>
-    </button>
-  `).join('');
+      <span class="ico">${icon(playable ? 'film' : 'folder')}</span>
+      <span class="meta">
+        <span class="nm">${escapeHtml(item.name || 'Untitled')}</span>
+        ${sub ? `<span class="sub">${escapeHtml(sub)}</span>` : ''}
+      </span>
+      <span class="chev">${icon(playable ? 'play' : 'chev')}</span>
+    </button>`;
+  }).join('');
   el.querySelectorAll('.item').forEach((btn, index) => {
     const item = items[index];
     btn.onclick = async () => {
@@ -840,16 +1051,16 @@ function renderItems(items) {
     };
   });
 }
-document.getElementById('collectionsBtn').onclick = loadCollections;
-document.getElementById('searchBtn').onclick = async () => {
-  const q = document.getElementById('search').value.trim();
+$('collectionsBtn').onclick = loadCollections;
+$('searchBtn').onclick = async () => {
+  const q = $('search').value.trim();
   const data = await api('/api/jellyfin/search?q=' + encodeURIComponent(q));
   renderItems(data.items, 'search');
 };
-document.getElementById('search').addEventListener('keydown', event => {
-  if (event.key === 'Enter') document.getElementById('searchBtn').click();
+$('search').addEventListener('keydown', event => {
+  if (event.key === 'Enter') $('searchBtn').click();
 });
-document.getElementById('backBtn').onclick = async () => {
+$('backBtn').onclick = async () => {
   stack.pop();
   const previous = stack[stack.length - 1];
   if (!previous) return loadCollections();
@@ -870,7 +1081,7 @@ def main():
         url = f"http://{ip}:{PORT}/?token={TOKEN}"
     else:
         url = f"http://{ip}:{PORT}/"
-    print(f"Codex Remote listening on {url}", flush=True)
+    print(f"Tleilax Control Center listening on {url}", flush=True)
     httpd.serve_forever()
 
 
