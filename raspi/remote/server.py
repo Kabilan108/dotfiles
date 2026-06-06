@@ -16,6 +16,9 @@ ROOT = Path(__file__).resolve().parent
 STATE_DIR = Path(os.environ.get("REMOTE_STATE_DIR", str(ROOT))).expanduser()
 RUNS = Path(os.environ.get("REMOTE_RUNS_DIR", str(STATE_DIR / "runs"))).expanduser()
 TOKEN_FILE = Path(os.environ.get("REMOTE_TOKEN_FILE", str(STATE_DIR / ".remote-token"))).expanduser()
+JELLYFIN_AUTH_CACHE = Path(
+    os.environ.get("JELLYFIN_AUTH_CACHE", str(STATE_DIR / "jellyfin-auth.json"))
+).expanduser()
 PORT = int(os.environ.get("REMOTE_PORT", "8787"))
 WORKSPACE = os.environ.get("REMOTE_CODEX_WORKSPACE", str(ROOT))
 
@@ -73,27 +76,121 @@ def bind_address():
         time.sleep(1)
 
 
-def get_jellyfin_context():
+def home_dir() -> Path:
+    return Path(os.environ.get("HOME", str(Path.home()))).expanduser()
+
+
+def file_mtime(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0
+
+
+def jellyfin_leveldb_files() -> list[Path]:
+    home = home_dir()
+    profile_globs = [
+        ".local/share/jellyfin-desktop/profiles/*/QtWebEngine/Local Storage/leveldb/*",
+        ".local/share/jellyfinmediaplayer/profiles/*/QtWebEngine/Local Storage/leveldb/*",
+        ".local/share/jellyfin-media-player/profiles/*/QtWebEngine/Local Storage/leveldb/*",
+        ".local/share/Jellyfin Media Player/profiles/*/QtWebEngine/Local Storage/leveldb/*",
+        ".var/app/com.github.iwalton3.jellyfin-media-player/data/jellyfinmediaplayer/profiles/*/QtWebEngine/Local Storage/leveldb/*",
+    ]
+    files = []
+    for pattern in profile_globs:
+        files.extend(path for path in home.glob(pattern) if path.suffix in {".log", ".ldb"})
+    return sorted(files, key=file_mtime, reverse=True)
+
+
+def last_match(patterns: list[str], data: str) -> str | None:
+    for pattern in patterns:
+        matches = re.findall(pattern, data)
+        if matches:
+            return matches[-1]
+    return None
+
+
+def extract_jellyfin_context() -> tuple[str | None, str | None, str | None]:
+    token = None
+    user_id = None
+    source = None
+    token_patterns = [
+        r'AccessToken\\?":\\?"([^"\\]+)',
+        r'AccessToken":"([^"]+)',
+    ]
+    user_id_patterns = [
+        r'UserId\\?":\\?"([0-9a-fA-F-]+)',
+        r'UserId":"([0-9a-fA-F-]+)',
+    ]
+
+    for path in jellyfin_leveldb_files():
+        try:
+            data = path.read_bytes().decode("utf-8", errors="ignore")
+        except OSError:
+            continue
+
+        discovered_token = last_match(token_patterns, data)
+        discovered_user_id = last_match(user_id_patterns, data)
+        if discovered_token and not token:
+            token = discovered_token
+            source = str(path)
+        if discovered_user_id and not user_id:
+            user_id = discovered_user_id
+            source = source or str(path)
+        if token and user_id:
+            return token, user_id, source
+    return None, None, None
+
+
+def read_jellyfin_auth_cache() -> tuple[str | None, str | None]:
+    try:
+        cached = json.loads(JELLYFIN_AUTH_CACHE.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None, None
+    token = cached.get("token")
+    user_id = cached.get("user_id")
+    if isinstance(token, str) and isinstance(user_id, str):
+        return token, user_id
+    return None, None
+
+
+def write_jellyfin_auth_cache(url: str, token: str, user_id: str, source: str | None) -> None:
+    payload = {
+        "server_url": url,
+        "token": token,
+        "user_id": user_id,
+        "source": source,
+        "updated_at": time.time(),
+    }
+    try:
+        JELLYFIN_AUTH_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        JELLYFIN_AUTH_CACHE.write_text(json.dumps(payload, indent=2) + "\n")
+        JELLYFIN_AUTH_CACHE.chmod(0o600)
+    except OSError:
+        pass
+
+
+def get_jellyfin_context() -> tuple[str, str | None, str | None]:
     token = os.environ.get("JELLYFIN_TOKEN")
     user_id = os.environ.get("JELLYFIN_USER_ID")
     url = os.environ.get("JELLYFIN_URL", "http://sietch:8096")
     if token and user_id:
         return url, token, user_id
 
-    code, log = sh([
-        "bash",
-        "-lc",
-        "find ~/.local/share/jellyfin-desktop/profiles -path '*/QtWebEngine/Local Storage/leveldb/*.log' -type f -printf '%T@ %p\\n' | sort -nr | awk 'NR==1 {print substr($0, index($0,$2))}'",
-    ], timeout=4)
-    if code != 0 or not log:
-        return url, None, None
-    try:
-        data = Path(log).read_bytes().decode("utf-8", errors="ignore")
-    except OSError:
-        return url, None, None
-    tokens = re.findall(r'AccessToken":"([0-9a-f]+)', data)
-    user_ids = re.findall(r'UserId":"([0-9a-f]+)', data)
-    return url, tokens[-1] if tokens else None, user_ids[-1] if user_ids else None
+    if token and not user_id:
+        _cached_token, cached_user_id = read_jellyfin_auth_cache()
+        if cached_user_id:
+            return url, token, cached_user_id
+
+    discovered_token, discovered_user_id, source = extract_jellyfin_context()
+    token = token or discovered_token
+    user_id = user_id or discovered_user_id
+    if token and user_id:
+        write_jellyfin_auth_cache(url, token, user_id, source)
+        return url, token, user_id
+
+    cached_token, cached_user_id = read_jellyfin_auth_cache()
+    return url, token or cached_token, user_id or cached_user_id
 
 
 def jellyfin_api(path, method="GET", body=None):
@@ -280,7 +377,9 @@ class Handler(BaseHTTPRequestHandler):
     server_version = "CodexRemote/0.1"
 
     def log_message(self, fmt, *args):
-        print("%s - %s" % (self.address_string(), fmt % args))
+        message = fmt % args
+        message = re.sub(r"\?token=[^ ]+", "?token=<redacted>", message)
+        print("%s - %s" % (self.address_string(), message))
 
     def authed(self):
         parsed = urlparse(self.path)
@@ -440,7 +539,8 @@ class Handler(BaseHTTPRequestHandler):
         return self.send_json({"items": items})
 
     def index(self):
-        token = html.escape(parse_qs(urlparse(self.path).query).get("token", [""])[0])
+        query_token = parse_qs(urlparse(self.path).query).get("token", [""])[0]
+        token = html.escape(query_token or TOKEN)
         body = INDEX_HTML.replace("__TOKEN__", token).encode()
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -680,7 +780,11 @@ refresh();
 def main():
     ip = bind_address()
     httpd = ThreadingHTTPServer((ip, PORT), Handler)
-    print(f"Codex Remote listening on http://{ip}:{PORT}/?token={TOKEN}", flush=True)
+    if os.environ.get("REMOTE_PRINT_TOKEN", "1") == "1":
+        url = f"http://{ip}:{PORT}/?token={TOKEN}"
+    else:
+        url = f"http://{ip}:{PORT}/"
+    print(f"Codex Remote listening on {url}", flush=True)
     httpd.serve_forever()
 
 

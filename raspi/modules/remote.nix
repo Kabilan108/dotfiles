@@ -89,6 +89,7 @@ in
         HOME = homeDir;
         REMOTE_CODEX_WORKSPACE = cfg.workspace;
         REMOTE_PORT = toString cfg.port;
+        REMOTE_PRINT_TOKEN = "0";
         REMOTE_STATE_DIR = stateDir;
         REMOTE_TAILSCALE_WAIT_SECONDS = "60";
       }

@@ -17,6 +17,12 @@ On `tleilax`, the Pi flake enables this as `systemd.services.tleilax-remote`.
 Runtime state lives in `/var/lib/tleilax-remote`, including the bearer token and
 Codex job logs.
 
+Get the current service URL with:
+
+```bash
+ssh kabilan@tleilax 'printf "http://%s:8787/?token=%s\n" "$(tailscale ip -4 | head -n1)" "$(cat /var/lib/tleilax-remote/.remote-token)"'
+```
+
 For local development:
 
 ```bash
