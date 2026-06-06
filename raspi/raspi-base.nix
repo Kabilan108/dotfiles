@@ -65,12 +65,7 @@ in
         };
       };
     };
-    # Inbound: closed by default, same posture as sietch/jacurutu.
-    # Phase 2 adds egress restriction + Tailscale-only service exposure.
-    firewall = {
-      enable = true;
-      interfaces.tailscale0.allowedTCPPorts = [ 8787 ];
-    };
+    firewall.enable = true;
   };
 
   age.secrets.wifi-env.file = ./secrets/wifi-env.age;
@@ -97,6 +92,7 @@ in
   services.tailscale.enable = true;
 
   tleilax.jellyfinClient.enable = true;
+  tleilax.remote.enable = true;
 
   users.users.${userName} = {
     isNormalUser = true;
@@ -166,6 +162,7 @@ in
       fi
 
       ${pkgs.coreutils}/bin/ln -sfnT ${./codex/skills/jellyfin-remote-api} ${homeDir}/.codex/skills/jellyfin-remote-api
+      ${pkgs.coreutils}/bin/ln -sfnT ${./codex/config.toml} ${homeDir}/.codex/config.toml
       ${pkgs.coreutils}/bin/ln -sfnT ${./config/.tmux.conf} ${homeDir}/.tmux.conf
       ${pkgs.coreutils}/bin/ln -sfnT ${./config/sessionizer} ${homeDir}/.config/sessionizer
     '';

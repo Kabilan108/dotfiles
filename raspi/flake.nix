@@ -19,8 +19,51 @@
     }@inputs:
     let
       system = "aarch64-linux";
+      systems = [
+        "aarch64-linux"
+        "x86_64-linux"
+      ];
+      forAllSystems =
+        f: nixpkgs.lib.genAttrs systems (systemName: f nixpkgs.legacyPackages.${systemName});
+      mkTleilaxRemote =
+        pkgs:
+        pkgs.writeShellApplication {
+          name = "tleilax-remote";
+          runtimeInputs = with pkgs; [
+            bash
+            codex
+            coreutils
+            curl
+            findutils
+            gawk
+            tailscale
+            wireplumber
+          ];
+          text = ''
+            exec ${pkgs.python313}/bin/python3 ${./remote/server.py} "$@"
+          '';
+          meta = {
+            description = "Phone-friendly Jellyfin and Pi control remote";
+            mainProgram = "tleilax-remote";
+          };
+        };
     in
     {
+      packages = forAllSystems (pkgs: rec {
+        tleilax-remote = mkTleilaxRemote pkgs;
+        default = tleilax-remote;
+      });
+
+      devShells = forAllSystems (pkgs: {
+        default = pkgs.mkShell {
+          packages = with pkgs; [
+            jq
+            python313
+            tailscale
+          ];
+        };
+      });
+
       nixosConfigurations.tleilax = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit inputs self; };
@@ -29,6 +72,7 @@
           ./raspi-base.nix
           ./modules/jellyfin-client.nix
           ./modules/network-security.nix
+          ./modules/remote.nix
         ];
       };
 
