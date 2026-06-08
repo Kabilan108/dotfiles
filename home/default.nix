@@ -98,16 +98,10 @@ in
     enable = true;
     apps = [
       {
-        name = "WhatsApp";
-        url = "https://web.whatsapp.com";
-        icon = "whatsapp";
-        class = "WhatsApp";
-      }
-      {
-        name = "Telegram";
-        url = "https://web.telegram.org";
-        icon = "telegram";
-        class = "Telegram";
+        name = "Messages";
+        url = "https://messages.google.com/web";
+        icon = "google-messages";
+        class = "GoogleMessages";
       }
     ];
   };
