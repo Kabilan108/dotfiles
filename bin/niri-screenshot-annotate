@@ -30,6 +30,7 @@ annotate_file() {
     --output-filename "$output" \
     --copy-command wl-copy \
     --actions-on-enter save-to-file \
+    --actions-on-enter save-to-clipboard \
     --actions-on-right-click save-to-clipboard \
     --actions-on-escape exit \
     --early-exit \
