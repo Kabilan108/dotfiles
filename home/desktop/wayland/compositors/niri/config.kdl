@@ -445,6 +445,11 @@ window-rule {
 }
 
 window-rule {
+    match app-id=r#"^chrome-messages.google.com__web-Default$"#
+    open-floating false
+}
+
+window-rule {
     geometry-corner-radius 5
     clip-to-geometry true
     draw-border-with-background false
