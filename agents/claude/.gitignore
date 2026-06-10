@@ -28,3 +28,4 @@ daemon.lock
 daemon.log
 daemon.status.json
 jobs
+.last_inuse_sweep
