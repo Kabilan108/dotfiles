@@ -19,6 +19,10 @@ in
     sietch
     jacurutu
   ];
+  "secrets/netrc.age".publicKeys = [
+    sietch
+    jacurutu
+  ];
 
   "secrets/moberg-vpn/key.age".publicKeys = [
     sietch
