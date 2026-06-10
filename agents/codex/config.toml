@@ -251,6 +251,18 @@ trust_level = "trusted"
 [projects."/vault/repos/obsidian-plugins"]
 trust_level = "trusted"
 
+[projects."/vault/work/moberg/dev-server-4"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server-3/iam"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server-3/dashboard"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server-3/moberg-data-query-api"]
+trust_level = "trusted"
+
 [tui.model_availability_nux]
 "gpt-5.5" = 4
 
