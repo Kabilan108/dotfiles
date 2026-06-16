@@ -291,6 +291,7 @@ in
     # media/file handling
     baobab
     gparted
+    gpu-screen-recorder-gtk
     jellyfin-desktop
     nirius
     obs-studio
