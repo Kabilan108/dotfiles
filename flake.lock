@@ -63,11 +63,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1781119097,
-        "narHash": "sha256-pqmUUATyQRRP5I3r3i2/B1GXsLbpOLjD7uY7OzkLZEI=",
+        "lastModified": 1781803134,
+        "narHash": "sha256-yMLUY2mcATrM9k5m1tvO6aG7K+e1cocCkFrxCBIMi9A=",
         "owner": "kabilan108",
         "repo": "atlas",
-        "rev": "635f51bf498665b0b77f93b4ec1d8cb5992e89ad",
+        "rev": "09dcdf4146ae2b6402eaa7f0c36654249fc31b0f",
         "type": "github"
       },
       "original": {
