@@ -1,6 +1,5 @@
 certs/
 .direnv/
-docs/
 
 .envrc
 CLAUDE.md
