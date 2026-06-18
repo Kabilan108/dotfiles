@@ -17,6 +17,13 @@ return {
       columns = { 'icon', 'permissions', 'size' },
       watch_for_changes = true,
       view_options = { show_hidden = true },
+      keymaps = {
+        ['<C-h>'] = false,
+        ['<C-s>'] = { 'actions.select', opts = { horizontal = true } },
+        ['<C-A-s>'] = { 'actions.select', opts = { vertical = true } },
+        ['<C-l>'] = false,
+        ['<C-A-r>'] = 'actions.refresh',
+      },
     },
     -- Lazy loading is not recommended because it is very tricky to make it work correctly in all situations.
     lazy = false,
