@@ -270,7 +270,7 @@ trust_level = "trusted"
 "gpt-5.5" = 4
 
 [marketplaces.openai-bundled]
-last_updated = "2026-05-30T02:06:19Z"
+last_updated = "2026-06-18T22:31:24Z"
 source_type = "local"
 source = "/home/kabilan/dotfiles/agents/codex/.tmp/bundled-marketplaces/openai-bundled"
 
@@ -307,7 +307,6 @@ followUpQueueMode = "steer"
 composerEnterBehavior = "cmdIfMultiline"
 reviewDelivery = "detached"
 conversationDetailMode = "STEPS_EXECUTION"
-default-service-tier = "priority"
 
 [desktop.appearanceDarkChromeTheme]
 accent = "#cba6f7"

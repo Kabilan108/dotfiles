@@ -2,6 +2,7 @@
   imports = [
     ./agent-server.nix
     ./backup.nix
+    ./codex-desktop.nix
     ./install-tools.nix
     ./kittylitter.nix
     ./mic-volume-enforce.nix

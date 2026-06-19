@@ -21,6 +21,7 @@
 
   home-manager.users.kabilan = {
     dotfiles.services = {
+      codex-desktop.enable = true;
       mic-volume-enforce.enable = true;
       moberg.eboostReviewerReport.enable = true;
     };
