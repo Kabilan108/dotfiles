@@ -50,10 +50,10 @@ in
       lavender = colors.base07;
     };
     semantic = {
-      panelBg = transparent "e0" colors.base01;
-      panelBgSoft = transparent "c7" colors.base00;
-      panelBgStrong = transparent "f0" colors.base01;
-      panelBorder = colors.base02;
+      panelBg = transparent "d9" colors.base00;
+      panelBgSoft = transparent "d9" colors.base00;
+      panelBgStrong = transparent "eb" colors.base00;
+      panelBorder = transparent "1a" colors.base05;
       panelBorderStrong = colors.base03;
       panelSurface = transparent "b8" colors.base02;
       panelSurfaceHover = transparent "cc" colors.base03;
@@ -62,6 +62,11 @@ in
       dimText = colors.base04;
       mutedText = colors.base03;
       accent = colors.base0D;
+      accent2 = colors.base05;
+      bright = colors.base0A;
+      vol = colors.base0B;
+      mic = colors.base08;
+      charge = colors.base09;
       success = colors.base0B;
       warning = colors.base0A;
       urgent = colors.base08;
@@ -72,6 +77,7 @@ in
     };
     typography = {
       fontFamily = fontMono;
+      iconFamily = "Material Symbols Rounded";
       bodyFontFamily = fontSans;
       fontSizeSmall = 11;
       fontSizeMedium = 13;
@@ -81,18 +87,19 @@ in
       fontSizeIconLarge = 24;
     };
     geometry = {
-      radiusSmall = 6;
-      radiusMedium = 12;
-      radiusLarge = 22;
+      radiusSmall = 5;
+      radiusMedium = 5;
+      radiusLarge = 5;
       radiusPill = 9999;
       paddingSmall = 8;
       paddingMedium = 14;
       paddingLarge = 20;
       borderWidth = 1;
       panelWidth = 380;
+      barHeight = 38;
       osdWidth = 360;
       osdHeight = 58;
-      screenMargin = 12;
+      screenMargin = 8;
       panelGap = 8;
     };
     animation = {

@@ -21,7 +21,6 @@ Rectangle {
     readonly property bool singleLine: bodyText === ""
     readonly property int iconSize: inline ? 32 : 42
     readonly property int contentPad: inline ? 10 : 14
-    readonly property color surfaceColor: Theme.panelSurface
     readonly property var actionList: notification.actions || []
     readonly property int actionCount: actionList && actionList.length ? actionList.length : 0
     readonly property string appName: notification.appName || "notification"
@@ -51,47 +50,14 @@ Rectangle {
 
     implicitWidth: inline ? Theme.panelWidth - Theme.paddingMedium * 2 : 420
     implicitHeight: cardContent.implicitHeight + contentPad * 2
-    radius: Theme.radiusMedium
+    radius: Theme.radiusSmall
     color: inline ? Theme.panelBgSoft : Theme.panelBgStrong
-    border.width: inline ? Theme.borderWidth : Math.max(1, Theme.borderWidth * 2)
+    border.width: Theme.borderWidth
     border.color: isCritical ? Theme.urgent : mouse.containsMouse ? Theme.panelBorderStrong : Theme.panelBorder
     clip: true
 
     Behavior on color {
         ColorAnimation { duration: Theme.animationFast }
-    }
-
-    Rectangle {
-        anchors.fill: parent
-        anchors.margins: root.border.width
-        radius: Math.max(0, root.radius - root.border.width)
-        color: "transparent"
-        gradient: Gradient {
-            orientation: Gradient.Horizontal
-            GradientStop {
-                position: 0
-                color: Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, inline ? 0.08 : 0.13)
-            }
-            GradientStop {
-                position: inline ? 0.28 : 0.36
-                color: "transparent"
-            }
-            GradientStop {
-                position: 1
-                color: Qt.rgba(root.surfaceColor.r, root.surfaceColor.g, root.surfaceColor.b, inline ? 0.06 : 0.12)
-            }
-        }
-    }
-
-    Rectangle {
-        anchors {
-            left: parent.left
-            right: parent.right
-            top: parent.top
-        }
-        height: inline ? 0 : 3
-        color: root.accentColor
-        visible: !inline
     }
 
     RowLayout {
@@ -110,7 +76,7 @@ Rectangle {
             Layout.preferredWidth: root.iconSize
             Layout.preferredHeight: root.iconSize
             Layout.alignment: Qt.AlignTop
-            radius: Theme.radiusMedium
+            radius: Theme.radiusSmall
             color: Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.16)
             border.width: Theme.borderWidth
             border.color: Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.36)
@@ -132,9 +98,10 @@ Rectangle {
             Text {
                 anchors.centerIn: parent
                 visible: appIcon.status !== Image.Ready
-                text: root.isCritical ? "󰀪" : "󰂚"
+                text: root.isCritical ? Theme.icon.warning : Theme.icon.notifications
                 color: root.accentColor
-                font.family: Theme.fontFamily
+                font.family: Theme.iconFamily
+                font.variableAxes: ({ "wght": 500, "opsz": 20 })
                 font.pixelSize: inline ? 14 : 19
             }
         }
@@ -185,9 +152,10 @@ Rectangle {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "󰅖"
+                        text: Theme.icon.close
                         color: closeMouse.containsMouse ? Theme.text : Theme.mutedText
-                        font.family: Theme.fontFamily
+                        font.family: Theme.iconFamily
+                        font.variableAxes: ({ "wght": 500, "opsz": 20 })
                         font.pixelSize: 12
                     }
 

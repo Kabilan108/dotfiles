@@ -46,9 +46,10 @@ ColumnLayout {
 
             Text {
                 anchors.centerIn: parent
-                text: "󰎈"
+                text: Theme.icon.music_note
                 color: Theme.overlay0
-                font.family: Theme.fontFamily
+                font.family: Theme.iconFamily
+                font.variableAxes: ({ "wght": 500, "opsz": 20 })
                 font.pixelSize: 22
                 visible: !root.player?.trackArtUrl
             }
@@ -86,9 +87,10 @@ ColumnLayout {
         spacing: 20
 
         Text {
-            text: root.player?.shuffle ? "󰒝" : "󰒞"
+            text: root.player?.shuffle ? Theme.icon.shuffle_on : Theme.icon.shuffle
             color: root.player?.shuffle ? Theme.accent : Theme.overlay0
-            font.family: Theme.fontFamily
+            font.family: Theme.iconFamily
+            font.variableAxes: ({ "wght": 500, "opsz": 20 })
             font.pixelSize: 16
             visible: root.player?.shuffleSupported ?? false
 
@@ -100,9 +102,10 @@ ColumnLayout {
         }
 
         Text {
-            text: "󰒮"
+            text: Theme.icon.skip_previous
             color: root.player?.canGoPrevious ? Theme.text : Theme.overlay0
-            font.family: Theme.fontFamily
+            font.family: Theme.iconFamily
+            font.variableAxes: ({ "wght": 500, "opsz": 20 })
             font.pixelSize: 20
 
             MouseArea {
@@ -121,9 +124,10 @@ ColumnLayout {
 
             Text {
                 anchors.centerIn: parent
-                text: root.player?.isPlaying ? "󰏤" : "󰐊"
+                text: root.player?.isPlaying ? Theme.icon.pause : Theme.icon.play_arrow
                 color: Theme.crust
-                font.family: Theme.fontFamily
+                font.family: Theme.iconFamily
+                font.variableAxes: ({ "wght": 500, "opsz": 20 })
                 font.pixelSize: 18
             }
 
@@ -136,9 +140,10 @@ ColumnLayout {
         }
 
         Text {
-            text: "󰒭"
+            text: Theme.icon.skip_next
             color: root.player?.canGoNext ? Theme.text : Theme.overlay0
-            font.family: Theme.fontFamily
+            font.family: Theme.iconFamily
+            font.variableAxes: ({ "wght": 500, "opsz": 20 })
             font.pixelSize: 20
 
             MouseArea {
@@ -152,16 +157,17 @@ ColumnLayout {
         Text {
             text: {
                 const s = root.player?.loopState
-                if (s === MprisLoopState.Track) return "󰑘"
-                if (s === MprisLoopState.Playlist) return "󰑖"
-                return "󰑗"
+                if (s === MprisLoopState.Track) return Theme.icon.repeat_one
+                if (s === MprisLoopState.Playlist) return Theme.icon.repeat
+                return Theme.icon.repeat
             }
             color: {
                 const s = root.player?.loopState
                 return (s === MprisLoopState.Track || s === MprisLoopState.Playlist)
                     ? Theme.accent : Theme.overlay0
             }
-            font.family: Theme.fontFamily
+            font.family: Theme.iconFamily
+            font.variableAxes: ({ "wght": 500, "opsz": 20 })
             font.pixelSize: 16
             visible: root.player?.loopSupported ?? false
 

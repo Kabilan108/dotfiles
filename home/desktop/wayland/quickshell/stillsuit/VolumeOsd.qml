@@ -49,18 +49,18 @@ Scope {
             anchors.bottom: true
             margins.bottom: screen.height * 0.02
             exclusiveZone: 0
-            implicitWidth: Math.max(Theme.osdWidth, 360)
-            implicitHeight: Math.max(Theme.osdHeight, 58)
+            implicitWidth: 300
+            implicitHeight: 40
             color: "transparent"
             mask: Region {}
 
             OsdBar {
                 anchors.fill: parent
-                icon: root.muted ? "󰖁" :
-                      root.volume > 0.66 ? "󰕾" :
-                      root.volume > 0.33 ? "󰖀" : "󰕿"
+                icon: root.muted ? Theme.icon.volume_off :
+                      root.volume > 0.66 ? Theme.icon.volume_up :
+                      root.volume > 0.33 ? Theme.icon.volume_down : Theme.icon.volume_mute
                 value: root.muted ? 0 : root.volume
-                accentColor: root.muted ? Theme.osdFillMuted : Theme.accent
+                accentColor: root.muted ? Theme.dimText : Theme.vol
                 label: root.muted ? "Mute" : Math.round(root.volume * 100) + "%"
             }
         }

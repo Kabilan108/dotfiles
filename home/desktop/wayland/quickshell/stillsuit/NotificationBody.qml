@@ -31,9 +31,10 @@ ColumnLayout {
         }
 
         Text {
-            text: "󰅖"
+            text: Theme.icon.close
             color: closeMouse.containsMouse ? Theme.text : Theme.mutedText
-            font.family: Theme.fontFamily
+            font.family: Theme.iconFamily
+            font.variableAxes: ({ "wght": 500, "opsz": 20 })
             font.pixelSize: 12
 
             MouseArea {

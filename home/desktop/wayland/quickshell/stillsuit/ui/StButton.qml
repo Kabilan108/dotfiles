@@ -43,8 +43,9 @@ Rectangle {
             visible: root.icon !== ""
             text: root.icon
             color: root.active || root.danger ? root.accentColor : Theme.dimText
-            font.family: Theme.fontFamily
-            font.pixelSize: 13
+            font.family: Theme.iconFamily
+            font.variableAxes: ({ "FILL": root.active ? 1 : 0, "wght": 500, "opsz": 20 })
+            font.pixelSize: 15
         }
 
         Text {

@@ -37,10 +37,10 @@ Singleton {
             lavender: "#b4befe"
         },
         semantic: {
-            panelBg: "#e0181825",
-            panelBgSoft: "#c711111b",
-            panelBgStrong: "#f0181825",
-            panelBorder: "#313244",
+            panelBg: "#d911111b",
+            panelBgSoft: "#d911111b",
+            panelBgStrong: "#eb11111b",
+            panelBorder: "#1acdd6f4",
             panelBorderStrong: "#45475a",
             panelSurface: "#b8313244",
             panelSurfaceHover: "#cc45475a",
@@ -49,6 +49,11 @@ Singleton {
             dimText: "#a6adc8",
             mutedText: "#6c7086",
             accent: "#89b4fa",
+            accent2: "#cdd6f4",
+            bright: "#f9e2af",
+            vol: "#a6e3a1",
+            mic: "#f38ba8",
+            charge: "#fab387",
             success: "#a6e3a1",
             warning: "#f9e2af",
             urgent: "#f38ba8",
@@ -59,6 +64,7 @@ Singleton {
         },
         typography: {
             fontFamily: "FiraMono Nerd Font",
+            iconFamily: "Material Symbols Rounded",
             bodyFontFamily: "Noto Sans",
             fontSizeSmall: 11,
             fontSizeMedium: 13,
@@ -68,18 +74,19 @@ Singleton {
             fontSizeIconLarge: 24
         },
         geometry: {
-            radiusSmall: 6,
-            radiusMedium: 12,
-            radiusLarge: 22,
+            radiusSmall: 5,
+            radiusMedium: 5,
+            radiusLarge: 5,
             radiusPill: 9999,
             paddingSmall: 8,
             paddingMedium: 14,
             paddingLarge: 20,
             borderWidth: 1,
             panelWidth: 380,
+            barHeight: 38,
             osdWidth: 360,
             osdHeight: 58,
-            screenMargin: 12,
+            screenMargin: 8,
             panelGap: 8
         },
         animation: {
@@ -153,6 +160,11 @@ Singleton {
     readonly property string dimText:            value("semantic", "dimText", subtext0)
     readonly property string mutedText:          value("semantic", "mutedText", overlay0)
     readonly property string accent:             value("semantic", "accent", blue)
+    readonly property string accent2:            value("semantic", "accent2", text)
+    readonly property string bright:             value("semantic", "bright", yellow)
+    readonly property string vol:                value("semantic", "vol", green)
+    readonly property string mic:                value("semantic", "mic", red)
+    readonly property string charge:             value("semantic", "charge", peach)
     readonly property string success:            value("semantic", "success", green)
     readonly property string warning:            value("semantic", "warning", yellow)
     readonly property string urgent:             value("semantic", "urgent", red)
@@ -162,6 +174,77 @@ Singleton {
     readonly property string shadow:             value("semantic", "shadow", "#6611111b")
 
     readonly property string fontFamily: value("typography", "fontFamily", "FiraMono Nerd Font")
+    readonly property string iconFamily: value("typography", "iconFamily", "Material Symbols Rounded")
+
+    readonly property var icon: ({
+        wifi: "\ue63e",
+        wifi_off: "\ue648",
+        network_wifi: "\ue1ba",
+        network_wifi_3_bar: "\uebe1",
+        network_wifi_2_bar: "\uebd6",
+        network_wifi_1_bar: "\uebe4",
+        signal_wifi_0_bar: "\uf0b0",
+        signal_wifi_off: "\ue1da",
+        bluetooth: "\ue1a7",
+        bluetooth_connected: "\ue1a8",
+        bluetooth_disabled: "\ue1a9",
+        volume_up: "\ue050",
+        volume_down: "\ue04d",
+        volume_mute: "\ue04e",
+        volume_off: "\ue04f",
+        mic: "\ue029",
+        mic_off: "\ue02b",
+        notifications: "\ue7f4",
+        notifications_off: "\ue7f6",
+        notifications_active: "\ue7f7",
+        notifications_unread: "\uf4fe",
+        battery_0_bar: "\uebdc",
+        battery_1_bar: "\uebd9",
+        battery_2_bar: "\uebe0",
+        battery_3_bar: "\uebdd",
+        battery_4_bar: "\uebe2",
+        battery_5_bar: "\uebd4",
+        battery_6_bar: "\uebd2",
+        battery_charging_20: "\uf0a2",
+        battery_charging_30: "\uf0a3",
+        battery_charging_50: "\uf0a4",
+        battery_charging_60: "\uf0a5",
+        battery_charging_80: "\uf0a6",
+        battery_charging_90: "\uf0a7",
+        battery_full: "\ue1a4",
+        battery_charging_full: "\ue1a3",
+        battery_alert: "\ue19c",
+        battery_unknown: "\ue1a6",
+        screen_record: "\uf679",
+        brightness_high: "\ue1ac",
+        memory: "\ue322",
+        memory_alt: "\uf7a3",
+        speed: "\ue9e4",
+        power_settings_new: "\ue8ac",
+        refresh: "\ue5d5",
+        lock: "\ue88d",
+        check: "\ue5ca",
+        close: "\ue14c",
+        bluetooth_searching: "\ue1aa",
+        sync: "\ue627",
+        brightness_medium: "\ue1ae",
+        brightness_low: "\ue1ad",
+        warning: "\ue002",
+        notification_important: "\ue004",
+        music_note: "\ue3a1",
+        graphic_eq: "\ue1b8",
+        shuffle: "\ue043",
+        shuffle_on: "\ue9e1",
+        skip_previous: "\ue045",
+        skip_next: "\ue044",
+        play_arrow: "\ue037",
+        pause: "\ue034",
+        repeat: "\ue040",
+        repeat_one: "\ue041",
+        repeat_on: "\ue9d6",
+        repeat_one_on: "\ue9d7"
+    })
+
     readonly property string bodyFontFamily: value("typography", "bodyFontFamily", "Noto Sans")
     readonly property int fontSizeSmall:  value("typography", "fontSizeSmall", 11)
     readonly property int fontSizeMedium: value("typography", "fontSizeMedium", 13)
@@ -181,6 +264,7 @@ Singleton {
 
     readonly property int borderWidth: value("geometry", "borderWidth", 1)
     readonly property int panelWidth: value("geometry", "panelWidth", 380)
+    readonly property int barHeight: value("geometry", "barHeight", 38)
     readonly property int osdWidth: value("geometry", "osdWidth", 320)
     readonly property int osdHeight: value("geometry", "osdHeight", 50)
     readonly property int screenMargin: value("geometry", "screenMargin", 12)

@@ -35,10 +35,11 @@ ColumnLayout {
         spacing: 8
 
         Text {
-            text: root.node.isSink ? (root.node.audio?.muted ? "󰖁" : "󰕾")
-                                   : (root.node.audio?.muted ? "󰍭" : "󰍬")
+            text: root.node.isSink ? (root.node.audio?.muted ? Theme.icon.volume_off : Theme.icon.volume_up)
+                                   : (root.node.audio?.muted ? Theme.icon.mic_off : Theme.icon.mic)
             color: root.node.audio?.muted ? Theme.overlay0 : Theme.text
-            font.family: Theme.fontFamily
+            font.family: Theme.iconFamily
+            font.variableAxes: ({ "wght": 500, "opsz": 20 })
             font.pixelSize: 16
             visible: !root.node.isStream
         }

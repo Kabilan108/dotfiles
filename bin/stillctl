@@ -11,10 +11,13 @@ Commands:
   start                 Start qs -c ${config} in the background
   stop                  Stop the running ${config} shell
   reload                Restart the ${config} shell
-  status                List running Quickshell instances
+  status                Print ${config} shell state as JSON
+  instances             List running Quickshell instances
   logs [lines]          Print recent ${config} logs
   logs -f               Follow ${config} logs
   ipc <target> <method> [args...]
+  panel <name> [toggle|open|close]
+  bar [on|off|toggle]
   dnd [on|off|toggle]   Read or change notification DND state
   notifications         Toggle notification center
   gallery [open|close]  Toggle or set the Stillsuit dev gallery
@@ -51,6 +54,9 @@ reload | restart)
   start_shell
   ;;
 status)
+  exec qs -c "$config" ipc call shell status
+  ;;
+instances)
   qs list --all
   ;;
 logs)
@@ -71,6 +77,23 @@ ipc)
   require_args 2 "$#"
   exec qs -c "$config" ipc call "$@"
   ;;
+panel)
+  require_args 2 "$#"
+  panel="${2:-}"
+  action="${3:-toggle}"
+  case "$action" in
+  open | close | toggle | on | off)
+    exec qs -c "$config" ipc call shell panel "$panel" "$action"
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+  esac
+  ;;
+bar)
+  exec qs -c "$config" ipc call shell bar "${2:-toggle}"
+  ;;
 dnd)
   case "${2:-}" in
   "")
@@ -89,7 +112,7 @@ dnd)
   esac
   ;;
 notifications)
-  exec qs -c "$config" ipc call notifications toggleCenter
+  exec qs -c "$config" ipc call shell panel notifications toggle
   ;;
 gallery)
   case "${2:-toggle}" in

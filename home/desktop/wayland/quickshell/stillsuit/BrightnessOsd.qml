@@ -53,17 +53,17 @@ Scope {
             anchors.bottom: true
             margins.bottom: screen.height * 0.02 + root.stackOffset
             exclusiveZone: 0
-            implicitWidth: Math.max(Theme.osdWidth, 360)
-            implicitHeight: Math.max(Theme.osdHeight, 58)
+            implicitWidth: 300
+            implicitHeight: 40
             color: "transparent"
             mask: Region {}
 
             OsdBar {
                 anchors.fill: parent
-                icon: root.brightness > 0.66 ? "󰃠" :
-                      root.brightness > 0.33 ? "󰃟" : "󰃞"
+                icon: root.brightness > 0.66 ? Theme.icon.brightness_high :
+                      root.brightness > 0.33 ? Theme.icon.brightness_medium : Theme.icon.brightness_low
                 value: root.brightness
-                accentColor: Theme.warning
+                accentColor: Theme.bright
                 label: Math.round(root.brightness * 100) + "%"
             }
         }

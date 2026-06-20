@@ -8,12 +8,26 @@ Scope {
     id: root
 
     property bool visible: false
+    property var coordinator: null
     property bool scanning: Bluetooth.defaultAdapter?.discovering ?? false
 
     IpcHandler {
         target: "bluetooth"
-        function toggle(): void {
+        function toggle(): string {
+            if (root.coordinator) return root.coordinator.togglePanel(root)
             root.visible = !root.visible
+            return root.visible ? "open" : "closed"
+        }
+
+        function open(): string {
+            if (root.coordinator) return root.coordinator.panelAction("bluetooth", "open")
+            root.visible = true
+            return "open"
+        }
+
+        function close(): string {
+            root.visible = false
+            return "closed"
         }
     }
 
@@ -28,20 +42,32 @@ Scope {
         PanelWindow {
             anchors {
                 top: true
+                left: true
                 right: true
+                bottom: true
             }
             margins {
-                top: 40
-                right: 12
+                top: Theme.barHeight + Theme.screenMargin + Theme.panelGap
             }
             exclusiveZone: 0
-            focusable: true
-            implicitWidth: panel.implicitWidth
-            implicitHeight: panel.implicitHeight
+            focusable: false
             color: "transparent"
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: root.visible = false
+            }
+
+            MouseArea {
+                anchors.fill: panel
+                onClicked: {}
+            }
 
             PopupPanel {
                 id: panel
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.screenMargin
                 implicitWidth: 320
 
                 RowLayout {
@@ -57,9 +83,10 @@ Scope {
                     }
 
                     Text {
-                        text: root.scanning ? "󰑙" : "󰑐"
+                        text: root.scanning ? Theme.icon.sync : Theme.icon.refresh
                         color: root.scanning ? Theme.accent : Theme.overlay0
-                        font.family: Theme.fontFamily
+                        font.family: Theme.iconFamily
+                        font.variableAxes: ({ "wght": 500, "opsz": 20 })
                         font.pixelSize: 16
 
                         MouseArea {

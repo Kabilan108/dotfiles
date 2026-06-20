@@ -10,11 +10,13 @@ Scope {
 
     property bool popupsVisible: true
     property bool centerVisible: false
+    property var coordinator: null
     property bool doNotDisturb: false
     property var popupIds: []
     property int popupRevision: 0
     property bool _hydrating: false
     property var policy: fallbackPolicy
+    readonly property int trackedCount: server.trackedNotifications.values.length
 
     readonly property var fallbackPolicy: ({
         notifications: {
@@ -215,11 +217,13 @@ Scope {
         target: "notifications"
 
         function toggleCenter(): string {
+            if (root.coordinator) return root.coordinator.togglePanel(root)
             root.centerVisible = !root.centerVisible
             return root.centerVisible ? "open" : "closed"
         }
 
         function showHistory(): string {
+            if (root.coordinator) return root.coordinator.panelAction("notifications", "open")
             root.centerVisible = true
             return "open"
         }
@@ -337,20 +341,32 @@ Scope {
             visible: root.centerVisible
             anchors {
                 top: true
+                left: true
                 right: true
+                bottom: true
             }
             margins {
-                top: 42
-                right: Theme.screenMargin
+                top: Theme.barHeight + Theme.screenMargin + Theme.panelGap
             }
             exclusiveZone: 0
-            focusable: true
-            implicitWidth: panel.implicitWidth
-            implicitHeight: panel.implicitHeight
+            focusable: false
             color: "transparent"
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: root.centerVisible = false
+            }
+
+            MouseArea {
+                anchors.fill: panel
+                onClicked: {}
+            }
 
             PopupPanel {
                 id: panel
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.screenMargin
                 implicitWidth: 456
                 padding: 18
 
@@ -382,7 +398,7 @@ Scope {
 
                     Ui.StPill {
                         text: root.doNotDisturb ? "DND" : "Live"
-                        icon: root.doNotDisturb ? "󰂛" : "󰂚"
+                        icon: root.doNotDisturb ? Theme.icon.notifications_off : Theme.icon.notifications
                         active: root.doNotDisturb
                         accentColor: Theme.warning
                         onClicked: root.doNotDisturb = !root.doNotDisturb
@@ -411,7 +427,7 @@ Scope {
                     id: statusBanner
                     Layout.fillWidth: true
                     implicitHeight: 34
-                    radius: Theme.radiusMedium
+                    radius: Theme.radiusSmall
                     color: Qt.rgba(statusAccent.r, statusAccent.g, statusAccent.b, 0.10)
                     border.width: Theme.borderWidth
                     border.color: Qt.rgba(statusAccent.r, statusAccent.g, statusAccent.b, 0.26)
@@ -427,9 +443,10 @@ Scope {
                         spacing: 8
 
                         Text {
-                            text: root.doNotDisturb ? "󰂛" : "󰂚"
+                            text: root.doNotDisturb ? Theme.icon.notifications_off : Theme.icon.notifications
                             color: statusBanner.statusAccent
-                            font.family: Theme.fontFamily
+                            font.family: Theme.iconFamily
+                            font.variableAxes: ({ "wght": 500, "opsz": 20 })
                             font.pixelSize: 13
                         }
 
@@ -473,9 +490,9 @@ Scope {
                         Rectangle {
                             Layout.fillWidth: true
                             implicitHeight: 130
-                            radius: Theme.radiusMedium
+                            radius: Theme.radiusSmall
                             color: Theme.panelBgSoft
-                            border.width: Math.max(1, Theme.borderWidth * 2)
+                            border.width: Theme.borderWidth
                             border.color: Theme.panelBorder
                             visible: server.trackedNotifications.values.length === 0
 
@@ -484,9 +501,10 @@ Scope {
                                 spacing: 8
 
                                 Text {
-                                    text: "󰂚"
+                                    text: Theme.icon.notifications
                                     color: Theme.dimText
-                                    font.family: Theme.fontFamily
+                                    font.family: Theme.iconFamily
+                                    font.variableAxes: ({ "wght": 500, "opsz": 20 })
                                     font.pixelSize: Theme.fontSizeIconLarge
                                     Layout.alignment: Qt.AlignHCenter
                                 }

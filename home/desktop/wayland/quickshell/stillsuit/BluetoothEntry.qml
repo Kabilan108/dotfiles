@@ -12,10 +12,10 @@ RowLayout {
     Text {
         text: {
             const s = root.device.state
-            if (s === BluetoothDeviceState.Connected) return "󰂱"
-            if (s === BluetoothDeviceState.Connecting) return "󰂳"
-            if (s === BluetoothDeviceState.Disconnecting) return "󰂳"
-            return root.device.paired ? "󰂯" : "󰂲"
+            if (s === BluetoothDeviceState.Connected) return Theme.icon.bluetooth_connected
+            if (s === BluetoothDeviceState.Connecting) return Theme.icon.bluetooth_searching
+            if (s === BluetoothDeviceState.Disconnecting) return Theme.icon.bluetooth_searching
+            return root.device.paired ? Theme.icon.bluetooth : Theme.icon.bluetooth_disabled
         }
         color: {
             const s = root.device.state
@@ -24,7 +24,8 @@ RowLayout {
                 return Theme.yellow
             return Theme.overlay0
         }
-        font.family: Theme.fontFamily
+        font.family: Theme.iconFamily
+        font.variableAxes: ({ "wght": 500, "opsz": 20 })
         font.pixelSize: 16
     }
 

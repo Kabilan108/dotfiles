@@ -8,11 +8,25 @@ Scope {
     id: root
 
     property bool visible: false
+    property var coordinator: null
 
     IpcHandler {
         target: "mixer"
-        function toggle(): void {
+        function toggle(): string {
+            if (root.coordinator) return root.coordinator.togglePanel(root)
             root.visible = !root.visible
+            return root.visible ? "open" : "closed"
+        }
+
+        function open(): string {
+            if (root.coordinator) return root.coordinator.panelAction("audio", "open")
+            root.visible = true
+            return "open"
+        }
+
+        function close(): string {
+            root.visible = false
+            return "closed"
         }
     }
 
@@ -31,20 +45,32 @@ Scope {
         PanelWindow {
             anchors {
                 top: true
+                left: true
                 right: true
+                bottom: true
             }
             margins {
-                top: 40
-                right: 12
+                top: Theme.barHeight + Theme.screenMargin + Theme.panelGap
             }
             exclusiveZone: 0
-            focusable: true
-            implicitWidth: content.implicitWidth
-            implicitHeight: content.implicitHeight
+            focusable: false
             color: "transparent"
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: root.visible = false
+            }
+
+            MouseArea {
+                anchors.fill: content
+                onClicked: {}
+            }
 
             PopupPanel {
                 id: content
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.screenMargin
                 implicitWidth: 340
 
                 NowPlaying {
@@ -145,14 +171,6 @@ Scope {
                     Layout.fillWidth: true
                     visible: Pipewire.defaultAudioSource !== null
                 }
-            }
-
-            // Click outside to close
-            MouseArea {
-                anchors.fill: parent
-                z: -1
-                onClicked: root.visible = false
-                enabled: false
             }
         }
     }
