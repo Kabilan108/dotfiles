@@ -275,7 +275,7 @@ source_type = "local"
 source = "/home/kabilan/dotfiles/agents/codex/.tmp/bundled-marketplaces/openai-bundled"
 
 [marketplaces.openai-primary-runtime]
-last_updated = "2026-06-19T18:17:36Z"
+last_updated = "2026-06-20T14:23:44Z"
 source_type = "local"
 source = "/home/kabilan/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
 
