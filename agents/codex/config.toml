@@ -1,13 +1,13 @@
 model = "gpt-5.5"
 
-model_reasoning_effort = "low"
+model_reasoning_effort = "xhigh"
 model_supports_reasoning_summaries = true
 
 sandbox_mode = "danger-full-access"
 
 notify = ["/home/kabilan/dotfiles/bin/codex-notify"]
 personality = "pragmatic"
-service_tier = "fast"
+service_tier = "default"
 approval_policy = "never"
 approvals_reviewer = "user"
 
@@ -270,12 +270,12 @@ trust_level = "trusted"
 "gpt-5.5" = 4
 
 [marketplaces.openai-bundled]
-last_updated = "2026-06-18T22:31:24Z"
+last_updated = "2026-06-19T17:17:49Z"
 source_type = "local"
 source = "/home/kabilan/dotfiles/agents/codex/.tmp/bundled-marketplaces/openai-bundled"
 
 [marketplaces.openai-primary-runtime]
-last_updated = "2026-05-30T02:18:03Z"
+last_updated = "2026-06-19T18:17:36Z"
 source_type = "local"
 source = "/home/kabilan/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
 
@@ -295,6 +295,9 @@ enabled = true
 enabled = true
 
 [plugins."browser@openai-bundled"]
+enabled = true
+
+[plugins."pdf@openai-primary-runtime"]
 enabled = true
 
 [desktop]
