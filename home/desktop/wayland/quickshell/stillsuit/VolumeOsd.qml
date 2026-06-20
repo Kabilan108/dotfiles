@@ -57,10 +57,11 @@ Scope {
             OsdBar {
                 anchors.fill: parent
                 icon: root.muted ? Theme.icon.volume_off :
-                      root.volume > 0.66 ? Theme.icon.volume_up :
-                      root.volume > 0.33 ? Theme.icon.volume_down : Theme.icon.volume_mute
-                value: root.muted ? 0 : root.volume
-                accentColor: root.muted ? Theme.dimText : Theme.vol
+                      root.volume > 0.75 ? Theme.icon.volume_up :
+                      root.volume > 0.45 ? Theme.icon.volume_down :
+                      root.volume > 0.15 ? Theme.icon.volume_down_alt : Theme.icon.volume_mute
+                value: root.volume
+                accentColor: root.muted ? Theme.mic : Theme.vol
                 label: root.muted ? "Mute" : Math.round(root.volume * 100) + "%"
             }
         }

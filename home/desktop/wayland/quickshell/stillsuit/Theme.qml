@@ -190,6 +190,7 @@ Singleton {
         bluetooth_disabled: "\ue1a9",
         volume_up: "\ue050",
         volume_down: "\ue04d",
+        volume_down_alt: "\ue79c",
         volume_mute: "\ue04e",
         volume_off: "\ue04f",
         mic: "\ue029",

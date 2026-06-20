@@ -21,7 +21,26 @@ mute-mic)
   pactl set-source-mute @DEFAULT_SOURCE@ toggle
   ;;
 [+-][1-9] | [+-][1-9][0-9])
-  pactl set-sink-volume @DEFAULT_SINK@ "$1%"
+  delta="${1%%%}"
+  current="$(
+    pactl get-sink-volume @DEFAULT_SINK@ \
+      | awk 'NR==1 { for (i = 1; i <= NF; i++) if ($i ~ /%/) { gsub("%", "", $i); print $i; exit } }'
+  )"
+  current="${current:-0}"
+
+  if [[ "$delta" == +* ]]; then
+    target=$((current + ${delta#+}))
+  else
+    target=$((current - ${delta#-}))
+  fi
+
+  if (( target < 0 )); then
+    target=0
+  elif (( target > 100 )); then
+    target=100
+  fi
+
+  pactl set-sink-volume @DEFAULT_SINK@ "${target}%"
   ;;
 *)
   usage
