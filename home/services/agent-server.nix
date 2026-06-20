@@ -25,7 +25,7 @@ let
       "npx t3 serve --host $TAILNET_IP --port 3773 --no-browser"
 
     ${pkgs.tmux}/bin/tmux split-window -t agents \
-      "codex app-server --listen ws://$TAILNET_IP:8390"
+      "codex remote-control"
   '';
 in
 {
