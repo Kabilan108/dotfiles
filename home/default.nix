@@ -2,6 +2,7 @@
   config,
   displayServer,
   inputs,
+  lib,
   pkgs,
   ...
 }:
@@ -364,4 +365,18 @@ in
     uv
     zig
   ];
+
+  home.activation.discordModuleLinks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    discordModules="${pkgs.discord}/opt/Discord/modules"
+    userModules="$HOME/.config/discord/${pkgs.discord.version}/modules"
+
+    if [ -d "$discordModules" ]; then
+      $DRY_RUN_CMD mkdir -p "$userModules"
+      for module in "$discordModules"/discord_*; do
+        moduleName="$(basename "$module")"
+        $DRY_RUN_CMD rm -f "$userModules/$moduleName"
+        $DRY_RUN_CMD ln -s "$module" "$userModules/$moduleName"
+      done
+    fi
+  '';
 }
