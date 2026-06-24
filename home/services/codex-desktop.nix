@@ -9,7 +9,6 @@ let
   runtimeDir = "/run/user/1000";
   sourceRepo = "${config.home.homeDirectory}/repos/codex-desktop-linux";
   featuresConfig = "${sourceRepo}/linux-features/features.json";
-  workingDesktop = "/nix/store/rhmxqq4dgydpb1dlw1ah5g6z3sf1109y-codex-desktop-computer-use-ui-remote-mobile-control-26.527.30818/bin/codex-desktop";
   electronLibPath = lib.makeLibraryPath (
     with pkgs;
     [
@@ -54,38 +53,6 @@ let
     ]
   );
 
-  codexDesktopLauncher = pkgs.writeShellScript "codex-desktop-launcher" ''
-    set -euo pipefail
-
-    codex_cli_root="$HOME/dotfiles/agents/codex/packages/standalone/releases"
-    codex_cli_path="''${CODEX_CLI_PATH:-}"
-    if [ -z "$codex_cli_path" ] && [ -d "$codex_cli_root" ]; then
-      codex_cli_path="$(
-        find "$codex_cli_root" -mindepth 3 -maxdepth 3 -type f -path '*/bin/codex' -perm -0100 \
-          | sort -V \
-          | tail -n 1
-      )"
-    fi
-
-    if [ -n "$codex_cli_path" ]; then
-      export CODEX_CLI_PATH="$codex_cli_path"
-    fi
-
-    export LD_LIBRARY_PATH="${electronLibPath}:${runtimeLibPath}:''${LD_LIBRARY_PATH:-}"
-
-    user_local_desktop="$HOME/.local/opt/codex-desktop-linux/bin/codex-desktop"
-    patch_report="$HOME/.local/opt/codex-desktop-linux/codex-app/.codex-linux/patch-report.json"
-    if [ -x "$user_local_desktop" ] && { [ ! -f "$patch_report" ] || ! grep -q '"status": "failed-required"' "$patch_report"; }; then
-      exec "$user_local_desktop" "$@"
-    fi
-
-    if [ -x "${workingDesktop}" ]; then
-      exec "${workingDesktop}" "$@"
-    fi
-
-    exec "$user_local_desktop" "$@"
-  '';
-
   updateCodexDesktop = pkgs.writeShellScript "update-codex-desktop" ''
     set -euo pipefail
 
@@ -116,8 +83,7 @@ let
       exit 0
     fi
 
-    "$updater" --quiet
-    install -m 0755 ${codexDesktopLauncher} "$HOME/.local/bin/codex-desktop"
+    exec "$updater" --quiet
   '';
 in
 {
@@ -144,9 +110,11 @@ in
       ydotool
     ];
 
-    home.file.".local/bin/codex-desktop" = {
-      executable = true;
-      source = codexDesktopLauncher;
+    xdg.configFile."codex-desktop-linux/user-local.env" = {
+      force = true;
+      text = ''
+        export LD_LIBRARY_PATH="${electronLibPath}:${runtimeLibPath}:''${LD_LIBRARY_PATH:-}"
+      '';
     };
 
     home.sessionVariables = lib.mkIf cfg.ydotool.enable {
