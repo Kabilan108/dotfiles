@@ -7,8 +7,6 @@
 
   networking.hostName = "jacurutu";
 
-  boot.kernelPackages = pkgs.linuxPackages_6_12;
-
   services.pipewire.wireplumber.extraConfig."50-mic-volume" = {
     "wireplumber.settings" = {
       "device.routes.default-source-volume" = 0.30;
