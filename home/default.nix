@@ -111,7 +111,6 @@ in
     settings = {
       workspace = "moberg-analytics";
       username = "tonykabilanokeke@gmail.com";
-      app_password = "\${env:ATLAS_API_TOKEN}";
     };
   };
 
