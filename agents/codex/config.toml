@@ -12,7 +12,7 @@ approval_policy = "never"
 approvals_reviewer = "user"
 
 [agents]
-max_threads = 16
+max_threads = 20
 
 [shell_environment_policy]
 inherit = "all"
@@ -54,17 +54,21 @@ approval_mode = "approve"
 
 [mcp_servers.node_repl]
 args = []
-command = "/nix/store/rhmxqq4dgydpb1dlw1ah5g6z3sf1109y-codex-desktop-computer-use-ui-remote-mobile-control-26.527.30818/opt/codex-desktop/resources/node_repl"
+command = "/home/kabilan/.local/opt/codex-desktop-linux/codex-app/resources/node_repl"
 startup_timeout_sec = 120
 
 [mcp_servers.node_repl.env]
 NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
 NODE_REPL_NODE_MODULE_DIRS = ""
-NODE_REPL_NODE_PATH = "/nix/store/rhmxqq4dgydpb1dlw1ah5g6z3sf1109y-codex-desktop-computer-use-ui-remote-mobile-control-26.527.30818/opt/codex-desktop/resources/node-runtime/bin/node"
+NODE_REPL_NODE_PATH = "/home/kabilan/.local/opt/codex-desktop-linux/codex-app/resources/node-runtime/bin/node"
 NODE_REPL_TRUSTED_CODE_PATHS = "/home/kabilan/.codex"
 CODEX_HOME = "/home/kabilan/.codex"
-BROWSER_USE_AVAILABLE_BACKENDS = ""
+NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "5504c0782b5c86b7dd08314045b9843e973a230e1be8f7e2e0ba3716fc63c55e,6df2b64c3dfd9bcd2a594eaed0ad790988e286c40d249f99d68b5b38ac1044fd,f65d72c441f3c2ebc58ac05c53c2dd15f82bd35a1bbb94fa04b86504764761ee"
+BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
+NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunction with the Browser Plugin."
+NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
 BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
+BROWSER_USE_CODEX_APP_VERSION = "26.616.81150"
 
 [notice]
 hide_gpt5_1_migration_prompt = true
@@ -270,12 +274,12 @@ trust_level = "trusted"
 "gpt-5.5" = 4
 
 [marketplaces.openai-bundled]
-last_updated = "2026-06-19T17:17:49Z"
+last_updated = "2026-06-26T17:26:43Z"
 source_type = "local"
 source = "/home/kabilan/dotfiles/agents/codex/.tmp/bundled-marketplaces/openai-bundled"
 
 [marketplaces.openai-primary-runtime]
-last_updated = "2026-06-20T14:23:44Z"
+last_updated = "2026-06-24T23:18:18Z"
 source_type = "local"
 source = "/home/kabilan/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
 
@@ -292,17 +296,20 @@ enabled = true
 enabled = true
 
 [plugins."computer-use@openai-bundled"]
-enabled = true
-
-[plugins."browser@openai-bundled"]
-enabled = true
+enabled = false
 
 [plugins."pdf@openai-primary-runtime"]
 enabled = true
 
+[plugins."slack@openai-curated"]
+enabled = true
+
+[plugins."template-creator@openai-primary-runtime"]
+enabled = true
+
 [desktop]
 appearanceTheme = "dark"
-appearanceDarkCodeThemeId = "catppuccin"
+appearanceDarkCodeThemeId = "gruvbox"
 sansFontSize = 16
 codeFontSize = 14
 usePointerCursors = true
@@ -312,15 +319,15 @@ reviewDelivery = "detached"
 conversationDetailMode = "STEPS_EXECUTION"
 
 [desktop.appearanceDarkChromeTheme]
-accent = "#cba6f7"
+accent = "#458588"
 contrast = 60
-ink = "#cdd6f4"
+ink = "#ebdbb2"
 opaqueWindows = true
-surface = "#1e1e2e"
+surface = "#282828"
 
 [desktop.appearanceDarkChromeTheme.fonts]
 
 [desktop.appearanceDarkChromeTheme.semanticColors]
-diffAdded = "#a6e3a1"
-diffRemoved = "#f38ba8"
-skill = "#cba6f7"
+diffAdded = "#ebdbb2"
+diffRemoved = "#cc241d"
+skill = "#b16286"

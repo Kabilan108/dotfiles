@@ -25,3 +25,4 @@ generated_images
 app-server-control
 app-server-daemon
 packages
+process_manager/
