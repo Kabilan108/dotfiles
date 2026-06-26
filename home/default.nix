@@ -326,6 +326,7 @@ in
     rclone
     ripgrep
     sd
+    tabiew
     tmux
     tree
     tree-sitter
