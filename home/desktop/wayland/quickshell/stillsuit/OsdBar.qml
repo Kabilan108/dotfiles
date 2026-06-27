@@ -9,7 +9,7 @@ Rectangle {
     required property color accentColor
     property string label: ""
     readonly property int visualWidth: 300
-    readonly property int visualHeight: 40
+    readonly property int visualHeight: 48
 
     implicitWidth: visualWidth
     implicitHeight: visualHeight
@@ -28,8 +28,8 @@ Rectangle {
         spacing: 13
 
         Text {
-            Layout.preferredWidth: 18
-            Layout.preferredHeight: 18
+            Layout.preferredWidth: 22
+            Layout.preferredHeight: 22
             Layout.alignment: Qt.AlignVCenter
 
             text: root.icon
@@ -38,7 +38,7 @@ Rectangle {
             verticalAlignment: Text.AlignVCenter
             font.family: Theme.iconFamily
             font.variableAxes: ({ "FILL": 0, "wght": 500, "opsz": 20 })
-            font.pixelSize: 17
+            font.pixelSize: 21
         }
 
         Rectangle {

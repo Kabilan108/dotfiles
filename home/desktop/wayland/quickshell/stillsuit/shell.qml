@@ -120,7 +120,7 @@ ShellRoot {
         id: volumeOsd
     }
     BrightnessOsd {
-        stackOffset: volumeOsd.shouldShow ? 40 + Theme.panelGap : 0
+        stackOffset: volumeOsd.shouldShow ? 48 + Theme.panelGap : 0
     }
     AudioMixer {
         id: audioMixer

@@ -54,7 +54,7 @@ Scope {
             margins.bottom: screen.height * 0.02 + root.stackOffset
             exclusiveZone: 0
             implicitWidth: 300
-            implicitHeight: 40
+            implicitHeight: 48
             color: "transparent"
             mask: Region {}
 
