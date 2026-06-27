@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell.Services.Mpris
 
-ColumnLayout {
+Column {
     id: root
 
     property var player: {
@@ -15,26 +15,31 @@ ColumnLayout {
     }
 
     visible: root.player !== null
-    spacing: 0
+    spacing: 14
+    width: parent?.width ?? implicitWidth
 
-    Text {
-        text: "Now Playing"
-        color: Theme.dimText
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSizeSmall
-        font.bold: true
+    Timer {
+        interval: 500
+        running: root.player?.isPlaying ?? false
+        repeat: true
+        onTriggered: root.player.positionChanged()
     }
 
-    Item { implicitHeight: 6 }
+    MixerSectionLabel {
+        text: "Now Playing"
+    }
 
-    RowLayout {
-        spacing: 10
+    Row {
+        width: parent.width
+        spacing: 12
 
         Rectangle {
-            implicitWidth: 48
-            implicitHeight: 48
+            implicitWidth: 60
+            implicitHeight: 60
             radius: Theme.radiusSmall
             color: Theme.surface0
+            border.width: Theme.borderWidth
+            border.color: Theme.panelBorder
             clip: true
 
             Image {
@@ -50,48 +55,120 @@ ColumnLayout {
                 color: Theme.overlay0
                 font.family: Theme.iconFamily
                 font.variableAxes: ({ "wght": 500, "opsz": 20 })
-                font.pixelSize: 22
+                font.pixelSize: 26
                 visible: !root.player?.trackArtUrl
             }
         }
 
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 2
+        Column {
+            width: parent.width - 72
+            spacing: 3
+            anchors.verticalCenter: parent.verticalCenter
 
             Text {
-                Layout.fillWidth: true
                 text: root.player?.trackTitle ?? ""
                 color: Theme.text
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeMedium
+                font.pixelSize: Theme.fontSizeLarge
+                font.bold: true
                 elide: Text.ElideRight
+                width: parent.width
             }
 
             Text {
-                Layout.fillWidth: true
                 text: root.player?.trackArtist ?? ""
-                color: Theme.dimText
+                color: Theme.subtext1
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeMedium
+                elide: Text.ElideRight
+                visible: text !== ""
+                width: parent.width
+            }
+
+            Text {
+                text: root.player?.trackAlbum ?? ""
+                color: Theme.subtext1
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeSmall
                 elide: Text.ElideRight
                 visible: text !== ""
+                width: parent.width
             }
         }
     }
 
-    Item { implicitHeight: 6 }
+    Column {
+        width: parent.width
+        spacing: 6
 
-    RowLayout {
-        Layout.alignment: Qt.AlignHCenter
-        spacing: 20
+        Rectangle {
+            width: parent.width
+            height: 5
+            radius: 999
+            color: Theme.surface0
+            visible: root.player?.lengthSupported ?? false
+
+            Rectangle {
+                anchors {
+                    left: parent.left
+                    top: parent.top
+                    bottom: parent.bottom
+                }
+                width: {
+                    const len = root.player?.length ?? 0
+                    if (len <= 0) return 0
+                    return parent.width * Math.min((root.player?.position ?? 0) / len, 1)
+                }
+                radius: parent.radius
+                color: Theme.accent
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                enabled: root.player?.canSeek ?? false
+                onClicked: mouse => {
+                    const target = (mouse.x / parent.width) * root.player.length
+                    const offset = target - root.player.position
+                    root.player.seek(offset)
+                }
+            }
+        }
+
+        RowLayout {
+            width: parent.width
+            spacing: 6
+            visible: root.player?.lengthSupported ?? false
+
+            Text {
+                text: formatTime(root.player?.position ?? 0)
+                color: Theme.mutedText
+                font.family: Theme.fontFamily
+                font.pixelSize: 10
+            }
+
+            Item { Layout.fillWidth: true }
+
+            Text {
+                text: formatTime(root.player?.length ?? 0)
+                color: Theme.mutedText
+                font.family: Theme.fontFamily
+                font.pixelSize: 10
+            }
+        }
+    }
+
+    Row {
+        anchors.horizontalCenter: parent.horizontalCenter
+        spacing: 14
 
         Text {
             text: root.player?.shuffle ? Theme.icon.shuffle_on : Theme.icon.shuffle
-            color: root.player?.shuffle ? Theme.accent : Theme.overlay0
+            color: root.player?.shuffle ? Theme.accent : Theme.text
             font.family: Theme.iconFamily
             font.variableAxes: ({ "wght": 500, "opsz": 20 })
-            font.pixelSize: 16
+            font.pixelSize: 18
+            height: 38
+            verticalAlignment: Text.AlignVCenter
             visible: root.player?.shuffleSupported ?? false
 
             MouseArea {
@@ -106,7 +183,9 @@ ColumnLayout {
             color: root.player?.canGoPrevious ? Theme.text : Theme.overlay0
             font.family: Theme.iconFamily
             font.variableAxes: ({ "wght": 500, "opsz": 20 })
-            font.pixelSize: 20
+            font.pixelSize: 22
+            height: 38
+            verticalAlignment: Text.AlignVCenter
 
             MouseArea {
                 anchors.fill: parent
@@ -117,9 +196,9 @@ ColumnLayout {
         }
 
         Rectangle {
-            implicitWidth: 32
-            implicitHeight: 32
-            radius: 16
+            implicitWidth: 38
+            implicitHeight: 38
+            radius: 19
             color: Theme.accent
 
             Text {
@@ -127,7 +206,7 @@ ColumnLayout {
                 text: root.player?.isPlaying ? Theme.icon.pause : Theme.icon.play_arrow
                 color: Theme.crust
                 font.family: Theme.iconFamily
-                font.variableAxes: ({ "wght": 500, "opsz": 20 })
+                font.variableAxes: ({ "wght": 600, "opsz": 20 })
                 font.pixelSize: 18
             }
 
@@ -144,7 +223,9 @@ ColumnLayout {
             color: root.player?.canGoNext ? Theme.text : Theme.overlay0
             font.family: Theme.iconFamily
             font.variableAxes: ({ "wght": 500, "opsz": 20 })
-            font.pixelSize: 20
+            font.pixelSize: 22
+            height: 38
+            verticalAlignment: Text.AlignVCenter
 
             MouseArea {
                 anchors.fill: parent
@@ -164,11 +245,13 @@ ColumnLayout {
             color: {
                 const s = root.player?.loopState
                 return (s === MprisLoopState.Track || s === MprisLoopState.Playlist)
-                    ? Theme.accent : Theme.overlay0
+                    ? Theme.accent : Theme.text
             }
             font.family: Theme.iconFamily
             font.variableAxes: ({ "wght": 500, "opsz": 20 })
-            font.pixelSize: 16
+            font.pixelSize: 18
+            height: 38
+            verticalAlignment: Text.AlignVCenter
             visible: root.player?.loopSupported ?? false
 
             MouseArea {
@@ -181,60 +264,6 @@ ColumnLayout {
                     else root.player.loopState = MprisLoopState.None
                 }
             }
-        }
-    }
-
-    Item { implicitHeight: 4 }
-
-    RowLayout {
-        spacing: 6
-        visible: root.player?.lengthSupported ?? false
-
-        Text {
-            text: formatTime(root.player?.position ?? 0)
-            color: Theme.dimText
-            font.family: Theme.fontFamily
-            font.pixelSize: 9
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: 4
-            radius: 2
-            color: Theme.surface0
-
-            Rectangle {
-                anchors {
-                    left: parent.left
-                    top: parent.top
-                    bottom: parent.bottom
-                }
-                width: {
-                    const len = root.player?.length ?? 0
-                    if (len <= 0) return 0
-                    return parent.width * Math.min((root.player?.position ?? 0) / len, 1)
-                }
-                radius: parent.radius
-                color: Theme.accent
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                onClicked: mouse => {
-                    if (root.player?.canSeek) {
-                        const target = (mouse.x / parent.width) * root.player.length
-                        const offset = target - root.player.position
-                        root.player.seek(offset)
-                    }
-                }
-            }
-        }
-
-        Text {
-            text: formatTime(root.player?.length ?? 0)
-            color: Theme.dimText
-            font.family: Theme.fontFamily
-            font.pixelSize: 9
         }
     }
 
