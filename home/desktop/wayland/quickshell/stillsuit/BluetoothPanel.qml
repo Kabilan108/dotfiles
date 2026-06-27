@@ -3,13 +3,34 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import Quickshell.Bluetooth
+import "ui" as Ui
 
 Scope {
     id: root
 
     property bool visible: false
     property var coordinator: null
+    readonly property var adapter: Bluetooth.defaultAdapter
+    readonly property bool enabled: adapter?.enabled ?? false
     property bool scanning: Bluetooth.defaultAdapter?.discovering ?? false
+
+    function isPaired(device) {
+        return device.paired || device.connected
+    }
+
+    function isNearby(device) {
+        return !device.paired && !device.connected
+            && device.name !== "" && device.name !== device.address
+    }
+
+    readonly property var pairedDevices: (Bluetooth.devices?.values ?? []).filter(d => isPaired(d))
+    readonly property var nearbyDevices: (Bluetooth.devices?.values ?? []).filter(d => isNearby(d))
+    readonly property bool hasPaired: pairedDevices.length > 0
+    readonly property bool hasNearby: nearbyDevices.length > 0
+
+    function toggleScan() {
+        if (adapter) adapter.discovering = !adapter.discovering
+    }
 
     IpcHandler {
         target: "bluetooth"
@@ -68,118 +89,115 @@ Scope {
                 anchors.top: parent.top
                 anchors.right: parent.right
                 anchors.rightMargin: Theme.screenMargin
-                implicitWidth: 320
+                implicitWidth: 360
+                padding: 16
+                color: "#f011111b"
 
-                RowLayout {
+                Column {
+                    id: panelBody
                     Layout.fillWidth: true
+                    spacing: 14
 
-                    Text {
-                        text: "Bluetooth"
-                        color: Theme.dimText
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSmall
-                        font.bold: true
-                        Layout.fillWidth: true
+                    Ui.StToggle {
+                        width: parent.width
+                        icon: Theme.icon.bluetooth
+                        label: "Bluetooth"
+                        on: root.enabled
+                        onToggled: if (root.adapter) root.adapter.enabled = !root.adapter.enabled
                     }
 
-                    Text {
-                        text: root.scanning ? Theme.icon.sync : Theme.icon.refresh
-                        color: root.scanning ? Theme.accent : Theme.overlay0
-                        font.family: Theme.iconFamily
-                        font.variableAxes: ({ "wght": 500, "opsz": 20 })
-                        font.pixelSize: 16
+                    Column {
+                        width: parent.width
+                        spacing: 4
+                        visible: root.enabled
 
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (Bluetooth.defaultAdapter)
-                                    Bluetooth.defaultAdapter.discovering = !Bluetooth.defaultAdapter.discovering
+                        SectionLabel {
+                            text: "Paired"
+                            bottomPadding: 2
+                        }
+
+                        Text {
+                            width: parent.width
+                            text: "No paired devices"
+                            color: Theme.mutedText
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 11
+                            leftPadding: 8
+                            topPadding: 2
+                            bottomPadding: 2
+                            visible: !root.hasPaired
+                        }
+
+                        ListView {
+                            width: parent.width
+                            height: Math.min(contentHeight, 203)
+                            clip: true
+                            spacing: 1
+                            interactive: contentHeight > height
+                            boundsBehavior: Flickable.StopAtBounds
+                            model: root.pairedDevices
+
+                            delegate: BluetoothEntry {
+                                required property var modelData
+                                device: modelData
+                                width: ListView.view.width
                             }
                         }
                     }
-                }
 
-                Repeater {
-                    model: Bluetooth.devices
-
-                    BluetoothEntry {
-                        required property var modelData
-                        device: modelData
-                        Layout.fillWidth: true
-                        visible: modelData.paired || modelData.connected
-                    }
-                }
-
-                Text {
-                    text: "No paired devices"
-                    color: Theme.overlay0
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSmall
-                    Layout.alignment: Qt.AlignHCenter
-                    visible: {
-                        for (let i = 0; i < Bluetooth.devices.values.length; i++) {
-                            const d = Bluetooth.devices.values[i]
-                            if (d.paired || d.connected) return false
-                        }
-                        return true
-                    }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 1
-                    color: Theme.surface0
-                    visible: root.scanning
-                }
-
-                Text {
-                    text: "Nearby"
-                    color: Theme.dimText
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSmall
-                    font.bold: true
-                    visible: root.scanning
-                }
-
-                Flickable {
-                    Layout.fillWidth: true
-                    implicitHeight: Math.min(nearbyLayout.implicitHeight, 250)
-                    contentHeight: nearbyLayout.implicitHeight
-                    clip: true
-                    boundsBehavior: Flickable.StopAtBounds
-                    visible: root.scanning
-
-                    ColumnLayout {
-                        id: nearbyLayout
+                    Rectangle {
                         width: parent.width
-                        spacing: Theme.paddingSmall
+                        implicitHeight: 1
+                        color: Theme.panelBorder
+                        visible: root.enabled
+                    }
 
-                        Repeater {
-                            model: Bluetooth.devices
+                    Column {
+                        width: parent.width
+                        spacing: 4
+                        visible: root.enabled
 
-                            BluetoothEntry {
-                                required property var modelData
-                                device: modelData
+                        RowLayout {
+                            width: parent.width
+
+                            SectionLabel {
+                                text: "Nearby"
                                 Layout.fillWidth: true
-                                visible: !modelData.paired && !modelData.connected
-                                    && modelData.name !== "" && modelData.name !== modelData.address
+                            }
+
+                            Ui.StScanButton {
+                                label: root.scanning ? "scanning" : "scan"
+                                icon: Theme.icon.bluetooth_searching
+                                busy: root.scanning
+                                onClicked: root.toggleScan()
                             }
                         }
 
                         Text {
-                            text: "Scanning..."
-                            color: Theme.overlay0
+                            width: parent.width
+                            text: root.scanning ? "searching…" : "press scan to discover devices"
+                            color: Theme.subtext1
                             font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeSmall
-                            Layout.alignment: Qt.AlignHCenter
-                            visible: {
-                                for (let i = 0; i < Bluetooth.devices.values.length; i++) {
-                                    const d = Bluetooth.devices.values[i]
-                                    if (!d.paired && !d.connected && d.name !== "" && d.name !== d.address)
-                                        return false
-                                }
-                                return true
+                            font.pixelSize: 11
+                            leftPadding: 8
+                            topPadding: 2
+                            bottomPadding: 2
+                            visible: !root.hasNearby
+                        }
+
+                        ListView {
+                            width: parent.width
+                            height: Math.min(contentHeight, 244)
+                            clip: true
+                            spacing: 1
+                            interactive: contentHeight > height
+                            boundsBehavior: Flickable.StopAtBounds
+                            model: root.nearbyDevices
+
+                            delegate: BluetoothEntry {
+                                required property var modelData
+                                device: modelData
+                                width: ListView.view.width
                             }
                         }
                     }

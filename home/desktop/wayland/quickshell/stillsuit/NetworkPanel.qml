@@ -16,6 +16,9 @@ Scope {
     readonly property var wifiDevice: findWifiDevice()
     readonly property var wifiNetworks: sortedWifiNetworks()
     readonly property var connectedNetwork: connectedWifiNetwork()
+    readonly property var availableNetworks: wifiNetworks.filter(n => !n.connected && !n.known).slice(0, 14)
+    readonly property var savedNetworks: wifiNetworks.filter(n => n.known && !n.connected)
+    readonly property bool wifiEnabled: Networking.wifiEnabled
 
     function toggle() {
         visible = !visible
@@ -55,22 +58,19 @@ Scope {
         return !!network && !network.connected && (network.known || isOpenNetwork(network))
     }
 
-    function networkIcon(network) {
-        const strength = Math.round((network ? network.signalStrength || 0 : 0) * 100)
-        if (strength >= 80) return Theme.icon.network_wifi
-        if (strength >= 60) return Theme.icon.network_wifi_3_bar
-        if (strength >= 40) return Theme.icon.network_wifi_2_bar
-        if (strength >= 20) return Theme.icon.network_wifi_1_bar
-        return Theme.icon.signal_wifi_0_bar
+    function signalLevel(network) {
+        const strength = network ? network.signalStrength || 0 : 0
+        if (strength <= 0) return 0
+        if (strength >= 0.8) return 4
+        if (strength >= 0.55) return 3
+        if (strength >= 0.3) return 2
+        return 1
     }
 
-    function networkMeta(network) {
+    function connectedSubtitle(network) {
         if (!network) return ""
-        if (network.connected) return "connected"
-        if (actionSsid === network.name) return "connecting"
-        if (network.known) return "known"
-        if (isOpenNetwork(network)) return "open"
-        return "secured"
+        const pct = Math.round((network.signalStrength || 0) * 100)
+        return pct + "% · " + (isOpenNetwork(network) ? "open" : "secured")
     }
 
     function activateNetwork(network) {
@@ -96,6 +96,97 @@ Scope {
     onVisibleChanged: {
         if (visible) startScan()
         else if (wifiDevice) wifiDevice.scannerEnabled = false
+    }
+
+    component WifiRow: Rectangle {
+        id: rowRoot
+
+        required property var network
+        property string mode: "available"
+
+        readonly property bool connected: network?.connected ?? false
+        readonly property bool secured: !root.isOpenNetwork(network)
+        readonly property bool connecting: root.actionSsid === (network?.name || "")
+
+        implicitHeight: 40
+        radius: Theme.radiusSmall - 1
+        color: rowMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
+
+        Behavior on color {
+            ColorAnimation { duration: Theme.animationFast }
+        }
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 8
+            anchors.rightMargin: 8
+            spacing: 9
+
+            Ui.StSignalBars {
+                Layout.alignment: Qt.AlignVCenter
+                level: root.signalLevel(rowRoot.network)
+                barColor: rowRoot.connected ? Theme.accent : Theme.subtext1
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 1
+
+                Text {
+                    Layout.fillWidth: true
+                    text: rowRoot.network?.name || "hidden network"
+                    color: rowRoot.connected ? Theme.text : Theme.subtext1
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 12
+                    elide: Text.ElideRight
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: root.connectedSubtitle(rowRoot.network)
+                    color: Theme.subtext1
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 10
+                    elide: Text.ElideRight
+                    visible: rowRoot.mode === "connected"
+                }
+            }
+
+            RowLayout {
+                Layout.alignment: Qt.AlignVCenter
+                spacing: 7
+
+                Text {
+                    text: Theme.icon.lock
+                    color: Theme.subtext1
+                    font.family: Theme.iconFamily
+                    font.variableAxes: ({ "wght": 500, "opsz": 20 })
+                    font.pixelSize: 12
+                    visible: rowRoot.secured && !rowRoot.connected
+                }
+
+                Text {
+                    text: rowRoot.connecting ? "connecting"
+                        : rowRoot.connected ? "connected"
+                        : rowRoot.mode === "saved" ? "saved" : "connect"
+                    color: rowRoot.connected ? Theme.success
+                        : rowRoot.mode === "saved" && !rowRoot.connecting ? Theme.subtext1
+                        : Theme.accent
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 11
+                    font.bold: true
+                }
+            }
+        }
+
+        MouseArea {
+            id: rowMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: root.canConnect(rowRoot.network) || rowRoot.connected
+                ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: root.activateNetwork(rowRoot.network)
+        }
     }
 
     IpcHandler {
@@ -176,126 +267,132 @@ Scope {
                 anchors.right: parent.right
                 anchors.rightMargin: Theme.screenMargin
                 implicitWidth: 360
+                padding: 16
+                color: "#f011111b"
 
-                RowLayout {
+                Column {
+                    id: panelBody
                     Layout.fillWidth: true
+                    spacing: 14
 
-                    Text {
-                        text: "Network"
-                        color: Theme.text
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeTitle
-                        font.bold: true
-                        Layout.fillWidth: true
+                    Ui.StToggle {
+                        width: parent.width
+                        icon: Theme.icon.wifi
+                        label: "Wi-Fi"
+                        on: root.wifiEnabled
+                        onToggled: Networking.wifiEnabled = !Networking.wifiEnabled
                     }
 
-                    Ui.StButton {
-                        text: root.scanning ? "scanning" : "scan"
-                        icon: Theme.icon.refresh
-                        active: root.scanning
-                        onClicked: root.startScan()
+                    Column {
+                        width: parent.width
+                        spacing: 4
+                        visible: root.wifiEnabled && root.connectedNetwork !== null
+
+                        SectionLabel {
+                            text: "Connected"
+                            bottomPadding: 2
+                        }
+
+                        WifiRow {
+                            width: parent.width
+                            network: root.connectedNetwork
+                            mode: "connected"
+                            visible: root.connectedNetwork !== null
+                        }
                     }
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    text: root.connectedNetwork ? root.connectedNetwork.name : "No Wi-Fi connection"
-                    color: root.connectedNetwork ? Theme.text : Theme.dimText
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeMedium
-                    elide: Text.ElideRight
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 1
-                    color: Theme.panelBorder
-                }
-
-                Text {
-                    text: "NETWORKS"
-                    color: Theme.dimText
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSmall
-                    font.bold: true
-                    font.letterSpacing: 2
-                }
-
-                Repeater {
-                    model: root.wifiNetworks.slice(0, 10)
 
                     Rectangle {
-                        required property var modelData
+                        width: parent.width
+                        implicitHeight: 1
+                        color: Theme.panelBorder
+                        visible: root.wifiEnabled
+                    }
 
-                        Layout.fillWidth: true
-                        implicitHeight: 42
-                        radius: Theme.radiusSmall
-                        color: mouse.containsMouse ? Theme.panelSurfaceHover : "transparent"
-                        border.width: modelData.connected ? Theme.borderWidth : 0
-                        border.color: modelData.connected ? Theme.accent : Theme.panelBorder
+                    Column {
+                        width: parent.width
+                        spacing: 4
+                        visible: root.wifiEnabled
 
                         RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: 10
-                            anchors.rightMargin: 10
-                            spacing: 10
+                            width: parent.width
 
-                            Text {
-                                text: root.networkIcon(modelData)
-                                color: modelData.connected ? Theme.accent : Theme.dimText
-                                font.family: Theme.iconFamily
-                                font.variableAxes: ({ "wght": 500, "opsz": 20 })
-                                font.pixelSize: 15
-                            }
-
-                            ColumnLayout {
+                            SectionLabel {
+                                text: "Available"
                                 Layout.fillWidth: true
-                                spacing: 1
-
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: modelData.name || "hidden network"
-                                    color: Theme.text
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeMedium
-                                    elide: Text.ElideRight
-                                }
-
-                                Text {
-                                    text: root.networkMeta(modelData)
-                                    color: Theme.dimText
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                }
                             }
 
-                            Text {
-                                visible: !root.canConnect(modelData) && !modelData.connected
-                                text: Theme.icon.lock
-                                color: Theme.mutedText
-                                font.family: Theme.iconFamily
-                                font.variableAxes: ({ "wght": 500, "opsz": 20 })
-                                font.pixelSize: 13
+                            Ui.StScanButton {
+                                label: root.scanning ? "scanning" : "refresh"
+                                busy: root.scanning
+                                onClicked: root.startScan()
                             }
                         }
 
-                        MouseArea {
-                            id: mouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: root.canConnect(modelData) || modelData.connected ? Qt.PointingHandCursor : Qt.ArrowCursor
-                            onClicked: root.activateNetwork(modelData)
+                        Text {
+                            width: parent.width
+                            text: root.scanning ? "scanning for networks…"
+                                : root.wifiDevice ? "no networks found" : "wi-fi unavailable"
+                            color: Theme.subtext1
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 11
+                            leftPadding: 8
+                            topPadding: 2
+                            bottomPadding: 2
+                            visible: root.availableNetworks.length === 0
+                        }
+
+                        ListView {
+                            width: parent.width
+                            height: Math.min(contentHeight, 244)
+                            clip: true
+                            spacing: 1
+                            interactive: contentHeight > height
+                            boundsBehavior: Flickable.StopAtBounds
+                            model: root.availableNetworks
+
+                            delegate: WifiRow {
+                                required property var modelData
+                                width: ListView.view.width
+                                network: modelData
+                                mode: "available"
+                            }
                         }
                     }
-                }
 
-                Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    visible: root.wifiNetworks.length === 0
-                    text: root.wifiDevice ? "No networks found" : "Wi-Fi unavailable"
-                    color: Theme.dimText
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSmall
+                    Rectangle {
+                        width: parent.width
+                        implicitHeight: 1
+                        color: Theme.panelBorder
+                        visible: root.wifiEnabled && root.savedNetworks.length > 0
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: 4
+                        visible: root.wifiEnabled && root.savedNetworks.length > 0
+
+                        SectionLabel {
+                            text: "Saved"
+                            bottomPadding: 2
+                        }
+
+                        ListView {
+                            width: parent.width
+                            height: Math.min(contentHeight, 162)
+                            clip: true
+                            spacing: 1
+                            interactive: contentHeight > height
+                            boundsBehavior: Flickable.StopAtBounds
+                            model: root.savedNetworks
+
+                            delegate: WifiRow {
+                                required property var modelData
+                                width: ListView.view.width
+                                network: modelData
+                                mode: "saved"
+                            }
+                        }
+                    }
                 }
             }
         }
