@@ -25,7 +25,7 @@ Column {
         onTriggered: root.player.positionChanged()
     }
 
-    MixerSectionLabel {
+    SectionLabel {
         text: "Now Playing"
     }
 

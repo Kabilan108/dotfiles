@@ -293,7 +293,7 @@ Scope {
                                 spacing: 2
                                 visible: outputRepeater.count > 0
 
-                                MixerSectionLabel {
+                                SectionLabel {
                                     text: "Output Device"
                                     bottomPadding: 12
                                 }
