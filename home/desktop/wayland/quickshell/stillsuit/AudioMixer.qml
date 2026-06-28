@@ -228,7 +228,7 @@ Scope {
                 anchors.rightMargin: Theme.screenMargin
                 implicitWidth: 360
                 padding: 16
-                color: "#f011111b"
+                color: Theme.panelChrome
 
                 Item {
                     Layout.fillWidth: true

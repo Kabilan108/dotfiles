@@ -151,6 +151,7 @@ Singleton {
     readonly property string panelBg:            value("semantic", "panelBg", "#e0181825")
     readonly property string panelBgSoft:        value("semantic", "panelBgSoft", panelBg)
     readonly property string panelBgStrong:      value("semantic", "panelBgStrong", panelBg)
+    readonly property string panelChrome:        value("semantic", "panelChrome", "#f011111b")
     readonly property string panelBorder:        value("semantic", "panelBorder", surface0)
     readonly property string panelBorderStrong:  value("semantic", "panelBorderStrong", surface1)
     readonly property string panelSurface:       value("semantic", "panelSurface", surface0)

@@ -53,7 +53,7 @@ Rectangle {
     radius: Theme.radiusSmall
     color: root.inline
         ? (hover.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
-        : "#f011111b"
+        : Theme.panelChrome
     border.width: root.inline ? 0 : Theme.borderWidth
     border.color: root.isCritical ? Theme.urgent : Theme.panelBorderStrong
     clip: true
