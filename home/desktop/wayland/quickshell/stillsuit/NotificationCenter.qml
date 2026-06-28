@@ -14,6 +14,8 @@ Scope {
     property bool doNotDisturb: false
     property var popupIds: []
     property int popupRevision: 0
+    property var arrivalTimes: ({})
+    property double nowMs: Date.now()
     property bool _hydrating: false
     property var policy: fallbackPolicy
     readonly property int trackedCount: server.trackedNotifications.values.length
@@ -39,6 +41,18 @@ Scope {
 
     function notificationId(notification) {
         return notification ? notification.id : -1
+    }
+
+    function relativeTime(id) {
+        const arrived = root.arrivalTimes[id]
+        if (!arrived) return ""
+        const diff = Math.max(0, root.nowMs - arrived)
+        const mins = Math.floor(diff / 60000)
+        if (mins < 1) return "now"
+        if (mins < 60) return mins + "m"
+        const hours = Math.floor(mins / 60)
+        if (hours < 24) return hours + "h"
+        return Math.floor(hours / 24) + "d"
     }
 
     function urgencyName(notification) {
@@ -189,6 +203,15 @@ Scope {
         onTriggered: root.flushState()
     }
 
+    Timer {
+        interval: 30000
+        repeat: true
+        running: root.centerVisible
+        onTriggered: root.nowMs = Date.now()
+    }
+
+    onCenterVisibleChanged: if (centerVisible) nowMs = Date.now()
+
     Component.onCompleted: Qt.callLater(function() {
         stateFile.reload()
         policyFile.reload()
@@ -204,6 +227,10 @@ Scope {
 
         onNotification: notification => {
             notification.tracked = true
+
+            const arrival = Object.assign({}, root.arrivalTimes)
+            arrival[notification.id] = Date.now()
+            root.arrivalTimes = arrival
 
             if (!root.doNotDisturb || root.shouldBypassDnd(notification)) {
                 root.addPopup(notification)
@@ -367,47 +394,44 @@ Scope {
                 anchors.top: parent.top
                 anchors.right: parent.right
                 anchors.rightMargin: Theme.screenMargin
-                implicitWidth: 456
-                padding: 18
+                implicitWidth: 380
+                padding: 16
+                color: "#f011111b"
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: Theme.paddingSmall
+                    spacing: 8
 
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 2
-
-                        Text {
-                            text: "Notifications"
-                            color: Theme.text
-                            font.family: Theme.bodyFontFamily
-                            font.pixelSize: Theme.fontSizeLarge
-                            font.bold: true
-                        }
-
-                        Text {
-                            text: root.doNotDisturb
-                                ? "Silenced, with policy exceptions"
-                                : server.trackedNotifications.values.length + " tracked"
-                            color: root.doNotDisturb ? Theme.warning : Theme.dimText
-                            font.family: Theme.bodyFontFamily
-                            font.pixelSize: Theme.fontSizeSmall
-                        }
+                    Text {
+                        text: "Notifications"
+                        color: Theme.text
+                        font.family: Theme.bodyFontFamily
+                        font.pixelSize: Theme.fontSizeLarge
+                        font.bold: true
                     }
 
+                    Text {
+                        Layout.alignment: Qt.AlignVCenter
+                        text: server.trackedNotifications.values.length + " recent"
+                        color: Theme.subtext1
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSmall
+                    }
+
+                    Item { Layout.fillWidth: true }
+
                     Ui.StPill {
-                        text: root.doNotDisturb ? "DND" : "Live"
-                        icon: root.doNotDisturb ? Theme.icon.notifications_off : Theme.icon.notifications
+                        text: "DND"
+                        icon: Theme.icon.dark_mode
+                        radius: Theme.radiusSmall - 1
                         active: root.doNotDisturb
-                        accentColor: Theme.warning
                         onClicked: root.doNotDisturb = !root.doNotDisturb
                     }
 
                     Ui.StButton {
-                        text: "Clear"
+                        text: "clear all"
+                        icon: Theme.icon.delete
                         danger: true
-                        subtle: true
                         visible: server.trackedNotifications.values.length > 0
                         onClicked: {
                             const notifs = server.trackedNotifications.values.slice()
@@ -420,44 +444,39 @@ Scope {
 
                 Ui.StSeparator {
                     Layout.fillWidth: true
-                    visible: server.trackedNotifications.values.length > 0
                 }
 
                 Rectangle {
-                    id: statusBanner
                     Layout.fillWidth: true
-                    implicitHeight: 34
+                    implicitHeight: 42
                     radius: Theme.radiusSmall
-                    color: Qt.rgba(statusAccent.r, statusAccent.g, statusAccent.b, 0.10)
+                    color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
                     border.width: Theme.borderWidth
-                    border.color: Qt.rgba(statusAccent.r, statusAccent.g, statusAccent.b, 0.26)
-
-                    readonly property color statusAccent: root.doNotDisturb ? Theme.warning : Theme.accent
+                    border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.38)
+                    visible: root.doNotDisturb
 
                     RowLayout {
                         anchors {
                             fill: parent
-                            leftMargin: 10
-                            rightMargin: 10
+                            leftMargin: 12
+                            rightMargin: 12
                         }
-                        spacing: 8
+                        spacing: 10
 
                         Text {
-                            text: root.doNotDisturb ? Theme.icon.notifications_off : Theme.icon.notifications
-                            color: statusBanner.statusAccent
+                            text: Theme.icon.dark_mode
+                            color: Theme.accent
                             font.family: Theme.iconFamily
                             font.variableAxes: ({ "wght": 500, "opsz": 20 })
-                            font.pixelSize: 13
+                            font.pixelSize: 17
                         }
 
                         Text {
                             Layout.fillWidth: true
-                            text: root.doNotDisturb
-                                ? "DND is active. Critical and policy-matched alerts can still surface."
-                                : "Popups are live. Recent alerts stay here until cleared."
+                            text: "notifications silenced — alerts are held quietly"
                             color: Theme.subtext1
                             font.family: Theme.bodyFontFamily
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.fontSizeMedium
                             elide: Text.ElideRight
                         }
                     }
@@ -465,66 +484,63 @@ Scope {
 
                 Flickable {
                     Layout.fillWidth: true
-                    implicitHeight: Math.min(historyLayout.implicitHeight, 560)
+                    implicitHeight: Math.min(historyLayout.implicitHeight, 360)
                     contentHeight: historyLayout.implicitHeight
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
+                    interactive: contentHeight > height
 
                     ColumnLayout {
                         id: historyLayout
                         width: parent.width
-                        spacing: 8
+                        spacing: 0
 
                         Repeater {
                             model: server.trackedNotifications
 
-                            NotificationToast {
+                            NotificationCard {
                                 required property var modelData
+                                required property int index
                                 notification: modelData
                                 inline: true
+                                divider: index < server.trackedNotifications.values.length - 1
+                                timeText: root.relativeTime(modelData.id)
                                 Layout.fillWidth: true
                                 onDismissed: root.removePopup(root.notificationId(notification))
                             }
                         }
 
-                        Rectangle {
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            implicitHeight: 130
-                            radius: Theme.radiusSmall
-                            color: Theme.panelBgSoft
-                            border.width: Theme.borderWidth
-                            border.color: Theme.panelBorder
+                            Layout.topMargin: 26
+                            Layout.bottomMargin: 26
+                            spacing: 8
                             visible: server.trackedNotifications.values.length === 0
 
-                            ColumnLayout {
-                                anchors.centerIn: parent
-                                spacing: 8
+                            Text {
+                                text: Theme.icon.notifications
+                                color: Theme.dimText
+                                font.family: Theme.iconFamily
+                                font.variableAxes: ({ "wght": 500, "opsz": 20 })
+                                font.pixelSize: Theme.fontSizeIconLarge
+                                Layout.alignment: Qt.AlignHCenter
+                            }
 
-                                Text {
-                                    text: Theme.icon.notifications
-                                    color: Theme.dimText
-                                    font.family: Theme.iconFamily
-                                    font.variableAxes: ({ "wght": 500, "opsz": 20 })
-                                    font.pixelSize: Theme.fontSizeIconLarge
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
+                            Text {
+                                text: "No notifications"
+                                color: Theme.text
+                                font.family: Theme.bodyFontFamily
+                                font.pixelSize: Theme.fontSizeTitle
+                                font.bold: true
+                                Layout.alignment: Qt.AlignHCenter
+                            }
 
-                                Text {
-                                    text: "No notifications"
-                                    color: Theme.text
-                                    font.family: Theme.bodyFontFamily
-                                    font.pixelSize: Theme.fontSizeTitle
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-
-                                Text {
-                                    text: root.doNotDisturb ? "DND is active" : "Incoming alerts will appear here"
-                                    color: Theme.dimText
-                                    font.family: Theme.bodyFontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
+                            Text {
+                                text: root.doNotDisturb ? "Do Not Disturb is active" : "Incoming alerts will appear here"
+                                color: Theme.dimText
+                                font.family: Theme.bodyFontFamily
+                                font.pixelSize: Theme.fontSizeSmall
+                                Layout.alignment: Qt.AlignHCenter
                             }
                         }
                     }

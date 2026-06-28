@@ -226,6 +226,8 @@ Singleton {
         lock: "\ue88d",
         check: "\ue5ca",
         close: "\ue14c",
+        dark_mode: "\ue51c",
+        delete: "\ue872",
         bluetooth_searching: "\ue1aa",
         sync: "\ue627",
         brightness_medium: "\ue1ae",

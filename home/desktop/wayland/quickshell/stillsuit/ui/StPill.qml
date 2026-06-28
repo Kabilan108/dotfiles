@@ -18,8 +18,8 @@ Rectangle {
     color: active ? Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.18)
         : mouse.containsMouse ? Theme.panelSurfaceHover
         : Theme.panelSurface
-    border.width: Theme.borderWidth
-    border.color: active ? accentColor : mouse.containsMouse ? Theme.panelBorderStrong : Theme.panelBorder
+    border.width: active ? 0 : Theme.borderWidth
+    border.color: mouse.containsMouse ? Theme.panelBorderStrong : Theme.panelBorder
 
     Behavior on color {
         ColorAnimation { duration: Theme.animationFast }

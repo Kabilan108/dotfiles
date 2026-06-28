@@ -9,29 +9,29 @@ Rectangle {
 
     required property var notification
     property bool inline: false
-    property bool compact: false
+    property bool divider: false
+    property string timeText: ""
     property color accentColor: isCritical ? Theme.urgent
-        : isLow ? Theme.mutedText
+        : isLow ? Theme.subtext1
         : Theme.accent
 
     signal dismissed()
 
     readonly property bool isCritical: notification.urgency === NotificationUrgency.Critical
     readonly property bool isLow: notification.urgency === NotificationUrgency.Low
-    readonly property bool singleLine: bodyText === ""
-    readonly property int iconSize: inline ? 32 : 42
-    readonly property int contentPad: inline ? 10 : 14
     readonly property var actionList: notification.actions || []
     readonly property int actionCount: actionList && actionList.length ? actionList.length : 0
     readonly property string appName: notification.appName || "notification"
     readonly property string bodyText: sanitizeBody(notification.body || "")
     readonly property string iconSource: {
-        if (notification.image) return notification.image
         const icon = notification.appIcon
-        if (!icon || icon === "") return ""
-        if (icon.startsWith("file://") || icon.startsWith("image://")) return icon
-        if (icon.startsWith("/")) return "file://" + icon
-        return Quickshell.iconPath(icon, true)
+        if (icon && icon !== "") {
+            if (icon.startsWith("file://") || icon.startsWith("image://")) return icon
+            if (icon.startsWith("/")) return "file://" + icon
+            return Quickshell.iconPath(icon, true)
+        }
+        if (notification.image) return notification.image
+        return ""
     }
 
     function sanitizeBody(raw) {
@@ -48,44 +48,47 @@ Rectangle {
         root.dismissed()
     }
 
-    implicitWidth: inline ? Theme.panelWidth - Theme.paddingMedium * 2 : 420
-    implicitHeight: cardContent.implicitHeight + contentPad * 2
+    implicitWidth: inline ? Theme.panelWidth - Theme.paddingLarge * 2 : 360
+    implicitHeight: layout.implicitHeight + 20
     radius: Theme.radiusSmall
-    color: inline ? Theme.panelBgSoft : Theme.panelBgStrong
-    border.width: Theme.borderWidth
-    border.color: isCritical ? Theme.urgent : mouse.containsMouse ? Theme.panelBorderStrong : Theme.panelBorder
+    color: root.inline
+        ? (hover.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+        : "#f011111b"
+    border.width: root.inline ? 0 : Theme.borderWidth
+    border.color: root.isCritical ? Theme.urgent : Theme.panelBorderStrong
     clip: true
 
     Behavior on color {
         ColorAnimation { duration: Theme.animationFast }
     }
 
+    Rectangle {
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        height: 1
+        color: Theme.panelBorder
+        visible: root.inline && root.divider
+    }
+
     RowLayout {
-        id: cardContent
+        id: layout
         anchors {
             left: parent.left
             right: parent.right
             top: parent.top
-            leftMargin: root.contentPad
-            rightMargin: root.contentPad
-            topMargin: root.contentPad
+            leftMargin: 8
+            rightMargin: 8
+            topMargin: 10
         }
-        spacing: inline ? 10 : 12
+        spacing: 11
 
-        Rectangle {
-            Layout.preferredWidth: root.iconSize
-            Layout.preferredHeight: root.iconSize
+        Item {
+            Layout.preferredWidth: 22
+            Layout.preferredHeight: 22
             Layout.alignment: Qt.AlignTop
-            radius: Theme.radiusSmall
-            color: Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.16)
-            border.width: Theme.borderWidth
-            border.color: Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.36)
-            clip: true
 
             Image {
                 id: appIcon
                 anchors.fill: parent
-                anchors.margins: 6
                 source: root.iconSource
                 sourceSize.width: width * Screen.devicePixelRatio
                 sourceSize.height: height * Screen.devicePixelRatio
@@ -101,70 +104,39 @@ Rectangle {
                 text: root.isCritical ? Theme.icon.warning : Theme.icon.notifications
                 color: root.accentColor
                 font.family: Theme.iconFamily
-                font.variableAxes: ({ "wght": 500, "opsz": 20 })
-                font.pixelSize: inline ? 14 : 19
+                font.variableAxes: ({ "FILL": 0, "wght": 500, "opsz": 20 })
+                font.pixelSize: 19
             }
         }
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: inline ? 4 : 6
+            spacing: 3
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: 6
 
                 Text {
                     Layout.fillWidth: true
                     text: root.appName
-                    color: Theme.dimText
-                    font.family: Theme.bodyFontFamily
-                    font.pixelSize: 10
-                    font.bold: true
+                    color: root.isCritical ? Theme.urgent : Theme.subtext1
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 11
+                    font.capitalization: Font.AllLowercase
                     elide: Text.ElideRight
                 }
 
-                Rectangle {
-                    visible: root.isCritical
-                    Layout.preferredWidth: criticalLabel.implicitWidth + 16
-                    Layout.preferredHeight: 22
-                    radius: Theme.radiusPill
-                    color: Qt.rgba(Theme.urgent.r, Theme.urgent.g, Theme.urgent.b, 0.16)
-                    border.width: Theme.borderWidth
-                    border.color: Theme.urgent
+                Text {
+                    text: root.timeText
+                    color: Theme.subtext1
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 10
+                    visible: root.timeText !== ""
+                    Layout.rightMargin: hover.containsMouse ? 16 : 0
 
-                    Text {
-                        id: criticalLabel
-                        anchors.centerIn: parent
-                        text: "critical"
-                        color: Theme.urgent
-                        font.family: Theme.bodyFontFamily
-                        font.pixelSize: 10
-                        font.bold: true
-                    }
-                }
-
-                Rectangle {
-                    Layout.preferredWidth: 24
-                    Layout.preferredHeight: 24
-                    radius: Theme.radiusSmall
-                    color: closeMouse.containsMouse ? Theme.panelSurfaceHover : "transparent"
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: Theme.icon.close
-                        color: closeMouse.containsMouse ? Theme.text : Theme.mutedText
-                        font.family: Theme.iconFamily
-                        font.variableAxes: ({ "wght": 500, "opsz": 20 })
-                        font.pixelSize: 12
-                    }
-
-                    MouseArea {
-                        id: closeMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.dismissNotification()
+                    Behavior on Layout.rightMargin {
+                        NumberAnimation { duration: Theme.animationFast }
                     }
                 }
             }
@@ -172,12 +144,12 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: notification.summary || "Notification"
-                color: Theme.text
+                color: Theme.subtext1
                 font.family: Theme.bodyFontFamily
-                font.pixelSize: inline ? Theme.fontSizeTitle : Theme.fontSizeLarge
+                font.pixelSize: 13
                 font.bold: true
                 wrapMode: Text.WordWrap
-                maximumLineCount: inline ? 1 : 2
+                maximumLineCount: 2
                 elide: Text.ElideRight
             }
 
@@ -186,17 +158,18 @@ Rectangle {
                 text: root.bodyText
                 color: Theme.subtext1
                 font.family: Theme.bodyFontFamily
-                font.pixelSize: Theme.fontSizeMedium
+                font.pixelSize: 12
                 textFormat: Text.StyledText
                 wrapMode: Text.WordWrap
-                maximumLineCount: inline ? 2 : 3
+                maximumLineCount: 3
                 elide: Text.ElideRight
                 visible: text !== ""
-                lineHeight: 1.08
+                lineHeight: 1.2
             }
 
             RowLayout {
                 Layout.fillWidth: true
+                Layout.topMargin: 4
                 spacing: 6
                 visible: root.actionCount > 0
 
@@ -214,8 +187,39 @@ Rectangle {
         }
     }
 
+    Rectangle {
+        anchors {
+            top: parent.top
+            right: parent.right
+            topMargin: 6
+            rightMargin: 5
+        }
+        width: 18
+        height: 18
+        radius: Theme.radiusSmall - 1
+        color: closeMouse.containsMouse ? Theme.panelSurfaceHover : "transparent"
+        visible: hover.containsMouse || closeMouse.containsMouse
+
+        Text {
+            anchors.centerIn: parent
+            text: Theme.icon.close
+            color: closeMouse.containsMouse ? Theme.text : Theme.dimText
+            font.family: Theme.iconFamily
+            font.variableAxes: ({ "wght": 500, "opsz": 20 })
+            font.pixelSize: 13
+        }
+
+        MouseArea {
+            id: closeMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.dismissNotification()
+        }
+    }
+
     MouseArea {
-        id: mouse
+        id: hover
         anchors.fill: parent
         hoverEnabled: true
         acceptedButtons: Qt.NoButton

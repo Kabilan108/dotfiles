@@ -19,12 +19,16 @@ Rectangle {
     implicitWidth: row.implicitWidth + horizontalPadding * 2
     implicitHeight: Math.max(28, row.implicitHeight + verticalPadding * 2)
     radius: Theme.radiusSmall
-    color: mouse.pressed ? Theme.panelSurfaceActive
+    color: root.danger
+        ? (mouse.pressed ? Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.28)
+            : mouse.containsMouse ? Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.18)
+            : "transparent")
+        : mouse.pressed ? Theme.panelSurfaceActive
         : mouse.containsMouse ? Theme.panelSurfaceHover
         : active ? Theme.panelSurfaceActive
         : subtle ? "transparent"
         : Theme.panelSurface
-    border.width: Theme.borderWidth
+    border.width: root.danger ? 0 : Theme.borderWidth
     border.color: active ? accentColor
         : mouse.containsMouse ? Theme.panelBorderStrong
         : subtle ? "transparent"
