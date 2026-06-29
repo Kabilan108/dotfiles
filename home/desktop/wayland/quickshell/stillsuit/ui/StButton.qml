@@ -10,14 +10,15 @@ Rectangle {
     property bool active: false
     property bool danger: false
     property bool subtle: false
-    property int horizontalPadding: 10
-    property int verticalPadding: 6
+    property bool compact: false
+    property int horizontalPadding: compact ? 9 : 10
+    property int verticalPadding: compact ? 3 : 6
     property color accentColor: danger ? Theme.urgent : Theme.accent
 
     signal clicked()
 
     implicitWidth: row.implicitWidth + horizontalPadding * 2
-    implicitHeight: Math.max(28, row.implicitHeight + verticalPadding * 2)
+    implicitHeight: Math.max(compact ? 22 : 28, row.implicitHeight + verticalPadding * 2)
     radius: Theme.radiusSmall
     color: root.danger
         ? (mouse.pressed ? Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.28)

@@ -510,38 +510,31 @@ Scope {
                             }
                         }
 
-                        ColumnLayout {
+                        RowLayout {
                             Layout.fillWidth: true
-                            Layout.topMargin: 26
-                            Layout.bottomMargin: 26
+                            Layout.topMargin: 16
+                            Layout.bottomMargin: 16
                             spacing: 8
                             visible: server.trackedNotifications.values.length === 0
 
+                            Item { Layout.fillWidth: true }
+
                             Text {
                                 text: Theme.icon.notifications
-                                color: Theme.dimText
+                                color: Theme.mutedText
                                 font.family: Theme.iconFamily
                                 font.variableAxes: ({ "wght": 500, "opsz": 20 })
-                                font.pixelSize: Theme.fontSizeIconLarge
-                                Layout.alignment: Qt.AlignHCenter
+                                font.pixelSize: 16
                             }
 
                             Text {
                                 text: "No notifications"
-                                color: Theme.text
+                                color: Theme.subtext1
                                 font.family: Theme.bodyFontFamily
-                                font.pixelSize: Theme.fontSizeTitle
-                                font.bold: true
-                                Layout.alignment: Qt.AlignHCenter
+                                font.pixelSize: Theme.fontSizeMedium
                             }
 
-                            Text {
-                                text: root.doNotDisturb ? "Do Not Disturb is active" : "Incoming alerts will appear here"
-                                color: Theme.dimText
-                                font.family: Theme.bodyFontFamily
-                                font.pixelSize: Theme.fontSizeSmall
-                                Layout.alignment: Qt.AlignHCenter
-                            }
+                            Item { Layout.fillWidth: true }
                         }
                     }
                 }

@@ -69,6 +69,13 @@ Rectangle {
         visible: root.inline && root.divider
     }
 
+    Rectangle {
+        anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+        width: 3
+        color: Theme.urgent
+        visible: root.inline && root.isCritical
+    }
+
     RowLayout {
         id: layout
         anchors {
@@ -180,6 +187,7 @@ Rectangle {
                         required property var modelData
                         text: modelData.text
                         subtle: false
+                        compact: true
                         onClicked: modelData.invoke()
                     }
                 }
