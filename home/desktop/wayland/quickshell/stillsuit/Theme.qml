@@ -40,6 +40,7 @@ Singleton {
             panelBg: "#d911111b",
             panelBgSoft: "#d911111b",
             panelBgStrong: "#eb11111b",
+            panelChrome: "#f011111b",
             panelBorder: "#1acdd6f4",
             panelBorderStrong: "#45475a",
             panelSurface: "#b8313244",
