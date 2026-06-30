@@ -6,5 +6,6 @@
     ../../hyprshot.nix
     ../../hyprpicker.nix
     ../../swaylock.nix
+    ../../mako.nix
   ];
 }
