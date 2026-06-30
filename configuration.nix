@@ -88,6 +88,7 @@
       };
       tailscale.enable = true;
       udisks2.enable = true;
+      upower.enable = true;
     };
 
     programs = {
@@ -148,6 +149,15 @@
     systemd.tmpfiles.rules = [
       "L+ /usr/bin/bwrap - - - - ${pkgs.bubblewrap}/bin/bwrap"
     ];
+
+    systemd.coredump.settings.Coredump = {
+      Storage = "external";
+      Compress = true;
+      ProcessSizeMax = "4G";
+      ExternalSizeMax = "2G";
+      MaxUse = "8G";
+      KeepFree = "8G";
+    };
 
     time.timeZone = "America/New_York";
     i18n.defaultLocale = "en_US.UTF-8";
