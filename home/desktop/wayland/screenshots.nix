@@ -9,7 +9,6 @@
     home.packages = [
       pkgs.coreutils
       pkgs.findutils
-      pkgs.libnotify
       pkgs.satty
       pkgs.wl-clipboard
     ];

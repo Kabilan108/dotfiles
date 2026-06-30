@@ -5,6 +5,7 @@
 # ///
 
 import json
+import os
 import subprocess
 import sys
 
@@ -15,6 +16,9 @@ def main() -> int:
         return 0
     title = f"Codex: {notification.get('last-assistant-message', 'Turn Complete!')}"
     message = " ".join(notification.get("input-messages", []))
+    env = os.environ.copy()
+    for name in ("LD_LIBRARY_PATH", "APPDIR", "APPIMAGE"):
+        env.pop(name, None)
     subprocess.check_output(
         [
             "notify-send",
@@ -24,7 +28,8 @@ def main() -> int:
             "codex",
             "-u",
             "normal",
-        ]
+        ],
+        env=env,
     )
     return 0
 

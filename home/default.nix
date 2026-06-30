@@ -9,6 +9,9 @@
 let
   homeDir = "/home/kabilan";
   systemName = pkgs.stdenv.hostPlatform.system;
+  notifySend = pkgs.writeShellScriptBin "notify-send" ''
+    exec env -u LD_LIBRARY_PATH -u APPDIR -u APPIMAGE ${lib.getExe pkgs.libnotify} "$@"
+  '';
 in
 {
   imports = [
@@ -321,7 +324,7 @@ in
     inputs.pagebin.packages.${systemName}.default
     kitty.kitten
     lazygit
-    libnotify
+    notifySend
     prek
     rclone
     ripgrep

@@ -8,6 +8,10 @@ CHECK_INTERVAL=60
 BATTERY_PATH="/sys/class/power_supply/BAT1"
 [ ! -d "$BATTERY_PATH" ] && BATTERY_PATH="/sys/class/power_supply/BAT0"
 
+send_notification() {
+  env -u LD_LIBRARY_PATH -u APPDIR -u APPIMAGE notify-send "$@"
+}
+
 while true; do
   if [ -d "$BATTERY_PATH" ]; then
     capacity=$(cat "$BATTERY_PATH/capacity")
@@ -15,13 +19,13 @@ while true; do
 
     if [ "$status" = "Charging" ]; then
       if [ "$capacity" -ge 95 ]; then
-        notify-send -a "battery" -u "normal" "Battery Charged" "${capacity}%"
+        send_notification -a "battery" -u "normal" "Battery Charged" "${capacity}%"
       fi
     else
       if [ "$capacity" -le "$THRESHOLD_CRITICAL" ]; then
-        notify-send -a "battery" -u "critical" "Battery Critically Low" "${capacity}% — plug in now"
+        send_notification -a "battery" -u "critical" "Battery Critically Low" "${capacity}% — plug in now"
       elif [ "$capacity" -le "$THRESHOLD_LOW" ]; then
-        notify-send -a "battery" -u "normal" "Low Battery" "${capacity}% remaining"
+        send_notification -a "battery" -u "normal" "Low Battery" "${capacity}% remaining"
       fi
     fi
   fi

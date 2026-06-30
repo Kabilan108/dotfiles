@@ -4,6 +4,10 @@ set -euo pipefail
 screenshot_dir="$HOME/media/screenshots"
 mkdir -p "$screenshot_dir"
 
+send_notification() {
+  env -u LD_LIBRARY_PATH -u APPDIR -u APPIMAGE notify-send "$@"
+}
+
 latest_screenshot() {
   find "$screenshot_dir" -maxdepth 1 -type f -name '*.png' -printf '%T@ %p\n' \
     | sort -nr \
@@ -42,7 +46,7 @@ annotate_file() {
 if [[ "${1:-}" == "latest" ]]; then
   latest="$(latest_screenshot)"
   if [[ -z "$latest" ]]; then
-    notify-send "Screenshot annotation" "No screenshots found in $screenshot_dir"
+    send_notification "Screenshot annotation" "No screenshots found in $screenshot_dir"
     exit 1
   fi
   annotate_file "$latest"
@@ -62,5 +66,5 @@ for _ in {1..600}; do
   sleep 0.1
 done
 
-notify-send "Screenshot annotation" "Timed out waiting for a new screenshot"
+send_notification "Screenshot annotation" "Timed out waiting for a new screenshot"
 exit 1
