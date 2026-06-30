@@ -122,6 +122,18 @@ Singleton {
         return group[key]
     }
 
+    function mix(a, b, t) {
+        const pa = String(a).replace("#", "")
+        const pb = String(b).replace("#", "")
+        const pad = n => Math.round(n).toString(16).padStart(2, "0")
+        const lerp = (i) => {
+            const x = parseInt(pa.substr(i, 2), 16)
+            const y = parseInt(pb.substr(i, 2), 16)
+            return pad(x + (y - x) * t)
+        }
+        return "#" + lerp(0) + lerp(2) + lerp(4)
+    }
+
     readonly property string crust:     value("palette", "crust", "#11111b")
     readonly property string mantle:    value("palette", "mantle", "#181825")
     readonly property string base_:     value("palette", "base", "#1e1e2e")
@@ -161,6 +173,15 @@ Singleton {
     readonly property string foreground:         value("semantic", "foreground", text)
     readonly property string dimText:            value("semantic", "dimText", subtext0)
     readonly property string mutedText:          value("semantic", "mutedText", overlay0)
+
+    // Canonical text-role ramp. Components should use ONLY these for text/icons,
+    // never palette-tint names (subtext1/overlay2/...), which collapse to identical
+    // values under stylix's base16 generation. textSecondary is synthesized by
+    // mixing base05→base04 so the ramp stays smooth even when base16 lacks a mid tint.
+    readonly property string textPrimary:   foreground
+    readonly property string textSecondary: mix(foreground, dimText, 0.40)
+    readonly property string textTertiary:  dimText
+    readonly property string textMuted:     mutedText
     readonly property string accent:             value("semantic", "accent", blue)
     readonly property string accent2:            value("semantic", "accent2", text)
     readonly property string bright:             value("semantic", "bright", yellow)
@@ -218,6 +239,19 @@ Singleton {
         battery_charging_full: "\ue1a3",
         battery_alert: "\ue19c",
         battery_unknown: "\ue1a6",
+        battery_android_0: "\uf30d",
+        battery_android_1: "\uf30c",
+        battery_android_2: "\uf30b",
+        battery_android_3: "\uf30a",
+        battery_android_4: "\uf309",
+        battery_android_5: "\uf308",
+        battery_android_6: "\uf307",
+        battery_android_full: "\uf304",
+        battery_android_alert: "\uf306",
+        battery_android_bolt: "\uf305",
+        battery_android_question: "\uf302",
+        battery_android_frame_full: "\uf24f",
+        electrical_services: "\uf102",
         screen_record: "\uf679",
         brightness_high: "\ue1ac",
         memory: "\ue322",

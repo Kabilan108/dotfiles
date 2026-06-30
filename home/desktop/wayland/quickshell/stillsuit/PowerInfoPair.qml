@@ -10,9 +10,9 @@ RowLayout {
 
     Text {
         text: parent.label
-        color: Theme.dimText
+        color: Theme.textTertiary
         font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSizeSmall
+        font.pixelSize: Theme.fontSizeMedium
     }
 
     Item {
@@ -21,8 +21,9 @@ RowLayout {
 
     Text {
         text: parent.value
-        color: Theme.text
+        color: Theme.textPrimary
         font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSizeSmall
+        font.pixelSize: Theme.fontSizeMedium
+        font.bold: true
     }
 }

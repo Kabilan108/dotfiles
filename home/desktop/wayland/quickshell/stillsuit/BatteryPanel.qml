@@ -28,6 +28,31 @@ Scope {
         if (onBattery) return "On battery"
         return "Plugged in"
     }
+    readonly property color batteryColor: batteryLow ? Theme.urgent
+        : batteryState === "charging" ? Theme.charge
+        : Theme.success
+    readonly property string batteryGlyph: {
+        if (!batteryPresent) return Theme.icon.battery_android_question
+        if (batteryState === "charging") return Theme.icon.electrical_services
+        const f = fraction
+        if (f >= 0.95) return Theme.icon.battery_android_full
+        if (f >= 0.80) return Theme.icon.battery_android_6
+        if (f >= 0.62) return Theme.icon.battery_android_5
+        if (f >= 0.45) return Theme.icon.battery_android_4
+        if (f >= 0.30) return Theme.icon.battery_android_3
+        if (f >= 0.18) return Theme.icon.battery_android_2
+        if (f >= 0.08) return Theme.icon.battery_android_1
+        return Theme.icon.battery_android_0
+    }
+    // When full/holding while plugged in, the charge rate approaches zero and the
+    // estimator reports an absurd time (e.g. 130h). Treat anything >= 24h as no estimate.
+    readonly property string timeDisplay: {
+        const raw = String(batteryInfo.time || "").trim()
+        if (raw === "") return "—"
+        const hours = parseInt(raw, 10)
+        if (!isNaN(hours) && hours >= 24) return "—"
+        return raw
+    }
 
     function toggle() {
         visible = !visible
@@ -162,39 +187,37 @@ Scope {
                 anchors.top: parent.top
                 anchors.right: parent.right
                 anchors.rightMargin: Theme.screenMargin
-                implicitWidth: 390
+                implicitWidth: 400
+                padding: 16
+                color: Theme.panelChrome
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 4
-
-                        Text {
-                            text: "Battery"
-                            color: Theme.text
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeTitle
-                            font.bold: true
-                        }
-
-                        Text {
-                            text: root.stateLabel.toUpperCase()
-                            color: Theme.dimText
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeSmall
-                            font.bold: true
-                            font.letterSpacing: 2
-                        }
-                    }
+                    spacing: 11
 
                     Text {
+                        Layout.alignment: Qt.AlignVCenter
+                        text: root.batteryGlyph
+                        color: root.batteryColor
+                        font.family: Theme.iconFamily
+                        font.variableAxes: ({ "FILL": 0, "wght": 500, "opsz": 20 })
+                        font.pixelSize: 24
+                    }
+
+                    SectionLabel {
+                        Layout.alignment: Qt.AlignVCenter
+                        text: root.stateLabel
+                        fontSize: 14
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    Text {
+                        Layout.alignment: Qt.AlignVCenter
                         text: root.batteryPresent ? Math.round(root.fraction * 100) + "%" : "--"
                         color: root.batteryLow ? Theme.urgent : Theme.text
                         font.family: Theme.fontFamily
-                        font.pixelSize: 40
+                        font.pixelSize: 38
                         font.bold: true
                     }
                 }
@@ -211,7 +234,7 @@ Scope {
                         width: Math.max(parent.height, parent.width * root.fraction)
                         height: parent.height
                         radius: parent.radius
-                        color: root.onBattery ? Theme.success : Theme.warning
+                        color: root.batteryColor
 
                         Behavior on width {
                             NumberAnimation { duration: Theme.animationMedium; easing.type: Easing.OutCubic }
@@ -221,29 +244,30 @@ Scope {
 
                 GridLayout {
                     Layout.fillWidth: true
+                    Layout.topMargin: 7
                     columns: 2
                     columnSpacing: 22
                     rowSpacing: 8
 
                     PowerInfoPair { label: "Battery size"; value: root.batteryInfo.size || "—" }
-                    PowerInfoPair { label: root.onBattery ? "Time left" : "Time to full"; value: root.batteryInfo.time || "—" }
+                    PowerInfoPair {
+                        label: root.onBattery ? "Time left" : "Time to full"
+                        value: root.timeDisplay
+                    }
                     PowerInfoPair { label: "Threshold"; value: root.batteryInfo.threshold || "—" }
                     PowerInfoPair { label: root.onBattery ? "Discharging" : "Charging"; value: root.batteryInfo.rate || "—" }
                 }
 
                 Rectangle {
                     Layout.fillWidth: true
+                    Layout.topMargin: 7
+                    Layout.bottomMargin: 7
                     implicitHeight: 1
                     color: Theme.panelBorder
                 }
 
-                Text {
-                    text: "POWER PROFILE"
-                    color: Theme.dimText
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSmall
-                    font.bold: true
-                    font.letterSpacing: 2
+                SectionLabel {
+                    text: "Power Profile"
                 }
 
                 RowLayout {

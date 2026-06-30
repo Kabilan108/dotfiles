@@ -89,29 +89,19 @@ Scope {
     }
 
     function batteryIcon() {
-        if (!root.powerPanel || !root.powerPanel.batteryPresent) return Theme.icon.battery_unknown
+        if (!root.powerPanel || !root.powerPanel.batteryPresent) return Theme.icon.battery_android_question
+
+        if (root.batteryCharging()) return Theme.icon.electrical_services
 
         const percent = root.powerPanel.percentageValue || 0
-
-        if (root.powerPanel.batteryLow) return Theme.icon.battery_alert
-
-        if (root.batteryCharging()) {
-            if (percent >= 90) return Theme.icon.battery_charging_90
-            if (percent >= 80) return Theme.icon.battery_charging_80
-            if (percent >= 60) return Theme.icon.battery_charging_60
-            if (percent >= 50) return Theme.icon.battery_charging_50
-            if (percent >= 30) return Theme.icon.battery_charging_30
-            return Theme.icon.battery_charging_20
-        }
-
-        if (percent >= 95) return Theme.icon.battery_full
-        if (percent >= 80) return Theme.icon.battery_6_bar
-        if (percent >= 65) return Theme.icon.battery_5_bar
-        if (percent >= 50) return Theme.icon.battery_4_bar
-        if (percent >= 35) return Theme.icon.battery_3_bar
-        if (percent >= 20) return Theme.icon.battery_2_bar
-        if (percent >= 10) return Theme.icon.battery_1_bar
-        return Theme.icon.battery_0_bar
+        if (percent >= 95) return Theme.icon.battery_android_full
+        if (percent >= 80) return Theme.icon.battery_android_6
+        if (percent >= 62) return Theme.icon.battery_android_5
+        if (percent >= 45) return Theme.icon.battery_android_4
+        if (percent >= 30) return Theme.icon.battery_android_3
+        if (percent >= 18) return Theme.icon.battery_android_2
+        if (percent >= 8) return Theme.icon.battery_android_1
+        return Theme.icon.battery_android_0
     }
 
     function parseSystemStats(raw) {
