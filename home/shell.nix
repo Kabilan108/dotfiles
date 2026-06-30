@@ -23,6 +23,7 @@ in
     "${homeDir}/.bun/bin"
     "${homeDir}/.local/bin"
     "${homeDir}/.local/share/pnpm/bin"
+    "${homeDir}/.opencode/bin"
     "${homeDir}/bin"
     "$GOPATH/bin"
   ];
@@ -38,10 +39,9 @@ in
     UV_LINK_MODE = "copy";
     UV_SYSTEM_PYTHON = "0";
 
-    PYREPL_PORT = "5678";
-    AGENT_BROWSER_EXECUTABLE_PATH = "${pkgs.google-chrome}/bin/google-chrome-stable";
-
     USER_DATA = "/vault/userdata";
+    PYREPL_PORT = "5678";
+
     FASTAI_HOME = "${USER_DATA}/fastai";
     GOPATH = "${USER_DATA}/go";
     HF_HOME = "${USER_DATA}/huggingface";
