@@ -298,6 +298,7 @@ in
     rsync
     sox
     unzip
+    upower
     yt-dlp
     zip
 
