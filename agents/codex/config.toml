@@ -63,12 +63,17 @@ NODE_REPL_NODE_MODULE_DIRS = ""
 NODE_REPL_NODE_PATH = "/home/kabilan/.local/opt/codex-desktop-linux/codex-app/resources/node-runtime/bin/node"
 NODE_REPL_TRUSTED_CODE_PATHS = "/home/kabilan/.codex"
 CODEX_HOME = "/home/kabilan/.codex"
-NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "5504c0782b5c86b7dd08314045b9843e973a230e1be8f7e2e0ba3716fc63c55e,6df2b64c3dfd9bcd2a594eaed0ad790988e286c40d249f99d68b5b38ac1044fd,f65d72c441f3c2ebc58ac05c53c2dd15f82bd35a1bbb94fa04b86504764761ee"
+NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "a05cdd282c2717f076e11bc0e94b7b20e1fc4759dbe28440bd1c734953606a56"
 BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
 NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunction with the Browser Plugin."
 NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
 BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
-BROWSER_USE_CODEX_APP_VERSION = "26.616.81150"
+BROWSER_USE_CODEX_APP_VERSION = "26.623.61825"
+
+[mcp_servers.node_repl.tools]
+
+[mcp_servers.node_repl.tools.js]
+approval_mode = "approve"
 
 [notice]
 hide_gpt5_1_migration_prompt = true
@@ -270,11 +275,14 @@ trust_level = "trusted"
 [projects."/vault/repos/browser-extensions"]
 trust_level = "trusted"
 
+[projects."/vault/experiments/2026-06-26-lakebed-demo-001/my-app"]
+trust_level = "trusted"
+
 [tui.model_availability_nux]
 "gpt-5.5" = 4
 
 [marketplaces.openai-bundled]
-last_updated = "2026-06-26T17:26:43Z"
+last_updated = "2026-06-30T15:40:08Z"
 source_type = "local"
 source = "/home/kabilan/dotfiles/agents/codex/.tmp/bundled-marketplaces/openai-bundled"
 
@@ -305,6 +313,9 @@ enabled = true
 enabled = true
 
 [plugins."template-creator@openai-primary-runtime"]
+enabled = true
+
+[plugins."browser@openai-bundled"]
 enabled = true
 
 [desktop]
