@@ -34,7 +34,7 @@ Rectangle {
 
         Text {
             text: root.icon
-            color: root.active ? root.accentColor : Theme.dimText
+            color: root.active ? root.accentColor : Theme.textTertiary
             font.family: Theme.iconFamily
             font.variableAxes: ({ "FILL": root.active ? 1 : 0, "wght": 500, "opsz": 20 })
             font.pixelSize: 15
@@ -47,7 +47,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: root.title
-                color: root.active ? Theme.text : Theme.dimText
+                color: root.active ? Theme.textPrimary : Theme.textSecondary
                 font.family: Theme.fontFamily
                 font.pixelSize: 12
                 elide: Text.ElideRight
@@ -56,7 +56,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: root.subtitle
-                color: Theme.mutedText
+                color: Theme.textTertiary
                 font.family: Theme.fontFamily
                 font.pixelSize: 10
                 elide: Text.ElideRight

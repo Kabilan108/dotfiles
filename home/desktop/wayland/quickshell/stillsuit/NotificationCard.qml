@@ -12,7 +12,7 @@ Rectangle {
     property bool divider: false
     property string timeText: ""
     property color accentColor: isCritical ? Theme.urgent
-        : isLow ? Theme.subtext1
+        : isLow ? Theme.textSecondary
         : Theme.accent
 
     signal dismissed()
@@ -127,7 +127,7 @@ Rectangle {
                 Text {
                     Layout.fillWidth: true
                     text: root.appName
-                    color: root.isCritical ? Theme.urgent : Theme.subtext1
+                    color: root.isCritical ? Theme.urgent : Theme.textTertiary
                     font.family: Theme.fontFamily
                     font.pixelSize: 11
                     font.capitalization: Font.AllLowercase
@@ -136,7 +136,7 @@ Rectangle {
 
                 Text {
                     text: root.timeText
-                    color: Theme.subtext1
+                    color: Theme.textMuted
                     font.family: Theme.fontFamily
                     font.pixelSize: 10
                     visible: root.timeText !== ""
@@ -151,7 +151,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: notification.summary || "Notification"
-                color: Theme.subtext1
+                color: Theme.textPrimary
                 font.family: Theme.bodyFontFamily
                 font.pixelSize: 13
                 font.bold: true
@@ -163,7 +163,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: root.bodyText
-                color: Theme.subtext1
+                color: Theme.textSecondary
                 font.family: Theme.bodyFontFamily
                 font.pixelSize: 12
                 textFormat: Text.StyledText
@@ -211,7 +211,7 @@ Rectangle {
         Text {
             anchors.centerIn: parent
             text: Theme.icon.close
-            color: closeMouse.containsMouse ? Theme.text : Theme.dimText
+            color: closeMouse.containsMouse ? Theme.textPrimary : Theme.textTertiary
             font.family: Theme.iconFamily
             font.variableAxes: ({ "wght": 500, "opsz": 20 })
             font.pixelSize: 13

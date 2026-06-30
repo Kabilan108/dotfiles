@@ -404,7 +404,7 @@ Scope {
 
                     Text {
                         text: "Notifications"
-                        color: Theme.text
+                        color: Theme.textPrimary
                         font.family: Theme.bodyFontFamily
                         font.pixelSize: Theme.fontSizeLarge
                         font.bold: true
@@ -413,7 +413,7 @@ Scope {
                     Text {
                         Layout.alignment: Qt.AlignVCenter
                         text: server.trackedNotifications.values.length + " recent"
-                        color: Theme.subtext1
+                        color: Theme.textSecondary
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeSmall
                     }
@@ -474,7 +474,7 @@ Scope {
                         Text {
                             Layout.fillWidth: true
                             text: "notifications silenced — alerts are held quietly"
-                            color: Theme.subtext1
+                            color: Theme.textSecondary
                             font.family: Theme.bodyFontFamily
                             font.pixelSize: Theme.fontSizeMedium
                             elide: Text.ElideRight
@@ -521,7 +521,7 @@ Scope {
 
                             Text {
                                 text: Theme.icon.notifications
-                                color: Theme.mutedText
+                                color: Theme.textMuted
                                 font.family: Theme.iconFamily
                                 font.variableAxes: ({ "wght": 500, "opsz": 20 })
                                 font.pixelSize: 16
@@ -529,7 +529,7 @@ Scope {
 
                             Text {
                                 text: "No notifications"
-                                color: Theme.subtext1
+                                color: Theme.textMuted
                                 font.family: Theme.bodyFontFamily
                                 font.pixelSize: Theme.fontSizeMedium
                             }

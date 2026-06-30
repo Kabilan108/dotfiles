@@ -216,7 +216,7 @@ Scope {
                     Text {
                         Layout.alignment: Qt.AlignVCenter
                         text: root.batteryPresent ? Math.round(root.fraction * 100) + "%" : "--"
-                        color: root.batteryLow ? Theme.urgent : Theme.text
+                        color: root.batteryLow ? Theme.urgent : Theme.textPrimary
                         font.family: Theme.fontFamily
                         font.pixelSize: 38
                         font.bold: true

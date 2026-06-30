@@ -125,7 +125,7 @@ Scope {
             Ui.StSignalBars {
                 Layout.alignment: Qt.AlignVCenter
                 level: root.signalLevel(rowRoot.network)
-                barColor: rowRoot.connected ? Theme.accent : Theme.subtext1
+                barColor: rowRoot.connected ? Theme.accent : Theme.textSecondary
             }
 
             ColumnLayout {
@@ -135,7 +135,7 @@ Scope {
                 Text {
                     Layout.fillWidth: true
                     text: rowRoot.network?.name || "hidden network"
-                    color: rowRoot.connected ? Theme.text : Theme.subtext1
+                    color: rowRoot.connected ? Theme.textPrimary : Theme.textSecondary
                     font.family: Theme.fontFamily
                     font.pixelSize: 12
                     elide: Text.ElideRight
@@ -144,7 +144,7 @@ Scope {
                 Text {
                     Layout.fillWidth: true
                     text: root.connectedSubtitle(rowRoot.network)
-                    color: Theme.subtext1
+                    color: Theme.textSecondary
                     font.family: Theme.fontFamily
                     font.pixelSize: 10
                     elide: Text.ElideRight
@@ -158,7 +158,7 @@ Scope {
 
                 Text {
                     text: Theme.icon.lock
-                    color: Theme.subtext1
+                    color: Theme.textTertiary
                     font.family: Theme.iconFamily
                     font.variableAxes: ({ "wght": 500, "opsz": 20 })
                     font.pixelSize: 12
@@ -170,7 +170,7 @@ Scope {
                         : rowRoot.connected ? "connected"
                         : rowRoot.mode === "saved" ? "saved" : "connect"
                     color: rowRoot.connected ? Theme.success
-                        : rowRoot.mode === "saved" && !rowRoot.connecting ? Theme.subtext1
+                        : rowRoot.mode === "saved" && !rowRoot.connecting ? Theme.textSecondary
                         : Theme.accent
                     font.family: Theme.fontFamily
                     font.pixelSize: 11
@@ -332,7 +332,7 @@ Scope {
                             width: parent.width
                             text: root.scanning ? "scanning for networks…"
                                 : root.wifiDevice ? "no networks found" : "wi-fi unavailable"
-                            color: Theme.subtext1
+                            color: Theme.textSecondary
                             font.family: Theme.fontFamily
                             font.pixelSize: 11
                             leftPadding: 8

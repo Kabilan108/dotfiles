@@ -95,7 +95,7 @@ Scope {
 
                         Text {
                             text: "Stillsuit Gallery"
-                            color: Theme.text
+                            color: Theme.textPrimary
                             font.family: Theme.bodyFontFamily
                             font.pixelSize: Theme.fontSizeLarge
                             font.bold: true
@@ -103,7 +103,7 @@ Scope {
 
                         Text {
                             text: "Live components for tuning the visual system"
-                            color: Theme.dimText
+                            color: Theme.textTertiary
                             font.family: Theme.bodyFontFamily
                             font.pixelSize: Theme.fontSizeSmall
                         }
@@ -214,7 +214,7 @@ Scope {
 
                                     Text {
                                         text: "Shared surface language"
-                                        color: Theme.text
+                                        color: Theme.textPrimary
                                         font.family: Theme.bodyFontFamily
                                         font.pixelSize: Theme.fontSizeTitle
                                         font.bold: true
@@ -222,7 +222,7 @@ Scope {
 
                                     Text {
                                         text: "This is intentionally more Omarchy-like than the old shell so it can be pared back visually."
-                                        color: Theme.dimText
+                                        color: Theme.textTertiary
                                         font.family: Theme.bodyFontFamily
                                         font.pixelSize: Theme.fontSizeSmall
                                         wrapMode: Text.WordWrap

@@ -33,7 +33,7 @@ Rectangle {
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: root.icon
-            color: root.on ? root.accentColor : Theme.dimText
+            color: root.on ? root.accentColor : Theme.textTertiary
             font.family: Theme.iconFamily
             font.variableAxes: ({ "FILL": root.on ? 1 : 0, "wght": 500, "opsz": 20 })
             font.pixelSize: 17
@@ -42,7 +42,7 @@ Rectangle {
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: root.label
-            color: root.on ? Theme.text : Theme.dimText
+            color: root.on ? Theme.textPrimary : Theme.textSecondary
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeMedium
             font.bold: true
@@ -54,7 +54,7 @@ Rectangle {
         anchors.rightMargin: 12
         anchors.verticalCenter: parent.verticalCenter
         text: root.on ? "On" : "Off"
-        color: root.on ? root.accentColor : Theme.mutedText
+        color: root.on ? root.accentColor : Theme.textMuted
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSizeSmall
         font.bold: true

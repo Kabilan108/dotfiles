@@ -23,7 +23,7 @@ Row {
             height: modelData
             y: root.height - modelData
             radius: 1
-            color: index < root.level ? root.barColor : Theme.mutedText
+            color: index < root.level ? root.barColor : Theme.textMuted
             opacity: index < root.level ? 1 : 0.38
         }
     }

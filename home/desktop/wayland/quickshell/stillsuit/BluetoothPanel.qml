@@ -119,7 +119,7 @@ Scope {
                         Text {
                             width: parent.width
                             text: "No paired devices"
-                            color: Theme.mutedText
+                            color: Theme.textMuted
                             font.family: Theme.fontFamily
                             font.pixelSize: 11
                             leftPadding: 8
@@ -176,7 +176,7 @@ Scope {
                         Text {
                             width: parent.width
                             text: root.scanning ? "searching…" : "press scan to discover devices"
-                            color: Theme.subtext1
+                            color: root.scanning ? Theme.textSecondary : Theme.textMuted
                             font.family: Theme.fontFamily
                             font.pixelSize: 11
                             leftPadding: 8

@@ -52,7 +52,7 @@ Column {
             Text {
                 anchors.centerIn: parent
                 text: Theme.icon.music_note
-                color: Theme.overlay0
+                color: Theme.textMuted
                 font.family: Theme.iconFamily
                 font.variableAxes: ({ "wght": 500, "opsz": 20 })
                 font.pixelSize: 26
@@ -67,7 +67,7 @@ Column {
 
             Text {
                 text: root.player?.trackTitle ?? ""
-                color: Theme.text
+                color: Theme.textPrimary
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeLarge
                 font.bold: true
@@ -77,7 +77,7 @@ Column {
 
             Text {
                 text: root.player?.trackArtist ?? ""
-                color: Theme.subtext1
+                color: Theme.textSecondary
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeMedium
                 elide: Text.ElideRight
@@ -87,7 +87,7 @@ Column {
 
             Text {
                 text: root.player?.trackAlbum ?? ""
-                color: Theme.subtext1
+                color: Theme.textSecondary
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeSmall
                 elide: Text.ElideRight
@@ -141,7 +141,7 @@ Column {
 
             Text {
                 text: formatTime(root.player?.position ?? 0)
-                color: Theme.mutedText
+                color: Theme.textMuted
                 font.family: Theme.fontFamily
                 font.pixelSize: 10
             }
@@ -150,7 +150,7 @@ Column {
 
             Text {
                 text: formatTime(root.player?.length ?? 0)
-                color: Theme.mutedText
+                color: Theme.textMuted
                 font.family: Theme.fontFamily
                 font.pixelSize: 10
             }
@@ -163,7 +163,7 @@ Column {
 
         Text {
             text: root.player?.shuffle ? Theme.icon.shuffle_on : Theme.icon.shuffle
-            color: root.player?.shuffle ? Theme.accent : Theme.text
+            color: root.player?.shuffle ? Theme.accent : Theme.textPrimary
             font.family: Theme.iconFamily
             font.variableAxes: ({ "wght": 500, "opsz": 20 })
             font.pixelSize: 18
@@ -180,7 +180,7 @@ Column {
 
         Text {
             text: Theme.icon.skip_previous
-            color: root.player?.canGoPrevious ? Theme.text : Theme.overlay0
+            color: root.player?.canGoPrevious ? Theme.textPrimary : Theme.textMuted
             font.family: Theme.iconFamily
             font.variableAxes: ({ "wght": 500, "opsz": 20 })
             font.pixelSize: 22
@@ -220,7 +220,7 @@ Column {
 
         Text {
             text: Theme.icon.skip_next
-            color: root.player?.canGoNext ? Theme.text : Theme.overlay0
+            color: root.player?.canGoNext ? Theme.textPrimary : Theme.textMuted
             font.family: Theme.iconFamily
             font.variableAxes: ({ "wght": 500, "opsz": 20 })
             font.pixelSize: 22
@@ -245,7 +245,7 @@ Column {
             color: {
                 const s = root.player?.loopState
                 return (s === MprisLoopState.Track || s === MprisLoopState.Playlist)
-                    ? Theme.accent : Theme.text
+                    ? Theme.accent : Theme.textPrimary
             }
             font.family: Theme.iconFamily
             font.variableAxes: ({ "wght": 500, "opsz": 20 })

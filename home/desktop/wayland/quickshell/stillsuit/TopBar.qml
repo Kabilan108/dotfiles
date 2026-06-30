@@ -359,7 +359,7 @@ Scope {
                 radius: height / 2
                 color: activeWorkspace ? Theme.accent
                     : urgentWorkspace ? Theme.urgent
-                    : Theme.mutedText
+                    : Theme.textMuted
                 opacity: activeWorkspace || urgentWorkspace ? 1 : 0.55
 
                 Behavior on width {
@@ -393,7 +393,7 @@ Scope {
                 width: focusedColumn ? 15 : 6
                 height: 10
                 radius: 2
-                color: focusedColumn ? Theme.accent : Theme.mutedText
+                color: focusedColumn ? Theme.accent : Theme.textMuted
                 opacity: focusedColumn ? 1 : 0.6
 
                 Behavior on width {

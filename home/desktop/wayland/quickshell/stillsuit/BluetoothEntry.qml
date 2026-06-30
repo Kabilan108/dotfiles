@@ -38,7 +38,7 @@ Rectangle {
                 if (root.busy) return Theme.icon.bluetooth_searching
                 return root.device.paired ? Theme.icon.bluetooth : Theme.icon.bluetooth_disabled
             }
-            color: root.busy ? Theme.warning : root.connected ? root.accentColor : Theme.subtext1
+            color: root.busy ? Theme.warning : root.connected ? root.accentColor : Theme.textSecondary
             font.family: Theme.iconFamily
             font.variableAxes: ({ "FILL": root.connected ? 1 : 0, "wght": 500, "opsz": 20 })
             font.pixelSize: 15
@@ -51,7 +51,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: root.device.name || root.device.address
-                color: root.connected ? Theme.text : Theme.subtext1
+                color: root.connected ? Theme.textPrimary : Theme.textSecondary
                 font.family: Theme.fontFamily
                 font.pixelSize: 12
                 elide: Text.ElideRight
@@ -60,7 +60,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: root.subtitle
-                color: Theme.subtext1
+                color: root.device.batteryAvailable ? Theme.textSecondary : Theme.textMuted
                 font.family: Theme.fontFamily
                 font.pixelSize: 10
                 elide: Text.ElideRight

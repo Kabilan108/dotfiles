@@ -83,7 +83,7 @@ ColumnLayout {
                             horizontalCenter: parent.horizontalCenter
                         }
                         text: root.iconText
-                        color: root.node.audio?.muted ? Theme.overlay0 : root.accentColor
+                        color: root.node.audio?.muted ? Theme.textMuted : root.accentColor
                         font.family: Theme.iconFamily
                         font.variableAxes: ({ "FILL": 0, "wght": 500, "opsz": 20 })
                         font.pixelSize: root.compact || !root.framed ? 20 : 19
@@ -105,7 +105,7 @@ ColumnLayout {
                             Text {
                                 Layout.fillWidth: true
                                 text: root.primaryText
-                                color: root.node.audio?.muted ? Theme.overlay0 : Theme.subtext1
+                                color: root.node.audio?.muted ? Theme.textMuted : Theme.textPrimary
                                 font.family: Theme.fontFamily
                                 font.pixelSize: root.compact || !root.framed ? 12 : Theme.fontSizeLarge
                                 font.bold: root.framed && !root.compact
@@ -115,7 +115,7 @@ ColumnLayout {
                             Text {
                                 Layout.fillWidth: true
                                 text: root.secondaryText
-                                color: root.node.audio?.muted ? Theme.overlay0 : Theme.dimText
+                                color: root.node.audio?.muted ? Theme.textMuted : Theme.textSecondary
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontSizeSmall
                                 elide: Text.ElideRight
@@ -126,7 +126,7 @@ ColumnLayout {
                         Text {
                             text: root.node.audio?.muted ? "Mute"
                                 : Math.round((root.node.audio?.volume ?? 0) * 100) + "%"
-                            color: root.node.audio?.muted ? Theme.overlay0 : Theme.text
+                            color: root.node.audio?.muted ? Theme.textMuted : Theme.textPrimary
                             font.family: Theme.fontFamily
                             font.pixelSize: root.compact || !root.framed ? Theme.fontSizeSmall : Theme.fontSizeMedium
                             font.bold: root.framed && !root.compact
@@ -150,7 +150,7 @@ ColumnLayout {
                             }
                             width: parent.width * Math.min(root.node.audio?.volume ?? 0, 1)
                             radius: parent.radius
-                            color: root.node.audio?.muted ? Theme.overlay0 : root.accentColor
+                            color: root.node.audio?.muted ? Theme.textMuted : root.accentColor
 
                             Behavior on width {
                                 enabled: root.ready

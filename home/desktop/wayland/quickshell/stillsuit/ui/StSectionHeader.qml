@@ -7,7 +7,7 @@ Text {
     property string label: ""
 
     text: label
-    color: Theme.mutedText
+    color: Theme.textTertiary
     font.family: Theme.bodyFontFamily
     font.pixelSize: 10
     font.bold: true

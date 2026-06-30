@@ -23,7 +23,7 @@ ColumnLayout {
 
         Text {
             text: bodyRoot.target.notification.appName || "Notification"
-            color: Theme.mutedText
+            color: Theme.textTertiary
             font.family: Theme.fontFamily
             font.pixelSize: 9
             Layout.fillWidth: true
@@ -32,7 +32,7 @@ ColumnLayout {
 
         Text {
             text: Theme.icon.close
-            color: closeMouse.containsMouse ? Theme.text : Theme.mutedText
+            color: closeMouse.containsMouse ? Theme.textPrimary : Theme.textTertiary
             font.family: Theme.iconFamily
             font.variableAxes: ({ "wght": 500, "opsz": 20 })
             font.pixelSize: 12
@@ -81,7 +81,7 @@ ColumnLayout {
             Text {
                 Layout.fillWidth: true
                 text: bodyRoot.target.notification.summary
-                color: Theme.text
+                color: Theme.textPrimary
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeTitle
                 font.bold: true
@@ -93,7 +93,7 @@ ColumnLayout {
             Text {
                 Layout.fillWidth: true
                 text: bodyRoot.target.notification.body
-                color: Theme.subtext0
+                color: Theme.textSecondary
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeSmall
                 textFormat: Text.StyledText

@@ -47,7 +47,7 @@ Rectangle {
 
         Text {
             text: root.label
-            color: root.busy ? Theme.accent : Theme.subtext1
+            color: root.busy ? Theme.accent : Theme.textSecondary
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeSmall
         }
