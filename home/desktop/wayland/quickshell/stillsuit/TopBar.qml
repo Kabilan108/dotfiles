@@ -84,6 +84,10 @@ Scope {
         return !!(root.powerPanel && root.powerPanel.batteryLow)
     }
 
+    function batteryPresent() {
+        return !!(root.powerPanel && root.powerPanel.batteryPresent)
+    }
+
     function batteryCharging() {
         return !!(root.powerPanel && root.powerPanel.batteryState === "charging")
     }
@@ -293,12 +297,14 @@ Scope {
                         }
 
                         Rectangle {
+                            visible: root.batteryPresent()
                             implicitWidth: 1
                             implicitHeight: 18
                             color: Theme.panelBorder
                         }
 
                         BarCluster {
+                            visible: root.batteryPresent()
                             icon: root.batteryIcon()
                             label: root.batteryPercent()
                             accentColor: root.batteryCharging() ? Theme.charge : Theme.accent

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.UPower
 import "ui" as Ui
 
 Scope {
@@ -9,14 +10,14 @@ Scope {
 
     property bool visible: false
     property var coordinator: null
-    property var batteryInfo: ({})
+    property var batteryDevice: UPower.displayDevice
     property var profiles: []
     property string activeProfile: ""
 
-    readonly property string percentageText: batteryInfo.percentage || ""
-    readonly property int percentageValue: parseInt(String(percentageText).replace("%", ""), 10) || 0
-    readonly property string batteryState: String(batteryInfo.state || "").toLowerCase()
-    readonly property bool batteryPresent: percentageText !== ""
+    readonly property bool batteryPresent: batteryDevice !== null && batteryDevice.isPresent && batteryDevice.percentage > 0
+    readonly property int percentageValue: batteryPresent ? Math.round(batteryDevice.percentage * 100) : 0
+    readonly property string percentageText: batteryPresent ? percentageValue + "%" : ""
+    readonly property string batteryState: stateName(batteryDevice ? batteryDevice.state : null)
     readonly property bool onBattery: batteryState === "discharging"
     readonly property bool batteryLow: batteryPresent && onBattery && percentageValue <= 20
     readonly property real fraction: batteryPresent ? Math.max(0, Math.min(1, percentageValue / 100)) : 0
@@ -47,11 +48,15 @@ Scope {
     // When full/holding while plugged in, the charge rate approaches zero and the
     // estimator reports an absurd time (e.g. 130h). Treat anything >= 24h as no estimate.
     readonly property string timeDisplay: {
-        const raw = String(batteryInfo.time || "").trim()
-        if (raw === "") return "—"
-        const hours = parseInt(raw, 10)
-        if (!isNaN(hours) && hours >= 24) return "—"
-        return raw
+        const seconds = batteryPresent ? (onBattery ? batteryDevice.timeToEmpty : batteryDevice.timeToFull) : 0
+        if (batteryPresent && isFinite(seconds) && seconds > 0 && seconds < 86400) return formatDuration(seconds)
+
+        return "—"
+    }
+    readonly property string rateText: {
+        if (!batteryPresent || !isFinite(batteryDevice.changeRate) || batteryDevice.changeRate <= 0) return "—"
+        const rounded = batteryDevice.changeRate.toFixed(1).replace(/\.0$/, "")
+        return rounded + "W"
     }
 
     function toggle() {
@@ -59,19 +64,24 @@ Scope {
     }
 
     function refresh() {
-        if (!batteryProc.running) batteryProc.running = true
         if (!profilesProc.running) profilesProc.running = true
     }
 
-    function parseKeyValue(raw) {
-        const next = ({})
-        const lines = String(raw || "").split("\n")
-        for (let i = 0; i < lines.length; i++) {
-            const idx = lines[i].indexOf("\t")
-            if (idx <= 0) continue
-            next[lines[i].substring(0, idx)] = lines[i].substring(idx + 1).trim()
-        }
-        if (Object.keys(next).length > 0) batteryInfo = next
+    function stateName(state) {
+        if (state === UPowerDeviceState.Charging) return "charging"
+        if (state === UPowerDeviceState.Discharging) return "discharging"
+        if (state === UPowerDeviceState.Empty) return "empty"
+        if (state === UPowerDeviceState.FullyCharged) return "fully-charged"
+        if (state === UPowerDeviceState.PendingCharge) return "pending-charge"
+        if (state === UPowerDeviceState.PendingDischarge) return "pending-discharge"
+        return "unknown"
+    }
+
+    function formatDuration(seconds) {
+        const totalMinutes = Math.round(seconds / 60)
+        const hours = Math.floor(totalMinutes / 60)
+        const minutes = totalMinutes % 60
+        return hours + "h " + String(minutes).padStart(2, "0") + "m"
     }
 
     function parseProfiles(raw) {
@@ -121,15 +131,6 @@ Scope {
         function close(): string {
             root.visible = false
             return "closed"
-        }
-    }
-
-    Process {
-        id: batteryProc
-        command: ["bash", "-lc", "stillctl-battery-status --shell 2>/dev/null || omarchy-battery-status --shell 2>/dev/null || true"]
-        stdout: StdioCollector {
-            waitForEnd: true
-            onStreamFinished: root.parseKeyValue(text)
         }
     }
 
@@ -187,8 +188,8 @@ Scope {
                 anchors.top: parent.top
                 anchors.right: parent.right
                 anchors.rightMargin: Theme.screenMargin
-                implicitWidth: 400
-                padding: 16
+                implicitWidth: 372
+                padding: 14
                 color: Theme.panelChrome
 
                 RowLayout {
@@ -242,20 +243,24 @@ Scope {
                     }
                 }
 
-                GridLayout {
+                RowLayout {
+                    id: statsRow
                     Layout.fillWidth: true
                     Layout.topMargin: 7
-                    columns: 2
-                    columnSpacing: 22
-                    rowSpacing: 8
+                    spacing: 18
 
-                    PowerInfoPair { label: "Battery size"; value: root.batteryInfo.size || "—" }
                     PowerInfoPair {
+                        Layout.fillWidth: false
+                        Layout.preferredWidth: (panel.implicitWidth - panel.padding * 2 - statsRow.spacing) / 2
                         label: root.onBattery ? "Time left" : "Time to full"
                         value: root.timeDisplay
                     }
-                    PowerInfoPair { label: "Threshold"; value: root.batteryInfo.threshold || "—" }
-                    PowerInfoPair { label: root.onBattery ? "Discharging" : "Charging"; value: root.batteryInfo.rate || "—" }
+                    PowerInfoPair {
+                        Layout.fillWidth: false
+                        Layout.preferredWidth: (panel.implicitWidth - panel.padding * 2 - statsRow.spacing) / 2
+                        label: root.onBattery ? "Discharging" : "Charging"
+                        value: root.rateText
+                    }
                 }
 
                 Rectangle {
@@ -280,6 +285,7 @@ Scope {
                         Ui.StButton {
                             required property string modelData
                             Layout.fillWidth: true
+                            horizontalPadding: 6
                             text: root.profileLabel(modelData)
                             active: root.activeProfile === modelData
                             onClicked: root.setProfile(modelData)
