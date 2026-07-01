@@ -53,10 +53,12 @@ Scope {
 
         return "—"
     }
-    readonly property string rateText: {
-        if (!batteryPresent || !isFinite(batteryDevice.changeRate) || batteryDevice.changeRate <= 0) return "—"
-        const rounded = batteryDevice.changeRate.toFixed(1).replace(/\.0$/, "")
-        return rounded + "W"
+    readonly property string timeCaption: {
+        if (!batteryPresent) return ""
+        if (batteryState === "fully-charged") return "Fully charged"
+        if (batteryState === "holding") return "Holding charge"
+        if (timeDisplay === "—") return ""
+        return onBattery ? timeDisplay + " left" : timeDisplay + " to full"
     }
 
     function toggle() {
@@ -81,6 +83,7 @@ Scope {
         const totalMinutes = Math.round(seconds / 60)
         const hours = Math.floor(totalMinutes / 60)
         const minutes = totalMinutes % 60
+        if (hours <= 0) return minutes + "m"
         return hours + "h " + String(minutes).padStart(2, "0") + "m"
     }
 
@@ -194,37 +197,81 @@ Scope {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 11
+                    spacing: 12
 
-                    Text {
+                    Rectangle {
                         Layout.alignment: Qt.AlignVCenter
-                        text: root.batteryGlyph
-                        color: root.batteryColor
-                        font.family: Theme.iconFamily
-                        font.variableAxes: ({ "FILL": 0, "wght": 500, "opsz": 20 })
-                        font.pixelSize: 24
+                        implicitWidth: 40
+                        implicitHeight: 40
+                        radius: Theme.radiusSmall
+                        color: Theme.panelSurface
+                        border.width: Theme.borderWidth
+                        border.color: Theme.panelBorder
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.batteryGlyph
+                            color: root.batteryColor
+                            font.family: Theme.iconFamily
+                            font.variableAxes: ({ "FILL": 0, "wght": 500, "opsz": 24 })
+                            font.pixelSize: 25
+                        }
                     }
 
-                    SectionLabel {
+                    RowLayout {
                         Layout.alignment: Qt.AlignVCenter
-                        text: root.stateLabel
-                        fontSize: 14
+                        spacing: 2
+
+                        Text {
+                            Layout.alignment: Qt.AlignBottom
+                            text: root.batteryPresent ? String(root.percentageValue) : "--"
+                            color: root.batteryLow ? Theme.urgent : Theme.textPrimary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 34
+                            font.bold: true
+                        }
+
+                        Text {
+                            Layout.alignment: Qt.AlignBottom
+                            Layout.bottomMargin: 5
+                            visible: root.batteryPresent
+                            text: "%"
+                            color: root.batteryLow ? Theme.urgent : Theme.textSecondary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 18
+                            font.bold: true
+                        }
                     }
 
                     Item { Layout.fillWidth: true }
 
-                    Text {
+                    ColumnLayout {
                         Layout.alignment: Qt.AlignVCenter
-                        text: root.batteryPresent ? Math.round(root.fraction * 100) + "%" : "--"
-                        color: root.batteryLow ? Theme.urgent : Theme.textPrimary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 38
-                        font.bold: true
+                        spacing: 2
+
+                        Text {
+                            Layout.alignment: Qt.AlignRight
+                            text: root.stateLabel
+                            color: root.batteryLow ? Theme.urgent : Theme.textPrimary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 14
+                            font.bold: true
+                        }
+
+                        Text {
+                            Layout.alignment: Qt.AlignRight
+                            visible: root.timeCaption !== ""
+                            text: root.timeCaption
+                            color: Theme.textTertiary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 12
+                        }
                     }
                 }
 
                 Rectangle {
                     Layout.fillWidth: true
+                    Layout.topMargin: 4
                     implicitHeight: 8
                     radius: height / 2
                     color: Theme.osdTrack
@@ -243,52 +290,33 @@ Scope {
                     }
                 }
 
-                RowLayout {
-                    id: statsRow
-                    Layout.fillWidth: true
-                    Layout.topMargin: 7
-                    spacing: 18
-
-                    PowerInfoPair {
-                        Layout.fillWidth: false
-                        Layout.preferredWidth: (panel.implicitWidth - panel.padding * 2 - statsRow.spacing) / 2
-                        label: root.onBattery ? "Time left" : "Time to full"
-                        value: root.timeDisplay
-                    }
-                    PowerInfoPair {
-                        Layout.fillWidth: false
-                        Layout.preferredWidth: (panel.implicitWidth - panel.padding * 2 - statsRow.spacing) / 2
-                        label: root.onBattery ? "Discharging" : "Charging"
-                        value: root.rateText
-                    }
-                }
-
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.topMargin: 7
-                    Layout.bottomMargin: 7
-                    implicitHeight: 1
-                    color: Theme.panelBorder
-                }
+                    Layout.topMargin: 4
+                    implicitHeight: profileRow.implicitHeight + 8
+                    radius: Theme.radiusSmall
+                    color: Theme.panelSurface
+                    border.width: Theme.borderWidth
+                    border.color: Theme.panelBorder
 
-                SectionLabel {
-                    text: "Power Profile"
-                }
+                    RowLayout {
+                        id: profileRow
+                        anchors.fill: parent
+                        anchors.margins: 4
+                        spacing: 4
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
+                        Repeater {
+                            model: root.profiles
 
-                    Repeater {
-                        model: root.profiles
-
-                        Ui.StButton {
-                            required property string modelData
-                            Layout.fillWidth: true
-                            horizontalPadding: 6
-                            text: root.profileLabel(modelData)
-                            active: root.activeProfile === modelData
-                            onClicked: root.setProfile(modelData)
+                            Ui.StButton {
+                                required property string modelData
+                                Layout.fillWidth: true
+                                subtle: true
+                                horizontalPadding: 6
+                                text: root.profileLabel(modelData)
+                                active: root.activeProfile === modelData
+                                onClicked: root.setProfile(modelData)
+                            }
                         }
                     }
                 }
