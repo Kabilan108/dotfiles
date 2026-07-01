@@ -12,19 +12,23 @@ Scope {
     property var outputs: []
     property var inputs: []
     readonly property string outputTitle: {
-        if (outputs.length > 0 && outputs[0].active) return outputs[0].title
+        const output = activeDevice(outputs)
+        if (output) return output.title
         return "Output"
     }
     readonly property string outputSubtitle: {
-        if (outputs.length > 0 && outputs[0].active) return outputs[0].subtitle
+        const output = activeDevice(outputs)
+        if (output) return output.subtitle
         return Pipewire.defaultAudioSink?.description ?? ""
     }
     readonly property string inputTitle: {
-        if (inputs.length > 0 && inputs[0].active) return inputs[0].title
+        const input = activeDevice(inputs)
+        if (input) return input.title
         return "Input"
     }
     readonly property string inputSubtitle: {
-        if (inputs.length > 0 && inputs[0].active) return inputs[0].subtitle
+        const input = activeDevice(inputs)
+        if (input) return input.subtitle
         return Pipewire.defaultAudioSource?.description ?? ""
     }
 
@@ -51,6 +55,13 @@ Scope {
         if (kind === "speakers") return 1
         if (kind === "display") return 2
         return 3
+    }
+
+    function activeDevice(devices) {
+        for (const device of devices) {
+            if (device.active) return device
+        }
+        return null
     }
 
     function iconFor(kind) {
@@ -123,9 +134,12 @@ Scope {
         }
 
         next.sort((a, b) => {
-            if (a.active !== b.active) return a.active ? -1 : 1
             if (a.priority !== b.priority) return a.priority - b.priority
-            return a.title.localeCompare(b.title)
+            const title = a.title.localeCompare(b.title)
+            if (title !== 0) return title
+            const subtitle = a.subtitle.localeCompare(b.subtitle)
+            if (subtitle !== 0) return subtitle
+            return a.name.localeCompare(b.name)
         })
         return next
     }
@@ -248,6 +262,7 @@ Scope {
                             spacing: 14
 
                             NowPlaying {
+                                id: nowPlaying
                                 width: parent.width
                             }
 
@@ -255,7 +270,7 @@ Scope {
                                 width: parent.width
                                 implicitHeight: 1
                                 color: Theme.panelBorder
-                                visible: Pipewire.defaultAudioSink !== null || Pipewire.defaultAudioSource !== null
+                                visible: nowPlaying.visible
                             }
 
                             Column {
