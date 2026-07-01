@@ -23,6 +23,7 @@ in
     ../modules/home/fonts.nix
     ../modules/home/ghostty.nix
     ../modules/home/gtk.nix
+    ../modules/home/helium.nix
     ../modules/home/pwas.nix
     ../modules/home/stylix.nix
     ../modules/home/wallpaper.nix
@@ -198,17 +199,6 @@ in
   programs.appimages = {
     enable = true;
     apps = {
-      helium = {
-        repo = "imputnet/helium-linux";
-        pattern = "helium-*.AppImage";
-        downloadPattern = "*x86_64.AppImage";
-        desktopName = "Helium";
-        comment = "Helium Code Editor";
-        categories = [
-          "Development"
-          "IDE"
-        ];
-      };
       t3code = {
         repo = "pingdotgg/t3code";
         pattern = "T3-Code-*.AppImage";

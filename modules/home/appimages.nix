@@ -15,14 +15,18 @@ let
       args = lib.escapeShellArgs app.args;
     in
     pkgs.writeShellScriptBin name ''
+      set -euo pipefail
+
       latest=$(find "${appDir}" -maxdepth 1 -name '${app.pattern}' -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n1 | cut -d' ' -f2-)
       if [ -z "$latest" ]; then
         ${lib.getExe pkgs.libnotify} -u critical "${app.desktopName}" "AppImage not found in ${appDir}"
         exit 1
       fi
+      ${app.preExec}
       chmod +x "$latest"
       exec "$latest" ${args} "$@"
     '';
+  wrappers = lib.mapAttrs mkWrapper cfg.apps;
 
   bootstrapper = pkgs.writeShellScript "bootstrap-appimages" ''
     set -euo pipefail
@@ -73,6 +77,26 @@ in
               default = [ ];
               description = "Default arguments to pass to the AppImage before caller-provided arguments";
             };
+            preExec = lib.mkOption {
+              type = lib.types.lines;
+              default = "";
+              description = "Shell code to run after resolving the AppImage and before executing it";
+            };
+            icon = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              description = "Icon name or path for the desktop entry";
+            };
+            startupWMClass = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              description = "StartupWMClass value for the desktop entry";
+            };
+            executableSessionVariable = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              description = "Session variable that should point to this app's generated wrapper executable";
+            };
             categories = lib.mkOption {
               type = lib.types.listOf lib.types.str;
               default = [ "Application" ];
@@ -85,16 +109,31 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = lib.mapAttrsToList mkWrapper cfg.apps;
+    home.packages = lib.attrValues wrappers;
 
-    xdg.desktopEntries = lib.mapAttrs (name: app: {
-      name = app.desktopName;
-      exec = "${name} %U";
-      terminal = false;
-      type = "Application";
-      comment = app.comment;
-      categories = app.categories;
-    }) cfg.apps;
+    home.sessionVariables = lib.mapAttrs' (
+      name: app: lib.nameValuePair app.executableSessionVariable "${wrappers.${name}}/bin/${name}"
+    ) (lib.filterAttrs (_: app: app.executableSessionVariable != null) cfg.apps);
+
+    xdg.desktopEntries = lib.mapAttrs (
+      name: app:
+      {
+        name = app.desktopName;
+        exec = "${name} %U";
+        terminal = false;
+        type = "Application";
+        comment = app.comment;
+        categories = app.categories;
+      }
+      // lib.optionalAttrs (app.icon != null) {
+        icon = app.icon;
+      }
+      // lib.optionalAttrs (app.startupWMClass != null) {
+        settings = {
+          StartupWMClass = app.startupWMClass;
+        };
+      }
+    ) cfg.apps;
 
     home.activation.bootstrapAppImages = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       ${bootstrapper}

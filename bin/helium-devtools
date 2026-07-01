@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-port="${HELIUM_DEVTOOLS_PORT:-9222}"
-profile="${HELIUM_DEVTOOLS_PROFILE:-/tmp/helium-devtools-profile}"
+port="${HELIUM_AGENTS_CDP_PORT:-9222}"
+profile="${HELIUM_AGENTS_PROFILE:-/vault/userdata/browser-profiles/helium/agents}"
 helium_args=()
 
 while [[ $# -gt 0 ]]; do
@@ -34,6 +34,17 @@ if [[ "${profile}" == */Default ]]; then
   printf 'helium-devtools: profile should be the user-data root, not the Default profile subdirectory.\n' >&2
   printf 'helium-devtools: using %s instead.\n' "${profile%/Default}" >&2
   profile="${profile%/Default}"
+fi
+
+mkdir -p "${profile}"
+
+if { [[ -e "${profile}/SingletonLock" ]] || [[ -S "${profile}/SingletonSocket" ]]; } \
+  && ! curl -fsS "http://127.0.0.1:${port}/json/version" >/dev/null 2>&1; then
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send -u critical "Helium Agents DevTools" "Close Helium Agents before launching the CDP-enabled instance."
+  fi
+  printf 'helium-devtools: close Helium Agents before launching the CDP-enabled instance.\n' >&2
+  exit 1
 fi
 
 exec helium \
