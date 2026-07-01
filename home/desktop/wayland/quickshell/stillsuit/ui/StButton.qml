@@ -11,6 +11,9 @@ Rectangle {
     property bool danger: false
     property bool subtle: false
     property bool compact: false
+    property int iconSize: 15
+    property int fontSize: Theme.fontSizeSmall
+    property bool activeBold: true
     property int horizontalPadding: compact ? 9 : 10
     property int verticalPadding: compact ? 3 : 6
     property color accentColor: danger ? Theme.urgent : Theme.accent
@@ -50,7 +53,7 @@ Rectangle {
             color: root.active || root.danger ? root.accentColor : Theme.textTertiary
             font.family: Theme.iconFamily
             font.variableAxes: ({ "FILL": root.active ? 1 : 0, "wght": 500, "opsz": 20 })
-            font.pixelSize: 15
+            font.pixelSize: root.iconSize
         }
 
         Text {
@@ -58,8 +61,8 @@ Rectangle {
             text: root.text
             color: root.active || root.danger ? root.accentColor : Theme.textSecondary
             font.family: Theme.bodyFontFamily
-            font.pixelSize: Theme.fontSizeSmall
-            font.bold: root.active
+            font.pixelSize: root.fontSize
+            font.bold: root.active && root.activeBold
         }
     }
 

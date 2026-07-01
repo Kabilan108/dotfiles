@@ -113,6 +113,13 @@ Scope {
         return text.charAt(0).toUpperCase() + text.slice(1)
     }
 
+    function profileIcon(profile) {
+        if (profile === "power-saver") return Theme.icon.eco
+        if (profile === "balanced") return Theme.icon.balance
+        if (profile === "performance") return Theme.icon.bolt
+        return Theme.icon.power_settings_new
+    }
+
     onVisibleChanged: if (visible) refresh()
     Component.onCompleted: refresh()
 
@@ -313,6 +320,10 @@ Scope {
                                 Layout.fillWidth: true
                                 subtle: true
                                 horizontalPadding: 6
+                                iconSize: 18
+                                fontSize: 13
+                                activeBold: false
+                                icon: root.profileIcon(modelData)
                                 text: root.profileLabel(modelData)
                                 active: root.activeProfile === modelData
                                 onClicked: root.setProfile(modelData)
