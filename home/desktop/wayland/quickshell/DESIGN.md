@@ -65,7 +65,7 @@ appear *only* where they encode that specific meaning — never decoratively.
 | Base size | **13 px**; never below 10px | |
 | Density unit | **4 px** | gaps are multiples of it (4/8/12) |
 | Shadow | `0 18px 50px -12px rgba(0,0,0,.62)` | one elevation only |
-| Motion | 120–160 ms, `cubic-bezier(.2,.7,.2,1)` | transform/opacity only; snappy |
+| Motion | 120 / 180 / 260 ms tiers, decelerate curve | transform/opacity only; snappy. Full contract in §7 |
 
 ---
 
@@ -89,8 +89,9 @@ no place in the real shell.)
   icon, no text.
 - **Notifications** — transient **toast** (top-right) and a **history panel**
   (header "N recent" + "clear all"). Borderless cards: a bare accent-coloured
-  glyph, app name, title, body, timestamp. Hovering a card reveals a close `×`
-  and shifts the timestamp left to make room (never overlap).
+  glyph, app name, title, body, timestamp. Toast close buttons appear on hover;
+  history rows always show close buttons. Double-clicking or swiping a card
+  dismisses it.
 - **Media panel** — art, title/artist, scrubber, transport (primary = filled
   accent circle), output/input level sliders, output-device picker.
 - **Quick settings** — Wi-Fi/Bluetooth/DND/Power-saver toggles, brightness &
@@ -149,8 +150,8 @@ dark `Rectangle` overlay — replicate the *darkening*, not only the alpha.
   state.
 - Icons: one thin-stroke line set (the prototype uses Lucide at stroke-width
   1.6). Pick a single QML icon source and keep stroke weight uniform.
-- Motion: 120–160ms ease on transform/opacity. Avoid long or bouncy
-  transitions.
+- Motion: transform/opacity only, decelerate easing, tiered durations. Avoid
+  long or bouncy transitions. Full contract in §7.
 - Respect the **44px minimum** hit target for anything clickable even though the
   visuals are dense.
 - Keep the Dune flavour *restrained*: it lives in naming and the wallpaper, not
@@ -159,7 +160,54 @@ dark `Rectangle` overlay — replicate the *darkening*, not only the alpha.
 
 ---
 
-## 7. What's intentionally NOT here
+## 7. Motion & interaction conventions
+
+Motion exists to explain *where things went*, never to decorate. Every animation
+is quick, decelerating, and driven from the Theme singleton so the whole shell
+moves with one rhythm.
+
+### Duration tiers (`Theme`)
+| Token | ms | Use |
+|---|---|---|
+| `animationFast` | **120** | hover / colour / opacity state, snap-back |
+| `animationMedium` | **180** | element enter & exit, swipe slide-away |
+| `animationSlow` | **260** | larger or rare transitions only |
+
+### Rules
+1. **Decelerate by default.** Use `Easing.OutCubic` (fast start, gentle settle)
+   for anything the user triggers. Never `InCubic`/accelerate on a release — a
+   slow start reads as lag. No overshoot/bounce in chrome.
+2. **Animate `transform` and `opacity` only.** Never animate layout-driving
+   properties (`Layout.preferredWidth/Height`, reflowing anchor margins) — they
+   thrash the layout engine and cause visible choppiness. If an element must
+   appear/disappear inside a layout, **reserve a fixed slot and cross-fade
+   opacity** rather than animating its size. (This is why the notification close
+   button keeps an 18px slot and only fades.)
+3. **Bind, don't tween, during a gesture.** While a finger/pointer is down,
+   assign the tracked value directly (e.g. `dragOffset = dx`) so it tracks 1:1.
+   Only animate on *release* (snap-back or fling-away).
+
+### Swipe-to-dismiss contract (`NotificationCard.qml`)
+The canonical dismissal gesture; reuse these values for any future swipeable card.
+| Parameter | Value | Why |
+|---|---|---|
+| Drag-start gate | `|dx| > 6px` **and** `|dx| > |dy|·1.2` | horizontal intent; lets vertical scroll pass through |
+| Dismiss distance | `min(width·0.25, 80px)` | short and deliberate, not a marathon drag |
+| Flick velocity | `≥ 420 px/s` in the drag direction | a fast flick dismisses regardless of distance |
+| Snap-back | `dragOffset → 0`, **120ms** OutCubic | quick, crisp return |
+| Slide-away | `dragOffset → ±(width+56)`, **180ms** OutCubic | responsive exit that fully clears the edge |
+| Fade | `opacity → ~0.52` as it travels | reinforces that it's leaving |
+| `preventStealing` | enabled **only** after horizontal intent | coexists with the history panel's `Flickable` |
+
+- **Dismiss on distance OR flick** — combine both, don't rely on distance alone.
+- Smooth velocity lightly (`v = 0.6·v + 0.4·instantaneous`) so a stray final
+  event can't misfire the flick.
+- Double-click also dismisses. Close buttons: hover-only on toasts, always
+  visible on history rows.
+
+---
+
+## 8. What's intentionally NOT here
 
 No system tray spillover, no calendar (removed by design), no decorative
 gradients, no per-surface accent colours, no emoji. Add new surfaces only by
