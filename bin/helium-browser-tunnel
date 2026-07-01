@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: helium-browser-tunnel [remote-host]
+
+Ensure a tmux-managed reverse SSH tunnel exists from the remote host back to
+the local Helium CDP endpoint.
+
+Environment:
+  HELIUM_AGENTS_CDP_PORT   Local Helium CDP port. Default: 9222
+  HELIUM_REMOTE_CDP_PORT   Remote forwarded CDP port. Default: 9223
+
+Example:
+  helium-browser-tunnel sietch
+USAGE
+}
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  usage
+  exit 0
+fi
+
+remote_host="${1:-sietch}"
+local_port="${HELIUM_AGENTS_CDP_PORT:-9222}"
+remote_port="${HELIUM_REMOTE_CDP_PORT:-9223}"
+session_name="helium-browser-use"
+window_name="${remote_host}"
+target="${session_name}:${window_name}"
+
+window_exists() {
+  tmux list-windows -t "${session_name}" -F '#{window_name}' 2>/dev/null | grep -Fxq "${window_name}"
+}
+
+curl -fsS "http://127.0.0.1:${local_port}/json/version" >/dev/null
+
+if window_exists; then
+  if ssh "${remote_host}" "curl -fsS http://127.0.0.1:${remote_port}/json/version >/dev/null" 2>/dev/null; then
+    printf 'Helium browser tunnel already healthy: %s 127.0.0.1:%s -> local 127.0.0.1:%s\n' "${remote_host}" "${remote_port}" "${local_port}"
+    exit 0
+  fi
+
+  tmux kill-window -t "${target}"
+fi
+
+run_tunnel='
+set -euo pipefail
+tmux select-pane -T "${HELIUM_REMOTE_HOST}" 2>/dev/null || true
+printf "Starting Helium CDP reverse tunnel: %s 127.0.0.1:%s -> local 127.0.0.1:%s\n" "${HELIUM_REMOTE_HOST}" "${HELIUM_REMOTE_CDP_PORT}" "${HELIUM_LOCAL_CDP_PORT}"
+exec ssh -N \
+  -o ExitOnForwardFailure=yes \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=3 \
+  -R "127.0.0.1:${HELIUM_REMOTE_CDP_PORT}:127.0.0.1:${HELIUM_LOCAL_CDP_PORT}" \
+  "${HELIUM_REMOTE_HOST}"
+'
+
+tmux_command=(
+  env
+  "HELIUM_REMOTE_HOST=${remote_host}"
+  "HELIUM_REMOTE_CDP_PORT=${remote_port}"
+  "HELIUM_LOCAL_CDP_PORT=${local_port}"
+  bash
+  -lc
+  "${run_tunnel}"
+)
+printf -v tmux_command_string '%q ' "${tmux_command[@]}"
+
+if tmux has-session -t "${session_name}" 2>/dev/null; then
+  tmux new-window -d -t "${session_name}" -n "${window_name}" "${tmux_command_string}"
+else
+  tmux new-session -d -s "${session_name}" -n "${window_name}" "${tmux_command_string}"
+fi
+
+sleep 1
+
+if ssh "${remote_host}" "curl -fsS http://127.0.0.1:${remote_port}/json/version >/dev/null"; then
+  printf 'Helium browser tunnel ready: %s 127.0.0.1:%s -> local 127.0.0.1:%s\n' "${remote_host}" "${remote_port}" "${local_port}"
+else
+  printf 'helium-browser-tunnel: tunnel started but remote CDP check failed. Inspect tmux target %s.\n' "${target}" >&2
+  exit 1
+fi

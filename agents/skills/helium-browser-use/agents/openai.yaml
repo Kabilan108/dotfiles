@@ -1,0 +1,4 @@
+interface:
+  display_name: "Helium Browser Use"
+  short_description: "Control Helium browser sessions over CDP"
+  default_prompt: "Use $helium-browser-use to control the dedicated Helium browser profile through agent-browser."
