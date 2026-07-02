@@ -10,6 +10,50 @@ Scope {
 
     property bool visible: false
 
+    readonly property int dictationBars: 23
+    property string dictationState: "recording"
+    property var dictationLevels: []
+    property real dictationElapsedMs: 0
+    property string dictationDuration: "0:00"
+
+    function seedDictationLevels() {
+        const next = []
+        for (let i = 0; i < dictationBars; i++) next.push(0)
+        dictationLevels = next
+    }
+
+    function formatDuration(ms) {
+        const totalSeconds = Math.floor(Math.max(ms, 0) / 1000)
+        return Math.floor(totalSeconds / 60) + ":" + (totalSeconds % 60 < 10 ? "0" : "") + (totalSeconds % 60)
+    }
+
+    Component.onCompleted: seedDictationLevels()
+
+    onDictationStateChanged: {
+        if (dictationState === "recording") dictationElapsedMs = 0
+        else if (dictationState === "error") dictationDuration = ""
+    }
+
+    Timer {
+        interval: 33
+        repeat: true
+        running: root.visible && root.dictationState === "recording"
+        property real t: 0
+        onTriggered: {
+            t += 0.033
+            root.dictationElapsedMs += 33
+            root.dictationDuration = root.formatDuration(root.dictationElapsedMs)
+            const phrase = Math.pow((Math.sin(t * 1.7) * 0.5) + 0.5, 1.7)
+            const syllable = Math.pow((Math.sin(t * 11) * 0.5) + 0.5, 2.2)
+            const consonant = Math.pow((Math.sin(t * 29) * 0.5) + 0.5, 8)
+            const sample = Math.min((phrase * 0.7) + (syllable * 0.28) + (consonant * 0.28), 0.92)
+            const next = root.dictationLevels.slice()
+            next.push(sample)
+            while (next.length > root.dictationBars) next.shift()
+            root.dictationLevels = next
+        }
+    }
+
     readonly property var normalNotification: ({
         appName: "stillsuit",
         appIcon: "",
@@ -181,6 +225,34 @@ Scope {
                             notification: root.criticalNotification
                             inline: true
                             Layout.fillWidth: true
+                        }
+
+                        Ui.StSectionHeader {
+                            label: "Dictation OSD"
+                            Layout.fillWidth: true
+                        }
+
+                        DictationPill {
+                            Layout.alignment: Qt.AlignHCenter
+                            mode: root.dictationState
+                            levels: root.dictationLevels
+                            durationText: root.dictationDuration
+                        }
+
+                        RowLayout {
+                            Layout.alignment: Qt.AlignHCenter
+                            spacing: 8
+
+                            Repeater {
+                                model: ["recording", "transcribing", "typing", "error"]
+
+                                Ui.StButton {
+                                    required property string modelData
+                                    text: modelData
+                                    active: root.dictationState === modelData
+                                    onClicked: root.dictationState = modelData
+                                }
+                            }
                         }
 
                         Ui.StSectionHeader {

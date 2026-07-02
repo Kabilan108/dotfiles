@@ -54,6 +54,14 @@ green, cyan, blue, magenta, brown).
 interactive and active state. Semantic colours (`bright`/`vol`/`mic`/`charge`)
 appear *only* where they encode that specific meaning — never decoratively.
 
+**Dictation vs `mic`:** the `mic` role (`base08` red) is for *microphone chrome*
+— the input-level meter, the muted-input glyph. The **dictation indicator** is a
+distinct surface (active voice→text transcription), not generic mic chrome, so
+it carries the primary `accent` (blue), consistent with every other active
+state. Its only semantic override is `urgent` (red) for the `error` state. This
+split is intentional and standardised: red = "this is your microphone", accent =
+"the shell is actively working with your voice".
+
 ### Locked constants
 | Token | Value | Notes |
 |---|---|---|
@@ -85,8 +93,12 @@ no place in the real shell.)
   glyph *inside* it.
 - **OSDs** — brightness / volume / mic. Fully-rounded pill: semantic-coloured
   icon (no halo, no box) + progress track. No numeric readout, no label.
-- **Dictation indicator** — fully-rounded pill, animated waveform only. No mic
-  icon, no text.
+- **Dictation indicator** — fully-rounded pill, audio-reactive waveform only; no
+  mic icon, no text. Driven live by Dictator's OSD meter socket as a scrolling
+  level-history — it **must** react to real audio, never loop a canned
+  animation. Waveform carries `accent` (see §2, "Dictation vs `mic`"). States:
+  `recording` (live scrolling waveform), `transcribing` (dimmed hold + a
+  sweeping accent scan), `typing` (dimmed hold), `error` (flat bars in `urgent`).
 - **Notifications** — transient **toast** (top-right) and a **history panel**
   (header "N recent" + "clear all"). Borderless cards: a bare accent-coloured
   glyph, app name, title, body, timestamp. Toast close buttons appear on hover;

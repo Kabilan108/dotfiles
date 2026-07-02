@@ -116,11 +116,16 @@ ShellRoot {
         panelCoordinator: shell
     }
 
+    DictationOsd {
+        id: dictationOsd
+    }
     VolumeOsd {
         id: volumeOsd
+        stackOffset: dictationOsd.shouldShow ? dictationOsd.pillHeight + Theme.panelGap : 0
     }
     BrightnessOsd {
-        stackOffset: volumeOsd.shouldShow ? 48 + Theme.panelGap : 0
+        stackOffset: (dictationOsd.shouldShow ? dictationOsd.pillHeight + Theme.panelGap : 0)
+                   + (volumeOsd.shouldShow ? 48 + Theme.panelGap : 0)
     }
     AudioMixer {
         id: audioMixer

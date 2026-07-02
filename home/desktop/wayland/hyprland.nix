@@ -173,7 +173,6 @@ in
         "float, class:^(Evince)$"
         "float, class:^(steam)$"
 
-        "float, class:^(com.dictator.overlay)$"
         "float, class:^(Emulator)$"
 
         "workspace 9 silent, class:^(spotify)$"

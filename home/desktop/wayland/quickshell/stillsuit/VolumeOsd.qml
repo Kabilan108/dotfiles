@@ -13,6 +13,7 @@ Scope {
     property bool muted: Pipewire.defaultAudioSink?.audio.muted ?? false
     property bool shouldShow: false
     property bool ready: false
+    property int stackOffset: 0
 
     Timer {
         interval: 500
@@ -47,7 +48,7 @@ Scope {
 
         PanelWindow {
             anchors.bottom: true
-            margins.bottom: screen.height * 0.02
+            margins.bottom: screen.height * 0.02 + root.stackOffset
             exclusiveZone: 0
             implicitWidth: 300
             implicitHeight: 48

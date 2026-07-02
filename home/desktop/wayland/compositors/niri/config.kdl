@@ -358,11 +358,6 @@ window-rule {
 }
 
 window-rule {
-    match app-id=r#"^com\.dictator\.overlay$"#
-    open-floating true
-}
-
-window-rule {
     match app-id=r#"^satty$"#
     open-floating true
     default-column-width { fixed 1400; }
