@@ -344,16 +344,17 @@ window-rule {
     block-out-from "screen-capture"
 }
 
-debug {
-    honor-xdg-activation-with-invalid-serial
-}
-
 // Float scratch ghostty windows launched with --title=floating-nvim.
 window-rule {
     match title="^floating-nvim$"
     open-floating true
     default-column-width { fixed 750; }
     default-window-height { fixed 1000; }
+}
+
+window-rule {
+    match app-id=r#"^HeliumAgentsDevTools$"#
+    open-focused false
 }
 
 window-rule {
