@@ -191,11 +191,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1780246950,
-        "narHash": "sha256-pCG5xeSW/H1WBTqmjRrE+Mmd480d0bOiKUa/vSUISiQ=",
+        "lastModified": 1783021357,
+        "narHash": "sha256-AAuXSoyYxa4iREvACFfRRzlBPjjxh/g0JY9E1Zxn6+Q=",
         "owner": "kabilan108",
         "repo": "dictator",
-        "rev": "9c2ede9fab20df1d6a6bf76ade8d46594d6a7b18",
+        "rev": "ad077dfdaf40a7b9969cc9e16c99c25e500c58b4",
         "type": "github"
       },
       "original": {
@@ -1196,11 +1196,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1782974587,
-        "narHash": "sha256-P0M6IqbY4c4Or3e/3aENcxjVDOLhWX3vAGQ5JIZUOL0=",
+        "lastModified": 1781825162,
+        "narHash": "sha256-q2vsWFqGel2cIOtaAZ/fhajmvweN+lWULkLLWYObabo=",
         "owner": "Kabilan108",
         "repo": "pagebin",
-        "rev": "06db6b28d4d9f92bd1b40da6f72fef4ef57d74ae",
+        "rev": "a8b2f1e845824c2949995affa04318aad54bc467",
         "type": "github"
       },
       "original": {

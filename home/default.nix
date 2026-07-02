@@ -126,10 +126,8 @@ in
     logLevel = "INFO";
     environmentFile = "/run/agenix/secrets/dictator-env";
     settings = {
-      enable_osd = true;
       api = {
         active_provider = "siren";
-        streaming = true;
         timeout = 60;
         providers = {
           siren = {
@@ -144,10 +142,9 @@ in
           };
         };
       };
-      audio = {
-        sample_rate = 48000;
-        max_duration_min = 20;
-      };
+      enable_osd = true;
+      notifications = "errors_only";
+      audio.max_duration_min = 30;
     };
   };
 
