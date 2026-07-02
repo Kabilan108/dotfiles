@@ -4,7 +4,9 @@ description: Review the current session and propose new skills that could be cre
 context: fork
 ---
 
-Review this session and identify patterns that would benefit from being codified as reusable skills.
+First verify that you can actually see the session's work history, not just this invocation. Use the visible conversation, compacted summary, handoff text, or transcript excerpts as evidence. If you cannot see the preceding work (e.g. a forked execution that didn't inherit the conversation), do not infer proposals from git status alone — say the skill lacks session context and ask for a summary or transcript excerpt.
+
+Then review the session and identify patterns that would benefit from being codified as reusable skills.
 
 Look for:
 
@@ -19,10 +21,10 @@ For each candidate skill, determine:
 1. **Name**: Hyphen-case identifier
 2. **Description**: What the skill would do and when it triggers (this becomes frontmatter)
 3. **What it would contain**: Instructions, scripts, references, or assets
-4. **Placement**: Project-level (`.claude/skills/`) or user-level (`~/.claude/skills/`)
-   - Project-level: Tied to this specific codebase, tech stack, or repo conventions
-   - User-level: Generally useful across projects
-   - If unclear, ask the user
+4. **Placement**: project-level or shared
+   - Project-level: tied to this specific codebase, tech stack, or repo conventions. Prefer an existing project skill root if present (`.claude/skills/` or `.codex/skills/`)
+   - Shared across projects and harnesses: `~/dotfiles/agents/skills/` (the shared source of truth on this machine)
+   - If the correct root is unclear, ask the user
 
 Skip patterns that:
 
@@ -38,10 +40,11 @@ Present each proposal in this format:
 
 **Description:** <frontmatter description — what it does and when to trigger>
 **Contains:** <brief list: instructions only, or scripts/references/assets needed>
-**Placement:** <user-level | project-level> — <one-line rationale>
+**Placement:** <shared | project-level> — <one-line rationale>
+**Evidence:** <specific session behavior, error, repeated workflow, or user correction that supports this>
 **Rationale:** <why this is worth a skill — what pain it prevents>
 ```
 
-After presenting proposals, ask the user which (if any) they want to create, then hand off to `/skill-creator` with the relevant context.
+After presenting proposals, ask the user which (if any) they want to create. For approved proposals, use the `skill-creator` skill if it's invocable in this harness; otherwise read `skill-creator/SKILL.md` and follow it in-process. Pass along the evidence: the session pattern, target placement, proposed trigger description, and any commands or gotchas the skill must preserve.
 
 $ARGUMENTS

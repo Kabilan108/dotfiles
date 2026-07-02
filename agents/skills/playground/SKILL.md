@@ -9,12 +9,12 @@ A playground is a self-contained HTML file with interactive controls on one side
 
 ## When to use this skill
 
-When the user asks for an interactive playground, explorer, or visual tool for a topic — especially when the input space is large, visual, or structural and hard to express as plain text.
+When the user asks for an interactive playground, explorer, or visual tool for a topic — especially when the input space is large, visual, or structural and hard to express as plain text. Also fits open-ended "show me what your dynamic UI capabilities can do" requests; there the prompt output can be an implementation brief rather than the main product, but it should still update live and stay copyable.
 
 ## How to use this skill
 
 1. **Identify the playground type** from the user's request
-2. **Load the matching template** from `templates/`:
+2. **Load the matching template before coding** — actually read it, don't build from SKILL.md alone — from `templates/`:
    - `templates/design-playground.md` — Visual design decisions (components, layouts, spacing, color, typography)
    - `templates/data-explorer.md` — Data and query building (SQL, APIs, pipelines, regex)
    - `templates/concept-map.md` — Learning and exploration (concept maps, knowledge gaps, scope mapping)
@@ -22,7 +22,16 @@ When the user asks for an interactive playground, explorer, or visual tool for a
    - `templates/diff-review.md` — Code review (git diffs, commits, PRs with line-by-line commenting)
    - `templates/code-map.md` — Codebase architecture (component relationships, data flow, layer diagrams)
 3. **Follow the template** to build the playground. If the topic doesn't fit any template cleanly, use the one closest and adapt.
-4. **Open in browser.** After writing the HTML file, run `open <filename>.html` to launch it in the user's default browser.
+4. **Open in browser.** After writing the HTML file, launch it: `xdg-open <filename>.html` on Linux, `open <filename>.html` on macOS. If the environment can't open a browser, say so and give the absolute file path.
+
+## Smoke test before delivery
+
+- Load the page (browser or agent-browser) and confirm it renders without a blank screen or console errors
+- Change one control and verify the preview and prompt update immediately
+- Apply one preset and verify it changes multiple controls coherently
+- Click the copy button and verify the "Copied!" feedback
+
+If browser verification isn't possible, state that limitation in the final response.
 
 ## Core requirements (every playground)
 
@@ -74,3 +83,4 @@ function updatePrompt() {
 - No defaults or presets → starts empty or broken on load
 - External dependencies → if CDN is down, playground is dead
 - Prompt lacks context → include enough that it's actionable without the playground
+- Embedding raw docs/diffs/code via `innerHTML` without escaping → store source content as data and render with `textContent`, or escape before highlighting

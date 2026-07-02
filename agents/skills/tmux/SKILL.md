@@ -37,7 +37,7 @@ send-to-pane -t "session-name:window-name.pane" /tmp/prompt.txt
 poll-agents -t "$pane"
 ```
 
-Before launching an interactive agent or other long-running CLI in a pane, check the installed CLI's `--help` output for the exact flags supported on that machine. Agent CLI flags change over time, and a rejected flag can leave the pane in a failed or idle state.
+Before launching an interactive agent or other long-running CLI in a pane, check the installed CLI's `--help` output in the environment where it will run — for Codex, check both `codex --help` and the specific subcommand (`codex exec --help`, `codex exec review --help`). Agent CLI flags change over time, and a rejected flag can leave the pane in a failed or idle state while the orchestrator keeps waiting.
 
 ## 2. Spawn a Background Process
 
@@ -86,18 +86,23 @@ send-to-pane -t "target" /tmp/msg.txt
 
 ## 4. Interacting with Other Agents
 
-When sending instructions to another Claude instance running in a tmux pane:
+When sending instructions to an existing interactive agent pane, inspect it first, send, then verify receipt:
 
 ```bash
+tmux capture-pane -p -S -80 -t %31
 cat > /tmp/instructions.txt << 'EOF'
 Fix the authentication bug in src/auth.ts:
 1. The token validation is missing null checks
 2. Add proper error handling for expired tokens
+When done, write findings to /tmp/review.md and say the review file is ready.
 EOF
 send-to-pane -t %31 /tmp/instructions.txt
+tmux capture-pane -p -S -80 -t %31
 ```
 
-Never use `send-keys` directly for prompts or instructions — the text will likely contain characters that trigger tmux modes.
+Never use `send-keys` directly for prompts or instructions — the text will likely contain characters that trigger tmux modes. Use `send-keys -l ... C-m` only for a single shell command you want the shell to execute.
+
+Ask peer agents to write results to a file rather than relying on reading their pane — scrollback is finite and long responses get truncated.
 
 ## 5. Helper Scripts
 
@@ -110,7 +115,12 @@ For orchestration workflows, prefer these scripts over raw tmux commands:
 | Launch agent pane | `launch-agent` | `pane=$(launch-agent -a codex -t atlas:review -d /path)` |
 | Monitor panes | `poll-agents` | `poll-agents -p -t %31 -t atlas:review.2` |
 
-These wrap the tmux boilerplate (temp files, load-buffer, paste-buffer) into single commands. Run any script with `--help` for full usage.
+These wrap the tmux boilerplate (temp files, load-buffer, paste-buffer) into single commands. Before relying on them in a new shell or remote host, preflight them — don't assume older flag shapes:
+
+```bash
+command -v send-to-pane launch-agent poll-agents
+send-to-pane --help
+```
 
 Prefer tmux-native targets (`%31`, `atlas:review`, `atlas:review.2`) over separate session/window flags. The raw tmux commands in the sections below remain useful for understanding what the scripts do and for ad-hoc operations.
 
@@ -132,7 +142,15 @@ tmux capture-pane -p -t "server-log"
 tmux capture-pane -p -S - -t "server-log"
 ```
 
-_Use this if the output might have scrolled off the screen._
+_Use this if the output might have scrolled off the screen. It's still limited by the pane's configured history — for long jobs, tee output to a log file and read that instead:_
+
+```bash
+tmux new-window -n "job" -d
+tmux send-keys -t "job" "long-command 2>&1 | tee /tmp/job.log" C-m
+tail -n 80 /tmp/job.log
+```
+
+_After launching a long job, verify it actually started (capture the pane or tail the log) before reporting it as running — a bad flag or existing-output error can kill it immediately._
 
 ## 7. Interact with the Process
 
@@ -150,7 +168,20 @@ tmux send-keys -t "server-log" C-c
 tmux kill-window -t "server-log"
 ```
 
-## 8. Advanced: Chaining Commands
+## 8. Remote tmux over SSH
+
+For jobs in a tmux session on another host, keep the target session/window, log path, and command explicit:
+
+```bash
+ssh sietch 'tmux has-session -t jobs'
+ssh sietch 'tmux new-window -d -t jobs -n batch-name "bash -lc '\''cd /repo && long-command 2>&1 | tee /tmp/batch-name.log'\''"'
+ssh sietch 'tmux capture-pane -p -S -80 -t jobs:batch-name'
+ssh sietch 'tail -n 80 /tmp/batch-name.log'
+```
+
+If the quoting becomes hard to read, write a script on the remote host and launch that from tmux instead.
+
+## 9. Advanced: Chaining Commands
 
 You can chain multiple tmux commands in a single invocation using `';'` (note the quotes to avoid interpretation by the shell). This is faster and cleaner than running multiple `tmux` commands.
 
