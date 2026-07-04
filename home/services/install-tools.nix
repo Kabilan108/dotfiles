@@ -18,7 +18,6 @@ let
     ${pkgs.pnpm}/bin/pnpm add -g -y \
       @steipete/summarize \
       ccusage \
-      kittylitter \
       agent-browser
   '';
 in
