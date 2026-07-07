@@ -1,6 +1,6 @@
 ---
 name: helium-browser-use
-description: Control a dedicated Helium browser profile through agent-browser and Chrome DevTools Protocol. Use when Codex needs to drive the user's Helium browser locally or through an SSH-forwarded CDP endpoint, inspect browser state, open pages in a visible browser, collaborate on local or remote dev-server debugging, take screenshots, read snapshots, manage tabs, or validate browser behavior in the Helium profile.
+description: Control a dedicated Helium browser profile through agent-browser and Chrome DevTools Protocol. Use when an agent needs to drive the user's Helium browser locally or through an SSH-forwarded CDP endpoint, inspect browser state, open pages in a visible browser, collaborate on local or remote dev-server debugging, take screenshots, read snapshots, manage tabs, or validate browser behavior in the Helium profile.
 ---
 
 # Helium Browser Use
