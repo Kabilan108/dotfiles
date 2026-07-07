@@ -44,17 +44,15 @@ acu shot --app pavucontrol             # verify the tab switched
 niri msg action close-window --id <id>; acu restore
 ```
 
-## 5. Decisions queued for you (nothing blocks on them)
+## 5. Decisions (resolved 2026-07-07)
 
-- **Agent workspace position**: the named "agent" workspace sits at idx 1 (top
-  of the workspace list). If you'd rather not hit it first when cycling up,
-  say so and it can be reordered/renamed.
-- **Hot corners are now off** (`gestures { hot-corners { off; } }`): synthetic
-  pointer sweeps through (0,0) kept popping the overview under agents. You
-  still have Mod+O. Revert the config block if you miss the corner.
-- **Electron CDP wrappers**: recipes.md #6 documents relaunching Discord/Slack
-  with `--remote-debugging-port` for full background control. Opt-in only —
-  say the word and `discord-agent`/`slack-agent` wrappers can be added to bin/.
-- **ydotoold service** (codex-desktop module) is no longer needed by this
-  skill (acu uses wlrctl/wtype/dotool, none need the daemon); Codex Desktop
-  may still use it, so it was left untouched.
+- **Agent workspace position**: pinned to the bottom of the workspace list
+  (`move-workspace-to-index 9 --reference agent`, applied live and at startup).
+- **Stillsuit indicator**: the agent workspace renders as a mauve dot/pill in
+  the TopBar workspace strip (`agentWorkspace` in TopBar.qml).
+- **Hot corners stay off**; overview remains on Mod+O.
+- **No Discord/Slack CDP wrappers**: their MCP servers are the better content
+  channel; acu ui/act + seat fallback covers UI-level needs. The relaunch
+  recipe (recipes.md #6) stays documented for one-off deep debugging.
+- **ydotoold service** (codex-desktop module) is not needed by this skill;
+  left untouched for Codex Desktop.

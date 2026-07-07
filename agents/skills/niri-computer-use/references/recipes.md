@@ -4,10 +4,11 @@ Each recipe follows the contract: route first, see→act→verify, restore at th
 
 ## 1. Background research window (browser, fully invisible)
 
-No desktop control needed at all — helium's CDP is always on:
+No desktop control needed at all — the helium agents instance exposes CDP on
+9222 whenever it is running (start it with `helium-agents-devtools` if not):
 
 ```bash
-agent-browser tabs                       # or: curl -s 127.0.0.1:9222/json
+curl -fsS 127.0.0.1:9222/json/version    # reachable? if not: helium-agents-devtools &
 agent-browser open https://docs.example.com --new-tab
 agent-browser snapshot                   # @refs for clicking/reading
 ```
@@ -25,9 +26,17 @@ acu shot --window <id> -o /tmp/discord.png   # works even on hidden workspaces
 
 No focus change, no flicker, clipboard preserved.
 
-## 3. Interact with a chat app (compose, click) — user away
+## 3. Interact with a chat app (compose, click)
 
-Seat input needs focus, so this takes over the desktop briefly; batch it:
+Prefer the semantic path — it needs no focus at all (recipe 9): `acu ui` to find
+the composer and buttons, `acu act --set-text` to draft, `acu act` to press.
+Requirement: the app must have been launched after the session's a11y flag
+(current long-running instances may have dormant trees until relaunched).
+Note: chat apps usually have MCP servers too — for Slack/Discord *content*
+work, an MCP integration beats computer use entirely; use acu when the task is
+about the app's UI itself.
+
+Seat-input fallback (takes over the desktop briefly; batch it):
 
 ```bash
 acu focus --app discord                # records previous focus
@@ -39,8 +48,8 @@ acu key Return                         # only if sending was requested
 acu restore                            # back to where the user was
 ```
 
-For unattended sending: stop after the draft shot and confirm with the user
-unless they explicitly authorized sending.
+Either path: for unattended sending, stop after the draft shot and confirm with
+the user unless they explicitly authorized sending.
 
 ## 4. Launch a GUI app for later, without stealing focus
 

@@ -301,6 +301,9 @@ spawn-at-startup "niriusd"
 // This is what lets agents read/act on their UI semantically (acu ui/act)
 // without CDP or focus stealing. Small per-app overhead; remove if felt.
 spawn-sh-at-startup "sleep 2 && busctl --user set-property org.a11y.Bus /org/a11y/bus org.a11y.Status ScreenReaderEnabled b true"
+// Keep the agent workspace at the bottom of the workspace list (named
+// workspaces otherwise sort first). 9 clamps to the last position.
+spawn-sh-at-startup "sleep 2 && niri msg action move-workspace-to-index 9 --reference agent"
 spawn-at-startup "swayidle" "-w"
 spawn-at-startup "nm-applet" "--indicator"
 spawn-at-startup "blueman-applet"

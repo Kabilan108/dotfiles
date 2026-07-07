@@ -46,7 +46,7 @@ Everything below was probed live on this machine; re-verify with `acu doctor` at
 
 ## App landscape
 
-- **helium** (Chromium): permanent CDP at 127.0.0.1:9222; `HeliumAgentsDevTools` profile/window exists for agent work (has its own no-focus window rule). Drive with `agent-browser`.
+- **helium** (Chromium): the agents instance (`HeliumAgentsDevTools` profile, own no-focus window rule) listens on CDP 127.0.0.1:9222 while running — usually up, but not guaranteed; start it with `helium-agents-devtools` if `/json/version` is unreachable. The user's main helium profile is NOT CDP-exposed. Drive with `agent-browser` (see the helium-browser-use skill).
 - **zen-beta** (Firefox): no CDP; GUI loop or keyboard-driven.
 - **Electron**: Discord, Slack, obsidian, t3code — CDP only if relaunched with `--remote-debugging-port=<port>`; that also exposes the app to any local process (loopback), so treat as opt-in.
 - **ghostty**: supports `--class=<app-id>` (marker app-ids for window rules) and `--title=...`; user works in tmux inside it — prefer tmux for terminal content.

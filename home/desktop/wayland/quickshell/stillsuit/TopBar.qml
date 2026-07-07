@@ -353,14 +353,16 @@ Scope {
                 required property var modelData
                 readonly property bool activeWorkspace: modelData && modelData.is_active
                 readonly property bool urgentWorkspace: modelData && modelData.is_urgent
+                readonly property bool agentWorkspace: modelData && modelData.name === "agent"
 
                 width: activeWorkspace ? 18 : 6
                 height: 6
                 radius: height / 2
-                color: activeWorkspace ? Theme.accent
-                    : urgentWorkspace ? Theme.urgent
+                color: urgentWorkspace ? Theme.urgent
+                    : agentWorkspace ? Theme.mauve
+                    : activeWorkspace ? Theme.accent
                     : Theme.textMuted
-                opacity: activeWorkspace || urgentWorkspace ? 1 : 0.55
+                opacity: activeWorkspace || urgentWorkspace ? 1 : agentWorkspace ? 0.8 : 0.55
 
                 Behavior on width {
                     NumberAnimation { duration: Theme.animationFast; easing.type: Easing.OutCubic }

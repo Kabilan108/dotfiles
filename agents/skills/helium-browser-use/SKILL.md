@@ -25,7 +25,7 @@ curl -fsS "http://127.0.0.1:${port}/json/version"
 agent-browser --cdp "$port" get cdp-url --json
 ```
 
-If CDP is not reachable, tell the user that the Helium CDP-enabled browser needs to be started. Do not launch an unrelated browser as a fallback.
+If CDP is not reachable, start the CDP-enabled agents instance yourself: run `helium-agents-devtools` in the background, then re-check `/json/version`. Do not launch an unrelated browser as a fallback.
 
 ## Tab Discipline
 

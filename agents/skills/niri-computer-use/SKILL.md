@@ -11,7 +11,7 @@ One tool: **`acu`** (on PATH; source lives in this skill's `scripts/`). Composit
 
 | Task | Channel (better than clicking) |
 |---|---|
-| Web page / web app | `agent-browser` against helium CDP (127.0.0.1:9222, always on) — works in background, zero focus impact |
+| Web page / web app | `agent-browser` against the helium agents instance (CDP 127.0.0.1:9222; usually running — if not, start it with `helium-agents-devtools`). See the `helium-browser-use` skill for tab discipline. Works in background, zero focus impact |
 | Terminal / dev work | `tmux send-keys` / `capture-pane` — user keeps one session per project (`tmux ls`); NEVER click/type at terminal pixels |
 | Media playback | `playerctl` (Spotify etc.) |
 | Quickshell panels (bar, mixer, notifs) | `qs ipc -c stillsuit call <target> <fn>` / `stillctl` |
