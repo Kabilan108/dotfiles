@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: sync-agent-skills
+
+Symlink child directories from shared and agent-specific skill roots into each
+agent config's skills directory.
+
+Sources:
+  agents/skills           -> claude, codex, opencode
+  agents/claude-skills    -> claude
+  agents/codex-skills     -> codex
+  agents/opencode-skills  -> opencode
+
+Targets:
+  agents/claude/skills
+  agents/codex/skills
+  agents/opencode/skills
+EOF
+}
+
+error() {
+  echo "error: $1" >&2
+  exit 1
+}
+
+if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+if [[ $# -gt 0 ]]; then
+  error "unexpected argument '$1'"
+fi
+
+repo_root="${DOTFILES_DIR:-$HOME/dotfiles}"
+agents_dir="$repo_root/agents"
+
+[[ -d "$agents_dir" ]] || error "agents directory does not exist: $agents_dir"
+
+declare -A target_dirs=(
+  [claude]="$agents_dir/claude/skills"
+  [codex]="$agents_dir/codex/skills"
+  [opencode]="$agents_dir/opencode/skills"
+)
+
+declare -A desired_sources=()
+declare -A desired_labels=()
+
+source_roots=(
+  "$agents_dir/skills"
+  "$agents_dir/claude-skills"
+  "$agents_dir/codex-skills"
+  "$agents_dir/opencode-skills"
+)
+
+resolve_path() {
+  local path="$1"
+  realpath -m "$path"
+}
+
+resolve_link() {
+  local link="$1"
+  local raw
+  raw=$(readlink "$link")
+
+  if [[ "$raw" = /* ]]; then
+    resolve_path "$raw"
+  else
+    resolve_path "$(dirname "$link")/$raw"
+  fi
+}
+
+is_managed_path() {
+  local path="$1"
+  local root
+
+  for root in "${source_roots[@]}"; do
+    root=$(resolve_path "$root")
+    if [[ "$path" == "$root" || "$path" == "$root"/* ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+prepare_target_dir() {
+  local target_dir="$1"
+  local link_target
+
+  if [[ -L "$target_dir" ]]; then
+    link_target=$(resolve_link "$target_dir")
+    if ! is_managed_path "$link_target"; then
+      error "target skills directory is a symlink outside managed skill roots: $target_dir -> $link_target"
+    fi
+
+    rm "$target_dir"
+  elif [[ -e "$target_dir" && ! -d "$target_dir" ]]; then
+    error "target skills path exists and is not a directory: $target_dir"
+  fi
+
+  mkdir -p "$target_dir"
+}
+
+add_skill_source() {
+  local source_dir="$1"
+  local target_dir="$2"
+  local label="$3"
+  local include_hidden="${4:-false}"
+  local skill
+  local skill_name
+  local source_path
+  local target_path
+
+  [[ -d "$source_dir" ]] || return 0
+
+  while IFS= read -r -d '' skill; do
+    skill_name=$(basename "$skill")
+    if [[ "$include_hidden" != true && "$skill_name" == .* ]]; then
+      continue
+    fi
+
+    source_path=$(resolve_path "$skill")
+    target_path="$target_dir/$skill_name"
+
+    if [[ -n "${desired_sources[$target_path]+set}" ]]; then
+      error "skill '$skill_name' for '$target_dir' is defined by both '${desired_labels[$target_path]}' and '$label'"
+    fi
+
+    desired_sources[$target_path]="$source_path"
+    desired_labels[$target_path]="$label"
+  done < <(find "$source_dir" -mindepth 1 -maxdepth 1 -type d -print0)
+}
+
+for target_dir in "${target_dirs[@]}"; do
+  prepare_target_dir "$target_dir"
+done
+
+for agent in "${!target_dirs[@]}"; do
+  add_skill_source "$agents_dir/skills" "${target_dirs[$agent]}" "agents/skills" false
+done
+
+add_skill_source "$agents_dir/claude-skills" "${target_dirs[claude]}" "agents/claude-skills" true
+add_skill_source "$agents_dir/codex-skills" "${target_dirs[codex]}" "agents/codex-skills" true
+add_skill_source "$agents_dir/opencode-skills" "${target_dirs[opencode]}" "agents/opencode-skills" true
+
+for target_dir in "${target_dirs[@]}"; do
+  [[ -d "$target_dir" ]] || continue
+
+  while IFS= read -r -d '' link; do
+    link_target=$(resolve_link "$link")
+    if [[ -z "${desired_sources[$link]+set}" ]] && is_managed_path "$link_target"; then
+      rm "$link"
+      echo "removed stale skill link: $link"
+    fi
+  done < <(find "$target_dir" -mindepth 1 -maxdepth 1 -type l -print0)
+done
+
+while IFS= read -r target_path; do
+  source_path="${desired_sources[$target_path]}"
+
+  if [[ -e "$target_path" || -L "$target_path" ]]; then
+    if [[ ! -L "$target_path" ]]; then
+      error "target exists and is not a symlink: $target_path"
+    fi
+
+    current_target=$(resolve_link "$target_path")
+    if [[ "$current_target" == "$source_path" ]]; then
+      continue
+    fi
+
+    ln -sfnT "$source_path" "$target_path"
+    echo "updated skill link: $target_path -> $source_path"
+    continue
+  fi
+
+  ln -sT "$source_path" "$target_path"
+  echo "created skill link: $target_path -> $source_path"
+done < <(printf '%s\n' "${!desired_sources[@]}" | sort)

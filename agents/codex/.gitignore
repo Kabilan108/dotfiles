@@ -2,7 +2,9 @@ log/
 policy/
 sessions/
 shell_snapshots/
-skills/
+skills/*
+!skills/
+!skills/.gitignore
 tmp/
 auth.json
 history.jsonl

@@ -1,6 +1,7 @@
 {
   inputs,
   config,
+  lib,
   pkgs,
   ...
 }:
@@ -80,6 +81,10 @@ in
   home.file.".sessionizer".text = ''
     #!/usr/bin/env bash
     tmux rename-window -t 0 driver 2>/dev/null
+  '';
+
+  home.activation.syncAgentSkills = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    $DRY_RUN_CMD ${homeDir}/dotfiles/bin/sync-agent-skills
   '';
 
   programs.bash = {
