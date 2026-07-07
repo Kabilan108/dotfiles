@@ -26,7 +26,13 @@ LAST_FOCUS_FILE = RUNTIME_DIR / "last-focus"
 TOOL_CACHE = Path.home() / ".cache" / "acu" / "tools.json"
 NIRI_SHOT_DIR = Path.home() / "media" / "screenshots"
 
-NIX_PACKAGES = {"wlrctl": "wlrctl", "wev": "wev", "grim": "grim", "magick": "imagemagick"}
+NIX_PACKAGES = {
+    "wlrctl": "wlrctl",
+    "wev": "wev",
+    "grim": "grim",
+    "magick": "imagemagick",
+    "dotool": "dotool",
+}
 
 CHORD_MODS = {
     "mod": "logo", "super": "logo", "meta": "logo", "win": "logo", "logo": "logo",
@@ -202,8 +208,25 @@ def parse_chord(chord: str) -> tuple[list[str], str]:
     return mods, key
 
 
-def send_key(chord: str) -> None:
+DOTOOL_KEYS = {
+    "Return": "enter", "Escape": "esc", "BackSpace": "backspace",
+    "Prior": "pageup", "Next": "pagedown", "space": "space",
+}
+
+
+def send_key(chord: str, *, desktop: bool | None = None) -> None:
+    """Send a chord. Desktop lane (uinput/dotool) reaches niri compositor
+    binds, which ignore virtual-keyboard events; app lane (wtype) reaches
+    the focused window. Chords with the logo/Mod modifier default to the
+    desktop lane."""
     mods, key = parse_chord(chord)
+    if desktop is None:
+        desktop = "logo" in mods
+    if desktop:
+        dmods = ["super" if m == "logo" else m for m in mods]
+        dkey = DOTOOL_KEYS.get(key, key.lower() if len(key) > 1 else key)
+        run([resolve_tool("dotool")], input_text=f"key {'+'.join([*dmods, dkey])}\n")
+        return
     args = [resolve_tool("wtype")]
     for m in mods:
         args += ["-M", m]
@@ -619,10 +642,12 @@ def cmd_type(args: argparse.Namespace) -> None:
 
 
 def cmd_key(args: argparse.Namespace) -> None:
+    desktop = True if args.desktop else (False if args.app_lane else None)
     for chord in args.chords:
-        send_key(chord)
+        send_key(chord, desktop=desktop)
         time.sleep(0.05)
-    print(f"sent {' '.join(args.chords)} to focused window {focused_window_id()}")
+    lane = "desktop (niri binds)" if desktop or (desktop is None and any("mod" in c or "super" in c for c in args.chords)) else f"focused window {focused_window_id()}"
+    print(f"sent {' '.join(args.chords)} -> {lane}")
 
 
 def cmd_scroll(args: argparse.Namespace) -> None:
@@ -742,6 +767,10 @@ def main() -> None:
 
     p = sub.add_parser("key", help="send key chord(s), e.g. ctrl+l mod+Return")
     p.add_argument("chords", nargs="+")
+    p.add_argument("--desktop", action="store_true",
+                   help="force uinput lane (niri compositor binds); default for mod+ chords")
+    p.add_argument("--app-lane", action="store_true",
+                   help="force virtual-keyboard lane even for mod+ chords")
     p.set_defaults(func=cmd_key)
 
     p = sub.add_parser("scroll", help="scroll at pointer (positive dy = down)")

@@ -11,6 +11,13 @@ in
     swayidle
     swaybg
     xwayland-satellite
+
+    # agent computer use (agents/skills/niri-computer-use, `acu` CLI):
+    # wlrctl = virtual pointer, wev = input-event oracle,
+    # dotool = uinput keys for niri compositor binds
+    wlrctl
+    wev
+    dotool
   ];
 
   xdg.configFile."niri/config.kdl".source =
