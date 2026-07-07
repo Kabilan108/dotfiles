@@ -62,10 +62,13 @@ Everything below was probed live on this machine; re-verify with `acu doctor` at
 - The a11y bus runs; niri registers org.freedesktop.a11y.Manager. Slack, Discord,
   helium, Chromium, Zen, t3code all REGISTER on the bus, but Chromium/Electron
   trees stay dormant (3 nodes) unless accessibility was enabled at launch.
-- Enabler (now in niri config spawn-at-startup): set the session screen-reader flag
-  `busctl --user set-property org.a11y.Bus /org/a11y/bus org.a11y.Status ScreenReaderEnabled b true`
-  — apps launched AFTER it build full trees. Per-app alternative: `--force-renderer-accessibility`.
-  Verified: fresh helium instance exposed 178 named nodes (buttons, address bar, web content).
+- Enabler for Chromium/Electron: the PER-LAUNCH flag `--force-renderer-accessibility`.
+  Verified positive: fresh helium instance -> 178 named nodes; Slack relaunched with the
+  flag -> 1330 nodes (tree items even carry unread/draft state). Verified negative: the
+  session-wide bus flag (ScreenReaderEnabled=true) alone did NOT wake a fresh Slack
+  (stayed at 3 dormant nodes) - it is set at niri startup as belt-and-braces, not relied on.
+  Slack and Discord are wrapped with the flag declaratively (home/default.nix
+  withElectronA11y, takes effect at the next rebuild).
 - `acu ui` extents use AT-SPI WINDOW_COORDS — same space as `acu shot --window` pixels.
 - `acu act <id>` invokes Action.doAction in-process: verified button press with zero
   focus/pointer involvement, window on a hidden workspace. `--set-text` works via

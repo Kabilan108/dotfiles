@@ -17,10 +17,10 @@ One tool: **`acu`** (on PATH; source lives in this skill's `scripts/`). Composit
 | Quickshell panels (bar, mixer, notifs) | `qs ipc -c stillsuit call <target> <fn>` / `stillctl` |
 | Clipboard | `wl-copy` / `wl-paste` (history in walker) |
 | Window/workspace management | `acu state`, `acu focus`, `acu spawn`, raw `niri msg action ...` |
-| GUI apps with AT-SPI trees (GTK/Qt; Chromium/Electron launched after the a11y flag) | `acu ui` (semantic element list) + `acu act` (in-process press/set-text) — **no focus, works on hidden workspaces** |
+| GUI apps with AT-SPI trees (GTK/Qt; Chromium/Electron launched with the a11y flag) | `acu ui` (semantic element list) + `acu act` (in-process press/set-text) — **no focus, works on hidden workspaces** |
 | Everything else | the `acu` pixel loop below (focus required for input) |
 
-Electron apps (Discord, Slack, obsidian, t3code) expose AT-SPI trees only when accessibility was on at launch (the niri session now sets the screen-reader flag at startup; instances started before it need a relaunch, or `--force-renderer-accessibility`). Reading them needs nothing: `acu shot --window` sees every window, hidden or not. CDP via `--remote-debugging-port` remains the deepest channel (ask before relaunching the user's app).
+Electron apps expose AT-SPI trees only when launched with `--force-renderer-accessibility` (Slack and Discord have it baked into their nix wrappers; obsidian/t3code need a relaunch with the flag — the session bus flag alone is not enough). Reading them needs nothing: `acu shot --window` sees every window, hidden or not. CDP via `--remote-debugging-port` remains the deepest channel (ask before relaunching the user's app).
 
 ## Session start
 

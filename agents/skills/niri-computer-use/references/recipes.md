@@ -30,8 +30,9 @@ No focus change, no flicker, clipboard preserved.
 
 Prefer the semantic path — it needs no focus at all (recipe 9): `acu ui` to find
 the composer and buttons, `acu act --set-text` to draft, `acu act` to press.
-Requirement: the app must have been launched after the session's a11y flag
-(current long-running instances may have dormant trees until relaunched).
+Requirement: the app must run with `--force-renderer-accessibility` (Slack and
+Discord get it from their nix wrappers; for others, relaunch with the flag —
+the session bus flag alone is not enough for Chromium/Electron).
 Note: chat apps usually have MCP servers too — for Slack/Discord *content*
 work, an MCP integration beats computer use entirely; use acu when the task is
 about the app's UI itself.
@@ -108,8 +109,8 @@ acu restore
 
 ## 9. Semantic (no-focus) interaction with an a11y-enabled app
 
-Works for GTK/Qt apps and any Chromium/Electron app launched after the session's
-screen-reader flag (or with --force-renderer-accessibility):
+Works for GTK/Qt apps and any Chromium/Electron app launched with
+`--force-renderer-accessibility` (baked into the Slack/Discord wrappers):
 
 ```bash
 acu ui --app discord --find "message"        # elements: id, role, name, extents, actions
@@ -119,5 +120,6 @@ acu shot --app discord                       # verify pixels
 ```
 
 Element ids are index paths valid only for the current UI state — re-run `acu ui`
-after anything changes. If `acu ui` reports a dormant tree, the app predates the
-flag: relaunch it (ask the user for their daily-driver apps).
+after anything changes. If `acu ui` reports a dormant tree (1-3 nodes), the app
+was launched without the flag: relaunch it with `--force-renderer-accessibility`
+(ask first for the user's daily-driver apps).

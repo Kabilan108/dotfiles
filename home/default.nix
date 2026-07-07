@@ -12,6 +12,31 @@ let
   notifySend = pkgs.writeShellScriptBin "notify-send" ''
     exec env -u LD_LIBRARY_PATH -u APPDIR -u APPIMAGE ${lib.getExe pkgs.libnotify} "$@"
   '';
+  # Electron apps only build AT-SPI accessibility trees (agent computer use:
+  # `acu ui` / `acu act`) when launched with this flag; the session-wide a11y
+  # bus flag is not enough. Wraps the binaries and rewrites desktop entries
+  # that hardcode the store path.
+  withElectronA11y =
+    pkg: bins:
+    pkgs.symlinkJoin {
+      name = "${lib.getName pkg}-a11y";
+      paths = [ pkg ];
+      nativeBuildInputs = [ pkgs.makeWrapper ];
+      postBuild = ''
+        for bin in ${lib.escapeShellArgs bins}; do
+          [ -e "$out/bin/$bin" ] || continue
+          wrapProgram "$out/bin/$bin" --add-flags --force-renderer-accessibility
+          for entry in "$out"/share/applications/*.desktop; do
+            [ -L "$entry" ] || continue
+            if grep -q "${pkg}/bin/$bin" "$entry"; then
+              target=$(readlink -f "$entry")
+              rm "$entry"
+              sed "s|${pkg}/bin/$bin|$out/bin/$bin|g" "$target" > "$entry"
+            fi
+          done
+        done
+      '';
+    };
 in
 {
   imports = [
@@ -263,7 +288,7 @@ in
   home.packages = with pkgs; [
     # desktop apps
     code-cursor
-    discord
+    (withElectronA11y discord [ "Discord" "discord" ])
     evince
     loupe
     mpv
@@ -275,7 +300,7 @@ in
     pulseaudio
     remmina
     signal-desktop
-    slack
+    (withElectronA11y slack [ "slack" ])
     spotify
     zotero
 
