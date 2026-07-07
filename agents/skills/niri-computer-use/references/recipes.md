@@ -96,3 +96,19 @@ niri msg action close-overview
 acu focus --back              # or: acu focus --app <what the user had>
 acu restore
 ```
+
+## 9. Semantic (no-focus) interaction with an a11y-enabled app
+
+Works for GTK/Qt apps and any Chromium/Electron app launched after the session's
+screen-reader flag (or with --force-renderer-accessibility):
+
+```bash
+acu ui --app discord --find "message"        # elements: id, role, name, extents, actions
+acu act --app discord 0.1.4.2 --set-text "draft"   # set editable text in-process
+acu act --app discord 0.1.4.7                # press a button — no focus, no pointer
+acu shot --app discord                       # verify pixels
+```
+
+Element ids are index paths valid only for the current UI state — re-run `acu ui`
+after anything changes. If `acu ui` reports a dormant tree, the app predates the
+flag: relaunch it (ask the user for their daily-driver apps).

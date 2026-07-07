@@ -296,6 +296,11 @@ layout {
 // See the binds section below for more spawn examples.
 
 spawn-at-startup "niriusd"
+// Advertise a screen reader on the a11y bus so Chromium/Electron apps
+// (Discord, Slack, helium, ...) build full AT-SPI accessibility trees.
+// This is what lets agents read/act on their UI semantically (acu ui/act)
+// without CDP or focus stealing. Small per-app overhead; remove if felt.
+spawn-sh-at-startup "sleep 2 && busctl --user set-property org.a11y.Bus /org/a11y/bus org.a11y.Status ScreenReaderEnabled b true"
 spawn-at-startup "swayidle" "-w"
 spawn-at-startup "nm-applet" "--indicator"
 spawn-at-startup "blueman-applet"

@@ -24,7 +24,6 @@ RUNTIME_DIR = Path(f"/tmp/acu-{os.getuid()}")
 SHOT_DIR = RUNTIME_DIR / "shots"
 LAST_FOCUS_FILE = RUNTIME_DIR / "last-focus"
 TOOL_CACHE = Path.home() / ".cache" / "acu" / "tools.json"
-NIRI_SHOT_DIR = Path.home() / "media" / "screenshots"
 
 NIX_PACKAGES = {
     "wlrctl": "wlrctl",
@@ -308,13 +307,6 @@ def clipboard_restore(saved: tuple[str, bytes] | None) -> None:
 # ---------------------------------------------------------------- shot
 
 
-def newest_niri_shot(since: float) -> Path | None:
-    if not NIRI_SHOT_DIR.exists():
-        return None
-    candidates = [p for p in NIRI_SHOT_DIR.glob("*.png") if p.stat().st_mtime >= since]
-    return max(candidates, key=lambda p: p.stat().st_mtime) if candidates else None
-
-
 def png_dimensions(path: Path) -> tuple[int, int]:
     with path.open("rb") as fh:
         header = fh.read(24)
@@ -352,22 +344,197 @@ def add_grid(path: Path, step: int = 100) -> Path:
 
 def shot_window(window: dict[str, Any], out: Path) -> None:
     saved_clip = clipboard_save()
-    since = time.time() - 0.5
-    niri_action("screenshot-window", "--id", str(window["id"]))
+    out = out.absolute()
+    niri_action("screenshot-window", "--id", str(window["id"]), "--path", str(out))
     deadline = time.monotonic() + 4.0
-    produced: Path | None = None
     while time.monotonic() < deadline:
-        produced = newest_niri_shot(since)
-        if produced:
+        if out.exists() and out.stat().st_size > 0:
             break
         time.sleep(0.15)
-    clipboard_restore(saved_clip)
-    if not produced:
-        die(
-            f"niri did not write a screenshot for window {window['id']}",
-            hint=f"check screenshot-path dir {NIRI_SHOT_DIR}",
-        )
-    shutil.move(str(produced), out)
+    else:
+        clipboard_restore(saved_clip)
+        die(f"niri did not write a screenshot for window {window['id']} to {out}")
+    # niri always copies the shot to the clipboard; undo that.
+    if saved_clip is not None:
+        clipboard_restore(saved_clip)
+    else:
+        wl_copy = shutil.which("wl-copy")
+        if wl_copy:
+            subprocess.run([wl_copy, "--clear"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+# ---------------------------------------------------------------- at-spi
+
+ATSPI_HELPER = r'''
+import json, sys
+import pyatspi
+
+req = json.loads(sys.argv[1])
+desktop = pyatspi.Registry.getDesktop(0)
+app = None
+for a in desktop:
+    try:
+        if a.get_process_id() == req["pid"]:
+            app = a
+            break
+    except Exception:
+        pass
+if app is None:
+    names = []
+    for a in desktop:
+        try:
+            names.append(f"{a.name} (pid {a.get_process_id()})")
+        except Exception:
+            pass
+    print(json.dumps({"error": "no accessible app with pid %d" % req["pid"], "bus_apps": names}))
+    sys.exit(0)
+
+frames = list(app)
+title = (req.get("title") or "").lower()
+target = None
+for f in frames:
+    if title and title in (f.name or "").lower():
+        target = f
+        break
+if target is None:
+    target = frames[0] if frames else app
+
+def extents(node):
+    try:
+        e = node.queryComponent().getExtents(pyatspi.WINDOW_COORDS)
+        return [e.x, e.y, e.width, e.height]
+    except Exception:
+        return None
+
+def states(node):
+    try:
+        return node.getState()
+    except Exception:
+        return None
+
+def actions(node):
+    try:
+        act = node.queryAction()
+        return [act.getName(i) for i in range(act.nActions)]
+    except Exception:
+        return []
+
+if req["mode"] == "tree":
+    out = []
+    limit = req.get("max", 800)
+    find = (req.get("find") or "").lower()
+    scanned = [0]
+
+    def walk(node, path, depth):
+        scanned[0] += 1
+        if len(out) >= limit or depth > 40 or scanned[0] > 20000:
+            return
+        try:
+            name = node.name or ""
+            role = node.getRoleName()
+        except Exception:
+            return
+        st = states(node)
+        showing = st is None or (st.contains(pyatspi.STATE_SHOWING) and st.contains(pyatspi.STATE_VISIBLE))
+        acts = actions(node)
+        interesting = bool(name.strip()) or acts
+        if showing and interesting and (not find or find in name.lower() or find in role.lower()):
+            out.append({
+                "id": ".".join(map(str, path)) or "root",
+                "role": role,
+                "name": name[:120],
+                "extents": extents(node),
+                "actions": acts,
+                "editable": bool(st and st.contains(pyatspi.STATE_EDITABLE)),
+            })
+        try:
+            for i, child in enumerate(node):
+                walk(child, path + [i], depth + 1)
+        except Exception:
+            pass
+
+    walk(target, [], 0)
+    print(json.dumps({"frame": target.name, "count": len(out), "scanned": scanned[0], "elements": out}))
+elif req["mode"] == "act":
+    node = target
+    try:
+        for i in [int(p) for p in req["path"].split(".")]:
+            node = node[i]
+    except Exception as exc:
+        print(json.dumps({"error": "stale element path %r: %s (re-run acu ui)" % (req["path"], exc)}))
+        sys.exit(0)
+    label = f"{node.getRoleName()} \"{(node.name or '')[:60]}\""
+    if req.get("set_text") is not None:
+        try:
+            node.queryEditableText().setTextContents(req["set_text"])
+            print(json.dumps({"ok": True, "did": "set_text", "element": label}))
+        except Exception as exc:
+            print(json.dumps({"error": "set_text failed on %s: %r (Chromium omnibox rejects it; web form fields and GTK entries usually accept - else focus + acu type)" % (label, exc)}))
+        sys.exit(0)
+    try:
+        act = node.queryAction()
+        names = [act.getName(i) for i in range(act.nActions)]
+    except Exception:
+        print(json.dumps({"error": "element %s has no actions; click its extents instead" % label}))
+        sys.exit(0)
+    idx = req.get("action", 0)
+    if idx >= len(names):
+        print(json.dumps({"error": "action %d out of range" % idx, "actions": names}))
+        sys.exit(0)
+    ok = act.doAction(idx)
+    print(json.dumps({"ok": bool(ok), "did": names[idx], "element": label, "actions": names}))
+'''
+
+
+def atspi_python() -> tuple[str, str]:
+    """Resolve (python-with-pyatspi, GI_TYPELIB_PATH), caching via nix-shell."""
+    cache: dict[str, str] = {}
+    if TOOL_CACHE.exists():
+        try:
+            cache = json.loads(TOOL_CACHE.read_text())
+        except json.JSONDecodeError:
+            cache = {}
+    python = cache.get("atspi-python")
+    gi_path = cache.get("atspi-gi-path")
+    if python and Path(python).exists() and gi_path:
+        return python, gi_path
+    if not shutil.which("nix-shell"):
+        die("pyatspi python env unavailable", hint="need nix-shell to resolve it")
+    proc = run([
+        "nix-shell", "-p", "at-spi2-core", "gobject-introspection",
+        "python3.withPackages (p: [p.pyatspi p.pygobject3])",
+        "--run", "command -v python3; printf '%s' \"$GI_TYPELIB_PATH\"",
+    ])
+    lines = proc.stdout.strip().splitlines()
+    python, gi_path = lines[0], lines[-1]
+    cache["atspi-python"], cache["atspi-gi-path"] = python, gi_path
+    TOOL_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    TOOL_CACHE.write_text(json.dumps(cache, indent=2))
+    return python, gi_path
+
+
+def atspi_call(request: dict[str, Any]) -> dict[str, Any]:
+    python, gi_path = atspi_python()
+    env = {**os.environ, "GI_TYPELIB_PATH": gi_path}
+    proc = subprocess.run(
+        [python, "-c", ATSPI_HELPER, json.dumps(request)],
+        capture_output=True, text=True, env=env,
+    )
+    stdout = proc.stdout.strip()
+    if proc.returncode != 0 or not stdout:
+        die(f"at-spi helper failed: {proc.stderr.strip()[:400] or 'no output'}")
+    result = json.loads(stdout.splitlines()[-1])
+    if "error" in result:
+        hint = None
+        if "no accessible app" in result["error"]:
+            hint = (
+                "app not on the a11y bus or tree dormant. Chromium/Electron apps build "
+                "trees only when accessibility was enabled at launch: relaunch with "
+                "--force-renderer-accessibility (ScreenReaderEnabled is set session-wide now). "
+                f"bus apps: {', '.join(result.get('bus_apps', [])[:12])}"
+            )
+        die(result["error"], hint=hint)
+    return result
 
 
 # ================================================================ commands
@@ -421,6 +588,14 @@ def cmd_doctor(_args: argparse.Namespace) -> None:
     names = {ws.get("name") for ws in get_workspaces()}
     report("agent" in names, 'workspace "agent"', "present" if "agent" in names else "missing",
            hint='declare `workspace "agent"` in niri config for background spawns')
+
+    sr = subprocess.run(
+        ["busctl", "--user", "get-property", "org.a11y.Bus", "/org/a11y/bus", "org.a11y.Status", "ScreenReaderEnabled"],
+        capture_output=True, text=True,
+    )
+    sr_on = sr.returncode == 0 and sr.stdout.strip().endswith("true")
+    report(True, "a11y screen-reader flag", "on (Chromium/Electron apps expose AT-SPI trees when launched after it)" if sr_on else "off — acu ui only sees apps launched with --force-renderer-accessibility",
+           hint="busctl --user set-property org.a11y.Bus /org/a11y/bus org.a11y.Status ScreenReaderEnabled b true")
 
     cdp = []
     for port in (9222, 9223, 9224):
@@ -524,7 +699,17 @@ def cmd_shot(args: argparse.Namespace) -> None:
             cmd += ["-o", args.out_name]
         cmd.append(str(out))
         run(cmd)
-        label = f"output {args.out_name}" if args.out_name else "full desktop — global logical coordinates"
+        if args.out_name:
+            logical = (get_outputs().get(args.out_name) or {}).get("logical") or {}
+            origin = (logical.get("x", 0), logical.get("y", 0))
+            label = f"output {args.out_name}, global origin {origin} — global = pixel + origin"
+        else:
+            origins = [output_logical(o)[:2] for o in get_outputs().values()]
+            ux, uy = (min(x for x, _ in origins), min(y for _, y in origins)) if origins else (0, 0)
+            if (ux, uy) == (0, 0):
+                label = "full desktop — pixels are global logical coordinates"
+            else:
+                label = f"full desktop, union origin ({ux},{uy}) — global = pixel + ({ux},{uy})"
     width, height = png_dimensions(out)
     print(f"{out} {width}x{height} ({label})")
     if args.grid:
@@ -691,6 +876,44 @@ def cmd_spawn(args: argparse.Namespace) -> None:
         print(json.dumps({k: new_window.get(k) for k in ("id", "app_id", "title", "pid", "workspace_id")}))
 
 
+def cmd_ui(args: argparse.Namespace) -> None:
+    window = resolve_target(args)
+    result = atspi_call({
+        "mode": "tree",
+        "pid": window.get("pid"),
+        "title": window.get("title"),
+        "max": args.max,
+        "find": args.find,
+    })
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return
+    print(f"frame \"{result['frame']}\" — {result['count']} elements (scanned {result['scanned']} nodes)")
+    for el in result["elements"]:
+        ext = el.get("extents")
+        pos = f" @{ext[0]},{ext[1]} {ext[2]}x{ext[3]}" if ext else ""
+        acts = f" [{','.join(el['actions'])}]" if el.get("actions") else ""
+        edit = " editable" if el.get("editable") else ""
+        print(f"  {el['id']}  {el['role']} \"{el['name']}\"{pos}{acts}{edit}")
+    print("act: acu act --window", window["id"], "<id>   coords are window-local (match acu shot --window)")
+
+
+def cmd_act(args: argparse.Namespace) -> None:
+    window = resolve_target(args)
+    request: dict[str, Any] = {
+        "mode": "act",
+        "pid": window.get("pid"),
+        "title": window.get("title"),
+        "path": args.element,
+        "action": args.action,
+    }
+    if args.set_text is not None:
+        request["set_text"] = args.set_text
+    result = atspi_call(request)
+    print(json.dumps(result))
+    print("verify with a fresh `acu shot --window` or `acu ui` — in-process action, no focus was taken")
+
+
 def cmd_restore(_args: argparse.Namespace) -> None:
     ensure_no_overview()
     if LAST_FOCUS_FILE.exists():
@@ -784,6 +1007,20 @@ def main() -> None:
     p.add_argument("--timeout", type=float, default=10.0)
     p.add_argument("command", nargs=argparse.REMAINDER)
     p.set_defaults(func=cmd_spawn)
+
+    p = sub.add_parser("ui", help="semantic element tree via AT-SPI (no focus, works in background)")
+    add_target_flags(p)
+    p.add_argument("--find", help="filter elements by name/role substring")
+    p.add_argument("--max", type=int, default=800)
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_ui)
+
+    p = sub.add_parser("act", help="invoke an element's AT-SPI action by id from `acu ui` (no focus)")
+    add_target_flags(p)
+    p.add_argument("element", help="element id from acu ui, e.g. 0.3.2")
+    p.add_argument("--action", type=int, default=0, help="action index (default 0 = press/click)")
+    p.add_argument("--set-text", help="set an editable element's text instead of invoking an action")
+    p.set_defaults(func=cmd_act)
 
     sub.add_parser("restore", help="epilogue: close overview, refocus previous window").set_defaults(func=cmd_restore)
 

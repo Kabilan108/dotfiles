@@ -17,9 +17,10 @@ One tool: **`acu`** (on PATH; source lives in this skill's `scripts/`). Composit
 | Quickshell panels (bar, mixer, notifs) | `qs ipc -c stillsuit call <target> <fn>` / `stillctl` |
 | Clipboard | `wl-copy` / `wl-paste` (history in walker) |
 | Window/workspace management | `acu state`, `acu focus`, `acu spawn`, raw `niri msg action ...` |
-| Everything else (GUI apps, Electron without CDP) | the `acu` see→act→verify loop below |
+| GUI apps with AT-SPI trees (GTK/Qt; Chromium/Electron launched after the a11y flag) | `acu ui` (semantic element list) + `acu act` (in-process press/set-text) — **no focus, works on hidden workspaces** |
+| Everything else | the `acu` pixel loop below (focus required for input) |
 
-Electron apps (Discord, Slack, obsidian, t3code) are CDP-capable only if launched with `--remote-debugging-port`; the running instances normally aren't. Reading them needs no CDP: `acu shot --window` sees them even on hidden workspaces. Interacting means the GUI loop, or relaunching them with a CDP flag (ask the user first — it restarts their app).
+Electron apps (Discord, Slack, obsidian, t3code) expose AT-SPI trees only when accessibility was on at launch (the niri session now sets the screen-reader flag at startup; instances started before it need a relaunch, or `--force-renderer-accessibility`). Reading them needs nothing: `acu shot --window` sees every window, hidden or not. CDP via `--remote-debugging-port` remains the deepest channel (ask before relaunching the user's app).
 
 ## Session start
 
@@ -51,8 +52,12 @@ acu click [left|right|middle] --window ID --local X,Y [--double]
 acu click --at X,Y                           # global logical coords
 acu point X Y | acu scroll DY [DX]           # pointer move / scroll at pointer
 acu type "text" | acu key ctrl+l mod+Return  # keyboard into FOCUSED window
+acu ui --window ID [--find STR]              # AT-SPI elements: id, role, name, window-local extents, actions
+acu act --window ID <elem-id> [--set-text S] # invoke element action in-process — NO focus needed
 acu restore                                  # epilogue: close overview, refocus
 ```
+
+`acu key` routes `mod+…` chords through uinput (niri compositor binds ignore virtual-keyboard events); plain chords go to the focused window. `acu ui/act` element ids are per-snapshot index paths — re-run `acu ui` after the UI changes. Chromium's address bar rejects `--set-text`; web form fields and GTK entries accept it.
 
 `--app`/`--title` must match exactly one window; ambiguity lists candidates and fails (use the id).
 
@@ -72,7 +77,7 @@ acu restore                                  # epilogue: close overview, refocus
 
 - `acu spawn --bg -- cmd` opens on the persistent **"agent" workspace** without focus/visibility change. Terminals can be marked (`ghostty --class=acu.<name>`) — `acu.*` app-ids get zero-flicker rules; anything else is moved there right after opening (~0.5s flicker at most, focus still preserved).
 - Watch progress: `acu shot --window <id>` — hidden windows screenshot fine.
-- Interactive input still requires focus (see above): batch your keyboard/click bursts, then `acu restore`. For fully-invisible interaction use CDP apps (helium) or tmux.
+- Interact invisibly where a semantic channel exists: `acu ui`/`acu act` (AT-SPI) and CDP work on hidden windows without focus. Seat input (click/type/key) still requires focus: batch those bursts, then `acu restore`.
 - Hand-off: the user pulls a window to their workspace with `nirius move-to-current-workspace` or workspace nav — same session, windows move freely.
 
 ## Known traps → recovery

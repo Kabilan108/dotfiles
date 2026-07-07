@@ -55,3 +55,19 @@ Everything below was probed live on this machine; re-verify with `acu doctor` at
 
 - `wev` window (spawn with `stdbuf -oL wev > log`) logs enter/motion/button/key events with surface-local coordinates — the ground truth for input delivery.
 - Terminal mouse-reporting (SGR 1003/1006) is a MISLEADING oracle: line buffering and cell quantization produced false negatives in probing. Don't debug input with it.
+
+## AT-SPI semantic channel (verified 2026-07-07)
+
+- The a11y bus runs; niri registers org.freedesktop.a11y.Manager. Slack, Discord,
+  helium, Chromium, Zen, t3code all REGISTER on the bus, but Chromium/Electron
+  trees stay dormant (3 nodes) unless accessibility was enabled at launch.
+- Enabler (now in niri config spawn-at-startup): set the session screen-reader flag
+  `busctl --user set-property org.a11y.Bus /org/a11y/bus org.a11y.Status ScreenReaderEnabled b true`
+  — apps launched AFTER it build full trees. Per-app alternative: `--force-renderer-accessibility`.
+  Verified: fresh helium instance exposed 178 named nodes (buttons, address bar, web content).
+- `acu ui` extents use AT-SPI WINDOW_COORDS — same space as `acu shot --window` pixels.
+- `acu act <id>` invokes Action.doAction in-process: verified button press with zero
+  focus/pointer involvement, window on a hidden workspace. `--set-text` works via
+  EditableText (Chromium omnibox rejects it; web form fields/GTK entries accept).
+- pyatspi env resolves via nix-shell (at-spi2-core + gobject-introspection +
+  python3.withPackages pyatspi/pygobject3), cached in ~/.cache/acu/tools.json.
