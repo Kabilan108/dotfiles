@@ -878,6 +878,8 @@ def cmd_spawn(args: argparse.Namespace) -> None:
 
 def cmd_ui(args: argparse.Namespace) -> None:
     window = resolve_target(args)
+    if window.get("pid") is None:
+        die(f"window {window['id']} reports no pid (portal-owned window?) — cannot map to the a11y bus")
     result = atspi_call({
         "mode": "tree",
         "pid": window.get("pid"),
@@ -900,6 +902,8 @@ def cmd_ui(args: argparse.Namespace) -> None:
 
 def cmd_act(args: argparse.Namespace) -> None:
     window = resolve_target(args)
+    if window.get("pid") is None:
+        die(f"window {window['id']} reports no pid (portal-owned window?) — cannot map to the a11y bus")
     request: dict[str, Any] = {
         "mode": "act",
         "pid": window.get("pid"),

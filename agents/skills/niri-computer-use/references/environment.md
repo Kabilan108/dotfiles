@@ -39,7 +39,8 @@ Everything below was probed live on this machine; re-verify with `acu doctor` at
 
 - `move-window-to-workspace --window-id N --focus false <ref>` — move without focus; focus auto-returns if the moved window had it.
 - `close-window --id N`, `focus-window --id N`, `fullscreen-window --id N`, `toggle-window-floating --id N`.
-- `niri msg event-stream` — live window/workspace/focus events (Rust debug format, not JSON).
+- `niri msg -j event-stream` — newline-delimited JSON events: full state dump on connect (WorkspacesChanged, WindowsChanged), then deltas (WindowOpenedOrChanged with the new window's id, WindowClosed, WindowFocusChanged, OverviewOpenedOrClosed, ScreenshotCaptured, ...). ScreenshotCaptured is the reliable "file written" signal — `niri msg action screenshot-*` returns before the PNG lands (acu polls for the file instead).
+- Screenshot flag gotcha: `--write-to-disk false` disables ALL disk writes including `--path`.
 - `niri msg pick-window` / `pick-color` — interactive (user must click), not for agents.
 - nirius daemon: `nirius focus-or-spawn`, `move-to-current-workspace`, marks, scratchpad.
 
