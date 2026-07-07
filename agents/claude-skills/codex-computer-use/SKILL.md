@@ -13,7 +13,7 @@ Do not use this for ordinary code reading, typechecking, linting, or tests the c
 
 Codex has the shared skills from this machine's skills root — route it to the right one in the prompt:
 
-- **Browser work**: tell Codex to load the `helium-browser-use` skill and connect to the running Helium CDP endpoint (`${HELIUM_AGENTS_CDP_PORT:-9222}`). It must open its own labeled tab and never run `close --all`. If the CDP endpoint is not reachable, launch the CDP-enabled agents instance with `helium-devtools` (run in the background, then re-check `/json/version`) rather than falling back to another browser.
+- **Browser work**: tell Codex to load the `helium-browser-use` skill and connect to the running Helium CDP endpoint (`${HELIUM_AGENTS_CDP_PORT:-9222}`). It must open its own labeled tab and never run `close --all`. If the CDP endpoint is not reachable, launch the CDP-enabled agents instance with `helium-agents-devtools` (run in the background, then re-check `/json/version`) rather than falling back to another browser.
 - **Desktop / native app verification**: tell Codex to load the `niri-computer-use` skill (`acu-state`, `acu-screenshot`, `niri msg`, `acu-input`) and prefer compositor-native inspection and navigation before synthetic input.
 
 Codex's computer-use features are not reliably available on Linux — prefer the skills above where they fit the task.
