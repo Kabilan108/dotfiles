@@ -21,7 +21,7 @@ Everything below was probed live on this machine; re-verify with `acu doctor` at
 - **Do NOT use uinput tools** (ydotool/dotool): button/key events work but pointer motion silently failed in live probing (ydotool absolute uses non-pixel scaling; motions dropped). ydotoold runs as a user service but acu does not need it.
 - `wlrctl window list|focus|...` also works (foreign-toplevel) — app-id/title based, no window ids.
 - XWayland: xwayland-satellite provides DISPLAY=:0; xdotool (not installed) could drive X11 clients per-window — niche, untested.
-- AT-SPI accessibility bus is running and niri registers `org.freedesktop.a11y.Manager` — a future structured-UI-tree channel for GTK/Qt apps; unexplored.
+- AT-SPI accessibility bus is running and niri registers `org.freedesktop.a11y.Manager` — see "AT-SPI semantic channel" below.
 
 ## Screenshots
 
