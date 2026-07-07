@@ -1,0 +1,768 @@
+#!/usr/bin/env python3
+"""acu — agent computer use for niri Wayland sessions.
+
+Single entry point for desktop inspection and control. Compositor-native
+state and actions via `niri msg`; Wayland-native input via wlrctl
+(zwlr_virtual_pointer) and wtype (zwp_virtual_keyboard). No uinput, no
+daemons. Run `acu doctor` first in every session.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any, NoReturn
+
+RUNTIME_DIR = Path(f"/tmp/acu-{os.getuid()}")
+SHOT_DIR = RUNTIME_DIR / "shots"
+LAST_FOCUS_FILE = RUNTIME_DIR / "last-focus"
+TOOL_CACHE = Path.home() / ".cache" / "acu" / "tools.json"
+NIRI_SHOT_DIR = Path.home() / "media" / "screenshots"
+
+NIX_PACKAGES = {"wlrctl": "wlrctl", "wev": "wev", "grim": "grim", "magick": "imagemagick"}
+
+CHORD_MODS = {
+    "mod": "logo", "super": "logo", "meta": "logo", "win": "logo", "logo": "logo",
+    "ctrl": "ctrl", "control": "ctrl",
+    "alt": "alt", "shift": "shift", "altgr": "altgr",
+}
+KEY_ALIASES = {
+    "enter": "Return", "return": "Return", "esc": "Escape", "escape": "Escape",
+    "tab": "Tab", "space": "space", "backspace": "BackSpace", "delete": "Delete",
+    "up": "Up", "down": "Down", "left": "Left", "right": "Right",
+    "home": "Home", "end": "End", "pageup": "Prior", "pagedown": "Next",
+    "minus": "minus", "equal": "equal", "slash": "slash", "comma": "comma", "period": "period",
+}
+
+
+def die(msg: str, hint: str | None = None, code: int = 1) -> NoReturn:
+    print(f"acu: error: {msg}", file=sys.stderr)
+    if hint:
+        print(f"acu: hint: {hint}", file=sys.stderr)
+    sys.exit(code)
+
+
+def run(args: list[str], *, input_text: str | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
+    proc = subprocess.run(args, text=True, capture_output=True, input=input_text)
+    if check and proc.returncode != 0:
+        die(
+            f"`{' '.join(args)}` failed (exit {proc.returncode}): {proc.stderr.strip() or proc.stdout.strip() or 'no output'}",
+        )
+    return proc
+
+
+def resolve_tool(name: str) -> str:
+    """Find a tool on PATH, from the cache, or via nix-shell (cached afterwards)."""
+    found = shutil.which(name)
+    if found:
+        return found
+    cache: dict[str, str] = {}
+    if TOOL_CACHE.exists():
+        try:
+            cache = json.loads(TOOL_CACHE.read_text())
+        except json.JSONDecodeError:
+            cache = {}
+    cached = cache.get(name)
+    if cached and Path(cached).exists():
+        return cached
+    package = NIX_PACKAGES.get(name)
+    if not package or not shutil.which("nix-shell"):
+        die(f"missing required tool: {name}", hint=f"nix-shell -p {package or name}")
+    proc = run(["nix-shell", "-p", package, "--run", f"command -v {name}"])
+    path = proc.stdout.strip().splitlines()[-1]
+    if not path or not Path(path).exists():
+        die(f"could not resolve {name} via nix-shell -p {package}")
+    cache[name] = path
+    TOOL_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    TOOL_CACHE.write_text(json.dumps(cache, indent=2))
+    return path
+
+
+# ---------------------------------------------------------------- niri IPC
+
+
+def niri_json(query: str) -> Any:
+    proc = run(["niri", "msg", "-j", query])
+    return json.loads(proc.stdout)
+
+
+def niri_action(*args: str) -> str:
+    return run(["niri", "msg", "action", *args]).stdout
+
+
+def overview_open() -> bool:
+    return bool(niri_json("overview-state").get("is_open"))
+
+
+def get_windows() -> list[dict[str, Any]]:
+    return niri_json("windows")
+
+
+def get_workspaces() -> list[dict[str, Any]]:
+    return niri_json("workspaces")
+
+
+def get_outputs() -> dict[str, dict[str, Any]]:
+    return niri_json("outputs")
+
+
+def focused_window_id() -> int | None:
+    focused = niri_json("focused-window")
+    return focused.get("id") if isinstance(focused, dict) else None
+
+
+def find_window(
+    *, window_id: int | None = None, app: str | None = None, title: str | None = None
+) -> dict[str, Any]:
+    windows = get_windows()
+    if window_id is not None:
+        for w in windows:
+            if w["id"] == window_id:
+                return w
+        die(f"no window with id {window_id}", hint="acu state lists current windows")
+    matches = []
+    for w in windows:
+        if app and app.lower() not in (w.get("app_id") or "").lower():
+            continue
+        if title and not re.search(title, w.get("title") or "", re.IGNORECASE):
+            continue
+        matches.append(w)
+    if not matches:
+        die(f"no window matching app={app!r} title={title!r}")
+    if len(matches) > 1:
+        listing = "\n".join(
+            f"  {w['id']}\t{w.get('app_id')}\t{(w.get('title') or '')[:60]}" for w in matches
+        )
+        die(f"ambiguous match ({len(matches)} windows):\n{listing}", hint="use --window <id>")
+    return matches[0]
+
+
+def window_output(window: dict[str, Any]) -> dict[str, Any]:
+    workspaces = {ws["id"]: ws for ws in get_workspaces()}
+    ws = workspaces.get(window.get("workspace_id"))
+    outputs = get_outputs()
+    if ws and ws.get("output") and ws["output"] in outputs:
+        return outputs[ws["output"]]
+    return next(iter(outputs.values()))
+
+
+def output_logical(output: dict[str, Any]) -> tuple[int, int, int, int]:
+    logical = output.get("logical") or {}
+    return (
+        int(logical.get("x", 0)),
+        int(logical.get("y", 0)),
+        int(logical.get("width", 0)),
+        int(logical.get("height", 0)),
+    )
+
+
+def floating_origin(window: dict[str, Any]) -> tuple[int, int] | None:
+    pos = (window.get("layout") or {}).get("tile_pos_in_workspace_view")
+    if pos is None:
+        return None
+    ox, oy, _, _ = output_logical(window_output(window))
+    offset = (window.get("layout") or {}).get("window_offset_in_tile") or [0, 0]
+    return (int(ox + pos[0] + offset[0]), int(oy + pos[1] + offset[1]))
+
+
+# ---------------------------------------------------------------- input
+
+
+def wlrctl(*args: str) -> None:
+    run([resolve_tool("wlrctl"), *args])
+
+
+def pointer_to(x: int, y: int) -> None:
+    """Absolute positioning: clamp to (0,0) then offset. Verified pixel-exact."""
+    wlrctl("pointer", "move", "-20000", "-20000")
+    time.sleep(0.05)
+    wlrctl("pointer", "move", str(int(x)), str(int(y)))
+    time.sleep(0.05)
+
+
+def parse_chord(chord: str) -> tuple[list[str], str]:
+    parts = chord.split("+")
+    if not parts or not parts[-1]:
+        die(f"cannot parse chord {chord!r}")
+    mods = []
+    for part in parts[:-1]:
+        mod = CHORD_MODS.get(part.lower())
+        if mod is None:
+            die(f"unknown modifier {part!r} in chord {chord!r}", hint=f"known: {', '.join(sorted(set(CHORD_MODS)))}")
+        mods.append(mod)
+    key = parts[-1]
+    key = KEY_ALIASES.get(key.lower(), key)
+    return mods, key
+
+
+def send_key(chord: str) -> None:
+    mods, key = parse_chord(chord)
+    args = [resolve_tool("wtype")]
+    for m in mods:
+        args += ["-M", m]
+    args += ["-k", key]
+    for m in reversed(mods):
+        args += ["-m", m]
+    run(args)
+
+
+# ---------------------------------------------------------------- focus
+
+
+def remember_focus(window_id: int | None) -> None:
+    RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+    if window_id is not None:
+        LAST_FOCUS_FILE.write_text(str(window_id))
+
+
+def ensure_no_overview() -> None:
+    if overview_open():
+        niri_action("close-overview")
+        time.sleep(0.2)
+
+
+def focus_window(window_id: int, *, remember: bool = True) -> None:
+    ensure_no_overview()
+    previous = focused_window_id()
+    if previous == window_id:
+        return
+    if remember:
+        remember_focus(previous)
+    niri_action("focus-window", "--id", str(window_id))
+    deadline = time.monotonic() + 2.0
+    while time.monotonic() < deadline:
+        if focused_window_id() == window_id:
+            return
+        time.sleep(0.1)
+    if overview_open():
+        die(
+            f"focus-window {window_id} did not take effect: the overview is open",
+            hint="acu recovered wrongly-opened overviews before; run `niri msg action close-overview` and retry",
+        )
+    die(f"focus-window {window_id} did not take effect (focused: {focused_window_id()})")
+
+
+# ---------------------------------------------------------------- clipboard
+
+
+def clipboard_save() -> tuple[str, bytes] | None:
+    wl_paste = shutil.which("wl-paste")
+    if not wl_paste:
+        return None
+    types = subprocess.run([wl_paste, "--list-types"], capture_output=True, text=True)
+    if types.returncode != 0:
+        return None
+    available = types.stdout.split()
+    mime = next((t for t in available if t.startswith("text/")), available[0] if available else None)
+    if not mime:
+        return None
+    proc = subprocess.run([wl_paste, "--no-newline", "-t", mime], capture_output=True)
+    return (mime, proc.stdout) if proc.returncode == 0 else None
+
+
+def clipboard_restore(saved: tuple[str, bytes] | None) -> None:
+    wl_copy = shutil.which("wl-copy")
+    if saved is None or not wl_copy:
+        return
+    mime, content = saved
+    # wl-copy forks a daemon that inherits pipes; capturing output would hang
+    # this process waiting for EOF, so send everything to /dev/null.
+    subprocess.run(
+        [wl_copy, "-t", mime],
+        input=content,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+# ---------------------------------------------------------------- shot
+
+
+def newest_niri_shot(since: float) -> Path | None:
+    if not NIRI_SHOT_DIR.exists():
+        return None
+    candidates = [p for p in NIRI_SHOT_DIR.glob("*.png") if p.stat().st_mtime >= since]
+    return max(candidates, key=lambda p: p.stat().st_mtime) if candidates else None
+
+
+def png_dimensions(path: Path) -> tuple[int, int]:
+    with path.open("rb") as fh:
+        header = fh.read(24)
+    if len(header) < 24 or header[12:16] != b"IHDR":
+        die(f"{path} is not a valid PNG (capture failed?)")
+    return int.from_bytes(header[16:20], "big"), int.from_bytes(header[20:24], "big")
+
+
+def default_shot_path(tag: str) -> Path:
+    SHOT_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = time.strftime("%H%M%S")
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", tag)
+    return SHOT_DIR / f"{stamp}-{safe}.png"
+
+
+def add_grid(path: Path, step: int = 100) -> Path:
+    magick = resolve_tool("magick")
+    width, height = png_dimensions(path)
+    draw: list[str] = []
+    for x in range(step, width, step):
+        draw += ["-draw", f"line {x},0 {x},{height}"]
+        draw += ["-draw", f"text {x + 3},14 '{x}'"]
+    for y in range(step, height, step):
+        draw += ["-draw", f"line 0,{y} {width},{y}"]
+        draw += ["-draw", f"text 3,{y + 14} '{y}'"]
+    out = path.with_name(path.stem + "-grid.png")
+    run([
+        magick, str(path),
+        "-stroke", "rgba(255,64,64,0.55)", "-strokewidth", "1",
+        "-fill", "rgba(255,64,64,0.9)", "-pointsize", "13", "-font", "DejaVu-Sans-Mono",
+        *draw, str(out),
+    ])
+    return out
+
+
+def shot_window(window: dict[str, Any], out: Path) -> None:
+    saved_clip = clipboard_save()
+    since = time.time() - 0.5
+    niri_action("screenshot-window", "--id", str(window["id"]))
+    deadline = time.monotonic() + 4.0
+    produced: Path | None = None
+    while time.monotonic() < deadline:
+        produced = newest_niri_shot(since)
+        if produced:
+            break
+        time.sleep(0.15)
+    clipboard_restore(saved_clip)
+    if not produced:
+        die(
+            f"niri did not write a screenshot for window {window['id']}",
+            hint=f"check screenshot-path dir {NIRI_SHOT_DIR}",
+        )
+    shutil.move(str(produced), out)
+
+
+# ================================================================ commands
+
+
+def cmd_doctor(_args: argparse.Namespace) -> None:
+    failures = 0
+
+    def report(ok: bool, label: str, detail: str = "", hint: str = "") -> None:
+        nonlocal failures
+        mark = "ok " if ok else "FAIL"
+        print(f"[{mark}] {label}" + (f" — {detail}" if detail else ""))
+        if not ok:
+            failures += 1
+            if hint:
+                print(f"       hint: {hint}")
+
+    socket = os.environ.get("NIRI_SOCKET", "")
+    ok = bool(socket) and Path(socket).exists()
+    if not ok:
+        candidates = list(Path(f"/run/user/{os.getuid()}").glob("niri.*.sock"))
+        report(False, "NIRI_SOCKET", socket or "unset",
+               hint=f"export NIRI_SOCKET={candidates[0]}" if candidates else "no niri socket found — is niri running?")
+    else:
+        report(True, "NIRI_SOCKET", socket)
+
+    report(bool(os.environ.get("WAYLAND_DISPLAY")), "WAYLAND_DISPLAY",
+           os.environ.get("WAYLAND_DISPLAY", "unset"),
+           hint="export WAYLAND_DISPLAY=wayland-1 (check /run/user/$UID)")
+
+    try:
+        version = run(["niri", "msg", "version"]).stdout.strip().splitlines()[0]
+        report(True, "niri msg", version)
+    except SystemExit:
+        report(False, "niri msg", "cannot talk to compositor")
+        print(f"\n{failures} failure(s)")
+        sys.exit(1)
+
+    for tool in ("wtype", "wl-copy", "grim"):
+        report(shutil.which(tool) is not None, tool, shutil.which(tool) or "missing",
+               hint=f"nix-shell -p {NIX_PACKAGES.get(tool, tool)}")
+    try:
+        report(True, "wlrctl", resolve_tool("wlrctl"))
+    except SystemExit:
+        report(False, "wlrctl", "unresolvable", hint="nix-shell -p wlrctl")
+
+    ov = overview_open()
+    report(not ov, "overview", "open — input will not reach windows" if ov else "closed",
+           hint="niri msg action close-overview")
+
+    names = {ws.get("name") for ws in get_workspaces()}
+    report("agent" in names, 'workspace "agent"', "present" if "agent" in names else "missing",
+           hint='declare `workspace "agent"` in niri config for background spawns')
+
+    cdp = []
+    for port in (9222, 9223, 9224):
+        try:
+            import urllib.request
+
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=0.4) as resp:
+                cdp.append(f"{port}={json.loads(resp.read()).get('Browser', '?')}")
+        except Exception:
+            pass
+    print(f"[info] CDP endpoints: {', '.join(cdp) if cdp else 'none'}")
+    print("[info] focus-follows-mouse is enabled: pointer moves over a window CHANGE FOCUS.")
+    print(f"\n{failures} failure(s)")
+    sys.exit(1 if failures else 0)
+
+
+def cmd_state(args: argparse.Namespace) -> None:
+    outputs = get_outputs()
+    workspaces = sorted(get_workspaces(), key=lambda w: (w.get("output") or "", w["idx"]))
+    windows = get_windows()
+    focused = focused_window_id()
+    state = {
+        "overview_open": overview_open(),
+        "focused_window_id": focused,
+        "outputs": [
+            {"name": name, "logical": o.get("logical")} for name, o in outputs.items()
+        ],
+        "workspaces": [
+            {k: ws.get(k) for k in ("id", "idx", "name", "output", "is_focused", "is_active", "active_window_id")}
+            for ws in workspaces
+        ],
+        "windows": [
+            {
+                "id": w["id"],
+                "app_id": w.get("app_id"),
+                "title": w.get("title"),
+                "pid": w.get("pid"),
+                "workspace_id": w.get("workspace_id"),
+                "is_focused": w.get("is_focused"),
+                "is_floating": w.get("is_floating"),
+                "is_urgent": w.get("is_urgent"),
+                "size": (w.get("layout") or {}).get("window_size"),
+                "floating_pos": floating_origin(w) if w.get("is_floating") else None,
+            }
+            for w in windows
+        ],
+    }
+    if args.json:
+        print(json.dumps(state, indent=2))
+        return
+    print(f"overview: {'OPEN (input blocked!)' if state['overview_open'] else 'closed'}")
+    for o in state["outputs"]:
+        logical = o["logical"] or {}
+        print(
+            f"output {o['name']}: {logical.get('width')}x{logical.get('height')}"
+            f" @({logical.get('x')},{logical.get('y')}) scale={logical.get('scale')}"
+        )
+    ws_windows: dict[int, list[dict[str, Any]]] = {}
+    for w in state["windows"]:
+        ws_windows.setdefault(w["workspace_id"], []).append(w)
+    for ws in state["workspaces"]:
+        marks = "".join(
+            m for m, cond in (("*", ws["is_focused"]), ("~", ws["is_active"] and not ws["is_focused"])) if cond
+        )
+        name = f' "{ws["name"]}"' if ws["name"] else ""
+        print(f"ws {ws['idx']}{marks}{name} (id {ws['id']}, {ws['output']})")
+        for w in ws_windows.get(ws["id"], []):
+            tags = "".join(
+                t for t, cond in ((" FOCUSED", w["is_focused"]), (" floating", w["is_floating"]), (" urgent", w["is_urgent"])) if cond
+            )
+            pos = f" pos={tuple(w['floating_pos'])}" if w.get("floating_pos") else ""
+            size = f" {w['size'][0]}x{w['size'][1]}" if w.get("size") else ""
+            print(f"  win {w['id']} [{w['app_id']}] \"{(w['title'] or '')[:56]}\"{size}{pos}{tags}")
+
+
+def resolve_target(args: argparse.Namespace) -> dict[str, Any]:
+    return find_window(
+        window_id=getattr(args, "window", None),
+        app=getattr(args, "app", None),
+        title=getattr(args, "title", None),
+    )
+
+
+def cmd_shot(args: argparse.Namespace) -> None:
+    if args.window or args.app or args.title:
+        window = resolve_target(args)
+        out = Path(args.output) if args.output else default_shot_path(
+            f"win{window['id']}-{window.get('app_id') or 'unknown'}"
+        )
+        shot_window(window, out)
+        note = ""
+        ws = {w["id"]: w for w in get_workspaces()}.get(window.get("workspace_id"))
+        if ws and not ws.get("is_active"):
+            note = ", hidden workspace"
+        label = f"window {window['id']} [{window.get('app_id')}]{note} — window-local coordinates"
+    else:
+        grim = resolve_tool("grim")
+        out = Path(args.output) if args.output else default_shot_path(args.out_name or "screen")
+        cmd = [grim]
+        if args.out_name:
+            cmd += ["-o", args.out_name]
+        cmd.append(str(out))
+        run(cmd)
+        label = f"output {args.out_name}" if args.out_name else "full desktop — global logical coordinates"
+    width, height = png_dimensions(out)
+    print(f"{out} {width}x{height} ({label})")
+    if args.grid:
+        grid = add_grid(out)
+        print(f"{grid} (coordinate grid overlay, step 100)")
+
+
+def cmd_wait(args: argparse.Namespace) -> None:
+    deadline = time.monotonic() + args.timeout
+    while time.monotonic() < deadline:
+        if args.gone is not None:
+            if all(w["id"] != args.gone for w in get_windows()):
+                print(f"window {args.gone} gone")
+                return
+        else:
+            try:
+                window = find_window(app=args.app, title=args.title)
+            except SystemExit:
+                window = None
+            if window:
+                if args.settle:
+                    time.sleep(args.settle / 1000)
+                print(json.dumps(window))
+                return
+        time.sleep(0.2)
+    die(f"timeout after {args.timeout}s")
+
+
+def cmd_focus(args: argparse.Namespace) -> None:
+    if args.back:
+        if not LAST_FOCUS_FILE.exists():
+            die("no remembered focus", hint="acu focus records the previous window automatically")
+        target_id = int(LAST_FOCUS_FILE.read_text().strip())
+        focus_window(target_id, remember=False)
+        print(f"focused window {target_id} (restored)")
+        return
+    window = resolve_target(args)
+    focus_window(window["id"])
+    print(f"focused window {window['id']} [{window.get('app_id')}] \"{(window.get('title') or '')[:50]}\"")
+
+
+def cmd_point(args: argparse.Namespace) -> None:
+    pointer_to(args.x, args.y)
+    print(f"pointer at ({args.x},{args.y}) global logical")
+    print("note: focus-follows-mouse may have refocused the window under the pointer")
+
+
+def click_buttons(button: str, *, double: bool = False) -> None:
+    wlrctl("pointer", "click", button)
+    if double:
+        time.sleep(0.08)
+        wlrctl("pointer", "click", button)
+
+
+def cmd_click(args: argparse.Namespace) -> None:
+    if args.window is not None or args.app or args.title:
+        if args.local is None:
+            die("--window/--app/--title clicking requires --local X,Y (window-local pixels from `acu shot --window`)")
+        lx, ly = args.local
+        window = resolve_target(args)
+        focus_window(window["id"])
+        window = find_window(window_id=window["id"])
+        size_before = (window.get("layout") or {}).get("window_size")
+        origin = floating_origin(window) if window.get("is_floating") else None
+        restore_tiling = False
+        if origin is None:
+            # Float the window (keeps its size) so niri reports an exact origin.
+            niri_action("toggle-window-floating", "--id", str(window["id"]))
+            restore_tiling = True
+            time.sleep(0.2)
+            window = find_window(window_id=window["id"])
+            origin = floating_origin(window)
+            if origin is None:
+                niri_action("toggle-window-floating", "--id", str(window["id"]))
+                die(f"window {window['id']} reports no position even when floating")
+        try:
+            size_now = (find_window(window_id=window["id"]).get("layout") or {}).get("window_size")
+            if size_before and size_now and size_now != size_before:
+                print(
+                    f"warning: window resized {size_before}->{size_now}; re-ground coordinates with a fresh shot",
+                    file=sys.stderr,
+                )
+            _, _, ow, oh = output_logical(window_output(window))
+            if origin[0] + lx > ow or origin[1] + ly > oh:
+                niri_action("move-floating-window", "--id", str(window["id"]), "-x", "0", "-y", "0")
+                time.sleep(0.2)
+                origin = floating_origin(find_window(window_id=window["id"])) or origin
+            x, y = origin[0] + lx, origin[1] + ly
+            pointer_to(x, y)
+            click_buttons(args.button, double=args.double)
+        finally:
+            if restore_tiling:
+                time.sleep(0.1)
+                niri_action("toggle-window-floating", "--id", str(window["id"]))
+        time.sleep(0.15)
+        if focused_window_id() != window["id"]:
+            focus_window(window["id"], remember=False)
+        print(f"clicked {args.button} at window {window['id']} local ({lx},{ly}) -> global ({x},{y})")
+    elif args.at is not None:
+        x, y = args.at
+        pointer_to(x, y)
+        click_buttons(args.button, double=args.double)
+        print(f"clicked {args.button} at global ({x},{y})")
+    else:
+        click_buttons(args.button, double=args.double)
+        print(f"clicked {args.button} at current pointer position")
+    if overview_open():
+        niri_action("close-overview")
+        print("warning: click opened the overview (missed all windows?) — closed it", file=sys.stderr)
+
+
+def cmd_type(args: argparse.Namespace) -> None:
+    run([resolve_tool("wtype"), args.text])
+    print(f"typed {len(args.text)} chars into focused window {focused_window_id()}")
+
+
+def cmd_key(args: argparse.Namespace) -> None:
+    for chord in args.chords:
+        send_key(chord)
+        time.sleep(0.05)
+    print(f"sent {' '.join(args.chords)} to focused window {focused_window_id()}")
+
+
+def cmd_scroll(args: argparse.Namespace) -> None:
+    wlrctl("pointer", "scroll", str(args.dy), str(args.dx))
+    print(f"scrolled dy={args.dy} dx={args.dx} at pointer position")
+
+
+def cmd_spawn(args: argparse.Namespace) -> None:
+    if not args.command:
+        die("no command given", hint="acu spawn [--bg] -- <command...>")
+    before_ids = {w["id"] for w in get_windows()}
+    previous_focus = focused_window_id()
+    niri_action("spawn", "--", *args.command)
+    if not args.bg and not args.wait:
+        print("spawned (not waiting; new window will take focus)")
+        return
+    deadline = time.monotonic() + args.timeout
+    new_window: dict[str, Any] | None = None
+    while time.monotonic() < deadline:
+        new = [w for w in get_windows() if w["id"] not in before_ids]
+        if new:
+            new_window = new[0]
+            break
+        time.sleep(0.2)
+    if new_window is None:
+        die(f"no new window appeared within {args.timeout}s",
+            hint="command may have failed or reused an existing window; check acu state")
+    if args.bg:
+        ws = {w["id"]: w for w in get_workspaces()}.get(new_window.get("workspace_id"))
+        if not (ws and ws.get("name") == "agent"):
+            niri_action(
+                "move-window-to-workspace", "--window-id", str(new_window["id"]),
+                "--focus", "false", "agent",
+            )
+        time.sleep(0.15)
+        if previous_focus is not None and focused_window_id() != previous_focus:
+            niri_action("focus-window", "--id", str(previous_focus))
+        print(json.dumps({**{k: new_window.get(k) for k in ("id", "app_id", "title", "pid")}, "workspace": "agent"}))
+        print(f"background window {new_window['id']} on workspace \"agent\"; focus preserved on {previous_focus}")
+    else:
+        print(json.dumps({k: new_window.get(k) for k in ("id", "app_id", "title", "pid", "workspace_id")}))
+
+
+def cmd_restore(_args: argparse.Namespace) -> None:
+    ensure_no_overview()
+    if LAST_FOCUS_FILE.exists():
+        target = int(LAST_FOCUS_FILE.read_text().strip())
+        if any(w["id"] == target for w in get_windows()):
+            niri_action("focus-window", "--id", str(target))
+            time.sleep(0.2)
+    focused = focused_window_id()
+    print(f"restored: overview closed, focused window {focused}")
+
+
+# ================================================================ argparse
+
+
+def add_target_flags(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--window", type=int, help="window id (from acu state)")
+    parser.add_argument("--app", help="substring match on app_id (must be unique)")
+    parser.add_argument("--title", help="regex match on title (must be unique)")
+
+
+def parse_xy(value: str) -> tuple[int, int]:
+    m = re.fullmatch(r"(-?\d+)[,x](-?\d+)", value)
+    if not m:
+        raise argparse.ArgumentTypeError(f"expected X,Y — got {value!r}")
+    return int(m.group(1)), int(m.group(2))
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(prog="acu", description=__doc__)
+    sub = parser.add_subparsers(dest="subcommand", required=True)
+
+    sub.add_parser("doctor", help="preflight: env, tools, compositor, traps").set_defaults(func=cmd_doctor)
+
+    p = sub.add_parser("state", help="desktop state: outputs, workspaces, windows")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_state)
+
+    p = sub.add_parser("shot", help="screenshot (window/output/full); prints path + size")
+    add_target_flags(p)
+    p.add_argument("--out-name", help="output name for grim (e.g. eDP-1)")
+    p.add_argument("-o", "--output", help="destination png path")
+    p.add_argument("--grid", action="store_true", help="also write a labeled 100px coordinate grid overlay")
+    p.set_defaults(func=cmd_shot)
+
+    p = sub.add_parser("wait", help="wait until a window appears (or --gone disappears)")
+    p.add_argument("--app")
+    p.add_argument("--title")
+    p.add_argument("--gone", type=int, help="wait for this window id to close")
+    p.add_argument("--timeout", type=float, default=10.0)
+    p.add_argument("--settle", type=int, default=0, help="extra ms to wait after match")
+    p.set_defaults(func=cmd_wait)
+
+    p = sub.add_parser("focus", help="focus a window (records previous for --back)")
+    add_target_flags(p)
+    p.add_argument("--back", action="store_true", help="refocus the previously focused window")
+    p.set_defaults(func=cmd_focus)
+
+    p = sub.add_parser("point", help="move pointer to global logical X Y")
+    p.add_argument("x", type=int)
+    p.add_argument("y", type=int)
+    p.set_defaults(func=cmd_point)
+
+    p = sub.add_parser("click", help="click at --at X,Y global or --window + --local X,Y")
+    p.add_argument("button", nargs="?", default="left", choices=("left", "right", "middle"))
+    p.add_argument("--at", type=parse_xy, help="global logical coordinates")
+    add_target_flags(p)
+    p.add_argument("--local", type=parse_xy, help="window-local pixels (pair with --window/--app)")
+    p.add_argument("--double", action="store_true")
+    p.set_defaults(func=cmd_click)
+
+    p = sub.add_parser("type", help="type text into the focused window")
+    p.add_argument("text")
+    p.set_defaults(func=cmd_type)
+
+    p = sub.add_parser("key", help="send key chord(s), e.g. ctrl+l mod+Return")
+    p.add_argument("chords", nargs="+")
+    p.set_defaults(func=cmd_key)
+
+    p = sub.add_parser("scroll", help="scroll at pointer (positive dy = down)")
+    p.add_argument("dy", type=int)
+    p.add_argument("dx", type=int, nargs="?", default=0)
+    p.set_defaults(func=cmd_scroll)
+
+    p = sub.add_parser("spawn", help="spawn a command; --bg = agent workspace without focus steal")
+    p.add_argument("--bg", action="store_true")
+    p.add_argument("--wait", action="store_true", help="wait for the new window and print it")
+    p.add_argument("--timeout", type=float, default=10.0)
+    p.add_argument("command", nargs=argparse.REMAINDER)
+    p.set_defaults(func=cmd_spawn)
+
+    sub.add_parser("restore", help="epilogue: close overview, refocus previous window").set_defaults(func=cmd_restore)
+
+    args = parser.parse_args()
+    if isinstance(getattr(args, "command", None), list) and args.command[:1] == ["--"]:
+        args.command = args.command[1:]
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
