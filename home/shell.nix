@@ -30,8 +30,6 @@ in
   ];
 
   home.sessionVariables = rec {
-    AGENT_BROWSER_EXECUTABLE_PATH = "/etc/profiles/per-user/kabilan/bin/helium";
-
     FZF_DEFAULT_OPTS = "--reverse";
 
     BUN_INSTALL_CACHE_DIR = "/vault/userdata/cache/bun-install";
