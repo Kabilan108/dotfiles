@@ -96,7 +96,14 @@ acu restore                                  # epilogue: close overview, refocus
 
 `overview_open` bool; `focused_window_id`; `outputs[] {name, logical{x,y,width,height,scale}}`; `workspaces[] {id, idx, name, output, is_focused, is_active, active_window_id}`; `windows[] {id, app_id, title, pid, workspace_id, is_focused, is_floating, is_urgent, size[w,h], floating_pos[x,y]|null}`. Note: niri window ids are compositor ids, not PIDs; `floating_pos` is global logical and only present for floating windows.
 
+## App notes — read before driving, write only when you learn something
+
+`references/apps/<app-id>.md` holds accumulated field notes per application (quirks, working workflows, dead ends). **Before driving an app, check for its file** — it can save you the discovery cost a previous agent already paid.
+
+Contribute back **sparingly**: add a note only when you learned something non-obvious that would change how the next agent approaches the app — a workflow that works end-to-end, a quirk (e.g. "rejects set-text on field X"), or an approach that wastes time and should be skipped. Do not log routine observations, restate what SKILL.md already says, or rewrite existing notes (append a dated line; correct a note only if you proved it wrong). If a session taught you nothing new about the app, write nothing.
+
 ## References
 
 - `references/environment.md` — this machine's verified environment: protocols, tool paths, config locations, live-reload workflow, CDP endpoints, probe evidence.
 - `references/recipes.md` — worked end-to-end examples (background research window, chat-app reading, form filling, app relaunch with CDP).
+- `references/apps/` — per-application field notes (see above).

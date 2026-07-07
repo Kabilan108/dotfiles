@@ -294,7 +294,7 @@ in
     mpv
     nautilus
     networkmanagerapplet
-    obsidian
+    (withElectronA11y obsidian [ "obsidian" ])
     pavucontrol
     playerctl
     pulseaudio
