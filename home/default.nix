@@ -12,6 +12,7 @@ let
   notifySend = pkgs.writeShellScriptBin "notify-send" ''
     exec env -u LD_LIBRARY_PATH -u APPDIR -u APPIMAGE ${lib.getExe pkgs.libnotify} "$@"
   '';
+  defaultBrowserDesktop = "helium.desktop";
   # Electron apps only build AT-SPI accessibility trees (agent computer use:
   # `acu ui` / `acu act`) when launched with this flag; the session-wide a11y
   # bus flag is not enough. Wraps the binaries and rewrites desktop entries
@@ -266,16 +267,16 @@ in
       "application/x-cbz" = "org.gnome.Evince.desktop";
 
       # default browser
-      "application/xhtml+xml" = "zen-beta.desktop";
-      "application/x-extension-htm" = "zen-beta.desktop";
-      "application/x-extension-html" = "zen-beta.desktop";
-      "application/x-extension-shtml" = "zen-beta.desktop";
-      "application/x-extension-xht" = "zen-beta.desktop";
-      "application/x-extension-xhtml" = "zen-beta.desktop";
-      "text/html" = "zen-beta.desktop";
-      "x-scheme-handler/http" = "zen-beta.desktop";
-      "x-scheme-handler/https" = "zen-beta.desktop";
-      "x-scheme-handler/mailto" = "zen-beta.desktop";
+      "application/xhtml+xml" = defaultBrowserDesktop;
+      "application/x-extension-htm" = defaultBrowserDesktop;
+      "application/x-extension-html" = defaultBrowserDesktop;
+      "application/x-extension-shtml" = defaultBrowserDesktop;
+      "application/x-extension-xht" = defaultBrowserDesktop;
+      "application/x-extension-xhtml" = defaultBrowserDesktop;
+      "text/html" = defaultBrowserDesktop;
+      "x-scheme-handler/http" = defaultBrowserDesktop;
+      "x-scheme-handler/https" = defaultBrowserDesktop;
+      "x-scheme-handler/mailto" = defaultBrowserDesktop;
 
       # chromium
       "x-scheme-handler/chrome" = "google-chrome.desktop";

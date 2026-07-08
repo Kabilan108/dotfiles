@@ -180,6 +180,7 @@ in
         "workspace 2 silent, class:^(Slack)$"
         "workspace 1 silent, class:^(google-chrome)$"
         "workspace 1 silent, class:^(zen-beta)$"
+        "workspace 1 silent, class:^(Helium)$"
 
         "workspace 1 silent, class:^(chrome-.*)$"
         "float, class:^(chrome-.*)$"
@@ -224,6 +225,7 @@ in
         "$mod, Return, exec, ghostty"
         "$mod SHIFT, Return, exec, ghostty --title=floating-nvim -e nvim ~/notes/scratch/$(date +%Y%m%d-%H%M%S).md"
         "$mod, B, exec, zen-beta"
+        "$mod SHIFT, B, exec, helium"
         "$mod, C, exec, google-chrome-stable"
 
         # color picker

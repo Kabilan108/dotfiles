@@ -36,6 +36,7 @@ let
 in
 {
   home.sessionVariables = {
+    BROWSER = "helium";
     HELIUM_AGENTS_PROFILE = heliumAgentsProfile;
     HELIUM_AGENTS_CDP_PORT = heliumAgentsDevtoolsPort;
   };

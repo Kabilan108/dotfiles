@@ -520,7 +520,7 @@ binds {
 
     // quickshell panels
     Mod+A hotkey-overlay-title="Audio Mixer" { spawn "qs" "ipc" "-c" "stillsuit" "call" "mixer" "toggle"; }
-    Mod+Shift+B hotkey-overlay-title="Bluetooth" { spawn "qs" "ipc" "-c" "stillsuit" "call" "bluetooth" "toggle"; }
+    Mod+Alt+B hotkey-overlay-title="Bluetooth" { spawn "qs" "ipc" "-c" "stillsuit" "call" "bluetooth" "toggle"; }
     Mod+N hotkey-overlay-title="Notification Center" { spawn "qs" "ipc" "-c" "stillsuit" "call" "notifications" "toggleCenter"; }
 
     // lock
@@ -530,6 +530,7 @@ binds {
     Mod+Return hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty"; }
     Mod+Shift+Return hotkey-overlay-title="Open Floating Scratch: ghostty" { spawn-sh "ghostty --title=floating-nvim -e nvim ~/notes/scratch/$(date +%Y%m%d-%H%M%S).md"; }
     Mod+B hotkey-overlay-title="Open Browser: zen-beta" { spawn "zen-beta"; }
+    Mod+Shift+B hotkey-overlay-title="Open Browser: helium" { spawn "helium"; }
     Mod+Shift+C hotkey-overlay-title="Open Browser: chrome" { spawn "google-chrome-stable"; }
 
     // speech to text

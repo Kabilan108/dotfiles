@@ -416,7 +416,7 @@ in
       };
 
       provider.websearch.settings = {
-        command = "zen-beta";
+        command = "helium";
         engines_as_actions = false;
         entries = [
           {

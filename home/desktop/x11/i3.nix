@@ -109,6 +109,10 @@ in
           command = "move workspace 1";
         }
         {
+          criteria.class = "Helium";
+          command = "move workspace 1";
+        }
+        {
           criteria.class = "^.*";
           command = "border pixel 2";
         }
@@ -203,6 +207,7 @@ in
         # quickstart
         "${mod}+Return" = "exec ghostty";
         "${mod}+b" = "exec zen-beta";
+        "${mod}+Shift+b" = "exec helium";
 
         # voice typing
         "${mod}+t" = "exec dictator toggle";

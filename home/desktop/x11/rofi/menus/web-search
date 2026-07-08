@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # vim: syn=bash ft=bash
 
-BROWSER_BIN="zen-beta"
+BROWSER_BIN="helium"
 SEARCH_URL="https://unduck.link?q=%s"
 
 chosen=$(rofi -dmenu -p "Search" -theme-str 'window { width: 600px; height: 75px; }')
