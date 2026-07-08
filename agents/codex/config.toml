@@ -36,12 +36,6 @@ command = "nix"
 args = ["run", "github:utensils/mcp-nixos"]
 enabled = false
 
-[mcp_servers.exa]
-url = "https://sietch.sole-pierce.ts.net/exa-mcp/mcp?tools=web_search_exa,get_code_context_exa,crawling_exa,deep_researcher_start,deep_researcher_check"
-
-[mcp_servers.exa.tools.crawling_exa]
-approval_mode = "approve"
-
 [mcp_servers.deepwiki]
 url = "https://mcp.deepwiki.com/mcp"
 

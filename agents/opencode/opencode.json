@@ -8,11 +8,6 @@
     "opencode-gemini-auth"
   ],
   "mcp": {
-    "exa": {
-      "type": "remote",
-      "url": "https://sietch.sole-pierce.ts.net/exa-mcp/mcp?tools=web_search_exa,get_code_context_exa,crawling_exa,deep_researcher_start,deep_researcher_check",
-      "enabled": true
-    },
     "deepwiki": {
       "type": "remote",
       "url": "https://mcp.deepwiki.com/mcp",

@@ -157,7 +157,7 @@ in
         timeout = 60;
         providers = {
           siren = {
-            endpoint = "https://sietch.sole-pierce.ts.net/siren/v1/audio/transcriptions";
+            endpoint = "https://siren.sole-pierce.ts.net/v1/audio/transcriptions";
             key = "\${env:SIREN_API_KEY}";
             model = "nvidia/parakeet-tdt-0.6b-v2";
           };

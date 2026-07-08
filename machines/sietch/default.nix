@@ -7,6 +7,7 @@
 {
   imports = [
     ./hardware-configuration.nix
+    ../../modules/nixos/selfhost
   ];
 
   networking.hostName = "sietch";
