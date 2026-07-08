@@ -9,7 +9,9 @@ let
 in
 {
   imports = [
+    ./jellyfin.nix
     ./siren.nix
+    ./vaultwarden.nix
   ];
 
   options.selfhost.tailnetServices = lib.mkOption {

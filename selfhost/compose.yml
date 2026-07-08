@@ -17,48 +17,5 @@ services:
       TAILSCALE_IP: ${TAILSCALE_IP}
       TAILSCALE_URL: ${TAILSCALE_URL}
 
-  vaultwarden:
-    image: vaultwarden/server:latest
-    container_name: vaultwarden
-    restart: unless-stopped
-    networks:
-      - proxynet
-    environment:
-      DOMAIN: "https://${TAILSCALE_URL}/vw"
-      SIGNUPS_ALLOWED: "false"
-      # ADMIN_TOKEN: ""
-    volumes:
-      - vaultwarden-data:/data/
-
-  jellyfin:
-    container_name: jellyfin
-    devices:
-      - nvidia.com/gpu=all
-    entrypoint: ["/entrypoint.sh"]
-    environment:
-      - JELLYFIN_PublishedServerUrl=https://${TAILSCALE_URL}/jellyfin
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
-    group_add:
-      - "video"
-    image: jellyfin/jellyfin:latest
-    networks:
-      - proxynet
-    restart: unless-stopped
-    user: 1000:1000
-    ports:
-      - "${TAILSCALE_IP}:8096:8096"
-    volumes:
-      - jellyfin-data:/config
-      - jellyfin-cache:/cache
-      - ./jellyfin/entrypoint.sh:/entrypoint.sh
-      - /library:/media
-      - /etc/localtime:/etc/localtime:ro
-
 networks:
   proxynet:
-
-volumes:
-  vaultwarden-data:
-  jellyfin-data:
-  jellyfin-cache:
