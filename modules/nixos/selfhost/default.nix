@@ -9,6 +9,7 @@ let
 in
 {
   imports = [
+    ./executor.nix
     ./jellyfin.nix
     ./siren.nix
     ./vaultwarden.nix
