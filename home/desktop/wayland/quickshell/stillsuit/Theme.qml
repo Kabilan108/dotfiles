@@ -263,6 +263,7 @@ Singleton {
         power_settings_new: "\ue8ac",
         refresh: "\ue5d5",
         lock: "\ue88d",
+        vpn_lock: "\ue62f",
         check: "\ue5ca",
         close: "\ue14c",
         dark_mode: "\ue51c",

@@ -12,6 +12,8 @@ Scope {
     property var coordinator: null
     property bool scanning: false
     property string actionSsid: ""
+    property var vpnConnections: []
+    property string vpnBusyUuid: ""
 
     readonly property var wifiDevice: findWifiDevice()
     readonly property var wifiNetworks: sortedWifiNetworks()
@@ -93,10 +95,64 @@ Scope {
         scanRestart.restart()
     }
 
-    onVisibleChanged: {
-        if (visible) startScan()
-        else if (wifiDevice) wifiDevice.scannerEnabled = false
+    function splitTerse(line, maxFields) {
+        const fields = []
+        let current = ""
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i]
+            if (ch === "\\" && i + 1 < line.length) {
+                current += line[i + 1]
+                i++
+            } else if (ch === ":" && fields.length < maxFields - 1) {
+                fields.push(current)
+                current = ""
+            } else {
+                current += ch
+            }
+        }
+        fields.push(current)
+        return fields
     }
+
+    function parseVpnList(text) {
+        const conns = []
+        const lines = text.split("\n")
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i] === "") continue
+            const parts = splitTerse(lines[i], 4)
+            if (parts.length < 4) continue
+            const type = parts[1]
+            if (type !== "vpn" && type !== "wireguard") continue
+            conns.push({ uuid: parts[0], type: type, active: parts[2] === "yes", name: parts[3] })
+        }
+        conns.sort((a, b) => a.active === b.active
+            ? a.name.localeCompare(b.name)
+            : (a.active ? -1 : 1))
+        vpnConnections = conns
+    }
+
+    function refreshVpns() {
+        vpnListProc.running = true
+    }
+
+    function toggleVpn(vpn) {
+        if (!vpn || vpnBusyUuid !== "") return
+        vpnBusyUuid = vpn.uuid
+        vpnToggleProc.command = ["nmcli", "--wait", "20", "connection",
+            vpn.active ? "down" : "up", "uuid", vpn.uuid]
+        vpnToggleProc.running = true
+    }
+
+    onVisibleChanged: {
+        if (visible) {
+            startScan()
+            refreshVpns()
+        } else if (wifiDevice) {
+            wifiDevice.scannerEnabled = false
+        }
+    }
+
+    Component.onCompleted: refreshVpns()
 
     component WifiRow: Rectangle {
         id: rowRoot
@@ -189,6 +245,81 @@ Scope {
         }
     }
 
+    component VpnRow: Rectangle {
+        id: vpnRowRoot
+
+        required property var vpn
+
+        readonly property bool active: vpn?.active ?? false
+        readonly property bool busy: root.vpnBusyUuid === (vpn?.uuid || "")
+
+        implicitHeight: 40
+        radius: Theme.radiusSmall - 1
+        color: vpnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
+
+        Behavior on color {
+            ColorAnimation { duration: Theme.animationFast }
+        }
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 8
+            anchors.rightMargin: 8
+            spacing: 9
+
+            Text {
+                Layout.alignment: Qt.AlignVCenter
+                text: Theme.icon.vpn_lock
+                color: vpnRowRoot.active ? Theme.accent : Theme.textSecondary
+                font.family: Theme.iconFamily
+                font.variableAxes: ({ "FILL": vpnRowRoot.active ? 1 : 0, "wght": 500, "opsz": 20 })
+                font.pixelSize: 15
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 1
+
+                Text {
+                    Layout.fillWidth: true
+                    text: vpnRowRoot.vpn?.name || "vpn"
+                    color: vpnRowRoot.active ? Theme.textPrimary : Theme.textSecondary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 12
+                    elide: Text.ElideRight
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: vpnRowRoot.vpn?.type === "wireguard" ? "wireguard" : "vpn"
+                    color: Theme.textSecondary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 10
+                    elide: Text.ElideRight
+                    visible: vpnRowRoot.active
+                }
+            }
+
+            Text {
+                Layout.alignment: Qt.AlignVCenter
+                text: vpnRowRoot.busy ? (vpnRowRoot.active ? "disconnecting" : "connecting")
+                    : vpnRowRoot.active ? "connected" : "connect"
+                color: vpnRowRoot.active && !vpnRowRoot.busy ? Theme.success : Theme.accent
+                font.family: Theme.fontFamily
+                font.pixelSize: 11
+                font.bold: true
+            }
+        }
+
+        MouseArea {
+            id: vpnMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.toggleVpn(vpnRowRoot.vpn)
+        }
+    }
+
     IpcHandler {
         target: "network"
 
@@ -232,6 +363,30 @@ Scope {
         interval: 9000
         repeat: false
         onTriggered: root.actionSsid = ""
+    }
+
+    Process {
+        id: vpnListProc
+        command: ["nmcli", "-t", "-f", "UUID,TYPE,ACTIVE,NAME", "connection", "show"]
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: root.parseVpnList(text)
+        }
+    }
+
+    Process {
+        id: vpnToggleProc
+        onExited: {
+            root.vpnBusyUuid = ""
+            root.refreshVpns()
+        }
+    }
+
+    Timer {
+        interval: 4000
+        running: root.visible
+        repeat: true
+        onTriggered: root.refreshVpns()
     }
 
     LazyLoader {
@@ -390,6 +545,40 @@ Scope {
                                 width: ListView.view.width
                                 network: modelData
                                 mode: "saved"
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: parent.width
+                        implicitHeight: 1
+                        color: Theme.panelBorder
+                        visible: root.vpnConnections.length > 0
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: 4
+                        visible: root.vpnConnections.length > 0
+
+                        SectionLabel {
+                            text: "VPN"
+                            bottomPadding: 2
+                        }
+
+                        ListView {
+                            width: parent.width
+                            height: Math.min(contentHeight, 162)
+                            clip: true
+                            spacing: 1
+                            interactive: contentHeight > height
+                            boundsBehavior: Flickable.StopAtBounds
+                            model: root.vpnConnections
+
+                            delegate: VpnRow {
+                                required property var modelData
+                                width: ListView.view.width
+                                vpn: modelData
                             }
                         }
                     }
