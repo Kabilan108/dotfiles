@@ -5,7 +5,8 @@
   selfhost.tailnetServices.executor.port = 8302;
 
   virtualisation.oci-containers.containers.executor = {
-    image = "ghcr.io/rhyssullivan/executor-selfhost:latest";
+    # digest-pinned; bump with bin/image-pins or the update-image-pins skill
+    image = "ghcr.io/rhyssullivan/executor-selfhost:latest@sha256:aa985b446aafd28a3b723559ec62b7dbc356bb27eb433d87e82b213dd55f9b64";
     ports = [ "127.0.0.1:8302:4788" ];
     volumes = [ "/var/lib/executor:/data" ];
     environment = {

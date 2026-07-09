@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Check or update digest pins for oci-container images in modules/nixos/selfhost.
+# Pins use the form: image = "<name>:<tag>@sha256:<digest>";
+#
+#   image-pins check          show pinned vs upstream digests
+#   image-pins update [name]  rewrite drifted pins (all, or one image by substring)
+set -euo pipefail
+
+dir="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)/modules/nixos/selfhost"
+action="${1:-check}"
+filter="${2:-}"
+
+skopeo() { nix shell nixpkgs#skopeo -c skopeo "$@"; }
+
+drift=0
+while IFS=: read -r file line; do
+  pin=$(sed -n "${line}p" "$file" | grep -oE '"[^"]+"' | tr -d '"')
+  ref="${pin%%@*}"
+  pinned="${pin##*@}"
+  [[ -n "$filter" && "$ref" != *"$filter"* ]] && continue
+  upstream=$(skopeo inspect --format '{{.Digest}}' "docker://$ref")
+  if [[ "$upstream" == "$pinned" ]]; then
+    echo "ok       $ref"
+  else
+    drift=1
+    echo "DRIFTED  $ref"
+    echo "         pinned:   $pinned"
+    echo "         upstream: $upstream"
+    if [[ "$action" == "update" ]]; then
+      sed -i "s|${pinned}|${upstream}|" "$file"
+      echo "         updated $file"
+    fi
+  fi
+done < <(grep -nE 'image = "[^"]+@sha256:[0-9a-f]{64}"' "$dir"/*.nix | cut -d: -f1,2)
+
+if [[ "$drift" == 1 && "$action" == "update" ]]; then
+  echo
+  echo "pins updated -- review release notes, then: sudo nixos-rebuild switch --flake ~/dotfiles#sietch"
+fi

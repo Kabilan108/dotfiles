@@ -10,13 +10,15 @@
     options = [ "bind" ];
   };
 
-  services.jellyfin = {
-    enable = true;
-    # The compose container ran as uid 1000; existing state and the yt-dlp
-    # plugin's library writes assume this user.
-    user = "kabilan";
-    group = "users";
-  };
+  services.jellyfin.enable = true;
+
+  # users: yt-dlp plugin writes to /library/downloads (group-writable);
+  # video/render: NVENC device access
+  users.users.jellyfin.extraGroups = [
+    "users"
+    "video"
+    "render"
+  ];
 
   systemd.services.jellyfin = {
     path = [

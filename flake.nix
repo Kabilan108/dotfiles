@@ -135,6 +135,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     raindrop.url = "github:kabilan108/raindrop";
+    siren.url = "github:kabilan108/siren";
     tracer.url = "github:kabilan108/tracer";
 
     try.url = "github:tobi/try";
