@@ -103,7 +103,10 @@ secondary layer. The real attack surface is the **decrypted client session**.
 - [ ] Ensure `/var/lib/vaultwarden` is in the backup set (see Backups / issue #7).
 
 ### Client side (where it actually matters)
-- [ ] **WebAuthn 2FA, both keys** (do first). Use WebAuthn, NOT Yubico OTP.
+- [x] **WebAuthn 2FA, both keys**. Re-registered 2026-07-08 against the new
+      `vault.sole-pierce.ts.net` domain (WebAuthn creds are domain-bound — any
+      future domain change breaks them again; keep the recovery code offline
+      and disable 2FA *before* the move next time).
 - [ ] **Shorten vault timeout** drastically (15–30 min or "on system lock").
 - [ ] Timeout action = **lock**; require master password / biometric on unlock.
 - Desktop app does NOT replace the browser extension (extension does autofill).
@@ -158,6 +161,12 @@ confirm `libfido2` present when generating the first sk key.
 - **Strongly consider Tailscale SSH**: moves auth to tailnet ACLs, supports per-rule
   re-auth (`checkPeriod`), tag-based identity for OpenClaw/Hermes on the Pi. Cleaner
   than hand-managed `authorized_keys` across 3 hosts.
+- **Note (2026-07):** sietch is now a **tagged device** (`tag:server`, required to
+  host Tailscale Services). Tagged devices drop out of `autogroup:self`, so any
+  Tailscale SSH rule targeting sietch needs `dst: ["tag:server"]`; plain OpenSSH
+  is unaffected. Side effects: node key expiry disabled, Taildrop unavailable on
+  sietch, and sietch's outbound traffic matches the broad `tag:server -> *` grant
+  (candidate for tightening in a future ACL pass).
 - The Pi (OpenClaw / Hermes) raises stakes: human access = hardware key; agent runtime
   = constrained identity, sandboxed, no path to human creds.
 
@@ -209,11 +218,34 @@ Hardening posture per service type:
 - **Containers** (executor): namespace isolation instead; images digest-pinned
   (`bin/image-pins`, `update-image-pins` skill), never auto-pulled.
 
+Accepted trade-offs (deliberate, revisit if threat model shifts):
+- **Shared HF model cache** (`/vault/userdata/huggingface`, siren + kabilan
+  tools): a compromised siren could poison a cached model another tool later
+  loads (model archives can carry code). Accepted for storage economy; the
+  docker group is a far larger hole today.
+- **jellyfin in the `users` group** for `/library/downloads` writes.
+
 What none of this addresses: code running **as kabilan** (the primary threat
 above) — service hardening protects services from the world, not service data
 from user-level malware. The remaining levers are the `docker` group
 (root-equivalent for kabilan) and the sandboxing track below. Tracked with
 backups in dotfiles issue #7.
+
+### Executor (MCP gateway) — part of the secrets-off-disk track
+
+Executor (`executor.sole-pierce.ts.net`, added 2026-07-08) is not just another
+service: it centralizes agent tool credentials server-side, encrypted at rest
+(`EXECUTOR_SECRET_KEY`, held in agenix — a stolen `data.db` alone is not
+decryptable). Agents authenticate to `/mcp` with per-agent bearer tokens/OAuth
+and never see upstream credentials; per-tool policies (allow/approve/block) are
+a single choke point for what agents may invoke.
+
+- **Plan:** migrate per-agent MCP endpoints and API keys out of agent config
+  files into Executor connections, so agent configs hold only an executor
+  token. Directly serves priority #2 (secrets off disk) for the agent fleet.
+- **Do not flip `EXECUTOR_ALLOW_LOCAL_NETWORK`** (default/pinned `false`): its
+  QuickJS sandbox executes semi-trusted code, and loopback on sietch includes
+  vaultwarden, jellyfin, and siren.
 
 ---
 
