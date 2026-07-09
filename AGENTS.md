@@ -27,15 +27,18 @@ nix develop
 ```
 
 ### Self-Hosted Services
+
+Services run as NixOS units defined in `modules/nixos/selfhost/`, localhost-bound
+and published tailnet-only as `https://<name>.sole-pierce.ts.net` via Tailscale
+Services. Adding one: use the `add-selfhost-service` skill. Updating pinned
+container images: `update-image-pins` skill / `bin/image-pins`. Permission model
+and hardening guidance: `docs/security-hardening.md` ("Selfhost service
+permission model").
+
 ```bash
-# Start all services
-cd selfhost && docker-compose up -d
-
-# View service logs
-docker-compose logs -f [service-name]
-
-# Stop services
-docker-compose down
+# Inspect
+systemctl status siren jellyfin vaultwarden docker-executor
+tailscale serve status --json | jq '.Services'
 ```
 
 ## Architecture Overview
@@ -63,7 +66,7 @@ This is a complete NixOS + Home Manager-based development workstation configurat
 - **machines/** - Machine-specific configurations (sietch with NVIDIA/CUDA, jacurutu with Framework laptop support)
 - **packages/** - Custom package definitions
 - **wallpapers/** - Desktop wallpapers
-- **selfhost/** - Docker services (Open-WebUI, Jellyfin, Vaultwarden, Nginx)
+- **modules/nixos/selfhost/** - Self-hosted services (Jellyfin, Vaultwarden, Siren, Executor) behind Tailscale Services
 - **scripts/** - Utility scripts (bootstrap, partitioning)
 - **secrets/** - Encrypted secrets managed with agenix
 
@@ -72,7 +75,7 @@ This is a complete NixOS + Home Manager-based development workstation configurat
 - **Session Management**: `sessionizer` script for tmux session switching with fzf
 - **AI Integration**: Multiple AI services configured (Anthropic, OpenAI, OpenRouter)
 - **Development Environment**: Comprehensive LSP setup with Neovim, autocomplete, debugging, and code navigation
-- **Self-Hosted Services**: Open-WebUI for AI chat, Jellyfin for media, Vaultwarden for passwords
+- **Self-Hosted Services**: Jellyfin for media, Vaultwarden for passwords, Siren for speech-to-text, Executor as MCP gateway — all tailnet-only
 
 ### Configuration Management
 - **Home Manager**: User packages, programs, and dotfiles managed declaratively in `home/`

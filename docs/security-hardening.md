@@ -95,13 +95,12 @@ Good news: Vaultwarden is **zero-knowledge** — vault data is encrypted client-
 with the master password. The `vaultwarden-data` volume holds ciphertext; FDE is a
 secondary layer. The real attack surface is the **decrypted client session**.
 
-### Server side (`selfhost/compose.yml`)
-- [ ] **Pin image to a digest** (not `:latest`) — supply-chain hygiene. HIGH PRIORITY.
-- [ ] Remove the commented `ADMIN_TOKEN` (not used). If ever needed, use an
-      Argon2-hashed token, Tailscale-only.
+### Server side (`modules/nixos/selfhost/vaultwarden.nix` — native since July 2026)
+- [x] No more docker image — native `services.vaultwarden`, updates pinned by flake.lock
+- [x] Argon2-hashed `ADMIN_TOKEN` via agenix, Tailscale-only
 - [x] `SIGNUPS_ALLOWED: false`
-- [x] Tailscale-only access, no public exposure
-- [ ] Ensure `vaultwarden-data` volume is in the backup set (see Backups).
+- [x] Tailscale-only access (svc:vault, localhost-bound backend, 80/443 closed)
+- [ ] Ensure `/var/lib/vaultwarden` is in the backup set (see Backups / issue #7).
 
 ### Client side (where it actually matters)
 - [ ] **WebAuthn 2FA, both keys** (do first). Use WebAuthn, NOT Yubico OTP.
@@ -177,6 +176,44 @@ confirm `libfido2` present when generating the first sk key.
 - Scope: **published packages only** (sign release tags primarily). Personal repos:
   skip. Work/medical-device: legitimate given regulated context, but it's an org
   rollout — raise with team, don't solo.
+
+---
+
+## Selfhost service permission model (July 2026, post-migration)
+
+Services run as NixOS units behind Tailscale Services (see
+`modules/nixos/selfhost/` and the `add-selfhost-service` skill). Rules of thumb
+for filesystem access, in priority order:
+
+1. **Ownership for the owner.** Each service gets a dedicated system user and a
+   `/var/lib/<name>` state dir (0700 where the module supports it). If you
+   control the module, set its user/group — never solve access with mode bits.
+2. **Group for peers.** Two principals genuinely co-owning a tree → purpose
+   group + setgid dirs (e.g. `/library/downloads` is `users`-group-writable for
+   jellyfin's yt-dlp plugin).
+3. **ACL for the exception.** One extra principal needing access to a tree owned
+   by someone else → POSIX ACL, declaratively via tmpfiles:
+   `"A+ /path - - - - u:svc:rwX,d:u:svc:rwX"` (recursive; `d:` entries make new
+   files inherit). Example: the siren user on the shared HF model cache
+   (`/vault/userdata/huggingface`), so multi-GB models are stored once.
+   If a tree accumulates >2–3 ACL principals, restructure instead.
+   Known ACL trap: the group-permission slot becomes the ACL mask — a stray
+   `chmod g-w` silently caps ACL entries; `mv`-ed files don't inherit defaults.
+
+Hardening posture per service type:
+- **Native nixpkgs modules** (vaultwarden, jellyfin): upstream units already ship
+  syscall filters, capability bounding, ProtectSystem etc. — don't duplicate.
+- **Own flake modules** (siren): baseline is dedicated user + `NoNewPrivileges`,
+  `PrivateTmp`, `ProtectSystem=strict`, `ProtectHome`, `ReadWritePaths` scoped;
+  no `PrivateDevices` when GPU access is needed.
+- **Containers** (executor): namespace isolation instead; images digest-pinned
+  (`bin/image-pins`, `update-image-pins` skill), never auto-pulled.
+
+What none of this addresses: code running **as kabilan** (the primary threat
+above) — service hardening protects services from the world, not service data
+from user-level malware. The remaining levers are the `docker` group
+(root-equivalent for kabilan) and the sandboxing track below. Tracked with
+backups in dotfiles issue #7.
 
 ---
 
