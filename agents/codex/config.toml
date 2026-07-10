@@ -1,6 +1,6 @@
-model = "gpt-5.5"
+model = "gpt-5.6-sol"
 
-model_reasoning_effort = "high"
+model_reasoning_effort = "low"
 model_supports_reasoning_summaries = true
 
 sandbox_mode = "danger-full-access"
@@ -10,8 +10,8 @@ service_tier = "fast"
 approval_policy = "never"
 approvals_reviewer = "user"
 
-[agents]
-max_threads = 20
+# [agents]
+# max_threads = 20
 
 [shell_environment_policy]
 inherit = "all"
@@ -27,6 +27,10 @@ js_repl = false
 memories = false
 personality = true
 goals = true
+
+[features.multi_agent_v2]
+enabled = true
+max_concurrent_threads_per_session = 20
 
 [history]
 persistence = "save-all"
@@ -269,6 +273,9 @@ trust_level = "trusted"
 trust_level = "trusted"
 
 [projects."/vault/experiments/2026-06-26-lakebed-demo-001/my-app"]
+trust_level = "trusted"
+
+[projects."/tmp"]
 trust_level = "trusted"
 
 [tui.model_availability_nux]

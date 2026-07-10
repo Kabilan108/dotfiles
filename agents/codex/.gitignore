@@ -29,3 +29,4 @@ app-server-daemon
 packages
 process_manager/
 plugins
+mcp-oauth-locks
