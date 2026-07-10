@@ -110,7 +110,6 @@ add_skill_source() {
   local source_dir="$1"
   local target_dir="$2"
   local label="$3"
-  local include_hidden="${4:-false}"
   local skill
   local skill_name
   local source_path
@@ -120,7 +119,7 @@ add_skill_source() {
 
   while IFS= read -r -d '' skill; do
     skill_name=$(basename "$skill")
-    if [[ "$include_hidden" != true && "$skill_name" == .* ]]; then
+    if [[ "$skill_name" == .* ]]; then
       continue
     fi
 
@@ -141,12 +140,12 @@ for target_dir in "${target_dirs[@]}"; do
 done
 
 for agent in "${!target_dirs[@]}"; do
-  add_skill_source "$agents_dir/skills" "${target_dirs[$agent]}" "agents/skills" false
+  add_skill_source "$agents_dir/skills" "${target_dirs[$agent]}" "agents/skills"
 done
 
-add_skill_source "$agents_dir/claude-skills" "${target_dirs[claude]}" "agents/claude-skills" true
-add_skill_source "$agents_dir/codex-skills" "${target_dirs[codex]}" "agents/codex-skills" true
-add_skill_source "$agents_dir/opencode-skills" "${target_dirs[opencode]}" "agents/opencode-skills" true
+add_skill_source "$agents_dir/claude-skills" "${target_dirs[claude]}" "agents/claude-skills"
+add_skill_source "$agents_dir/codex-skills" "${target_dirs[codex]}" "agents/codex-skills"
+add_skill_source "$agents_dir/opencode-skills" "${target_dirs[opencode]}" "agents/opencode-skills"
 
 for target_dir in "${target_dirs[@]}"; do
   [[ -d "$target_dir" ]] || continue
