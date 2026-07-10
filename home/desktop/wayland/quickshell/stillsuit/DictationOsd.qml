@@ -21,7 +21,6 @@ Scope {
 
     readonly property int barCount: 23
 
-    property bool socketRequested: false
     property bool reconnectExhausted: false
     property int reconnectAttempts: 0
     property string lastSocketError: ""
@@ -35,7 +34,7 @@ Scope {
 
     Component.onCompleted: {
         resetLevels()
-        socketRequested = true
+        dictatorSocket.connected = true
     }
 
     function clamp(value, min, max) {
@@ -96,7 +95,7 @@ Scope {
 
     function scheduleReconnect() {
         if (reconnectTimer.running || reconnectExhausted) return
-        socketRequested = false
+        dictatorSocket.connected = false
         if (reconnectAttempts >= maxReconnectAttempts) {
             reconnectExhausted = true
             setVisualizerState("idle")
@@ -176,7 +175,7 @@ Scope {
     Timer {
         id: reconnectTimer
         repeat: false
-        onTriggered: root.socketRequested = true
+        onTriggered: dictatorSocket.connected = true
     }
 
     Timer {
@@ -194,15 +193,16 @@ Scope {
     }
 
     Socket {
+        id: dictatorSocket
         path: root.socketPath
-        connected: root.socketRequested
+        connected: false
 
         onConnectedChanged: {
             if (connected) {
                 root.lastSocketError = ""
                 root.reconnectAttempts = 0
                 root.reconnectExhausted = false
-            } else if (root.socketRequested) {
+            } else {
                 root.scheduleReconnect()
             }
         }
