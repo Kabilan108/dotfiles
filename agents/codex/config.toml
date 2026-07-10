@@ -35,10 +35,9 @@ max_concurrent_threads_per_session = 20
 [history]
 persistence = "save-all"
 
-[mcp_servers.nixos]
-command = "nix"
-args = ["run", "github:utensils/mcp-nixos"]
-enabled = false
+[mcp_servers.executor]
+type = "http"
+url = "https://executor.sole-pierce.ts.net/mcp"
 
 [mcp_servers.deepwiki]
 url = "https://mcp.deepwiki.com/mcp"
@@ -280,6 +279,7 @@ trust_level = "trusted"
 
 [tui.model_availability_nux]
 "gpt-5.5" = 4
+"gpt-5.6-sol" = 1
 
 [marketplaces.openai-bundled]
 last_updated = "2026-06-30T15:40:08Z"
