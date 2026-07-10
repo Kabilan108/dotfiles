@@ -24,7 +24,7 @@ steer = true
 multi-agent = true
 undo = true
 js_repl = false
-memories = false
+memories = true
 personality = true
 goals = true
 
@@ -59,12 +59,12 @@ NODE_REPL_NODE_MODULE_DIRS = ""
 NODE_REPL_NODE_PATH = "/home/kabilan/.local/opt/codex-desktop-linux/codex-app/resources/node-runtime/bin/node"
 NODE_REPL_TRUSTED_CODE_PATHS = "/home/kabilan/.codex"
 CODEX_HOME = "/home/kabilan/.codex"
-NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "a05cdd282c2717f076e11bc0e94b7b20e1fc4759dbe28440bd1c734953606a56"
+NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "6d25aa7656feac858f3a3bdaea5bcbab0dbfd426c9de8e6931ce90c399ee8e4f,c8b7e809d7cf9e20a57123b2530d476ccec9a01a6230a7b2b924fea7d94d7f4a,505eba02c6eed6bcc3f2883e6c705c3377eef8c172bb2d99c909134b0da6e57d,0c77a3b75646e46fa857011b4cde14be2f580b5655461b7c0aabf54f86fc6781"
 BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
 NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunction with the Browser Plugin."
 NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
 BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
-BROWSER_USE_CODEX_APP_VERSION = "26.623.61825"
+BROWSER_USE_CODEX_APP_VERSION = "26.707.31428"
 
 [mcp_servers.node_repl.tools]
 
@@ -285,15 +285,15 @@ trust_level = "trusted"
 
 [tui.model_availability_nux]
 "gpt-5.5" = 4
-"gpt-5.6-sol" = 1
+"gpt-5.6-sol" = 4
 
 [marketplaces.openai-bundled]
-last_updated = "2026-06-30T15:40:08Z"
+last_updated = "2026-07-10T17:09:10Z"
 source_type = "local"
 source = "/home/kabilan/dotfiles/agents/codex/.tmp/bundled-marketplaces/openai-bundled"
 
 [marketplaces.openai-primary-runtime]
-last_updated = "2026-06-24T23:18:18Z"
+last_updated = "2026-07-10T17:18:27Z"
 source_type = "local"
 source = "/home/kabilan/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
 
@@ -324,9 +324,12 @@ enabled = true
 [plugins."browser@openai-bundled"]
 enabled = true
 
+[plugins."chrome@openai-bundled"]
+enabled = true
+
 [desktop]
 appearanceTheme = "dark"
-appearanceDarkCodeThemeId = "gruvbox"
+appearanceDarkCodeThemeId = "catppuccin"
 sansFontSize = 16
 codeFontSize = 14
 usePointerCursors = true
@@ -334,17 +337,23 @@ followUpQueueMode = "steer"
 composerEnterBehavior = "cmdIfMultiline"
 reviewDelivery = "detached"
 conversationDetailMode = "STEPS_EXECUTION"
+show-context-window-usage = true
+enabled-reasoning-efforts = ["low", "medium", "high", "xhigh", "ultra", "max"]
 
 [desktop.appearanceDarkChromeTheme]
-accent = "#458588"
+accent = "#cba6f7"
 contrast = 60
-ink = "#ebdbb2"
+ink = "#cdd6f4"
 opaqueWindows = true
-surface = "#282828"
+surface = "#1e1e2e"
 
 [desktop.appearanceDarkChromeTheme.fonts]
 
 [desktop.appearanceDarkChromeTheme.semanticColors]
-diffAdded = "#ebdbb2"
-diffRemoved = "#cc241d"
-skill = "#b16286"
+diffAdded = "#a6e3a1"
+diffRemoved = "#f38ba8"
+skill = "#cba6f7"
+
+[memories]
+generate_memories = true
+use_memories = true
