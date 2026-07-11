@@ -56,7 +56,8 @@
 
   systemd.tmpfiles.rules = [
     "d /vault 0755 kabilan users - -"
-    "d /library 0755 kabilan users - -"
+    "d /library 2775 kabilan users - -"
+    "A+ /library - - - - g:users:rwX,d:g:users:rwx"
   ];
 
   # Enables DHCP on each ethernet and wireless interface. In case of scripted networking
