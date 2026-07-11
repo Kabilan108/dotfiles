@@ -31,6 +31,8 @@ goals = true
 [features.multi_agent_v2]
 enabled = true
 max_concurrent_threads_per_session = 20
+hide_spawn_agent_metadata = false
+tool_namespace = "agents"
 
 [history]
 persistence = "save-all"
@@ -281,6 +283,9 @@ trust_level = "trusted"
 trust_level = "trusted"
 
 [projects."/vault/repos/t3code/.t3/e2e-project"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server/jobs/analysis-job"]
 trust_level = "trusted"
 
 [tui.model_availability_nux]
