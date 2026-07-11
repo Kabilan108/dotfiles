@@ -274,7 +274,13 @@ trust_level = "trusted"
 [projects."/vault/experiments/2026-06-26-lakebed-demo-001/my-app"]
 trust_level = "trusted"
 
-[projects."/tmp"]
+[projects."/tmp/codex-mrn-demo"]
+trust_level = "trusted"
+
+[projects."/vault/repos/t3code"]
+trust_level = "trusted"
+
+[projects."/vault/repos/t3code/.t3/e2e-project"]
 trust_level = "trusted"
 
 [tui.model_availability_nux]
