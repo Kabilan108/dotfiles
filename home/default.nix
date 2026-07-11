@@ -81,6 +81,8 @@ in
         show_hidden = true;
         show_symlink = true;
       };
+      preview.max_width = 2400;
+      preview.max_height = 3600;
       opener = {
         h5 = [
           {
