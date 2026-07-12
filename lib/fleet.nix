@@ -23,10 +23,12 @@ rec {
       ];
       hostPubkey = null;
       keys = {
+        # hardware-only: yk-nfc travels with the user, yk-nano is the backup
+        # (lives at sietch; its handle file stays on jacurutu). id_ed25519 is
+        # deliberately NOT authorized for human ssh - agenix identity only.
         human = [
           "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIAU2WbCLrvbZce+BFRjxjqGfc2atw+UW1OzuUL0xoQP0AAAABHNzaDo= yk-nfc"
           "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIC2osOfuEavgTyeKIekDC3QRInB5F7+OwbNr8rI0gxeOAAAABHNzaDo= yk-nano"
-          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPN/jpn1y7lmxhrBSmApiVvA+H2YN3AFkczBJbKIGVUe kabilan@jacurutu"
         ];
         agent = [
           "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDj7GbeFlXYTwXBodBwKtnYcj5Y55j9RNH7QUprk/Zfb agent@jacurutu"
