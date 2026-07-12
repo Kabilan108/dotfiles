@@ -8,6 +8,8 @@
     ./mic-volume-enforce.nix
     ./moberg.nix
     ./spotify-cache.nix
+    ./tracer-digest.nix
+    ./tracer-sync.nix
     ./update-agents.nix
     ./wayvnc.nix
   ];

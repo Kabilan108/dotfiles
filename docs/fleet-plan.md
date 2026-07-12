@@ -109,11 +109,19 @@ immediately, `update` in place (stable URLs), run `watch` inside tmux (Bash
 priorities posted to Kabilan108/pagebin#1 (watch robustness, client-side
 id→URL cache). Actual pagebin CLI changes happen in that repo, not here.
 
-### Phase 7 — tracer ingestion + learning loop
+### Phase 7 — tracer ingestion + learning loop [dotfiles side done 2026-07-12]
 
-jacurutu → sietch one-way archive sync; targeted tracer improvements;
-periodic review job distilling sessions into the agent wiki. Needs a
-dedicated discussion.
+- `tracer-sync` (jacurutu): daily systemd user timer rsyncing the archive to
+  `sietch:/vault/userdata/tracer-ingest/jacurutu/` over the restricted
+  `agent-jacurutu` key.
+- `tracer-digest` (sietch): weekly (Sun 18:00) headless `claude -p` review of
+  new sessions across both archive roots → digest markdown into the vault
+  (`tracer-digest.digestDir`, currently `01-logs/agent-digests` — re-point
+  when the agent wiki structure lands) + discord-notify summary. First run
+  auto-seeds sessions older than 14 days as seen. Manual runs: `tracer-digest`.
+- Tracer CLI improvements (scoped for the tracer repo, separate session):
+  frontmatter metadata (host/cwd/model/times), a search/index command,
+  outcome tagging.
 
 ## Open items
 

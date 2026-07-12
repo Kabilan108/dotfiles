@@ -22,6 +22,7 @@
       codex-desktop.enable = true;
       mic-volume-enforce.enable = true;
       moberg.eboostReviewerReport.enable = true;
+      tracer-sync.enable = true;
     };
 
     programs.niri.config = null;

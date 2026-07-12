@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+set -euo pipefail
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/tracer-digest"
+SEEN_FILE="$STATE_DIR/seen.txt"
+DIGEST_DIR="${TRACER_DIGEST_DIR:-/vault/notes/coppermind/coppermind/01-logs/agent-digests}"
+MAX_SESSIONS="${TRACER_DIGEST_MAX:-25}"
+ARCHIVE_ROOTS=(
+  "$HOME/.local/share/tracer/archive"
+  "/vault/userdata/tracer-ingest"
+)
+
+mkdir -p "$STATE_DIR" "$DIGEST_DIR"
+
+# first run: seed history so the digest starts from the recent past instead
+# of grinding through the whole archive backlog
+if [[ ! -s "$SEEN_FILE" ]]; then
+  find "${ARCHIVE_ROOTS[@]}" -type f -name '*.md' -mtime +14 2>/dev/null >"$SEEN_FILE"
+  echo "tracer-digest: seeded $(wc -l <"$SEEN_FILE") historical sessions as seen"
+fi
+touch "$SEEN_FILE"
+
+# unseen non-stub transcripts, oldest first; the per-run cap defers the rest
+mapfile -t candidates < <(
+  find "${ARCHIVE_ROOTS[@]}" -type f -name '*.md' -size +2k -printf '%T@ %p\n' 2>/dev/null \
+    | sort -n | cut -d' ' -f2-
+)
+
+new_files=()
+for f in "${candidates[@]}"; do
+  grep -qxF "$f" "$SEEN_FILE" || new_files+=("$f")
+  [[ ${#new_files[@]} -ge $MAX_SESSIONS ]] && break
+done
+
+if [[ ${#new_files[@]} -eq 0 ]]; then
+  echo "tracer-digest: no new sessions"
+  exit 0
+fi
+
+date_str=$(date +%Y-%m-%d)
+out_file="$DIGEST_DIR/${date_str}-digest.md"
+
+prompt="You are reviewing coding-agent session transcripts (markdown exports of
+Claude Code / Codex sessions) to extract durable learnings for the user's
+agent wiki. Read these transcript files:
+
+$(printf '%s\n' "${new_files[@]}")
+
+Produce a digest in markdown with these sections, being ruthlessly selective
+(high-signal items only, omit empty sections):
+
+## Learnings — non-obvious facts about codebases, tools, or infra that agents
+had to rediscover and that should be written down (say where they belong:
+AGENTS.md, a skill, or a wiki page)
+## Anti-patterns — mistakes or dead ends that recurred across sessions
+## Workflows worth reusing — prompting patterns or tool compositions that
+worked notably well
+## Follow-ups — abandoned threads or TODOs mentioned but never done
+
+For each item: one or two sentences plus the session file basename(s) it
+came from. Output ONLY the digest markdown, no preamble."
+
+digest=$(claude -p "$prompt" --allowedTools "Read")
+
+{
+  echo "---"
+  echo "date: $date_str"
+  echo "sessions: ${#new_files[@]}"
+  echo "---"
+  echo
+  echo "$digest"
+  echo
+  echo "## Sessions reviewed"
+  printf -- '- %s\n' "${new_files[@]}"
+} >"$out_file"
+
+printf '%s\n' "${new_files[@]}" >>"$SEEN_FILE"
+
+summary=$(echo "$digest" | head -c 900)
+discord-notify -t "tracer digest: ${#new_files[@]} sessions" -s info \
+  --field "digest=$out_file" --body "$summary" || true
+
+echo "tracer-digest: wrote $out_file (${#new_files[@]} sessions)"

@@ -125,6 +125,11 @@ is_tmux_running() {
   return 0
 }
 
+session_id_for() {
+  tmux list-sessions -F $'#{session_id}\t#{session_name}' 2>/dev/null \
+    | awk -F'\t' -v n="$1" '$2 == n { print $1; exit }'
+}
+
 hex_fg() {
   local h="${1#\#}"
   printf '\033[38;2;%d;%d;%dm' "$((16#${h:0:2}))" "$((16#${h:2:2}))" "$((16#${h:4:2}))"
@@ -175,33 +180,34 @@ find_remote_sessions() {
   rm -rf "$tmp"
 }
 
+# remote sessions get a dedicated local wrapper session with the local
+# status bar hidden, so attaching feels like a direct connection to the
+# remote tmux (send the remote prefix with C-a C-a)
 attach_remote() {
   local host="$1" rsession="$2"
-  local win="${host}/${rsession}"
+  local lname="${rsession}@${host}"
 
-  if [[ -z $TMUX ]]; then
+  if [[ -z $TMUX ]] && ! is_tmux_running; then
     exec ssh -t "$host" tmux new-session -A -s "$rsession"
   fi
 
-  local cur win_id
-  cur=$(tmux display-message -p '#S')
-  win_id=$(tmux list-windows -t "$cur" -F $'#{window_id}\t#{window_name}' 2>/dev/null \
-    | awk -F'\t' -v w="$win" '$2 == w { print $1; exit }')
-
-  if [[ -n "$win_id" ]]; then
-    tmux select-window -t "$win_id"
-  else
-    tmux new-window -n "$win" "ssh -t $host tmux new-session -A -s '$rsession'"
+  local sid
+  sid=$(session_id_for "$lname")
+  if [[ -z "$sid" ]]; then
+    sid=$(tmux new-session -dPF '#{session_id}' -s "$lname" \
+      "ssh -t $host tmux new-session -A -s '$rsession'")
+    tmux set-option -t "$sid" status off
   fi
+  switch_to "$sid"
 }
 
 preview_row() {
   local row="$1"
   if [[ "$row" =~ ^\[TMUX\]\ (.+)$ ]]; then
-    tmux list-windows -t "${BASH_REMATCH[1]}" -F '#I: #W (#{pane_current_command})' 2>/dev/null
+    tmux list-windows -t "$(session_id_for "${BASH_REMATCH[1]}")" -F '#I: #W (#{pane_current_command})' 2>/dev/null
   elif [[ "$row" =~ ^\[([^]]+)\]\ (.+)$ ]]; then
     echo "remote tmux session '${BASH_REMATCH[2]}' on ${BASH_REMATCH[1]}"
-    echo "enter: open in window '${BASH_REMATCH[1]}/${BASH_REMATCH[2]}'"
+    echo "enter: attach as '${BASH_REMATCH[2]}@${BASH_REMATCH[1]}' (local status hidden)"
   else
     ls -1A "$row" 2>/dev/null | head -30
   fi
@@ -412,7 +418,8 @@ if [[ -z "$selected" ]]; then
 fi
 
 if [[ "$selected" =~ ^\[TMUX\]\ (.+)$ ]]; then
-  selected="${BASH_REMATCH[1]}"
+  switch_to "$(session_id_for "${BASH_REMATCH[1]}")"
+  exit 0
 elif [[ "$selected" =~ ^\[([^]]+)\]\ (.+)$ ]]; then
   attach_remote "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
   exit 0
