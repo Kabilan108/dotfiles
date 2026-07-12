@@ -46,6 +46,27 @@ in
   "secrets/syncthing/sietch-cert.age".publicKeys = [ sietch ];
   "secrets/syncthing/sietch-key.age".publicKeys = [ sietch ];
 
+  "secrets/ssh/private-config.age".publicKeys = [
+    sietch
+    jacurutu
+  ];
+
+  "secrets/ssh/sietch/github.age".publicKeys = [ sietch ];
+  "secrets/ssh/sietch/do-droplet.age".publicKeys = [ sietch ];
+  "secrets/ssh/sietch/gh-dotfiles-deploy.age".publicKeys = [ sietch ];
+  "secrets/ssh/sietch/moberg-bitbucket.age".publicKeys = [ sietch ];
+  "secrets/ssh/sietch/moberg-devserver3.age".publicKeys = [ sietch ];
+  "secrets/ssh/sietch/agent-sietch.age".publicKeys = [ sietch ];
+
+  "secrets/ssh/jacurutu/github.age".publicKeys = [ jacurutu ];
+  "secrets/ssh/jacurutu/moberg-bitbucket.age".publicKeys = [ jacurutu ];
+  "secrets/ssh/jacurutu/moberg-devserver3.age".publicKeys = [ jacurutu ];
+  "secrets/ssh/jacurutu/moberg-devserver4.age".publicKeys = [ jacurutu ];
+  "secrets/ssh/jacurutu/moberg-mobile-dev.age".publicKeys = [ jacurutu ];
+  "secrets/ssh/jacurutu/agent-jacurutu.age".publicKeys = [ jacurutu ];
+  "secrets/ssh/jacurutu/yk-nfc.age".publicKeys = [ jacurutu ];
+  "secrets/ssh/jacurutu/yk-nano.age".publicKeys = [ jacurutu ];
+
   "secrets/selfhost/executor-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/discord-notify-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/siren-env.age".publicKeys = [ sietch ];

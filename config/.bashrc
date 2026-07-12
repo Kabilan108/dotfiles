@@ -6,6 +6,12 @@ case $- in
 *) return ;;
 esac
 
+# ssh sessions land in a persistent tmux session; one-off ssh commands are
+# non-interactive and never reach this point
+if [[ -n $SSH_CONNECTION && -z $TMUX ]] && command -v tmux >/dev/null 2>&1; then
+  exec tmux new-session -A -s main
+fi
+
 ### -> GENERAL SETTINGS
 
 # update window size after each command
@@ -105,7 +111,7 @@ __bash_prompt() {
     gitbranch="${gitbranch}\[\033[0;36m\]) "
   fi
 
-  PS1="\[\033[0;32m\]${USER}\[\033[0;36m\]@${HOSTNAME} ${arrow} \[\033[1;34m\]\w ${gitbranch}\[\033[0m\]\n\\$ "
+  PS1="\[\033[0;32m\]${USER}\[\033[${FLEET_HOST_ANSI:-0;36}m\]@${HOSTNAME} ${arrow} \[\033[1;34m\]\w ${gitbranch}\[\033[0m\]\n\\$ "
 }
 
 __bash_prompt_command() {

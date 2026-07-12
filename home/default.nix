@@ -46,6 +46,7 @@ in
 
     ../modules/home/appimages.nix
     ../modules/home/btop.nix
+    ../modules/home/fleet.nix
     ../modules/home/fonts.nix
     ../modules/home/ghostty.nix
     ../modules/home/gtk.nix

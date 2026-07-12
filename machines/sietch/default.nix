@@ -39,10 +39,8 @@
     hardware.openrgb.enable = true;
     openssh = {
       enable = true;
-      settings.PasswordAuthentication = true;
+      settings.PasswordAuthentication = false;
       settings.KbdInteractiveAuthentication = false;
     };
   };
-
-  users.users.kabilan.openssh.authorizedKeys.keyFiles = [ ./autorized_keys ];
 }

@@ -42,6 +42,7 @@
             (./. + "/machines/${name}")
             ./configuration.nix
             ./user.nix
+            ./modules/nixos/fleet.nix
             inputs.stylix.nixosModules.stylix
             ./modules/nixos/theme.nix
             ./modules/nixos/virt-manager.nix
