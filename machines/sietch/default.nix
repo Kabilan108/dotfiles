@@ -29,7 +29,6 @@
   home-manager.users.kabilan = {
     dotfiles.services = {
       agent-server.enable = true;
-      tracer-digest.enable = true;
       wayvnc.enable = true;
     };
 

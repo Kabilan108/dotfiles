@@ -46,7 +46,7 @@
 		// {"src": ["sietch"], "dst": ["jacurutu"], "ip": ["tcp:22000"]},
 
 		// phone: broad access to both interactive machines (t3 code, dev servers)
-		{"src": ["pixel-9"], "dst": ["sietch", "jacurutu"], "ip": ["*"]},
+		{"src": ["pixel-9"], "dst": ["sietch", "jacurutu", "tleilax"], "ip": ["*"]},
 
 		// tailnet members reach the hosted services
 		{
@@ -60,6 +60,11 @@
 			],
 			"ip": ["tcp:443"],
 		},
+
+		// sietch is tagged, so autogroup:member above does not cover it; its
+		// own consumers use the svc names too (dictator -> siren). Keep this
+		// minimal - add services only when something on sietch needs them.
+		{"src": ["tag:server"], "dst": ["svc:siren"], "ip": ["tcp:443"]},
 
 		// tagged clients: media boxes get jellyfin, agent boxes get the MCP/API services
 		{"src": ["tag:media"], "dst": ["svc:jellyfin"], "ip": ["tcp:443"]},

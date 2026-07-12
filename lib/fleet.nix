@@ -91,7 +91,7 @@ rec {
       };
       roots = [ "~/dotfiles" ];
       canAccess = [ ];
-      hostPubkey = null;
+      hostPubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILrTgetUqAUt7NEK+51GGGEOgea/uME+vlOJpOdggJB2";
       keys = {
         human = [ ];
         agent = [ ];

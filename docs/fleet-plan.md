@@ -114,11 +114,12 @@ id→URL cache). Actual pagebin CLI changes happen in that repo, not here.
 - `tracer-sync` (jacurutu): daily systemd user timer rsyncing the archive to
   `sietch:/vault/userdata/tracer-ingest/jacurutu/` over the restricted
   `agent-jacurutu` key.
-- `tracer-digest` (sietch): weekly (Sun 18:00) headless `claude -p` review of
-  new sessions across both archive roots → digest markdown into the vault
-  (`tracer-digest.digestDir`, currently `01-logs/agent-digests` — re-point
-  when the agent wiki structure lands) + discord-notify summary. First run
-  auto-seeds sessions older than 14 days as seen. Manual runs: `tracer-digest`.
+- `tracer-digest` (sietch): headless `claude -p` review of new sessions
+  across both archive roots → digest markdown + discord-notify summary.
+  First run auto-seeds sessions older than 14 days as seen. **Manual-first**:
+  the weekly timer module exists but is not enabled — run `tracer-digest` by
+  hand, tune the prompt/output, then enable `tracer-digest.enable` and set
+  `digestDir` once the agent-wiki location is settled.
 - Tracer CLI improvements (scoped for the tracer repo, separate session):
   frontmatter metadata (host/cwd/model/times), a search/index command,
   outcome tagging.
@@ -134,6 +135,11 @@ id→URL cache). Actual pagebin CLI changes happen in that repo, not here.
 - `~/.ssh/agent/` sockets: stale on sietch (Mar 26, no listener — delete);
   LIVE on jacurutu (three listeners as of 2026-07-12) — identify owner via
   `sudo lsof` before removal.
-- tleilax host key for knownHosts; add when the Pi is reachable.
+- ~~tleilax host key for knownHosts~~ — captured 2026-07-12 (Pi is online);
+  in the registry. Pi still needs a rebuild from raspi/ to pick up the
+  agent@sietch authorized key.
+- Post-ACL regression, fixed in the reference policy 2026-07-12: sietch
+  (tagged) lost `svc:` access when allow-all was removed, breaking dictator →
+  siren on sietch. Add the `tag:server → svc:siren` grant in the console.
 - Separate `agent` unix user (security-hardening §agents) — deferred; agent
   keys land first, user split later.
