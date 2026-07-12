@@ -114,6 +114,10 @@ in
   };
 
   xdg.configFile."quickshell/stillsuit-policy.json".text = builtins.toJSON {
+    recordings = {
+      completionTimeoutMs = 8000;
+      directory = "${homeDir}/media/recordings";
+    };
     notifications = {
       dndBypass = {
         critical = true;

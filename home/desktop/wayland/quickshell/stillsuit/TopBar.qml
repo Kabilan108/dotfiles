@@ -11,6 +11,7 @@ Scope {
     id: root
 
     required property var niri
+    required property var recording
     property var audioPanel: null
     property var bluetoothPanel: null
     property var networkPanel: null
@@ -215,12 +216,11 @@ Scope {
                             outputName: barWindow.outputName
                         }
 
-                        BarCluster {
-                            visible: root.niri.screenCaptureActive
-                            icon: Theme.icon.screen_record
-                            active: true
-                            accentColor: Theme.urgent
-                            compact: true
+                        RecordingIndicator {
+                            visible: root.recording.active
+                            controller: root.recording
+                            Layout.leftMargin: 6
+                            onClicked: root.recording.toggle()
                         }
                     }
 

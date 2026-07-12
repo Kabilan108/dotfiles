@@ -8,9 +8,8 @@ Scope {
     property var workspaces: []
     property var windows: []
     property var casts: []
-    property bool gpuScreenRecorderActive: false
     property bool eventStreamRunning: false
-    readonly property bool screenCaptureActive: casts.length > 0 || gpuScreenRecorderActive
+    readonly property bool screenCaptureActive: casts.length > 0
 
     function parseEvent(raw) {
         const line = String(raw || "").trim()
@@ -121,7 +120,6 @@ Scope {
     function refresh() {
         if (!workspacesProc.running) workspacesProc.running = true
         if (!windowsProc.running) windowsProc.running = true
-        if (!screenCaptureProc.running) screenCaptureProc.running = true
     }
 
     function outputName(screen) {
@@ -257,14 +255,6 @@ Scope {
         stdout: StdioCollector {
             waitForEnd: true
             onStreamFinished: root.loadWindows(text)
-        }
-    }
-
-    Process {
-        id: screenCaptureProc
-        command: ["pgrep", "--quiet", "-f", "^gpu-screen-recorder"]
-        onExited: function(exitCode) {
-            root.gpuScreenRecorderActive = exitCode === 0
         }
     }
 

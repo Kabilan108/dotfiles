@@ -1,0 +1,315 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+
+def runtime_dir() -> Path:
+    base = Path(os.environ.get("XDG_RUNTIME_DIR", f"/tmp/user-{os.getuid()}"))
+    path = base / "stillsuit"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+STATE_PATH = runtime_dir() / "recording.json"
+LOG_PATH = runtime_dir() / "gpu-screen-recorder.log"
+
+
+def read_state() -> dict[str, Any]:
+    if not STATE_PATH.exists():
+        return {"phase": "idle"}
+    try:
+        data = json.loads(STATE_PATH.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {"phase": "idle"}
+    return data if isinstance(data, dict) else {"phase": "idle"}
+
+
+def write_state(state: dict[str, Any]) -> None:
+    temp_path = STATE_PATH.with_suffix(".tmp")
+    temp_path.write_text(json.dumps(state, separators=(",", ":")))
+    temp_path.replace(STATE_PATH)
+
+
+def process_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except (ProcessLookupError, PermissionError):
+        return False
+    return True
+
+
+def elapsed_seconds(state: dict[str, Any]) -> int:
+    started_at = float(state.get("started_at", 0))
+    if started_at <= 0:
+        return 0
+    paused_total = float(state.get("paused_total", 0))
+    end = float(state.get("paused_at", 0)) if state.get("paused") else time.time()
+    return max(0, round(end - started_at - paused_total))
+
+
+def refreshed_state() -> dict[str, Any]:
+    state = read_state()
+    if state.get("phase") == "completed":
+        output = Path(str(state.get("output", "")))
+        if output.is_file():
+            state["size_bytes"] = output.stat().st_size
+        return state
+    if state.get("phase") not in {"recording", "paused", "stopping"}:
+        return state
+
+    pid = int(state.get("pid", 0))
+    if process_alive(pid):
+        state["elapsed_seconds"] = elapsed_seconds(state)
+        return state
+
+    output = Path(str(state.get("output", "")))
+    state.update(
+        {
+            "phase": "completed" if output.is_file() else "error",
+            "elapsed_seconds": elapsed_seconds(state),
+            "error": ""
+            if output.is_file()
+            else "GPU Screen Recorder exited without producing a file",
+            "size_bytes": output.stat().st_size if output.is_file() else 0,
+        }
+    )
+    state.pop("pid", None)
+    write_state(state)
+    return state
+
+
+def print_state(state: dict[str, Any]) -> None:
+    print(json.dumps(state, separators=(",", ":")))
+
+
+def safe_title(title: str) -> str:
+    cleaned = re.sub(r"[\x00-\x1f/\\]+", " ", title).strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned[:120] or time.strftime("Recording %Y-%m-%d %H-%M-%S")
+
+
+def unique_path(directory: Path, title: str) -> Path:
+    base = directory / f"{safe_title(title)}.mp4"
+    if not base.exists():
+        return base
+    for index in range(2, 1000):
+        candidate = directory / f"{base.stem} {index}.mp4"
+        if not candidate.exists():
+            return candidate
+    raise RuntimeError("Could not find an available recording filename")
+
+
+def require_active() -> dict[str, Any]:
+    state = refreshed_state()
+    if state.get("phase") not in {"recording", "paused"}:
+        raise RuntimeError("No Stillsuit recording is active")
+    return state
+
+
+def start_recording(args: argparse.Namespace) -> None:
+    current = refreshed_state()
+    if current.get("phase") in {"recording", "paused", "stopping"}:
+        raise RuntimeError("A Stillsuit recording is already active")
+
+    directory = Path(args.directory).expanduser()
+    directory.mkdir(parents=True, exist_ok=True)
+    output = unique_path(directory, args.title)
+    command = [
+        "gpu-screen-recorder",
+        "-w",
+        args.monitor,
+        "-f",
+        "60",
+        "-k",
+        "h264",
+        "-q",
+        "very_high",
+        "-fm",
+        "vfr",
+        "-cursor",
+        "yes",
+    ]
+    audio_sources = []
+    if args.desktop_audio:
+        audio_sources.append("default_output")
+    if args.microphone:
+        audio_sources.append("default_input")
+    if audio_sources:
+        command.extend(["-a", "|".join(audio_sources)])
+    command.extend(["-o", str(output)])
+
+    with LOG_PATH.open("wb") as log:
+        process = subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+
+    time.sleep(0.4)
+    if process.poll() is not None:
+        details = LOG_PATH.read_text(errors="replace").strip()
+        raise RuntimeError(details or "GPU Screen Recorder failed to start")
+
+    now = time.time()
+    state: dict[str, Any] = {
+        "phase": "recording",
+        "pid": process.pid,
+        "monitor": args.monitor,
+        "desktop_audio": args.desktop_audio,
+        "microphone": args.microphone,
+        "output": str(output),
+        "title": output.stem,
+        "started_at": now,
+        "paused": False,
+        "paused_at": 0,
+        "paused_total": 0,
+        "elapsed_seconds": 0,
+        "error": "",
+    }
+    write_state(state)
+    print_state(state)
+
+
+def toggle_pause() -> None:
+    state = require_active()
+    os.kill(int(state["pid"]), signal.SIGUSR2)
+    now = time.time()
+    if state.get("paused"):
+        state["paused_total"] = (
+            float(state.get("paused_total", 0)) + now - float(state["paused_at"])
+        )
+        state["paused_at"] = 0
+        state["paused"] = False
+        state["phase"] = "recording"
+    else:
+        state["paused_at"] = now
+        state["paused"] = True
+        state["phase"] = "paused"
+    state["elapsed_seconds"] = elapsed_seconds(state)
+    write_state(state)
+    print_state(state)
+
+
+def stop_recording() -> None:
+    state = require_active()
+    pid = int(state["pid"])
+    if state.get("paused"):
+        os.kill(pid, signal.SIGUSR2)
+        now = time.time()
+        state["paused_total"] = (
+            float(state.get("paused_total", 0)) + now - float(state["paused_at"])
+        )
+        state["paused_at"] = 0
+        state["paused"] = False
+    state["phase"] = "stopping"
+    state["elapsed_seconds"] = elapsed_seconds(state)
+    write_state(state)
+    os.kill(pid, signal.SIGINT)
+
+    deadline = time.monotonic() + 20
+    while process_alive(pid) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    if process_alive(pid):
+        raise RuntimeError("GPU Screen Recorder did not stop within 20 seconds")
+
+    output = Path(str(state["output"]))
+    state["phase"] = "completed" if output.is_file() else "error"
+    state["error"] = (
+        "" if output.is_file() else "Recording stopped without producing a file"
+    )
+    state["size_bytes"] = output.stat().st_size if output.is_file() else 0
+    state.pop("pid", None)
+    write_state(state)
+    print_state(state)
+
+
+def rename_recording(title: str) -> None:
+    state = refreshed_state()
+    if state.get("phase") != "completed":
+        raise RuntimeError("There is no completed recording to rename")
+    source = Path(str(state.get("output", "")))
+    if not source.is_file():
+        raise RuntimeError("The completed recording file no longer exists")
+    destination = unique_path(source.parent, title)
+    source.rename(destination)
+    state["output"] = str(destination)
+    state["title"] = destination.stem
+    write_state(state)
+    print_state(state)
+
+
+def dismiss() -> None:
+    state = refreshed_state()
+    if state.get("phase") in {"recording", "paused", "stopping"}:
+        raise RuntimeError("Cannot dismiss an active recording")
+    STATE_PATH.unlink(missing_ok=True)
+    print_state({"phase": "idle"})
+
+
+def parser() -> argparse.ArgumentParser:
+    root = argparse.ArgumentParser(prog="stillsuit-recorder")
+    commands = root.add_subparsers(dest="command", required=True)
+    commands.add_parser("status")
+
+    start = commands.add_parser("start")
+    start.add_argument("--directory", required=True)
+    start.add_argument("--monitor", required=True)
+    start.add_argument("--title", required=True)
+    start.add_argument(
+        "--desktop-audio", action=argparse.BooleanOptionalAction, default=True
+    )
+    start.add_argument(
+        "--microphone", action=argparse.BooleanOptionalAction, default=True
+    )
+
+    commands.add_parser("toggle-pause")
+    commands.add_parser("stop")
+    rename = commands.add_parser("rename")
+    rename.add_argument("--title", required=True)
+    commands.add_parser("dismiss")
+    return root
+
+
+def main() -> int:
+    args = parser().parse_args()
+    try:
+        if args.command == "status":
+            print_state(refreshed_state())
+        elif args.command == "start":
+            start_recording(args)
+        elif args.command == "toggle-pause":
+            toggle_pause()
+        elif args.command == "stop":
+            stop_recording()
+        elif args.command == "rename":
+            rename_recording(args.title)
+        elif args.command == "dismiss":
+            dismiss()
+    except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+        state = refreshed_state()
+        state["error"] = str(error)
+        if state.get("phase") == "idle":
+            state["phase"] = "error"
+        write_state(state)
+        print_state(state)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

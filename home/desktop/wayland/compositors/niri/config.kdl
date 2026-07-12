@@ -522,6 +522,7 @@ binds {
     Mod+A hotkey-overlay-title="Audio Mixer" { spawn "qs" "ipc" "-c" "stillsuit" "call" "mixer" "toggle"; }
     Mod+Alt+B hotkey-overlay-title="Bluetooth" { spawn "qs" "ipc" "-c" "stillsuit" "call" "bluetooth" "toggle"; }
     Mod+N hotkey-overlay-title="Notification Center" { spawn "qs" "ipc" "-c" "stillsuit" "call" "notifications" "toggleCenter"; }
+    Mod+Alt+R hotkey-overlay-title="Screen Recording" { spawn "qs" "ipc" "-c" "stillsuit" "call" "recording" "toggle"; }
 
     // lock
     Mod+Alt+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "swaylock"; }

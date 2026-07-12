@@ -1,5 +1,7 @@
 { pkgs, ... }:
 {
+  programs.gpu-screen-recorder.enable = true;
+
   xdg.portal.enable = true;
   xdg.portal.extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
 

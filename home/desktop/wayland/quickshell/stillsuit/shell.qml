@@ -8,6 +8,12 @@ ShellRoot {
         id: niriState
     }
 
+    RecordingController {
+        id: recordingController
+        niri: niriState
+        coordinator: shell
+    }
+
     function panelOpen(panel): bool {
         if (!panel) return false
         if (panel.centerVisible !== undefined) return panel.centerVisible
@@ -22,7 +28,7 @@ ShellRoot {
     }
 
     function closeInteractivePanels(exceptPanel) {
-        const panels = [audioMixer, bluetoothPanel, networkPanel, notificationCenter, batteryPanel]
+        const panels = [audioMixer, bluetoothPanel, networkPanel, notificationCenter, batteryPanel, recordingController]
         for (let i = 0; i < panels.length; i++) {
             if (panels[i] !== exceptPanel) setPanelOpen(panels[i], false)
         }
@@ -42,6 +48,7 @@ ShellRoot {
         if (normalized === "network" || normalized === "wifi") return networkPanel
         if (normalized === "notifications" || normalized === "notification") return notificationCenter
         if (normalized === "power" || normalized === "battery") return batteryPanel
+        if (normalized === "recording" || normalized === "record") return recordingController
         if (normalized === "gallery") return devGallery
         return null
     }
@@ -82,12 +89,19 @@ ShellRoot {
                 barVisible: topBar.visible,
                 niriEventStream: niriState.eventStreamRunning,
                 screenCapture: niriState.screenCaptureActive,
+                recording: {
+                    phase: recordingController.phase,
+                    elapsedSeconds: recordingController.elapsedSeconds,
+                    monitor: recordingController.activeMonitor,
+                    output: recordingController.outputPath
+                },
                 panels: {
                     audio: shell.panelOpen(audioMixer),
                     bluetooth: shell.panelOpen(bluetoothPanel),
                     network: shell.panelOpen(networkPanel),
                     notifications: shell.panelOpen(notificationCenter),
                     power: shell.panelOpen(batteryPanel),
+                    recording: shell.panelOpen(recordingController),
                     gallery: shell.panelOpen(devGallery)
                 }
             })
@@ -108,12 +122,17 @@ ShellRoot {
     TopBar {
         id: topBar
         niri: niriState
+        recording: recordingController
         audioPanel: audioMixer
         bluetoothPanel: bluetoothPanel
         networkPanel: networkPanel
         notificationPanel: notificationCenter
         powerPanel: batteryPanel
         panelCoordinator: shell
+    }
+
+    RecordingPanel {
+        controller: recordingController
     }
 
     DictationOsd {
