@@ -75,12 +75,15 @@ Remove both allow-all grants; directional grants per the trust table
 autoApprovers; add `tests` asserting sietch cannot reach jacurutu. Add
 tleilax to `hosts`. Execute while at jacurutu with the old policy saved.
 
-### Phase 4 — t3 service polish
+### Phase 4 — t3 service polish [done 2026-07-12]
 
-Pin t3 version as a module option in `agent-server.nix` (currently unpinned
-`npx t3 serve`; the 0.0.27 pin exists only in the live tmux pane). Review t3
-docs for built-in tailscale support; decide raw port 3773 vs Tailscale
-Service.
+`agent-server.t3Version` module option pins t3 (default 0.0.27; bump
+deliberately). Docs review: t3 has no dedicated tailscale integration — only
+`--host` binding (already done) and an `--auth-token` flag; T3 Connect not
+shipped yet. Keeping the raw tailnet-IP:3773 bind. Optional follow-ups:
+front with a Tailscale Service (`t3.sole-pierce.ts.net`) once confirmed the
+desktop/mobile app pairs over https/wss, and add `--auth-token` if the
+tailnet ever gets less trusted.
 
 ### Phase 5 — discord-notify unblock
 

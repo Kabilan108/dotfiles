@@ -1,0 +1,105 @@
+// Reference copy of the tailnet policy (source of truth: Tailscale admin
+// console). Phase 3 of docs/fleet-plan.md: allow-all removed, directional
+// grants per the fleet trust model. Update this file when the console policy
+// changes.
+{
+	"tagOwners": {
+		// openclaw, hermes, codex, pi agents running on tleilax or other agent boxes
+		"tag:agent": ["autogroup:admin"],
+
+		// machines that exclusively need media (sietch::jellyfin) access
+		"tag:media": ["autogroup:admin"],
+
+		// dev boxes
+		"tag:server": ["autogroup:admin"],
+	},
+
+	"autoApprovers": {
+		"services": {
+			"svc:discord-notify": ["tag:server"],
+			"svc:executor":       ["tag:server"],
+			"svc:jellyfin":       ["tag:server"],
+			"svc:siren":          ["tag:server"],
+			"svc:vault":          ["tag:server"],
+		},
+	},
+
+	"hosts": {
+		"sietch":   "100.71.183.33",
+		"jacurutu": "100.108.28.4",
+		"tleilax":  "100.73.84.103",
+		"pixel-9":  "100.126.253.59",
+	},
+
+	"grants": [
+		// control plane: jacurutu reaches everything
+		{"src": ["jacurutu"], "dst": ["*"], "ip": ["*"]},
+
+		// worker debugs/controls the appliance; cannot reach jacurutu.
+		// (Normal internet egress from sietch is unaffected by tailnet
+		// grants — only tailnet-bound traffic is governed here.)
+		{"src": ["sietch"], "dst": ["tleilax"], "ip": ["*"]},
+
+		// Uncomment if syncthing stops syncing after the allow-all removal:
+		// jacurutu-side dialing usually suffices, but if sietch must
+		// initiate, permit exactly the syncthing port and nothing else.
+		// {"src": ["sietch"], "dst": ["jacurutu"], "ip": ["tcp:22000"]},
+
+		// phone: broad access to both interactive machines (t3 code, dev servers)
+		{"src": ["pixel-9"], "dst": ["sietch", "jacurutu"], "ip": ["*"]},
+
+		// tailnet members reach the hosted services
+		{
+			"src": ["autogroup:member"],
+			"dst": [
+				"svc:discord-notify",
+				"svc:executor",
+				"svc:jellyfin",
+				"svc:siren",
+				"svc:vault",
+			],
+			"ip": ["tcp:443"],
+		},
+
+		// tagged clients: media boxes get jellyfin, agent boxes get the MCP/API services
+		{"src": ["tag:media"], "dst": ["svc:jellyfin"], "ip": ["tcp:443"]},
+		{
+			"src": ["tag:agent"],
+			"dst": ["svc:siren", "svc:executor", "svc:discord-notify"],
+			"ip":  ["tcp:443"],
+		},
+	],
+
+	"ssh": [
+		// human SSH to own untagged devices, check mode
+		{
+			"action": "check",
+			"src":    ["autogroup:member"],
+			"dst":    ["autogroup:self"],
+			"users":  ["autogroup:nonroot", "root"],
+		},
+		// sietch is tagged, so autogroup:self does not cover it
+		{
+			"action": "check",
+			"src":    ["autogroup:member"],
+			"dst":    ["tag:server"],
+			"users":  ["kabilan"],
+		},
+	],
+
+	"tests": [
+		{
+			"src":    "jacurutu",
+			"accept": ["sietch:22", "sietch:3773", "tleilax:22"],
+		},
+		{
+			"src":  "sietch",
+			"accept": ["tleilax:22"],
+			"deny": ["jacurutu:22", "jacurutu:3773"],
+		},
+		{
+			"src":    "pixel-9",
+			"accept": ["sietch:3773", "sietch:8096", "jacurutu:3773"],
+		},
+	],
+}
