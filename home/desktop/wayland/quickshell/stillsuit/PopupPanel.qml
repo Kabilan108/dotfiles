@@ -11,7 +11,7 @@ Rectangle {
     implicitWidth: 320
     implicitHeight: contentLayout.implicitHeight + padding * 2
     radius: Theme.radiusSmall
-    color: Theme.panelBgStrong
+    color: Theme.panelChrome
     border.width: Theme.borderWidth
     border.color: Theme.panelBorderStrong
     clip: true

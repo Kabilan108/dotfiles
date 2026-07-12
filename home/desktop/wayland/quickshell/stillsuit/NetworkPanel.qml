@@ -423,7 +423,6 @@ Scope {
                 anchors.rightMargin: Theme.screenMargin
                 implicitWidth: 360
                 padding: 16
-                color: Theme.panelChrome
 
                 Column {
                     id: panelBody

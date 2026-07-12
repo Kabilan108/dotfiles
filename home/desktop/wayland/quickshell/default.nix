@@ -53,6 +53,7 @@ in
       panelBg = transparent "d9" colors.base00;
       panelBgSoft = transparent "d9" colors.base00;
       panelBgStrong = transparent "eb" colors.base00;
+      panelChrome = transparent "f2" colors.base00;
       panelBorder = transparent "1a" colors.base05;
       panelBorderStrong = colors.base03;
       panelSurface = transparent "b8" colors.base02;

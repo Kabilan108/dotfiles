@@ -23,6 +23,9 @@ natively in QML.
    the way. No emoji, no gradients-as-decoration, no faux-skeuomorphism.
 4. **Legible over anything.** Surfaces stay readable over a busy photographic
    wallpaper *and* a flat one. This is a hard constraint (see §5).
+5. **One panel background.** Every interactive popup uses the canonical dark
+   `panelChrome` surface supplied by `PopupPanel`. Components must not select a
+   lighter panel background or locally override the popup chrome.
 
 ---
 
@@ -70,7 +73,7 @@ split is intentional and standardised: red = "this is your microphone", accent =
 | Blur | **22 px** backdrop blur | + `saturate(1.1)` |
 | Surface fill | ~**85%** over a darkened backdrop | see §5 |
 | Font | **IBM Plex Mono** | monospace everywhere; tabular numerals on |
-| Base size | **13 px**; never below 10px | |
+| Base size | **13 px**; metadata is **11 px minimum** | Reserve 10px for short uppercase micro-labels only. |
 | Density unit | **4 px** | gaps are multiples of it (4/8/12) |
 | Shadow | `0 18px 50px -12px rgba(0,0,0,.62)` | one elevation only |
 | Motion | 120 / 180 / 260 ms tiers, decelerate curve | transform/opacity only; snappy. Full contract in §7 |
@@ -148,6 +151,10 @@ text-shadow: 0 1px 3px rgba(0,0,0,.52);  /* faint scrim on text */
 This keeps the glassy, blurred quality while guaranteeing readable text over any
 wallpaper. In QML this maps to a `MultiEffect`/blur source plus a semi-opaque
 dark `Rectangle` overlay — replicate the *darkening*, not only the alpha.
+
+`Theme.panelChrome` is the canonical resolved panel fill. `PopupPanel` applies
+it by default, and all shell panels must inherit that default rather than
+choosing `panelBg`, `panelBgStrong`, or a component-local background.
 
 ---
 
