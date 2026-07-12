@@ -6,6 +6,10 @@ the current machine runs nixos with a custom home-manager configuration. you can
 
 tools for a variety of languages are installed in the home environment, but where necessary, project specific dependencies will be made available via a flake. the nix-direnv tool will typically be used to automatically start the flake's dev shell.
 
+## subagents
+
+Only use subagents if the user explicitly asks you to
+
 ## Rules
 
 ### Comment Policy
@@ -69,13 +73,6 @@ Always use `uv add` to add dependencies rather than editing `pyproject.toml` man
 #### Preferences
 
 - Always use TypeScript over plain JavaScript
-- Use `bun` for global package installs and as the default package manager when no other is configured
 - Prefer `const` over `let`; avoid `var`
 - Use explicit return types on exported functions
 - Prefer `interface` over `type` for object shapes
-
-## Browser Tools
-
-- Use `agent-browser` for most interactive browser work. It is the default choice for agent-driven exploration, iterative UI interaction, screenshots, and stateful sessions. Prefer it when you want AI-friendly page discovery via `snapshot` and stable element refs like `@e1`.
-- Use `dev-browser` when you need programmable browser automation with Playwright-style APIs. Prefer it for scripted multi-step flows, reusable inspection scripts, or cases where `snapshotForAI()` plus direct `page` methods are the best fit.
-- On this machine, `dev-browser` may work better with `--connect` to an existing Chrome/CDP session than by launching its bundled browser directly.
