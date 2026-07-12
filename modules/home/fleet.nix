@@ -19,6 +19,10 @@ let
       "~/.ssh/${name}"
       "~/.ssh/id_ed25519"
     ];
+    # without this, ssh also offers every key the desktop ssh-agent holds -
+    # including the passwordless agent-<host> key, silently bypassing the
+    # hardware-key requirement for human logins
+    IdentitiesOnly = "yes";
     ControlMaster = "auto";
     ControlPath = "~/.ssh/cm-%r@%h-%p";
     ControlPersist = "4h";

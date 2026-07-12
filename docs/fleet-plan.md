@@ -142,4 +142,9 @@ id→URL cache). Actual pagebin CLI changes happen in that repo, not here.
   (tagged) lost `svc:` access when allow-all was removed, breaking dictator →
   siren on sietch. Add the `tag:server → svc:siren` grant in the console.
 - Separate `agent` unix user (security-hardening §agents) — deferred; agent
-  keys land first, user split later.
+  keys land first, user split later. **Priority raised 2026-07-12**: the
+  hardware-only-human-ssh flip revealed that `agent-<host>` keys are a
+  passwordless software path to a full shell as kabilan (gcr's ssh-agent
+  even offered one implicitly — mitigated with IdentitiesOnly on human
+  stanzas, but deliberate use is unaffected). The user split is what closes
+  this for real.
