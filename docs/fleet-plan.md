@@ -99,11 +99,15 @@ Resolution: two paths, only one of which we need today.
   expose the bearer-authed service (127.0.0.1:8303) through a Cloudflare
   tunnel — do not loosen Executor.
 
-### Phase 6 — pagebin html-plans skill
+### Phase 6 — pagebin html-plans skill [done 2026-07-12]
 
-Mine sietch tracer archive for real pagebin usage; build the skill from
-observed patterns; fold learnings into pagebin improvements
-(Kabilan108/pagebin#1).
+Mined ~6 heavy pagebin sessions from the tracer archive. `html-plans` skill
+encodes the observed conventions: publish `--json` once and capture id+URL
+immediately, `update` in place (stable URLs), run `watch` inside tmux (Bash
+`&` backgrounding kills it — the top recurring failure), absolute paths,
+30d/4w TTLs, deliver as bold link + notify skill. Evidence-backed CLI
+priorities posted to Kabilan108/pagebin#1 (watch robustness, client-side
+id→URL cache). Actual pagebin CLI changes happen in that repo, not here.
 
 ### Phase 7 — tracer ingestion + learning loop
 
