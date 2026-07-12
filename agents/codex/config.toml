@@ -1,6 +1,6 @@
 model = "gpt-5.6-sol"
 
-model_reasoning_effort = "low"
+model_reasoning_effort = "medium"
 model_supports_reasoning_summaries = true
 
 sandbox_mode = "danger-full-access"
@@ -61,12 +61,12 @@ NODE_REPL_NODE_MODULE_DIRS = ""
 NODE_REPL_NODE_PATH = "/home/kabilan/.local/opt/codex-desktop-linux/codex-app/resources/node-runtime/bin/node"
 NODE_REPL_TRUSTED_CODE_PATHS = "/home/kabilan/.codex"
 CODEX_HOME = "/home/kabilan/.codex"
-NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "6d25aa7656feac858f3a3bdaea5bcbab0dbfd426c9de8e6931ce90c399ee8e4f,c8b7e809d7cf9e20a57123b2530d476ccec9a01a6230a7b2b924fea7d94d7f4a,505eba02c6eed6bcc3f2883e6c705c3377eef8c172bb2d99c909134b0da6e57d,0c77a3b75646e46fa857011b4cde14be2f580b5655461b7c0aabf54f86fc6781"
+NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "1491199f46178eb038259aaea144492b8a8ade32bba5d2b4843c94936be551bb,6d25aa7656feac858f3a3bdaea5bcbab0dbfd426c9de8e6931ce90c399ee8e4f,5243a4882f096e5cab775fc5a96a9271498deebf469453599f04f83cb9d05b69,d8798aa7a52446fdcd72c596b154f625ebc6429e02fc72a206e00c324f62e858"
 BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
 NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunction with the Browser Plugin."
 NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
 BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
-BROWSER_USE_CODEX_APP_VERSION = "26.707.31428"
+BROWSER_USE_CODEX_APP_VERSION = "26.707.41301"
 
 [mcp_servers.node_repl.tools]
 
@@ -293,7 +293,7 @@ trust_level = "trusted"
 "gpt-5.6-sol" = 4
 
 [marketplaces.openai-bundled]
-last_updated = "2026-07-10T17:09:10Z"
+last_updated = "2026-07-12T02:43:22Z"
 source_type = "local"
 source = "/home/kabilan/dotfiles/agents/codex/.tmp/bundled-marketplaces/openai-bundled"
 
@@ -326,10 +326,16 @@ enabled = true
 [plugins."template-creator@openai-primary-runtime"]
 enabled = true
 
-[plugins."browser@openai-bundled"]
+[plugins."chrome@openai-bundled"]
 enabled = true
 
-[plugins."chrome@openai-bundled"]
+[plugins."sites@openai-bundled"]
+enabled = true
+
+[plugins."visualize@openai-bundled"]
+enabled = true
+
+[plugins."browser@openai-bundled"]
 enabled = true
 
 [desktop]
