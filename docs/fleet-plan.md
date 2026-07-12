@@ -85,13 +85,19 @@ front with a Tailscale Service (`t3.sole-pierce.ts.net`) once confirmed the
 desktop/mobile app pairs over https/wss, and add `--auth-token` if the
 tailnet ever gets less trusted.
 
-### Phase 5 — discord-notify unblock
+### Phase 5 — discord-notify unblock [done 2026-07-12]
 
-Executor (v1.5.29) blocks tailnet hostnames (`HostedOutboundRequestBlocked`)
-and has no per-host allowlist. Direction: local agents call discord-notify
-directly (CLI/tailnet URL) keeping `EXECUTOR_ALLOW_LOCAL_NETWORK=false`;
-Executor-mediated notify only for sandboxed contexts (CF tunnel if needed).
-Taking over from the rate-limited codex session (transcript 019f4f80).
+Resolution: two paths, only one of which we need today.
+
+- **Local agents (sietch/jacurutu)** use the `discord-notify` CLI directly —
+  verified working end-to-end (webhook env from `.bashenv`, shared to both
+  machines via agenix). New `notify` agent skill documents usage.
+- **Executor-hosted agents** stay blocked by design: Executor v1.5.29 has no
+  per-host outbound allowlist, and flipping `EXECUTOR_ALLOW_LOCAL_NETWORK`
+  would expose loopback services (vaultwarden et al.) per
+  security-hardening.md. If hosted agents ever genuinely need to notify,
+  expose the bearer-authed service (127.0.0.1:8303) through a Cloudflare
+  tunnel — do not loosen Executor.
 
 ### Phase 6 — pagebin html-plans skill
 
