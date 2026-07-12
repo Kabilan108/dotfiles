@@ -73,10 +73,9 @@ rec {
       };
       sshKeyFiles = [
         "github"
-        "do-droplet"
-        "gh-dotfiles-deploy"
         "moberg-bitbucket"
         "moberg-devserver3"
+        "moberg-devserver4"
         "agent-sietch"
       ];
     };

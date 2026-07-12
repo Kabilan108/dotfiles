@@ -29,8 +29,11 @@ plan were implemented in one session.
 Fleet: jacurutu (control plane, blue) → sietch (agent worker, mauve) →
 tleilax (appliance/future agent box, green; ONLINE, rebuilt, has its own
 `~/dotfiles` clone). Directional ACL enforced (sietch→jacurutu verified
-blocked). Human SSH = yk-nfc/yk-nano hardware keys; agents = `<host>-agent`
-aliases (restricted keys, BatchMode). tmux-on-ssh + `rawssh` escape hatch.
+blocked). Human SSH is **hardware-only**: jacurutu's `id_ed25519` is no
+longer authorized anywhere — yk-nfc travels with the user, yk-nano is the
+backup living plugged into sietch (handle file stays on jacurutu; recovery =
+fetch nano, plug into laptop). Agents = `<host>-agent` aliases (restricted
+keys, BatchMode). tmux-on-ssh + `rawssh` escape hatch.
 Fleet sessionizer 0.3.0 (client-swap via `detach-client -E`, returns to the
 exact origin session). tracer-sync live (1,521 jacurutu transcripts in
 `/vault/userdata/tracer-ingest/jacurutu/`); tracer-digest built,
@@ -77,12 +80,18 @@ discord-notify CLI verified end-to-end; Executor stays locked down by design.
    dispatch, `html-plans` for deliverables, `notify` for completion. The
    next win is habit: end long sietch jobs with "publish the plan/report
    via pagebin and notify me" — the skills make that a one-line suffix.
-2. **Finish the identity story before growing the fleet.** Remaining gaps
-   vs security-hardening.md: the separate `agent` *unix user* (today agent
-   keys land on `kabilan` — key-level, not user-level separation; when done,
-   only the `User` line in the generated `-agent` aliases changes), and
-   eventually dropping `id_ed25519` from human-login authorized_keys once
-   YubiKey-only feels reliable (keep the agent keys, obviously).
+2. **The separate `agent` unix user is now the top security priority.**
+   The hardware-only flip is done (id_ed25519 dropped from human logins),
+   and testing it immediately exposed the remaining hole: a YubiKey-less
+   login still succeeded because gcr's ssh-agent offered the passwordless
+   `agent-jacurutu` key (confirmed via sshd fingerprint log). The implicit
+   path is closed (`IdentitiesOnly yes` on human stanzas), but the agent
+   keys remain a deliberate software path to a FULL SHELL as `kabilan` —
+   malware-as-user just runs `ssh sietch-agent`. Per security-hardening
+   §agents: dedicated `agent` user, no sudo, scoped dirs, own home; when
+   done, only the `User` line in the generated `-agent` aliases changes.
+   This is the difference between a hardware-gated human *path* and a
+   hardware-gated *account* — schedule it as its own session.
 3. **The digest loop is the highest-leverage unproven piece.** 2,100+
    transcripts across both roots is real training data about how you work.
    One manual `tracer-digest` run costs minutes and will tell you whether
@@ -113,6 +122,12 @@ discord-notify CLI verified end-to-end; Executor stays locked down by design.
   needs an explicit tag counterpart (this broke dictator→siren for a bit).
 - Fleet ssh stanzas list YubiKey identities first: any scripted ssh through
   the plain host alias can hang on touch — scripts must use `<host>-agent`.
+- ssh offers every key the desktop ssh-agent (gcr) holds IN ADDITION to the
+  stanza's IdentityFile list — without `IdentitiesOnly yes`, an unlisted
+  software key can silently satisfy auth and defeat the hardware-key
+  requirement. Verify auth-path changes against sshd's "Accepted publickey"
+  fingerprints, and test with the YubiKeys unplugged AND `ssh -O exit` first
+  (a live ControlMaster skips authentication entirely).
 
 ## Suggested skills for the next session
 

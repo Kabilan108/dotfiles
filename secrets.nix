@@ -52,10 +52,9 @@ in
   ];
 
   "secrets/ssh/sietch/github.age".publicKeys = [ sietch ];
-  "secrets/ssh/sietch/do-droplet.age".publicKeys = [ sietch ];
-  "secrets/ssh/sietch/gh-dotfiles-deploy.age".publicKeys = [ sietch ];
   "secrets/ssh/sietch/moberg-bitbucket.age".publicKeys = [ sietch ];
   "secrets/ssh/sietch/moberg-devserver3.age".publicKeys = [ sietch ];
+  "secrets/ssh/sietch/moberg-devserver4.age".publicKeys = [ sietch ];
   "secrets/ssh/sietch/agent-sietch.age".publicKeys = [ sietch ];
 
   "secrets/ssh/jacurutu/github.age".publicKeys = [ jacurutu ];
