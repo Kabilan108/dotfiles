@@ -9,6 +9,7 @@ let
 in
 {
   imports = [
+    ./discord-notify.nix
     ./executor.nix
     ./jellyfin.nix
     ./siren.nix

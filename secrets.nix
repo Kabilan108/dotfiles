@@ -47,6 +47,7 @@ in
   "secrets/syncthing/sietch-key.age".publicKeys = [ sietch ];
 
   "secrets/selfhost/executor-env.age".publicKeys = [ sietch ];
+  "secrets/selfhost/discord-notify-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/siren-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/vaultwarden-env.age".publicKeys = [ sietch ];
 }
