@@ -11,13 +11,16 @@ and which machines it may SSH into.
 
 ## Rules
 
-- Access is directional. Only use `ssh <host>` toward machines listed under
-  "can ssh into" for the machine you are on. Never SSH toward jacurutu.
-- One-off commands: `ssh <host> '<command>'` — non-interactive, no tmux.
+- Access is directional. Only SSH toward machines listed under "can ssh
+  into" for the machine you are on. Never SSH toward jacurutu.
+- **Agents always use the `<host>-agent` aliases** (e.g. `ssh sietch-agent
+  '<command>'`): they authenticate with this machine's restricted agent key
+  in BatchMode — no YubiKey touch, no prompts, no hangs. Plain `ssh <host>`
+  is the human path (hardware key + tmux auto-attach); do not use it from
+  scripts.
 - Interactive/long-running work on a remote box: run it inside that host's
-  tmux (`ssh <host> tmux new-session -d -s <name> '<command>'`), then report
-  the session name so the user can attach. Plain interactive `ssh <host>`
-  auto-attaches the `main` tmux session.
+  tmux (`ssh <host>-agent 'tmux new-session -d -s <name> "<command>"'`),
+  then report the session name so the user can attach.
 - Fleet machines are NixOS. Configuration changes go through `~/dotfiles`
   (edit + `nh os switch` or `sudo nixos-rebuild switch --flake ~/dotfiles#<host>`),
   never ad-hoc edits to system files. The registry itself (`lib/fleet.nix`)

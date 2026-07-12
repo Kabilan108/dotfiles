@@ -24,6 +24,19 @@ let
     ControlPersist = "4h";
   }) reachable;
 
+  # non-interactive identities for agents/scripts: never touch the YubiKey,
+  # never prompt, authenticate with this machine's restricted agent key
+  agentSshSettings = lib.mapAttrs' (
+    name: host:
+    lib.nameValuePair "${name}-agent" {
+      HostName = host.tailscaleIp;
+      User = host.user;
+      IdentityFile = "~/.ssh/agent-${thisHost}";
+      IdentitiesOnly = "yes";
+      BatchMode = "yes";
+    }
+  ) reachable;
+
   renderHost = name: host: ''
     ## ${name} (${host.role})
 
@@ -48,7 +61,7 @@ let
 
     ## Conventions
 
-    - Reach fleet machines with plain `ssh <name>` (config is generated from the registry).
+    - Agents/scripts reach fleet machines with `ssh <name>-agent` (restricted key, BatchMode, no prompts); plain `ssh <name>` is the human path (hardware key + tmux auto-attach).
     - Access is directional: only the `can ssh into` lists above are permitted; never try to reach jacurutu from another machine.
     - Remote interactive work: `ssh <name>` lands in the `main` tmux session automatically; one-off commands (`ssh <name> '<cmd>'`) bypass tmux.
     - Machines are NixOS; config changes go through ~/dotfiles on that machine (`nh os switch` / `nixos-rebuild switch --flake`), never ad-hoc system edits.
@@ -59,16 +72,19 @@ in
     enable = true;
     enableDefaultConfig = false;
     includes = [ "config.d/private" ];
-    settings = fleetSshSettings // {
-      "github.com" = {
-        User = "git";
-        IdentityFile = "~/.ssh/github";
+    settings =
+      fleetSshSettings
+      // agentSshSettings
+      // {
+        "github.com" = {
+          User = "git";
+          IdentityFile = "~/.ssh/github";
+        };
+        "bitbucket.org" = {
+          User = "git";
+          IdentityFile = "~/.ssh/moberg-bitbucket";
+        };
       };
-      "bitbucket.org" = {
-        User = "git";
-        IdentityFile = "~/.ssh/moberg-bitbucket";
-      };
-    };
   };
 
   home.sessionVariables = {

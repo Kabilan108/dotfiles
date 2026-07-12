@@ -188,7 +188,9 @@ attach_remote() {
   local cmd="ssh -t $host \"tmux new-session -A -s '$rsession'\""
 
   if [[ -n $TMUX ]]; then
-    tmux detach-client -E "$cmd; exec tmux attach"
+    local origin
+    origin=$(tmux display-message -p '#{session_id}')
+    tmux detach-client -E "$cmd; tmux attach -t '$origin' 2>/dev/null || tmux attach"
   else
     eval "exec $cmd"
   fi

@@ -8,7 +8,7 @@ esac
 
 # ssh sessions land in a persistent tmux session; one-off ssh commands are
 # non-interactive and never reach this point
-if [[ -n $SSH_CONNECTION && -z $TMUX ]] && command -v tmux >/dev/null 2>&1; then
+if [[ -n $SSH_CONNECTION && -z $TMUX && -z $NO_TMUX ]] && command -v tmux >/dev/null 2>&1; then
   exec tmux new-session -A -s main
 fi
 
@@ -210,6 +210,11 @@ function fvi() {
 }
 
 ### -> ALIASES
+
+# interactive ssh WITHOUT auto-attaching the remote tmux session
+rawssh() {
+  ssh -t "$@" 'NO_TMUX=1 exec bash -il'
+}
 
 alias ta="tmuxa"
 alias tn="tmuxn"
