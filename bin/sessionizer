@@ -180,25 +180,18 @@ find_remote_sessions() {
   rm -rf "$tmp"
 }
 
-# remote sessions get a dedicated local wrapper session with the local
-# status bar hidden, so attaching feels like a direct connection to the
-# remote tmux (send the remote prefix with C-a C-a)
+# swap this terminal's tmux client over to the remote tmux instead of
+# nesting: remote keymaps/prefix/status are native, and detaching from the
+# remote (prefix + d) re-attaches the local session you came from
 attach_remote() {
   local host="$1" rsession="$2"
-  local lname="${rsession}@${host}"
+  local cmd="ssh -t $host \"tmux new-session -A -s '$rsession'\""
 
-  if [[ -z $TMUX ]] && ! is_tmux_running; then
-    exec ssh -t "$host" tmux new-session -A -s "$rsession"
+  if [[ -n $TMUX ]]; then
+    tmux detach-client -E "$cmd; exec tmux attach"
+  else
+    eval "exec $cmd"
   fi
-
-  local sid
-  sid=$(session_id_for "$lname")
-  if [[ -z "$sid" ]]; then
-    sid=$(tmux new-session -dPF '#{session_id}' -s "$lname" \
-      "ssh -t $host tmux new-session -A -s '$rsession'")
-    tmux set-option -t "$sid" status off
-  fi
-  switch_to "$sid"
 }
 
 preview_row() {
@@ -207,7 +200,7 @@ preview_row() {
     tmux list-windows -t "$(session_id_for "${BASH_REMATCH[1]}")" -F '#I: #W (#{pane_current_command})' 2>/dev/null
   elif [[ "$row" =~ ^\[([^]]+)\]\ (.+)$ ]]; then
     echo "remote tmux session '${BASH_REMATCH[2]}' on ${BASH_REMATCH[1]}"
-    echo "enter: attach as '${BASH_REMATCH[2]}@${BASH_REMATCH[1]}' (local status hidden)"
+    echo "enter: swap this client to the remote tmux; detach (prefix+d) to return"
   else
     ls -1A "$row" 2>/dev/null | head -30
   fi
