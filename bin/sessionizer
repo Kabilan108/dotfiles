@@ -187,12 +187,17 @@ attach_remote() {
   local host="$1" rsession="$2"
   local cmd="ssh -t $host \"tmux new-session -A -s '$rsession'\""
 
+  local origin=""
+  [[ -n $TMUX ]] && origin=$(tmux display-message -p '#{session_id}')
+
+  # remote M-d detaches with exit 42 -> reopen the picker here instead of
+  # re-attaching the origin session (plain prefix+d returns to origin)
+  local chain="$cmd; if [ \$? -eq 42 ]; then exec sessionizer; fi; tmux attach -t '$origin' 2>/dev/null || tmux attach 2>/dev/null"
+
   if [[ -n $TMUX ]]; then
-    local origin
-    origin=$(tmux display-message -p '#{session_id}')
-    tmux detach-client -E "$cmd; tmux attach -t '$origin' 2>/dev/null || tmux attach"
+    tmux detach-client -E "$chain"
   else
-    eval "exec $cmd"
+    exec sh -c "$chain"
   fi
 }
 
