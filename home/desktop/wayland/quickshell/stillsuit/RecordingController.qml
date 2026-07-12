@@ -59,8 +59,8 @@ Scope {
 
     function defaultTitle() {
         const now = new Date()
-        return "Recording " + now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate())
-            + " " + pad(now.getHours()) + "-" + pad(now.getMinutes()) + "-" + pad(now.getSeconds())
+        return now.getFullYear() + "." + pad(now.getMonth() + 1) + "." + pad(now.getDate())
+            + "-" + pad(now.getHours()) + "." + pad(now.getMinutes()) + "." + pad(now.getSeconds())
     }
 
     function formatDuration(seconds) {
