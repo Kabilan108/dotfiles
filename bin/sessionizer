@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # vim: syn=bash ft=bash
 
-VERSION="0.2.0"
+VERSION="0.3.0"
 
 CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/sessionizer/config"
 PANE_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/sessionizer"
 PANE_CACHE_FILE="$PANE_CACHE_DIR/panes.cache"
+FLEET_HOSTS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/fleet/hosts"
+FLEET_AGENT_KEY="$HOME/.ssh/agent-$(hostname)"
 
 session_idx=""
 session_cmd=""
@@ -123,21 +125,85 @@ is_tmux_running() {
   return 0
 }
 
+hex_fg() {
+  local h="${1#\#}"
+  printf '\033[38;2;%d;%d;%dm' "$((16#${h:0:2}))" "$((16#${h:2:2}))" "$((16#${h:4:2}))"
+}
+ANSI_RESET=$'\033[0m'
+
 find_sessions() {
+  local local_color=""
+  [[ -n "$FLEET_HOST_HEX" ]] && local_color=$(hex_fg "$FLEET_HOST_HEX")
   if [[ -n "$TMUX" ]]; then
     current_session=$(tmux display-message -p '#S')
     tmux list-sessions -F "#{session_activity} #{session_name}" 2>/dev/null \
       | grep -v " $current_session$" \
       | sort -rn \
       | while read -r _ name; do
-          echo "[TMUX] ${name}"
+          printf '%s[TMUX]%s %s\n' "$local_color" "$ANSI_RESET" "$name"
         done
   else
     tmux list-sessions -F "#{session_activity} #{session_name}" 2>/dev/null \
       | sort -rn \
       | while read -r _ name; do
-          echo "[TMUX] ${name}"
+          printf '%s[TMUX]%s %s\n' "$local_color" "$ANSI_RESET" "$name"
         done
+  fi
+}
+
+# list tmux sessions on reachable fleet hosts (from the generated hosts file),
+# authenticated with the local agent key so nothing blocks on a YubiKey touch
+find_remote_sessions() {
+  [[ -f "$FLEET_HOSTS_FILE" && -f "$FLEET_AGENT_KEY" ]] || return 0
+
+  local tmp
+  tmp=$(mktemp -d)
+  local i=0
+  while IFS=$'\t' read -r host hex _ip; do
+    [[ -n "$host" ]] || continue
+    (
+      ssh -i "$FLEET_AGENT_KEY" -o IdentitiesOnly=yes -o BatchMode=yes \
+        -o ConnectTimeout=1 "$host" 'tmux list-sessions -F "#{session_name}" 2>/dev/null' \
+        2>/dev/null | while read -r name; do
+        printf '%s[%s]%s %s\n' "$(hex_fg "$hex")" "$host" "$ANSI_RESET" "$name"
+      done >"$tmp/$i"
+    ) &
+    i=$((i + 1))
+  done <"$FLEET_HOSTS_FILE"
+  wait
+  cat "$tmp"/* 2>/dev/null
+  rm -rf "$tmp"
+}
+
+attach_remote() {
+  local host="$1" rsession="$2"
+  local win="${host}/${rsession}"
+
+  if [[ -z $TMUX ]]; then
+    exec ssh -t "$host" tmux new-session -A -s "$rsession"
+  fi
+
+  local cur win_id
+  cur=$(tmux display-message -p '#S')
+  win_id=$(tmux list-windows -t "$cur" -F $'#{window_id}\t#{window_name}' 2>/dev/null \
+    | awk -F'\t' -v w="$win" '$2 == w { print $1; exit }')
+
+  if [[ -n "$win_id" ]]; then
+    tmux select-window -t "$win_id"
+  else
+    tmux new-window -n "$win" "ssh -t $host tmux new-session -A -s '$rsession'"
+  fi
+}
+
+preview_row() {
+  local row="$1"
+  if [[ "$row" =~ ^\[TMUX\]\ (.+)$ ]]; then
+    tmux list-windows -t "${BASH_REMATCH[1]}" -F '#I: #W (#{pane_current_command})' 2>/dev/null
+  elif [[ "$row" =~ ^\[([^]]+)\]\ (.+)$ ]]; then
+    echo "remote tmux session '${BASH_REMATCH[2]}' on ${BASH_REMATCH[1]}"
+    echo "enter: open in window '${BASH_REMATCH[1]}/${BASH_REMATCH[2]}'"
+  else
+    ls -1A "$row" 2>/dev/null | head -30
   fi
 }
 
@@ -285,6 +351,10 @@ while [[ "$#" -gt 0 ]]; do
     init_config
     exit 0
     ;;
+  --preview)
+    preview_row "$2"
+    exit 0
+    ;;
   --vsplit)
     split_type="vsplit"
     ;;
@@ -332,8 +402,9 @@ if [[ -n "$session_cmd" ]]; then
 else
   selected=$({
     find_sessions
+    find_remote_sessions
     find_dirs
-  } | fzf)
+  } | fzf --ansi --preview 'sessionizer --preview {}' --preview-window 'right,45%,border-left')
 fi
 
 if [[ -z "$selected" ]]; then
@@ -342,6 +413,9 @@ fi
 
 if [[ "$selected" =~ ^\[TMUX\]\ (.+)$ ]]; then
   selected="${BASH_REMATCH[1]}"
+elif [[ "$selected" =~ ^\[([^]]+)\]\ (.+)$ ]]; then
+  attach_remote "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+  exit 0
 fi
 
 selected_name=$(basename "$selected" | tr . _)

@@ -33,7 +33,7 @@ Decisions (2026-07-12):
 
 ## Phases
 
-### Phase 1 — fleet registry + SSH hygiene + tmux/colors [in progress]
+### Phase 1 — fleet registry + SSH hygiene + tmux/colors [done 2026-07-12]
 
 - [x] `lib/fleet.nix` — declarative registry (roles, IPs, colors, roots,
       access matrix, keys); single source for everything below
@@ -44,8 +44,7 @@ Decisions (2026-07-12):
       the access matrix); `PasswordAuthentication = false` on sietch
 - [x] sietch private keys into agenix (`secrets/ssh/sietch/*.age`, verified
       round-trip); `agent@sietch` keypair generated and authorized on tleilax
-- [ ] jacurutu private keys into agenix (run on jacurutu; declarations
-      activate automatically via pathExists once the .age files exist)
+- [x] jacurutu private keys into agenix (all eight verified OK, 2026-07-12)
 - [x] YubiKey `ed25519-sk` keys generated on jacurutu; pubkeys in
       `keys.human` (yk-nfc, yk-nano); handles flake-managed via agenix once
       encrypted
@@ -53,14 +52,21 @@ Decisions (2026-07-12):
 - [x] Per-host colors: PS1 via `FLEET_HOST_ANSI`, tmux via generated
       `~/.config/tmux/host.conf` (jacurutu blue, sietch mauve, tleilax green)
 - [x] Generated `~/.config/fleet/computers.md` + `fleet` agent skill
-- [ ] Rebuild sietch, verify key-only login from jacurutu, then rebuild
-      jacurutu
+- [x] Rebuild sietch, verify key-only login from jacurutu (id_ed25519 +
+      yk-nfc confirmed), rebuild jacurutu
+- [x] ci@github.com key removed from extraAuthorizedKeys (takes effect on
+      next sietch rebuild; also delete `~/.ssh/sietch{,.pub}` on jacurutu)
 
-### Phase 2 — fleet-aware sessionizer
+### Phase 2 — fleet-aware sessionizer [done 2026-07-12]
 
-Merge local + remote tmux sessions and dirs into one host-colored fzf picker
-(`host:session` rows, preview pane, attach locally or `ssh -t <host> tmux new
--A -s <session>`). Registry-driven.
+sessionizer 0.3.0: merges local sessions, remote fleet sessions, and dirs in
+one fzf picker with host-colored rows and a preview pane. Remote listing uses
+the `agent-<host>` key with BatchMode + 1s timeout (never blocks on YubiKey
+touch); selecting a remote session opens/reuses a local window named
+`<host>/<session>` running `ssh -t <host> tmux new -A`. Fleet SSH stanzas
+gained ControlMaster/ControlPersist 4h, so interactive attaches touch the
+YubiKey at most once per host per window. Hosts come from generated
+`~/.config/fleet/hosts`. M-s popup enlarged to 80%x70%.
 
 ### Phase 3 — Tailscale ACL rewrite
 
@@ -102,11 +108,8 @@ dedicated discussion.
   into an agent session transcript (2026-07-12) during agenix verification.
   Low exposure (local transcripts + API logs) but rotate on principle.
 
-- Retire the `ci@github.com` keypair: confirmed identical to jacurutu's
-  `~/.ssh/sietch` login key, and the repo has no deploy keys or SSH-using
-  workflows, so nothing in CI uses it. After YubiKey + `id_ed25519` logins
-  are verified on sietch, remove it from `extraAuthorizedKeys` in
-  `lib/fleet.nix` and delete `~/.ssh/sietch{,.pub}` on jacurutu.
+- ci@github.com keypair retired from the registry (2026-07-12); delete
+  `~/.ssh/sietch{,.pub}` on jacurutu when convenient.
 - `~/.ssh/agent/` sockets: stale on sietch (Mar 26, no listener — delete);
   LIVE on jacurutu (three listeners as of 2026-07-12) — identify owner via
   `sudo lsof` before removal.

@@ -101,11 +101,7 @@ rec {
   };
 
   # Extra authorized keys per host, outside the access matrix.
-  extraAuthorizedKeys = {
-    sietch = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL95A0kQUy1yLKzq9KQN1bgeCAMhURblK/Te2BM87W99 ci@github.com"
-    ];
-  };
+  extraAuthorizedKeys = { };
 
   agentKeyRestrictions = "from=\"100.64.0.0/10\",no-agent-forwarding,no-X11-forwarding,no-port-forwarding";
 

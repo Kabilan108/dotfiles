@@ -19,6 +19,9 @@ let
       "~/.ssh/${name}"
       "~/.ssh/id_ed25519"
     ];
+    ControlMaster = "auto";
+    ControlPath = "~/.ssh/cm-%r@%h-%p";
+    ControlPersist = "4h";
   }) reachable;
 
   renderHost = name: host: ''
@@ -80,4 +83,10 @@ in
   '';
 
   home.file.".config/fleet/computers.md".text = computersMd;
+
+  home.file.".config/fleet/hosts".text =
+    lib.concatStringsSep "\n" (
+      lib.mapAttrsToList (name: host: "${name}\t${host.color.hex}\t${host.tailscaleIp}") reachable
+    )
+    + "\n";
 }
