@@ -214,7 +214,10 @@ in
     package = inputs.tracer.packages.${systemName}.tracer;
     watch.enable = true;
     settings = {
-      archive.root_dir = "~/.local/share/tracer/archive";
+      archive = {
+        root_dir = "~/.local/share/tracer/archive";
+        additional_roots = [ "/vault/userdata/tracer-ingest" ];
+      };
       ingest.enabled_providers = [
         "claude"
         "codex"

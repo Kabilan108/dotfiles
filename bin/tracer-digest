@@ -6,30 +6,26 @@ STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/tracer-digest"
 SEEN_FILE="$STATE_DIR/seen.txt"
 DIGEST_DIR="${TRACER_DIGEST_DIR:-/vault/notes/coppermind/coppermind/01-logs/agent-digests}"
 MAX_SESSIONS="${TRACER_DIGEST_MAX:-25}"
-ARCHIVE_ROOTS=(
-  "$HOME/.local/share/tracer/archive"
-  "/vault/userdata/tracer-ingest"
-)
 
 mkdir -p "$STATE_DIR" "$DIGEST_DIR"
 
-# first run: seed history so the digest starts from the recent past instead
-# of grinding through the whole archive backlog
+sessions=$(tracer list --json)
+
 if [[ ! -s "$SEEN_FILE" ]]; then
-  find "${ARCHIVE_ROOTS[@]}" -type f -name '*.md' -mtime +14 2>/dev/null >"$SEEN_FILE"
+  cutoff=$(date --utc --date='14 days ago' --iso-8601=seconds)
+  jq -r --arg cutoff "$cutoff" \
+    '.[] | select(.ended < $cutoff) | .path' <<<"$sessions" >"$SEEN_FILE"
   echo "tracer-digest: seeded $(wc -l <"$SEEN_FILE") historical sessions as seen"
 fi
 touch "$SEEN_FILE"
 
-# unseen non-stub transcripts, oldest first; the per-run cap defers the rest
 mapfile -t candidates < <(
-  find "${ARCHIVE_ROOTS[@]}" -type f -name '*.md' -size +2k -printf '%T@ %p\n' 2>/dev/null \
-    | sort -n | cut -d' ' -f2-
+  jq -r 'sort_by(.ended, .path) | .[] | select(.user_turns > 0) | .path' <<<"$sessions"
 )
 
 new_files=()
-for f in "${candidates[@]}"; do
-  grep -qxF "$f" "$SEEN_FILE" || new_files+=("$f")
+for path in "${candidates[@]}"; do
+  grep -qxF "$path" "$SEEN_FILE" || new_files+=("$path")
   [[ ${#new_files[@]} -ge $MAX_SESSIONS ]] && break
 done
 
