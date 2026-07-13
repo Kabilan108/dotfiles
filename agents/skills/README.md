@@ -35,4 +35,5 @@ Shared skills for the agent harnesses on this machine (Claude Code, Codex). Each
 | **frontend-design** | Creates distinctive, high-quality frontend interfaces that avoid generic AI aesthetics |
 | **html-plans** | Publishes plans and reports as hosted HTML pages via pagebin |
 | **learn** | Extracts non-obvious session learnings into AGENTS.md files |
+| **skill-audit** | Periodic evidence-based audit of this skill set from transcript usage data |
 | **skill-creator** | Step-by-step guide for creating new skills with proper structure and frontmatter |
