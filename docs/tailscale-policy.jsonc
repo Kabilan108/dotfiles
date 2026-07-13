@@ -16,7 +16,6 @@
 
 	"autoApprovers": {
 		"services": {
-			"svc:discord-notify": ["tag:server"],
 			"svc:executor":       ["tag:server"],
 			"svc:jellyfin":       ["tag:server"],
 			"svc:siren":          ["tag:server"],
@@ -52,7 +51,6 @@
 		{
 			"src": ["autogroup:member"],
 			"dst": [
-				"svc:discord-notify",
 				"svc:executor",
 				"svc:jellyfin",
 				"svc:siren",
@@ -70,7 +68,7 @@
 		{"src": ["tag:media"], "dst": ["svc:jellyfin"], "ip": ["tcp:443"]},
 		{
 			"src": ["tag:agent"],
-			"dst": ["svc:siren", "svc:executor", "svc:discord-notify"],
+			"dst": ["svc:siren", "svc:executor"],
 			"ip":  ["tcp:443"],
 		},
 	],
