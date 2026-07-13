@@ -87,17 +87,15 @@ tailnet ever gets less trusted.
 
 ### Phase 5 — discord-notify unblock [done 2026-07-12]
 
-Resolution: two paths, only one of which we need today.
+Resolution: agents and workflows on sietch/jacurutu use the `discord-notify`
+CLI directly. Named webhook destinations are stored in the agenix-managed
+`~/.config/discord-notify/channels.json`; the skill and CLI expose names, never
+webhook URLs.
 
-- **Local agents (sietch/jacurutu)** use the `discord-notify` CLI directly —
-  verified working end-to-end (webhook env from `.bashenv`, shared to both
-  machines via agenix). New `notify` agent skill documents usage.
-- **Executor-hosted agents** stay blocked by design: Executor v1.5.29 has no
-  per-host outbound allowlist, and flipping `EXECUTOR_ALLOW_LOCAL_NETWORK`
-  would expose loopback services (vaultwarden et al.) per
-  security-hardening.md. If hosted agents ever genuinely need to notify,
-  expose the bearer-authed service (127.0.0.1:8303) through a Cloudflare
-  tunnel — do not loosen Executor.
+The attempted HTTP service and Executor integration were removed. Executor
+v1.5.29 has no per-host outbound allowlist, and flipping
+`EXECUTOR_ALLOW_LOCAL_NETWORK` would expose loopback services (vaultwarden et
+al.) contrary to `security-hardening.md`.
 
 ### Phase 6 — pagebin html-plans skill [done 2026-07-12]
 

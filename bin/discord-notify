@@ -7,6 +7,7 @@
 import argparse
 import json
 import os
+import re
 import socket
 import ssl
 import sys
@@ -14,8 +15,17 @@ import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
-DEFAULT_WEBHOOK_ENV = "DISCORD_WEBHOOK_URL"
+DEFAULT_CONFIG_ENV = "DISCORD_NOTIFY_CONFIG"
+DEFAULT_CONFIG_PATH = Path("~/.config/discord-notify/channels.json")
+CHANNEL_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
+DISCORD_WEBHOOK_HOSTS = {
+    "canary.discord.com",
+    "discord.com",
+    "discordapp.com",
+    "ptb.discord.com",
+}
 CA_BUNDLE_PATHS = [
     Path("/etc/ssl/certs/ca-certificates.crt"),
     Path("/etc/ssl/certs/ca-bundle.crt"),
@@ -27,9 +37,15 @@ STATUS_COLORS = {
     "warning": 16776960,
     "error": 10181038,
 }
+STATUS_ICONS = {
+    "info": "ℹ️",
+    "success": "✅",
+    "warning": "⚠️",
+    "error": "❌",
+}
 
 
-def parse_field(raw: str) -> dict[str, str | bool]:
+def parse_field(raw: str, *, inline: bool) -> dict[str, str | bool]:
     name, separator, value = raw.partition("=")
     if not separator or not name.strip() or not value.strip():
         raise argparse.ArgumentTypeError("fields must use NAME=VALUE")
@@ -37,15 +53,23 @@ def parse_field(raw: str) -> dict[str, str | bool]:
     return {
         "name": name.strip(),
         "value": value.strip(),
-        "inline": True,
+        "inline": inline,
     }
+
+
+def parse_full_width_field(raw: str) -> dict[str, str | bool]:
+    return parse_field(raw, inline=False)
+
+
+def parse_inline_field(raw: str) -> dict[str, str | bool]:
+    return parse_field(raw, inline=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Send a Discord webhook embed notification."
     )
-    parser.add_argument("-t", "--title", required=True, help="notification title")
+    parser.add_argument("-t", "--title", help="notification title")
     parser.add_argument(
         "-s",
         "--status",
@@ -54,8 +78,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="notification status/color",
     )
     parser.add_argument(
+        "-c",
+        "--channel",
+        default="default",
+        help="configured channel name (default: default)",
+    )
+    parser.add_argument(
+        "--list-channels",
+        action="store_true",
+        help="list configured channel names and exit",
+    )
+    parser.add_argument(
         "--webhook-url",
-        help=f"Discord webhook URL (defaults to ${DEFAULT_WEBHOOK_ENV})",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--body",
@@ -73,14 +108,27 @@ def build_parser() -> argparse.ArgumentParser:
         "--field",
         action="append",
         default=[],
-        type=parse_field,
+        type=parse_full_width_field,
         metavar="NAME=VALUE",
-        help="extra inline embed field; may be passed multiple times",
+        help="extra full-width embed field; may be passed multiple times",
+    )
+    parser.add_argument(
+        "--inline-field",
+        action="append",
+        default=[],
+        type=parse_inline_field,
+        metavar="NAME=VALUE",
+        help="extra compact inline embed field; may be passed multiple times",
+    )
+    parser.add_argument(
+        "--full-context",
+        action="store_true",
+        help="include full hostname and working-directory fields",
     )
     parser.add_argument(
         "--no-default-fields",
         action="store_true",
-        help="omit host and cwd fields",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--dry-run",
@@ -102,35 +150,86 @@ def read_body(args: argparse.Namespace) -> str | None:
     return body or None
 
 
-def resolve_webhook_url(args: argparse.Namespace) -> str:
-    webhook_url = args.webhook_url or os.environ.get(DEFAULT_WEBHOOK_ENV, "")
-    webhook_url = webhook_url.strip()
+def config_path() -> Path:
+    configured_path = os.environ.get(DEFAULT_CONFIG_ENV, "").strip()
+    return Path(configured_path or DEFAULT_CONFIG_PATH).expanduser()
 
-    if webhook_url:
+
+def load_channels() -> dict[str, str]:
+    path = config_path()
+    channels: dict[str, str] = {}
+
+    if path.exists():
+        try:
+            value = json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"could not read Discord channel config {path}: {exc}") from exc
+
+        if not isinstance(value, dict):
+            raise RuntimeError(f"Discord channel config {path} must contain a JSON object")
+
+        for channel, webhook_url in value.items():
+            if not isinstance(channel, str) or not CHANNEL_NAME_PATTERN.fullmatch(channel):
+                raise RuntimeError(f"Discord channel config {path} contains an invalid channel name")
+            if not isinstance(webhook_url, str):
+                raise RuntimeError(f"Discord channel {channel!r} must have a string webhook URL")
+            channels[channel] = validate_webhook_url(webhook_url)
+
+    return channels
+
+
+def validate_webhook_url(webhook_url: str) -> str:
+    webhook_url = webhook_url.strip()
+    parsed = urlparse(webhook_url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in DISCORD_WEBHOOK_HOSTS
+        or not parsed.path.startswith("/api/webhooks/")
+    ):
+        raise RuntimeError("webhook URL must be a Discord HTTPS webhook")
+    return webhook_url
+
+
+def resolve_webhook_url(args: argparse.Namespace, channels: dict[str, str]) -> str:
+    if args.webhook_url:
+        print(
+            "warning: --webhook-url is deprecated; configure a named channel instead",
+            file=sys.stderr,
+        )
+        return validate_webhook_url(args.webhook_url)
+
+    webhook_url = channels.get(args.channel)
+    if webhook_url is not None:
         return webhook_url
 
-    raise RuntimeError(
-        f"missing Discord webhook URL; pass --webhook-url or set {DEFAULT_WEBHOOK_ENV}"
-    )
+    available = ", ".join(sorted(channels)) or "none"
+    raise RuntimeError(f"Discord channel {args.channel!r} is not configured; available: {available}")
 
 
 def make_payload(args: argparse.Namespace) -> dict[str, object]:
     fields: list[dict[str, str | bool]] = []
+    hostname = socket.gethostname()
+    cwd = Path.cwd()
 
-    if not args.no_default_fields:
+    if args.full_context and not args.no_default_fields:
         fields.extend(
             [
-                {"name": "Host", "value": socket.gethostname(), "inline": True},
-                {"name": "Cwd", "value": Path.cwd().as_posix(), "inline": True},
+                {"name": "Host", "value": hostname, "inline": True},
+                {"name": "Cwd", "value": cwd.as_posix(), "inline": False},
             ]
         )
 
     fields.extend(args.field)
+    fields.extend(args.inline_field)
+
+    title = f"{STATUS_ICONS[args.status]} {args.title}"
+    if args.url:
+        title = f"{title} ↗"
 
     embed: dict[str, object] = {
-        "title": args.title,
+        "title": title,
         "color": STATUS_COLORS[args.status],
-        "footer": {"text": "Local Notification"},
+        "footer": {"text": f"{hostname} · {cwd.name or cwd.as_posix()}"},
         "timestamp": datetime.now(UTC).isoformat(),
     }
 
@@ -191,6 +290,21 @@ def find_ca_bundle() -> str | None:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+
+    try:
+        channels = load_channels()
+    except RuntimeError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+
+    if args.list_channels:
+        for channel in sorted(channels):
+            print(channel)
+        return 0
+
+    if not args.title:
+        parser.error("the following arguments are required: -t/--title")
+
     payload = make_payload(args)
 
     if args.dry_run:
@@ -199,7 +313,7 @@ def main() -> int:
         return 0
 
     try:
-        webhook_url = resolve_webhook_url(args)
+        webhook_url = resolve_webhook_url(args, channels)
         post_webhook(webhook_url, payload)
     except RuntimeError as exc:
         print(exc, file=sys.stderr)

@@ -35,6 +35,13 @@ in
       owner = "kabilan";
       group = "users";
     };
+    secrets."secrets/discord-notify.age" = {
+      file = ./secrets/discord-notify.age;
+      path = "${home}/.config/discord-notify/channels.json";
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
     secrets."secrets/rclone.conf" = {
       file = ./secrets/rclone.conf;
       path = "${home}/.config/rclone/rclone.conf";
