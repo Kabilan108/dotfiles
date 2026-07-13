@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: Compact the current conversation into a handoff document for another agent to pick up.
+description: Compact the current conversation into a handoff document for another agent to pick up. Also worth offering proactively at a phase boundary of a long session (multi-hour, tool-heavy, or about to switch from planning/implementation to the next phase) — checkpointing before context degrades beats reconstructing state after.
 argument-hint: "What will the next session be used for?"
 ---
 

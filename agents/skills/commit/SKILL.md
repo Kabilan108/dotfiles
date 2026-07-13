@@ -27,4 +27,5 @@ Before staging:
 - Write a good commit message with an excellent first line, bullet point list in summary.
 - Check staged files for binaries and large files before each commit: `git diff --cached --numstat` shows binaries as `-	-`; check sizes of anything suspicious. Under no circumstances commit binaries or large (1mb+) files — stop, warn about them, and wait for me to decide, even if pre-commit hooks pass.
 - Do not delegate committing to review-only subagents; make and verify commits yourself.
+- If a commit's outcome is unclear (interrupted command, hook noise, ambiguous error), confirm with `git log -1` and `git status` before retrying — a blind re-run creates duplicate or empty commits.
 - After committing, report the commit hashes, verification status, and anything intentionally left uncommitted.

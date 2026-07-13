@@ -102,6 +102,8 @@ tmux capture-pane -p -S -80 -t %31
 
 Never use `send-keys` directly for prompts or instructions — the text will likely contain characters that trigger tmux modes. Use `send-keys -l ... C-m` only for a single shell command you want the shell to execute.
 
+Never re-send the same command to a pane without first confirming the previous attempt's outcome via `capture-pane` — if the pane shows the command already ran (still starting, crashed, or waiting on input), react to that state instead of resending; blind resends have piled duplicate `npm run dev` launches into one pane.
+
 Ask peer agents to write results to a file rather than relying on reading their pane — scrollback is finite and long responses get truncated.
 
 ## 5. Helper Scripts

@@ -59,6 +59,7 @@ If a saved auth profile fails to log in, run `agent-browser auth list` and check
 - Don't invoke this skill just because a repo mentions `agent-browser` or browser-themed components, and don't reach for it to debug an app that won't launch — inspect logs/processes first; use agent-browser once there's a live UI or CDP endpoint to control.
 - When connecting to an existing user-visible browser or CDP endpoint, treat it as shared state: create/label your own tab, track its `tabId`, and don't close or navigate tabs you didn't create. Never `agent-browser close --all` against a shared browser. For the Helium profile specifically, use the `helium-browser-use` skill.
 - If a click/eval succeeds but the page doesn't change as expected, don't rely on `snapshot -i` alone — capture `screenshot`, `errors`, and `console`; compile overlays and modal backdrops are often invisible in the accessibility tree.
+- Snapshot at milestones, not after every micro-change: batch related actions (navigate → fill → submit), then run one verification pass (snapshot + assertion). Repeated `snapshot`/`get` polling after each CSS tweak or click is the top source of tool churn in past sessions; if you need to wait for a state change, use the wait/poll primitives instead of re-snapshotting in a loop.
 
 ## Why agent-browser
 
