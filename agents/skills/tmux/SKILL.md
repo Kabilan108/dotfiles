@@ -120,6 +120,8 @@ These wrap the tmux boilerplate (temp files, load-buffer, paste-buffer) into sin
 ```bash
 command -v send-to-pane launch-agent poll-agents
 send-to-pane --help
+launch-agent --help
+poll-agents --help
 ```
 
 Prefer tmux-native targets (`%31`, `atlas:review`, `atlas:review.2`) over separate session/window flags. The raw tmux commands in the sections below remain useful for understanding what the scripts do and for ad-hoc operations.
