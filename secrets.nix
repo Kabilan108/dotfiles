@@ -71,6 +71,7 @@ in
   "secrets/ssh/jacurutu/yk-nano.age".publicKeys = [ jacurutu ];
 
   "secrets/selfhost/executor-env.age".publicKeys = [ sietch ];
+  "secrets/selfhost/cliproxyapi-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/siren-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/vaultwarden-env.age".publicKeys = [ sietch ];
 }

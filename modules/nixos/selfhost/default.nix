@@ -9,6 +9,7 @@ let
 in
 {
   imports = [
+    ./cliproxyapi.nix
     ./executor.nix
     ./jellyfin.nix
     ./siren.nix
