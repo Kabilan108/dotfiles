@@ -27,6 +27,7 @@ js_repl = false
 memories = true
 personality = true
 goals = true
+default_mode_request_user_input = true
 
 [features.multi_agent_v2]
 enabled = true
