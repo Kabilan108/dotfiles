@@ -31,5 +31,7 @@ process_manager/
 plugins
 mcp-oauth-locks
 archived_sessions
+automations/
+browser/
 chrome-native-hosts-v2.json
 visualizations/
