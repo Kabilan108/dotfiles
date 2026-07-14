@@ -16,6 +16,8 @@ Scope {
     property string vpnBusyUuid: ""
 
     readonly property var wifiDevice: findWifiDevice()
+    readonly property var wiredDevice: findWiredDevice()
+    readonly property bool wiredConnected: wiredDevice !== null
     readonly property var wifiNetworks: sortedWifiNetworks()
     readonly property var connectedNetwork: connectedWifiNetwork()
     readonly property var availableNetworks: wifiNetworks.filter(n => !n.connected && !n.known).slice(0, 14)
@@ -32,6 +34,22 @@ Scope {
             if (devices[i] && devices[i].type === DeviceType.Wifi) return devices[i]
         }
         return null
+    }
+
+    function findWiredDevice() {
+        const devices = Networking.devices ? Networking.devices.values : []
+        for (let i = 0; i < devices.length; i++) {
+            if (devices[i] && devices[i].type === DeviceType.Wired && devices[i].connected) return devices[i]
+        }
+        return null
+    }
+
+    function wiredNetworkName() {
+        const networks = wiredDevice && wiredDevice.networks ? wiredDevice.networks.values : []
+        for (let i = 0; i < networks.length; i++) {
+            if (networks[i] && networks[i].connected) return networks[i].name || ""
+        }
+        return ""
     }
 
     function connectedWifiNetwork() {
@@ -435,6 +453,80 @@ Scope {
                         label: "Wi-Fi"
                         on: root.wifiEnabled
                         onToggled: Networking.wifiEnabled = !Networking.wifiEnabled
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: 4
+                        visible: root.wiredConnected
+
+                        SectionLabel {
+                            text: "Wired"
+                            bottomPadding: 2
+                        }
+
+                        Rectangle {
+                            width: parent.width
+                            implicitHeight: 40
+                            radius: Theme.radiusSmall - 1
+                            color: "transparent"
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                spacing: 9
+
+                                Text {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    text: Theme.icon.lan
+                                    color: Theme.accent
+                                    font.family: Theme.iconFamily
+                                    font.variableAxes: ({ "FILL": 1, "wght": 500, "opsz": 20 })
+                                    font.pixelSize: 15
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 1
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: root.wiredNetworkName() || "Ethernet"
+                                        color: Theme.textPrimary
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 12
+                                        elide: Text.ElideRight
+                                    }
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: root.wiredDevice?.name || ""
+                                        color: Theme.textSecondary
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 10
+                                        elide: Text.ElideRight
+                                        visible: text !== ""
+                                    }
+                                }
+
+                                Text {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    text: "connected"
+                                    color: Theme.success
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 11
+                                    font.bold: true
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: parent.width
+                        implicitHeight: 1
+                        color: Theme.panelBorder
+                        visible: root.wiredConnected && root.wifiEnabled && root.connectedNetwork !== null
                     }
 
                     Column {

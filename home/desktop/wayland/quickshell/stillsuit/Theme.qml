@@ -208,6 +208,7 @@ Singleton {
         network_wifi_1_bar: "\uebe4",
         signal_wifi_0_bar: "\uf0b0",
         signal_wifi_off: "\ue1da",
+        lan: "\ueb2f",
         bluetooth: "\ue1a7",
         bluetooth_connected: "\ue1a8",
         bluetooth_disabled: "\ue1a9",

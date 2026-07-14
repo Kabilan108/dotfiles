@@ -34,6 +34,7 @@ Scope {
     }
 
     function networkIcon() {
+        if (wiredConnected()) return Theme.icon.lan
         const wifi = wifiDevice()
         if (!wifi) return Theme.icon.signal_wifi_off
         const connected = connectedWifiNetwork()
@@ -44,6 +45,14 @@ Scope {
         if (strength >= 40) return Theme.icon.network_wifi_2_bar
         if (strength >= 20) return Theme.icon.network_wifi_1_bar
         return Theme.icon.signal_wifi_0_bar
+    }
+
+    function wiredConnected() {
+        const devices = Networking.devices ? Networking.devices.values : []
+        for (let i = 0; i < devices.length; i++) {
+            if (devices[i] && devices[i].type === DeviceType.Wired && devices[i].connected) return true
+        }
+        return false
     }
 
     function wifiDevice() {
