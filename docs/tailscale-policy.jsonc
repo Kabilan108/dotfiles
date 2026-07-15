@@ -64,7 +64,11 @@
 		// sietch is tagged, so autogroup:member above does not cover it; its
 		// own consumers use the svc names too (dictator -> siren). Keep this
 		// minimal - add services only when something on sietch needs them.
-		{"src": ["tag:server"], "dst": ["svc:cliproxyapi", "svc:siren"], "ip": ["tcp:443"]},
+		{
+			"src": ["tag:server"],
+			"dst": ["svc:cliproxyapi", "svc:siren", "svc:executor", "svc:vault"],
+			"ip": ["tcp:443"]
+		},
 
 		// tagged clients: media boxes get jellyfin, agent boxes get the MCP/API services
 		{"src": ["tag:media"], "dst": ["svc:jellyfin"], "ip": ["tcp:443"]},
