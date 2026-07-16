@@ -91,7 +91,7 @@
     "gopls-lsp@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "low",
+  "effortLevel": "high",
   "voice": {
     "enabled": true,
     "mode": "hold"
