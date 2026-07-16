@@ -35,10 +35,12 @@ Prefer labels that identify the task:
 
 ```bash
 agent-browser --cdp "$port" tab new --label "<short-task-name>" "<url>"
-agent-browser --cdp "$port" tab --json
+agent-browser --cdp "$port" tab list --json
 ```
 
 Track the `tabId` and label you are using. Before acting after navigation or dynamic page changes, re-check the current tab and re-snapshot. Do not close, navigate, or modify tabs you did not create unless the user specifically asks.
+
+In JSON output, tabs are under `.data.tabs`. Run tab creation and tab-list parsing as separate commands: a tab mutation can succeed even if a chained parser fails, leaving an untracked agent-owned tab.
 
 Avoid `agent-browser close --all` against Helium.
 
@@ -69,6 +71,8 @@ curl -fsS "http://127.0.0.1:${port}/json/list"
 ```
 
 Agent-browser may create or focus an agent-owned `about:blank` target even when raw CDP shows other Helium tabs. That is expected. Prefer the agent-owned tab unless the user requested work in a specific existing tab.
+
+If agent-browser reports that `/run/user/$UID/agent-browser` is read-only, request the required sandbox permission and retry. This is a local runtime-socket permission problem, not evidence that Helium or CDP is unavailable.
 
 ## State And Privacy
 

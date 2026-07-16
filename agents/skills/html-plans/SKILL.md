@@ -21,7 +21,7 @@ Use this skill for a browsable plan, report, review, technical explainer, implem
 - Use exact file and line references for code claims. Keep snippets focused.
 - Add navigation for four or more substantial sections.
 - Stateful interactions require reset and export or copy actions.
-- Use `--sandbox standard` for Markdown, Mermaid, or interactive HTML. Use `strict` only for inert HTML.
+- Use `--sandbox standard` for interactive HTML. Use `strict` only for inert HTML.
 
 ## Publish once and preserve identity
 
@@ -39,6 +39,7 @@ pagebin update /absolute/path/plan.html --json
 
 File-only update uses the receipt. An ID or viewer URL also works. Do not republish an existing file unless the user wants a second artifact and `--force-new` is appropriate.
 Update the existing artifact after meaningful milestones, decisions, or deviations so it remains an accurate record of the work.
+Run `pagebin skill` when exact PageBin command behavior or management operations are needed; keep this skill focused on authoring and maintaining the HTML artifact.
 
 ## Live implementation logs
 

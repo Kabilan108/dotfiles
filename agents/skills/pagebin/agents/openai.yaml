@@ -1,0 +1,4 @@
+interface:
+  display_name: "PageBin"
+  short_description: "Publish and manage protected artifacts with PageBin"
+  default_prompt: "Use the installed PageBin CLI instructions to publish or manage an artifact safely."

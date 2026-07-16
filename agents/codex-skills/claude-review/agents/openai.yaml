@@ -1,0 +1,4 @@
+interface:
+  display_name: "Claude Review"
+  short_description: "Run and close a trusted Claude CLI review loop"
+  default_prompt: "Review the current change with Claude, triage actionable findings, fix true positives, and run a closing re-review."
