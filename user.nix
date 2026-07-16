@@ -28,8 +28,8 @@ in
   age = {
     identityPaths = [ "${home}/.ssh/id_ed25519" ];
     secretsDir = "/run/agenix";
-    secrets."secrets/env.age" = {
-      file = ./secrets/env.age;
+    secrets."secrets/bashenv.age" = {
+      file = ./secrets/bashenv.age;
       path = "${home}/.bashenv";
       mode = "0600";
       owner = "kabilan";
