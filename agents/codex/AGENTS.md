@@ -8,24 +8,9 @@ tools for a variety of languages are installed in the home environment, but wher
 
 ## subagents
 
-Only use subagents if the user explicitly asks you to
+Only spawn subagents when i ask you to
 
 ## Rules
-
-### Comment Policy
-
-#### Unacceptable Comments
-
-- Comments that repeat what the code does
-- Commented-out code (delete it)
-- Obvious comments ("increment counter")
-- Comments instead of good naming
-- Comments about updates to old code ("<- now supports xyz")
-
-#### Principle
-
-Code should be self-documenting. If you need a comment to explain WHAT the code does,
-consider refactoring to make it clearer.
 
 ### Nix
 
@@ -67,12 +52,3 @@ Use `uv` for dependency management:
 | `uvx <cmd>` | Run arbitrary python executable without installing |
 
 Always use `uv add` to add dependencies rather than editing `pyproject.toml` manually.
-
-### TypeScript / JavaScript
-
-#### Preferences
-
-- Always use TypeScript over plain JavaScript
-- Prefer `const` over `let`; avoid `var`
-- Use explicit return types on exported functions
-- Prefer `interface` over `type` for object shapes
