@@ -1263,11 +1263,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1784136801,
-        "narHash": "sha256-X71f4M1vnpFnKgTsR+1MqLjF0YdYd6LyjxTS6jKrcZA=",
+        "lastModified": 1784231609,
+        "narHash": "sha256-PrL/PxH2g9d1LEtA7QRPCnWCnLVwAXiVCbI5LMX3Acg=",
         "owner": "Kabilan108",
         "repo": "pagebin",
-        "rev": "4112eae0272f9e0babf076185c8f7ef02477c5ab",
+        "rev": "15f79c94967b8d8c91c4a8056170802d32902e98",
         "type": "github"
       },
       "original": {
