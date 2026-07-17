@@ -1,0 +1,201 @@
+#!/usr/bin/env bash
+# Profile Wi-Fi, LAN, WAN, and DNS health as timestamped CSV data.
+
+set -u
+
+usage() {
+  cat <<'EOF'
+Usage:
+  wifi-profiler run [output-directory] [interval-seconds]
+  wifi-profiler report [output-directory]
+
+Defaults:
+  output-directory: ~/.local/state/wifi-profiler
+  interval-seconds: 5
+
+Run writes samples.csv, network-events.log, and metadata.txt. Report summarizes
+the samples and gives a first-pass diagnosis of where connectivity is failing.
+EOF
+}
+
+default_output_dir="${XDG_STATE_HOME:-$HOME/.local/state}/wifi-profiler"
+
+csv_escape() {
+  local value=${1//$'\n'/ }
+  value=${value//\"/\"\"}
+  printf '"%s"' "$value"
+}
+
+ping_probe() {
+  local target=$1 output
+  output=$(ping -n -c 1 -W 1 "$target" 2>&1) || {
+    printf '0,'
+    return
+  }
+  printf '1,%s' "$(sed -n 's/.*time=\([0-9.]*\) ms.*/\1/p' <<<"$output")"
+}
+
+dns_probe() {
+  local started elapsed
+  started=$(date +%s%3N)
+  if timeout 3 getent ahosts example.com >/dev/null 2>&1; then
+    elapsed=$(($(date +%s%3N) - started))
+    printf '1,%s' "$elapsed"
+  else
+    printf '0,'
+  fi
+}
+
+wifi_interface() {
+  nmcli -t -f DEVICE,TYPE,STATE device status 2>/dev/null \
+    | awk -F: '$2 == "wifi" && $3 ~ /^connected/ { print $1; exit }'
+}
+
+start_event_log() {
+  local destination=$1
+  journalctl -f -o short-iso --since now \
+    _SYSTEMD_UNIT=NetworkManager.service + _TRANSPORT=kernel >"$destination" 2>&1 &
+  event_pid=$!
+}
+
+stop_event_log() {
+  [[ -n ${event_pid:-} ]] && kill "$event_pid" 2>/dev/null || true
+}
+
+run_profiler() {
+  local output_dir=${1:-$default_output_dir}
+  local interval=${2:-5}
+  local samples="$output_dir/samples.csv"
+  local event_pid=""
+
+  if ! [[ $interval =~ ^[0-9]+([.][0-9]+)?$ ]] || [[ $interval == 0 ]]; then
+    printf 'Interval must be a positive number.\n' >&2
+    return 2
+  fi
+
+  mkdir -p "$output_dir"
+  if [[ ! -f $samples ]]; then
+    printf '%s\n' 'timestamp,interface,ssid,connection_state,frequency_mhz,rate_mbit_s,signal_percent,rx_bytes,tx_bytes,rx_dropped,tx_dropped,gateway,gateway_ok,gateway_ms,internet_target,internet_ok,internet_ms,dns_ok,dns_ms' >"$samples"
+  fi
+
+  {
+    printf 'started=%s\n' "$(date --iso-8601=seconds)"
+    printf 'hostname=%s\n' "$(hostname)"
+    printf 'kernel=%s\n' "$(uname -sr)"
+    printf 'networkmanager=%s\n' "$(nmcli --version 2>/dev/null || true)"
+  } >>"$output_dir/metadata.txt"
+
+  start_event_log "$output_dir/network-events.log"
+  trap stop_event_log EXIT
+  trap 'exit 130' INT TERM
+
+  printf 'Logging to %s every %s seconds. Press Ctrl-C to stop.\n' "$output_dir" "$interval"
+  while true; do
+    local timestamp interface ssid state gateway wifi_row frequency rate signal
+    local rx_bytes tx_bytes rx_dropped tx_dropped gateway_result internet_result dns_result
+    timestamp=$(date --iso-8601=seconds)
+    interface=$(wifi_interface)
+    ssid=""
+    state="disconnected"
+    gateway=""
+    frequency=""
+    rate=""
+    signal=""
+    rx_bytes=""
+    tx_bytes=""
+    rx_dropped=""
+    tx_dropped=""
+
+    if [[ -n $interface ]]; then
+      ssid=$(nmcli -g GENERAL.CONNECTION device show "$interface" 2>/dev/null || true)
+      state=$(nmcli -g GENERAL.STATE device show "$interface" 2>/dev/null || true)
+      gateway=$(nmcli -g IP4.GATEWAY device show "$interface" 2>/dev/null | head -n1)
+      wifi_row=$(nmcli -t -f IN-USE,FREQ,RATE,SIGNAL device wifi list ifname "$interface" --rescan no 2>/dev/null \
+        | awk -F: '$1 == "*" { print; exit }')
+      IFS=: read -r _ frequency rate signal <<<"$wifi_row"
+      rate=${rate%% *}
+      rx_bytes=$(<"/sys/class/net/$interface/statistics/rx_bytes")
+      tx_bytes=$(<"/sys/class/net/$interface/statistics/tx_bytes")
+      rx_dropped=$(<"/sys/class/net/$interface/statistics/rx_dropped")
+      tx_dropped=$(<"/sys/class/net/$interface/statistics/tx_dropped")
+    fi
+
+    if [[ -n $gateway ]]; then
+      gateway_result=$(ping_probe "$gateway")
+    else
+      gateway_result='0,'
+    fi
+    internet_result=$(ping_probe 1.1.1.1)
+    dns_result=$(dns_probe)
+
+    {
+      csv_escape "$timestamp"; printf ','
+      csv_escape "$interface"; printf ','
+      csv_escape "$ssid"; printf ','
+      csv_escape "$state"; printf ',%s,%s,%s,%s,%s,%s,%s,' \
+        "$frequency" "$rate" "$signal" "$rx_bytes" "$tx_bytes" "$rx_dropped" "$tx_dropped"
+      csv_escape "$gateway"; printf ',%s,' "$gateway_result"
+      csv_escape '1.1.1.1'; printf ',%s,%s\n' "$internet_result" "$dns_result"
+    } >>"$samples"
+
+    printf '\r%s  signal=%-3s%%  gateway=%s  internet=%s  dns=%s   ' \
+      "$timestamp" "${signal:--}" "${gateway_result%%,*}" "${internet_result%%,*}" "${dns_result%%,*}"
+    sleep "$interval"
+  done
+}
+
+report_profiler() {
+  local output_dir=${1:-$default_output_dir}
+  local samples="$output_dir/samples.csv"
+  if [[ ! -s $samples ]]; then
+    printf 'No samples found at %s\n' "$samples" >&2
+    return 1
+  fi
+
+  awk -F, '
+    NR == 1 { next }
+    {
+      total++
+      signal = $7 + 0
+      if ($2 == "\"\"") disconnected++
+      if ($13 != 1) gateway_fail++
+      if ($16 != 1) internet_fail++
+      if ($18 != 1) dns_fail++
+      if ($7 != "") { signal_sum += signal; signal_n++; if (!signal_min || signal < signal_min) signal_min = signal }
+      if ($13 == 1 && $16 != 1) wan_only++
+      if ($16 == 1 && $18 != 1) dns_only++
+      if ($13 != 1 && signal > 0 && signal < 40) weak_gateway_fail++
+    }
+    END {
+      if (!total) { print "No data samples yet."; exit }
+      printf "Samples:             %d\n", total
+      printf "Wi-Fi disconnected:  %d (%.1f%%)\n", disconnected, 100 * disconnected / total
+      printf "Gateway failures:    %d (%.1f%%)\n", gateway_fail, 100 * gateway_fail / total
+      printf "Internet failures:   %d (%.1f%%)\n", internet_fail, 100 * internet_fail / total
+      printf "DNS failures:        %d (%.1f%%)\n", dns_fail, 100 * dns_fail / total
+      if (signal_n) printf "Signal:              %.1f%% average, %d%% minimum\n", signal_sum / signal_n, signal_min
+      print ""
+      if (disconnected || (gateway_fail > internet_fail / 2 && gateway_fail > dns_fail / 2))
+        print "Likely focus: Wi-Fi link, adapter/driver, interference, or router LAN."
+      if (wan_only)
+        printf "Likely focus: Xfinity/WAN path (%d samples reached the router but not 1.1.1.1).\n", wan_only
+      if (dns_only)
+        printf "Likely focus: DNS (%d samples reached 1.1.1.1 but DNS failed).\n", dns_only
+      if (weak_gateway_fail)
+        printf "Weak-signal correlation: %d gateway failures occurred below 40%% signal.\n", weak_gateway_fail
+      if (!disconnected && !gateway_fail && !internet_fail && !dns_fail)
+        print "No connectivity failures captured in this interval."
+    }
+  ' "$samples"
+
+  printf '\nRecent relevant network events:\n'
+  rg -i 'iwlwifi|wlp|disconnect|deauth|auth|firmware|timeout|carrier|dhcp|dns' \
+    "$output_dir/network-events.log" 2>/dev/null | tail -n 20 || true
+}
+
+case ${1:-} in
+  run) shift; run_profiler "$@" ;;
+  report) shift; report_profiler "$@" ;;
+  -h|--help|help|'') usage ;;
+  *) usage >&2; exit 2 ;;
+esac
