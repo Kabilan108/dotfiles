@@ -38,6 +38,7 @@ in
 
     UV_CACHE_DIR = "/vault/userdata/cache/uv";
     UV_LINK_MODE = "copy";
+    UV_MALWARE_CHECK = "1";
     UV_SYSTEM_PYTHON = "0";
 
     USER_DATA = "/vault/userdata";
