@@ -23,9 +23,6 @@ useful bash tools. some of these are used as part of my desktop env others are j
 - [open-nvim](./open-nvim):
   launches neovim inside a ghostty terminal.
 
-- [patch-snaps](./patch-snaps):
-  fixes exec lines in snap application desktop files for better integration. handles a bug i've been having with snaps in ubuntu 24.04 lts
-
 - [pathurl](./pathurl):
   converts a file path to a file:// url, useful for easy copy-paste.
 
@@ -40,12 +37,6 @@ useful bash tools. some of these are used as part of my desktop env others are j
 
 - [start-polybar](./start-polybar):
   launches polybar status bar with proper configuration.
-
-- [claude-check](./claude-check):
-  utility for checking claude code integration.
-
-- [ws](./ws):
-  workspace management utility.
 
 - [volctl](./volctl):
   adjusts audio volume and mute/unmute status with notifications; handles mic as well.

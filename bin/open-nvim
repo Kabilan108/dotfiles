@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-# vim: syn=bash ft=bash
-ghostty -e nvim "$@"
