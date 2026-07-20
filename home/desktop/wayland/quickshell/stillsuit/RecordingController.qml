@@ -192,6 +192,10 @@ Scope {
         runAction("stop", [helperPath, "stop"])
     }
 
+    function cancel() {
+        runAction("cancel", [helperPath, "cancel"])
+    }
+
     function rename() {
         if (!renameTitle.trim()) return
         runAction("rename", [helperPath, "rename", "--title", renameTitle.trim()])
@@ -269,7 +273,7 @@ Scope {
                 root.dismiss()
                 return
             }
-            if (exitCode === 0 && completedAction === "start") {
+            if (exitCode === 0 && (completedAction === "start" || completedAction === "cancel")) {
                 root.visible = false
             }
             root.dismissAfterRename = false

@@ -592,6 +592,16 @@ Scope {
                         quiet: true
                         onClicked: root.controller.finish()
                     }
+
+                    IconButton {
+                        implicitWidth: 42
+                        implicitHeight: 42
+                        icon: Theme.icon.delete
+                        iconColor: Theme.textMuted
+                        iconSize: 21
+                        quiet: true
+                        onClicked: root.controller.cancel()
+                    }
                 }
 
                 ColumnLayout {

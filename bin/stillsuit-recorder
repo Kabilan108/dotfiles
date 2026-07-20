@@ -238,6 +238,27 @@ def stop_recording() -> None:
     print_state(state)
 
 
+def cancel_recording() -> None:
+    state = require_active()
+    pid = int(state["pid"])
+    if state.get("paused"):
+        os.kill(pid, signal.SIGUSR2)
+    os.kill(pid, signal.SIGINT)
+
+    deadline = time.monotonic() + 10
+    while process_alive(pid) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    if process_alive(pid):
+        os.kill(pid, signal.SIGKILL)
+        deadline = time.monotonic() + 5
+        while process_alive(pid) and time.monotonic() < deadline:
+            time.sleep(0.1)
+
+    Path(str(state["output"])).unlink(missing_ok=True)
+    STATE_PATH.unlink(missing_ok=True)
+    print_state({"phase": "idle"})
+
+
 def rename_recording(title: str) -> None:
     state = refreshed_state()
     if state.get("phase") != "completed":
@@ -279,6 +300,7 @@ def parser() -> argparse.ArgumentParser:
 
     commands.add_parser("toggle-pause")
     commands.add_parser("stop")
+    commands.add_parser("cancel")
     rename = commands.add_parser("rename")
     rename.add_argument("--title", required=True)
     commands.add_parser("dismiss")
@@ -296,6 +318,8 @@ def main() -> int:
             toggle_pause()
         elif args.command == "stop":
             stop_recording()
+        elif args.command == "cancel":
+            cancel_recording()
         elif args.command == "rename":
             rename_recording(args.title)
         elif args.command == "dismiss":
