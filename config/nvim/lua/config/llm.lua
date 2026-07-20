@@ -7,6 +7,12 @@ local utils = require 'utils'
 -- droid.nvim:  llm assistance and inline edits
 droid.setup {
   api_key_name = 'OPENROUTER_API_KEY',
+  available_models = {
+    'anthropic/claude-sonnet-4.5',
+    'google/gemini-2.5-flash',
+    'x-ai/grok-4-fast',
+    'openai/gpt-4.1',
+  },
   edit_prompt = [[
     You should replace the code that you are sent, only following the comments. Do not talk at all. Only output valid code. Do not provide any backticks that surround the code. Never ever output backticks like this ```. Any comment that is asking you for something should be removed after you satisfy them. Other comments should left alone. Do not output backticks
   ]],

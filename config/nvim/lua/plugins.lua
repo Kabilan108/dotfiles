@@ -7,7 +7,13 @@ return {
   'numToStr/Comment.nvim',
   'nvim-lua/plenary.nvim',
   'christoomey/vim-tmux-navigator',
-  'nvim-lualine/lualine.nvim',
+  {
+    'nvim-lualine/lualine.nvim',
+    event = 'VeryLazy',
+    config = function()
+      require 'config.lualine'
+    end,
+  },
   'nvim-tree/nvim-web-devicons',
 
   {
@@ -31,30 +37,46 @@ return {
 
   {
     'kabilan108/droid.nvim',
+    keys = {
+      { '<leader>ll', mode = { 'n', 'v' }, desc = 'llm: help' },
+      { '<leader>ln', mode = { 'n', 'v' }, desc = 'llm: create buffer' },
+      { '<leader>lb', mode = { 'n', 'v' }, desc = 'llm: list buffers' },
+      { '<leader>le', mode = { 'n', 'v' }, desc = 'llm: edit' },
+      { '<leader>lm', mode = { 'n', 'v' }, desc = 'llm: select model' },
+      { '<leader>lG', mode = { 'n', 'v' }, desc = 'llm: jump to new' },
+      { '<leader>lc', desc = 'llm: cancel stream' },
+    },
     config = function()
-      require('droid').setup {
-        available_models = {
-          'anthropic/claude-sonnet-4.5',
-          'google/gemini-2.5-flash',
-          'x-ai/grok-4-fast',
-          'openai/gpt-4.1',
-        },
-      }
+      require 'config.llm'
     end,
   },
   {
     'kabilan108/pyrepl.nvim',
+    ft = 'python',
     config = function()
       require('pyrepl').setup {}
     end,
   },
 
-  { 'lukas-reineke/indent-blankline.nvim', main = 'ibl', opts = {} },
-  { 'neovim/nvim-lspconfig', dependencies = { 'j-hui/fidget.nvim' } },
+  {
+    'lukas-reineke/indent-blankline.nvim',
+    event = { 'BufReadPost', 'BufNewFile' },
+    main = 'ibl',
+    opts = {},
+  },
+  {
+    'neovim/nvim-lspconfig',
+    event = { 'BufReadPre', 'BufNewFile' },
+    dependencies = { 'j-hui/fidget.nvim', 'hrsh7th/cmp-nvim-lsp' },
+    config = function()
+      require 'config.lsp'
+    end,
+  },
 
   -- autocompletion
   {
     'hrsh7th/nvim-cmp',
+    event = 'InsertEnter',
     dependencies = {
       'hrsh7th/cmp-nvim-lsp',
       'hrsh7th/cmp-path',
@@ -62,17 +84,59 @@ return {
       'saadparwaiz1/cmp_luasnip',
       'rafamadriz/friendly-snippets',
     },
+    config = function()
+      require 'config.completion'
+    end,
   },
 
   -- Add LuaSnip configuration
   {
     'L3MON4D3/LuaSnip',
+    event = 'InsertEnter',
+    keys = {
+      {
+        '<C-k>',
+        function()
+          local luasnip = require 'luasnip'
+          if luasnip.expand_or_jumpable() then
+            luasnip.expand_or_jump()
+          end
+        end,
+        mode = { 'i', 's' },
+        desc = 'LuaSnip forward jump',
+      },
+      {
+        '<C-j>',
+        function()
+          local luasnip = require 'luasnip'
+          if luasnip.jumpable(-1) then
+            luasnip.jump(-1)
+          end
+        end,
+        mode = { 'i', 's' },
+        desc = 'LuaSnip backward jump',
+      },
+      {
+        '<M-l>',
+        function()
+          local luasnip = require 'luasnip'
+          if luasnip.choice_active() then
+            luasnip.change_choice(1)
+          end
+        end,
+        mode = { 'i', 's' },
+        desc = 'LuaSnip next choice',
+      },
+    },
     version = 'v2.*',
     build = 'make install_jsregexp',
     dependencies = {
       'rafamadriz/friendly-snippets',
       'honza/vim-snippets',
     },
+    config = function()
+      require 'config.snippets'
+    end,
   },
 
   -- todo comments
@@ -103,6 +167,110 @@ return {
   {
     'nvim-telescope/telescope.nvim',
     dependencies = { 'nvim-telescope/telescope-ui-select.nvim' },
+    keys = {
+      {
+        '<leader>b',
+        function()
+          require('telescope.builtin').buffers { sort_mru = true }
+        end,
+        desc = 'search buffers',
+      },
+      {
+        '<leader>sf',
+        function()
+          require('telescope.builtin').find_files {
+            hidden = true,
+            follow = true,
+            find_command = { 'rg', '--files', '--color', 'never', '-g', '!.git/**' },
+          }
+        end,
+        desc = 'search files',
+      },
+      {
+        '<leader>sg',
+        function()
+          require('custom.telescope').livegrep()
+        end,
+        desc = 'search everything',
+      },
+      {
+        '<leader>sh',
+        function()
+          require('telescope.builtin').help_tags()
+        end,
+        desc = 'search help',
+      },
+      {
+        '<leader>sk',
+        function()
+          require('telescope.builtin').keymaps()
+        end,
+        desc = 'search keymaps',
+      },
+      {
+        '<leader>rs',
+        function()
+          require('telescope.builtin').resume()
+        end,
+        desc = 'resume search',
+      },
+      {
+        '<leader>sr',
+        function()
+          require('telescope.builtin').oldfiles()
+        end,
+        desc = 'search recent files',
+      },
+      {
+        '<leader>si',
+        function()
+          require('telescope.builtin').git_status()
+        end,
+        desc = 'search git index',
+      },
+      {
+        '<leader>wt',
+        function()
+          require('custom.worktree').pick()
+        end,
+        desc = 'worktree: switch',
+      },
+      {
+        '<leader>w-',
+        function()
+          require('custom.worktree').switch_previous()
+        end,
+        desc = 'worktree: previous',
+      },
+      {
+        '<leader>wc',
+        function()
+          require('custom.worktree').create()
+        end,
+        desc = 'worktree: create',
+      },
+      {
+        '<leader>pp',
+        function()
+          require('custom.workspaces').pick()
+        end,
+        desc = 'workspace: pick',
+      },
+      {
+        '<leader>pa',
+        function()
+          require('custom.workspaces').add()
+        end,
+        desc = 'workspace: add cwd',
+      },
+      {
+        '<leader>pr',
+        function()
+          require('custom.workspaces').pick_remove()
+        end,
+        desc = 'workspace: remove',
+      },
+    },
     config = function()
       require('telescope').setup {
         pickers = {
@@ -122,11 +290,78 @@ return {
     'ThePrimeagen/harpoon',
     branch = 'harpoon2',
     dependencies = { 'nvim-lua/plenary.nvim' },
+    keys = {
+      {
+        '<leader>a',
+        function()
+          require('harpoon'):list():add()
+        end,
+        desc = 'add harpoon',
+      },
+      {
+        '<leader>h',
+        function()
+          local harpoon = require 'harpoon'
+          harpoon.ui:toggle_quick_menu(harpoon:list())
+        end,
+        desc = 'list harpoons',
+      },
+      {
+        '<leader>1',
+        function()
+          require('harpoon'):list():select(1)
+        end,
+      },
+      {
+        '<leader>2',
+        function()
+          require('harpoon'):list():select(2)
+        end,
+      },
+      {
+        '<leader>3',
+        function()
+          require('harpoon'):list():select(3)
+        end,
+      },
+      {
+        '<leader>4',
+        function()
+          require('harpoon'):list():select(4)
+        end,
+      },
+      {
+        '<C-P>',
+        function()
+          require('harpoon'):list():prev()
+        end,
+      },
+      {
+        '<C-N>',
+        function()
+          require('harpoon'):list():next()
+        end,
+      },
+    },
     config = function()
       local harpoon = require 'harpoon'
       local harpoon_extensions = require 'harpoon.extensions'
+      local utils = require 'utils'
       harpoon:setup {}
       harpoon:extend(harpoon_extensions.builtins.highlight_current_file())
+      harpoon:extend {
+        UI_CREATE = function(cx)
+          utils.map('<C-v>', 'n', function()
+            harpoon.ui:select_menu_item { vsplit = true }
+          end, '', { buffer = cx.bufnr })
+          utils.map('<C-s>', 'n', function()
+            harpoon.ui:select_menu_item { split = true }
+          end, '', { buffer = cx.bufnr })
+          utils.map('<C-t>', 'n', function()
+            harpoon.ui:select_menu_item { tabedit = true }
+          end, '', { buffer = cx.bufnr })
+        end,
+      }
     end,
   },
 
@@ -149,6 +384,7 @@ return {
 
   {
     'windwp/nvim-ts-autotag',
+    event = { 'BufReadPost', 'BufNewFile' },
     dependencies = { 'nvim-treesitter/nvim-treesitter' },
     config = function()
       require('nvim-ts-autotag').setup {
@@ -208,6 +444,7 @@ return {
   {
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
+    event = { 'BufReadPost', 'BufNewFile' },
     config = function()
       local configs = require 'nvim-treesitter.configs'
       configs.setup {
@@ -229,6 +466,7 @@ return {
   -- treesitter-context: sticky context for classes/functions
   {
     'nvim-treesitter/nvim-treesitter-context',
+    event = { 'BufReadPost', 'BufNewFile' },
     dependencies = { 'nvim-treesitter/nvim-treesitter' },
     opts = {
       enable = true,
@@ -344,6 +582,7 @@ return {
   -- git signs
   {
     'lewis6991/gitsigns.nvim',
+    event = { 'BufReadPre', 'BufNewFile' },
     config = function()
       require('gitsigns').setup {
         signs = {

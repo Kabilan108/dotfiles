@@ -1,9 +1,3 @@
-local pickers = require 'telescope.pickers'
-local finders = require 'telescope.finders'
-local actions = require 'telescope.actions'
-local action_state = require 'telescope.actions.state'
-local conf = require('telescope.config').values
-
 local M = {}
 
 ---@class custom.Workspace
@@ -200,6 +194,11 @@ end
 ---@param opts? table
 M.pick = function(opts)
   opts = opts or {}
+  local pickers = require 'telescope.pickers'
+  local finders = require 'telescope.finders'
+  local actions = require 'telescope.actions'
+  local action_state = require 'telescope.actions.state'
+  local conf = require('telescope.config').values
   local workspaces = load_workspaces()
 
   if #workspaces == 0 then
@@ -243,6 +242,11 @@ end
 ---@param opts? table
 M.pick_remove = function(opts)
   opts = opts or {}
+  local pickers = require 'telescope.pickers'
+  local finders = require 'telescope.finders'
+  local actions = require 'telescope.actions'
+  local action_state = require 'telescope.actions.state'
+  local conf = require('telescope.config').values
   local workspaces = load_workspaces()
 
   if #workspaces == 0 then

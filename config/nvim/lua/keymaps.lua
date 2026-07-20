@@ -1,14 +1,9 @@
 -- keymaps.lua
 
-local harpoon = require 'harpoon'
-local luasnip = require 'luasnip'
-local ts = require 'telescope.builtin'
 local sessions = require 'mini.sessions'
 local trailspace = require 'mini.trailspace'
 
 local utils = require 'utils'
-local custom_ts = require 'custom.telescope'
-local custom_wt = require 'custom.worktree'
 local custom_ws = require 'custom.workspaces'
 custom_ws.setup()
 
@@ -17,36 +12,6 @@ custom_ws.setup()
 -- general keymaps
 utils.map('-', 'n', '<CMD>Oil<CR>', 'edit directory')
 utils.map('<Esc>', 'n', '<CMD>nohlsearch<CR>', 'clear search')
-
--- telescope
-utils.map('<leader>b', 'n', function()
-  ts.buffers { sort_mru = true }
-end, 'search buffers')
-utils.map('<leader>sf', 'n', function()
-  ts.find_files {
-    hidden = true,
-    follow = true,
-    find_command = { 'rg', '--files', '--color', 'never', '-g', '!.git/**' },
-  }
-end, 'search files')
-utils.map('<leader>sg', 'n', custom_ts.livegrep, 'search everything')
-utils.map('<leader>sh', 'n', ts.help_tags, 'search help')
-utils.map('<leader>sk', 'n', ts.keymaps, 'search keymaps')
-utils.map('<leader>rs', 'n', ts.resume, 'resume search')
-utils.map('<leader>sr', 'n', ts.oldfiles, 'search recent files')
-utils.map('<leader>si', 'n', ts.git_status, 'search git index')
-
--- worktree management
-utils.map('<leader>wt', 'n', custom_wt.pick, 'worktree: switch')
-utils.map('<leader>w-', 'n', custom_wt.switch_previous, 'worktree: previous')
-utils.map('<leader>wc', 'n', custom_wt.create, 'worktree: create')
-
--- workspace management
-utils.map('<leader>pp', 'n', custom_ws.pick, 'workspace: pick')
-utils.map('<leader>pa', 'n', function()
-  custom_ws.add()
-end, 'workspace: add cwd')
-utils.map('<leader>pr', 'n', custom_ws.pick_remove, 'workspace: remove')
 
 -- git staging with gitsigns
 utils.map('<leader>ga', 'n', '<CMD>Gitsigns stage_buffer<CR>', 'git: stage current file')
@@ -111,45 +76,6 @@ utils.map('<C-`>', 'n', function()
 end, 'open horizontal terminal split')
 utils.map('<C-n>', 't', '<C-\\><C-n>', 'exit terminal mode')
 
--- harpoon
-utils.map('<leader>a', 'n', function()
-  harpoon:list():add()
-end, 'add harpoon')
-utils.map('<leader>h', 'n', function()
-  harpoon.ui:toggle_quick_menu(harpoon:list())
-end, 'list harpoons')
-utils.map('<leader>1', 'n', function()
-  harpoon:list():select(1)
-end)
-utils.map('<leader>2', 'n', function()
-  harpoon:list():select(2)
-end)
-utils.map('<leader>3', 'n', function()
-  harpoon:list():select(3)
-end)
-utils.map('<leader>4', 'n', function()
-  harpoon:list():select(4)
-end)
-utils.map('<C-P>', 'n', function()
-  harpoon:list():prev()
-end)
-utils.map('<C-N>', 'n', function()
-  harpoon:list():next()
-end)
-harpoon:extend {
-  UI_CREATE = function(cx)
-    utils.map('<C-v>', 'n', function()
-      harpoon.ui:select_menu_item { vsplit = true }
-    end, '', { buffer = cx.bufnr })
-    utils.map('<C-s>', 'n', function()
-      harpoon.ui:select_menu_item { split = true }
-    end, '', { buffer = cx.bufnr })
-    utils.map('<C-t>', 'n', function()
-      harpoon.ui:select_menu_item { tabedit = true }
-    end, '', { buffer = cx.bufnr })
-  end,
-}
-
 -- window navigation is handled by vim-tmux-navigator (<C-h/j/k/l> cross
 -- seamlessly between nvim splits and tmux panes)
 
@@ -175,25 +101,6 @@ utils.map('<leader>cd', 'v', function()
   utils.yank_with_context { include_diagnostics = true }
 end, 'yank selection with file context and diagnostics')
 
--- snippets
-utils.map('<C-k>', { 'i', 's' }, function()
-  if luasnip.expand_or_jumpable() then
-    luasnip.expand_or_jump()
-  end
-end, 'LuaSnip forward jump')
-
-utils.map('<C-j>', { 'i', 's' }, function()
-  if luasnip.jumpable(-1) then
-    luasnip.jump(-1)
-  end
-end, 'LuaSnip backward jump')
-
-utils.map('<M-l>', { 'i', 's' }, function()
-  if luasnip.choice_active() then
-    luasnip.change_choice(1)
-  end
-end, 'LuaSnip next choice')
-
 -- code execution
 ---@type table<string, utils.Executor>
 local executors = {
@@ -217,8 +124,12 @@ local executors = {
     end,
   },
   python = {
-    line = require('pyrepl').execute_line,
-    lines = require('pyrepl').execute_lines,
+    line = function(line)
+      require('pyrepl').execute_line(line)
+    end,
+    lines = function(lines)
+      require('pyrepl').execute_lines(lines)
+    end,
   },
 }
 for lang, exec in pairs(executors) do

@@ -2,7 +2,6 @@
 -- various autocommands
 
 local utils = require 'utils'
-local ts = require 'telescope.builtin'
 
 -- custom indentation
 utils.setup_custom_indentation({ 'python', 'kotlin' }, { usetab = false, width = 4 })
@@ -23,13 +22,25 @@ vim.api.nvim_create_autocmd('LspAttach', {
   callback = function(event)
     local opts = { buffer = event.buf }
 
-    utils.map('gd', 'n', ts.lsp_definitions, 'lsp: goto definition', opts)
-    utils.map('gr', 'n', ts.lsp_references, 'lsp: goto references', opts)
-    utils.map('gi', 'n', ts.lsp_implementations, 'lsp: goto implementation', opts)
-    utils.map('gt', 'n', ts.lsp_type_definitions, 'lsp: goto typedef', opts)
+    utils.map('gd', 'n', function()
+      require('telescope.builtin').lsp_definitions()
+    end, 'lsp: goto definition', opts)
+    utils.map('gr', 'n', function()
+      require('telescope.builtin').lsp_references()
+    end, 'lsp: goto references', opts)
+    utils.map('gi', 'n', function()
+      require('telescope.builtin').lsp_implementations()
+    end, 'lsp: goto implementation', opts)
+    utils.map('gt', 'n', function()
+      require('telescope.builtin').lsp_type_definitions()
+    end, 'lsp: goto typedef', opts)
 
-    utils.map('<leader>ds', 'n', ts.lsp_document_symbols, 'lsp: search document symbols', opts)
-    utils.map('<leader>ws', 'n', ts.lsp_dynamic_workspace_symbols, 'lsp: search workspace symbols', opts)
+    utils.map('<leader>ds', 'n', function()
+      require('telescope.builtin').lsp_document_symbols()
+    end, 'lsp: search document symbols', opts)
+    utils.map('<leader>ws', 'n', function()
+      require('telescope.builtin').lsp_dynamic_workspace_symbols()
+    end, 'lsp: search workspace symbols', opts)
 
     utils.map('K', 'n', vim.lsp.buf.hover, 'lsp: hover documentation', opts)
     utils.map('[d', 'n', vim.diagnostic.goto_prev, 'lsp: prev diagnostic', opts)

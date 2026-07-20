@@ -1,9 +1,3 @@
-local pickers = require 'telescope.pickers'
-local finders = require 'telescope.finders'
-local actions = require 'telescope.actions'
-local action_state = require 'telescope.actions.state'
-local conf = require('telescope.config').values
-
 local M = {}
 
 ---@class custom.WorktreeCommit
@@ -117,6 +111,11 @@ end
 ---@param opts? table
 M.pick = function(opts)
   opts = opts or {}
+  local pickers = require 'telescope.pickers'
+  local finders = require 'telescope.finders'
+  local actions = require 'telescope.actions'
+  local action_state = require 'telescope.actions.state'
+  local conf = require('telescope.config').values
   local worktrees = get_worktrees()
 
   if #worktrees == 0 then
@@ -193,6 +192,41 @@ M._symbols_cache = nil
 M._symbols_cache_cwd = nil
 ---@type boolean
 M._autocmd_registered = false
+---@type boolean
+M._symbols_refreshing = false
+
+---@param cwd string
+local function refresh_statusline_symbols(cwd)
+  if M._symbols_refreshing then
+    return
+  end
+
+  M._symbols_refreshing = true
+  vim.system({ 'wt', 'list', '--format=json' }, { cwd = cwd, text = true }, function(result)
+    vim.schedule(function()
+      M._symbols_refreshing = false
+
+      if vim.fn.getcwd() == cwd then
+        local symbols = ''
+        if result.code == 0 then
+          local ok, parsed = pcall(vim.json.decode, result.stdout)
+          if ok and type(parsed) == 'table' then
+            for _, entry in ipairs(parsed) do
+              if entry.kind == 'worktree' and entry.is_current then
+                symbols = entry.symbols or ''
+                break
+              end
+            end
+          end
+        end
+        M._symbols_cache = symbols
+        M._symbols_cache_cwd = cwd
+      end
+
+      vim.cmd 'redrawstatus'
+    end)
+  end)
+end
 
 M.statusline_symbols = function()
   local cwd = vim.fn.getcwd()
@@ -211,17 +245,7 @@ M.statusline_symbols = function()
     return M._symbols_cache
   end
 
-  local worktrees = get_worktrees()
-  for _, wt in ipairs(worktrees) do
-    if wt.is_current then
-      M._symbols_cache = wt.symbols or ''
-      M._symbols_cache_cwd = cwd
-      return M._symbols_cache
-    end
-  end
-
-  M._symbols_cache = ''
-  M._symbols_cache_cwd = cwd
+  refresh_statusline_symbols(cwd)
   return ''
 end
 
