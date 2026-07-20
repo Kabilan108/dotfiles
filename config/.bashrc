@@ -6,9 +6,9 @@ case $- in
 *) return ;;
 esac
 
-# ssh sessions land in a persistent tmux session; one-off ssh commands are
-# non-interactive and never reach this point
-if [[ -n $SSH_CONNECTION && -z $TMUX && -z $NO_TMUX ]] && command -v tmux >/dev/null 2>&1; then
+# Interactive ssh terminals land in a persistent tmux session. Remote tools
+# may start an interactive login shell without allocating a terminal.
+if [[ -n $SSH_TTY && -z $TMUX && -z $NO_TMUX ]] && command -v tmux >/dev/null 2>&1; then
   exec tmux new-session -A -s main
 fi
 
