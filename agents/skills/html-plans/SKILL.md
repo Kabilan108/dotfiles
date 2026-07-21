@@ -51,6 +51,8 @@ tmux new-session -d -s pagebin-watch "pagebin watch /absolute/path/implementatio
 
 Shell background jobs can die after an agent tool call. Verify with `pgrep -af 'pagebin watch'`; checkpoint-style `pagebin update <file>` is usually simpler.
 
+Checkpoint the log (update + publish) BEFORE starting long-running or risky operations — delegated agent runs, deploys, migrations — so decisions and adjudications survive a session restart. On session restart, read the implementation log first and reconstruct state from it rather than from scratch; it is the durable record.
+
 ## Verify and deliver
 
 Read `references/verification.md`. At minimum:
