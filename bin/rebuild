@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+
+host_name=$(hostname)
+
+if [[ -n ${FLEET_HOST_ANSI:-} ]]; then
+  printf 'Rebuilding dotfiles flake for \033[%sm%s\033[0m\n' "$FLEET_HOST_ANSI" "$host_name"
+else
+  printf 'Rebuilding dotfiles flake for %s\n' "$host_name"
+fi
+
+sudo nixos-rebuild switch --flake "$HOME/dotfiles#$host_name"
