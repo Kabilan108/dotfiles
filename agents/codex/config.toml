@@ -1,12 +1,12 @@
 model = "gpt-5.6-sol"
 
-model_reasoning_effort = "low"
+model_reasoning_effort = "medium"
 model_supports_reasoning_summaries = true
 
 sandbox_mode = "danger-full-access"
 
 personality = "pragmatic"
-service_tier = "default"
+service_tier = "fast"
 approval_policy = "never"
 approvals_reviewer = "user"
 

@@ -2,46 +2,54 @@
 # vim: syn=bash ft=bash
 set -euo pipefail
 
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/tracer-digest"
-SEEN_FILE="$STATE_DIR/seen.txt"
 DIGEST_DIR="${TRACER_DIGEST_DIR:-/vault/notes/coppermind/coppermind/04-projects/_pipeline/digests}"
 MAX_SESSIONS="${TRACER_DIGEST_MAX:-25}"
+WINDOW="${TRACER_DIGEST_WINDOW:-336h}"
 
-mkdir -p "$STATE_DIR" "$DIGEST_DIR"
+mkdir -p "$DIGEST_DIR"
 
-sessions=$(tracer list --json)
+# Processed-state lives in session frontmatter: unprocessed = not yet tagged
+# wiki:compiled. Survives re-pushes (receiver merge unions tags) and needs no
+# side-channel bookkeeping file.
+sessions=$(tracer list --json --since "$WINDOW" --tag '!wiki:compiled')
 
-if [[ ! -s "$SEEN_FILE" ]]; then
-  cutoff=$(date --utc --date='14 days ago' --iso-8601=seconds)
-  jq -r --arg cutoff "$cutoff" \
-    '.[] | select(.ended < $cutoff) | .path' <<<"$sessions" >"$SEEN_FILE"
-  echo "tracer-digest: seeded $(wc -l <"$SEEN_FILE") historical sessions as seen"
-fi
-touch "$SEEN_FILE"
-
-mapfile -t candidates < <(
-  jq -r 'sort_by(.ended, .path) | .[] | select(.user_turns > 0) | .path' <<<"$sessions"
+mapfile -t rows < <(
+  jq -c 'sort_by(.ended, .path) | .[] | select(.user_turns > 0)
+         | {id: .session_id, provider: .provider, path: .path}' <<<"$sessions" |
+    head -n "$MAX_SESSIONS"
 )
 
-new_files=()
-for path in "${candidates[@]}"; do
-  grep -qxF "$path" "$SEEN_FILE" || new_files+=("$path")
-  [[ ${#new_files[@]} -ge $MAX_SESSIONS ]] && break
-done
-
-if [[ ${#new_files[@]} -eq 0 ]]; then
+if [[ ${#rows[@]} -eq 0 ]]; then
   echo "tracer-digest: no new sessions"
   exit 0
 fi
+
+# Slim transcripts: tool output is ~85% of session bytes and read-time
+# filtering keeps the narrative while cutting token cost ~5-7x.
+slim_dir=$(mktemp -d "${TMPDIR:-/tmp}/tracer-digest.XXXXXX")
+trap 'rm -rf "$slim_dir"' EXIT
+
+slim_files=()
+orig_paths=()
+for row in "${rows[@]}"; do
+  id=$(jq -r '.id' <<<"$row")
+  provider=$(jq -r '.provider' <<<"$row")
+  path=$(jq -r '.path' <<<"$row")
+  slim="$slim_dir/$(basename "$path")"
+  tracer get "$id" -p "$provider" --tool-output=none >"$slim"
+  slim_files+=("$slim")
+  orig_paths+=("$path")
+done
 
 date_str=$(date +%Y-%m-%d)
 out_file="$DIGEST_DIR/${date_str}-digest.md"
 
 prompt="You are reviewing coding-agent session transcripts (markdown exports of
 Claude Code / Codex sessions) to extract durable learnings for the user's
-agent wiki. Read these transcript files:
+agent wiki. Tool output has been filtered out at read time; the narrative
+turns remain. Read these transcript files:
 
-$(printf '%s\n' "${new_files[@]}")
+$(printf '%s\n' "${slim_files[@]}")
 
 Produce a digest in markdown with these sections, being ruthlessly selective
 (high-signal items only, omit empty sections):
@@ -62,19 +70,27 @@ digest=$(claude -p "$prompt" --allowedTools "Read")
 {
   echo "---"
   echo "date: $date_str"
-  echo "sessions: ${#new_files[@]}"
+  echo "sessions: ${#rows[@]}"
   echo "---"
   echo
   echo "$digest"
   echo
   echo "## Sessions reviewed"
-  printf -- '- %s\n' "${new_files[@]}"
+  printf -- '- %s\n' "${orig_paths[@]}"
 } >"$out_file"
 
-printf '%s\n' "${new_files[@]}" >>"$SEEN_FILE"
+# Mark processed only after the digest is written, so a failed run retries.
+tag_failures=0
+for row in "${rows[@]}"; do
+  id=$(jq -r '.id' <<<"$row")
+  if ! tracer tag "$id" wiki:compiled; then
+    tag_failures=$((tag_failures + 1))
+    echo "tracer-digest: warning: failed to tag $id (will be retried next run)" >&2
+  fi
+done
 
 summary=$(echo "$digest" | head -c 900)
-discord-notify -t "tracer digest: ${#new_files[@]} sessions" -s info \
+discord-notify -t "tracer digest: ${#rows[@]} sessions" -s info \
   --field "digest=$out_file" --body "$summary" || true
 
-echo "tracer-digest: wrote $out_file (${#new_files[@]} sessions)"
+echo "tracer-digest: wrote $out_file (${#rows[@]} sessions, $tag_failures tag failures)"

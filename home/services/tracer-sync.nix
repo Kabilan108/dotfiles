@@ -7,7 +7,6 @@
 }:
 let
   cfg = config.dotfiles.services.tracer-sync;
-  homeDir = config.home.homeDirectory;
   thisHost = osConfig.networking.hostName;
 in
 {
@@ -16,6 +15,12 @@ in
     target = lib.mkOption {
       type = lib.types.str;
       default = "sietch";
+      description = "Push remote name in tracer config.";
+    };
+    sshHost = lib.mkOption {
+      type = lib.types.str;
+      default = "${cfg.target}-agent";
+      description = "ssh host alias to reach the target non-interactively (BatchMode + agent key), resolved via ~/.ssh/config.";
     };
     targetDir = lib.mkOption {
       type = lib.types.str;
@@ -24,11 +29,26 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # tracer push replaces the old raw rsync: it transfers only new/changed
+    # transcripts and the receiver merge-preserves annotations (tags/outcome)
+    # instead of clobbering them, which is what allows receiver-side pipeline
+    # tags like wiki:compiled to survive re-pushes.
+    programs.tracer.settings.push.remotes = [
+      {
+        name = cfg.target;
+        host = cfg.sshHost;
+        dest = cfg.targetDir;
+      }
+    ];
+
     systemd.user.services.tracer-sync = {
       Unit.Description = "Push tracer archive to ${cfg.target}";
       Service = {
         Type = "oneshot";
-        ExecStart = "${pkgs.rsync}/bin/rsync -a --mkpath -e '${pkgs.openssh}/bin/ssh -i ${homeDir}/.ssh/agent-${thisHost} -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=5' ${homeDir}/.local/share/tracer/archive/ ${cfg.target}:${cfg.targetDir}/";
+        # tracer shells out to plain `ssh <host>`; identity/BatchMode come from
+        # the sshHost alias in ~/.ssh/config, not from flags here.
+        Environment = [ "PATH=${lib.makeBinPath [ pkgs.openssh ]}" ];
+        ExecStart = "${config.programs.tracer.package}/bin/tracer push ${cfg.target}";
       };
     };
 

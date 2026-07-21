@@ -32,6 +32,11 @@
       wayvnc.enable = true;
     };
 
+    # The ingest root is fed by merge-preserving `tracer push` from the fleet,
+    # so tag/outcome writes here (e.g. wiki:compiled from tracer-digest)
+    # survive re-pushes. Only safe while nothing rsyncs into this root.
+    programs.tracer.settings.archive.annotatable_roots = [ "/vault/userdata/tracer-ingest" ];
+
     dotfiles.wallpaper.desktop = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
   };
 
