@@ -363,14 +363,6 @@ window-rule {
     block-out-from "screen-capture"
 }
 
-// Float scratch ghostty windows launched with --title=floating-nvim.
-window-rule {
-    match title="^floating-nvim$"
-    open-floating true
-    default-column-width { fixed 750; }
-    default-window-height { fixed 1000; }
-}
-
 window-rule {
     match app-id=r#"^HeliumAgentsDevTools$"#
     open-focused false
@@ -527,7 +519,7 @@ binds {
 
     // launch programs
     Mod+Return hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty"; }
-    Mod+Shift+Return hotkey-overlay-title="Open Floating Scratch: ghostty" { spawn-sh "ghostty --title=floating-nvim -e nvim ~/notes/scratch/$(date +%Y%m%d-%H%M%S).md"; }
+    Mod+Shift+Return hotkey-overlay-title="Open Floating Note: Obsidian" { spawn "coppermind-quick-note"; }
     Mod+B hotkey-overlay-title="Open Browser: zen-beta" { spawn "zen-beta"; }
     Mod+Shift+B hotkey-overlay-title="Open Browser: helium" { spawn "helium"; }
     Mod+Shift+C hotkey-overlay-title="Open Browser: chrome" { spawn "google-chrome-stable"; }

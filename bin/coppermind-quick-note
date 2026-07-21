@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+note="00-bin/$(date +%Y%m%d-%H%M%S).md"
+existing_ids=$(niri msg --json windows | jq -r '.[] | select(.app_id == "obsidian") | .id')
+
+obsidian vault=coppermind create path="$note"
+obsidian vault=coppermind command id=workspace:new-window
+
+window_id=""
+for _ in {1..50}; do
+    window_id=$(
+        niri msg --json windows \
+            | jq -r --arg existing "$existing_ids" '
+                ($existing | split("\n") | map(select(length > 0) | tonumber)) as $ids
+                | [.[] | select(.app_id == "obsidian" and (.id as $id | $ids | index($id) | not)) | .id]
+                | max // empty
+            '
+    )
+    [[ -n "$window_id" ]] && break
+    sleep 0.05
+done
+
+if [[ -z "$window_id" ]]; then
+    notify-send "Quick note failed" "Could not find the new Obsidian window."
+    exit 1
+fi
+
+niri msg action move-window-to-floating --id "$window_id"
+niri msg action set-window-width --id "$window_id" 750
+niri msg action set-window-height --id "$window_id" 600
+niri msg action focus-window --id "$window_id"
+obsidian vault=coppermind eval code="
+    const file = app.vault.getAbstractFileByPath('$note');
+    const leaf = app.workspace.getLeaf(false);
+    leaf.openFile(file, { active: true })
+        .then(() => leaf.setViewState({
+            ...leaf.getViewState(),
+            state: { ...leaf.getViewState().state, mode: 'source', source: false },
+        }))
+        .then(() => leaf.view.editor?.focus());
+" 2>/dev/null
