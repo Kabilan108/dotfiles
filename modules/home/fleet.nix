@@ -92,6 +92,18 @@ in
       };
   };
 
+  # Materialize ~/.ssh/config as a real user-owned file instead of a
+  # nix-store symlink: agent harness shells see the store through an
+  # id-mapped mount (files stat as nobody), and ssh rejects a config it
+  # thinks isn't owned by the user ("Bad owner or permissions").
+  home.file.".ssh/config" = {
+    target = lib.mkForce ".ssh/config_source";
+    onChange = ''
+      cat "$HOME/.ssh/config_source" > "$HOME/.ssh/config"
+      chmod 400 "$HOME/.ssh/config"
+    '';
+  };
+
   home.sessionVariables = {
     FLEET_HOST_ANSI = self.color.ansi;
     FLEET_HOST_HEX = self.color.hex;
