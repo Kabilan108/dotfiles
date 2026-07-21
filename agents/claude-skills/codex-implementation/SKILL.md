@@ -43,7 +43,15 @@ Pick effort by task shape:
 
 Add `-c sandbox_workspace_write.network_access=true` when the task needs network inside the sandbox (package installs, fetching dependencies).
 
-For runs expected to exceed a couple of minutes, launch via Bash `run_in_background`; the final message lands in `$REPORT` via `-o`.
+For runs expected to exceed a couple of minutes, do NOT tie the run to the Claude process with Bash `run_in_background` — background children die with the Claude session, and a restart orphans a half-applied change. Launch in a detached tmux session so the run survives harness restarts:
+
+```bash
+tmux new-session -d -s "codex-impl-$$" \
+  "codex exec -C \"$PWD\" -s workspace-write -c model_reasoning_effort=medium \
+   -o \"$REPORT\" - < \"$PROMPT\" > \"$LOG\" 2>&1"
+```
+
+The final message lands in `$REPORT` via `-o`, and only on clean completion — wait on that file (background until-loop), not on the tmux session. If the tmux session has exited but `$REPORT` is missing, the run was interrupted: inspect `$LOG` and `git status`/`git diff` for partial changes before rerunning. Abort with `tmux kill-session -t <name>`.
 
 Use `-s danger-full-access` only when the requested task truly needs unrestricted local access and the user has already authorized that class of work.
 

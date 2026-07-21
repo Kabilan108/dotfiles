@@ -46,7 +46,7 @@ codex exec review -c model_reasoning_effort=xhigh --commit <sha> \
   -o "$REPORT" - < "$PROMPT" > "$LOG" 2>&1
 ```
 
-`xhigh` reviews take a while — launch via Bash `run_in_background`; the findings land in `$REPORT` via `-o`.
+`xhigh` reviews take a while — launch in a detached tmux session (`tmux new-session -d -s codex-review-$$ "codex exec review ... > \"$LOG\" 2>&1"`) rather than Bash `run_in_background`, so the run survives a Claude session restart; the findings land in `$REPORT` via `-o` only on clean completion, so wait on that file, not the tmux session.
 
 ## Review Prompt
 

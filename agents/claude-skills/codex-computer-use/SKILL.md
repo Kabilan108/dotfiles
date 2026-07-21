@@ -52,7 +52,7 @@ Pick effort by task shape:
 
 Use `-s read-only` when Codex only needs to inspect a running app and save nothing.
 
-Verification flows are slow — launch via Bash `run_in_background`; the final message lands in `$REPORT` via `-o`.
+Verification flows are slow — launch in a detached tmux session (`tmux new-session -d -s codex-cu-$$ "codex exec ... > \"$LOG\" 2>&1"`) rather than Bash `run_in_background`, so the run survives a Claude session restart; the final message lands in `$REPORT` via `-o` only on clean completion, so wait on that file, not the tmux session.
 
 ## Verification Prompt
 
