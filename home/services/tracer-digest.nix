@@ -12,8 +12,8 @@ in
     enable = lib.mkEnableOption "weekly learning digest over new tracer sessions";
     digestDir = lib.mkOption {
       type = lib.types.str;
-      default = "/vault/notes/coppermind/coppermind/01-logs/agent-digests";
-      description = "Where digests land; re-point at the agent wiki once its structure settles.";
+      default = "/vault/notes/coppermind/coppermind/04-projects/_pipeline/digests";
+      description = "Where digests land (sietch's vault replica is nested one level deeper than jacurutu's).";
     };
     onCalendar = lib.mkOption {
       type = lib.types.str;

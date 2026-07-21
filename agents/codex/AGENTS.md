@@ -52,3 +52,7 @@ Use `uv` for dependency management:
 | `uvx <cmd>` | Run arbitrary python executable without installing |
 
 Always use `uv add` to add dependencies rather than editing `pyproject.toml` manually.
+
+## Knowledge Vault
+
+The coppermind vault (~/notes, /vault/notes/coppermind) is the knowledge base for projects and tasks. When working in a repo mapped by ~/notes/04-projects/manifest.md (notably /vault/work/moberg/*), read that project's brief.md + tasks.md for context. Vault write rules: ~/dotfiles/agents/skills/coppermind/SKILL.md — 04-projects/ is agent-writable (briefs/people via proposals), 00-bin/01-logs/02-moberg are Tony's zones.

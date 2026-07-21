@@ -84,3 +84,7 @@ Prompt rules — Codex shares none of your conversation context:
 
 Using gpt-5.5 inside workflows and subagents (the model parameter only takes Claude models, so use a wrapper):
 - Spawn a thin Claude wrapper agent with `model: 'sonnet', effort: 'low'` whose prompt instructs it to write a self-contained codex prompt, run `codex exec` via Bash, and return the raw result without editorializing.
+
+# Knowledge Vault
+
+The coppermind vault (~/notes, /vault/notes/coppermind) is the knowledge base for projects and tasks. When working in a repo mapped by ~/notes/04-projects/manifest.md (notably /vault/work/moberg/*), read the project's brief.md + tasks.md there for context, and invoke the vault's `coppermind` skill before writing anything into it.
