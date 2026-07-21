@@ -37,9 +37,9 @@ Always pass `-s` and `-c model_reasoning_effort` explicitly. `~/.codex/config.to
 
 Pick effort by task shape:
 
-- `low`: mechanical grunt work (renames, format fixes, boilerplate)
-- `medium`: clear-spec implementation — the default
-- `high`: genuinely hard bounded problems, or a redo after `medium` missed the bar
+- `medium`: well-specced work — the default, even when it looks mechanical
+- `high`: larger or open-ended changesets, genuinely hard bounded problems, or a redo after `medium` missed the bar
+- `low`: only genuinely trivial grunt work (renames, format fixes, boilerplate). Low-effort reliably misses subtle correctness classes — parsers over untrusted text, concurrency, security surfaces — and the review-fix cycle costs more than starting at medium.
 
 Add `-c sandbox_workspace_write.network_access=true` when the task needs network inside the sandbox (package installs, fetching dependencies).
 
