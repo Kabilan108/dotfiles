@@ -31,3 +31,7 @@ and which machines it may SSH into.
 - Workload placement: sietch for heavy/parallel agent work and anything
   needing /vault data; jacurutu only for interactive/desktop tasks; tleilax
   is low-power (Pi) — status/appliance jobs only.
+
+## SSH from agent harness shells
+
+Plain `ssh <host>-agent` works from agent sandboxes. If `Bad owner or permissions on ~/.ssh/config` ever comes up, look for regressions in `modules/home/fleet.nix` rather than reaching for `-F none` workarounds.
