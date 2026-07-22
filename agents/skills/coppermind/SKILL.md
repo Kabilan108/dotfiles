@@ -29,7 +29,19 @@ Only non-discoverable rules live here. Explore the tree yourself for structure; 
 - `runbooks/` — gotchas + recipes. `systems/` — how-X-works articles. `decisions/` — append-only, ADR-flavored.
 - `briefs/YYYY-MM-DD.md` — daily morning notes (pipeline-written).
 - `archives/<slug-YYYY-MM-DD>/` — collections of expensive session artifacts with long-term value (review corpora, generated datasets). Store here instead of regenerating; link from ticket pages.
-- Frontmatter contract for agent-managed pages (runbooks/systems/tickets/decisions): `description:` (ONE concise sentence — it's the routing surface, write it like a skill description), `source: auto|curated`, `updated:`, optional `tickets:`, `sessions:` (tracer ids), `last_verified:` (curated only). Keep facts and inference distinguishable in auto pages.
+- Frontmatter contract for agent-managed pages (runbooks/systems/tickets/decisions): `description:` (ONE concise sentence — it's the routing surface, write it like a skill description), `source: auto|curated`, `updated:`, optional `tickets:`, `sessions:`, `last_verified:` (curated only). Keep facts and inference distinguishable in auto pages.
+- `sessions:` entries are `<machine>:<session-id>` (e.g. `sietch:019f2411-...`) — the archive is multi-host, so a bare id may not be resolvable with `tracer get` on the machine you're on.
+
+## What belongs in the wiki (the border)
+
+The codebase is ALWAYS the more accurate source for how code works right now. A wiki page that restates code invites the inaccurate-reference failure: a subtly stale page misleads the next agent, which is worse than no page.
+
+- Write down what is **non-obvious and not cheaply recoverable** from the repo in a normal session: why a decision went one way, a debugging root-cause and the hypotheses it killed, an environment gotcha, a constraint that isn't visible in the code that expresses it.
+- Do NOT write down what any agent can read directly: API shapes, file inventories, function-by-function walkthroughs.
+- Minimize brittle pointers. Name a module or a concept; only cite `file.ts:line` when the exact location IS the non-obvious part (e.g. a comment documenting a unit convention). Assume line numbers rot.
+- Separate durable structure from current state. Systems pages describe how a thing works; the live status of in-flight work belongs on the ticket page, and open work belongs in `tasks.md`. When a systems page needs to mention current state, keep it to a short, clearly-labeled note.
+- Note branch/version scoping when a page describes something that only exists on one branch.
+- Repo paths are written **repo-relative in code spans**, never absolute and never as markdown links: `dev-server/docs/MCP-7162-EDF/`, not `/vault/work/moberg/...` and not `[text](path)`. Obsidian resolves link targets against the vault, so a repo path written as a link becomes a broken vault link.
 - Discovery: `rg -m1 '^description:' <dir>/*.md` lists every page's one-liner in one call — do that before reading whole files. (Generated per-dir indexes come with the compile step; descriptions are what they're built from.)
 
 ## Meeting notes
