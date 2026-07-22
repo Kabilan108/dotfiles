@@ -29,7 +29,16 @@ Only non-discoverable rules live here. Explore the tree yourself for structure; 
 - `runbooks/` — gotchas + recipes. `systems/` — how-X-works articles. `decisions/` — append-only, ADR-flavored.
 - `briefs/YYYY-MM-DD.md` — daily morning notes (pipeline-written).
 - `archives/<slug-YYYY-MM-DD>/` — collections of expensive session artifacts with long-term value (review corpora, generated datasets). Store here instead of regenerating; link from ticket pages.
-- Pipeline-written pages carry frontmatter: `source: auto|curated`, `updated:`, optional `tickets:`, `sessions:` (tracer ids), `last_verified:` (curated only). Keep facts and inference distinguishable in auto pages.
+- Frontmatter contract for agent-managed pages (runbooks/systems/tickets/decisions): `description:` (ONE concise sentence — it's the routing surface, write it like a skill description), `source: auto|curated`, `updated:`, optional `tickets:`, `sessions:` (tracer ids), `last_verified:` (curated only). Keep facts and inference distinguishable in auto pages.
+- Discovery: `rg -m1 '^description:' <dir>/*.md` lists every page's one-liner in one call — do that before reading whole files. (Generated per-dir indexes come with the compile step; descriptions are what they're built from.)
+
+## Meeting notes
+
+- Location: `01-logs/meetings/YYYY-MM-DD-<context>-<slug>.md` (context = moberg/xploit/personal/...). One note per meeting, vault-wide — no per-project meeting dirs.
+- Frontmatter contract: `date`, `project` (manifest taxonomy, e.g. `moberg/eboost` — this is how meetings route to projects, NOT tags), `attendees` (plain names; resolve against the project's people.md — no wikilinks needed), `source: manual|pipeline`, `recording` (artifact path when pipeline-written). Template: `templates/meeting-note.md`.
+- Body: `## notes` / `## decisions` / `## follow-ups`. Follow-up checkboxes are query-visible (01-logs is not excluded) — tag them normally; the daily sweep files durable ones into tasks.md.
+- Pipeline exception (meeting-minutes agent): it may APPEND one backlink bullet under today's heading in the weekly log — append-only, never edit existing text. This is the only sanctioned automated write to a weekly log.
+- Unknown names in pipeline-written `attendees` → propose a people.md addition via `_pipeline/proposals/`, don't add directly.
 
 ## Obsidian CLI
 
