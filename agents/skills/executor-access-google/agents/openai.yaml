@@ -1,0 +1,4 @@
+interface:
+  display_name: "Executor Google Access"
+  short_description: "Read Gmail and Calendar through Executor"
+  default_prompt: "Use $executor-access-google to summarize my inbox since Sunday."
