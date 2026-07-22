@@ -49,6 +49,16 @@ CODEX_REASONING_EFFORT = os.environ.get(
 CODEX_SERVICE_TIER = os.environ.get("MEETING_MINUTES_CODEX_SERVICE_TIER", "default")
 COMPLETION_VISIBLE_SECONDS = 10
 ERROR_VISIBLE_SECONDS = 600
+# The vault owner attends most meetings; he is never a people.md entry, and only
+# his own follow-ups become checkboxes (everyone else's are recorded, not tasked).
+PROJECT_CONTEXTS = ("moberg", "xploit", "personal", "tooling")
+VAULT_OWNER_ALIASES = {
+    "tony",
+    "tony okeke",
+    "tony kabilan okeke",
+    "kabilan",
+    "kabilan okeke",
+}
 ORDINARY_SCREENSHOT_LIMIT = 3
 VISUAL_REVIEW_SCREENSHOT_LIMIT = 8
 SCREENSHOT_OFFSETS_SECONDS = (-3.0, 0.0, 3.0)
@@ -90,7 +100,18 @@ OUTPUT_SCHEMA: dict[str, Any] = {
         "attendees": {"type": "array", "items": {"type": "string"}},
         "notes": {"type": "array", "items": {"type": "string"}},
         "decisions": {"type": "array", "items": {"type": "string"}},
-        "follow_ups": {"type": "array", "items": {"type": "string"}},
+        "follow_ups": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["owner", "action"],
+                "properties": {
+                    "owner": {"type": "string"},
+                    "action": {"type": "string"},
+                },
+            },
+        },
         "calendar_status": {
             "type": "string",
             "enum": ["matched", "no_match", "unavailable"],
@@ -152,12 +173,13 @@ CALENDAR_SCHEMA: dict[str, Any] = {
             "items": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["title", "start", "end", "attendees"],
+                "required": ["title", "start", "end", "attendees", "calendar"],
                 "properties": {
                     "title": {"type": "string"},
                     "start": {"type": "string"},
                     "end": {"type": "string"},
                     "attendees": {"type": "array", "items": {"type": "string"}},
+                    "calendar": {"type": "string"},
                 },
             },
         },
@@ -648,6 +670,7 @@ def validate_calendar_output(payload: dict[str, Any]) -> dict[str, Any]:
                 ]
                 if isinstance(attendees, list)
                 else [],
+                "calendar": " ".join(str(raw.get("calendar") or "").split()),
             }
         )
     return {"status": status, "candidates": candidates}
@@ -663,7 +686,7 @@ Find every calendar event overlapping this America/New_York interval (inclusive 
 - start: {start.isoformat()}
 - end: {end.isoformat()}
 
-Follow the skill contract completely: resolve and describe calendar.calendarList.list and calendar.events.list, paginate every selected calendar and every event page, use singleEvents and startTime ordering, and report unavailable if Calendar access cannot be completed. Include timed events and relevant overlapping multi-day events. For each candidate return only its title, start, end, and non-declined attendee names. Return status available even when there are zero candidates.
+Follow the skill contract completely: resolve and describe calendar.calendarList.list and calendar.events.list, paginate every selected calendar and every event page, use singleEvents and startTime ordering, and report unavailable if Calendar access cannot be completed. Include timed events and relevant overlapping multi-day events. For each candidate return its title, start, end, non-declined attendee names, and calendar — the human-readable summary/name of the calendar the event came from (not its id), or an empty string if unavailable. Return status available even when there are zero candidates.
 """
 
 
@@ -814,21 +837,45 @@ def lookup_calendar(job: dict[str, Any], work: Path) -> dict[str, Any]:
         return {"status": "unavailable", "candidates": []}
 
 
+def people_registry_path(context: str) -> Path:
+    return VAULT_ROOT / f"04-projects/{context}/people.md"
+
+
+def all_people_rosters() -> str:
+    """Every project's people.md, so attendee spellings resolve regardless of context."""
+    sections: list[str] = []
+    for context in PROJECT_CONTEXTS:
+        text = read_optional(people_registry_path(context)).strip()
+        if text:
+            sections.append(f"### {context}\n{text}")
+    return "\n\n".join(sections) or "(no rosters on file)"
+
+
 def codex_prompt(transcript: dict[str, Any], calendar: dict[str, Any]) -> str:
     manifest = read_optional(VAULT_ROOT / "04-projects/manifest.md")
-    people = read_optional(VAULT_ROOT / "04-projects/moberg/people.md")
+    people = all_people_rosters()
     return f"""You are the Meeting Minutes Agent. Convert the supplied timestamped transcript into concise structured meeting minutes for Tony's Coppermind vault.
 
-Return only the JSON object required by the supplied schema. Use a short human title and a filesystem-safe semantic slug without a date or context prefix. Choose exactly one context from moberg, xploit, personal, or tooling. `project` is the most specific project name supported by the transcript; use the context when no narrower project is clear. List only attendees supported by the transcript or by a confidently matched calendar event; exclude declined invitees. Notes should capture material technical or operational context, decisions only explicit conclusions, and follow_ups only concrete actions. Do not include Markdown bullet prefixes in array items.
+Tony (Tony Kabilan Okeke) is the vault owner and is a participant in these meetings, never a third party to describe.
 
-Use the timestamped transcript to identify optional screenshot candidates. Set visual_mode to none when no screenshot would materially improve the note, ordinary for a typical meeting, or visual_review when the meeting substantially reviews code, architecture, diagrams, implementation details, errors, or changing UI states. Candidate timestamps must point to moments when the speakers are likely discussing visible content. Reject talking heads, generic screen sharing, and visuals that would merely repeat the prose. Order candidates from most to least valuable. Return at most 3 candidates for an ordinary meeting and at most 8 for a visual_review; candidates beyond the first 3 must each capture a distinct technical artifact or state. note_index is the zero-based index of the note bullet the image would support. A later visual pass will inspect actual frames and may reject every candidate.
+Return only the JSON object required by the supplied schema. Use a short human title and a filesystem-safe semantic slug without a date or context prefix.
 
-Calendar candidates were gathered separately without exposing the transcript to tools. Use a candidate only when its timing, title, or attendees plausibly fit the transcript. Set calendar_status to unavailable when candidate retrieval was unavailable, matched when one candidate fits, or no_match otherwise. Set calendar_event to the matched title or an empty string. Calendar may inform the title, project, and attendee spellings, but transcript evidence remains authoritative for substantive notes.
+Choose exactly one context from moberg, xploit, personal, or tooling. When a calendar candidate is matched, the name of the calendar it came from is strong evidence for the context (an event on a "Moberg" calendar is a moberg meeting); otherwise infer from attendees and transcript subject matter.
 
-Project manifest:
+`project` is a routing key from the project manifest below, NOT a meeting title: either the bare context (`moberg`) or `<context>/<subproject>` where the subproject comes from the manifest's tag taxonomy (for example `moberg/eboost`, `moberg/regulatory`, `moberg/qeeg`). Choose the most specific subproject the transcript supports, and fall back to the bare context when no subproject clearly applies. The descriptive name of the meeting belongs in `title`. List only attendees supported by the transcript or by a confidently matched calendar event; exclude declined invitees. Notes should capture material technical or operational context, and decisions only explicit conclusions. Do not include Markdown bullet prefixes in array items.
+
+Each follow_up needs an owner and a concrete action. Set owner to "Tony" only when Tony himself committed to the action or it is unambiguously his to do; use the responsible person's name when someone else owns it; use "team" when a group owns it and no individual was named. Do not attribute an action to Tony merely because it was discussed in his presence or because no owner was stated — an unowned item is "team". Record only actions someone actually committed to, not every idea raised.
+
+Use the timestamped transcript to identify optional screenshot candidates. Set visual_mode to none when no screenshot would materially improve the note, ordinary for a typical meeting, or visual_review when the meeting substantially reviews code, architecture, diagrams, implementation details, errors, or changing UI states. Candidate timestamps must point to moments when the speakers are likely discussing visible content. Reject talking heads, generic screen sharing, and visuals that would merely repeat the prose. Order candidates from most to least valuable. Return at most 3 candidates for an ordinary meeting and at most 8 for a visual_review. Every candidate — including the first — must capture a technical artifact or state that is materially distinct from every other candidate. Several views of the same document, spreadsheet, dashboard, or screen are ONE candidate, not several: pick the single most informative moment. Prefer returning fewer candidates over filling the limit. note_index is the zero-based index of the note bullet the image would support. A later visual pass will inspect actual frames and may reject every candidate.
+
+Calendar candidates were gathered separately without exposing the transcript to tools. Use a candidate only when its timing, title, or attendees plausibly fit the transcript.
+
+Set calendar_status to unavailable when candidate retrieval was unavailable, matched when one candidate fits, or no_match otherwise. Set calendar_event to the matched title or an empty string. Calendar may inform the title, context, project, and attendee spellings, but transcript evidence remains authoritative for substantive notes.
+
+Project manifest (the source of valid `project` routing keys):
 {manifest}
 
-Known Moberg people:
+Known people (by project; use for attendee name spellings):
 {people}
 
 Calendar candidate JSON:
@@ -839,10 +886,24 @@ Timestamped transcript JSON:
 """
 
 
+def normalize_project(raw: Any, context: str) -> str:
+    """`project` is a routing key (`moberg` or `moberg/eboost`), never a title.
+    Anything off-taxonomy degrades to the bare context rather than corrupting routing."""
+    value = " ".join(str(raw or "").split()).strip().lower()
+    if not value:
+        return context
+    head, separator, tail = value.partition("/")
+    if head != context:
+        return context
+    if not separator:
+        return context
+    subproject = re.sub(r"[^a-z0-9]+", "-", tail).strip("-")
+    return f"{context}/{subproject}" if subproject else context
+
+
 def validate_agent_output(payload: dict[str, Any]) -> dict[str, Any]:
-    contexts = {"moberg", "xploit", "personal", "tooling"}
     context = str(payload.get("context") or "").strip().lower()
-    if context not in contexts:
+    if context not in PROJECT_CONTEXTS:
         raise MeetingMinutesError(f"Meeting agent returned invalid context: {context}")
     title = " ".join(str(payload.get("title") or "").split())
     if not title:
@@ -860,6 +921,19 @@ def validate_agent_output(payload: dict[str, Any]) -> dict[str, Any]:
         return [" ".join(str(item).split()) for item in value if str(item).strip()]
 
     notes = strings("notes")
+
+    raw_follow_ups = payload.get("follow_ups")
+    if not isinstance(raw_follow_ups, list):
+        raise MeetingMinutesError("Meeting agent returned invalid follow_ups")
+    follow_ups: list[dict[str, str]] = []
+    for raw in raw_follow_ups:
+        if not isinstance(raw, dict):
+            continue
+        action = " ".join(str(raw.get("action") or "").split())
+        owner = " ".join(str(raw.get("owner") or "").split())
+        if action:
+            follow_ups.append({"owner": owner or "team", "action": action})
+
     visual_mode = str(payload.get("visual_mode") or "").strip().lower()
     if visual_mode not in {"none", "ordinary", "visual_review"}:
         raise MeetingMinutesError(
@@ -899,11 +973,11 @@ def validate_agent_output(payload: dict[str, Any]) -> dict[str, Any]:
         "title": title,
         "slug": slugify(str(payload.get("slug") or title)),
         "context": context,
-        "project": " ".join(str(payload.get("project") or context).split()),
+        "project": normalize_project(payload.get("project"), context),
         "attendees": strings("attendees"),
         "notes": notes,
         "decisions": strings("decisions"),
-        "follow_ups": strings("follow_ups"),
+        "follow_ups": follow_ups,
         "calendar_status": calendar_status,
         "calendar_event": " ".join(str(payload.get("calendar_event") or "").split()),
         "visual_mode": visual_mode,
@@ -1040,7 +1114,7 @@ def screenshot_review_prompt(
 
 Select at most one frame for a candidate, and reject the candidate by omitting it when the frames do not materially improve the associated note. Keep only legible code, architecture, diagrams, errors, meaningful UI states, or other distinct technical artifacts. Reject talking heads, blank or transitional screens, generic application chrome, duplicated content, and visuals whose useful information is already fully conveyed by the note. Prefer the clearest frame. Captions must be short, factual, and understandable beside the associated note bullet without claiming details that are not visible.
 
-This meeting is classified as {minutes["visual_mode"]}. Select no more than {limit} screenshots. Screenshots beyond the first 3 are appropriate only when each captures a distinct technical artifact or state. It is valid and preferred to return an empty selection when none are useful.
+This meeting is classified as {minutes["visual_mode"]}. Select no more than {limit} screenshots. Every selection — including the first — must show a technical artifact or state that is materially distinct from every other selection: if two candidates show the same document, spreadsheet, dashboard, or screen (even scrolled to different rows, or at different moments), keep only the single most informative one and reject the rest. It is valid and preferred to return an empty selection when none are useful; never fill the limit for its own sake.
 
 Candidate and attachment mapping:
 {json.dumps(candidate_summary, ensure_ascii=False, indent=2)}
@@ -1180,21 +1254,28 @@ def yaml_scalar(value: str) -> str:
 
 
 def known_people() -> set[str]:
-    text = read_optional(VAULT_ROOT / "04-projects/moberg/people.md")
+    """Names on ANY project roster — known anywhere means never re-proposed."""
     names: set[str] = set()
-    for match in re.finditer(r"^- \*\*(.+?)\*\*", text, flags=re.MULTILINE):
-        for name in match.group(1).split("/"):
-            names.add(name.strip().casefold())
+    for context in PROJECT_CONTEXTS:
+        text = read_optional(people_registry_path(context))
+        for match in re.finditer(r"^- \*\*(.+?)\*\*", text, flags=re.MULTILINE):
+            for name in match.group(1).split("/"):
+                names.add(name.strip().casefold())
     return names
 
 
 def propose_unknown_people(job: dict[str, Any], minutes: dict[str, Any]) -> None:
+    context = str(minutes["context"])
+    # A roster file is the opt-in signal that Tony tracks people for this project.
+    # Without one, stay silent instead of proposing every attendee.
+    if not people_registry_path(context).is_file():
+        return
     attendees = [str(name) for name in minutes["attendees"]]
-    known = known_people() if minutes["context"] == "moberg" else set()
-    target = f"04-projects/{minutes['context']}/people.md"
+    known = known_people()
+    target = f"04-projects/{context}/people.md"
     proposals = VAULT_ROOT / "04-projects/_pipeline/proposals"
     for attendee in attendees:
-        if attendee.casefold() in known:
+        if attendee.casefold() in VAULT_OWNER_ALIASES or attendee.casefold() in known:
             continue
         path = proposals / f"meeting-person-{minutes['context']}-{slugify(attendee)}.md"
         if path.exists():
@@ -1282,11 +1363,24 @@ def render_note(
             f"  - {yaml_scalar(str(attendee))}\n" for attendee in attendees
         )
 
-    def bullets(items: list[str], *, tasks: bool = False) -> str:
+    def bullets(items: list[str]) -> str:
         if not items:
             return "- None\n"
-        prefix = "- [ ] " if tasks else "- "
-        return "".join(f"{prefix}{item}\n" for item in items)
+        return "".join(f"- {item}\n" for item in items)
+
+    def follow_up_bullets(items: list[dict[str, str]]) -> str:
+        """Only Tony's own follow-ups become checkboxes; the rest are recorded
+        as plain bullets so they stay out of his task queries."""
+        if not items:
+            return "- None\n"
+        rendered: list[str] = []
+        for item in items:
+            owner = item["owner"]
+            if owner.casefold() in VAULT_OWNER_ALIASES:
+                rendered.append(f"- [ ] {item['action']}\n")
+            else:
+                rendered.append(f"- **{owner}** — {item['action']}\n")
+        return "".join(rendered)
 
     def note_bullets(items: list[str]) -> str:
         if not items:
@@ -1323,7 +1417,7 @@ def render_note(
         "## decisions\n\n"
         f"{bullets(minutes['decisions'])}\n"
         "## follow-ups\n\n"
-        f"{bullets(minutes['follow_ups'], tasks=True)}"
+        f"{follow_up_bullets(minutes['follow_ups'])}"
     )
 
 
