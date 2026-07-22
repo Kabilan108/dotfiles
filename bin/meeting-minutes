@@ -42,7 +42,15 @@ SIREN_MODEL = os.environ.get(
     "nvidia/parakeet-tdt-0.6b-v2",
 )
 CHUNK_SECONDS = int(os.environ.get("MEETING_MINUTES_CHUNK_SECONDS", "600"))
-COMPLETION_VISIBLE_SECONDS = 600
+CODEX_MODEL = os.environ.get("MEETING_MINUTES_CODEX_MODEL", "gpt-5.6-terra")
+CODEX_REASONING_EFFORT = os.environ.get(
+    "MEETING_MINUTES_CODEX_REASONING_EFFORT", "high"
+)
+CODEX_SERVICE_TIER = os.environ.get(
+    "MEETING_MINUTES_CODEX_SERVICE_TIER", "default"
+)
+COMPLETION_VISIBLE_SECONDS = 10
+ERROR_VISIBLE_SECONDS = 600
 
 JOBS_DIR = STATE_DIR / "jobs"
 JOB_LOCKS_DIR = STATE_DIR / "job-locks"
@@ -184,8 +192,10 @@ def update_status(
         "error": job.get("error", ""),
         "updated_at": now_epoch(),
     }
-    if phase in {"completed", "error"}:
+    if phase == "completed":
         payload["visible_until"] = now_epoch() + COMPLETION_VISIBLE_SECONDS
+    elif phase == "error":
+        payload["visible_until"] = now_epoch() + ERROR_VISIBLE_SECONDS
     atomic_write_json(STATUS_PATH, payload)
 
 
@@ -625,6 +635,12 @@ def run_codex_agent(
         "exec",
         "--ephemeral",
         "--skip-git-repo-check",
+        "--model",
+        CODEX_MODEL,
+        "--config",
+        f'model_reasoning_effort="{CODEX_REASONING_EFFORT}"',
+        "--config",
+        f'service_tier="{CODEX_SERVICE_TIER}"',
         "--sandbox",
         "read-only",
     ]
