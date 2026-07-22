@@ -633,8 +633,8 @@ def run_codex_agent(
     command = [
         "codex",
         "exec",
-        "--ephemeral",
         "--skip-git-repo-check",
+        "--json",
         "--model",
         CODEX_MODEL,
         "--config",
@@ -678,6 +678,19 @@ def run_codex_agent(
     atomic_write_text(log_prefix.with_suffix(".stdout.log"), result.stdout)
     atomic_write_text(log_prefix.with_suffix(".stderr.log"), result.stderr)
     return result
+
+
+def codex_thread_id(stdout: str) -> str | None:
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("type") == "thread.started":
+            thread_id = str(event.get("thread_id") or "").strip()
+            if thread_id:
+                return thread_id
+    return None
 
 
 def lookup_calendar(job: dict[str, Any], work: Path) -> dict[str, Any]:
@@ -773,9 +786,12 @@ def generate_minutes(job: dict[str, Any], transcript_path: Path) -> dict[str, An
     atomic_write_json(schema_path, OUTPUT_SCHEMA)
     if output_path.is_file():
         try:
-            return validate_agent_output(read_json(output_path))
+            output = validate_agent_output(read_json(output_path))
+            if job.get("codex_session"):
+                return output
         except MeetingMinutesError:
-            output_path.unlink(missing_ok=True)
+            pass
+        output_path.unlink(missing_ok=True)
 
     set_phase(job, "generating", "Generating meeting note")
     transcript = read_json(transcript_path)
@@ -792,6 +808,11 @@ def generate_minutes(job: dict[str, Any], transcript_path: Path) -> dict[str, An
         raise MeetingMinutesError(
             f"Codex minutes generation failed (exit {result.returncode}): {detail}"
         )
+    thread_id = codex_thread_id(result.stdout)
+    if not thread_id:
+        raise MeetingMinutesError("Codex minutes generation returned no thread id")
+    job["codex_session"] = f"jacurutu:{thread_id}"
+    save_job(job)
     output = validate_agent_output(read_json(output_path))
     atomic_write_json(output_path, output)
     return output
@@ -865,6 +886,7 @@ def render_note(job: dict[str, Any], minutes: dict[str, Any], video_path: Path) 
         f"recording: {yaml_scalar(str(video_path))}\n"
         f"pipeline_job: {yaml_scalar(str(job['job_id']))}\n"
         f"recording_identity: {yaml_scalar(str(job['recording_identity']))}\n"
+        f"codex_session: {yaml_scalar(str(job['codex_session']))}\n"
         "---\n"
         f"# {minutes['title']}\n\n"
         "## notes\n\n"
