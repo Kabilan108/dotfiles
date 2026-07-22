@@ -22,6 +22,7 @@ in
 
   home.sessionPath = [
     "${homeDir}/.bun/bin"
+    "${homeDir}/.cargo/bin"
     "${homeDir}/.local/bin"
     "${homeDir}/.local/share/pnpm/bin"
     "${homeDir}/.opencode/bin"
