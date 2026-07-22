@@ -167,8 +167,8 @@ find_remote_sessions() {
   while IFS=$'\t' read -r host hex _ip; do
     [[ -n "$host" ]] || continue
     (
-      ssh -i "$FLEET_AGENT_KEY" -o IdentitiesOnly=yes -o BatchMode=yes \
-        -o ConnectTimeout=1 "$host" 'tmux list-sessions -F "#{session_name}" 2>/dev/null' \
+      ssh -o ConnectTimeout=1 "${host}-agent" \
+        'tmux list-sessions -F "#{session_name}" 2>/dev/null' \
         2>/dev/null | while read -r name; do
         printf '%s[%s]%s %s\n' "$(hex_fg "$hex")" "$host" "$ANSI_RESET" "$name"
       done >"$tmp/$i"
