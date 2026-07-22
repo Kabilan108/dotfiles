@@ -1,0 +1,4 @@
+interface:
+  display_name: "Executor Slack Access"
+  short_description: "Search and communicate through Executor Slack"
+  default_prompt: "Use $executor-access-slack to summarize what I discussed this week."
