@@ -1,0 +1,5 @@
+interface:
+  display_name: "Terminal Control"
+  short_description: "Drive and verify terminal apps with termctrl CLI in a real PTY"
+policy:
+  allow_implicit_invocation: false

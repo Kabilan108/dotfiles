@@ -289,6 +289,9 @@ trust_level = "trusted"
 [projects."/vault/work/moberg/dev-server/jobs/analysis-job"]
 trust_level = "trusted"
 
+[projects."/vault/experiments/2026-07-22-anomalyco-terminal-control"]
+trust_level = "trusted"
+
 [tui.model_availability_nux]
 "gpt-5.5" = 4
 "gpt-5.6-sol" = 4

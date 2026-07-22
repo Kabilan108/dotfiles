@@ -1,0 +1,5 @@
+interface:
+  display_name: "Code Walkthrough"
+  short_description: "Walkthrough code changes interactively in Neovim"
+policy:
+  allow_implicit_invocation: false

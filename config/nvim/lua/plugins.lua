@@ -7,6 +7,7 @@ return {
   'numToStr/Comment.nvim',
   'nvim-lua/plenary.nvim',
   'christoomey/vim-tmux-navigator',
+  'kitlangton/navi.nvim',
   {
     'nvim-lualine/lualine.nvim',
     event = 'VeryLazy',

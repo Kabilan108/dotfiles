@@ -9,6 +9,12 @@ custom_ws.setup()
 
 ---------------------------------------------------------------------------------------
 
+-- navi.nvim keymaps
+vim.keymap.set('n', '<Tab>', '<Cmd>NaviNext<CR>', { desc = 'Next Navi stop' })
+vim.keymap.set('n', '<S-Tab>', '<Cmd>NaviPrev<CR>', { desc = 'Previous Navi stop' })
+vim.keymap.set('n', '<leader>np', '<Cmd>NaviPick<CR>', { desc = 'Pick Navi stop' })
+vim.keymap.set('n', '<leader>nc', '<Cmd>NaviClear<CR>', { desc = 'Clear Navi tour' })
+
 -- general keymaps
 utils.map('-', 'n', '<CMD>Oil<CR>', 'edit directory')
 utils.map('<Esc>', 'n', '<CMD>nohlsearch<CR>', 'clear search')
