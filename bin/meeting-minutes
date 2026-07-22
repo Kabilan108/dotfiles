@@ -46,11 +46,12 @@ CODEX_MODEL = os.environ.get("MEETING_MINUTES_CODEX_MODEL", "gpt-5.6-terra")
 CODEX_REASONING_EFFORT = os.environ.get(
     "MEETING_MINUTES_CODEX_REASONING_EFFORT", "high"
 )
-CODEX_SERVICE_TIER = os.environ.get(
-    "MEETING_MINUTES_CODEX_SERVICE_TIER", "default"
-)
+CODEX_SERVICE_TIER = os.environ.get("MEETING_MINUTES_CODEX_SERVICE_TIER", "default")
 COMPLETION_VISIBLE_SECONDS = 10
 ERROR_VISIBLE_SECONDS = 600
+ORDINARY_SCREENSHOT_LIMIT = 3
+VISUAL_REVIEW_SCREENSHOT_LIMIT = 8
+SCREENSHOT_OFFSETS_SECONDS = (-3.0, 0.0, 3.0)
 
 JOBS_DIR = STATE_DIR / "jobs"
 JOB_LOCKS_DIR = STATE_DIR / "job-locks"
@@ -58,6 +59,7 @@ STATUS_PATH = STATE_DIR / "status.json"
 LOCK_PATH = STATE_DIR / "worker.lock"
 INBOX_DIR = MEDIA_ROOT / ".inbox"
 WORK_DIR = MEDIA_ROOT / ".work"
+ASSETS_DIR = VAULT_ROOT / "assets"
 
 OUTPUT_SCHEMA: dict[str, Any] = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -74,6 +76,8 @@ OUTPUT_SCHEMA: dict[str, Any] = {
         "follow_ups",
         "calendar_status",
         "calendar_event",
+        "visual_mode",
+        "visual_candidates",
     ],
     "properties": {
         "title": {"type": "string"},
@@ -92,6 +96,47 @@ OUTPUT_SCHEMA: dict[str, Any] = {
             "enum": ["matched", "no_match", "unavailable"],
         },
         "calendar_event": {"type": "string"},
+        "visual_mode": {
+            "type": "string",
+            "enum": ["none", "ordinary", "visual_review"],
+        },
+        "visual_candidates": {
+            "type": "array",
+            "maxItems": VISUAL_REVIEW_SCREENSHOT_LIMIT,
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["timestamp_seconds", "note_index", "reason"],
+                "properties": {
+                    "timestamp_seconds": {"type": "number", "minimum": 0},
+                    "note_index": {"type": "integer", "minimum": 0},
+                    "reason": {"type": "string"},
+                },
+            },
+        },
+    },
+}
+
+SCREENSHOT_REVIEW_SCHEMA: dict[str, Any] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["selections"],
+    "properties": {
+        "selections": {
+            "type": "array",
+            "maxItems": VISUAL_REVIEW_SCREENSHOT_LIMIT,
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["candidate_index", "frame_index", "caption"],
+                "properties": {
+                    "candidate_index": {"type": "integer", "minimum": 0},
+                    "frame_index": {"type": "integer", "minimum": 0},
+                    "caption": {"type": "string"},
+                },
+            },
+        }
     },
 }
 
@@ -693,6 +738,55 @@ def codex_thread_id(stdout: str) -> str | None:
     return None
 
 
+def resume_codex_agent(
+    *,
+    session_id: str,
+    prompt: str,
+    images: list[Path],
+    schema_path: Path,
+    output_path: Path,
+    log_prefix: Path,
+) -> subprocess.CompletedProcess[str]:
+    command = [
+        "codex",
+        "exec",
+        "resume",
+        "--skip-git-repo-check",
+        "--json",
+        "--model",
+        CODEX_MODEL,
+        "--config",
+        f'model_reasoning_effort="{CODEX_REASONING_EFFORT}"',
+        "--config",
+        f'service_tier="{CODEX_SERVICE_TIER}"',
+    ]
+    for server in ("deepwiki", "node_repl", "executor"):
+        command.extend(["--config", f"mcp_servers.{server}.enabled=false"])
+    for image in images:
+        command.extend(["--image", str(image)])
+    command.extend(
+        [
+            "--output-schema",
+            str(schema_path),
+            "--output-last-message",
+            str(output_path),
+            session_id,
+            "-",
+        ]
+    )
+    result = subprocess.run(
+        command,
+        input=prompt,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=1800,
+    )
+    atomic_write_text(log_prefix.with_suffix(".stdout.log"), result.stdout)
+    atomic_write_text(log_prefix.with_suffix(".stderr.log"), result.stderr)
+    return result
+
+
 def lookup_calendar(job: dict[str, Any], work: Path) -> dict[str, Any]:
     schema_path = work / "calendar-schema.json"
     output_path = work / "calendar.json"
@@ -720,14 +814,14 @@ def lookup_calendar(job: dict[str, Any], work: Path) -> dict[str, Any]:
         return {"status": "unavailable", "candidates": []}
 
 
-def codex_prompt(
-    transcript: dict[str, Any], calendar: dict[str, Any]
-) -> str:
+def codex_prompt(transcript: dict[str, Any], calendar: dict[str, Any]) -> str:
     manifest = read_optional(VAULT_ROOT / "04-projects/manifest.md")
     people = read_optional(VAULT_ROOT / "04-projects/moberg/people.md")
     return f"""You are the Meeting Minutes Agent. Convert the supplied timestamped transcript into concise structured meeting minutes for Tony's Coppermind vault.
 
 Return only the JSON object required by the supplied schema. Use a short human title and a filesystem-safe semantic slug without a date or context prefix. Choose exactly one context from moberg, xploit, personal, or tooling. `project` is the most specific project name supported by the transcript; use the context when no narrower project is clear. List only attendees supported by the transcript or by a confidently matched calendar event; exclude declined invitees. Notes should capture material technical or operational context, decisions only explicit conclusions, and follow_ups only concrete actions. Do not include Markdown bullet prefixes in array items.
+
+Use the timestamped transcript to identify optional screenshot candidates. Set visual_mode to none when no screenshot would materially improve the note, ordinary for a typical meeting, or visual_review when the meeting substantially reviews code, architecture, diagrams, implementation details, errors, or changing UI states. Candidate timestamps must point to moments when the speakers are likely discussing visible content. Reject talking heads, generic screen sharing, and visuals that would merely repeat the prose. Order candidates from most to least valuable. Return at most 3 candidates for an ordinary meeting and at most 8 for a visual_review; candidates beyond the first 3 must each capture a distinct technical artifact or state. note_index is the zero-based index of the note bullet the image would support. A later visual pass will inspect actual frames and may reject every candidate.
 
 Calendar candidates were gathered separately without exposing the transcript to tools. Use a candidate only when its timing, title, or attendees plausibly fit the transcript. Set calendar_status to unavailable when candidate retrieval was unavailable, matched when one candidate fits, or no_match otherwise. Set calendar_event to the matched title or an empty string. Calendar may inform the title, project, and attendee spellings, but transcript evidence remains authoritative for substantive notes.
 
@@ -765,17 +859,55 @@ def validate_agent_output(payload: dict[str, Any]) -> dict[str, Any]:
             raise MeetingMinutesError(f"Meeting agent returned invalid {name}")
         return [" ".join(str(item).split()) for item in value if str(item).strip()]
 
+    notes = strings("notes")
+    visual_mode = str(payload.get("visual_mode") or "").strip().lower()
+    if visual_mode not in {"none", "ordinary", "visual_review"}:
+        raise MeetingMinutesError(
+            f"Meeting agent returned invalid visual mode: {visual_mode}"
+        )
+    raw_candidates = payload.get("visual_candidates")
+    if not isinstance(raw_candidates, list):
+        raise MeetingMinutesError("Meeting agent returned invalid visual candidates")
+    limit = (
+        VISUAL_REVIEW_SCREENSHOT_LIMIT
+        if visual_mode == "visual_review"
+        else ORDINARY_SCREENSHOT_LIMIT
+    )
+    candidates: list[dict[str, Any]] = []
+    for raw in raw_candidates[:limit]:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            timestamp = float(raw.get("timestamp_seconds"))
+            note_index = int(raw.get("note_index"))
+        except (TypeError, ValueError):
+            continue
+        reason = " ".join(str(raw.get("reason") or "").split())
+        if timestamp < 0 or note_index < 0 or note_index >= len(notes) or not reason:
+            continue
+        candidates.append(
+            {
+                "timestamp_seconds": round(timestamp, 3),
+                "note_index": note_index,
+                "reason": reason,
+            }
+        )
+    if visual_mode == "none":
+        candidates = []
+
     return {
         "title": title,
         "slug": slugify(str(payload.get("slug") or title)),
         "context": context,
         "project": " ".join(str(payload.get("project") or context).split()),
         "attendees": strings("attendees"),
-        "notes": strings("notes"),
+        "notes": notes,
         "decisions": strings("decisions"),
         "follow_ups": strings("follow_ups"),
         "calendar_status": calendar_status,
         "calendar_event": " ".join(str(payload.get("calendar_event") or "").split()),
+        "visual_mode": visual_mode,
+        "visual_candidates": candidates,
     }
 
 
@@ -816,6 +948,225 @@ def generate_minutes(job: dict[str, Any], transcript_path: Path) -> dict[str, An
     output = validate_agent_output(read_json(output_path))
     atomic_write_json(output_path, output)
     return output
+
+
+def extract_screenshot_frames(
+    job: dict[str, Any], candidates: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    recording = Path(str(job["recording_path"]))
+    if not recording.is_file():
+        raise MeetingMinutesError(f"Recording is missing: {recording}")
+    duration = float(job.get("recording_duration_seconds") or 0)
+    if duration <= 0:
+        duration = probe_duration(recording)
+    frame_dir = WORK_DIR / str(job["job_id"]) / "screenshot-frames"
+    frame_dir.mkdir(parents=True, exist_ok=True)
+    extracted: list[dict[str, Any]] = []
+    for candidate_index, candidate in enumerate(candidates):
+        frames: list[dict[str, Any]] = []
+        seen_timestamps: set[float] = set()
+        for offset in SCREENSHOT_OFFSETS_SECONDS:
+            timestamp = min(
+                max(float(candidate["timestamp_seconds"]) + offset, 0.0),
+                max(duration - 0.05, 0.0),
+            )
+            timestamp = round(timestamp, 3)
+            if timestamp in seen_timestamps:
+                continue
+            seen_timestamps.add(timestamp)
+            frame_index = len(frames)
+            path = frame_dir / (
+                f"candidate-{candidate_index:02d}-frame-{frame_index}-{timestamp:.3f}.png"
+            )
+            if not path.is_file() or path.stat().st_size == 0:
+                temporary = path.with_name(f".{path.stem}.{uuid.uuid4().hex}.tmp.png")
+                try:
+                    run_checked(
+                        [
+                            "ffmpeg",
+                            "-hide_banner",
+                            "-loglevel",
+                            "error",
+                            "-y",
+                            "-ss",
+                            f"{timestamp:.3f}",
+                            "-i",
+                            str(recording),
+                            "-frames:v",
+                            "1",
+                            "-vf",
+                            "scale=1920:-2:force_original_aspect_ratio=decrease",
+                            "-compression_level",
+                            "3",
+                            str(temporary),
+                        ],
+                        timeout=180,
+                    )
+                    temporary.replace(path)
+                finally:
+                    temporary.unlink(missing_ok=True)
+            frames.append({"path": path, "timestamp_seconds": timestamp})
+        extracted.append({**candidate, "frames": frames})
+    return extracted
+
+
+def screenshot_review_prompt(
+    minutes: dict[str, Any], candidates: list[dict[str, Any]]
+) -> str:
+    candidate_summary = []
+    for index, candidate in enumerate(candidates):
+        candidate_summary.append(
+            {
+                "candidate_index": index,
+                "note_index": candidate["note_index"],
+                "note": minutes["notes"][candidate["note_index"]],
+                "reason": candidate["reason"],
+                "frames": [
+                    {
+                        "frame_index": frame_index,
+                        "filename": frame["path"].name,
+                        "timestamp_seconds": frame["timestamp_seconds"],
+                    }
+                    for frame_index, frame in enumerate(candidate["frames"])
+                ],
+            }
+        )
+    limit = (
+        VISUAL_REVIEW_SCREENSHOT_LIMIT
+        if minutes["visual_mode"] == "visual_review"
+        else ORDINARY_SCREENSHOT_LIMIT
+    )
+    return f"""Continue reviewing the same meeting. The attached images are transcript-guided frame candidates from the recording. Return only the JSON object required by the supplied schema.
+
+Select at most one frame for a candidate, and reject the candidate by omitting it when the frames do not materially improve the associated note. Keep only legible code, architecture, diagrams, errors, meaningful UI states, or other distinct technical artifacts. Reject talking heads, blank or transitional screens, generic application chrome, duplicated content, and visuals whose useful information is already fully conveyed by the note. Prefer the clearest frame. Captions must be short, factual, and understandable beside the associated note bullet without claiming details that are not visible.
+
+This meeting is classified as {minutes["visual_mode"]}. Select no more than {limit} screenshots. Screenshots beyond the first 3 are appropriate only when each captures a distinct technical artifact or state. It is valid and preferred to return an empty selection when none are useful.
+
+Candidate and attachment mapping:
+{json.dumps(candidate_summary, ensure_ascii=False, indent=2)}
+"""
+
+
+def validate_screenshot_review(
+    payload: dict[str, Any], candidates: list[dict[str, Any]], limit: int
+) -> list[dict[str, Any]]:
+    raw_selections = payload.get("selections")
+    if not isinstance(raw_selections, list):
+        raise MeetingMinutesError("Screenshot reviewer returned invalid selections")
+    selections: list[dict[str, Any]] = []
+    seen_candidates: set[int] = set()
+    for raw in raw_selections:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            candidate_index = int(raw.get("candidate_index"))
+            frame_index = int(raw.get("frame_index"))
+        except (TypeError, ValueError):
+            continue
+        caption = " ".join(str(raw.get("caption") or "").split())
+        if (
+            candidate_index in seen_candidates
+            or candidate_index < 0
+            or candidate_index >= len(candidates)
+            or frame_index < 0
+            or frame_index >= len(candidates[candidate_index]["frames"])
+            or not caption
+        ):
+            continue
+        seen_candidates.add(candidate_index)
+        candidate = candidates[candidate_index]
+        frame = candidate["frames"][frame_index]
+        selections.append(
+            {
+                "candidate_index": candidate_index,
+                "frame_index": frame_index,
+                "note_index": candidate["note_index"],
+                "timestamp_seconds": frame["timestamp_seconds"],
+                "caption": caption,
+                "source_path": str(frame["path"]),
+            }
+        )
+        if len(selections) == limit:
+            break
+    return selections
+
+
+def enrich_screenshots(
+    job: dict[str, Any], minutes: dict[str, Any]
+) -> list[dict[str, Any]]:
+    candidates = minutes["visual_candidates"]
+    if not candidates:
+        job["screenshot_enrichment"] = {
+            "status": "not_applicable",
+            "visual_mode": minutes["visual_mode"],
+            "candidates": 0,
+            "selected": 0,
+        }
+        save_job(job)
+        return []
+
+    set_phase(job, "enriching", "Selecting meeting screenshots")
+    try:
+        work = WORK_DIR / str(job["job_id"])
+        schema_path = work / "screenshot-review-schema.json"
+        output_path = work / "screenshot-review.json"
+        atomic_write_json(schema_path, SCREENSHOT_REVIEW_SCHEMA)
+        extracted = extract_screenshot_frames(job, candidates)
+        limit = (
+            VISUAL_REVIEW_SCREENSHOT_LIMIT
+            if minutes["visual_mode"] == "visual_review"
+            else ORDINARY_SCREENSHOT_LIMIT
+        )
+        if output_path.is_file():
+            selections = validate_screenshot_review(
+                read_json(output_path), extracted, limit
+            )
+        else:
+            qualified_session = str(job.get("codex_session") or "")
+            machine, separator, session_id = qualified_session.partition(":")
+            if machine != "jacurutu" or not separator or not session_id:
+                raise MeetingMinutesError(
+                    f"Invalid Codex session reference: {qualified_session}"
+                )
+            images = [
+                frame["path"]
+                for candidate in extracted
+                for frame in candidate["frames"]
+            ]
+            result = resume_codex_agent(
+                session_id=session_id,
+                prompt=screenshot_review_prompt(minutes, extracted),
+                images=images,
+                schema_path=schema_path,
+                output_path=output_path,
+                log_prefix=work / "screenshot-codex",
+            )
+            if result.returncode != 0:
+                detail = (result.stderr or result.stdout).strip()[-4000:]
+                raise MeetingMinutesError(
+                    f"Codex screenshot review failed (exit {result.returncode}): {detail}"
+                )
+            selections = validate_screenshot_review(
+                read_json(output_path), extracted, limit
+            )
+        job["screenshot_enrichment"] = {
+            "status": "completed",
+            "visual_mode": minutes["visual_mode"],
+            "candidates": len(candidates),
+            "selected": len(selections),
+        }
+        save_job(job)
+        return selections
+    except (MeetingMinutesError, OSError, subprocess.SubprocessError) as error:
+        job["screenshot_enrichment"] = {
+            "status": "failed",
+            "visual_mode": minutes["visual_mode"],
+            "candidates": len(candidates),
+            "selected": 0,
+            "error": str(error)[:2000],
+        }
+        save_job(job)
+        return []
 
 
 def slugify(value: str) -> str:
@@ -862,7 +1213,68 @@ def propose_unknown_people(job: dict[str, Any], minutes: dict[str, Any]) -> None
         atomic_write_text(path, content)
 
 
-def render_note(job: dict[str, Any], minutes: dict[str, Any], video_path: Path) -> str:
+def publish_screenshots(
+    job: dict[str, Any], stem: str, screenshots: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    published: list[dict[str, Any]] = []
+    publication_errors: list[str] = []
+    try:
+        ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        publication_errors.append(str(error))
+        screenshots = []
+    for index, screenshot in enumerate(screenshots, start=1):
+        source = Path(str(screenshot["source_path"]))
+        if not source.is_file():
+            publication_errors.append(f"Selected frame is missing: {source}")
+            continue
+        asset_name = f"{stem}-{index:02d}.png"
+        destination = ASSETS_DIR / asset_name
+        try:
+            if not destination.is_file():
+                temporary = destination.with_name(
+                    f".{destination.name}.{uuid.uuid4().hex}.tmp"
+                )
+                try:
+                    shutil.copy2(source, temporary)
+                    temporary.replace(destination)
+                finally:
+                    temporary.unlink(missing_ok=True)
+        except OSError as error:
+            publication_errors.append(f"{asset_name}: {error}")
+            continue
+        published.append(
+            {
+                "asset_name": asset_name,
+                "asset_path": str(destination),
+                "note_index": screenshot["note_index"],
+                "timestamp_seconds": screenshot["timestamp_seconds"],
+                "caption": screenshot["caption"],
+            }
+        )
+    job["screenshots"] = published
+    enrichment = job.get("screenshot_enrichment")
+    if isinstance(enrichment, dict):
+        enrichment["published"] = len(published)
+        if publication_errors:
+            enrichment["publication_errors"] = publication_errors
+    save_job(job)
+    return published
+
+
+def format_timestamp(seconds: float) -> str:
+    total = max(int(round(seconds)), 0)
+    hours, remainder = divmod(total, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def render_note(
+    job: dict[str, Any],
+    minutes: dict[str, Any],
+    video_path: Path,
+    screenshots: list[dict[str, Any]],
+) -> str:
     attendees = minutes["attendees"]
     attendee_yaml = "attendees: []\n"
     if attendees:
@@ -875,6 +1287,23 @@ def render_note(job: dict[str, Any], minutes: dict[str, Any], video_path: Path) 
             return "- None\n"
         prefix = "- [ ] " if tasks else "- "
         return "".join(f"{prefix}{item}\n" for item in items)
+
+    def note_bullets(items: list[str]) -> str:
+        if not items:
+            return "- None\n"
+        by_note: dict[int, list[dict[str, Any]]] = {}
+        for screenshot in screenshots:
+            by_note.setdefault(int(screenshot["note_index"]), []).append(screenshot)
+        rendered: list[str] = []
+        for note_index, item in enumerate(items):
+            rendered.append(f"- {item}\n")
+            for screenshot in by_note.get(note_index, []):
+                timestamp = format_timestamp(float(screenshot["timestamp_seconds"]))
+                rendered.append(
+                    f"\n  ![[{screenshot['asset_name']}]]\n"
+                    f"  _{screenshot['caption']} ({timestamp})_\n"
+                )
+        return "".join(rendered)
 
     meeting_date = datetime.fromtimestamp(float(job["recording_started_at"])).date()
     return (
@@ -890,7 +1319,7 @@ def render_note(job: dict[str, Any], minutes: dict[str, Any], video_path: Path) 
         "---\n"
         f"# {minutes['title']}\n\n"
         "## notes\n\n"
-        f"{bullets(minutes['notes'])}\n"
+        f"{note_bullets(minutes['notes'])}\n"
         "## decisions\n\n"
         f"{bullets(minutes['decisions'])}\n"
         "## follow-ups\n\n"
@@ -909,7 +1338,8 @@ def choose_canonical_stem(job: dict[str, Any], minutes: dict[str, Any]) -> str:
     for index in range(1000):
         note_path = note_dir / f"{candidate}.md"
         video_path = MEDIA_ROOT / f"{candidate}.mp4"
-        if not note_path.exists() and not video_path.exists():
+        asset_exists = any(ASSETS_DIR.glob(f"{candidate}-*.png"))
+        if not note_path.exists() and not video_path.exists() and not asset_exists:
             break
         if note_path.exists() and f'pipeline_job: "{job["job_id"]}"' in read_optional(
             note_path
@@ -952,13 +1382,17 @@ def append_weekly_backlink(job: dict[str, Any], minutes: dict[str, Any]) -> None
 
 
 def finalize_artifacts(
-    job: dict[str, Any], minutes: dict[str, Any], transcript_path: Path
+    job: dict[str, Any],
+    minutes: dict[str, Any],
+    transcript_path: Path,
+    screenshots: list[dict[str, Any]],
 ) -> None:
     set_phase(job, "writing", "Writing meeting note")
     stem = choose_canonical_stem(job, minutes)
     note_path = VAULT_ROOT / "01-logs/meetings" / f"{stem}.md"
     video_path = MEDIA_ROOT / f"{stem}.mp4"
     final_transcript = MEDIA_ROOT / f"{stem}.json"
+    published_screenshots = publish_screenshots(job, stem, screenshots)
 
     current_video = Path(str(job.get("recording_path", "")))
     if not video_path.is_file():
@@ -979,7 +1413,9 @@ def finalize_artifacts(
         finally:
             temporary.unlink(missing_ok=True)
 
-    atomic_write_text(note_path, render_note(job, minutes, video_path))
+    atomic_write_text(
+        note_path, render_note(job, minutes, video_path, published_screenshots)
+    )
     job["note_path"] = str(note_path)
     job["transcript_path"] = str(final_transcript)
     save_job(job)
@@ -1044,7 +1480,8 @@ def process_job(job: dict[str, Any]) -> None:
                 "mode": "executor-agent-best-effort",
             }
             save_job(job)
-            finalize_artifacts(job, minutes, transcript_path)
+            screenshots = enrich_screenshots(job, minutes)
+            finalize_artifacts(job, minutes, transcript_path, screenshots)
             job["phase"] = "completed"
             job["completed_at"] = now_epoch()
             save_job(job)
