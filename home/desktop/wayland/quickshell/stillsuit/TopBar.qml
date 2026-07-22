@@ -12,6 +12,7 @@ Scope {
 
     required property var niri
     required property var recording
+    required property var meeting
     property var audioPanel: null
     property var bluetoothPanel: null
     property var networkPanel: null
@@ -230,6 +231,12 @@ Scope {
                             controller: root.recording
                             Layout.leftMargin: 6
                             onClicked: root.recording.toggle()
+                        }
+
+                        MeetingIndicator {
+                            visible: root.meeting.visible
+                            controller: root.meeting
+                            onClicked: root.meeting.openResult()
                         }
                     }
 

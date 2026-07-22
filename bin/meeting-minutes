@@ -1,0 +1,1100 @@
+#!/usr/bin/env python3
+# vim: syn=python ft=python
+
+from __future__ import annotations
+
+import argparse
+import fcntl
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+import uuid
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
+
+HOME = Path.home()
+STATE_DIR = Path(
+    os.environ.get(
+        "MEETING_MINUTES_STATE_DIR",
+        HOME / ".local/state/meeting-minutes",
+    )
+).expanduser()
+MEDIA_ROOT = Path(
+    os.environ.get("MEETING_MINUTES_MEDIA_ROOT", HOME / "media/meetings")
+).expanduser()
+VAULT_ROOT = Path(
+    os.environ.get("COPPERMIND_VAULT", "/vault/notes/coppermind")
+).expanduser()
+DOTFILES_ROOT = Path(
+    os.environ.get("MEETING_MINUTES_DOTFILES", HOME / "dotfiles")
+).expanduser()
+SIREN_URL = os.environ.get(
+    "MEETING_MINUTES_SIREN_URL",
+    "https://siren.sole-pierce.ts.net/v1/audio/transcriptions",
+)
+SIREN_MODEL = os.environ.get(
+    "MEETING_MINUTES_SIREN_MODEL",
+    "nvidia/parakeet-tdt-0.6b-v2",
+)
+CHUNK_SECONDS = int(os.environ.get("MEETING_MINUTES_CHUNK_SECONDS", "600"))
+COMPLETION_VISIBLE_SECONDS = 600
+
+JOBS_DIR = STATE_DIR / "jobs"
+JOB_LOCKS_DIR = STATE_DIR / "job-locks"
+STATUS_PATH = STATE_DIR / "status.json"
+LOCK_PATH = STATE_DIR / "worker.lock"
+INBOX_DIR = MEDIA_ROOT / ".inbox"
+WORK_DIR = MEDIA_ROOT / ".work"
+
+OUTPUT_SCHEMA: dict[str, Any] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": False,
+    "required": [
+        "title",
+        "slug",
+        "context",
+        "project",
+        "attendees",
+        "notes",
+        "decisions",
+        "follow_ups",
+        "calendar_status",
+        "calendar_event",
+    ],
+    "properties": {
+        "title": {"type": "string"},
+        "slug": {"type": "string"},
+        "context": {
+            "type": "string",
+            "enum": ["moberg", "xploit", "personal", "tooling"],
+        },
+        "project": {"type": "string"},
+        "attendees": {"type": "array", "items": {"type": "string"}},
+        "notes": {"type": "array", "items": {"type": "string"}},
+        "decisions": {"type": "array", "items": {"type": "string"}},
+        "follow_ups": {"type": "array", "items": {"type": "string"}},
+        "calendar_status": {
+            "type": "string",
+            "enum": ["matched", "no_match", "unavailable"],
+        },
+        "calendar_event": {"type": "string"},
+    },
+}
+
+CALENDAR_SCHEMA: dict[str, Any] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["status", "candidates"],
+    "properties": {
+        "status": {"type": "string", "enum": ["available", "unavailable"]},
+        "candidates": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["title", "start", "end", "attendees"],
+                "properties": {
+                    "title": {"type": "string"},
+                    "start": {"type": "string"},
+                    "end": {"type": "string"},
+                    "attendees": {"type": "array", "items": {"type": "string"}},
+                },
+            },
+        },
+    },
+}
+
+
+class MeetingMinutesError(RuntimeError):
+    pass
+
+
+def now_epoch() -> float:
+    return time.time()
+
+
+def ensure_directories() -> None:
+    for path in (STATE_DIR, JOBS_DIR, JOB_LOCKS_DIR, INBOX_DIR, WORK_DIR):
+        path.mkdir(parents=True, exist_ok=True)
+
+
+def atomic_write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temporary.write_text(content)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    atomic_write_text(path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+def read_json(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise MeetingMinutesError(f"Could not read {path}: {error}") from error
+    if not isinstance(value, dict):
+        raise MeetingMinutesError(f"Expected a JSON object in {path}")
+    return value
+
+
+def job_path(job_id: str) -> Path:
+    if not re.fullmatch(r"[a-f0-9]{32}", job_id):
+        raise MeetingMinutesError(f"Invalid meeting job id: {job_id}")
+    return JOBS_DIR / f"{job_id}.json"
+
+
+def job_lock_path(job_id: str) -> Path:
+    if not re.fullmatch(r"[a-f0-9]{32}", job_id):
+        raise MeetingMinutesError(f"Invalid meeting job id: {job_id}")
+    return JOB_LOCKS_DIR / f"{job_id}.lock"
+
+
+def save_job(job: dict[str, Any]) -> None:
+    job["updated_at"] = now_epoch()
+    atomic_write_json(job_path(str(job["job_id"])), job)
+
+
+def update_status(
+    job: dict[str, Any],
+    *,
+    label: str,
+    progress: int = 0,
+    total: int = 0,
+) -> None:
+    phase = str(job.get("phase", "idle"))
+    payload: dict[str, Any] = {
+        "job_id": job.get("job_id", ""),
+        "phase": phase,
+        "label": label,
+        "progress": progress,
+        "total": total,
+        "note_path": job.get("note_path", ""),
+        "error": job.get("error", ""),
+        "updated_at": now_epoch(),
+    }
+    if phase in {"completed", "error"}:
+        payload["visible_until"] = now_epoch() + COMPLETION_VISIBLE_SECONDS
+    atomic_write_json(STATUS_PATH, payload)
+
+
+def set_phase(
+    job: dict[str, Any],
+    phase: str,
+    label: str,
+    *,
+    progress: int = 0,
+    total: int = 0,
+) -> None:
+    job["phase"] = phase
+    job["error"] = ""
+    save_job(job)
+    update_status(job, label=label, progress=progress, total=total)
+
+
+def kick_worker() -> bool:
+    result = subprocess.run(
+        [
+            "systemctl",
+            "--user",
+            "start",
+            "--no-block",
+            "meeting-minutes-worker.service",
+        ],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return result.returncode == 0
+
+
+def enqueue_recording(args: argparse.Namespace) -> dict[str, Any]:
+    ensure_directories()
+    source = Path(args.recording).expanduser().resolve()
+    if not source.is_file():
+        raise MeetingMinutesError(f"Recording does not exist: {source}")
+
+    stat = source.stat()
+    job_id = uuid.uuid4().hex
+    inbox_path = INBOX_DIR / f"{job_id}{source.suffix.lower() or '.mp4'}"
+    started_at = float(args.started_at or stat.st_mtime)
+    job: dict[str, Any] = {
+        "version": 1,
+        "job_id": job_id,
+        "recording_identity": (
+            f"{stat.st_dev}:{stat.st_ino}:{stat.st_size}:{int(started_at)}"
+        ),
+        "phase": "staging",
+        "source_path": str(source),
+        "recording_path": str(source),
+        "recording_started_at": started_at,
+        "recording_duration_seconds": int(args.duration_seconds or 0),
+        "created_at": now_epoch(),
+        "updated_at": now_epoch(),
+        "calendar_enrichment": {
+            "status": "pending",
+            "mode": "executor-agent-best-effort",
+        },
+        "notification_attempted": False,
+        "error": "",
+    }
+    with job_lock_path(job_id).open("a+") as job_lock:
+        fcntl.flock(job_lock.fileno(), fcntl.LOCK_EX)
+        save_job(job)
+        update_status(job, label="Staging meeting")
+
+        try:
+            shutil.move(str(source), inbox_path)
+        except OSError as error:
+            job["phase"] = "error"
+            job["error"] = f"Could not stage recording: {error}"
+            save_job(job)
+            update_status(job, label="Meeting failed")
+            raise MeetingMinutesError(job["error"]) from error
+
+        job["phase"] = "queued"
+        job["recording_path"] = str(inbox_path)
+        job["inbox_path"] = str(inbox_path)
+        save_job(job)
+        update_status(job, label="Minutes queued")
+    worker_started = kick_worker()
+    return {
+        "job_id": job_id,
+        "phase": "queued",
+        "recording": str(inbox_path),
+        "worker_started": worker_started,
+    }
+
+
+def recover_staged_recording(job: dict[str, Any]) -> None:
+    if job.get("phase") != "staging":
+        return
+    source = Path(str(job.get("source_path", "")))
+    inbox = INBOX_DIR / f"{job['job_id']}{source.suffix.lower() or '.mp4'}"
+    if inbox.is_file():
+        job["recording_path"] = str(inbox)
+        job["inbox_path"] = str(inbox)
+        job["phase"] = "queued"
+        save_job(job)
+        return
+    if source.is_file():
+        shutil.move(str(source), inbox)
+        job["recording_path"] = str(inbox)
+        job["inbox_path"] = str(inbox)
+        job["phase"] = "queued"
+        save_job(job)
+        return
+    raise MeetingMinutesError("Staged recording is missing from both source and inbox")
+
+
+def run_checked(
+    command: list[str], *, timeout: int | None = None
+) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(
+        command,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()[-2000:]
+        raise MeetingMinutesError(
+            f"Command failed ({command[0]}, exit {result.returncode}): {detail}"
+        )
+    return result
+
+
+def probe_duration(recording: Path) -> float:
+    result = run_checked(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            str(recording),
+        ],
+        timeout=60,
+    )
+    try:
+        return float(result.stdout.strip())
+    except ValueError as error:
+        raise MeetingMinutesError("ffprobe returned an invalid duration") from error
+
+
+def prepare_chunks(job: dict[str, Any]) -> list[Path]:
+    recording = Path(str(job["recording_path"]))
+    if not recording.is_file():
+        final_video = Path(str(job.get("video_path", "")))
+        if final_video.is_file():
+            recording = final_video
+        else:
+            raise MeetingMinutesError(f"Recording is missing: {recording}")
+
+    work = WORK_DIR / str(job["job_id"])
+    chunks = work / "chunks"
+    marker = work / "chunks.complete"
+    for abandoned in work.glob("chunks.*.tmp"):
+        shutil.rmtree(abandoned, ignore_errors=True)
+    existing = sorted(chunks.glob("*.flac"))
+    if marker.is_file() and existing:
+        return existing
+
+    staging = work / f"chunks.{uuid.uuid4().hex}.tmp"
+    staging.mkdir(parents=True, exist_ok=False)
+    try:
+        run_checked(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-i",
+                str(recording),
+                "-map",
+                "0:a:0",
+                "-ac",
+                "1",
+                "-ar",
+                "16000",
+                "-c:a",
+                "flac",
+                "-f",
+                "segment",
+                "-segment_time",
+                str(CHUNK_SECONDS),
+                "-reset_timestamps",
+                "1",
+                str(staging / "chunk-%04d.flac"),
+            ],
+            timeout=1800,
+        )
+        produced = sorted(staging.glob("*.flac"))
+        if not produced:
+            raise MeetingMinutesError("ffmpeg did not produce any audio chunks")
+        if chunks.exists():
+            shutil.rmtree(chunks)
+        staging.replace(chunks)
+        atomic_write_text(marker, f"{len(produced)}\n")
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
+    return sorted(chunks.glob("*.flac"))
+
+
+def valid_transcript_part(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    try:
+        payload = read_json(path)
+    except MeetingMinutesError:
+        return False
+    return (
+        isinstance(payload.get("text"), str)
+        and isinstance(payload.get("segments"), list)
+        and isinstance(payload.get("duration"), (int, float))
+    )
+
+
+def normalize_transcript_part(path: Path, chunk: Path) -> None:
+    """Upgrade Siren's legacy text-only response to a chunk-level segment."""
+    payload = read_json(path)
+    if isinstance(payload.get("segments"), list) and isinstance(
+        payload.get("duration"), (int, float)
+    ):
+        return
+    duration = probe_duration(chunk)
+    text = str(payload.get("text") or "").strip()
+    raw_segments = payload.get("segments")
+    has_timestamped_segments = isinstance(raw_segments, list)
+    segments = raw_segments if has_timestamped_segments else []
+    if not segments and text:
+        segments = [
+            {
+                "id": 0,
+                "start": 0.0,
+                "end": round(duration, 3),
+                "text": text,
+            }
+        ]
+    payload.update(
+        {
+            "language": str(payload.get("language") or "en"),
+            "duration": round(duration, 3),
+            "segments": segments,
+        }
+    )
+    if not has_timestamped_segments:
+        payload["timestamp_precision"] = "chunk"
+    atomic_write_json(path, payload)
+
+
+def transcribe_chunk(chunk: Path, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(f".{destination.name}.{uuid.uuid4().hex}.tmp")
+    script = (
+        "curl --fail-with-body --silent --show-error --retry 2 "
+        '--retry-delay 2 --max-time 900 --output "$2" '
+        '-H "Authorization: Bearer ${SIREN_API_KEY}" '
+        '-F "file=@$1" -F "model=$4" -F "response_format=verbose_json" "$3"'
+    )
+    try:
+        run_checked(
+            [
+                "direnv",
+                "exec",
+                str(DOTFILES_ROOT),
+                "bash",
+                "-lc",
+                script,
+                "meeting-minutes-siren",
+                str(chunk),
+                str(temporary),
+                SIREN_URL,
+                SIREN_MODEL,
+            ],
+            timeout=1000,
+        )
+        normalize_transcript_part(temporary, chunk)
+        if not valid_transcript_part(temporary):
+            raise MeetingMinutesError(
+                f"Siren returned invalid verbose JSON for {chunk.name}"
+            )
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def transcribe_chunks(job: dict[str, Any], chunks: list[Path]) -> Path:
+    work = WORK_DIR / str(job["job_id"])
+    parts_dir = work / "transcript-parts"
+    parts_dir.mkdir(parents=True, exist_ok=True)
+    total = len(chunks)
+    for index, chunk in enumerate(chunks):
+        part = parts_dir / f"{index:04d}.json"
+        if not valid_transcript_part(part):
+            set_phase(
+                job,
+                "transcribing",
+                f"Transcribing {index + 1}/{total}",
+                progress=index,
+                total=total,
+            )
+            transcribe_chunk(chunk, part)
+        update_status(
+            job,
+            label=f"Transcribing {index + 1}/{total}",
+            progress=index + 1,
+            total=total,
+        )
+
+    segments: list[dict[str, Any]] = []
+    texts: list[str] = []
+    language = "en"
+    segment_id = 0
+    for index in range(total):
+        part = read_json(parts_dir / f"{index:04d}.json")
+        language = str(part.get("language") or language)
+        text = str(part.get("text") or "").strip()
+        if text:
+            texts.append(text)
+        offset = index * CHUNK_SECONDS
+        for raw_segment in part.get("segments", []):
+            if not isinstance(raw_segment, dict):
+                continue
+            segment_text = str(raw_segment.get("text") or "").strip()
+            if not segment_text:
+                continue
+            segments.append(
+                {
+                    "id": segment_id,
+                    "start": round(float(raw_segment.get("start", 0.0)) + offset, 3),
+                    "end": round(float(raw_segment.get("end", 0.0)) + offset, 3),
+                    "text": segment_text,
+                }
+            )
+            segment_id += 1
+
+    recording = Path(str(job["recording_path"]))
+    duration = float(job.get("recording_duration_seconds") or 0)
+    if duration <= 0:
+        duration = probe_duration(recording)
+        job["recording_duration_seconds"] = round(duration, 3)
+        save_job(job)
+    transcript = {
+        "version": 1,
+        "job_id": job["job_id"],
+        "recording_identity": job["recording_identity"],
+        "recording_started_at": datetime.fromtimestamp(
+            float(job["recording_started_at"])
+        )
+        .astimezone()
+        .isoformat(),
+        "model": SIREN_MODEL,
+        "language": language,
+        "duration": round(duration, 3),
+        "chunk_seconds": CHUNK_SECONDS,
+        "chunks": total,
+        "text": " ".join(texts),
+        "segments": segments,
+    }
+    transcript_path = work / "transcript.json"
+    atomic_write_json(transcript_path, transcript)
+    job["transcript_work_path"] = str(transcript_path)
+    save_job(job)
+    return transcript_path
+
+
+def read_optional(path: Path) -> str:
+    try:
+        return path.read_text()
+    except OSError:
+        return ""
+
+
+def validate_calendar_output(payload: dict[str, Any]) -> dict[str, Any]:
+    status = str(payload.get("status") or "").strip().lower()
+    if status not in {"available", "unavailable"}:
+        raise MeetingMinutesError(f"Calendar agent returned invalid status: {status}")
+    raw_candidates = payload.get("candidates")
+    if not isinstance(raw_candidates, list):
+        raise MeetingMinutesError("Calendar agent returned invalid candidates")
+    candidates = []
+    for raw in raw_candidates:
+        if not isinstance(raw, dict):
+            continue
+        title = " ".join(str(raw.get("title") or "").split())
+        if not title:
+            continue
+        attendees = raw.get("attendees")
+        candidates.append(
+            {
+                "title": title,
+                "start": str(raw.get("start") or ""),
+                "end": str(raw.get("end") or ""),
+                "attendees": [
+                    " ".join(str(name).split())
+                    for name in attendees
+                    if str(name).strip()
+                ]
+                if isinstance(attendees, list)
+                else [],
+            }
+        )
+    return {"status": status, "candidates": candidates}
+
+
+def calendar_prompt(job: dict[str, Any]) -> str:
+    start = datetime.fromtimestamp(float(job["recording_started_at"])).astimezone()
+    duration = max(float(job.get("recording_duration_seconds") or 0), 60.0)
+    end = start + timedelta(seconds=duration)
+    return f"""Use the executor-access-google skill to read Google Calendar and return only the JSON object required by the supplied schema. Do not use Gmail, Slack, or any mutation.
+
+Find every calendar event overlapping this America/New_York interval (inclusive start, exclusive end):
+- start: {start.isoformat()}
+- end: {end.isoformat()}
+
+Follow the skill contract completely: resolve and describe calendar.calendarList.list and calendar.events.list, paginate every selected calendar and every event page, use singleEvents and startTime ordering, and report unavailable if Calendar access cannot be completed. Include timed events and relevant overlapping multi-day events. For each candidate return only its title, start, end, and non-declined attendee names. Return status available even when there are zero candidates.
+"""
+
+
+def run_codex_agent(
+    *,
+    prompt: str,
+    schema_path: Path,
+    output_path: Path,
+    log_prefix: Path,
+    executor_enabled: bool,
+) -> subprocess.CompletedProcess[str]:
+    command = [
+        "codex",
+        "exec",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "--sandbox",
+        "read-only",
+    ]
+    for server in ("deepwiki", "node_repl"):
+        command.extend(["--config", f"mcp_servers.{server}.enabled=false"])
+    if executor_enabled:
+        for tool in ("skills", "execute", "resume"):
+            command.extend(
+                [
+                    "--config",
+                    f'mcp_servers.executor.tools.{tool}.approval_mode="approve"',
+                ]
+            )
+    else:
+        command.extend(["--config", "mcp_servers.executor.enabled=false"])
+    command.extend(
+        [
+            "--cd",
+            str(VAULT_ROOT),
+            "--output-schema",
+            str(schema_path),
+            "--output-last-message",
+            str(output_path),
+            "-",
+        ]
+    )
+    result = subprocess.run(
+        command,
+        input=prompt,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=1800,
+    )
+    atomic_write_text(log_prefix.with_suffix(".stdout.log"), result.stdout)
+    atomic_write_text(log_prefix.with_suffix(".stderr.log"), result.stderr)
+    return result
+
+
+def lookup_calendar(job: dict[str, Any], work: Path) -> dict[str, Any]:
+    schema_path = work / "calendar-schema.json"
+    output_path = work / "calendar.json"
+    atomic_write_json(schema_path, CALENDAR_SCHEMA)
+    if output_path.is_file():
+        try:
+            return validate_calendar_output(read_json(output_path))
+        except MeetingMinutesError:
+            output_path.unlink(missing_ok=True)
+
+    try:
+        result = run_codex_agent(
+            prompt=calendar_prompt(job),
+            schema_path=schema_path,
+            output_path=output_path,
+            log_prefix=work / "calendar-codex",
+            executor_enabled=True,
+        )
+        if result.returncode != 0:
+            return {"status": "unavailable", "candidates": []}
+        output = validate_calendar_output(read_json(output_path))
+        atomic_write_json(output_path, output)
+        return output
+    except (MeetingMinutesError, OSError, subprocess.SubprocessError):
+        return {"status": "unavailable", "candidates": []}
+
+
+def codex_prompt(
+    transcript: dict[str, Any], calendar: dict[str, Any]
+) -> str:
+    manifest = read_optional(VAULT_ROOT / "04-projects/manifest.md")
+    people = read_optional(VAULT_ROOT / "04-projects/moberg/people.md")
+    return f"""You are the Meeting Minutes Agent. Convert the supplied timestamped transcript into concise structured meeting minutes for Tony's Coppermind vault.
+
+Return only the JSON object required by the supplied schema. Use a short human title and a filesystem-safe semantic slug without a date or context prefix. Choose exactly one context from moberg, xploit, personal, or tooling. `project` is the most specific project name supported by the transcript; use the context when no narrower project is clear. List only attendees supported by the transcript or by a confidently matched calendar event; exclude declined invitees. Notes should capture material technical or operational context, decisions only explicit conclusions, and follow_ups only concrete actions. Do not include Markdown bullet prefixes in array items.
+
+Calendar candidates were gathered separately without exposing the transcript to tools. Use a candidate only when its timing, title, or attendees plausibly fit the transcript. Set calendar_status to unavailable when candidate retrieval was unavailable, matched when one candidate fits, or no_match otherwise. Set calendar_event to the matched title or an empty string. Calendar may inform the title, project, and attendee spellings, but transcript evidence remains authoritative for substantive notes.
+
+Project manifest:
+{manifest}
+
+Known Moberg people:
+{people}
+
+Calendar candidate JSON:
+{json.dumps(calendar, ensure_ascii=False)}
+
+Timestamped transcript JSON:
+{json.dumps(transcript, ensure_ascii=False)}
+"""
+
+
+def validate_agent_output(payload: dict[str, Any]) -> dict[str, Any]:
+    contexts = {"moberg", "xploit", "personal", "tooling"}
+    context = str(payload.get("context") or "").strip().lower()
+    if context not in contexts:
+        raise MeetingMinutesError(f"Meeting agent returned invalid context: {context}")
+    title = " ".join(str(payload.get("title") or "").split())
+    if not title:
+        raise MeetingMinutesError("Meeting agent returned an empty title")
+    calendar_status = str(payload.get("calendar_status") or "").strip().lower()
+    if calendar_status not in {"matched", "no_match", "unavailable"}:
+        raise MeetingMinutesError(
+            f"Meeting agent returned invalid calendar status: {calendar_status}"
+        )
+
+    def strings(name: str) -> list[str]:
+        value = payload.get(name)
+        if not isinstance(value, list):
+            raise MeetingMinutesError(f"Meeting agent returned invalid {name}")
+        return [" ".join(str(item).split()) for item in value if str(item).strip()]
+
+    return {
+        "title": title,
+        "slug": slugify(str(payload.get("slug") or title)),
+        "context": context,
+        "project": " ".join(str(payload.get("project") or context).split()),
+        "attendees": strings("attendees"),
+        "notes": strings("notes"),
+        "decisions": strings("decisions"),
+        "follow_ups": strings("follow_ups"),
+        "calendar_status": calendar_status,
+        "calendar_event": " ".join(str(payload.get("calendar_event") or "").split()),
+    }
+
+
+def generate_minutes(job: dict[str, Any], transcript_path: Path) -> dict[str, Any]:
+    work = WORK_DIR / str(job["job_id"])
+    schema_path = work / "minutes-schema.json"
+    output_path = work / "minutes.json"
+    atomic_write_json(schema_path, OUTPUT_SCHEMA)
+    if output_path.is_file():
+        try:
+            return validate_agent_output(read_json(output_path))
+        except MeetingMinutesError:
+            output_path.unlink(missing_ok=True)
+
+    set_phase(job, "generating", "Generating meeting note")
+    transcript = read_json(transcript_path)
+    calendar = lookup_calendar(job, work)
+    result = run_codex_agent(
+        prompt=codex_prompt(transcript, calendar),
+        schema_path=schema_path,
+        output_path=output_path,
+        log_prefix=work / "minutes-codex",
+        executor_enabled=False,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()[-4000:]
+        raise MeetingMinutesError(
+            f"Codex minutes generation failed (exit {result.returncode}): {detail}"
+        )
+    output = validate_agent_output(read_json(output_path))
+    atomic_write_json(output_path, output)
+    return output
+
+
+def slugify(value: str) -> str:
+    value = value.lower().strip()
+    value = re.sub(r"[^a-z0-9]+", "-", value)
+    return value.strip("-")[:72] or "meeting"
+
+
+def yaml_scalar(value: str) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+def known_people() -> set[str]:
+    text = read_optional(VAULT_ROOT / "04-projects/moberg/people.md")
+    names: set[str] = set()
+    for match in re.finditer(r"^- \*\*(.+?)\*\*", text, flags=re.MULTILINE):
+        for name in match.group(1).split("/"):
+            names.add(name.strip().casefold())
+    return names
+
+
+def propose_unknown_people(job: dict[str, Any], minutes: dict[str, Any]) -> None:
+    attendees = [str(name) for name in minutes["attendees"]]
+    known = known_people() if minutes["context"] == "moberg" else set()
+    target = f"04-projects/{minutes['context']}/people.md"
+    proposals = VAULT_ROOT / "04-projects/_pipeline/proposals"
+    for attendee in attendees:
+        if attendee.casefold() in known:
+            continue
+        path = proposals / f"meeting-person-{minutes['context']}-{slugify(attendee)}.md"
+        if path.exists():
+            continue
+        content = (
+            "---\n"
+            "type: people-addition\n"
+            f"target: {yaml_scalar(target)}\n"
+            f"meeting_job: {yaml_scalar(str(job['job_id']))}\n"
+            "status: proposed\n"
+            "---\n"
+            f"# Proposed person: {attendee}\n\n"
+            f"Identified as an attendee in [[meetings/{job['canonical_stem']}|{minutes['title']}]]. "
+            "Role and relationship need Tony's confirmation.\n"
+        )
+        atomic_write_text(path, content)
+
+
+def render_note(job: dict[str, Any], minutes: dict[str, Any], video_path: Path) -> str:
+    attendees = minutes["attendees"]
+    attendee_yaml = "attendees: []\n"
+    if attendees:
+        attendee_yaml = "attendees:\n" + "".join(
+            f"  - {yaml_scalar(str(attendee))}\n" for attendee in attendees
+        )
+
+    def bullets(items: list[str], *, tasks: bool = False) -> str:
+        if not items:
+            return "- None\n"
+        prefix = "- [ ] " if tasks else "- "
+        return "".join(f"{prefix}{item}\n" for item in items)
+
+    meeting_date = datetime.fromtimestamp(float(job["recording_started_at"])).date()
+    return (
+        "---\n"
+        f"date: {meeting_date.isoformat()}\n"
+        f"project: {yaml_scalar(str(minutes['project']))}\n"
+        f"{attendee_yaml}"
+        "source: pipeline\n"
+        f"recording: {yaml_scalar(str(video_path))}\n"
+        f"pipeline_job: {yaml_scalar(str(job['job_id']))}\n"
+        f"recording_identity: {yaml_scalar(str(job['recording_identity']))}\n"
+        "---\n"
+        f"# {minutes['title']}\n\n"
+        "## notes\n\n"
+        f"{bullets(minutes['notes'])}\n"
+        "## decisions\n\n"
+        f"{bullets(minutes['decisions'])}\n"
+        "## follow-ups\n\n"
+        f"{bullets(minutes['follow_ups'], tasks=True)}"
+    )
+
+
+def choose_canonical_stem(job: dict[str, Any], minutes: dict[str, Any]) -> str:
+    existing = str(job.get("canonical_stem") or "")
+    if existing:
+        return existing
+    meeting_date = datetime.fromtimestamp(float(job["recording_started_at"])).date()
+    base = f"{meeting_date.isoformat()}-{minutes['context']}-{minutes['slug']}"
+    candidate = base
+    note_dir = VAULT_ROOT / "01-logs/meetings"
+    for index in range(1000):
+        note_path = note_dir / f"{candidate}.md"
+        video_path = MEDIA_ROOT / f"{candidate}.mp4"
+        if not note_path.exists() and not video_path.exists():
+            break
+        if note_path.exists() and f'pipeline_job: "{job["job_id"]}"' in read_optional(
+            note_path
+        ):
+            break
+        candidate = (
+            f"{base}-{str(job['job_id'])[:8]}" if index == 0 else f"{base}-{index + 1}"
+        )
+    else:
+        raise MeetingMinutesError("Could not choose an unused canonical meeting stem")
+    job["canonical_stem"] = candidate
+    save_job(job)
+    return candidate
+
+
+def append_weekly_backlink(job: dict[str, Any], minutes: dict[str, Any]) -> None:
+    meeting_time = datetime.fromtimestamp(float(job["recording_started_at"]))
+    iso_year, iso_week, _ = meeting_time.isocalendar()
+    weekly_path = VAULT_ROOT / "01-logs" / f"{iso_year}-w{iso_week:02d}.md"
+    if not weekly_path.is_file():
+        raise MeetingMinutesError(f"Weekly log does not exist: {weekly_path}")
+    text = weekly_path.read_text()
+    link = f"[[meetings/{job['canonical_stem']}|{minutes['title']}]]"
+    if link in text:
+        return
+    heading = meeting_time.strftime("### %a, %b %-d")
+    match = re.search(rf"^{re.escape(heading)}\s*$", text, flags=re.MULTILINE)
+    if match is None:
+        raise MeetingMinutesError(f"Daily log heading is missing: {heading}")
+    next_heading = re.search(r"^### ", text[match.end() :], flags=re.MULTILINE)
+    insert_at = match.end() + (
+        next_heading.start() if next_heading else len(text[match.end() :])
+    )
+    before = text[:insert_at].rstrip()
+    after = text[insert_at:].lstrip("\n")
+    updated = f"{before}\n\n- Meeting notes: {link}\n"
+    if after:
+        updated += f"\n{after}"
+    atomic_write_text(weekly_path, updated)
+
+
+def finalize_artifacts(
+    job: dict[str, Any], minutes: dict[str, Any], transcript_path: Path
+) -> None:
+    set_phase(job, "writing", "Writing meeting note")
+    stem = choose_canonical_stem(job, minutes)
+    note_path = VAULT_ROOT / "01-logs/meetings" / f"{stem}.md"
+    video_path = MEDIA_ROOT / f"{stem}.mp4"
+    final_transcript = MEDIA_ROOT / f"{stem}.json"
+
+    current_video = Path(str(job.get("recording_path", "")))
+    if not video_path.is_file():
+        if not current_video.is_file():
+            raise MeetingMinutesError(f"Recording is missing: {current_video}")
+        current_video.replace(video_path)
+    job["recording_path"] = str(video_path)
+    job["video_path"] = str(video_path)
+    save_job(job)
+
+    if not final_transcript.is_file():
+        temporary = final_transcript.with_name(
+            f".{final_transcript.name}.{uuid.uuid4().hex}.tmp"
+        )
+        try:
+            shutil.copy2(transcript_path, temporary)
+            temporary.replace(final_transcript)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    atomic_write_text(note_path, render_note(job, minutes, video_path))
+    job["note_path"] = str(note_path)
+    job["transcript_path"] = str(final_transcript)
+    save_job(job)
+    propose_unknown_people(job, minutes)
+    append_weekly_backlink(job, minutes)
+
+
+def notify_job(job: dict[str, Any], *, success: bool) -> None:
+    if job.get("notification_attempted"):
+        return
+    job["notification_attempted"] = True
+    save_job(job)
+    if success:
+        title = "Meeting minutes ready"
+        severity = "success"
+        body = f"{job.get('title', 'Meeting')} — {job.get('note_path', '')}"
+    else:
+        title = "Meeting minutes failed"
+        severity = "error"
+        body = str(job.get("error") or "Unknown meeting pipeline error")[:1000]
+    try:
+        result = subprocess.run(
+            [
+                "discord-notify",
+                "-t",
+                title,
+                "-s",
+                severity,
+                "--body",
+                body,
+            ],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        job["notification_sent"] = result.returncode == 0
+        if result.returncode != 0:
+            job["notification_error"] = result.stderr.strip()[-1000:]
+    except OSError as error:
+        job["notification_sent"] = False
+        job["notification_error"] = str(error)
+    save_job(job)
+
+
+def process_job(job: dict[str, Any]) -> None:
+    with job_lock_path(str(job["job_id"])).open("a+") as job_lock:
+        fcntl.flock(job_lock.fileno(), fcntl.LOCK_EX)
+        job = read_json(job_path(str(job["job_id"])))
+        if job.get("phase") in {"completed", "error"}:
+            return
+        try:
+            recover_staged_recording(job)
+            set_phase(job, "preparing", "Preparing meeting audio")
+            chunks = prepare_chunks(job)
+            transcript_path = transcribe_chunks(job, chunks)
+            minutes = generate_minutes(job, transcript_path)
+            job["title"] = minutes["title"]
+            job["calendar_enrichment"] = {
+                "status": minutes["calendar_status"],
+                "event": minutes["calendar_event"],
+                "mode": "executor-agent-best-effort",
+            }
+            save_job(job)
+            finalize_artifacts(job, minutes, transcript_path)
+            job["phase"] = "completed"
+            job["completed_at"] = now_epoch()
+            save_job(job)
+            update_status(job, label="Meeting note ready")
+            notify_job(job, success=True)
+            shutil.rmtree(WORK_DIR / str(job["job_id"]), ignore_errors=True)
+        except (MeetingMinutesError, OSError, subprocess.SubprocessError) as error:
+            job["phase"] = "error"
+            job["error"] = str(error)
+            save_job(job)
+            update_status(job, label="Meeting failed")
+            notify_job(job, success=False)
+
+
+def work_queue() -> int:
+    ensure_directories()
+    with LOCK_PATH.open("a+") as lock:
+        try:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return 0
+        while True:
+            pending = []
+            for path in sorted(JOBS_DIR.glob("*.json")):
+                try:
+                    job = read_json(path)
+                except MeetingMinutesError:
+                    continue
+                if job.get("phase") not in {"completed", "error"}:
+                    pending.append(job)
+            if not pending:
+                break
+            for job in sorted(
+                pending, key=lambda item: float(item.get("created_at", 0))
+            ):
+                process_job(job)
+    return 0
+
+
+def retry_job(job_id: str) -> dict[str, Any]:
+    job = read_json(job_path(job_id))
+    if job.get("phase") != "error":
+        raise MeetingMinutesError("Only failed jobs can be retried")
+    job["phase"] = "queued"
+    job["error"] = ""
+    job["notification_attempted"] = False
+    job.pop("notification_sent", None)
+    job.pop("notification_error", None)
+    save_job(job)
+    update_status(job, label="Minutes queued")
+    kick_worker()
+    return job
+
+
+def parser() -> argparse.ArgumentParser:
+    root = argparse.ArgumentParser(prog="meeting-minutes")
+    commands = root.add_subparsers(dest="command", required=True)
+    enqueue = commands.add_parser("enqueue")
+    enqueue.add_argument("--recording", required=True)
+    enqueue.add_argument("--started-at", type=float)
+    enqueue.add_argument("--duration-seconds", type=int, default=0)
+    commands.add_parser("work")
+    retry = commands.add_parser("retry")
+    retry.add_argument("job_id")
+    commands.add_parser("status")
+    return root
+
+
+def main() -> int:
+    args = parser().parse_args()
+    try:
+        if args.command == "enqueue":
+            print(json.dumps(enqueue_recording(args), separators=(",", ":")))
+        elif args.command == "work":
+            return work_queue()
+        elif args.command == "retry":
+            print(json.dumps(retry_job(args.job_id), separators=(",", ":")))
+        elif args.command == "status":
+            print(
+                STATUS_PATH.read_text().strip()
+                if STATUS_PATH.is_file()
+                else '{"phase":"idle"}'
+            )
+    except (MeetingMinutesError, OSError, subprocess.SubprocessError) as error:
+        print(json.dumps({"phase": "error", "error": str(error)}), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

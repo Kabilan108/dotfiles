@@ -23,6 +23,7 @@ def runtime_dir() -> Path:
 
 STATE_PATH = runtime_dir() / "recording.json"
 LOG_PATH = runtime_dir() / "gpu-screen-recorder.log"
+MEETING_HELPER = Path.home() / "bin/meeting-minutes"
 
 
 def read_state() -> dict[str, Any]:
@@ -205,7 +206,7 @@ def toggle_pause() -> None:
     print_state(state)
 
 
-def stop_recording() -> None:
+def stop_recording(*, meeting: bool = False) -> None:
     state = require_active()
     pid = int(state["pid"])
     if state.get("paused"):
@@ -235,6 +236,46 @@ def stop_recording() -> None:
     state["size_bytes"] = output.stat().st_size if output.is_file() else 0
     state.pop("pid", None)
     write_state(state)
+    if meeting and output.is_file():
+        result = subprocess.run(
+            [
+                str(MEETING_HELPER),
+                "enqueue",
+                "--recording",
+                str(output),
+                "--started-at",
+                str(state.get("started_at", time.time())),
+                "--duration-seconds",
+                str(state["elapsed_seconds"]),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            details = (result.stderr or result.stdout).strip()
+            if not output.is_file():
+                state["phase"] = "error"
+                state["error"] = (
+                    f"{details or 'Could not confirm meeting queue'}; "
+                    "the recording was already moved into the meeting inbox"
+                )
+                write_state(state)
+                raise RuntimeError(state["error"])
+            raise RuntimeError(details or "Could not queue meeting minutes")
+        try:
+            queued = json.loads(result.stdout)
+        except json.JSONDecodeError as error:
+            raise RuntimeError("Meeting queue returned invalid JSON") from error
+        state.update(
+            {
+                "phase": "meeting_queued",
+                "output": str(queued.get("recording", output)),
+                "meeting_job_id": str(queued.get("job_id", "")),
+                "error": "",
+            }
+        )
+        write_state(state)
     print_state(state)
 
 
@@ -299,7 +340,8 @@ def parser() -> argparse.ArgumentParser:
     )
 
     commands.add_parser("toggle-pause")
-    commands.add_parser("stop")
+    stop = commands.add_parser("stop")
+    stop.add_argument("--meeting", action="store_true")
     commands.add_parser("cancel")
     rename = commands.add_parser("rename")
     rename.add_argument("--title", required=True)
@@ -317,7 +359,7 @@ def main() -> int:
         elif args.command == "toggle-pause":
             toggle_pause()
         elif args.command == "stop":
-            stop_recording()
+            stop_recording(meeting=args.meeting)
         elif args.command == "cancel":
             cancel_recording()
         elif args.command == "rename":

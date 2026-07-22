@@ -14,6 +14,10 @@ ShellRoot {
         coordinator: shell
     }
 
+    MeetingController {
+        id: meetingController
+    }
+
     function panelOpen(panel): bool {
         if (!panel) return false
         if (panel.centerVisible !== undefined) return panel.centerVisible
@@ -95,6 +99,11 @@ ShellRoot {
                     monitor: recordingController.activeMonitor,
                     output: recordingController.outputPath
                 },
+                meeting: {
+                    phase: meetingController.phase,
+                    label: meetingController.label,
+                    note: meetingController.notePath
+                },
                 panels: {
                     audio: shell.panelOpen(audioMixer),
                     bluetooth: shell.panelOpen(bluetoothPanel),
@@ -123,6 +132,7 @@ ShellRoot {
         id: topBar
         niri: niriState
         recording: recordingController
+        meeting: meetingController
         audioPanel: audioMixer
         bluetoothPanel: bluetoothPanel
         networkPanel: networkPanel

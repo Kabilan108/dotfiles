@@ -254,6 +254,7 @@ Singleton {
         battery_android_frame_full: "\uf24f",
         electrical_services: "\uf102",
         screen_record: "\uf679",
+        wand_stars: "wand_stars",
         desktop_windows: "\ue30c",
         mouse: "\ue323",
         stop: "\ue047",

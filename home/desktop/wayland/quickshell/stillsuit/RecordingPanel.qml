@@ -586,6 +586,16 @@ Scope {
                     IconButton {
                         implicitWidth: 42
                         implicitHeight: 42
+                        icon: Theme.icon.wand_stars
+                        iconColor: Theme.accent
+                        iconSize: 23
+                        quiet: true
+                        onClicked: root.controller.finishAsMeeting()
+                    }
+
+                    IconButton {
+                        implicitWidth: 42
+                        implicitHeight: 42
                         icon: Theme.icon.stop
                         iconColor: Theme.urgent
                         iconSize: 23

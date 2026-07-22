@@ -192,6 +192,10 @@ Scope {
         runAction("stop", [helperPath, "stop"])
     }
 
+    function finishAsMeeting() {
+        runAction("meeting", [helperPath, "stop", "--meeting"])
+    }
+
     function cancel() {
         runAction("cancel", [helperPath, "cancel"])
     }
@@ -271,6 +275,11 @@ Scope {
             if (exitCode === 0 && completedAction === "rename" && root.dismissAfterRename) {
                 root.dismissAfterRename = false
                 root.dismiss()
+                return
+            }
+            if (exitCode === 0 && completedAction === "meeting") {
+                root.visible = false
+                root.runAction("dismiss", [root.helperPath, "dismiss"])
                 return
             }
             if (exitCode === 0 && (completedAction === "start" || completedAction === "cancel")) {

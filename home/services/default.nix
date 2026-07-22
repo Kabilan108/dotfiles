@@ -5,6 +5,7 @@
     ./cliproxyapi.nix
     ./codex-desktop.nix
     ./install-tools.nix
+    ./meeting-minutes.nix
     ./mic-volume-enforce.nix
     ./moberg.nix
     ./spotify-cache.nix
@@ -18,6 +19,7 @@
     backup.enable = true;
     cliproxyapi.enable = true;
     install-tools.enable = true;
+    meeting-minutes.enable = true;
     spotify-cache.enable = true;
     update-agents.enable = true;
   };
