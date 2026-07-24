@@ -147,16 +147,25 @@
 
     systemd.tmpfiles.rules = [
       "L+ /usr/bin/bwrap - - - - ${pkgs.bubblewrap}/bin/bwrap"
+      "d /tmp 1777 root root 7d"
+      "d /var/lib/systemd/coredump 0755 root root 7d"
+      "d /vault/userdata/media 0755 kabilan users - -"
     ];
 
     systemd.coredump.settings.Coredump = {
       Storage = "external";
       Compress = true;
-      ProcessSizeMax = "4G";
-      ExternalSizeMax = "2G";
-      MaxUse = "8G";
-      KeepFree = "8G";
+      ProcessSizeMax = "2G";
+      ExternalSizeMax = "1G";
+      MaxUse = "1G";
+      KeepFree = "10G";
     };
+
+    services.journald.extraConfig = ''
+      SystemMaxUse=1G
+      RuntimeMaxUse=256M
+      MaxRetentionSec=14day
+    '';
 
     time.timeZone = "America/New_York";
     i18n.defaultLocale = "en_US.UTF-8";

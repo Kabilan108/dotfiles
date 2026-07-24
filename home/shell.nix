@@ -78,6 +78,7 @@ in
     ".npmrc".source = cfgLink "npm/npmrc";
 
     "bin".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/bin";
+    "media".source = config.lib.file.mkOutOfStoreSymlink "/vault/userdata/media";
   };
 
   home.file.".sessionizer".text = ''

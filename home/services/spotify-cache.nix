@@ -20,9 +20,9 @@ in
     };
 
     systemd.user.timers.clean-spotify-cache = {
-      Unit.Description = "Weekly Spotify cache cleanup";
+      Unit.Description = "Daily Spotify cache cleanup";
       Timer = {
-        OnCalendar = "Mon 09:00";
+        OnCalendar = "daily";
         Persistent = true;
       };
       Install.WantedBy = [ "timers.target" ];
