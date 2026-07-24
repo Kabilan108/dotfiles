@@ -77,6 +77,7 @@ OUTPUT_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
     "required": [
         "title",
+        "summary",
         "slug",
         "context",
         "project",
@@ -91,6 +92,7 @@ OUTPUT_SCHEMA: dict[str, Any] = {
     ],
     "properties": {
         "title": {"type": "string"},
+        "summary": {"type": "string"},
         "slug": {"type": "string"},
         "context": {
             "type": "string",
@@ -860,13 +862,19 @@ Tony (Tony Kabilan Okeke) is the vault owner and is a participant in these meeti
 
 Return only the JSON object required by the supplied schema. Use a short human title and a filesystem-safe semantic slug without a date or context prefix.
 
+Write a `summary`: a tight two-to-three-sentence abstract of what actually happened — the problem worked on, the key finding or outcome, and the immediate next step. It leads the note and is also stored in frontmatter for agents scanning at a glance, so make it self-contained and specific, name the concrete subject, and skip filler openers like "the team discussed". Keep it to a single paragraph with no line breaks.
+
 Choose exactly one context from moberg, xploit, personal, or tooling. When a calendar candidate is matched, the name of the calendar it came from is strong evidence for the context (an event on a "Moberg" calendar is a moberg meeting); otherwise infer from attendees and transcript subject matter.
 
-`project` is a routing key from the project manifest below, NOT a meeting title: either the bare context (`moberg`) or `<context>/<subproject>` where the subproject comes from the manifest's tag taxonomy (for example `moberg/eboost`, `moberg/regulatory`, `moberg/qeeg`). Choose the most specific subproject the transcript supports, and fall back to the bare context when no subproject clearly applies. The descriptive name of the meeting belongs in `title`. List only attendees supported by the transcript or by a confidently matched calendar event; exclude declined invitees. Notes should capture material technical or operational context, and decisions only explicit conclusions. Do not include Markdown bullet prefixes in array items.
+`project` is a routing key from the project manifest below, NOT a meeting title: either the bare context (`moberg`) or `<context>/<subproject>` where the subproject comes from the manifest's tag taxonomy (for example `moberg/eboost`, `moberg/regulatory`, `moberg/qeeg`). Choose the most specific subproject the transcript supports, and fall back to the bare context when no subproject clearly applies. The descriptive name of the meeting belongs in `title`. List only attendees supported by the transcript or by a confidently matched calendar event; exclude declined invitees. Notes should capture material technical or operational context, and decisions only explicit conclusions.
+
+Preserve concrete specifics verbatim instead of paraphrasing them away: exact file names and paths, function/class/variable names, line numbers, error messages, config keys, flag names, numeric thresholds, versions, and other identifiers. These are precisely the details that cannot be reconstructed later, so favor keeping one precise term over a smoother sentence. When a specific was clearly spoken but garbled by transcription (for example "region 550" for "line 550", or a mangled symbol name), preserve it and mark it approximate rather than dropping it. Do not invent identifiers that were not stated. Do not include Markdown bullet prefixes in array items.
 
 Each follow_up needs an owner and a concrete action. Set owner to "Tony" only when Tony himself committed to the action or it is unambiguously his to do; use the responsible person's name when someone else owns it; use "team" when a group owns it and no individual was named. Do not attribute an action to Tony merely because it was discussed in his presence or because no owner was stated — an unowned item is "team". Record only actions someone actually committed to, not every idea raised.
 
-Use the timestamped transcript to identify optional screenshot candidates. Set visual_mode to none when no screenshot would materially improve the note, ordinary for a typical meeting, or visual_review when the meeting substantially reviews code, architecture, diagrams, implementation details, errors, or changing UI states. Candidate timestamps must point to moments when the speakers are likely discussing visible content. Reject talking heads, generic screen sharing, and visuals that would merely repeat the prose. Order candidates from most to least valuable. Return at most 3 candidates for an ordinary meeting and at most 8 for a visual_review. Every candidate — including the first — must capture a technical artifact or state that is materially distinct from every other candidate. Several views of the same document, spreadsheet, dashboard, or screen are ONE candidate, not several: pick the single most informative moment. Prefer returning fewer candidates over filling the limit. note_index is the zero-based index of the note bullet the image would support. A later visual pass will inspect actual frames and may reject every candidate.
+Use the timestamped transcript to identify optional screenshot candidates. The bar is information that is durable and hard to recover from prose alone: on-screen code, a stack trace or error dialog, an architecture drawing or diagram, a configuration, or a shared document whose specific content — not merely its existence — matters. Screen-sharing by itself is never a reason to capture; a screenshot earns its place only when the visible artifact carries specifics the notes cannot fully state. Many meetings warrant zero screenshots, and returning none is the correct and common answer — strongly preferred over filling the limit. This is a judgment call about information value, not a per-meeting expectation to satisfy.
+
+Set visual_mode to none when no screenshot would materially improve the note, ordinary for a typical meeting, or visual_review when the meeting substantially works through code, architecture, diagrams, implementation details, errors, or changing UI states over an extended stretch. Candidate timestamps must point to moments when the speakers are discussing visible content — especially deictic moments ("right here", "this line", "that function", "this is where it breaks") where the durable detail lives on the screen rather than in the words, since those are exactly the specifics the audio transcript loses. Reject talking heads, generic screen-sharing with no specific artifact, and visuals that would merely repeat the prose. Order candidates from most to least valuable. Return at most 3 candidates for an ordinary meeting and at most 8 for a visual_review. Every candidate — including the first — must capture a technical artifact or state that is materially distinct from every other candidate. Several views of the same document, spreadsheet, dashboard, or screen are ONE candidate, not several: pick the single most informative moment. Prefer returning fewer candidates over filling the limit. note_index is the zero-based index of the note bullet the image would support. A later visual pass will inspect the actual frames, transcribe the durable on-screen specifics into the caption, and may reject every candidate.
 
 Calendar candidates were gathered separately without exposing the transcript to tools. Use a candidate only when its timing, title, or attendees plausibly fit the transcript.
 
@@ -908,6 +916,7 @@ def validate_agent_output(payload: dict[str, Any]) -> dict[str, Any]:
     title = " ".join(str(payload.get("title") or "").split())
     if not title:
         raise MeetingMinutesError("Meeting agent returned an empty title")
+    summary = " ".join(str(payload.get("summary") or "").split())
     calendar_status = str(payload.get("calendar_status") or "").strip().lower()
     if calendar_status not in {"matched", "no_match", "unavailable"}:
         raise MeetingMinutesError(
@@ -971,6 +980,7 @@ def validate_agent_output(payload: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "title": title,
+        "summary": summary,
         "slug": slugify(str(payload.get("slug") or title)),
         "context": context,
         "project": normalize_project(payload.get("project"), context),
@@ -1112,7 +1122,9 @@ def screenshot_review_prompt(
     )
     return f"""Continue reviewing the same meeting. The attached images are transcript-guided frame candidates from the recording. Return only the JSON object required by the supplied schema.
 
-Select at most one frame for a candidate, and reject the candidate by omitting it when the frames do not materially improve the associated note. Keep only legible code, architecture, diagrams, errors, meaningful UI states, or other distinct technical artifacts. Reject talking heads, blank or transitional screens, generic application chrome, duplicated content, and visuals whose useful information is already fully conveyed by the note. Prefer the clearest frame. Captions must be short, factual, and understandable beside the associated note bullet without claiming details that are not visible.
+Select at most one frame for a candidate, and reject the candidate by omitting it when the frames do not materially improve the associated note. Keep only legible code, architecture, diagrams, errors, meaningful UI states, or other distinct technical artifacts. Reject talking heads, blank or transitional screens, generic application chrome, duplicated content, and visuals whose useful information is already fully conveyed by the note. Prefer the clearest, most complete frame.
+
+Captions must be short and factual and must never claim details that are not visible. When the chosen frame shows code, an error, a stack trace, or a configuration/document, transcribe the durable specifics into the caption verbatim — file paths, function/class/variable names, line numbers, exact error text, and key values — because those exact tokens are the reason the screenshot is worth keeping. Keep the caption terse, but do not paraphrase a precise identifier into a vaguer word (write the actual `path/to/file.py:550` or symbol name, not "the reload function"). Transcribe only what is legibly on screen; never guess at text you cannot read.
 
 This meeting is classified as {minutes["visual_mode"]}. Select no more than {limit} screenshots. Every selection — including the first — must show a technical artifact or state that is materially distinct from every other selection: if two candidates show the same document, spreadsheet, dashboard, or screen (even scrolled to different rows, or at different moments), keep only the single most informative one and reject the rest. It is valid and preferred to return an empty selection when none are useful; never fill the limit for its own sake.
 
@@ -1400,11 +1412,14 @@ def render_note(
         return "".join(rendered)
 
     meeting_date = datetime.fromtimestamp(float(job["recording_started_at"])).date()
+    summary = str(minutes["summary"])
+    summary_block = f"## summary\n\n{summary}\n\n" if summary else ""
     return (
         "---\n"
         f"date: {meeting_date.isoformat()}\n"
         f"project: {yaml_scalar(str(minutes['project']))}\n"
         f"{attendee_yaml}"
+        f"summary: {yaml_scalar(summary)}\n"
         "source: pipeline\n"
         f"recording: {yaml_scalar(str(video_path))}\n"
         f"pipeline_job: {yaml_scalar(str(job['job_id']))}\n"
@@ -1412,6 +1427,7 @@ def render_note(
         f"codex_session: {yaml_scalar(str(job['codex_session']))}\n"
         "---\n"
         f"# {minutes['title']}\n\n"
+        f"{summary_block}"
         "## notes\n\n"
         f"{note_bullets(minutes['notes'])}\n"
         "## decisions\n\n"

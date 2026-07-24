@@ -47,7 +47,7 @@ The codebase is ALWAYS the more accurate source for how code works right now. A 
 ## Meeting notes
 
 - Location: `01-logs/meetings/YYYY-MM-DD-<context>-<slug>.md` (context = moberg/xploit/personal/...). One note per meeting, vault-wide — no per-project meeting dirs.
-- Frontmatter contract: `date`, `project` (manifest taxonomy, e.g. `moberg/eboost` — this is how meetings route to projects, NOT tags), `attendees` (plain names; resolve against the project's people.md — no wikilinks needed), `source: manual|pipeline`, `recording` (artifact path when pipeline-written). Template: `templates/meeting-note.md`.
+- Frontmatter contract: `date`, `project` (manifest taxonomy, e.g. `moberg/eboost` — this is how meetings route to projects, NOT tags), `attendees` (plain names; resolve against the project's people.md — no wikilinks needed), `summary` (a tight 2–3 sentence abstract of what happened — problem, key finding/outcome, next step; grep surface for agents, and also opens the body as a `## summary` section above `## notes`), `source: manual|pipeline`, `recording` (artifact path when pipeline-written). Template: `templates/meeting-note.md`.
 - Body: `## notes` / `## decisions` / `## follow-ups`. Follow-up checkboxes are query-visible (01-logs is not excluded) — tag them normally; the daily sweep files durable ones into tasks.md.
 - Pipeline exception (meeting-minutes agent): it may APPEND one backlink bullet under today's heading in the weekly log — append-only, never edit existing text. This is the only sanctioned automated write to a weekly log.
 - Unknown names in pipeline-written `attendees` → propose a people.md addition via `_pipeline/proposals/`, don't add directly.
