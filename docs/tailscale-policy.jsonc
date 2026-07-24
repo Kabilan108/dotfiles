@@ -99,16 +99,16 @@
 	"tests": [
 		{
 			"src":    "jacurutu",
-			"accept": ["sietch:22", "sietch:3773", "tleilax:22"],
+			"accept": ["sietch:22", "sietch:443", "tleilax:22"],
 		},
 		{
 			"src":  "sietch",
 			"accept": ["tleilax:22"],
-			"deny": ["jacurutu:22", "jacurutu:3773"],
+			"deny": ["jacurutu:22", "jacurutu:443"],
 		},
 		{
 			"src":    "pixel-9",
-			"accept": ["sietch:3773", "sietch:8096", "jacurutu:3773"],
+			"accept": ["sietch:443", "sietch:8096", "jacurutu:443"],
 		},
 	],
 }

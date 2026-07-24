@@ -24,7 +24,6 @@
         interfaces."tailscale0" = {
           allowedTCPPorts = [
             3000
-            3773
             8000
             8390
             5173
@@ -86,7 +85,10 @@
         alsa.support32Bit = true;
         pulse.enable = true;
       };
-      tailscale.enable = true;
+      tailscale = {
+        enable = true;
+        extraSetFlags = [ "--operator=kabilan" ];
+      };
       udisks2.enable = true;
     };
 

@@ -30,8 +30,6 @@ in
   };
 
   config = lib.mkIf (cfg.tailnetServices != { }) {
-    services.tailscale.extraSetFlags = [ "--operator=kabilan" ];
-
     virtualisation.oci-containers.backend = "docker";
 
     # The services config file format (`serve set-config`) cannot express TLS

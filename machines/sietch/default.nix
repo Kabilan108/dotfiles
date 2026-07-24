@@ -28,7 +28,8 @@
 
   home-manager.users.kabilan = {
     dotfiles.services = {
-      agent-server.enable = true;
+      codex-remote-control.enable = true;
+      t3-code.enable = true;
       wayvnc.enable = true;
     };
 

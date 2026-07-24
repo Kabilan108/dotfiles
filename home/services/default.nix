@@ -1,15 +1,16 @@
 {
   imports = [
-    ./agent-server.nix
     ./backup.nix
     ./cliproxyapi.nix
     ./codex-desktop.nix
+    ./codex-remote-control.nix
     ./install-tools.nix
     ./meeting-minutes.nix
     ./mic-volume-enforce.nix
     ./moberg.nix
     ./spotify-cache.nix
     ./storage-maintenance.nix
+    ./t3-code.nix
     ./tracer-digest.nix
     ./tracer-sync.nix
     ./update-agents.nix

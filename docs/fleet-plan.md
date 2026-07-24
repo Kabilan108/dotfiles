@@ -77,7 +77,7 @@ tleilax to `hosts`. Execute while at jacurutu with the old policy saved.
 
 ### Phase 4 — t3 service polish [done 2026-07-12]
 
-`agent-server.t3Version` module option pins t3 (default 0.0.27; bump
+`t3-code.t3Version` module option pins t3 (default 0.0.27; bump
 deliberately). Docs review: t3 has no dedicated tailscale integration — only
 `--host` binding (already done) and an `--auth-token` flag; T3 Connect not
 shipped yet. Keeping the raw tailnet-IP:3773 bind. Optional follow-ups:

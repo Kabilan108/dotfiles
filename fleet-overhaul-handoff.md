@@ -67,7 +67,7 @@ discord-notify CLI verified end-to-end; Executor stays locked down by design.
    cannot import `../lib/fleet.nix` — authorized_keys/bin/config are
    hand-synced mirrors (marked with comments). Structural fix when Pi work
    gets serious: merge tleilax into the main flake or move the flake root.
-7. **t3 follow-ups**: bump `agent-server.t3Version` deliberately past 0.0.27
+7. **t3 follow-ups**: bump `t3-code.t3Version` deliberately past 0.0.27
    when the connection issue is fixed upstream; optionally test fronting as
    a Tailscale Service (`svc:t3`) — depends on the desktop/mobile app
    pairing over https/wss; watch for the T3 Connect + mobile app releases.
