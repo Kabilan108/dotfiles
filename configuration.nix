@@ -123,7 +123,6 @@
       # media utils
       ffmpeg-full
       imagemagick
-      jmtpfs
       libmtp
 
       # system utils
