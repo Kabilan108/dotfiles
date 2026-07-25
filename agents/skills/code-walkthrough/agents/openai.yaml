@@ -1,5 +1,6 @@
 interface:
   display_name: "Code Walkthrough"
-  short_description: "Walkthrough code changes interactively in Neovim"
+  short_description: "Guide source and diff tours inside Neovim"
+  default_prompt: "Use $code-walkthrough to guide me through this code or Git diff in Neovim."
 policy:
   allow_implicit_invocation: false
