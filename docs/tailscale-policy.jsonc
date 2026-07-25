@@ -40,6 +40,10 @@
 		// grants — only tailnet-bound traffic is governed here.)
 		{"src": ["sietch"], "dst": ["tleilax"], "ip": ["*"]},
 
+		// Wireless ADB uses randomized pairing and connection ports. Allow
+		// sietch to initiate TCP connections to the Pixel, but nothing else.
+		{"src": ["sietch"], "dst": ["pixel-9"], "ip": ["tcp:*"]},
+
 		// Uncomment if syncthing stops syncing after the allow-all removal:
 		// jacurutu-side dialing usually suffices, but if sietch must
 		// initiate, permit exactly the syncthing port and nothing else.
@@ -103,7 +107,7 @@
 		},
 		{
 			"src":  "sietch",
-			"accept": ["tleilax:22"],
+			"accept": ["tleilax:22", "pixel-9:40000"],
 			"deny": ["jacurutu:22", "jacurutu:443"],
 		},
 		{
