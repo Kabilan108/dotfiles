@@ -100,6 +100,8 @@ Send corrections or next steps to the same session instead of starting a cold ru
 codex exec resume "$SESSION_ID" -o "$REPORT" "<correction or next step>"
 ```
 
+`resume` accepts a much narrower flag set than `codex exec`: it rejects `-C` (the working directory must come from the launch context — start the tmux session with `-c <repo>` or `cd` first) and rejects `-s` (pass sandbox settings as config overrides instead: `-c sandbox_mode="workspace-write"`). `-c` and `-o` work as normal.
+
 ## Review After Codex
 
 Always inspect Codex's diff before telling the user the work is done. Revert only Codex-created mistakes when you are sure they are not user changes.
