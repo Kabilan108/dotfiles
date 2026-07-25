@@ -1,7 +1,6 @@
 ---
 name: code-walkthrough
-description: Guide a visible, verified code walkthrough in Neovim with Terminal Control and Navi, optionally recording the presentation with OBS or retaining terminal evidence. Use when the user wants an agent-led code tour, code-along, live source explanation, or recorded terminal walkthrough.
-disable-model-invocation: true
+description: Guide a visible, verified source or Git-diff walkthrough in Neovim with Terminal Control and Navi, optionally using Diffview, OBS recording, or retained terminal evidence. Use when the user wants an agent-led code tour, code-along, commit or branch diff review, live source explanation, or recorded terminal walkthrough.
 ---
 
 # Code Walkthrough
@@ -33,7 +32,7 @@ Do not combine an overview, failure diagnosis, implementation tour, and fix into
 
 ## Author One Immutable Tour
 
-Create a JSON file outside the source tree when the tour is temporary. Use literal patterns when they are unique and stable; use line numbers only when exact positions are the point.
+Create a JSON file outside the source tree when the tour is temporary. Use literal patterns when they are unique and stable; use line numbers only when exact positions are the point. A stop without an end anchor selects one line; `end_pattern` or `end_line` selects the complete inclusive range.
 
 ```json
 [
@@ -76,15 +75,65 @@ The tour is complete when every stop resolves, the first stop is visible, and it
 Let the viewer control the pace unless asked to drive:
 
 ```text
-]n           next stop
-[n           previous stop
-<leader>np  pick a stop
-<leader>nc  clear the tour
+Tab        next stop
+Shift-Tab  previous stop
+p          pick a stop
+q          clear the tour
 ```
 
-These are recommended mappings, not Navi defaults. If they are unavailable, use `:NaviNext`, `:NaviPrev`, `:NaviPick`, and `:NaviClear`.
+These mappings may be configured to exist only while a tour is active. If they are unavailable, use `:NaviNext`, `:NaviPrev`, `:NaviPick`, and `:NaviClear`.
+
+Oversized source ranges may start with their internal folds recursively closed so the annotation remains visible. Let the viewer use `zo` or `zO` to reveal the structures they want to inspect. Diffview tours remain unfolded.
 
 Pause for questions without replacing the active tour. A follow-up explanation may focus the current range or inspect output, but a different conceptual journey belongs in a later tour.
+
+## Walk Through A Diff
+
+Resolve the comparison before writing notes:
+
+```bash
+git rev-parse --verify '<base>^{commit}'
+git diff --no-ext-diff --find-renames --histogram <base> <target> -- <paths>
+```
+
+For a commit or branch target, resolve it separately with `git rev-parse --verify '<target>^{commit}'`. For tracked worktree changes, use the sentinel `WORKTREE` in the tour specification and omit the target from the inspection command:
+
+```bash
+git diff --no-ext-diff --find-renames --histogram <base> -- <paths>
+```
+
+Never switch the user's branch or disturb a dirty worktree to prepare a review.
+
+Inspect the complete diff, then select only the hunks needed for one conceptual explanation. Prefer exact commit SHAs in the retained specification. Create a diff-tour JSON object with repository-relative paths:
+
+```json
+{
+  "repo": "/path/to/repository",
+  "base": "base-sha",
+  "target": "target-sha",
+  "stops": [
+    {
+      "file": "src/example.ts",
+      "pattern": "export function changed",
+      "end_pattern": "return result",
+      "base_pattern": "export function old",
+      "base_end_pattern": "return oldResult",
+      "message": "This range is the changed mechanism."
+    }
+  ]
+}
+```
+
+```vim
+:NaviDiffviewLoad /absolute/path/to/diff-tour.json
+```
+
+- Use Diffview for side-by-side source with native add, change, delete, and character-level highlighting. Anchor the annotated side with the normal source fields. Add `"side": "base"` to explain removed code; the default side is `"target"`.
+- For a mixed replacement, keep the note on the target side and add `base_pattern`/`base_end_pattern` or `base_line`/`base_end_line`. Navi then focuses the corresponding base and target ranges together.
+- Do not combine `"side": "base"` with `base_pattern` or `base_line`; dual-range base anchors are valid only when the annotated side is the target.
+- Leave the Diffview file panel hidden initially. The viewer can reopen it when file navigation is more useful than comparison width.
+- Preserve Git's diff colors. Navi's focus treatment should identify the current range without replacing add/delete/change backgrounds.
+- Verify every stop in Diffview. Return the tour to stop one before handing control to the viewer.
 
 ## Record With OBS
 

@@ -7,7 +7,19 @@ return {
   'numToStr/Comment.nvim',
   'nvim-lua/plenary.nvim',
   'christoomey/vim-tmux-navigator',
-  'kitlangton/navi.nvim',
+  {
+    'Kabilan108/navi.nvim',
+    opts = {
+      mappings = {
+        next = '<Tab>',
+        prev = '<S-Tab>',
+        pick = 'p',
+        clear = 'q',
+      },
+      hide_diagnostics = { 'lua' },
+      fold_oversized_ranges = true,
+    },
+  },
   {
     'nvim-lualine/lualine.nvim',
     event = 'VeryLazy',
