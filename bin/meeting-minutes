@@ -1247,11 +1247,21 @@ def codex_prompt(transcript: dict[str, Any], calendar: dict[str, Any]) -> str:
     manifest = read_optional(VAULT_ROOT / "04-projects/manifest.md")
     people = all_people_rosters()
     rendered_transcript = render_transcript_for_prompt(transcript)
-    transcript_heading = (
-        "Speaker-tagged transcript:"
-        if speaker_tagged_segments(transcript) is not None
-        else "Timestamped transcript JSON:"
-    )
+    if speaker_tagged_segments(transcript) is not None:
+        transcript_heading = (
+            "The transcript below is speaker-labeled with anonymous "
+            "SPEAKER_NN labels from audio diarization. Map each label to an "
+            "attendee name wherever the content and turn-taking make the "
+            "identity unambiguous (self-introductions, being addressed by "
+            "name, who owns which work); otherwise keep the raw label. Use "
+            "the mapping to sharpen attribution of decisions, findings, and "
+            "follow-up ownership - it does not need to appear as per-line "
+            "bylines in the note. Diarization can split one person across "
+            "two labels or briefly mislabel cross-talk, so weigh content "
+            "over labels when they conflict.\n\nSpeaker-tagged transcript:"
+        )
+    else:
+        transcript_heading = "Timestamped transcript JSON:"
     return f"""You are the Meeting Minutes Agent. Convert the supplied timestamped transcript into concise structured meeting minutes for Tony's Coppermind vault.
 
 Tony (Tony Kabilan Okeke) is the vault owner and is a participant in these meetings, never a third party to describe.
