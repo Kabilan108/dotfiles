@@ -821,6 +821,7 @@ def valid_alignment(payload: dict[str, Any]) -> bool:
         not isinstance(speakers, list)
         or not all(isinstance(speaker, str) for speaker in speakers)
         or not isinstance(segments, list)
+        or not segments
     ):
         return False
     return all(
@@ -1241,6 +1242,7 @@ def render_transcript_for_prompt(transcript: dict[str, Any]) -> str:
             turns[-1][2].append(text)
         else:
             turns.append((speaker, start, [text]))
+
     def timestamp(seconds: float) -> str:
         minutes, secs = divmod(int(seconds), 60)
         hours, minutes = divmod(minutes, 60)
@@ -2075,7 +2077,6 @@ def process_job(job: dict[str, Any]) -> None:
             notify_job(job, success=True)
             shutil.rmtree(WORK_DIR / str(job["job_id"]), ignore_errors=True)
         except (
-            AssertionError,
             MeetingMinutesError,
             OSError,
             subprocess.SubprocessError,
