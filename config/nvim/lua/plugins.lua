@@ -456,23 +456,29 @@ return {
   -- treesitter
   {
     'nvim-treesitter/nvim-treesitter',
+    branch = 'main',
+    lazy = false,
     build = ':TSUpdate',
-    event = { 'BufReadPost', 'BufNewFile' },
     config = function()
-      local configs = require 'nvim-treesitter.configs'
-      configs.setup {
-        auto_install = true,
-        sync_install = false,
-        highlight = { enable = true },
-        indent = { enable = true },
-        ensure_installed = {
-          'bash',
-          'lua',
-          'markdown',
-          'markdown_inline',
-          'python',
-        },
+      require('nvim-treesitter').install {
+        'bash',
+        'lua',
+        'markdown',
+        'markdown_inline',
+        'python',
       }
+
+      vim.treesitter.language.register('bash', 'sh')
+
+      local group = vim.api.nvim_create_augroup('treesitter', { clear = true })
+      vim.api.nvim_create_autocmd('FileType', {
+        group = group,
+        callback = function()
+          if pcall(vim.treesitter.start) then
+            vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+          end
+        end,
+      })
     end,
   },
 
