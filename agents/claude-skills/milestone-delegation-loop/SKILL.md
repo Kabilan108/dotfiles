@@ -12,7 +12,17 @@ review, lead adjudication, one commit per milestone.
 ## Per milestone
 
 1. **Implement** — delegate to codex (see codex-implementation for mechanics;
-   always launch long runs in detached tmux). Pick effort by the work's shape:
+   long runs go in detached tmux so they survive harness restarts). tmux exits
+   fire NO notification: immediately after launching, arm a harness-tracked
+   watcher (`run_in_background` Bash until-loop that exits when the `-o`
+   report file appears OR the tmux session dies) — the loop orchestrator has
+   stalled overnight on a completed run because this watcher wasn't armed.
+   After any harness/session restart, re-check every in-flight run and re-arm
+   watchers (tmux survives the restart; watchers don't). When invoking
+   `codex exec` outside tmux, always redirect `< /dev/null` — with an
+   inherited non-tty stdin it blocks on "Reading additional input from
+   stdin..." before doing any work. Check liveness by process/tmux session,
+   never by "output file exists yet". Pick effort by the work's shape:
    - `medium` for well-specced work — the default, even when it looks mechanical
    - `high` for larger or open-ended changesets
    - `low` only for genuinely trivial grunt work; low reliably misses subtle
