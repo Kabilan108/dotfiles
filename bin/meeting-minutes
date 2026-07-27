@@ -623,6 +623,8 @@ def valid_diarization(payload: dict[str, Any]) -> bool:
         or not isinstance(turns, list)
     ):
         return False
+    if not turns:
+        return False
     return all(
         isinstance(turn, dict)
         and isinstance(turn.get("start"), (int, float))
@@ -706,8 +708,8 @@ def diarize_recording(job: dict[str, Any]) -> dict[str, Any]:
     endpoint = siren_audio_endpoint("diarize")
     temporary = destination.with_name(f".{destination.name}.{uuid.uuid4().hex}.tmp")
     script = (
-        "curl --fail-with-body --silent --show-error --retry 2 "
-        '--retry-delay 2 --max-time 1800 --output "$2" '
+        "curl --fail-with-body --silent --show-error "
+        '--max-time 1800 --output "$2" '
         '-H "Authorization: Bearer ${SIREN_API_KEY}" '
         '-F "file=@$1" "$3"'
     )
@@ -1228,18 +1230,26 @@ def render_transcript_for_prompt(transcript: dict[str, Any]) -> str:
     if segments is None:
         return json.dumps(transcript, ensure_ascii=False)
 
-    turns: list[tuple[str, list[str]]] = []
+    turns: list[tuple[str, float, list[str]]] = []
     for segment in segments:
         speaker = str(segment["speaker"]).strip()
         text = str(segment.get("text") or "").strip()
         if not text:
             continue
+        start = float(segment.get("start") or 0.0)
         if turns and turns[-1][0] == speaker:
-            turns[-1][1].append(text)
+            turns[-1][2].append(text)
         else:
-            turns.append((speaker, [text]))
+            turns.append((speaker, start, [text]))
+    def timestamp(seconds: float) -> str:
+        minutes, secs = divmod(int(seconds), 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours:
+            return f"{hours}:{minutes:02d}:{secs:02d}"
+        return f"{minutes}:{secs:02d}"
     return "\n".join(
-        f"{speaker}: {' '.join(texts)}" for speaker, texts in turns
+        f"[{timestamp(start)}] {speaker}: {' '.join(texts)}"
+        for speaker, start, texts in turns
     )
 
 
