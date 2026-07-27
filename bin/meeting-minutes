@@ -41,6 +41,7 @@ SIREN_MODEL = os.environ.get(
     "MEETING_MINUTES_SIREN_MODEL",
     "nvidia/parakeet-tdt-0.6b-v2",
 )
+DIARIZATION_ENABLED = os.environ.get("MEETING_MINUTES_DIARIZE", "1") != "0"
 CHUNK_SECONDS = int(os.environ.get("MEETING_MINUTES_CHUNK_SECONDS", "600"))
 CODEX_MODEL = os.environ.get("MEETING_MINUTES_CODEX_MODEL", "gpt-5.6-terra")
 CODEX_REASONING_EFFORT = os.environ.get(
@@ -261,6 +262,12 @@ def update_status(
         "error": job.get("error", ""),
         "updated_at": now_epoch(),
     }
+    if "diarization" in job:
+        payload["diarization"] = job["diarization"]
+    if "skipped_transcription_chunks" in job:
+        payload["skipped_transcription_chunks"] = job[
+            "skipped_transcription_chunks"
+        ]
     if phase == "completed":
         payload["visible_until"] = now_epoch() + COMPLETION_VISIBLE_SECONDS
     elif phase == "error":
@@ -396,23 +403,43 @@ def run_checked(
 
 
 def probe_duration(recording: Path) -> float:
+    for entries in ("format=duration", "stream=duration"):
+        result = run_checked(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-select_streams",
+                "a:0",
+                "-show_entries",
+                entries,
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(recording),
+            ],
+            timeout=60,
+        )
+        try:
+            return float(result.stdout.strip().splitlines()[0])
+        except (ValueError, IndexError):
+            continue
     result = run_checked(
         [
-            "ffprobe",
-            "-v",
-            "error",
-            "-show_entries",
-            "format=duration",
-            "-of",
-            "default=noprint_wrappers=1:nokey=1",
+            "ffmpeg",
+            "-hide_banner",
+            "-i",
             str(recording),
+            "-f",
+            "null",
+            "-",
         ],
-        timeout=60,
+        timeout=300,
     )
-    try:
-        return float(result.stdout.strip())
-    except ValueError as error:
-        raise MeetingMinutesError("ffprobe returned an invalid duration") from error
+    match = re.findall(r"time=(\d+):(\d\d):(\d\d(?:\.\d+)?)", result.stderr or "")
+    if match:
+        hours, minutes, seconds = match[-1]
+        return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+    raise MeetingMinutesError("ffprobe returned an invalid duration")
 
 
 def prepare_chunks(job: dict[str, Any]) -> list[Path]:
@@ -475,6 +502,57 @@ def prepare_chunks(job: dict[str, Any]) -> list[Path]:
     return sorted(chunks.glob("*.flac"))
 
 
+def decode_duration(audio: Path) -> float:
+    """Measure audio length by decoding; segment-muxer FLAC headers can lie."""
+    result = run_checked(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-i",
+            str(audio),
+            "-f",
+            "null",
+            "-",
+        ],
+        timeout=300,
+    )
+    match = re.findall(r"time=(\d+):(\d\d):(\d\d(?:\.\d+)?)", result.stderr or "")
+    if not match:
+        return 0.0
+    hours, minutes, seconds = match[-1]
+    return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+
+
+def filter_degenerate_tail_chunks(
+    job: dict[str, Any], chunks: list[Path]
+) -> list[Path]:
+    usable = list(chunks)
+    if usable:
+        chunk = usable[-1]
+        duration = decode_duration(chunk)
+        if duration < 1.0:
+            usable.pop()
+            job["skipped_transcription_chunks"] = [
+                {
+                    "chunk": chunk.name,
+                    "duration": round(duration, 3),
+                    "reason": "shorter than 1 second",
+                }
+            ]
+            save_job(job)
+            update_status(
+                job,
+                label=(
+                    f"Skipping trailing {duration:.3f}s audio chunk {chunk.name}"
+                ),
+            )
+    if not usable:
+        raise MeetingMinutesError(
+            "No audio chunks of at least 1 second were produced"
+        )
+    return usable
+
+
 def valid_transcript_part(path: Path) -> bool:
     if not path.is_file():
         return False
@@ -490,7 +568,7 @@ def valid_transcript_part(path: Path) -> bool:
 
 
 def normalize_transcript_part(path: Path, chunk: Path) -> None:
-    """Upgrade Siren's legacy text-only response to a chunk-level segment."""
+    """Add legacy response fields without rebuilding or dropping segment words."""
     payload = read_json(path)
     if isinstance(payload.get("segments"), list) and isinstance(
         payload.get("duration"), (int, float)
@@ -522,6 +600,144 @@ def normalize_transcript_part(path: Path, chunk: Path) -> None:
     atomic_write_json(path, payload)
 
 
+def siren_audio_endpoint(operation: str) -> str:
+    transcriptions_suffix = "/v1/audio/transcriptions"
+    transcriptions_url = SIREN_URL.rstrip("/")
+    if not transcriptions_url.endswith(transcriptions_suffix):
+        raise MeetingMinutesError(
+            "MEETING_MINUTES_SIREN_URL must end in "
+            f"{transcriptions_suffix} to derive the {operation} endpoint"
+        )
+    base_url = transcriptions_url[: -len(transcriptions_suffix)]
+    return f"{base_url}/v1/audio/{operation}"
+
+
+def valid_diarization(payload: dict[str, Any]) -> bool:
+    speakers = payload.get("speakers")
+    turns = payload.get("turns")
+    if (
+        not isinstance(payload.get("duration"), (int, float))
+        or not isinstance(payload.get("model"), str)
+        or not isinstance(speakers, list)
+        or not all(isinstance(speaker, str) for speaker in speakers)
+        or not isinstance(turns, list)
+    ):
+        return False
+    if not turns:
+        return False
+    return all(
+        isinstance(turn, dict)
+        and isinstance(turn.get("start"), (int, float))
+        and isinstance(turn.get("end"), (int, float))
+        and isinstance(turn.get("speaker"), str)
+        for turn in turns
+    )
+
+
+def valid_diarization_file(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    try:
+        return valid_diarization(read_json(path))
+    except MeetingMinutesError:
+        return False
+
+
+def prepare_diarization_audio(job: dict[str, Any]) -> Path:
+    recording = Path(str(job["recording_path"]))
+    if not recording.is_file():
+        final_video = Path(str(job.get("video_path", "")))
+        if final_video.is_file():
+            recording = final_video
+        else:
+            raise MeetingMinutesError(f"Recording is missing: {recording}")
+
+    work = WORK_DIR / str(job["job_id"])
+    destination = work / "diarization.flac"
+    if destination.is_file():
+        try:
+            if destination.stat().st_size > 0 and probe_duration(destination) > 0:
+                return destination
+        except (MeetingMinutesError, OSError):
+            pass
+        destination.unlink(missing_ok=True)
+
+    work.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(
+        f".{destination.stem}.{uuid.uuid4().hex}.tmp.flac"
+    )
+    try:
+        run_checked(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-i",
+                str(recording),
+                "-map",
+                "0:a:0",
+                "-ac",
+                "1",
+                "-ar",
+                "16000",
+                "-c:a",
+                "flac",
+                str(temporary),
+            ],
+            timeout=1800,
+        )
+        if temporary.stat().st_size <= 0 or probe_duration(temporary) <= 0:
+            raise MeetingMinutesError(
+                "ffmpeg produced an invalid whole-recording FLAC"
+            )
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return destination
+
+
+def diarize_recording(job: dict[str, Any]) -> dict[str, Any]:
+    work = WORK_DIR / str(job["job_id"])
+    destination = work / "diarization.json"
+    if valid_diarization_file(destination):
+        return read_json(destination)
+    destination.unlink(missing_ok=True)
+
+    audio = prepare_diarization_audio(job)
+    endpoint = siren_audio_endpoint("diarize")
+    temporary = destination.with_name(f".{destination.name}.{uuid.uuid4().hex}.tmp")
+    script = (
+        "curl --fail-with-body --silent --show-error "
+        '--max-time 1800 --output "$2" '
+        '-H "Authorization: Bearer ${SIREN_API_KEY}" '
+        '-F "file=@$1" "$3"'
+    )
+    try:
+        run_checked(
+            [
+                "direnv",
+                "exec",
+                str(DOTFILES_ROOT),
+                "bash",
+                "-lc",
+                script,
+                "meeting-minutes-siren-diarize",
+                str(audio),
+                str(temporary),
+                endpoint,
+            ],
+            timeout=1900,
+        )
+        payload = read_json(temporary)
+        if not valid_diarization(payload):
+            raise MeetingMinutesError("Siren returned invalid diarization JSON")
+        temporary.replace(destination)
+        return payload
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def transcribe_chunk(chunk: Path, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = destination.with_name(f".{destination.name}.{uuid.uuid4().hex}.tmp")
@@ -529,7 +745,8 @@ def transcribe_chunk(chunk: Path, destination: Path) -> None:
         "curl --fail-with-body --silent --show-error --retry 2 "
         '--retry-delay 2 --max-time 900 --output "$2" '
         '-H "Authorization: Bearer ${SIREN_API_KEY}" '
-        '-F "file=@$1" -F "model=$4" -F "response_format=verbose_json" "$3"'
+        '-F "file=@$1" -F "model=$4" -F "response_format=verbose_json" '
+        '-F "timestamp_granularities[]=word" "$3"'
     )
     try:
         run_checked(
@@ -556,6 +773,146 @@ def transcribe_chunk(chunk: Path, destination: Path) -> None:
         temporary.replace(destination)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def collect_transcript_words(job: dict[str, Any], chunks: int) -> list[dict[str, Any]]:
+    parts_dir = WORK_DIR / str(job["job_id"]) / "transcript-parts"
+    words: list[dict[str, Any]] = []
+    for index in range(chunks):
+        part = read_json(parts_dir / f"{index:04d}.json")
+        offset = index * CHUNK_SECONDS
+        for raw_segment in part.get("segments", []):
+            if not isinstance(raw_segment, dict):
+                continue
+            raw_words = raw_segment.get("words")
+            if not isinstance(raw_words, list):
+                continue
+            for raw_word in raw_words:
+                if not isinstance(raw_word, dict):
+                    continue
+                word = str(raw_word.get("word") or "")
+                if not word.strip():
+                    continue
+                try:
+                    start = float(raw_word["start"]) + offset
+                    end = float(raw_word["end"]) + offset
+                except (KeyError, TypeError, ValueError) as error:
+                    raise MeetingMinutesError(
+                        "Siren returned a word with invalid timestamps"
+                    ) from error
+                words.append(
+                    {
+                        "start": round(start, 3),
+                        "end": round(end, 3),
+                        "word": word,
+                    }
+                )
+    if not words:
+        raise MeetingMinutesError(
+            "Transcription parts did not contain word timestamps"
+        )
+    return words
+
+
+def valid_alignment(payload: dict[str, Any]) -> bool:
+    speakers = payload.get("speakers")
+    segments = payload.get("segments")
+    if (
+        not isinstance(speakers, list)
+        or not all(isinstance(speaker, str) for speaker in speakers)
+        or not isinstance(segments, list)
+        or not segments
+    ):
+        return False
+    return all(
+        isinstance(segment, dict)
+        and isinstance(segment.get("id"), int)
+        and isinstance(segment.get("start"), (int, float))
+        and isinstance(segment.get("end"), (int, float))
+        and isinstance(segment.get("speaker"), str)
+        and isinstance(segment.get("text"), str)
+        for segment in segments
+    )
+
+
+def valid_alignment_file(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    try:
+        return valid_alignment(read_json(path))
+    except MeetingMinutesError:
+        return False
+
+
+def align_transcript(
+    job: dict[str, Any],
+    transcript_path: Path,
+    diarization: dict[str, Any],
+) -> Path:
+    work = WORK_DIR / str(job["job_id"])
+    alignment_path = work / "alignment.json"
+    if valid_alignment_file(alignment_path):
+        alignment = read_json(alignment_path)
+    else:
+        alignment_path.unlink(missing_ok=True)
+        transcript = read_json(transcript_path)
+        chunks = int(transcript.get("chunks") or 0)
+        request_path = work / "alignment-request.json"
+        atomic_write_json(
+            request_path,
+            {
+                "words": collect_transcript_words(job, chunks),
+                "turns": diarization["turns"],
+            },
+        )
+        endpoint = siren_audio_endpoint("align")
+        temporary = alignment_path.with_name(
+            f".{alignment_path.name}.{uuid.uuid4().hex}.tmp"
+        )
+        script = (
+            "curl --fail-with-body --silent --show-error --retry 2 "
+            '--retry-delay 2 --max-time 1800 --output "$2" '
+            '-H "Authorization: Bearer ${SIREN_API_KEY}" '
+            '-H "Content-Type: application/json" '
+            '--data-binary "@$1" "$3"'
+        )
+        try:
+            run_checked(
+                [
+                    "direnv",
+                    "exec",
+                    str(DOTFILES_ROOT),
+                    "bash",
+                    "-lc",
+                    script,
+                    "meeting-minutes-siren-align",
+                    str(request_path),
+                    str(temporary),
+                    endpoint,
+                ],
+                timeout=1900,
+            )
+            alignment = read_json(temporary)
+            if not valid_alignment(alignment):
+                raise MeetingMinutesError("Siren returned invalid alignment JSON")
+            temporary.replace(alignment_path)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    transcript = read_json(transcript_path)
+    transcript["speakers"] = alignment["speakers"]
+    transcript["segments"] = [
+        {
+            "id": segment["id"],
+            "start": segment["start"],
+            "end": segment["end"],
+            "speaker": segment["speaker"],
+            "text": segment["text"],
+        }
+        for segment in alignment["segments"]
+    ]
+    atomic_write_json(transcript_path, transcript)
+    return transcript_path
 
 
 def transcribe_chunks(job: dict[str, Any], chunks: list[Path]) -> Path:
@@ -853,9 +1210,70 @@ def all_people_rosters() -> str:
     return "\n\n".join(sections) or "(no rosters on file)"
 
 
+def speaker_tagged_segments(
+    transcript: dict[str, Any],
+) -> list[dict[str, Any]] | None:
+    segments = transcript.get("segments")
+    if not isinstance(segments, list) or not segments:
+        return None
+    if not all(
+        isinstance(segment, dict)
+        and isinstance(segment.get("speaker"), str)
+        and segment["speaker"].strip()
+        for segment in segments
+    ):
+        return None
+    return segments
+
+
+def render_transcript_for_prompt(transcript: dict[str, Any]) -> str:
+    segments = speaker_tagged_segments(transcript)
+    if segments is None:
+        return json.dumps(transcript, ensure_ascii=False)
+
+    turns: list[tuple[str, float, list[str]]] = []
+    for segment in segments:
+        speaker = str(segment["speaker"]).strip()
+        text = str(segment.get("text") or "").strip()
+        if not text:
+            continue
+        start = float(segment.get("start") or 0.0)
+        if turns and turns[-1][0] == speaker:
+            turns[-1][2].append(text)
+        else:
+            turns.append((speaker, start, [text]))
+
+    def timestamp(seconds: float) -> str:
+        minutes, secs = divmod(int(seconds), 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours:
+            return f"{hours}:{minutes:02d}:{secs:02d}"
+        return f"{minutes}:{secs:02d}"
+    return "\n".join(
+        f"[{timestamp(start)}] {speaker}: {' '.join(texts)}"
+        for speaker, start, texts in turns
+    )
+
+
 def codex_prompt(transcript: dict[str, Any], calendar: dict[str, Any]) -> str:
     manifest = read_optional(VAULT_ROOT / "04-projects/manifest.md")
     people = all_people_rosters()
+    rendered_transcript = render_transcript_for_prompt(transcript)
+    if speaker_tagged_segments(transcript) is not None:
+        transcript_heading = (
+            "The transcript below is speaker-labeled with anonymous "
+            "SPEAKER_NN labels from audio diarization. Map each label to an "
+            "attendee name wherever the content and turn-taking make the "
+            "identity unambiguous (self-introductions, being addressed by "
+            "name, who owns which work); otherwise keep the raw label. Use "
+            "the mapping to sharpen attribution of decisions, findings, and "
+            "follow-up ownership - it does not need to appear as per-line "
+            "bylines in the note. Diarization can split one person across "
+            "two labels or briefly mislabel cross-talk, so weigh content "
+            "over labels when they conflict.\n\nSpeaker-tagged transcript:"
+        )
+    else:
+        transcript_heading = "Timestamped transcript JSON:"
     return f"""You are the Meeting Minutes Agent. Convert the supplied timestamped transcript into concise structured meeting minutes for Tony's Coppermind vault.
 
 Tony (Tony Kabilan Okeke) is the vault owner and is a participant in these meetings, never a third party to describe.
@@ -889,8 +1307,8 @@ Known people (by project; use for attendee name spellings):
 Calendar candidate JSON:
 {json.dumps(calendar, ensure_ascii=False)}
 
-Timestamped transcript JSON:
-{json.dumps(transcript, ensure_ascii=False)}
+{transcript_heading}
+{rendered_transcript}
 """
 
 
@@ -1581,7 +1999,67 @@ def process_job(job: dict[str, Any]) -> None:
             recover_staged_recording(job)
             set_phase(job, "preparing", "Preparing meeting audio")
             chunks = prepare_chunks(job)
+            chunks = filter_degenerate_tail_chunks(job, chunks)
+            diarization: dict[str, Any] | None = None
+            if DIARIZATION_ENABLED:
+                set_phase(job, "diarizing", "Identifying meeting speakers")
+                try:
+                    diarization = diarize_recording(job)
+                    job["diarization"] = {
+                        "status": "ready",
+                        "speakers": diarization["speakers"],
+                    }
+                    save_job(job)
+                except (
+                    MeetingMinutesError,
+                    OSError,
+                    subprocess.SubprocessError,
+                ) as error:
+                    job["diarization"] = {
+                        "status": "failed",
+                        "stage": "diarize",
+                        "error": str(error)[-2000:],
+                    }
+                    save_job(job)
+                    update_status(
+                        job,
+                        label="Speaker diarization unavailable; continuing",
+                    )
+            else:
+                job["diarization"] = {
+                    "status": "disabled",
+                    "reason": "MEETING_MINUTES_DIARIZE=0",
+                }
+                save_job(job)
             transcript_path = transcribe_chunks(job, chunks)
+            if diarization is not None:
+                set_phase(job, "aligning", "Aligning transcript speakers")
+                try:
+                    transcript_path = align_transcript(
+                        job,
+                        transcript_path,
+                        diarization,
+                    )
+                    job["diarization"] = {
+                        "status": "completed",
+                        "speakers": read_json(transcript_path)["speakers"],
+                    }
+                    save_job(job)
+                except (
+                    MeetingMinutesError,
+                    OSError,
+                    subprocess.SubprocessError,
+                ) as error:
+                    job["diarization"] = {
+                        "status": "failed",
+                        "stage": "align",
+                        "error": str(error)[-2000:],
+                    }
+                    save_job(job)
+                    update_status(
+                        job,
+                        label="Speaker alignment unavailable; continuing",
+                    )
             minutes = generate_minutes(job, transcript_path)
             job["title"] = minutes["title"]
             job["calendar_enrichment"] = {
@@ -1598,7 +2076,11 @@ def process_job(job: dict[str, Any]) -> None:
             update_status(job, label="Meeting note ready")
             notify_job(job, success=True)
             shutil.rmtree(WORK_DIR / str(job["job_id"]), ignore_errors=True)
-        except (MeetingMinutesError, OSError, subprocess.SubprocessError) as error:
+        except (
+            MeetingMinutesError,
+            OSError,
+            subprocess.SubprocessError,
+        ) as error:
             job["phase"] = "error"
             job["error"] = str(error)
             save_job(job)
