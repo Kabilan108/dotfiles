@@ -1,0 +1,216 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+
+set -euo pipefail
+
+readonly uuid_pattern='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+readonly pane_session_option='@resurrect-agent-session'
+
+usage() {
+  cat <<'EOF'
+Usage:
+  tmux-resurrect-agents record-claude
+  tmux-resurrect-agents rewrite <resurrect-file>
+
+record-claude
+  Read a Claude Code SessionStart hook payload from stdin and record the
+  session ID on the current tmux pane.
+
+rewrite
+  Replace saved Claude and Codex commands with commands that resume the exact
+  session active in each pane.
+EOF
+}
+
+valid_uuid() {
+  [[ "$1" =~ ^${uuid_pattern}$ ]]
+}
+
+record_claude_session() {
+  local hook_input session_id pane_id
+
+  hook_input=$(cat)
+  session_id=$(jq -er '.session_id' <<<"$hook_input") || return 0
+  pane_id=${TMUX_PANE:-}
+
+  if [[ -n "$pane_id" ]] && valid_uuid "$session_id"; then
+    tmux set-option -p -t "$pane_id" "$pane_session_option" "claude:$session_id"
+  fi
+}
+
+descendant_pids() {
+  local root_pid=$1
+  local -a queue=("$root_pid")
+  local index=0 pid children child
+
+  while ((index < ${#queue[@]})); do
+    pid=${queue[index]}
+    ((index += 1))
+    printf '%s\n' "$pid"
+
+    if [[ -r "/proc/$pid/task/$pid/children" ]]; then
+      children=$(<"/proc/$pid/task/$pid/children")
+      for child in $children; do
+        queue+=("$child")
+      done
+    fi
+  done
+}
+
+codex_session_id() {
+  local pane_pid=$1
+  local pid fd target session_id
+
+  while IFS= read -r pid; do
+    [[ -r "/proc/$pid/comm" ]] || continue
+    [[ "$(<"/proc/$pid/comm")" == codex ]] || continue
+
+    for fd in /proc/"$pid"/fd/*; do
+      target=$(readlink "$fd" 2>/dev/null || true)
+      [[ "$target" == */codex/sessions/*/rollout-*.jsonl ]] || continue
+
+      if [[ "$target" =~ (${uuid_pattern})\.jsonl$ ]]; then
+        session_id=${BASH_REMATCH[1]}
+        printf '%s\n' "$session_id"
+        return 0
+      fi
+    done
+  done < <(descendant_pids "$pane_pid")
+
+  return 1
+}
+
+resume_command() {
+  local agent=$1
+  local command=$2
+  local session_id=$3
+
+  case "$agent" in
+    claude)
+      if [[ "$command" =~ --resume[=\ ]${uuid_pattern} ]]; then
+        command=${command/"${BASH_REMATCH[0]}"/"--resume $session_id"}
+      elif [[ "$command" =~ --session-id[=\ ]${uuid_pattern} ]]; then
+        command=${command/"${BASH_REMATCH[0]}"/"--resume $session_id"}
+      else
+        command+=" --resume $session_id"
+      fi
+      ;;
+    codex)
+      if [[ "$command" =~ resume\ ${uuid_pattern} ]]; then
+        command=${command/"${BASH_REMATCH[0]}"/"resume $session_id"}
+      else
+        command+=" resume $session_id"
+      fi
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+
+  printf '%s\n' "$command"
+}
+
+rewrite_resurrect_file() {
+  local resurrect_file=$1
+  local mappings_file rewritten_file
+  local session_name window_index pane_index pane_id pane_pid pane_command
+  local pane_session agent session_id saved_command
+
+  [[ -f "$resurrect_file" ]] || {
+    printf 'tmux-resurrect-agents: file not found: %s\n' "$resurrect_file" >&2
+    return 1
+  }
+
+  mappings_file=$(mktemp)
+  rewritten_file=$(mktemp)
+  # Expand the local paths now so they remain available when the process exits.
+  # shellcheck disable=SC2064
+  trap "rm -f '$mappings_file' '$rewritten_file'" EXIT
+
+  while IFS=$'\t' read -r session_name window_index pane_index pane_id pane_pid pane_command; do
+    agent=
+    session_id=
+
+    case "$pane_command" in
+      claude)
+        pane_session=$(tmux show-options -pt "$pane_id" -qv "$pane_session_option")
+        if [[ "$pane_session" == claude:* ]]; then
+          agent=claude
+          session_id=${pane_session#claude:}
+        fi
+        ;;
+      codex)
+        if session_id=$(codex_session_id "$pane_pid"); then
+          agent=codex
+        fi
+        ;;
+    esac
+
+    valid_uuid "$session_id" || continue
+
+    saved_command=$(awk -F '\t' -v session="$session_name" -v window="$window_index" \
+      -v pane="$pane_index" '
+        $1 == "pane" && $2 == session && $3 == window && $6 == pane {
+          sub(/^:/, "", $11)
+          print $11
+          exit
+        }
+      ' "$resurrect_file")
+    [[ -n "$saved_command" ]] || continue
+
+    saved_command=$(resume_command "$agent" "$saved_command" "$session_id")
+    printf '%s\t%s\t%s\t%s\n' \
+      "$session_name" "$window_index" "$pane_index" "$saved_command" >>"$mappings_file"
+  done < <(
+    tmux list-panes -a \
+      -F '#{session_name}	#{window_index}	#{pane_index}	#{pane_id}	#{pane_pid}	#{pane_current_command}'
+  )
+
+  awk -F '\t' -v OFS='\t' '
+    FILENAME == ARGV[1] {
+      key = $1 SUBSEP $2 SUBSEP $3
+      command[key] = $4
+      next
+    }
+    $1 == "pane" {
+      key = $2 SUBSEP $3 SUBSEP $6
+      if (key in command) {
+        $11 = ":" command[key]
+      }
+    }
+    { print }
+  ' "$mappings_file" "$resurrect_file" >"$rewritten_file"
+
+  if ! cmp -s "$resurrect_file" "$rewritten_file"; then
+    chmod --reference="$resurrect_file" "$rewritten_file"
+    mv "$rewritten_file" "$resurrect_file"
+  fi
+}
+
+main() {
+  case "${1:-}" in
+    record-claude)
+      [[ $# -eq 1 ]] || {
+        usage >&2
+        return 2
+      }
+      record_claude_session
+      ;;
+    rewrite)
+      [[ $# -eq 2 ]] || {
+        usage >&2
+        return 2
+      }
+      rewrite_resurrect_file "$2"
+      ;;
+    -h | --help)
+      usage
+      ;;
+    *)
+      usage >&2
+      return 2
+      ;;
+  esac
+}
+
+main "$@"

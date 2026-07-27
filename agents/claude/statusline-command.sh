@@ -3,6 +3,7 @@
 # Read JSON input from stdin
 input=$(cat)
 echo "$input" > /tmp/claude-statusline-input.json
+"$HOME/bin/tmux-resurrect-agents" record-claude <<<"$input"
 
 # Extract data from JSON
 workspace_dir=$(echo "$input" | jq -r '.workspace.current_dir')

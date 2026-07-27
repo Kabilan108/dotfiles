@@ -55,8 +55,19 @@
     "deny": [],
     "defaultMode": "default"
   },
-  "model": "claude-fable-5[1m]",
-  "hooks": {},
+  "model": "opus[1m]",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/bin/tmux-resurrect-agents record-claude"
+          }
+        ]
+      }
+    ]
+  },
   "statusLine": {
     "type": "command",
     "command": "bash $HOME/.claude/statusline-command.sh"
