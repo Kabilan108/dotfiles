@@ -13,7 +13,8 @@ let
     source "$HOME/.bashenv"
 
     ${pkgs.direnv}/bin/direnv exec . \
-      eboost-scripts/EBOOST/change-points/scripts/check-eboost-reviewer-progress.sh
+      eboost-scripts/EBOOST/change-points/scripts/check-eboost-reviewer-progress.sh \
+      --share-w-kan
   '';
 in
 {
