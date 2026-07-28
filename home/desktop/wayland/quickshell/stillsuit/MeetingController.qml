@@ -14,7 +14,7 @@ Scope {
     property double visibleUntil: 0
     property double currentTime: Date.now() / 1000
 
-    readonly property bool active: ["staging", "queued", "preparing", "transcribing", "generating", "enriching", "writing"].includes(phase)
+    readonly property bool active: ["staging", "queued", "preparing", "chunking", "transcribing", "diarizing", "aligning", "generating", "enriching", "writing"].includes(phase)
     readonly property bool completed: phase === "completed"
     readonly property bool failed: phase === "error"
     readonly property bool visible: active || ((completed || failed) && currentTime < visibleUntil)
