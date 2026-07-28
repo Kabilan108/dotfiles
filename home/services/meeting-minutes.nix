@@ -22,6 +22,7 @@ in
       };
       Service = {
         Type = "oneshot";
+        EnvironmentFile = "/run/agenix/secrets/dictator-env";
         ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p ${stateDir}/jobs";
         ExecStart = "${homeDir}/bin/meeting-minutes work";
       };
