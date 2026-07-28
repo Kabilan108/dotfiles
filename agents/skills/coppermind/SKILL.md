@@ -7,6 +7,8 @@ description: Conventions for working in the coppermind vault - write zones, task
 
 Only non-discoverable rules live here. Explore the tree yourself for structure; consult `04-projects/manifest.md` for project routing and write zones.
 
+Vault root path gotcha: the actual root is `/vault/notes/coppermind/coppermind/` (doubled directory). `~/notes` symlinks to `/vault/notes/coppermind/`, so the manifest is at `~/notes/coppermind/04-projects/manifest.md` — `~/notes/04-projects/` does not exist.
+
 ## Write zones (hard rules)
 
 - `04-projects/` = agent zone: write directly. EXCEPTIONS: `*/brief.md` and `moberg/people.md` are curated — propose changes as a small file in `04-projects/_pipeline/proposals/` (name: `YYYY-MM-DD-<target>-<slug>.md`, body: target file + proposed text + one-line rationale).
