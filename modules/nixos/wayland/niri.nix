@@ -4,11 +4,7 @@
   ...
 }:
 let
-  niriPackage =
-    inputs."niri-flake".packages.${pkgs.stdenv.hostPlatform.system}.niri-unstable.overrideAttrs
-      (_: {
-        doCheck = false;
-      });
+  niriPackage = inputs."niri-flake".packages.${pkgs.stdenv.hostPlatform.system}.niri-unstable;
 in
 {
   niri-flake.cache.enable = true;

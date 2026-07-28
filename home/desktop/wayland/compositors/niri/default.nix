@@ -1,16 +1,18 @@
 {
   config,
+  inputs,
   lib,
   pkgs,
   ...
 }:
 let
   homeDir = "/home/kabilan";
+  niriPackage = inputs."niri-flake".packages.${pkgs.stdenv.hostPlatform.system}.niri-unstable;
   agentWorkspacePin = pkgs.writeShellApplication {
     name = "agent-workspace-pin";
     runtimeInputs = [
       pkgs.jq
-      pkgs.niri
+      niriPackage
     ];
     text = builtins.readFile ../../../../../bin/agent-workspace-pin;
   };
