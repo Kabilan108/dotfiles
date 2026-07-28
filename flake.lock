@@ -1372,11 +1372,11 @@
         "nixpkgs-python": "nixpkgs-python"
       },
       "locked": {
-        "lastModified": 1785185515,
-        "narHash": "sha256-IP26yDR70rqI2iu7s2X0/ADhKP96XTAt8j5E34dMHv4=",
+        "lastModified": 1785265407,
+        "narHash": "sha256-ePncD8CYHUBToXQOLnCjwDj1/QeJkbzi9d7/KtptTSQ=",
         "owner": "kabilan108",
         "repo": "siren",
-        "rev": "a4723aa6b0ca6a71e4f10074d3473b805c8e7399",
+        "rev": "657d115228c94838a6494d7641f855b5933867b4",
         "type": "github"
       },
       "original": {
