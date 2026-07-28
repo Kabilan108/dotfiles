@@ -18,7 +18,6 @@ skills = true
 unified_exec = true
 shell_snapshot = true
 steer = true
-multi-agent = true
 undo = true
 js_repl = false
 memories = true
@@ -28,9 +27,10 @@ default_mode_request_user_input = true
 
 [features.multi_agent_v2]
 enabled = true
-max_concurrent_threads_per_session = 20
-hide_spawn_agent_metadata = false
-tool_namespace = "agents"
+
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 12
 
 [history]
 persistence = "save-all"
