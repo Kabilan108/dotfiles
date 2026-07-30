@@ -10,17 +10,20 @@
 		// machines that exclusively need media (sietch::jellyfin) access
 		"tag:media": ["autogroup:admin"],
 
+		// dedicated storage appliances; no outbound fleet access
+		"tag:nas": ["autogroup:admin"],
+
 		// dev boxes
 		"tag:server": ["autogroup:admin"],
 	},
 
 	"autoApprovers": {
 		"services": {
-			"svc:cliproxyapi":    ["tag:server"],
-			"svc:executor":       ["tag:server"],
-			"svc:jellyfin":       ["tag:server"],
-			"svc:siren":          ["tag:server"],
-			"svc:vault":          ["tag:server"],
+			"svc:cliproxyapi": ["tag:server"],
+			"svc:executor":    ["tag:server"],
+			"svc:jellyfin":    ["tag:server"],
+			"svc:siren":       ["tag:server"],
+			"svc:vault":       ["tag:server"],
 		},
 	},
 
@@ -50,7 +53,11 @@
 		// {"src": ["sietch"], "dst": ["jacurutu"], "ip": ["tcp:22000"]},
 
 		// phone: broad access to both interactive machines (t3 code, dev servers)
-		{"src": ["pixel-9"], "dst": ["sietch", "jacurutu", "tleilax"], "ip": ["*"]},
+		{
+			"src": ["pixel-9"],
+			"dst": ["sietch", "jacurutu", "tleilax"],
+			"ip":  ["*"],
+		},
 
 		// tailnet members reach the hosted services
 		{
@@ -71,8 +78,20 @@
 		{
 			"src": ["tag:server"],
 			"dst": ["svc:cliproxyapi", "svc:siren", "svc:executor", "svc:vault"],
-			"ip": ["tcp:443"]
+			"ip":  ["tcp:443"],
 		},
+
+		// human-owned devices administer the NAS through Tailscale Serve.
+		{
+			"src": ["autogroup:member"],
+			"dst": ["tag:nas"],
+			"ip":  ["tcp:443"],
+		},
+
+		// sietch mounts the media library over NFSv4. Backup transport gets
+		// its own narrow grant once selected; the NAS receives no outbound
+		// fleet grant.
+		{"src": ["tag:server"], "dst": ["tag:nas"], "ip": ["tcp:2049"]},
 
 		// tagged clients: media boxes get jellyfin, agent boxes get the MCP/API services
 		{"src": ["tag:media"], "dst": ["svc:jellyfin"], "ip": ["tcp:443"]},
@@ -103,16 +122,21 @@
 	"tests": [
 		{
 			"src":    "jacurutu",
-			"accept": ["sietch:22", "sietch:443", "tleilax:22"],
+			"accept": ["sietch:22", "sietch:443", "tleilax:22", "tag:nas:443"],
 		},
 		{
-			"src":  "sietch",
-			"accept": ["tleilax:22", "pixel-9:40000"],
-			"deny": ["jacurutu:22", "jacurutu:443"],
+			"src":    "sietch",
+			"accept": ["tleilax:22", "pixel-9:40000", "tag:nas:2049"],
+			"deny":   ["jacurutu:22", "jacurutu:443", "tag:nas:443"],
 		},
 		{
 			"src":    "pixel-9",
-			"accept": ["sietch:443", "sietch:8096", "jacurutu:443"],
+			"accept": ["sietch:443", "sietch:8096", "jacurutu:443", "tag:nas:443"],
+		},
+		{
+			"src":  "tag:nas",
+			"deny": ["sietch:22", "jacurutu:22", "tleilax:22"],
 		},
 	],
 }
+
