@@ -29,3 +29,5 @@ daemon.log
 daemon.status.json
 jobs
 .last_inuse_sweep
+daemon-auth-cooldown
+daemon-auth-status.json
