@@ -1032,6 +1032,7 @@ def render_transcript_for_prompt(transcript: dict[str, Any]) -> str:
         if hours:
             return f"{hours}:{minutes:02d}:{secs:02d}"
         return f"{minutes}:{secs:02d}"
+
     return "\n".join(
         f"[{timestamp(start)}] {speaker}: {' '.join(texts)}"
         for speaker, start, texts in turns
@@ -1676,10 +1677,11 @@ def append_weekly_backlink(job: dict[str, Any], minutes: dict[str, Any]) -> None
     link = f"[[meetings/{job['canonical_stem']}|{minutes['title']}]]"
     if link in text:
         return
-    heading = meeting_time.strftime("### %a, %b %-d")
-    match = re.search(rf"^{re.escape(heading)}\s*$", text, flags=re.MULTILINE)
+    heading = meeting_time.strftime("### %a, %b ")
+    day = meeting_time.day
+    match = re.search(rf"^{re.escape(heading)}0?{day}\s*$", text, flags=re.MULTILINE)
     if match is None:
-        raise MeetingMinutesError(f"Daily log heading is missing: {heading}")
+        raise MeetingMinutesError(f"Daily log heading is missing: {heading}{day}")
     next_heading = re.search(r"^### ", text[match.end() :], flags=re.MULTILINE)
     insert_at = match.end() + (
         next_heading.start() if next_heading else len(text[match.end() :])
