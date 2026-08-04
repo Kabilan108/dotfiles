@@ -12,6 +12,21 @@
 
   networking.hostName = "sietch";
 
+  # sietch uses its wired 2.5 GbE link as the LAN data plane. Keep the Wi-Fi
+  # hardware available for manual recovery, but disable its radio on every
+  # boot and whenever this configuration is activated.
+  systemd.services.disable-wifi = {
+    description = "Disable the Wi-Fi radio on sietch";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "NetworkManager.service" ];
+    requires = [ "NetworkManager.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.networkmanager}/bin/nmcli radio wifi off";
+      RemainAfterExit = true;
+    };
+  };
+
   programs.steam.enable = true;
   environment = {
     systemPackages = with pkgs; [
