@@ -9,6 +9,11 @@ Read `~/.config/fleet/computers.md` first — it is generated from `lib/fleet.ni
 in ~/dotfiles and describes every machine: role, tailnet address, repo roots,
 and which machines it may SSH into.
 
+For work involving `dar-es-balat`, NAS services, or the boundary between LAN
+and tailnet access, also read
+[`../../../docs/nas-network-policy.md`](../../../docs/nas-network-policy.md)
+before inspecting or changing policy.
+
 ## Rules
 
 - Access is directional. Only SSH toward machines listed under "can ssh
