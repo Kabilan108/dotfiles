@@ -70,8 +70,32 @@ in
 
         mkdir -p "$profile"
 
-        if { [ -e "$profile/SingletonLock" ] || [ -S "$profile/SingletonSocket" ]; } \
-          && ! ${lib.getExe pkgs.curl} -fsS "http://127.0.0.1:$port/json/version" >/dev/null 2>&1; then
+        profileInUse=false
+        if ! ${lib.getExe pkgs.curl} -fsS "http://127.0.0.1:$port/json/version" >/dev/null 2>&1; then
+          lockTarget=$(${lib.getExe' pkgs.coreutils "readlink"} "$profile/SingletonLock" 2>/dev/null || true)
+          IFS= read -r host < /proc/sys/kernel/hostname
+
+          case "$lockTarget" in
+            "$host"-*)
+              pid="''${lockTarget#"$host"-}"
+              case "$pid" in
+                "" | *[!0-9]*) ;;
+                *)
+                  if [ -r "/proc/$pid/cmdline" ]; then
+                    while IFS= read -r -d "" arg; do
+                      if [ "$arg" = "--user-data-dir=$profile" ]; then
+                        profileInUse=true
+                        break
+                      fi
+                    done < "/proc/$pid/cmdline"
+                  fi
+                  ;;
+              esac
+              ;;
+          esac
+        fi
+
+        if $profileInUse; then
           ${lib.getExe pkgs.libnotify} -u critical "Helium Agents DevTools" "Close Helium Agents before launching the CDP-enabled instance."
           printf '%s\n' "helium-agents-devtools: close Helium Agents before launching the CDP-enabled instance." >&2
           exit 1
