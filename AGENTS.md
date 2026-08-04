@@ -110,5 +110,6 @@ This is a complete NixOS + Home Manager-based development workstation configurat
 ## Instructions
 
 - When you make changes that necessitate rebuilding the flake, use `notify-send` to inform the user. Never attempt to rebuild the flake yourself.
+- Give every systemd timer an explicit `RandomizedDelaySec` appropriate to its latency requirements to avoid thundering-herd workload spikes.
 - When making changes to my niri config `home/desktop/wayland/compositors/niri/config.kdl`, make sure to run `niri validate` and resolve any config errors.
 - Do not add Home Manager or systemd rebuild-time auto restarts for `elephant.service` or `walker.service`. Previous attempts to restart them automatically during rebuilds caused downstream instability, including several desktop apps being killed or crashing.

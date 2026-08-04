@@ -160,8 +160,8 @@ in
       Unit.Description = "Periodic Codex Desktop Linux user-local update";
       Timer = {
         OnBootSec = "10m";
-        OnUnitActiveSec = "6h";
-        Persistent = true;
+        OnCalendar = "*-*-* 16:00:00";
+        RandomizedDelaySec = "15m";
       };
       Install.WantedBy = [ "timers.target" ];
     };

@@ -38,6 +38,7 @@ in
       Unit.Description = "Weekly EBOOST reviewer progress report";
       Timer = {
         OnCalendar = "Mon 10:30";
+        RandomizedDelaySec = "10m";
         Persistent = true;
       };
       Install.WantedBy = [ "timers.target" ];

@@ -23,6 +23,7 @@ in
       Unit.Description = "Daily Spotify cache cleanup";
       Timer = {
         OnCalendar = "daily";
+        RandomizedDelaySec = "1h";
         Persistent = true;
       };
       Install.WantedBy = [ "timers.target" ];

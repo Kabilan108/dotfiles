@@ -40,6 +40,7 @@ in
       Timer = {
         OnBootSec = "2m";
         OnUnitInactiveSec = "2m";
+        RandomizedDelaySec = "30s";
       };
       Install.WantedBy = [ "timers.target" ];
     };

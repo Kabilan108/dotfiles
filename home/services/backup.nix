@@ -40,6 +40,7 @@ in
       Unit.Description = "Weekly backup run";
       Timer = {
         OnCalendar = "Mon 01:00";
+        RandomizedDelaySec = "30m";
         Persistent = true;
       };
       Install.WantedBy = [ "timers.target" ];

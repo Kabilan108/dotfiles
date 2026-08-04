@@ -180,6 +180,7 @@ in
         Unit.Description = "Quarterly developer cache cleanup";
         Timer = {
           OnCalendar = "quarterly";
+          RandomizedDelaySec = "6h";
           Persistent = true;
         };
         Install.WantedBy = [ "timers.target" ];
@@ -189,6 +190,7 @@ in
         Unit.Description = "Daily AppImage extraction pruning";
         Timer = {
           OnCalendar = "daily";
+          RandomizedDelaySec = "1h";
           Persistent = true;
         };
         Install.WantedBy = [ "timers.target" ];
@@ -198,6 +200,7 @@ in
         Unit.Description = "Monthly stale direnv report";
         Timer = {
           OnCalendar = "monthly";
+          RandomizedDelaySec = "2h";
           Persistent = true;
         };
         Install.WantedBy = [ "timers.target" ];
