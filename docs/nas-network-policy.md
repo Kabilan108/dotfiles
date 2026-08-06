@@ -1,6 +1,6 @@
 # NAS network access policy
 
-Last reviewed: 2026-08-04
+Last reviewed: 2026-08-05
 
 This document is the durable network and access policy for `dar-es-balat`, the
 Synology NAS. Tailscale policy remains authoritative in the admin console, with
@@ -161,7 +161,7 @@ After every relevant change:
 
 ## Observed baseline
 
-On 2026-08-04:
+On 2026-08-04, with final rollout validation on 2026-08-05:
 
 - `sietch`'s wired `enp4s0` negotiated 2.5 Gbps full duplex and reached the NAS
   directly at sub-millisecond latency.
@@ -192,6 +192,37 @@ On 2026-08-04:
   File Station/SMB-visible shares. Synology Photos independently grants Shared
   Space Full Access to all folders with mobile backup enabled; its permission
   layer is separate and does not confer DSM administration.
+- The DSM firewall was tightened to allow UDP 41641 for Tailscale transport,
+  TCP 443 from `100.64.0.0/10`, TCP 445 only from `sietch` at `10.0.0.71`, and
+  DHCP replies on UDP 68 only from the router at `10.0.0.1`, followed by a
+  deny-all rule. The former broad LAN and tailnet allow rules remain disabled
+  and inert; delete them as housekeeping so they cannot be re-enabled
+  accidentally.
+- After the firewall change, `sietch` could reach only LAN TCP 445; LAN TCP 80,
+  139, 443, 5000, and 5001 were blocked. A fresh DSM session from `jacurutu`
+  and Synology Photos mobile backup from the Pixel 9 both succeeded through
+  the Tailscale HTTPS name.
+- `sietch` Wi-Fi was disabled declaratively after its wired route was made
+  persistent. Its Ethernet link remained at 2.5 Gbps full duplex. Intermittent
+  Tailscale session disruption observed during the transition stopped after a
+  separate Docker stack with a rapidly restarting worker was shut down; the
+  wired link itself showed no loss or carrier errors.
+- A phone on cellular data with Tailscale disabled could not reach the NAS at
+  the public WAN address. With Tailscale enabled, the NAS HTTPS name worked.
+- Email notifications use a dedicated sender and the user's primary mailbox as
+  recipient. A Discord webhook provides a second notification path. Test
+  messages succeeded through both paths; both currently receive the `All` rule
+  while the initial alert volume is evaluated.
+- Both Google Drive Cloud Sync tasks completed their initial downloads and
+  reached the green `Up to date` state. They are configured as download-only
+  live mirrors with advanced consistency checking, Google online-document
+  conversion, and destination deletion enabled when a source item is deleted.
+  A controlled test downloaded `tony-mini-robot.png` and then deleted the local
+  NAS copy after the source item was removed from Google Drive.
+- `cloud-drive` snapshot protection was re-verified before enabling mirror
+  deletion semantics: snapshots run every six hours, immutable protection lasts
+  seven days, retention is 14 daily/8 weekly/12 monthly, and the five latest
+  snapshots are always retained.
 
 ## Remaining implementation
 
@@ -203,16 +234,27 @@ On 2026-08-04:
 - **User, later:** reserve the future `jacurutu` dock IP.
 - **Completed by user:** verify Xfinity HTTP and HTTPS Remote Management are
   disabled and record the IPv4 and IPv6 firewall presets.
-- **Agent:** replace broad NAS LAN access with service-specific DSM firewall
-  rules after the final NFS/SMB services and safe Tailscale administration path
-  are ready. Do not make this change from a LAN-only DSM session.
-- **Agent:** disable `sietch` Wi-Fi declaratively in NixOS; **user:** apply the
-  rebuild and confirm connectivity.
+- **Completed:** replace broad NAS LAN and tailnet access with service-specific
+  DSM firewall rules; verify LAN SMB isolation, fresh Tailscale DSM access, and
+  mobile Photos backup.
+- **Completed:** disable `sietch` Wi-Fi declaratively in NixOS, apply the
+  rebuild, and verify the wired route and link.
+- **Completed:** create scoped `svc-backup-sietch` and
+  `svc-backup-jacurutu` accounts and grant each account SMB access only to its
+  matching backup share.
 - **Agent:** configure the read-only NFS export and `sietch` mount when Jellyfin
   migration begins.
-- **Agent + user:** create per-machine backup credentials, store them without
-  exposing them in chat, and configure/test root-owned backup services.
-- **User:** perform the external cellular-data exposure check and share only the
-  result, not the public IP.
+- **Agent + user, later:** store the scoped backup credentials as root-owned
+  secrets and configure and test the per-machine backup clients.
+- **Completed by user:** perform the external cellular-data exposure check.
+- **User housekeeping:** delete the two disabled broad DSM firewall rules after
+  preserving the narrow active rules and final deny rule. The disabled rules do
+  not currently authorize traffic and their removal is not a rollout blocker.
 - **Later:** design real IoT segmentation with a VLAN-capable router/access
   point after the NAS rollout; do not treat Xfinity device groups as isolation.
+
+The initial NAS rollout is complete. Deferred work is tracked in GitHub issues
+#12 and #13 and in the Google Photos Takeout handoff under `docs/handoffs/`.
+That work includes per-machine backup clients, the Takeout import, Jellyfin/NFS,
+an encrypted off-NAS backup, a second SHR drive, a future `jacurutu` wired
+reservation, and eventual IoT segmentation.
