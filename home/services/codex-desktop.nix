@@ -159,8 +159,7 @@ in
     systemd.user.timers.dotfiles-codex-desktop-update = lib.mkIf cfg.updateTimer.enable {
       Unit.Description = "Periodic Codex Desktop Linux user-local update";
       Timer = {
-        OnBootSec = "10m";
-        OnCalendar = "*-*-* 16:00:00";
+        OnCalendar = "*-*-* 03:00:00";
         RandomizedDelaySec = "15m";
       };
       Install.WantedBy = [ "timers.target" ];
