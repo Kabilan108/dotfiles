@@ -37,3 +37,4 @@ chrome-native-hosts-v2.json
 visualizations/
 attachments
 .sandbox_migration
+thread-writer-locks
