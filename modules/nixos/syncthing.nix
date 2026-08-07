@@ -28,14 +28,6 @@ in
     mode = "0600";
   };
 
-  networking.firewall.interfaces."tailscale0" = {
-    allowedTCPPorts = [
-      22000
-      8384
-    ];
-    allowedUDPPorts = [ 22000 ];
-  };
-
   services.syncthing = {
     enable = true;
     user = "kabilan";

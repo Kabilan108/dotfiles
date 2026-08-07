@@ -19,17 +19,7 @@
       ];
       networkmanager.enable = true;
       networkmanager.plugins = [ pkgs.networkmanager-openvpn ];
-      firewall = {
-        enable = true;
-        interfaces."tailscale0" = {
-          allowedTCPPorts = [
-            3000
-            8000
-            8390
-            5173
-          ];
-        };
-      };
+      firewall.enable = true;
     };
 
     nix = {

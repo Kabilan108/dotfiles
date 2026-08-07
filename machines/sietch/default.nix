@@ -56,11 +56,6 @@
     dotfiles.wallpaper.desktop = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
   };
 
-  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    22
-    5900
-  ];
-
   services = {
     hardware.openrgb.enable = true;
     openssh = {

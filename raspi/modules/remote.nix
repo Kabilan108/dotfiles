@@ -57,12 +57,6 @@ in
       description = "Address to bind. Null waits for and binds to the Tailscale IPv4 address.";
     };
 
-    openFirewall = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Open the remote port on the tailscale0 firewall interface.";
-    };
-
     environmentFile = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
@@ -71,8 +65,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    networking.firewall.interfaces.tailscale0.allowedTCPPorts = lib.mkIf cfg.openFirewall [ cfg.port ];
-
     systemd.services.tleilax-remote = {
       description = "Tleilax Jellyfin remote";
       after = [
