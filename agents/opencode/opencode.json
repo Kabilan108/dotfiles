@@ -5,12 +5,16 @@
     "AGENTS.md"
   ],
   "plugin": [
-    "opencode-gemini-auth"
   ],
   "mcp": {
     "deepwiki": {
       "type": "remote",
       "url": "https://mcp.deepwiki.com/mcp",
+      "enabled": true
+    },
+    "executor": {
+      "type": "remote",
+      "url": "https://executor.sole-pierce.ts.net/mcp",
       "enabled": true
     }
   }
