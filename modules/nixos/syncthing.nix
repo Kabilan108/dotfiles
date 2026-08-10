@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, lib, ... }:
 let
   hostname = config.networking.hostName;
   otherHost = if hostname == "sietch" then "jacurutu" else "sietch";
@@ -29,7 +29,7 @@ in
   };
 
   services.syncthing = {
-    enable = true;
+    enable = false;
     user = "kabilan";
     group = "users";
     dataDir = "/home/kabilan";
@@ -65,7 +65,7 @@ in
     };
   };
 
-  systemd.services.syncthing = {
+  systemd.services.syncthing = lib.mkIf config.services.syncthing.enable {
     after = [ "tailscaled.service" ];
     wants = [ "tailscaled.service" ];
   };
