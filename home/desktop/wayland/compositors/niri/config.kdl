@@ -691,10 +691,9 @@ binds {
     // Mod+Space       { switch-layout "next"; }
     // Mod+Shift+Space { switch-layout "prev"; }
 
-    Print { screenshot; }
-    Shift+Print { spawn-sh "OMASNAP_SCREENSHOT_DIR=$HOME/media/screenshots exec omasnap"; }
-    Ctrl+Print { screenshot-screen; }
-    Alt+Print { screenshot-window; }
+    Print { spawn-sh "OMASNAP_SCREENSHOT_DIR=$HOME/media/screenshots exec omasnap"; }
+    Shift+Print { spawn-sh "OMASNAP_SCREENSHOT_DIR=$HOME/media/screenshots exec omasnap --capture-window"; }
+    Alt+Print { spawn-sh "OMASNAP_SCREENSHOT_DIR=$HOME/media/screenshots exec omasnap --capture-fullscreen"; }
 
     // Applications such as remote-desktop clients and software KVM switches may
     // request that niri stops processing the keyboard shortcuts defined here
