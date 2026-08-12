@@ -1258,6 +1258,27 @@
         "type": "github"
       }
     },
+    "omasnap": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1786552385,
+        "narHash": "sha256-afhs6t9Jv3XOjwEs/GLi6CzNjSW0EHO/Y/3FXW18bBs=",
+        "owner": "Kabilan108",
+        "repo": "omasnap",
+        "rev": "04b770462c3830584d8c9a31f7008cc6a7ab257f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Kabilan108",
+        "ref": "niri-native",
+        "repo": "omasnap",
+        "type": "github"
+      }
+    },
     "pagebin": {
       "inputs": {
         "nixpkgs": [
@@ -1335,6 +1356,7 @@
         "niri-flake": "niri-flake",
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs_10",
+        "omasnap": "omasnap",
         "pagebin": "pagebin",
         "raindrop": "raindrop",
         "siren": "siren",

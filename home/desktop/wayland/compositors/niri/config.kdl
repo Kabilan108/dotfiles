@@ -699,7 +699,7 @@ binds {
     // Mod+Shift+Space { switch-layout "prev"; }
 
     Print { screenshot; }
-    Shift+Print { spawn "niri-screenshot-annotate"; }
+    Shift+Print { spawn-sh "OMASNAP_SCREENSHOT_DIR=$HOME/media/screenshots exec omasnap"; }
     Ctrl+Print { screenshot-screen; }
     Alt+Print { screenshot-window; }
 
