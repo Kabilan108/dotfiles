@@ -10,12 +10,6 @@ let
 in
 {
   config = lib.mkIf (waylandCompositor == "niri") {
-    home.packages = [
-      omasnap
-      pkgs.coreutils
-      pkgs.findutils
-      pkgs.satty
-      pkgs.wl-clipboard
-    ];
+    home.packages = [ omasnap ];
   };
 }

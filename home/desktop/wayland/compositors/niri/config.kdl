@@ -368,13 +368,6 @@ window-rule {
     open-focused false
 }
 
-window-rule {
-    match app-id=r#"^satty$"#
-    open-floating true
-    default-column-width { fixed 1400; }
-    default-window-height { fixed 900; }
-}
-
 // Open the Firefox picture-in-picture player as floating by default.
 window-rule {
     // This app-id regular expression will work for both:
