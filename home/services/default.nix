@@ -8,7 +8,6 @@
     ./meeting-minutes.nix
     ./mic-volume-enforce.nix
     ./moberg.nix
-    ./spotify-cache.nix
     ./storage-maintenance.nix
     ./t3-code.nix
     ./tracer-digest.nix
@@ -22,7 +21,6 @@
     cliproxyapi.enable = true;
     install-tools.enable = true;
     meeting-minutes.enable = true;
-    spotify-cache.enable = true;
     storage-maintenance.enable = true;
     update-agents.enable = true;
   };

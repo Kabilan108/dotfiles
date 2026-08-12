@@ -89,10 +89,6 @@ in
           command = "floating enable, resize set 800 600";
         }
         {
-          criteria.class = "Spotify";
-          command = "move workspace 9";
-        }
-        {
           criteria.class = "obsidian";
           command = "move workspace 2";
         }

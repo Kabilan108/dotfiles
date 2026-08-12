@@ -308,7 +308,6 @@ in
     remmina
     signal-desktop
     (withElectronA11y slack [ "slack" ])
-    spotify
     zotero
 
     # media/file handling

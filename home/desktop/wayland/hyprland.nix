@@ -175,7 +175,6 @@ in
 
         "float, class:^(Emulator)$"
 
-        "workspace 9 silent, class:^(spotify)$"
         "workspace 2 silent, class:^(obsidian)$"
         "workspace 2 silent, class:^(Slack)$"
         "workspace 1 silent, class:^(google-chrome)$"

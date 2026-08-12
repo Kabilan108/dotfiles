@@ -464,7 +464,6 @@ window-rule {
 
 window-rule {
     match app-id=r#"^com\.mitchellh\.ghostty$"#
-    match app-id=r#"^spotify$"#
     match app-id=r#"^Slack$"#
     match app-id=r#"^obsidian$"#
 
