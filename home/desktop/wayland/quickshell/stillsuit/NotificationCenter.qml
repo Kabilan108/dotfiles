@@ -129,7 +129,7 @@ Scope {
         if (notification.urgency === NotificationUrgency.Low) return Theme.notificationLowMs
 
         const requested = notification.expireTimeout
-        if (requested > 0) return requested * 1000
+        if (requested > 0) return requested
         return Theme.notificationDefaultMs
     }
 
