@@ -48,7 +48,10 @@
         enableGraphical = true;
       };
     };
-    security.rtkit.enable = true;
+    security = {
+      pam.services.login.enableGnomeKeyring = true;
+      rtkit.enable = true;
+    };
 
     services = {
       blueman.enable = true;
