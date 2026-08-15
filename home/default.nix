@@ -306,6 +306,7 @@ in
     playerctl
     pulseaudio
     remmina
+    seahorse
     signal-desktop
     (withElectronA11y slack [ "slack" ])
     zotero
