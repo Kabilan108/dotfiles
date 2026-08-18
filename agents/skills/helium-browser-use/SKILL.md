@@ -1,6 +1,6 @@
 ---
 name: helium-browser-use
-description: Control a dedicated Helium browser profile through agent-browser and Chrome DevTools Protocol. Use when an agent needs to drive the user's Helium browser locally or through an SSH-forwarded CDP endpoint, inspect browser state, open pages in a visible browser, collaborate on local or remote dev-server debugging, take screenshots, read snapshots, manage tabs, or validate browser behavior in the Helium profile.
+description: Control a dedicated Helium browser profile through agent-browser and Chrome DevTools Protocol. Use whenever the user mentions Helium, a Helium devtools/CDP instance, the Helium agents profile, or a remote/sietch browser tunnel — prefer this over the generic agent-browser skill for those. Also use to drive the user's Helium browser locally or through an SSH-forwarded CDP endpoint, inspect browser state, open pages in a visible browser, collaborate on local or remote dev-server debugging, take screenshots, read snapshots, manage tabs, profile pages, or validate browser behavior in the Helium profile.
 ---
 
 # Helium Browser Use
@@ -25,11 +25,11 @@ curl -fsS "http://127.0.0.1:${port}/json/version"
 agent-browser --cdp "$port" get cdp-url --json
 ```
 
-If CDP is not reachable, start the CDP-enabled agents instance yourself: run `helium-agents-devtools` in the background, then re-check `/json/version`. Do not launch an unrelated browser as a fallback.
+If CDP is not reachable, tell the user that the Helium CDP-enabled browser needs to be started. Do not launch an unrelated browser as a fallback.
 
 ## Tab Discipline
 
-Create your own tab unless the user explicitly asks you to continue in an existing tab.
+Create your own tab for navigation, form submission, destructive actions, or exploratory browsing. Inspecting an existing tab read-only is fine when the user points you at an already-open stateful page, when duplicating it would add app/server load, or when the task is to diagnose the exact visible browser state — say you're using the existing tab read-only, record its `tabId`, and don't navigate or mutate it unless asked.
 
 Prefer labels that identify the task:
 
@@ -64,10 +64,11 @@ agent-browser --cdp "$port" errors
 agent-browser --cdp "$port" screenshot
 ```
 
-Use raw CDP target listing when you need to understand what else is open without taking over those tabs:
+Use a filtered CDP target listing when you need to understand what else is open without taking over those tabs. Don't print extension targets, service workers, or WebSocket debugger URLs unless the user explicitly needs them:
 
 ```bash
-curl -fsS "http://127.0.0.1:${port}/json/list"
+curl -fsS "http://127.0.0.1:${port}/json/list" \
+  | jq '[.[] | select(.type == "page") | {title, url}]'
 ```
 
 Agent-browser may create or focus an agent-owned `about:blank` target even when raw CDP shows other Helium tabs. That is expected. Prefer the agent-owned tab unless the user requested work in a specific existing tab.
@@ -79,6 +80,10 @@ If agent-browser reports that `/run/user/$UID/agent-browser` is read-only, reque
 Assume the Helium profile exposes browser state to the agent: bookmarks, cookies, localStorage, extensions, logged-in sessions, internal browser pages, screenshots, and visible form contents may be readable or mutable.
 
 Do not dump private data such as bookmark URLs, cookies, localStorage, account pages, or extension internals unless the user explicitly asks. Do not submit forms, change settings, delete bookmarks, or alter auth state without user intent.
+
+## Long-Running Work And Profiling
+
+Before profiling, tracing, or long waits, verify CDP and record the working tab (`tab --json`, `curl -m 5 .../json/version`). Use short command boundaries and save partial artifacts after each phase. After any reload, route change, or long wait, re-check the active tab and take a fresh snapshot before using refs. If CDP becomes unreachable mid-run, stop issuing page actions, diagnose the endpoint (see references/remote.md for the tunnel case), and tell the user what may still be running in the page.
 
 ## Remote Agents
 

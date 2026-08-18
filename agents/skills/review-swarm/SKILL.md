@@ -25,11 +25,15 @@ When using git changes, choose the smallest correct diff command:
 - mixed staged and unstaged work: review both
 - explicit branch or commit comparison: use exactly what the user requested
 
-Before launching reviewers, read the closest local instructions and any relevant project docs for the touched area, such as:
+If the scope includes untracked files or a newly scaffolded project, `git diff` may be empty. Build the scope from `git status --short`, `git ls-files --others --exclude-standard`, and explicit file reads; tell reviewers which untracked files are in scope and which generated/vendor/build outputs are excluded.
 
-- `AGENTS.md`
-- repo workflow docs
-- architecture or contract docs for the touched module
+Before launching reviewers, read the closest local instructions and any relevant project docs for the touched area:
+
+- root and nearest `AGENTS.md` (or equivalent agent instructions)
+- any `REVIEW.md` files from the repo root down to each reviewed path, root-to-leaf
+- repo workflow docs and architecture or contract docs for the touched module
+
+Include only the relevant guidance in the reviewer packet, and mention which guidance files were loaded in the final response.
 
 Build a short intent packet for the reviewers:
 
@@ -41,13 +45,20 @@ If the user did not state the intent clearly, infer it from the diff and say tha
 
 ## Step 2: Launch Four Read-Only Reviewers in Parallel
 
-Launch four sub-agents when the scope is large enough for parallel review to help. For a tiny diff or one very small file, it is acceptable to review locally instead.
+Default to four role-based reviewers for substantial single-repo diffs. Adapt the shape when the request calls for it, and say briefly why the shape differs:
+
+- one isolated reviewer: a single read-only sub-agent carrying the full intent packet and the most relevant lenses
+- multi-repo or linked-PR review: one reviewer per repo/PR, then cross-repo synthesis in the main agent
+- tiny diff: review locally, or use one reviewer if the user explicitly asked for isolation
+
+Harness notes: use whatever sub-agent mechanism the current environment provides. In Codex, if a full-history fork rejects custom `agent_type`/`model`/`reasoning_effort`, retry with inherited fork settings or a self-contained prompt. In Claude Code, use the Agent tool with the same scope, intent packet, read-only constraint, and role lens. If no sub-agent mechanism is available, review locally and say parallel review was unavailable.
 
 For every sub-agent:
 
 - give the same scope and the same intent packet
-- state that the sub-agent is read-only
-- do not let the sub-agent edit files, run `apply_patch`, stage changes, commit, or perform any other state-mutating action
+- state that the sub-agent is read-only, and enforce it at the tool/sandbox level when the harness supports it (e.g. `codex exec --sandbox read-only`, read-only agent types) — prose alone does not prevent mutation
+- do not let the sub-agent edit files, run `apply_patch`, run formatters that write, stage changes, commit, or perform any other state-mutating action
+- tell the sub-agent that tests/commands are allowed only if they are read-only in this environment; otherwise inspect code and report that validation was not run
 - ask for concise findings only
 - ask for: file and line or symbol, issue, why it matters, recommended follow-up, and confidence
 - tell the sub-agent to avoid nits, style preferences, and speculative concerns without concrete impact
@@ -121,6 +132,8 @@ Report only issues that materially affect correctness, security, privacy, reliab
 
 The main agent owns synthesis. Treat sub-agent output as raw review input, not final output.
 
+First check `git status --short` against the pre-review state. If a sub-agent changed anything despite the read-only contract, report it and inspect the diff before trusting that agent's findings.
+
 Merge findings across all four reviewers and filter aggressively:
 
 - drop duplicates
@@ -147,7 +160,7 @@ Present findings in this order:
 2. Medium-severity issues that are likely worth fixing before merge
 3. Lower-severity issues or follow-ups that can wait
 
-Keep the review concise. Findings should be actionable and evidence-backed.
+Keep the review concise. Findings should be actionable and evidence-backed. Verify each surviving finding's cited file/line or symbol in the main agent before presenting it; if a finding depends on runtime data or external metadata you haven't inspected, downgrade it to an open question.
 
 If there are no material issues, say that directly instead of manufacturing feedback.
 
@@ -165,4 +178,4 @@ When helpful, group the path forward into:
 - `fix soon`
 - `optional follow-up`
 
-Do not implement fixes as part of this skill. The output is a read-only review plus a prioritized recommendation.
+Do not implement fixes as part of this skill. The output is a read-only review plus a prioritized recommendation. If the user also asked to fix true positives, finish and summarize the review first, then start a separate implementation phase in the main agent; after fixes, run validation and optionally a fresh read-only re-review pass.

@@ -29,6 +29,15 @@ If this succeeds, use the normal `helium-browser-use` tab discipline with `agent
 
 If this fails, do not try to launch Helium on the remote host. Ask the browser-host machine to start or repair the reverse tunnel.
 
+For mid-session failures, distinguish "no listener" from "stale listener":
+
+```bash
+curl -m 5 -fsS "http://127.0.0.1:${remote_port}/json/version"
+ss -ltnp | rg ":${remote_port}\b" || true
+```
+
+If the port is listening but `/json/version` hangs or times out, the reverse tunnel or browser-side CDP endpoint is stale. Stop long-running browser/profiling work, ask the user to rerun `helium-browser-tunnel sietch` on the browser-host machine, then re-verify with `/json/version` and `agent-browser --cdp "$remote_port" get cdp-url --json` before continuing.
+
 ## From The Browser-Host Machine
 
 Confirm local Helium CDP is reachable:

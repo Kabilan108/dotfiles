@@ -51,19 +51,31 @@ turns remain. Read these transcript files:
 
 $(printf '%s\n' "${slim_files[@]}")
 
+Skill and model behavior differs materially across models (gpt-5.5 vs 5.6,
+Opus vs Fable) and harnesses (claude vs codex). Note the model and harness
+each transcript ran on (transcript frontmatter / agent role lines) and tag
+every digest item with it, e.g. (fable/claude). Never generalize a behavior
+across models without evidence from more than one.
+
 Produce a digest in markdown with these sections, being ruthlessly selective
 (high-signal items only, omit empty sections):
 
 ## Learnings — non-obvious facts about codebases, tools, or infra that agents
 had to rediscover and that should be written down (say where they belong:
 AGENTS.md, a skill, or a wiki page)
-## Anti-patterns — mistakes or dead ends that recurred across sessions
+## Anti-patterns — mistakes or dead ends that recurred across sessions;
+call out the highest-signal shapes explicitly: the same command repeated 3+
+times without state change, writes committed or finished without any
+test/check command, and user corrections the agent had to be given twice
+## Skill friction — skills that were invoked but misfired or were ignored,
+and moments a skill clearly should have triggered but didn't (name the
+skill; say what the skill text should change)
 ## Workflows worth reusing — prompting patterns or tool compositions that
 worked notably well
 ## Follow-ups — abandoned threads or TODOs mentioned but never done
 
-For each item: one or two sentences plus the session file basename(s) it
-came from. Output ONLY the digest markdown, no preamble."
+For each item: one or two sentences, the model/harness tag, plus the session
+file basename(s) it came from. Output ONLY the digest markdown, no preamble."
 
 digest=$(claude -p "$prompt" --allowedTools "Read")
 

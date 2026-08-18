@@ -10,6 +10,21 @@ tools for a variety of languages are installed in the home environment, but wher
 
 Only spawn subagents when i ask you to
 
+## skills
+
+Shared skill docs live in `~/dotfiles/agents/skills/<name>/SKILL.md`. Read the relevant one BEFORE starting these task shapes — transcript audits show these are routinely missed:
+
+| Task shape | Skill |
+|---|---|
+| Reviewing a diff, staged changes, or a branch | `review-swarm` |
+| Discussing/planning a feature before implementing | `pair-programmer` |
+| Creating commits from working-tree changes | `commit` |
+| Long multi-phase session hitting a phase boundary | `handoff` |
+| Driving a browser or validating rendered UI | `agent-browser` (Helium profile: `helium-browser-use`) |
+| Building or restyling UI | `frontend-design` |
+| Running servers/long jobs, coordinating panes | `tmux` |
+| Anything on another fleet machine (sietch, tleilax) | `fleet` |
+
 ## Rules
 
 ### Nix
