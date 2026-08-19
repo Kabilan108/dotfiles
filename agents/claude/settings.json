@@ -53,7 +53,7 @@
       "Bash(ghostty +list-keybinds --default)"
     ],
     "deny": [],
-    "defaultMode": "default"
+    "defaultMode": "auto"
   },
   "model": "claude-fable-5[1m]",
   "hooks": {
