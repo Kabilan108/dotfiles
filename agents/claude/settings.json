@@ -1,8 +1,21 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "cleanupPeriodDays": 99999999,
   "env": {
+    "ANTHROPIC_AUTH_TOKEN": "claudex-tailnet",
+    "ANTHROPIC_BASE_URL": "https://cliproxyapi.sole-pierce.ts.net",
+    "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": "1",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_CODE_NO_FLICKER": "1"
+    "CLAUDE_CODE_NO_FLICKER": "1",
+    "API_TIMEOUT_MS": "600000",
+    "BASH_DEFAULT_TIMEOUT_MS": "600000",
+    "BASH_MAX_TIMEOUT_MS": "600000",
+    "CLAUDE_API_TIMEOUT": "600000",
+    "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "200000",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "95",
+    "DISABLE_TELEMETRY": "1",
+    "MCP_TIMEOUT": "30000",
+    "MCP_TOOL_TIMEOUT": "600000"
   },
   "permissions": {
     "allow": [
