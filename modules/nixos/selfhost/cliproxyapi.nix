@@ -47,6 +47,12 @@ in
           ."usage-statistics-enabled" = false
         ' > "$CLIPROXY_CONFIG"
       fi
+
+      yq -i '
+        .routing.strategy = "round-robin" |
+        .routing."session-affinity" = true |
+        .routing."session-affinity-ttl" = "1h"
+      ' "$CLIPROXY_CONFIG"
     '';
   };
 }

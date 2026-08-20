@@ -300,12 +300,12 @@ trust_level = "trusted"
 "gpt-5.6-sol" = 4
 
 [marketplaces.openai-bundled]
-last_updated = "2026-07-29T18:29:17Z"
+last_updated = "2026-08-14T18:42:03Z"
 source_type = "local"
 source = "/home/kabilan/dotfiles/agents/codex/.tmp/bundled-marketplaces/openai-bundled"
 
 [marketplaces.openai-primary-runtime]
-last_updated = "2026-07-27T22:18:22Z"
+last_updated = "2026-08-19T23:18:03Z"
 source_type = "local"
 source = "/home/kabilan/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
 
