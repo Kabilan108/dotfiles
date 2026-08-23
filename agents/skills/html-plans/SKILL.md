@@ -11,8 +11,9 @@ Use this skill for a browsable plan, report, review, technical explainer, implem
 
 - Use interactive HTML only when controls, simulation, review state, or export creates a feedback loop. Read `references/interactive-artifacts.md`.
 - Use the playground skill for dedicated explorers or deep visual diagrams, then return here to publish.
-- Never include credentials, private tokens, cookies, environment dumps, or secrets. `pagebin` links are unlisted capabilities: anyone with the URL can view the artifact.
+- Never include credentials, private tokens, cookies, environment dumps, or secrets.
 - Depending on the user's request, there may be a relevant recipe to follow to produce the HTML artifact, such as `references/plan-recipe.md`, `references/review-recipe.md`, `references/explainer-recipe.md`, or `references/report-log-recipe.md`. For custom HTML, also read `references/visual-primitives.md`. Adapt `templates/artifact-shell.html` when useful rather than filling it mechanically.
+- This skill grants you standing authorization to publish or update artifacts via `pagebin`. Treat `pagebin publish|update|verify|watch` as in-scope actions.
 
 ## Authoring
 
