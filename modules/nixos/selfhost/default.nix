@@ -12,6 +12,7 @@ in
     ./cliproxyapi.nix
     ./executor.nix
     ./jellyfin.nix
+    ./llamacpp.nix
     ./siren.nix
     ./vaultwarden.nix
   ];
@@ -67,8 +68,7 @@ in
 
         ${lib.concatStringsSep "\n" (
           lib.mapAttrsToList (
-            name: svc:
-            "tailscale serve --service=svc:${name} --https=443 http://127.0.0.1:${toString svc.port}"
+            name: svc: "tailscale serve --service=svc:${name} --https=443 http://127.0.0.1:${toString svc.port}"
           ) cfg.tailnetServices
         )}
       '';

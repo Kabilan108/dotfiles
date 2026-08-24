@@ -139,6 +139,10 @@
       url = "github:Kabilan108/pagebin";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    llama-cpp = {
+      url = "github:ggml-org/llama.cpp/e85caa81ea2b65797396018c179b87ad61fa38ab";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     raindrop.url = "github:kabilan108/raindrop";
     siren.url = "github:kabilan108/siren";
     tracer.url = "github:kabilan108/tracer";
