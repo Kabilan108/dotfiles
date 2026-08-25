@@ -13,6 +13,7 @@ import subprocess
 import sys
 import time
 import uuid
+from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -1467,14 +1468,23 @@ def yaml_scalar(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def roster_people(text: str) -> set[str]:
+    """Extract full names from top-level and nested people roster bullets."""
+    names: set[str] = set()
+    for match in re.finditer(r"^\s*-\s+\*\*(.+?)\*\*", text, flags=re.MULTILINE):
+        names.update(name.strip().casefold() for name in match.group(1).split("/"))
+    return names
+
+
 def known_people() -> set[str]:
     """Names on ANY project roster — known anywhere means never re-proposed."""
     names: set[str] = set()
     for context in PROJECT_CONTEXTS:
         text = read_optional(people_registry_path(context))
-        for match in re.finditer(r"^- \*\*(.+?)\*\*", text, flags=re.MULTILINE):
-            for name in match.group(1).split("/"):
-                names.add(name.strip().casefold())
+        names.update(roster_people(text))
+
+    first_names = Counter(name.split(maxsplit=1)[0] for name in names)
+    names.update(name for name, count in first_names.items() if count == 1)
     return names
 
 
