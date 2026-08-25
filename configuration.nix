@@ -97,11 +97,6 @@
       nm-applet.enable = true;
     };
 
-    virtualisation.docker = {
-      enable = true;
-      daemon.settings.data-root = "/vault/userdata/docker";
-    };
-
     environment.systemPackages = with pkgs; [
       inputs.agenix.packages.${pkgs.stdenv.hostPlatform.system}.default
 

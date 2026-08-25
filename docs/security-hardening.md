@@ -257,6 +257,21 @@ a single choke point for what agents may invoke.
 - This is the track that actually addresses the primary threat (malware-as-me) —
   prioritize alongside getting secrets off disk.
 
+### R9: Docker access remains an agent-sandbox escape
+
+The declarative host configuration defaults new Docker port publications to loopback
+and applies an IPv4/IPv6 `DOCKER-USER` guard against new connections from physical
+interfaces. This limits accidental LAN exposure. It does not constrain code that
+already runs as `kabilan`: membership in the `docker` group remains root-equivalent and
+can bypass a project filesystem sandbox through the Docker socket.
+
+Removing ambient docker-group access is intentionally separate from the port guard.
+The replacement must keep the established `dev` workflows usable through a constrained
+boundary without exposing the unrestricted socket to ordinary shells, agents, or
+containers. That boundary is tracked in the
+[dev-server implementation plan](https://page-bin.com/p/sQpI4fsbcg-ZeTQ5OXYLRg/KLC805VgyXe4jRhuIvpJoGaqdDROrHXJX2yIYbdVQd0)
+as WI-14 and requires its own review before group membership changes.
+
 ---
 
 ## Backups (separate deep-dive — own session/agents)
