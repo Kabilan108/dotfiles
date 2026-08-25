@@ -1,10 +1,10 @@
 { config, ... }:
 {
   # Secrets decrypted at activation (owned by root for openvpn)
-  age.secrets.moberg-vpn-key.file = ../../secrets/moberg-vpn/key.age;
-  age.secrets.moberg-vpn-ta.file = ../../secrets/moberg-vpn/ta.age;
-  age.secrets.moberg-vpn-cert.file = ../../secrets/moberg-vpn/cert.age;
-  age.secrets.moberg-vpn-ca.file = ../../secrets/moberg-vpn/ca.age;
+  age.secrets.moberg-vpn-key.file = ../../secrets/moberg/vpn/key.age;
+  age.secrets.moberg-vpn-ta.file = ../../secrets/moberg/vpn/ta.age;
+  age.secrets.moberg-vpn-cert.file = ../../secrets/moberg/vpn/cert.age;
+  age.secrets.moberg-vpn-ca.file = ../../secrets/moberg/vpn/ca.age;
 
   services.openvpn.servers.moberg = {
     autoStart = true;
