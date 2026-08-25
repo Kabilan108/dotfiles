@@ -11,6 +11,25 @@ let
   cfgLink = name: config.lib.file.mkOutOfStoreSymlink "${confDir}/${name}";
   agentLink = name: config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/agents/${name}";
 
+  nixDirenvUnresholved = pkgs.nix-direnv.unresholved.overrideAttrs (_: rec {
+    version = "3.1.2";
+    src = pkgs.fetchFromGitHub {
+      owner = "nix-community";
+      repo = "nix-direnv";
+      rev = version;
+      hash = "sha256-3qT5mSqHi+0cskdoOGPVbuSzkoWtwOHBVXUOL84dAM8=";
+    };
+    installPhase = ''
+      runHook preInstall
+      install -m400 -D direnvrc $out/share/nix-direnv/direnvrc
+      runHook postInstall
+    '';
+  });
+  nixDirenv = pkgs.nix-direnv.overrideAttrs (_: {
+    version = "3.1.2";
+    src = nixDirenvUnresholved;
+  });
+
   colors = config.lib.stylix.colors.withHashtag;
   themeName = "stylix";
 in
@@ -99,7 +118,10 @@ in
   programs.direnv = {
     enable = true;
     enableBashIntegration = true;
-    nix-direnv.enable = true;
+    nix-direnv = {
+      enable = true;
+      package = nixDirenv;
+    };
   };
 
   programs.atuin = {
