@@ -170,7 +170,7 @@ in
 
         "float, class:^(TelegramDesktop)$"
 
-        "float, class:^(Evince)$"
+        "float, class:^(org.gnome.Papers)$"
         "float, class:^(steam)$"
 
         "float, class:^(Emulator)$"

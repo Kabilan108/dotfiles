@@ -77,7 +77,7 @@ in
           command = "floating enable, sticky enable, resize set 800 600, move position center";
         }
         {
-          criteria.class = "Evince";
+          criteria.class = "org.gnome.Papers";
           command = "floating enable";
         }
         {

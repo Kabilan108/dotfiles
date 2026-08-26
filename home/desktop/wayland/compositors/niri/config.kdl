@@ -425,7 +425,7 @@ window-rule {
 }
 
 window-rule {
-    match app-id=r#"^Evince$"#
+    match app-id=r#"^org.gnome.Papers$"#
     open-floating true
 }
 

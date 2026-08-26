@@ -266,11 +266,11 @@ in
       "image/x-xbitmap" = "org.gnome.Loupe.desktop";
       "image/x-xpixmap" = "org.gnome.Loupe.desktop";
 
-      "application/pdf" = "org.gnome.Evince.desktop";
-      "application/epub+zip" = "org.gnome.Evince.desktop";
-      "application/x-mobipocket-ebook" = "org.gnome.Evince.desktop";
-      "application/vnd.comicbook+zip" = "org.gnome.Evince.desktop";
-      "application/x-cbz" = "org.gnome.Evince.desktop";
+      "application/pdf" = "org.gnome.Papers.desktop";
+      "application/epub+zip" = "org.gnome.Papers.desktop";
+      "application/x-mobipocket-ebook" = "org.gnome.Papers.desktop";
+      "application/vnd.comicbook+zip" = "org.gnome.Papers.desktop";
+      "application/x-cbz" = "org.gnome.Papers.desktop";
 
       # default browser
       "application/xhtml+xml" = defaultBrowserDesktop;
@@ -295,8 +295,11 @@ in
   home.packages = with pkgs; [
     # desktop apps
     code-cursor
-    (withElectronA11y discord [ "Discord" "discord" ])
-    evince
+    (withElectronA11y discord [
+      "Discord"
+      "discord"
+    ])
+    papers
     loupe
     mpv
     nautilus
