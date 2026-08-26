@@ -76,6 +76,13 @@ in
       owner = "kabilan";
       group = "users";
     };
+    secrets."secrets/moberg/secrets.env.age" = {
+      file = ./secrets/moberg/secrets.env.age;
+      path = "${home}/.config/moberg/secrets.env";
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
   };
 
   home-manager = {

@@ -35,6 +35,10 @@ in
     sietch
     jacurutu
   ];
+  "secrets/moberg/secrets.env.age".publicKeys = [
+    sietch
+    jacurutu
+  ];
 
   "secrets/moberg/vpn/key.age".publicKeys = [
     sietch
