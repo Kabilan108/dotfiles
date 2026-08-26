@@ -27,6 +27,9 @@ in
     sietch
     jacurutu
   ];
+  "secrets/foobar.age".publicKeys = [
+    sietch
+  ];
 
   "secrets/moberg/credentials.env.age".publicKeys = [
     sietch
