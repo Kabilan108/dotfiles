@@ -81,7 +81,6 @@ in
 
     ".gitconfig".source = cfgLink ".gitconfig";
     ".ipython/profile_default/ipython_config.py".source = cfgLink "ipython_config.py";
-    ".obsidian.vimrc".source = cfgLink ".obsidian.vimrc";
     ".tmux.conf".source = cfgLink ".tmux.conf";
     ".vimrc".source = cfgLink ".vimrc";
 
