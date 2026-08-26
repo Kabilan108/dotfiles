@@ -35,7 +35,6 @@ let
 in
 {
   imports = [
-    ./completions
     inputs.try.homeModules.default
   ];
 
