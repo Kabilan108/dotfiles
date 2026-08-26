@@ -45,7 +45,6 @@
       bluetooth.powerOnBoot = true;
       logitech.wireless = {
         enable = true;
-        enableGraphical = true;
       };
     };
     security = {
@@ -88,6 +87,7 @@
     programs = {
       appimage.enable = true;
       appimage.binfmt = true;
+      solaar.enable = true;
       nix-ld.enable = true;
       nix-ld.libraries = with pkgs; [
         glibc
