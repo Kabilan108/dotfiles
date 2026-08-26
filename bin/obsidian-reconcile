@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+#
+# Force a running Obsidian instance to notice externally-written files.
+# Obsidian's file watcher unreliably misses external writes (mount/inotify
+# race), leaving files out of metadataCache so task queries and TaskNotes go
+# blind. reconcileFile() surgically re-syncs one path — handles creation,
+# modification, and deletion — without a full vault reload.
+#
+# Best-effort by design: exits 0 when obsidian-cli or a running vault is
+# absent, because a fresh Obsidian launch performs a full vault scan and
+# needs no help. Callers should fire-and-forget.
+#
+# Usage: obsidian-reconcile <path>...   (absolute or vault-relative paths)
+
+set -uo pipefail
+
+command -v obsidian-cli >/dev/null 2>&1 || exit 0
+[[ $# -gt 0 ]] || exit 0
+
+find_vault_root() {
+  local dir="$1"
+  while [[ "$dir" != "/" ]]; do
+    if [[ -d "$dir/.obsidian" ]]; then
+      printf '%s' "$dir"
+      return 0
+    fi
+    dir=$(dirname "$dir")
+  done
+  return 1
+}
+
+declare -A by_vault=()
+for raw in "$@"; do
+  if [[ "$raw" = /* ]]; then
+    abs="$raw"
+  else
+    abs="${COPPERMIND_VAULT:-/vault/notes/coppermind}/$raw"
+  fi
+  parent=$(dirname "$abs")
+  root=$(find_vault_root "$parent") || continue
+  rel="${abs#"$root"/}"
+  by_vault["$root"]+="${rel}"$'\n'
+done
+
+status=0
+for root in "${!by_vault[@]}"; do
+  vault=$(basename "$root")
+  paths_json=$(printf '%s' "${by_vault[$root]}" | jq -R -s 'split("\n") | map(select(length > 0))')
+  code="Promise.all(${paths_json}.map(p => app.vault.adapter.reconcileFile(p, p))).then(ps => ps.length)"
+  if ! obsidian-cli vault="$vault" eval code="$code" >/dev/null 2>&1; then
+    status=1
+  fi
+done
+
+exit $status

@@ -79,6 +79,8 @@ digest=$(claude -p "$prompt" --allowedTools "Read")
   printf -- '- %s\n' "${orig_paths[@]}"
 } >"$out_file"
 
+obsidian-reconcile "$out_file" || true
+
 # Mark processed only after the digest is written, so a failed run retries.
 tag_failures=0
 for row in "${rows[@]}"; do

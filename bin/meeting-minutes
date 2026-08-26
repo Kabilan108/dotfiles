@@ -233,6 +233,28 @@ def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     atomic_write_text(path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
+def reconcile_vault_paths(*paths: Path) -> None:
+    """Nudge a running Obsidian to notice externally-written vault files.
+
+    Obsidian's file watcher unreliably misses external writes, dropping files
+    from metadataCache so task queries and backlinks go blind. Best-effort:
+    a missing helper or closed Obsidian is fine (startup does a full scan).
+    """
+    vault_paths = [str(p) for p in paths if str(p).startswith(str(VAULT_ROOT))]
+    if not vault_paths:
+        return
+    try:
+        subprocess.run(
+            ["obsidian-reconcile", *vault_paths],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=15,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
 def read_json(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text())
@@ -1516,6 +1538,7 @@ def propose_unknown_people(job: dict[str, Any], minutes: dict[str, Any]) -> None
             "Role and relationship need Tony's confirmation.\n"
         )
         atomic_write_text(path, content)
+        reconcile_vault_paths(path)
 
 
 def publish_screenshots(
@@ -1702,6 +1725,7 @@ def append_weekly_backlink(job: dict[str, Any], minutes: dict[str, Any]) -> None
     if after:
         updated += f"\n{after}"
     atomic_write_text(weekly_path, updated)
+    reconcile_vault_paths(weekly_path)
 
 
 def finalize_artifacts(
@@ -1738,6 +1762,10 @@ def finalize_artifacts(
 
     atomic_write_text(
         note_path, render_note(job, minutes, video_path, published_screenshots)
+    )
+    reconcile_vault_paths(
+        note_path,
+        *(Path(str(s["asset_path"])) for s in published_screenshots if "asset_path" in s),
     )
     job["note_path"] = str(note_path)
     job["transcript_path"] = str(final_transcript)
