@@ -116,6 +116,10 @@
 
     hyprland.url = "github:hyprwm/Hyprland/v0.52.0";
     ghostty.url = "github:ghostty-org/ghostty/v1.3.1";
+    herdr = {
+      url = "github:herdrdev/herdr/v0.8.2";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     "niri-flake".url = "github:sodiboo/niri-flake";
     elephant.url = "github:abenz1267/elephant";
     walker = {

@@ -1,5 +1,6 @@
 {
   config,
+  inputs,
   lib,
   pkgs,
   modulesPath,
@@ -131,6 +132,7 @@ in
     git
     gnugrep
     htop
+    inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
     jq
     neovim
     openssh

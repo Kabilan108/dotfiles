@@ -7,8 +7,9 @@ case $- in
 esac
 
 # Interactive ssh terminals land in a persistent tmux session. Remote tools
-# may start an interactive login shell without allocating a terminal.
-if [[ -n $SSH_TTY && -z $TMUX && -z $NO_TMUX ]] && command -v tmux >/dev/null 2>&1; then
+# may start an interactive login shell without allocating a terminal. Herdr
+# marks its managed panes so their shells do not start a nested tmux client.
+if [[ -n $SSH_TTY && -z $TMUX && -z $HERDR_ENV && -z $NO_TMUX ]] && command -v tmux >/dev/null 2>&1; then
   exec tmux new-session -A -s main
 fi
 

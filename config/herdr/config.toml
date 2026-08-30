@@ -1,0 +1,28 @@
+# Herdr is being evaluated alongside tmux. Keep this config small until the
+# trial has established which parts of the tmux workflow should move over.
+onboarding = false
+
+[update]
+# Herdr is pinned by the Nix flake and should be updated there.
+version_check = false
+
+[theme]
+name = "catppuccin"
+
+[keys]
+prefix = "ctrl+a"
+workspace_picker = ["prefix+w", "alt+s"]
+
+[ui]
+tab_bar_position = "bottom"
+
+[ui.sound]
+enabled = false
+
+[remote]
+# Reuse the fleet's existing OpenSSH ControlMaster and hardware-key policy.
+manage_ssh_config = false
+
+[experimental]
+# Pane history may contain prompts, tokens, and command output.
+pane_history = false

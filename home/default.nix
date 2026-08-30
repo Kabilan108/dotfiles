@@ -344,6 +344,7 @@ in
     fzf
     gh
     ghostty
+    inputs.herdr.packages.${systemName}.default
     inputs.pagebin.packages.${systemName}.default
     kitty.kitten
     lazygit
