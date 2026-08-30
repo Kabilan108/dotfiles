@@ -38,3 +38,4 @@ visualizations/
 attachments
 .sandbox_migration
 thread-writer-locks
+tui-thread-reference-capabilities
