@@ -1,11 +1,11 @@
 ---
 name: codex-review
-description: Ask Codex CLI (gpt-5.5) for an independent code review of uncommitted changes, a branch diff, a commit, or a specific implementation. Use when the user asks for Codex or gpt-5.5 review work, when the model-selection rubric calls for a gpt-5.5 review perspective, or when Codex should audit a diff, find bugs or regressions, or compare an implementation against requirements. For a review by the current agent itself, use the normal review process instead.
+description: Ask Codex CLI (gpt-5.6) for an independent code review of uncommitted changes, a branch diff, a commit, or a specific implementation. Use when the user asks for Codex or gpt-5.6 review work, when the model-selection rubric calls for a gpt-5.6 review perspective, or when Codex should audit a diff, find bugs or regressions, or compare an implementation against requirements. For a review by the current agent itself, use the normal review process instead.
 ---
 
 # Codex Review
 
-Use Codex as an independent second-opinion reviewer. Per the model rubric, primary reviews belong to fable or opus (`/code-review`, `review-swarm`); this skill adds the gpt-5.5 perspective on top of those, or handles the case where the user explicitly asks for a Codex review.
+Use Codex as an independent second-opinion reviewer. Per the model rubric, primary reviews belong to fable or opus (`/code-review`, `review-swarm`); this skill adds the gpt-5.6 perspective on top of those, or handles the case where the user explicitly asks for a Codex review.
 
 Prefer the current agent's normal review process for small local checks. Do not delegate every lint, type, or formatting issue to Codex.
 

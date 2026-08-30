@@ -46,7 +46,7 @@ Rankings, higher = better. Cost reflects actual plan limits, not list price. Int
 
 | model    | cost | intelligence | taste |
 |----------|------|--------------|-------|
-| gpt-5.5  | 9    | 8            | 5     |
+| gpt-5.6  | 9    | 8            | 5     |
 | sonnet   | 5    | 5            | 7     |
 | opus     | 4    | 7            | 8     |
 | fable    | 2    | 9            | 9     |
@@ -54,15 +54,15 @@ Rankings, higher = better. Cost reflects actual plan limits, not list price. Int
 How to apply:
 - These are defaults, not limits. You have standing permission to override them: if a cheaper model's output doesn't meet the bar, rerun or redo the work with a smarter model without asking. Judge the output, not the price tag. Escalating costs less than shipping mediocre work.
 - Don't let cost prevent you from using the right model for the job. Instead, take advantage of cheaper options to get more information and try things before moving the work to a more expensive option.
-- Bulk/mechanical work (clear-spec implementation, data analysis, migrations, investigation of large codebases): gpt-5.5 — it's effectively free.
+- Bulk/mechanical work (clear-spec implementation, data analysis, migrations, investigation of large codebases): gpt-5.6 — it's effectively free.
 - Anything user-facing (UI, copy, API design) needs taste ≥ 7.
-- Reviews of plans/implementations: fable or opus, optionally gpt-5.5 as an extra independent perspective.
+- Reviews of plans/implementations: fable or opus, optionally gpt-5.6 as an extra independent perspective. A gpt-5.6 review is never the sole gate: always pair it with a fable/opus adversarial pass focused on API and interface design before presenting findings or merging.
 - Never use haiku.
-- Claude models (sonnet, opus, fable) run via the Agent/Workflow model parameter. gpt-5.5 is only reachable through the Codex CLI (`codex exec`).
+- Claude models (sonnet, opus, fable) run via the Agent/Workflow model parameter. gpt-5.6 is only reachable through the Codex CLI (`codex exec`).
 
-## Delegating to gpt-5.5 via Codex CLI
+## Delegating to gpt-5.6 via Codex CLI
 
-`~/.codex/config.toml` defaults to gpt-5.5 at high effort with a full-access sandbox and no approvals — ALWAYS pass `-s` and `-c model_reasoning_effort=...` explicitly per invocation.
+`~/.codex/config.toml` defaults to gpt-5.6 at high effort with a full-access sandbox and no approvals — ALWAYS pass `-s` and `-c model_reasoning_effort=...` explicitly per invocation.
 
 Use the skills for the mechanics (command shapes, effort guidance, prompt templates, session capture):
 - `codex-implementation` — scoped code changes producing a patch
@@ -82,7 +82,7 @@ Prompt rules — Codex shares none of your conversation context:
 - For follow-ups, capture the `session id:` from codex's output frontmatter and run `codex exec resume <session-id> "<correction>"` so follow-ups stay pinned to the right run.
 - After a delegated implementation, review the diff yourself before presenting it. If the output misses the bar, fix or redo with a Claude model — don't ship it unexamined.
 
-Using gpt-5.5 inside workflows and subagents (the model parameter only takes Claude models, so use a wrapper):
+Using gpt-5.6 inside workflows and subagents (the model parameter only takes Claude models, so use a wrapper):
 - Spawn a thin Claude wrapper agent with `model: 'sonnet', effort: 'low'` whose prompt instructs it to write a self-contained codex prompt, run `codex exec` via Bash, and return the raw result without editorializing.
 
 # Knowledge Vault

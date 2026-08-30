@@ -1,11 +1,11 @@
 ---
 name: codex-computer-use
-description: Ask Codex CLI (gpt-5.5) to run local app verification that needs browser automation, desktop control, screenshots, app launching, or independent runtime inspection. This is how gpt-5.5 is invoked for computer-use work, and the preferred route for browser verification on this machine. Use when the user asks to test a flow, verify UI behavior, inspect a running app, capture screenshots, or report confirmation and feedback about implemented behavior.
+description: Ask Codex CLI (gpt-5.6) to run local app verification that needs browser automation, desktop control, screenshots, app launching, or independent runtime inspection. This is how gpt-5.6 is invoked for computer-use work, and the preferred route for browser verification on this machine. Use when the user asks to test a flow, verify UI behavior, inspect a running app, capture screenshots, or report confirmation and feedback about implemented behavior.
 ---
 
 # Codex Computer Use
 
-Use Codex as a separate local verification agent when the task needs real UI interaction, screenshots, browser or desktop state, or an independent runtime check outside the current agent's context. On this machine, gpt-5.5 via `codex exec` is the preferred agent for browser-use tasks — reach for it before spawning Claude browser subagents.
+Use Codex as a separate local verification agent when the task needs real UI interaction, screenshots, browser or desktop state, or an independent runtime check outside the current agent's context. On this machine, gpt-5.6 via `codex exec` is the preferred agent for browser-use tasks — reach for it before spawning Claude browser subagents.
 
 Do not use this for ordinary code reading, typechecking, linting, or tests the current agent can run directly. Launching apps or browsers to verify requested work is fine without asking; ask first only if the run could disrupt the user's environment beyond that, such as closing their apps, changing system settings, or acting on real accounts or data.
 

@@ -1,6 +1,6 @@
 ---
 name: codex-implementation
-description: Ask Codex CLI (gpt-5.5) to implement scoped code changes in the current repository, then have the current agent inspect the resulting diff and verification. This is how gpt-5.5 is invoked for implementation work. Use when the user asks to delegate implementation to Codex or gpt-5.5, when the model-selection rubric routes the work to gpt-5.5, or when a bounded task would benefit from another coding agent producing a patch.
+description: Ask Codex CLI (gpt-5.6) to implement scoped code changes in the current repository, then have the current agent inspect the resulting diff and verification. This is how gpt-5.6 is invoked for implementation work. Use when the user asks to delegate implementation to Codex or gpt-5.6, when the model-selection rubric routes the work to gpt-5.6, or when a bounded task would benefit from another coding agent producing a patch.
 ---
 
 # Codex Implementation
