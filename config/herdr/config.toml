@@ -12,12 +12,74 @@ name = "catppuccin"
 [keys]
 prefix = "ctrl+a"
 workspace_picker = ["prefix+w", "alt+s"]
+goto = ["prefix+g", "alt+b"]
+
+# Preserve the direct tmux chords while keeping the corresponding prefix
+# bindings available as a discoverable fallback.
+split_vertical = ["prefix+v", "alt+enter"]
+split_horizontal = ["prefix+minus", "alt+backslash"]
+close_pane = ["prefix+x", "alt+w"]
+zoom = ["prefix+z", "alt+m"]
+
+new_tab = ["prefix+c", "alt+shift+t"]
+close_tab = ["prefix+shift+x", "alt+shift+w"]
+previous_tab = ["prefix+p", "alt+comma"]
+next_tab = ["prefix+n", "alt+period"]
+switch_tab = ["prefix+1..9", "alt+1..9"]
+
+resize_pane_left = "alt+shift+h"
+resize_pane_down = "alt+shift+j"
+resize_pane_up = "alt+shift+k"
+resize_pane_right = "alt+shift+l"
+
+# These commands retain Ctrl-h/j/k/l inside nvim and cross a Herdr pane edge
+# only when the editor cannot move farther in that direction.
+[[keys.command]]
+key = "ctrl+h"
+type = "shell"
+command = "herdr-navigate left"
+
+[[keys.command]]
+key = "ctrl+j"
+type = "shell"
+command = "herdr-navigate down"
+
+[[keys.command]]
+key = "ctrl+k"
+type = "shell"
+command = "herdr-navigate up"
+
+[[keys.command]]
+key = "ctrl+l"
+type = "shell"
+command = "herdr-navigate right"
+
+[[keys.command]]
+key = "ctrl+alt+h"
+type = "shell"
+command = 'herdr pane swap --pane "$HERDR_ACTIVE_PANE_ID" --direction left'
+
+[[keys.command]]
+key = "ctrl+alt+j"
+type = "shell"
+command = 'herdr pane swap --pane "$HERDR_ACTIVE_PANE_ID" --direction down'
+
+[[keys.command]]
+key = "ctrl+alt+k"
+type = "shell"
+command = 'herdr pane swap --pane "$HERDR_ACTIVE_PANE_ID" --direction up'
+
+[[keys.command]]
+key = "ctrl+alt+l"
+type = "shell"
+command = 'herdr pane swap --pane "$HERDR_ACTIVE_PANE_ID" --direction right'
 
 [ui]
 tab_bar_position = "bottom"
 
+show_agent_labels_on_pane_borders = true
 [ui.sound]
-enabled = false
+enabled = true
 
 [remote]
 # Reuse the fleet's existing OpenSSH ControlMaster and hardware-key policy.
@@ -26,3 +88,6 @@ manage_ssh_config = false
 [experimental]
 # Pane history may contain prompts, tokens, and command output.
 pane_history = false
+
+[ui.toast]
+delivery = "terminal"
