@@ -14,8 +14,11 @@ let
     source = ../../../../packages/stillsuit-shell/src;
     manifestFile = "plugins/builtin/${name}/manifest.json";
   };
+  meetingEnqueueHelper =
+    pkgs.callPackage ../../../../packages/stillsuit-shell/meeting-enqueue-helper.nix
+      { };
   recorderHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/recorder-helper.nix {
-    meetingMinutesPath = "${homeDir}/bin/meeting-minutes";
+    inherit meetingEnqueueHelper;
   };
 in
 {

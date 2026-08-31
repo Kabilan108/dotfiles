@@ -95,7 +95,8 @@ let
         && validRelativePath plugin.manifestRoot entryPoints.${field}
         && validScope;
     in
-    plugin.parsed.success
+    plugin.manifestExists
+    && builtins.isAttrs plugin.manifestValue
     && builtins.isAttrs manifest
     && lib.all (key: builtins.hasAttr key manifest) requiredManifestKeys
     && lib.all (key: lib.elem key allowedManifestKeys) keys
@@ -147,8 +148,12 @@ let
       message = "programs.stillsuitShell plugin ${toString plugin.index} has an unsafe manifestFile path";
     }
     {
-      assertion = plugin.parsed.success;
-      message = "programs.stillsuitShell plugin ${toString plugin.index} manifest is missing or invalid JSON: ${plugin.manifestPath}";
+      assertion = plugin.manifestExists;
+      message = "programs.stillsuitShell plugin ${toString plugin.index} manifest is missing: ${plugin.manifestPath}";
+    }
+    {
+      assertion = !plugin.manifestExists || builtins.isAttrs plugin.manifestValue;
+      message = "programs.stillsuitShell plugin ${toString plugin.index} manifest must contain a JSON object: ${plugin.manifestPath}";
     }
     {
       assertion = validManifest plugin;

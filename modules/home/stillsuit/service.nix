@@ -53,7 +53,6 @@ in
             TimeoutStopSec = 10;
             RuntimeDirectory = "stillsuit";
             StateDirectory = "stillsuit";
-            DataDirectory = "stillsuit";
             Environment = [
               "PATH=${lib.makeBinPath exactRuntimeInputs}"
               "STILLSUIT_CATALOG_PATH=${stillsuitRegistry.catalog}"

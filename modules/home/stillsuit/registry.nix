@@ -13,15 +13,15 @@ let
       manifestDirectory = builtins.dirOf plugin.manifestFile;
       manifestRoot =
         if manifestDirectory == "." then plugin.source else plugin.source + "/${manifestDirectory}";
-      parsed =
-        if builtins.pathExists manifestPath then
-          builtins.tryEval (builtins.fromJSON (builtins.readFile manifestPath))
+      manifestExists = builtins.pathExists manifestPath;
+      manifestValue =
+        if manifestExists then
+          builtins.addErrorContext "while parsing Stillsuit plugin manifest ${manifestPath}: " (
+            builtins.fromJSON (builtins.readFile manifestPath)
+          )
         else
-          {
-            success = false;
-            value = null;
-          };
-      manifest = if parsed.success && builtins.isAttrs parsed.value then parsed.value else { };
+          null;
+      manifest = if builtins.isAttrs manifestValue then manifestValue else { };
       id = if builtins.isString (manifest.id or null) then manifest.id else "invalid-${toString index}";
       packageTree = builtins.path {
         path = plugin.source;
@@ -37,8 +37,9 @@ let
         manifest
         manifestRoot
         manifestPath
+        manifestExists
+        manifestValue
         packageRoot
-        parsed
         ;
       inherit id;
       storeManifestPath = "${packageRoot}/${builtins.baseNameOf plugin.manifestFile}";

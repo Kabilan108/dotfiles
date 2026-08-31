@@ -4,7 +4,7 @@
   makeWrapper,
   python3,
   gpu-screen-recorder,
-  meetingMinutesPath,
+  meetingEnqueueHelper,
 }:
 let
   runtimeInputs = [ gpu-screen-recorder ];
@@ -24,7 +24,7 @@ stdenvNoCC.mkDerivation {
     substituteInPlace "$out/libexec/stillsuit-recorder" \
       --replace-fail '#!/usr/bin/env python3' '#!${lib.getExe python3}' \
       --replace-fail 'MEETING_HELPER = Path.home() / "bin/meeting-minutes"' \
-        'MEETING_HELPER = Path("${meetingMinutesPath}")'
+        'MEETING_HELPER = Path("${lib.getExe meetingEnqueueHelper}")'
     makeWrapper "$out/libexec/stillsuit-recorder" "$out/bin/stillsuit-recorder" \
       --set PATH ${lib.escapeShellArg (lib.makeBinPath runtimeInputs)}
 
@@ -32,7 +32,7 @@ stdenvNoCC.mkDerivation {
   '';
 
   passthru = {
-    inherit runtimeInputs;
+    inherit meetingEnqueueHelper runtimeInputs;
   };
 
   meta = {
