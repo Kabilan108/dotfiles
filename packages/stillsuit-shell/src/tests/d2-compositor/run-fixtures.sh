@@ -54,6 +54,22 @@ wait_for() {
   return 1
 }
 
+wait_for_reconciliation() {
+  local expression reconciliation
+  expression=$1
+  for _ in {1..160}; do
+    reconciliation=$(ipc reconciliation 2>/dev/null || true)
+    if [[ -n $reconciliation ]] && jq -e "$expression" >/dev/null 2>&1 <<<"$reconciliation"; then
+      printf '%s\n' "$reconciliation"
+      return 0
+    fi
+    sleep 0.05
+  done
+  printf 'fixture reconciliation timed out: %s\n' "$expression" >&2
+  ipc reconciliation >&2 || true
+  return 1
+}
+
 qs --no-color -p "$config_dir" >"$tmp_dir/quickshell.log" 2>&1 &
 shell_pid=$!
 sleep 0.02
@@ -63,14 +79,63 @@ if ! kill -0 "$shell_pid" 2>/dev/null; then
   exit 1
 fi
 
-# Initial stream and bounded reconciliation produce the exact plain v1 shape.
-first=$(wait_for '(.apiVersion == "1") and (.name == "niri") and (.outputs[0].id == "DP-1") and ((.windows | length) >= 1)')
-jq -e '(.revision >= 1) and (.focusedOutputId == "DP-1")' >/dev/null <<<"$first"
+# Niri returns an output map keyed by connector. Both the event stream and the
+# first successful command triplet normalize it to a sorted plain array.
+wait_for_reconciliation '.completedGeneration == 1 and .acceptedGeneration == 1' >/dev/null
+first=$(wait_for '(.apiVersion == "1") and (.name == "niri") and (.focusedOutputId == "DP-2")')
+jq -e '
+  (.revision >= 1)
+  and ((.outputs | type) == "array")
+  and ([.outputs[].name] == ["DP-2", "eDP-1"])
+  and (.outputs[0].id == "desk-output")
+  and (.outputs[0].name == "DP-2")
+  and (.outputs[1].id == "eDP-1")
+  and (.outputs[1].name == "eDP-1")
+  and ([.workspaces[].id] == [1])
+  and ([.windows[].id] == [10])
+' >/dev/null <<<"$first"
 
-# The fake stream exits, reconnects, and incremental events are folded before
-# the next reconciliation overwrites the changed title with its authoritative value.
-second=$(wait_for '(.windows | map(select(.id == 11))[0].title == "reconciled") and .workspaces[0].active_window_id == 11')
-(( $(jq -r '.revision' <<<"$second") >= 4 ))
+# Generation 2 has usable output and window JSON, but workspaces exits 23 with
+# empty stdout. None of that generation may replace any part of generation 1.
+wait_for_reconciliation '.completedGeneration == 2 and .acceptedGeneration == 1' >/dev/null
+after_bad=$(ipc state)
+jq -e '
+  ([.outputs[].name] == ["DP-2", "eDP-1"])
+  and ([.workspaces[].id] == [1])
+  and ([.windows[].id] == [10])
+  and ([.windows[].title] == ["generation-1"])
+  and ([.outputs[].name] | index("BROKEN-OUTPUT") == null)
+' >/dev/null <<<"$after_bad"
+
+# Generation 3 exits zero but contains malformed output JSON. The other two
+# valid members are still rejected as part of the same triplet.
+: >"$STILLSUIT_D2_FIXTURE_STATE/allow-malformed"
+wait_for_reconciliation '.completedGeneration == 3 and .acceptedGeneration == 1' >/dev/null
+after_malformed=$(ipc state)
+jq -e '
+  ([.outputs[].name] == ["DP-2", "eDP-1"])
+  and ([.workspaces[].id] == [1])
+  and ([.windows[].id] == [10])
+  and ([.windows[].title] == ["generation-1"])
+' >/dev/null <<<"$after_malformed"
+
+# Release generation 4 after both rejected generations have been observed. Its
+# three valid members must then land together as the recovered snapshot.
+: >"$STILLSUIT_D2_FIXTURE_STATE/allow-recovery"
+wait_for_reconciliation '.completedGeneration >= 4 and .acceptedGeneration >= 4' >/dev/null
+recovered=$(wait_for '
+  ([.outputs[].name] == ["HDMI-A-1"])
+  and ([.workspaces[].id] == [4])
+  and ([.windows[].id] == [40])
+  and (.focusedOutputId == "HDMI-A-1")
+')
+jq -e '
+  (.outputs[0].id == "HDMI-A-1")
+  and (.outputs[0].make == "Recovered")
+  and (.windows[0].title == "generation-4")
+' >/dev/null <<<"$recovered"
+
+# The fake stream exits and reconnects without relying on the live Niri socket.
 for _ in {1..80}; do
   if [[ -f $STILLSUIT_D2_FIXTURE_STATE/stream-count ]] \
     && [[ $(<"$STILLSUIT_D2_FIXTURE_STATE/stream-count") -ge 2 ]]; then
@@ -80,21 +145,17 @@ for _ in {1..80}; do
 done
 [[ $(<"$STILLSUIT_D2_FIXTURE_STATE/stream-count") -ge 2 ]]
 
-# Malformed stream input did not clear the last good snapshot; all invoked
-# command output also cannot erase it. Commands are fixed Niri argv forms, and
-# the fixture has one global instance.
-for _ in {1..80}; do
-  if [[ -f $STILLSUIT_D2_FIXTURE_STATE/outputs-count ]] \
-    && [[ $(<"$STILLSUIT_D2_FIXTURE_STATE/outputs-count") -ge 2 ]]; then
-    break
-  fi
-  sleep 0.05
-done
-[[ $(<"$STILLSUIT_D2_FIXTURE_STATE/outputs-count") -ge 2 ]]
-after_bad=$(ipc state)
-jq -e '((.outputs | length) == 1) and ((.workspaces | length) == 1) and ((.windows | length) == 2)' >/dev/null <<<"$after_bad"
-jq -e '((.outputs | length) == 1) and ((.workspaces | length) == 1) and ((.windows | length) == 2)' >/dev/null <<<"$second"
+# Commands remain fixed literal Niri argv forms, and the fixture has one global
+# service and adapter instance.
 ownership=$(ipc ownership)
 jq -e '.serviceInstances == 1 and .adapterInstances == 1' >/dev/null <<<"$ownership"
 sort -u "$STILLSUIT_D2_FIXTURE_STATE/argv.log" >"$tmp_dir/argv.unique"
 diff -u <(printf '%s\n' 'msg --json event-stream' 'msg -j outputs' 'msg -j windows' 'msg -j workspaces') "$tmp_dir/argv.unique"
+
+if rg --line-number --ignore-case '(binding loop|typeerror|referenceerror)' "$tmp_dir/quickshell.log" >"$tmp_dir/quickshell-errors"; then
+  cat "$tmp_dir/quickshell-errors" >&2
+  exit 1
+else
+  rg_status=$?
+  if (( rg_status != 1 )); then exit "$rg_status"; fi
+fi

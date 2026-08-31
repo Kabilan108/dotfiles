@@ -15,22 +15,31 @@ Scope {
     property int reconnectDelayMs: 1000
     readonly property bool eventStreamRunning: eventStream.running
     readonly property int instanceCount: 1
-    readonly property QtObject adapter: adapter
+    readonly property QtObject adapter: compositorAdapter
+    readonly property int lastCompletedReconciliationGeneration: root._lastCompletedGeneration
+    readonly property int lastAcceptedReconciliationGeneration: root._lastAcceptedGeneration
+    readonly property bool reconciliationRunning: root._reconciliationRunning
 
-    CompositorAdapter { id: adapter }
+    property int _reconciliationGeneration: 0
+    property int _lastCompletedGeneration: 0
+    property int _lastAcceptedGeneration: 0
+    property bool _reconciliationRunning: false
+
+    CompositorAdapter { id: compositorAdapter }
 
     function parseEvent(raw) {
         var line = String(raw || "").trim()
         if (line === "") return false
         try {
             var event = JSON.parse(line)
-            var nextOutputs = adapter.outputs
-            var nextWorkspaces = adapter.workspaces
-            var nextWindows = adapter.windows
-            var nextFocused = adapter.focusedOutputId
+            var nextOutputs = compositorAdapter.outputs
+            var nextWorkspaces = compositorAdapter.workspaces
+            var nextWindows = compositorAdapter.windows
+            var nextFocused = compositorAdapter.focusedOutputId
             var changed = false
-            if (event.OutputsChanged && Array.isArray(event.OutputsChanged.outputs)) {
-                nextOutputs = event.OutputsChanged.outputs
+            if (event.OutputsChanged && event.OutputsChanged.outputs !== undefined) {
+                nextOutputs = _normalizeOutputs(event.OutputsChanged.outputs)
+                if (nextOutputs === null) throw new Error("OutputsChanged.outputs is not an output map or array")
                 changed = true
             } else if (event.WorkspacesChanged && Array.isArray(event.WorkspacesChanged.workspaces)) {
                 nextWorkspaces = event.WorkspacesChanged.workspaces
@@ -57,7 +66,7 @@ Scope {
                 changed = true
             }
             if (!changed) return false
-            adapter.replace(nextOutputs, nextFocused, nextWorkspaces, nextWindows)
+            compositorAdapter.replace(nextOutputs, nextFocused, nextWorkspaces, nextWindows)
             return true
         } catch (error) {
             console.warn("stillsuit niri: ignored malformed event: " + error)
@@ -67,12 +76,10 @@ Scope {
 
     function reconcile(outputsJson, workspacesJson, windowsJson) {
         try {
-            var nextOutputs = JSON.parse(String(outputsJson || "[]"))
-            var nextWorkspaces = JSON.parse(String(workspacesJson || "[]"))
-            var nextWindows = JSON.parse(String(windowsJson || "[]"))
-            if (!Array.isArray(nextOutputs) || !Array.isArray(nextWorkspaces) || !Array.isArray(nextWindows))
-                throw new Error("niri reconciliation result is not arrays")
-            adapter.replace(nextOutputs, _focusedOutputId(nextWorkspaces, adapter.focusedOutputId), nextWorkspaces, nextWindows)
+            var nextOutputs = _parseOutputs(outputsJson)
+            var nextWorkspaces = _parseSnapshotArray(workspacesJson, "workspaces")
+            var nextWindows = _parseSnapshotArray(windowsJson, "windows")
+            compositorAdapter.replace(nextOutputs, _focusedOutputId(nextWorkspaces, compositorAdapter.focusedOutputId), nextWorkspaces, nextWindows)
             return true
         } catch (error) {
             console.warn("stillsuit niri: ignored malformed reconciliation: " + error)
@@ -81,18 +88,123 @@ Scope {
     }
 
     function refresh() {
-        if (!enabled) return
-        if (!outputsProcess.running) outputsProcess.running = true
-        if (!workspacesProcess.running) workspacesProcess.running = true
-        if (!windowsProcess.running) windowsProcess.running = true
+        if (!enabled || _reconciliationRunning) return
+        _reconciliationGeneration += 1
+        _reconciliationRunning = true
+        _prepareResult(outputsResult, _reconciliationGeneration)
+        _prepareResult(workspacesResult, _reconciliationGeneration)
+        _prepareResult(windowsResult, _reconciliationGeneration)
+        outputsProcess.requestGeneration = _reconciliationGeneration
+        workspacesProcess.requestGeneration = _reconciliationGeneration
+        windowsProcess.requestGeneration = _reconciliationGeneration
+        outputsProcess.running = true
+        workspacesProcess.running = true
+        windowsProcess.running = true
     }
 
-    function _tryReconcile() {
-        if (!outputsResult.ready || !workspacesResult.ready || !windowsResult.ready) return
-        reconcile(outputsResult.text, workspacesResult.text, windowsResult.text)
-        outputsResult.ready = false
-        workspacesResult.ready = false
-        windowsResult.ready = false
+    function _prepareResult(result, generation) {
+        result.generation = generation
+        result.text = ""
+        result.streamFinished = false
+        result.exited = false
+        result.exitCode = -1
+        result.exitStatus = -1
+    }
+
+    function _collectorFinished(result, generation, text) {
+        if (generation !== _reconciliationGeneration || result.generation !== generation) return
+        result.text = String(text || "")
+        result.streamFinished = true
+        _tryFinishReconciliation(generation)
+    }
+
+    function _processExited(result, generation, exitCode, exitStatus) {
+        if (generation !== _reconciliationGeneration || result.generation !== generation) return
+        result.exitCode = Number(exitCode)
+        result.exitStatus = Number(exitStatus)
+        result.exited = true
+        _tryFinishReconciliation(generation)
+    }
+
+    function _tryFinishReconciliation(generation) {
+        if (!_reconciliationRunning || generation !== _reconciliationGeneration) return
+        var results = [outputsResult, workspacesResult, windowsResult]
+        for (var index = 0; index < results.length; index++) {
+            var result = results[index]
+            if (result.generation !== generation || !result.streamFinished || !result.exited) return
+        }
+
+        var successful = true
+        for (var resultIndex = 0; resultIndex < results.length; resultIndex++) {
+            if (results[resultIndex].exitCode !== 0 || results[resultIndex].exitStatus !== 0) successful = false
+        }
+        if (successful)
+            successful = reconcile(outputsResult.text, workspacesResult.text, windowsResult.text)
+        else
+            console.warn("stillsuit niri: ignored failed reconciliation generation " + generation)
+
+        _lastCompletedGeneration = generation
+        if (successful) _lastAcceptedGeneration = generation
+        _reconciliationRunning = false
+    }
+
+    function _parseOutputs(raw) {
+        var text = String(raw || "").trim()
+        if (text === "") throw new Error("niri outputs result is empty")
+        var outputs = _normalizeOutputs(JSON.parse(text))
+        if (outputs === null) throw new Error("niri outputs result is not an output map or array")
+        return outputs
+    }
+
+    function _parseSnapshotArray(raw, label) {
+        var text = String(raw || "").trim()
+        if (text === "") throw new Error("niri " + label + " result is empty")
+        var rows = JSON.parse(text)
+        if (!Array.isArray(rows)) throw new Error("niri " + label + " result is not an array")
+        for (var index = 0; index < rows.length; index++) {
+            if (!rows[index] || typeof rows[index] !== "object" || Array.isArray(rows[index]))
+                throw new Error("niri " + label + " result contains a non-object snapshot")
+        }
+        return _plain(rows)
+    }
+
+    function _normalizeOutputs(value) {
+        var sourceRows = []
+        if (Array.isArray(value)) {
+            for (var arrayIndex = 0; arrayIndex < value.length; arrayIndex++) {
+                var arrayOutput = _plain(value[arrayIndex])
+                if (!arrayOutput || typeof arrayOutput !== "object" || Array.isArray(arrayOutput)) return null
+                var arrayConnector = String(arrayOutput.name || arrayOutput.id || "")
+                if (arrayConnector === "") return null
+                if (String(arrayOutput.id || "") === "") arrayOutput.id = arrayConnector
+                if (String(arrayOutput.name || "") === "") arrayOutput.name = arrayConnector
+                sourceRows.push({ connector: arrayConnector, output: arrayOutput })
+            }
+        } else if (value && typeof value === "object") {
+            var connectors = Object.keys(value)
+            for (var mapIndex = 0; mapIndex < connectors.length; mapIndex++) {
+                var connector = String(connectors[mapIndex])
+                if (connector === "") return null
+                var mapOutput = _plain(value[connector])
+                if (!mapOutput || typeof mapOutput !== "object" || Array.isArray(mapOutput)) return null
+                if (String(mapOutput.id || "") === "") mapOutput.id = connector
+                if (String(mapOutput.name || "") === "") mapOutput.name = connector
+                sourceRows.push({ connector: connector, output: mapOutput })
+            }
+        } else {
+            return null
+        }
+
+        sourceRows.sort(function(left, right) {
+            if (left.connector < right.connector) return -1
+            if (left.connector > right.connector) return 1
+            var leftName = String(left.output.name || "")
+            var rightName = String(right.output.name || "")
+            if (leftName < rightName) return -1
+            if (leftName > rightName) return 1
+            return 0
+        })
+        return sourceRows.map(function(row) { return row.output })
     }
 
     function _plain(value) {
@@ -163,24 +275,48 @@ Scope {
         onExited: function() { if (root.enabled) reconnectTimer.restart() }
     }
 
-    QtObject { id: outputsResult; property bool ready: false; property string text: "" }
-    QtObject { id: workspacesResult; property bool ready: false; property string text: "" }
-    QtObject { id: windowsResult; property bool ready: false; property string text: "" }
+    component ReconciliationResult: QtObject {
+        property int generation: 0
+        property string text: ""
+        property bool streamFinished: false
+        property bool exited: false
+        property int exitCode: -1
+        property int exitStatus: -1
+    }
+
+    ReconciliationResult { id: outputsResult }
+    ReconciliationResult { id: workspacesResult }
+    ReconciliationResult { id: windowsResult }
 
     Process {
         id: outputsProcess
+        property int requestGeneration: 0
         command: ["niri", "msg", "-j", "outputs"]
-        stdout: StdioCollector { waitForEnd: true; onStreamFinished: function() { outputsResult.text = text; outputsResult.ready = true; root._tryReconcile() } }
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: function() { root._collectorFinished(outputsResult, outputsProcess.requestGeneration, text) }
+        }
+        onExited: function(exitCode, exitStatus) { root._processExited(outputsResult, outputsProcess.requestGeneration, exitCode, exitStatus) }
     }
     Process {
         id: workspacesProcess
+        property int requestGeneration: 0
         command: ["niri", "msg", "-j", "workspaces"]
-        stdout: StdioCollector { waitForEnd: true; onStreamFinished: function() { workspacesResult.text = text; workspacesResult.ready = true; root._tryReconcile() } }
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: function() { root._collectorFinished(workspacesResult, workspacesProcess.requestGeneration, text) }
+        }
+        onExited: function(exitCode, exitStatus) { root._processExited(workspacesResult, workspacesProcess.requestGeneration, exitCode, exitStatus) }
     }
     Process {
         id: windowsProcess
+        property int requestGeneration: 0
         command: ["niri", "msg", "-j", "windows"]
-        stdout: StdioCollector { waitForEnd: true; onStreamFinished: function() { windowsResult.text = text; windowsResult.ready = true; root._tryReconcile() } }
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: function() { root._collectorFinished(windowsResult, windowsProcess.requestGeneration, text) }
+        }
+        onExited: function(exitCode, exitStatus) { root._processExited(windowsResult, windowsProcess.requestGeneration, exitCode, exitStatus) }
     }
     Timer { id: reconnectTimer; interval: root.reconnectDelayMs; repeat: false; onTriggered: if (root.enabled) eventStream.running = true }
     Timer { interval: root.reconciliationIntervalMs; running: root.enabled; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }

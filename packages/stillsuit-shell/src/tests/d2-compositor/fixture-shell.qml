@@ -34,5 +34,13 @@ ShellRoot {
                 eventStreamRunning: niri.eventStreamRunning
             })
         }
+
+        function reconciliation(): string {
+            return JSON.stringify({
+                completedGeneration: niri.lastCompletedReconciliationGeneration,
+                acceptedGeneration: niri.lastAcceptedReconciliationGeneration,
+                running: niri.reconciliationRunning
+            })
+        }
     }
 }
