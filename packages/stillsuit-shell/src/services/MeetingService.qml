@@ -99,7 +99,7 @@ Scope {
     Timer {
         interval: 1000
         repeat: true
-        running: root.completed || root.failed
+        running: root.visible && (root.completed || root.failed)
         onTriggered: root.currentTime = Date.now() / 1000
     }
 

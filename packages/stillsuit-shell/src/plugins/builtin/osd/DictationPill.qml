@@ -48,6 +48,7 @@ Rectangle {
         target: root.dictator
         function onLevelsChanged() { root.repaint() }
         function onVisualizerStateChanged() { root.repaint() }
+        function onScanPosChanged() { root.repaint() }
     }
     RowLayout {
         id: content

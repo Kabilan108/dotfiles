@@ -126,6 +126,8 @@ kill -0 "$fake_recorder_pid"
 
 # Presentational per-output files may not own workflow authority.
 ! rg -n '(^|[^[:alnum:]_])(Timer|FileView|PwObjectTracker|Socket|Process|IpcHandler)[[:space:]]*\{' "$package_dir/src/plugins/builtin/osd/OsdOverlay.qml" "$package_dir/src/plugins/builtin/osd/DictationPill.qml"
+rg -n 'function onScanPosChanged\(\) \{ root\.repaint\(\) \}' "$package_dir/src/plugins/builtin/osd/DictationPill.qml" >/dev/null
+rg -n 'running: root\.visible && \(root\.completed \|\| root\.failed\)' "$package_dir/src/services/MeetingService.qml" >/dev/null
 ! rg -n 'ERROR:|Failed to load configuration|Type .* unavailable' "$tmp_dir/quickshell.log"
 
 echo "d5-workflows: ok"
