@@ -12,8 +12,10 @@ Item {
     property bool failed: false
     property bool componentComplete: false
     property bool releaseNotified: false
+    property int constructionGeneration: 0
     property var activeRegistration: null
     property var createdWidget: null
+    property var pendingConstruction: null
 
     implicitWidth: failed || !createdWidget
         ? 0
@@ -24,18 +26,34 @@ Item {
     visible: !failed && createdWidget !== null
 
     function loadRegistration() {
-        constructionTimer.stop()
+        invalidateConstruction()
         destroyWidget()
         failed = false
         releaseNotified = false
-        activeRegistration = registration
-        constructionTimer.start()
+        var token = {
+            cancelled: false,
+            generation: constructionGeneration,
+            registration: registration
+        }
+        activeRegistration = token.registration
+        pendingConstruction = token
+        Qt.callLater(function() {
+            if (token.cancelled)
+                return
+            root.constructWidget(token)
+        })
     }
 
-    function constructWidget() {
-        var record = activeRegistration
+    function constructWidget(token) {
+        if (token !== pendingConstruction
+                || token.generation !== constructionGeneration
+                || !componentComplete)
+            return
+        pendingConstruction = null
+
+        var record = token.registration
         if (!record || !record.component || !record.context) {
-            releaseSlot("registration is incomplete")
+            releaseSlot("registration is incomplete", token.generation)
             return
         }
 
@@ -44,7 +62,7 @@ Item {
             var detail = component.status === Component.Error
                 ? component.errorString()
                 : "component is not ready"
-            releaseSlot("component compilation failed: " + detail)
+            releaseSlot("component compilation failed: " + detail, token.generation)
             return
         }
 
@@ -53,10 +71,17 @@ Item {
             properties.service = record.service
         var widget = component.createObject(root, properties)
         if (!widget) {
-            releaseSlot("component construction returned null")
+            releaseSlot("component construction returned null", token.generation)
             return
         }
         createdWidget = widget
+    }
+
+    function invalidateConstruction() {
+        constructionGeneration++
+        if (pendingConstruction)
+            pendingConstruction.cancelled = true
+        pendingConstruction = null
     }
 
     function destroyWidget() {
@@ -66,11 +91,10 @@ Item {
             widget.destroy()
     }
 
-    function releaseSlot(message) {
-        if (failed)
+    function releaseSlot(message, generation) {
+        if (generation !== constructionGeneration || failed || !componentComplete)
             return
         failed = true
-        constructionTimer.stop()
         destroyWidget()
         var record = activeRegistration
         if (record && record.context && record.context.logger)
@@ -81,19 +105,13 @@ Item {
         }
     }
 
-    Timer {
-        id: constructionTimer
-        interval: 0
-        repeat: false
-        onTriggered: root.constructWidget()
-    }
-
     Component.onCompleted: {
         componentComplete = true
         loadRegistration()
     }
     Component.onDestruction: {
-        constructionTimer.stop()
+        componentComplete = false
+        invalidateConstruction()
         destroyWidget()
     }
     onRegistrationChanged: {

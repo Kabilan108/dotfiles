@@ -62,10 +62,14 @@ assert.equal(recordsFor("right").filter((record) => record.id === "stillsuit.net
 
 const mountedRight = recordsFor("right").filter((record) => record.result === "ok");
 assert.deepEqual(mountedRight.map((record) => record.id), ["stillsuit.network"]);
-assert.match(slotSource, /releaseSlot\(message\)/);
+assert.match(slotSource, /releaseSlot\(message, generation\)/);
 assert.match(slotSource, /component\.createObject\(root, properties\)/);
 assert.match(slotSource, /typeof record\.release === "function"/);
 assert.match(slotSource, /record\.service !== undefined/);
+assert.match(slotSource, /Qt\.callLater/);
+assert.match(slotSource, /constructionGeneration/);
+assert.match(slotSource, /token\.cancelled/);
+assert.doesNotMatch(slotSource, /\bTimer\s*\{/);
 assert.doesNotMatch(slotSource, /setSourceComponent/);
 assert.match(barSource, /exclusiveZone: root\.shadowMode \? 0 : root\.exclusionZone/);
 assert.match(barSource, /property var widgetRegistrations: \[\]/);
