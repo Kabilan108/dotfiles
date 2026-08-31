@@ -125,9 +125,15 @@ kill -0 "$fake_recorder_pid"
 [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 3 ]]
 
 # Presentational per-output files may not own workflow authority.
-! rg -n '(^|[^[:alnum:]_])(Timer|FileView|PwObjectTracker|Socket|Process|IpcHandler)[[:space:]]*\{' "$package_dir/src/plugins/builtin/osd/OsdOverlay.qml" "$package_dir/src/plugins/builtin/osd/DictationPill.qml"
+if rg -n '(^|[^[:alnum:]_])(Timer|FileView|PwObjectTracker|Socket|Process|IpcHandler)[[:space:]]*\{' "$package_dir/src/plugins/builtin/osd/OsdOverlay.qml" "$package_dir/src/plugins/builtin/osd/DictationPill.qml"; then
+  echo "presentational OSD files own workflow authority" >&2
+  exit 1
+fi
 rg -n 'function onScanPosChanged\(\) \{ root\.repaint\(\) \}' "$package_dir/src/plugins/builtin/osd/DictationPill.qml" >/dev/null
 rg -n 'running: root\.visible && \(root\.completed \|\| root\.failed\)' "$package_dir/src/services/MeetingService.qml" >/dev/null
-! rg -n 'ERROR:|Failed to load configuration|Type .* unavailable' "$tmp_dir/quickshell.log"
+if rg -n 'ERROR:|Failed to load configuration|Type .* unavailable' "$tmp_dir/quickshell.log"; then
+  echo "fixture log contains a QML load error" >&2
+  exit 1
+fi
 
 echo "d5-workflows: ok"

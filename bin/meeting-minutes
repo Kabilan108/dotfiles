@@ -291,6 +291,7 @@ def update_status(
 ) -> None:
     phase = str(job.get("phase", "idle"))
     payload: dict[str, Any] = {
+        "schemaVersion": 1,
         "job_id": job.get("job_id", ""),
         "phase": phase,
         "label": label,

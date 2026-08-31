@@ -3,9 +3,10 @@
 Branch: `stillsuit-next`
 
 Activation status: not performed. No NixOS or Home Manager generation has been
-rebuilt or switched. No live shell, compositor, bar, notification daemon,
+rebuilt or switched. No production shell, compositor, bar, notification daemon,
 recorder, meeting worker, lock service, or polkit service has been restarted or
-killed.
+killed. Only the exact disposable shadow-preview child PIDs and their private
+buses were torn down after their tests.
 
 ## Inputs and contract freeze
 
@@ -258,10 +259,27 @@ Open issues: none recorded.
 
 ## Lane D1: bar
 
-Status: original diff reviewed in full and rejected. A fresh blank-context
-correction is in progress. The original used a nonexistent Loader API, did not
-construct a real required-property widget in its fixture, and did not release
-the host claim when a slot failed.
+Status: reviewed and merged from lane commits
+`328dd555e62f3004d9bd1e9d322e43964155ccb8`,
+`67a5603a65764245ae27f0a29f6cf117a26723ca`, and
+`89ddd4b228593a4312c693a41deeea3e87dc2376` through merge commit
+`d48bb52`.
+
+- Added the per-output functional bar, deterministic manifest-backed slots,
+  and exactly-once host-claim release after construction failure.
+- The original diff was read in full and rejected because it used a
+  nonexistent Loader API, did not construct a real required-property widget,
+  and did not release a failed slot's host claim.
+- The first correction was read in full and rejected because it added a Timer
+  to every slot. The final blank-context correction uses generation-guarded
+  `Qt.callLater`, retains each component for the slot lifetime, cancels stale
+  completions, injects the exact owning service at construction time, and has
+  no per-output timer.
+- The static and real-QML fixtures pass in isolation and merged main. They
+  cover a required `service` property, replacement during queued construction,
+  no stale object/release, exactly one live child, and exactly one release on
+  a real construction failure. The expected deliberate missing-service case
+  emits one contained QML warning.
 
 ## Lane D2: compositor
 
@@ -286,8 +304,8 @@ Status: reviewed and merged from lane commits
   --check`, `nix flake check --no-build`, Jacurutu `drvPath`, shell-package
   build, and Jacurutu no-link build exited 0.
 
-Open issue: the composition root still needs to replace its frozen inert
-snapshot with this adapter during orchestrator integration.
+Integration resolution: the composition root now constructs one `NiriService`
+and injects its adapter into both HostContext and SurfaceRouter.
 
 ## Lane D3: desktop services
 
@@ -341,14 +359,36 @@ Status: reviewed and merged from lane commits
 
 ## Lane D5: OSD and workflow state
 
-Status: lane commit `dda9979e113fde525b34813cba5ef8248ce68006`
-reported with isolated workflow, state-version, socket-singleton, helper-argv,
-and recorder-survival fixtures. The orchestrator review gate is pending.
+Status: reviewed and merged from lane commits
+`dda9979e113fde525b34813cba5ef8248ce68006`,
+`04ce5376994782ac5823066417536f49a0ec49db`, and
+`e92903df8d62188dd55dab2f90c833a38c1e72ca` through merge commit
+`5fd67e8`.
+
+- Added one global workflow aggregate for versioned recording, meeting, and
+  Dictator state plus one global OSD observer and per-output presentation-only
+  overlays.
+- The original cumulative diff was read in full and rejected because it used
+  stale D4 service contracts and placed workflow/OSD authority in per-output
+  objects. A blank-context correction centralized those contracts.
+- That correction was read in full and rejected because Dictator waveform
+  updates did not schedule repaint and a meeting-completion timer could run
+  forever. The final correction repaints on scan-position changes and bounds
+  the completion/error visibility timer.
+- The merged fixture proves fixed recorder/open argv, schema-version
+  containment, one workflow and one OSD service across two output views,
+  Dictator socket singleton behavior, waveform updates, meeting visibility,
+  and survival of an externally-owned recorder PID across shell teardown and
+  recreation. It never touches the live recorder, meeting worker, or Dictator
+  socket.
+- The broad ShellCheck gate later found two informational `! rg` forms that
+  could bypass `errexit`; the orchestrator replaced them with explicit guarded
+  failures and reran the fixture and ShellCheck successfully.
 
 ## Integration verification
 
-Status: foundational A/B/C integration complete; desktop integration pending
-accepted D-lane commits.
+Status: all accepted lane work is integrated; the module remains default-off
+and neither human gate has been run.
 
 - Added a Nix-built agent-panel helper with an exact restricted closure and
   installed it in the profile only when the default-off module is enabled.
@@ -363,22 +403,85 @@ accepted D-lane commits.
 - A second forced-enabled Jacurutu closure build from the staged git tree
   exited 0. This built only a disposable closure; it did not activate, switch,
   restart, or signal any live service.
+- Registered all 15 built-in plugins in deterministic ID order. External bar
+  ownership now selects no bar; `stillsuit.builtin-bar` resolves to the actual
+  `stillsuit.bar` manifest.
+- Added the Nix-built recorder helper. Its wrapper exposes only the fixed Nix
+  Python and `gpu-screen-recorder` path, while its optional meeting helper is
+  replaced with the canonical absolute `/home/kabilan/bin/meeting-minutes`
+  artifact. Recorder and meeting status writers now emit `schemaVersion: 1`.
+- Replaced the inert compositor snapshot with the real global Niri adapter,
+  wired widget registrations and exact singleton services into the functional
+  bar, and retained the functional built-in bar as the production fallback.
+- The first store-backed preview exposed that individually copied plugin roots
+  broke reviewed imports into the shared service layer. Catalog packaging now
+  preserves each nested manifest directory inside one immutable source tree;
+  entry points remain relative to that manifest directory.
+- That preview also exposed missing agent-widget singleton acceptance and the
+  per-output OSD `outputId` contract. Both were corrected and their targeted
+  fixtures rerun before rebuilding.
+- The service installs the store-backed shell source at canonical Quickshell
+  config name `stillsuit-next` and starts `--config stillsuit-next`. The Nix
+  store output path no longer becomes config identity; generated instance IDs
+  remain diagnostic only.
 
-Static, Nix, isolated-runtime, notification, Niri, and preview evidence will be
-recorded here with exact commands and exit codes.
+Current verification:
+
+- Draft 2020-12 schema validation over all built-ins, exit 0: 15 valid,
+  distinct IDs.
+- Full isolated fixture ladder, exit 0: host/core 67 checks, agent panel, all
+  three private-D-Bus notification suites, D1 static and real-QML, D2, D3, D4,
+  and D5. The first aggregate invocation exited 126 because the D1 static
+  driver is interpreter-invoked but not executable; the explicit Bash rerun
+  and all remaining fixtures exited 0.
+- `bash -n` and Nix-shell ShellCheck over all 12 shell drivers/helpers, exit 0
+  after the D5 harness correction.
+- Python compilation and Ruff checks over the recorder/meeting writers and D5
+  socket fixture, exit 0. Ruff formatting passes the modified recorder and
+  socket fixture; an unrelated pre-existing `meeting-minutes` formatting
+  suggestion was left untouched.
+- `nixfmt --check`, `nix flake check --no-build`, Jacurutu toplevel `drvPath`
+  evaluation, shell package build, and force-enabled Jacurutu no-link build
+  exited 0 on the staged tree. Only existing nixpkgs deprecation warnings were
+  emitted.
+- The generated force-enabled catalog contains 15 enabled plugins, selected
+  bar `stillsuit.bar`, and the restricted recorder helper closure.
+- A private-D-Bus/private-XDG shadow preview using the Nix-built store package
+  and canonical `--config stillsuit-next-shadow-preview` identity exited 0:
+  one screen, 11 global service objects, all 15 plugins loaded, real bar active
+  without fallback, no plugin errors, no notification D-Bus owner, and mutual
+  exclusion moved the open surface from audio to resources. The exact preview
+  PID and its private bus were torn down after each run.
+- The preview initially used the host's placeholder `/etc/dbus-1/session.conf`
+  and exited before launch because that file has no listen address. The
+  corrected run used the reviewed private fixture bus configuration.
+- Runtime screenshot inspection is not accepted as visual proof: the session
+  was already covered by swaylock, so both captures contained only its lock
+  surface. The orchestrator did not unlock or disturb it. Repeating the visual
+  checklist after the human unlocks the session remains itemized below.
+- Applied Gate 1 workspace and Waybar patches followed by the Gate 2 cutover
+  patch only inside a disposable archived tree. `git apply` checks, Niri
+  validation, Nix formatting, and flake evaluation exited 0; the tracked live
+  Niri file was not changed. The reverse sequence also passed its apply checks,
+  Niri validation, and byte comparison with both original preimages.
 
 ## Human-owned gates
 
-Gate 1, workspace removal and Waybar ownership, has not been run. Exact apply
-and rollback commands will be prepared after integration proof.
+Gate 1, workspace removal and Waybar ownership, has not been run. Its exact
+apply, build, verification, and rollback commands are in
+`docs/plans/stillsuit-next-human-gates.md`; both patch preimages were verified
+in a disposable archived tree.
 
 Gate 2, Stillsuit Next process and notification cutover, has not been run and
-will not be run during this execution. The final ledger will contain an ordered
-stop, PID-exit wait, D-Bus-name release wait, start, and IPC-readiness procedure
-plus rollback.
+will not be run during this execution. The same command sheet contains its
+build-first sequence, asynchronous legacy kill followed by bounded PID and
+D-Bus-name release waits, generation switch, systemd PID and IPC-readiness
+barriers, single-instance/owner assertions, and rollback.
 
 ## Remaining work
 
-- Complete and merge Lanes D1 through D5 through the review gate.
-- Run the integration verification ladder.
-- Prepare both human-owned gates without running them.
+- After the session is unlocked, repeat the shadow-only screenshot checklist
+  for the bar plus audio/resources panels; do not use it to perform Gate 2.
+- Human review decides whether to run Gate 1. Gate 2 remains explicitly not for
+  tonight and must use the prepared ordered handoff rather than an unbounded or
+  newest-instance selection.

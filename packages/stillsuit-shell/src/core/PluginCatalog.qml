@@ -8,6 +8,9 @@ QtObject {
     property string catalogPath: ""
     property bool allowLocalPlugins: false
     property QtObject hostContext: null
+    property QtObject serviceRegistry: null
+    property var outputScreens: []
+    property url fallbackBarUrl: Qt.resolvedUrl("../plugins/builtin/bar/Bar.qml")
     property Component fallbackBarComponent: null
     property QtObject fallbackContext: null
 
@@ -60,6 +63,15 @@ QtObject {
         blockLoading: true
         blockAllReads: true
         printErrors: false
+    }
+
+    property Connections serviceRegistryConnections: Connections {
+        target: root.serviceRegistry
+        ignoreUnknownSignals: true
+
+        function onRevisionChanged() {
+            root._syncBarInputs()
+        }
     }
 
     property Component pathProbeComponent: Component {
@@ -164,7 +176,10 @@ QtObject {
         var entry = get(key)
         if (!component || !entry || !isEnabled(key))
             return null
-        return {
+        var ownsService = entry.manifest.kinds.indexOf("service") !== -1
+        if (ownsService && (!serviceRegistry || !serviceRegistry.has(key)))
+            return null
+        var registration = {
             component: component,
             context: hostContext ? hostContext.contextFor(entry) : null,
             manifest: entry.manifest,
@@ -173,8 +188,14 @@ QtObject {
                 : "center",
             allowMultiple: entry.manifest.barWidget
                 ? entry.manifest.barWidget.allowMultiple === true
-                : false
+                : false,
+            release: function(message) {
+                root._releaseConstructedWidget(key, component, message)
+            }
         }
+        if (ownsService)
+            registration.service = serviceRegistry.get(key)
+        return registration
     }
 
     function widgetClaimed(pluginId) {
@@ -571,6 +592,7 @@ QtObject {
                 var readyClaims = _copy(widgetClaims)
                 readyClaims[pluginId] = "loaded"
                 widgetClaims = readyClaims
+                _syncBarInputs()
                 return
             }
 
@@ -588,7 +610,8 @@ QtObject {
         _invalidateBarLoad()
         _destroyBar()
         if (internalSelectedBarId === "") {
-            _activateFallback("no replacement bar selected")
+            barError = ""
+            barState = "loaded"
             return
         }
 
@@ -630,8 +653,11 @@ QtObject {
                 return
             }
 
-            var context = hostContext ? hostContext.contextFor(entry) : null
-            var instance = component.createObject(root, { context: context })
+            var instance = component.createObject(root, {
+                context: hostContext ? hostContext.contextFor(entry) : null,
+                widgetRegistrations: _widgetRegistrations(),
+                outputScreens: outputScreens
+            })
             if (!instance) {
                 var constructionError = "selected bar construction returned null"
                 _recordRuntimeError(pluginId, "bar", constructionError)
@@ -643,6 +669,7 @@ QtObject {
             barInstance = instance
             internalActiveBarId = pluginId
             barState = "loaded"
+            _syncBarInputs()
         }
         if (component.status === Component.Loading)
             component.statusChanged.connect(finalize)
@@ -653,6 +680,26 @@ QtObject {
     function _activateFallback(reason) {
         _destroyBar()
         barError = reason
+        if (String(fallbackBarUrl) !== "") {
+            var functionalComponent = Qt.createComponent(
+                fallbackBarUrl, Component.PreferSynchronous)
+            if (functionalComponent.status === Component.Ready) {
+                var functionalInstance = functionalComponent.createObject(root, {
+                    context: fallbackContext,
+                    widgetRegistrations: _widgetRegistrations(),
+                    outputScreens: outputScreens
+                })
+                if (functionalInstance) {
+                    barComponent = functionalComponent
+                    barInstance = functionalInstance
+                    internalActiveBarId = "stillsuit.builtin-bar"
+                    barState = "loaded"
+                    _syncBarInputs()
+                    return
+                }
+            }
+            functionalComponent.destroy()
+        }
         if (!fallbackBarComponent || fallbackBarComponent.status !== Component.Ready) {
             barState = "error"
             internalActiveBarId = ""
@@ -669,6 +716,7 @@ QtObject {
         barInstance = instance
         internalActiveBarId = "stillsuit.builtin-bar"
         barState = "loaded"
+        _syncBarInputs()
     }
 
     function _unloadVisualContributions(pluginId) {
@@ -699,6 +747,40 @@ QtObject {
         var componentsNext = _copy(internalWidgetComponents)
         delete componentsNext[pluginId]
         internalWidgetComponents = componentsNext
+    }
+
+    function _releaseConstructedWidget(pluginId, component, message) {
+        var key = String(pluginId)
+        if (internalWidgetComponents[key] !== component)
+            return
+        if (component && typeof component.destroy === "function")
+            component.destroy()
+        _releaseWidgetClaim(key)
+        _recordRuntimeError(key, "bar-widget", message)
+        _syncBarInputs()
+    }
+
+    function _widgetRegistrations() {
+        var registrations = []
+        var ids = Object.keys(internalEntries).sort()
+        for (var index = 0; index < ids.length; index++) {
+            var pluginId = ids[index]
+            if (!hasKind(pluginId, "bar-widget"))
+                continue
+            var registration = widgetRegistration(pluginId)
+            if (registration)
+                registrations.push(registration)
+        }
+        return registrations
+    }
+
+    function _syncBarInputs() {
+        if (!barInstance)
+            return
+        if ("widgetRegistrations" in barInstance)
+            barInstance.widgetRegistrations = _widgetRegistrations()
+        if ("outputScreens" in barInstance)
+            barInstance.outputScreens = outputScreens
     }
 
     function _invalidateBarLoad() {
@@ -763,4 +845,6 @@ QtObject {
             result[key] = value[key]
         return result
     }
+
+    onOutputScreensChanged: _syncBarInputs()
 }

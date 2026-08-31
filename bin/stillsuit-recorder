@@ -28,17 +28,18 @@ MEETING_HELPER = Path.home() / "bin/meeting-minutes"
 
 def read_state() -> dict[str, Any]:
     if not STATE_PATH.exists():
-        return {"phase": "idle"}
+        return {"schemaVersion": 1, "phase": "idle"}
     try:
         data = json.loads(STATE_PATH.read_text())
     except (json.JSONDecodeError, OSError):
-        return {"phase": "idle"}
-    return data if isinstance(data, dict) else {"phase": "idle"}
+        return {"schemaVersion": 1, "phase": "idle"}
+    return data if isinstance(data, dict) else {"schemaVersion": 1, "phase": "idle"}
 
 
 def write_state(state: dict[str, Any]) -> None:
+    payload = {"schemaVersion": 1, **state}
     temp_path = STATE_PATH.with_suffix(".tmp")
-    temp_path.write_text(json.dumps(state, separators=(",", ":")))
+    temp_path.write_text(json.dumps(payload, separators=(",", ":")))
     temp_path.replace(STATE_PATH)
 
 
@@ -93,7 +94,7 @@ def refreshed_state() -> dict[str, Any]:
 
 
 def print_state(state: dict[str, Any]) -> None:
-    print(json.dumps(state, separators=(",", ":")))
+    print(json.dumps({"schemaVersion": 1, **state}, separators=(",", ":")))
 
 
 def safe_title(title: str) -> str:

@@ -92,7 +92,7 @@ let
               ];
         in
         builtins.hasAttr field entryPoints
-        && validRelativePath plugin.source entryPoints.${field}
+        && validRelativePath plugin.manifestRoot entryPoints.${field}
         && validScope;
     in
     plugin.parsed.success

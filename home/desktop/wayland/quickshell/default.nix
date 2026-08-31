@@ -10,6 +10,13 @@ let
   fontSans = config.stylix.fonts.sansSerif.name or "Noto Sans";
   fontMono = config.stylix.fonts.monospace.name or "FiraMono Nerd Font";
   transparent = alpha: color: "#${alpha}${lib.removePrefix "#" color}";
+  builtinPlugin = name: {
+    source = ../../../../packages/stillsuit-shell/src;
+    manifestFile = "plugins/builtin/${name}/manifest.json";
+  };
+  recorderHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/recorder-helper.nix {
+    meetingMinutesPath = "${homeDir}/bin/meeting-minutes";
+  };
 in
 {
   home.packages = [ pkgs.quickshell ];
@@ -17,6 +24,73 @@ in
   programs.stillsuitShell.integrations.agentPanelHelperPackage =
     pkgs.callPackage ../../../../packages/stillsuit-shell/agent-panel-helper.nix
       { };
+
+  programs.stillsuitShell.runtimeInputs = [
+    pkgs.niri
+    pkgs.power-profiles-daemon
+  ];
+
+  programs.stillsuitShell.plugins = [
+    (builtinPlugin "agent-panel")
+    (builtinPlugin "audio")
+    (
+      (builtinPlugin "bar")
+      // {
+        settings.shadowMode = config.programs.stillsuitShell.development.shadowMode;
+      }
+    )
+    (builtinPlugin "battery")
+    (builtinPlugin "bluetooth")
+    (builtinPlugin "clock")
+    (builtinPlugin "meeting")
+    (builtinPlugin "network")
+    (
+      (builtinPlugin "notifications")
+      // {
+        enable =
+          config.programs.stillsuitShell.development.shadowMode
+          ||
+            config.programs.stillsuitShell.ownership.notificationOwners == [
+              "stillsuit.notifications"
+            ];
+        settings = {
+          shadowMode = config.programs.stillsuitShell.development.shadowMode;
+          claimNotificationBus =
+            config.programs.stillsuitShell.ownership.notificationOwners == [
+              "stillsuit.notifications"
+            ];
+        };
+      }
+    )
+    (
+      (builtinPlugin "osd")
+      // {
+        settings = {
+          brightnessMaxPath = "/sys/class/backlight/amdgpu_bl1/max_brightness";
+          brightnessPath = "/sys/class/backlight/amdgpu_bl1/brightness";
+        };
+      }
+    )
+    (builtinPlugin "power")
+    (builtinPlugin "recording")
+    (builtinPlugin "resources")
+    (builtinPlugin "workspaces")
+    (
+      (builtinPlugin "workflows")
+      // {
+        settings = {
+          recorderHelperPath = lib.getExe recorderHelper;
+          recordingStatePath = "/run/user/1000/stillsuit/recording.json";
+          recordingDirectory = "${homeDir}/media/recordings";
+          desktopAudioDefault = true;
+          microphoneDefault = false;
+          meetingStatusPath = "${homeDir}/.local/state/meeting-minutes/status.json";
+          openHelperPath = lib.getExe' pkgs.xdg-utils "xdg-open";
+          dictatorSocketPath = "/run/user/1000/dictator/osd.sock";
+        };
+      }
+    )
+  ];
 
   xdg.configFile."quickshell/osd".source =
     config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/home/desktop/wayland/quickshell/osd";

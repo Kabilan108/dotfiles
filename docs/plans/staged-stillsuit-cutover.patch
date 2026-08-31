@@ -1,0 +1,30 @@
+diff --git a/home/desktop/wayland/quickshell/default.nix b/home/desktop/wayland/quickshell/default.nix
+--- a/home/desktop/wayland/quickshell/default.nix
++++ b/home/desktop/wayland/quickshell/default.nix
+@@ -22,0 +23,3 @@
++  programs.stillsuitShell.enable = true;
++  programs.stillsuitShell.ownership.barOwners = [ "stillsuit.builtin-bar" ];
++  programs.stillsuitShell.ownership.notificationOwners = [ "stillsuit.notifications" ];
+diff --git a/home/desktop/wayland/compositors/niri/config.kdl b/home/desktop/wayland/compositors/niri/config.kdl
+--- a/home/desktop/wayland/compositors/niri/config.kdl
++++ b/home/desktop/wayland/compositors/niri/config.kdl
+@@ -310,1 +309,0 @@
+-spawn-at-startup "qs" "-c" "stillsuit"
+@@ -345,0 +345,7 @@
++
++window-rule {
++    match app-id=r#"^io\.stillsuit\.AgentPanel$"#
++    open-floating true
++    default-column-width { proportion 0.72; }
++    default-window-height { proportion 0.72; }
++}
+@@ -491,4 +498,5 @@
+-    Mod+A hotkey-overlay-title="Audio Mixer" { spawn "qs" "ipc" "-c" "stillsuit" "call" "mixer" "toggle"; }
+-    Mod+Alt+B hotkey-overlay-title="Bluetooth" { spawn "qs" "ipc" "-c" "stillsuit" "call" "bluetooth" "toggle"; }
+-    Mod+N hotkey-overlay-title="Notification Center" { spawn "qs" "ipc" "-c" "stillsuit" "call" "notifications" "toggleCenter"; }
+-    Mod+Alt+R hotkey-overlay-title="Screen Recording" { spawn "qs" "ipc" "-c" "stillsuit" "call" "recording" "toggle"; }
++    Mod+A hotkey-overlay-title="Audio Mixer" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.audio" "{}"; }
++    Mod+Alt+B hotkey-overlay-title="Bluetooth" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.bluetooth" "{}"; }
++    Mod+N hotkey-overlay-title="Notification Center" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.notifications" "{}"; }
++    Mod+Alt+R hotkey-overlay-title="Screen Recording" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.recording" "{}"; }
++    Mod+Grave hotkey-overlay-title="Toggle Agent Panel" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-agent-panel" "toggle"; }

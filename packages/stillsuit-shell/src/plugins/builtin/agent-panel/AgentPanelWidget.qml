@@ -4,6 +4,7 @@ Rectangle {
   id: root
 
   required property var context
+  required property var service
 
   readonly property var theme: context.theme
 
@@ -29,11 +30,11 @@ Rectangle {
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
     onClicked: mouse => {
       if (mouse.button === Qt.RightButton)
-        root.context.actions.agentPanelHide()
+        root.service.hide()
       else if (mouse.button === Qt.MiddleButton)
-        root.context.actions.agentPanelStatus()
+        root.service.status()
       else
-        root.context.actions.agentPanelToggle()
+        root.service.toggle()
     }
   }
 }

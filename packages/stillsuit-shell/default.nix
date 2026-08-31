@@ -42,8 +42,7 @@ stdenvNoCC.mkDerivation {
     mkdir -p "$out/bin"
     makeWrapper ${lib.getExe quickshell} "$out/bin/stillsuit-shell" \
       --set PATH ${lib.escapeShellArg runtimePath} \
-      --add-flags "--no-duplicate" \
-      --add-flags "--path $out/share/stillsuit-shell/src"
+      --add-flags "--no-duplicate"
 
     runHook postInstall
   '';

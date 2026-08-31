@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "core"
+import "services" as Services
 
 ShellRoot {
     id: shell
@@ -36,21 +37,14 @@ ShellRoot {
         printErrors: false
     }
 
-    QtObject {
-        id: compositorSnapshot
-        readonly property string apiVersion: "1"
-        readonly property string name: "niri"
-        property int revision: 0
-        property var outputs: []
-        property string focusedOutputId: ""
-        property var workspaces: []
-        property var windows: []
+    Services.NiriService {
+        id: niriService
     }
 
     HostContext {
         id: hostContext
         theme: shell.effectiveTheme
-        compositor: compositorSnapshot
+        compositor: niriService.adapter
         serviceRegistry: serviceRegistry
         surfaceRouter: surfaceRouter
         actionsSource: ipcFacade
@@ -62,9 +56,12 @@ ShellRoot {
 
     Component {
         id: builtinFallbackBar
+        // A headless shadow fixture has no PanelWindow backend. Production
+        // never receives this marker: failure to construct the packaged bar
+        // keeps readiness false, as required by the host contract.
         QtObject {
             required property var context
-            readonly property bool builtinFallback: true
+            readonly property bool emergencyFallback: true
         }
     }
 
@@ -73,7 +70,9 @@ ShellRoot {
         catalogPath: shell.catalogPath
         allowLocalPlugins: Quickshell.env("STILLSUIT_ALLOW_LOCAL_PLUGINS") === "1"
         hostContext: hostContext
-        fallbackBarComponent: builtinFallbackBar
+        serviceRegistry: serviceRegistry
+        outputScreens: Quickshell.screens
+        fallbackBarComponent: shell.shadowMode ? builtinFallbackBar : null
         fallbackContext: null
     }
 
@@ -88,7 +87,7 @@ ShellRoot {
         catalog: pluginCatalog
         hostContext: hostContext
         serviceRegistry: serviceRegistry
-        compositor: compositorSnapshot
+        compositor: niriService.adapter
         screens: Quickshell.screens
     }
 

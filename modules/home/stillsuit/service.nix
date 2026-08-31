@@ -13,11 +13,15 @@ let
   localMode = cfg.development.sourceMode == "local";
   localSource = toString cfg.development.localSource;
   executable = if localMode then lib.getExe pkgs.quickshell else lib.getExe cfg.package;
-  arguments = lib.optionals localMode [
-    "--no-duplicate"
-    "--path"
-    localSource
+  arguments = lib.optionals localMode [ "--no-duplicate" ] ++ [
+    "--config"
+    cfg.configId
   ];
+  configSource =
+    if localMode then
+      config.lib.file.mkOutOfStoreSymlink localSource
+    else
+      "${cfg.package}/share/stillsuit-shell/src";
   agentPanelDefaults = pkgs.writeText "stillsuit-agent-panel-defaults.json" (
     builtins.toJSON cfg.integrations.agentPanelDefaults
   );
@@ -30,6 +34,8 @@ in
         home.packages =
           (if localMode then [ pkgs.quickshell ] else [ cfg.package ])
           ++ lib.optional (agentPanelHelper != null) agentPanelHelper;
+
+        xdg.configFile."quickshell/${cfg.configId}".source = configSource;
 
         systemd.user.services.stillsuit-shell = {
           Unit = {

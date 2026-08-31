@@ -16,7 +16,10 @@ let
       manifestFile = mkOption {
         type = types.str;
         default = "manifest.json";
-        description = "Relative manifest path below the plugin source root.";
+        description = ''
+          Relative manifest path below the immutable source tree. Entry points
+          are resolved from the manifest's directory, which may be nested.
+        '';
       };
 
       enable = mkOption {

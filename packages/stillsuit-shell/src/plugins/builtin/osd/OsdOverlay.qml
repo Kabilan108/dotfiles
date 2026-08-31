@@ -11,6 +11,7 @@ Scope {
     required property var context
     required property var screen
     required property QtObject service
+    required property string outputId
 
     property var workflows: context.services.get("stillsuit.workflows")
     property var dictator: workflows ? workflows.dictator : null

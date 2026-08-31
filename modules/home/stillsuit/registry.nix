@@ -10,6 +10,9 @@ let
     index: plugin:
     let
       manifestPath = "${toString plugin.source}/${plugin.manifestFile}";
+      manifestDirectory = builtins.dirOf plugin.manifestFile;
+      manifestRoot =
+        if manifestDirectory == "." then plugin.source else plugin.source + "/${manifestDirectory}";
       parsed =
         if builtins.pathExists manifestPath then
           builtins.tryEval (builtins.fromJSON (builtins.readFile manifestPath))
@@ -20,27 +23,25 @@ let
           };
       manifest = if parsed.success && builtins.isAttrs parsed.value then parsed.value else { };
       id = if builtins.isString (manifest.id or null) then manifest.id else "invalid-${toString index}";
-      packageName =
-        if builtins.isString id && builtins.match "^stillsuit(\\.[a-z][a-z0-9-]*)+$" id != null then
-          lib.replaceStrings [ "." ] [ "-" ] id
-        else
-          "invalid-${toString index}";
-      packageRoot = builtins.path {
+      packageTree = builtins.path {
         path = plugin.source;
-        name = "stillsuit-plugin-${packageName}";
+        name = "stillsuit-plugin-tree";
       };
+      packageRoot =
+        if manifestDirectory == "." then packageTree else "${packageTree}/${manifestDirectory}";
     in
     plugin
     // {
       inherit
         index
         manifest
+        manifestRoot
         manifestPath
         packageRoot
         parsed
         ;
       inherit id;
-      storeManifestPath = "${packageRoot}/${plugin.manifestFile}";
+      storeManifestPath = "${packageRoot}/${builtins.baseNameOf plugin.manifestFile}";
     }
   ) cfg.plugins;
   enabledPlugins = lib.filter (plugin: plugin.enable) indexedPlugins;
@@ -48,13 +49,10 @@ let
   selectedBarOwner =
     if cfg.ownership.barOwners == [ ] then "external" else lib.head cfg.ownership.barOwners;
   selectedBar =
-    if
-      lib.elem selectedBarOwner [
-        "external"
-        "stillsuit.builtin-bar"
-      ]
-    then
+    if selectedBarOwner == "external" then
       ""
+    else if selectedBarOwner == "stillsuit.builtin-bar" then
+      "stillsuit.bar"
     else
       selectedBarOwner;
   catalogData = {
