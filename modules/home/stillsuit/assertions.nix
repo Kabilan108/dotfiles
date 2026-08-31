@@ -139,7 +139,7 @@ let
     || (
       plugin != null
       && lib.elem "service" (plugin.manifest.kinds or [ ])
-      && lib.elem "notifications" (plugin.manifest.capabilities or [ ])
+      && lib.elem "notification-server" (plugin.manifest.capabilities or [ ])
     );
   pluginAssertions = lib.concatMap (plugin: [
     {
@@ -177,7 +177,7 @@ in
       }
       {
         assertion = lib.all validNotificationOwner cfg.ownership.notificationOwners;
-        message = "programs.stillsuitShell notification owner must be external or an enabled service plugin declaring the notifications capability";
+        message = "programs.stillsuitShell notification owner must be external or an enabled service plugin declaring the notification-server capability";
       }
       {
         assertion = cfg.development.sourceMode != "local" || cfg.development.localSource != null;
