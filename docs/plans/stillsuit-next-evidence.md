@@ -458,7 +458,33 @@ Current verification:
 - Runtime screenshot inspection is not accepted as visual proof: the session
   was already covered by swaylock, so both captures contained only its lock
   surface. The orchestrator did not unlock or disturb it. Repeating the visual
-  checklist after the human unlocks the session remains itemized below.
+  checklist after the human unlocked the session is recorded below.
+- The unlocked shadow-only visual review used a clean archive of
+  `e07968b6b6a38d327961f6c92c713d73de74e58e`, the Nix-built store shell,
+  private XDG roots, a private session bus, external notification ownership,
+  and canonical `--config stillsuit-next-shadow-preview` identity. It did not
+  activate a generation or change a live service.
+- The first unlocked launch did not reach Wayland because the private runtime
+  root made relative `WAYLAND_DISPLAY=wayland-1` resolve to the wrong socket.
+  The exact child had already exited; the runner was corrected to use the
+  existing absolute Wayland and Niri socket paths before retrying. No live
+  process or configuration was touched by that correction.
+- The successful unlocked preview reported two screens, 11 singleton service
+  objects, six surface objects, and all 15 plugins loaded without plugin
+  errors. The real `stillsuit.bar` was loaded without fallback, the private bus
+  had no `org.freedesktop.Notifications` owner, and opening resources closed
+  and unloaded the previously open audio panel.
+- Cropped screenshots were inspected at original detail. The Stillsuit shadow
+  bar was visible on both `DP-4` and `eDP-1`; each output showed three populated
+  workspace indicators. The audio panel rendered its output/input devices,
+  volume control, and mute action on `DP-4`. The resources panel changed CPU
+  from 26 percent to 17 percent across four seconds while memory remained at
+  74 percent, providing visual evidence that live sampling was advancing.
+- The exact successful preview PID `1214947` and its private bus were stopped,
+  and no shadow instance remained. The legacy shell and notification owner
+  remained PID `63916`, Waybar remained active, and the compositor overview and
+  focus were restored after inspection. Privacy-sensitive temporary screenshots
+  were deleted after this ledger entry was committed.
 - Applied Gate 1 workspace and Waybar patches followed by the Gate 2 cutover
   patch only inside a disposable archived tree. `git apply` checks, Niri
   validation, Nix formatting, and flake evaluation exited 0; the tracked live
@@ -611,12 +637,8 @@ barriers, single-instance/owner assertions, and rollback.
 
 ## Remaining work
 
-- Resume the independent Claude review against the repaired branch. The
-  recovered review did not inspect these repair commits.
-- After the session is unlocked, repeat the shadow-only screenshot checklist
-  for both bar outputs plus audio/resources panels; confirm workspace content
-  and changing resource readings. Do not use it to perform Gate 2.
-- Human review decides whether to run Gate 1. Gate 2 remains explicitly not for
-  tonight. After the required repair and verification passes, it must use the
-  prepared ordered handoff rather than an unbounded or newest-instance
-  selection.
+- Triage the secondary, non-gate-blocking findings from the resumed independent
+  Claude review before declaring the shell finished.
+- Human review decides whether to run Gate 1. Gate 2 remains a separate,
+  explicit human decision and must use the prepared ordered handoff rather than
+  an unbounded or newest-instance selection.
