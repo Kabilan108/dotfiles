@@ -1,0 +1,232 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly SESSION_NAME="stillsuit-agent"
+readonly APP_ID="io.stillsuit.AgentPanel"
+readonly DEFAULT_MODEL="gpt-5.6-sol"
+readonly DEFAULT_EFFORT="low"
+readonly DEFAULT_TIER="fast"
+
+usage() {
+  printf 'usage: %s {open|hide|toggle|status|terminate}\n' "${0##*/}" >&2
+  exit 64
+}
+
+[[ $# -eq 1 ]] || usage
+readonly ACTION=$1
+case "$ACTION" in
+  open | hide | toggle | status | terminate) ;;
+  *) usage ;;
+esac
+
+readonly CONFIG_ROOT=${XDG_CONFIG_HOME:-${HOME:?HOME is not set}/.config}
+readonly STATE_ROOT=${XDG_STATE_HOME:-${HOME:?HOME is not set}/.local/state}/stillsuit
+readonly RUNTIME_ROOT=${XDG_RUNTIME_DIR:-$STATE_ROOT/run}
+readonly CONFIG_FILE="$CONFIG_ROOT/stillsuit/agent-panel.json"
+readonly LOCK_FILE="$RUNTIME_ROOT/agent-panel.lock"
+readonly GHOSTTY_PID_FILE="$RUNTIME_ROOT/agent-panel-ghostty.pid"
+
+mkdir -p "$RUNTIME_ROOT"
+exec 9>"$LOCK_FILE"
+flock 9
+
+window_ids() {
+  local windows
+  if ! windows=$(niri msg -j windows 2>/dev/null); then
+    windows='[]'
+  fi
+  jq -r --arg app_id "$APP_ID" '.[] | select(.app_id == $app_id) | .id' <<<"$windows"
+}
+
+pending_pid() {
+  local pid
+  [[ -r $GHOSTTY_PID_FILE ]] || return 1
+  IFS= read -r pid <"$GHOSTTY_PID_FILE"
+  [[ $pid =~ ^[1-9][0-9]*$ ]] || {
+    rm -f "$GHOSTTY_PID_FILE"
+    return 1
+  }
+  if kill -0 "$pid" 2>/dev/null && pid_is_agent_ghostty "$pid"; then
+    printf '%s\n' "$pid"
+    return 0
+  fi
+  rm -f "$GHOSTTY_PID_FILE"
+  return 1
+}
+
+pid_is_agent_ghostty() {
+  local pid=$1 arg
+  local -a argv=()
+  [[ -r /proc/$pid/cmdline ]] || return 1
+  mapfile -d '' -t argv <"/proc/$pid/cmdline"
+  for arg in "${argv[@]}"; do
+    [[ $arg == "--class=$APP_ID" ]] && return 0
+  done
+  return 1
+}
+
+session_state() {
+  local panes
+  if ! tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+    printf 'absent\n'
+    return
+  fi
+  if ! panes=$(tmux list-panes -t "$SESSION_NAME" -F '#{pane_dead}' 2>/dev/null); then
+    printf 'dead\n'
+    return
+  fi
+  if [[ -z $panes ]] || grep -qx '1' <<<"$panes"; then
+    printf 'dead\n'
+  else
+    printf 'running\n'
+  fi
+}
+
+read_launch_config() {
+  local config
+  if [[ -e $CONFIG_FILE ]]; then
+    [[ -f $CONFIG_FILE ]] || {
+      printf 'agent panel config must be a regular file: %s\n' "$CONFIG_FILE" >&2
+      return 78
+    }
+    config=$(<"$CONFIG_FILE")
+  else
+    config=$(jq -cn \
+      --arg model "$DEFAULT_MODEL" \
+      --arg effort "$DEFAULT_EFFORT" \
+      --arg tier "$DEFAULT_TIER" \
+      '{model: $model, reasoningEffort: $effort, serviceTier: $tier}')
+  fi
+
+  jq -e '
+    type == "object" and
+    (keys | sort) == ["model", "reasoningEffort", "serviceTier"] and
+    (.model | type == "string" and IN("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")) and
+    (.reasoningEffort | type == "string" and IN("low", "medium", "high", "xhigh", "max", "ultra")) and
+    (.serviceTier | type == "string" and IN("fast", "priority"))
+  ' >/dev/null <<<"$config" || {
+    printf 'invalid agent panel config: %s\n' "$CONFIG_FILE" >&2
+    return 78
+  }
+
+  MODEL=$(jq -r '.model' <<<"$config")
+  EFFORT=$(jq -r '.reasoningEffort' <<<"$config")
+  TIER=$(jq -r '.serviceTier' <<<"$config")
+  readonly MODEL EFFORT TIER
+}
+
+close_windows() {
+  local id
+  while IFS= read -r id; do
+    [[ -n $id ]] || continue
+    niri msg action close-window --id "$id" >/dev/null
+  done < <(window_ids)
+}
+
+stop_pending_window() {
+  local pid
+  if pid=$(pending_pid); then
+    kill "$pid" 2>/dev/null || true
+  fi
+  rm -f "$GHOSTTY_PID_FILE"
+}
+
+ensure_session() {
+  local state=$1
+  case "$state" in
+    running) return ;;
+    dead) tmux kill-session -t "$SESSION_NAME" 2>/dev/null || true ;;
+    absent) ;;
+  esac
+
+  read_launch_config
+  tmux new-session -d -s "$SESSION_NAME" -c "$HOME" -- \
+    codex --yolo --model "$MODEL" \
+    --config "model_reasoning_effort=$EFFORT" \
+    --config "service_tier=$TIER"
+  tmux set-option -t "$SESSION_NAME" remain-on-exit on >/dev/null
+}
+
+launch_window() {
+  local pid
+  if pending_pid >/dev/null; then
+    return
+  fi
+  ghostty --class="$APP_ID" --title="Stillsuit Agent" \
+    -e tmux attach-session -t "$SESSION_NAME" >/dev/null 2>&1 9>&- &
+  pid=$!
+  printf '%s\n' "$pid" >"$GHOSTTY_PID_FILE"
+}
+
+open_panel() {
+  local before id
+  local -a ids=()
+  before=$(session_state)
+  if [[ $before != running ]]; then
+    close_windows
+    stop_pending_window
+  fi
+  ensure_session "$before"
+
+  mapfile -t ids < <(window_ids)
+  if ((${#ids[@]} > 0)); then
+    niri msg action focus-window --id "${ids[0]}" >/dev/null
+    for id in "${ids[@]:1}"; do
+      niri msg action close-window --id "$id" >/dev/null
+    done
+  else
+    launch_window
+  fi
+}
+
+hide_panel() {
+  close_windows
+  stop_pending_window
+}
+
+terminate_panel() {
+  hide_panel
+  if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+    tmux kill-session -t "$SESSION_NAME"
+  fi
+}
+
+print_status() {
+  local session windows pending window_state
+  session=$(session_state)
+  windows=$(window_ids | wc -l)
+  windows=${windows//[[:space:]]/}
+  pending=false
+  if pending_pid >/dev/null; then
+    pending=true
+  fi
+  if ((windows > 0)); then
+    window_state=visible
+  elif [[ $pending == true ]]; then
+    window_state=opening
+  else
+    window_state=absent
+  fi
+  jq -cn \
+    --arg session "$session" \
+    --arg window "$window_state" \
+    --argjson windowCount "$windows" \
+    --argjson pending "$pending" \
+    '{session: $session, window: $window, windowCount: $windowCount, launchPending: $pending}'
+}
+
+case "$ACTION" in
+  open) open_panel ;;
+  hide) hide_panel ;;
+  toggle)
+    if [[ -n $(window_ids) ]] || pending_pid >/dev/null; then
+      hide_panel
+    else
+      open_panel
+    fi
+    ;;
+  status) ;;
+  terminate) terminate_panel ;;
+esac
+
+print_status
