@@ -2,11 +2,13 @@
 
 Branch: `stillsuit-next`
 
-Activation status: not performed. No NixOS or Home Manager generation has been
-rebuilt or switched. No production shell, compositor, bar, notification daemon,
-recorder, meeting worker, lock service, or polkit service has been restarted or
-killed. Only the exact disposable shadow-preview child PIDs and their private
-buses were torn down after their tests.
+Activation status: Gate 1 was completed by the human on 2026-08-31. The active
+system generation is
+`/nix/store/nh2bvm9a083s2d3qpalrg234j6nmxprq-nixos-system-jacurutu-26.11.20260822.2c423e0`;
+Waybar and the configured agent workspace are retired. Gate 2 has not been run.
+The legacy Stillsuit shell remains the sole notification owner, and Stillsuit
+Next remains inactive. Only the exact disposable shadow-preview child PIDs and
+their private buses were torn down during agent-run tests.
 
 ## Inputs and contract freeze
 
@@ -625,12 +627,15 @@ Post-repair integration verification:
 ## Human-owned gates
 
 Gate 1 was approved by the human on 2026-08-31. Its workspace-removal and
-Waybar-disable patches are applied in the main checkout. The changed Niri
+Waybar-disable patches are committed in the main checkout. The changed Niri
 configuration passed `niri validate`, the Waybar module passed `nixfmt
---check`, and `nix flake check --no-build` exited 0. The agent did not run the
-repository-prohibited NixOS rebuild or generation switch. Waybar therefore
-remains active until the human runs those two commands and verifies the unit is
-inactive. Gate 1 is approved and source-staged, but activation is incomplete.
+--check`, and `nix flake check --no-build` exited 0. The human then ran the
+repository-required rebuild and generation switch. `/run/current-system`
+resolves to the generation recorded above; `waybar.service` reports `inactive`
+and `not-found`; and the compositor reports no named `agent` workspace. One
+legacy `stillsuit` instance remains at PID `63916` and still owns
+`org.freedesktop.Notifications`, while `stillsuit-shell.service` is inactive.
+This is the intended boundary after Gate 1. Gate 1 is complete.
 
 Gate 2, Stillsuit Next process and notification cutover, has not been run and
 will not be run during this execution. The same command sheet contains its
@@ -642,7 +647,5 @@ barriers, single-instance/owner assertions, and rollback.
 
 - Triage the secondary, non-gate-blocking findings from the resumed independent
   Claude review before declaring the shell finished.
-- The human must complete Gate 1 with its prepared NixOS build and generation
-  switch, then confirm that Waybar is inactive. Gate 2 remains a separate,
-  explicit human decision and must use the prepared ordered handoff rather than
-  an unbounded or newest-instance selection.
+- Gate 2 remains a separate, explicit human decision and must use the prepared
+  ordered handoff rather than an unbounded or newest-instance selection.
