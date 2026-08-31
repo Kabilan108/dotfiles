@@ -8,6 +8,7 @@ QtObject {
     property QtObject hostContext: null
     property QtObject serviceRegistry: null
     property QtObject compositor: null
+    property var screens: []
     property var componentFactory: function(url, mode) {
         return Qt.createComponent(url, mode)
     }
@@ -17,6 +18,7 @@ QtObject {
     readonly property int revision: internalRevision
     readonly property int objectCount: _objectCount()
     readonly property int pendingLoadCount: pendingLoads
+    readonly property int screenCount: _screens().length
 
     property string internalActiveId: ""
     property int internalRevision: 0
@@ -31,6 +33,8 @@ QtObject {
     property var sessionOpen: ({})
     property var placements: ({})
     property QtObject surfaceHost: QtObject {}
+
+    onScreensChanged: Qt.callLater(root._reconcileScreens)
 
     property Connections catalogConnections: Connections {
         target: root.catalog
@@ -58,6 +62,7 @@ QtObject {
         }
 
         function onCatalogChanged() {
+            root._containUnavailable()
             root._preloadAll()
         }
     }
@@ -67,16 +72,50 @@ QtObject {
         ignoreUnknownSignals: true
 
         function onRevisionChanged() {
+            root._containUnavailable()
             root._preloadAll()
+        }
+
+        function onDependencyContained(pluginId) {
+            root.unload(pluginId)
         }
     }
 
     function state(pluginId) {
-        return states[String(pluginId)] || "unloaded"
+        var kinds = _routedKindsForPlugin(String(pluginId))
+        var hasLoaded = false
+        for (var index = 0; index < kinds.length; index++) {
+            var contribution = contributionState(pluginId, kinds[index])
+            if (contribution === "error")
+                return "error"
+            if (contribution === "loading")
+                return "loading"
+            if (contribution === "loaded")
+                hasLoaded = true
+        }
+        return hasLoaded ? "loaded" : "unloaded"
+    }
+
+    function contributionState(pluginId, kind) {
+        return states[_routeKey(String(pluginId), String(kind))] || "unloaded"
     }
 
     function error(pluginId) {
-        return errors[String(pluginId)] || ""
+        var kinds = _routedKindsForPlugin(String(pluginId))
+        for (var index = 0; index < kinds.length; index++) {
+            var message = contributionError(pluginId, kinds[index])
+            if (message !== "")
+                return message
+        }
+        return ""
+    }
+
+    function contributionError(pluginId, kind) {
+        return errors[_routeKey(String(pluginId), String(kind))] || ""
+    }
+
+    function contributionInstances(pluginId, kind) {
+        return objects[_routeKey(String(pluginId), String(kind))] || []
     }
 
     function isOpen(pluginId) {
@@ -88,6 +127,14 @@ QtObject {
         return Array.isArray(queue) ? queue.length : 0
     }
 
+    function pendingKinds(pluginId) {
+        var queue = queues[String(pluginId)] || []
+        var result = []
+        for (var index = 0; index < queue.length; index++)
+            result.push(queue[index].kind)
+        return result
+    }
+
     function placementOutputId(pluginId) {
         return placements[String(pluginId)] || ""
     }
@@ -97,7 +144,8 @@ QtObject {
         var validation = _validateRequest(key, payloadJson, true)
         if (validation !== "ok")
             return validation
-        if (state(key) === "error")
+        var kind = catalog.primarySurfaceKind(key)
+        if (contributionState(key, kind) === "error")
             return "error"
 
         if (internalActiveId !== "" && internalActiveId !== key)
@@ -106,22 +154,21 @@ QtObject {
         internalActiveId = key
         _setPlacement(key, _currentFocusedOutputId())
 
-        if (state(key) === "loaded") {
+        if (contributionState(key, kind) === "loaded") {
             _applyPlacement(key)
-            return _deliverOne(key, String(payloadJson || "")) ? "ok" : "error"
+            return _deliverOne(key, kind, String(payloadJson || "")) ? "ok" : "error"
         }
 
-        _enqueue(key, String(payloadJson || ""))
-        if (state(key) === "loading")
+        _enqueue(key, kind, String(payloadJson || ""))
+        var loadResult = _startLoadAll(key)
+        if (loadResult === "started" || loadResult === "wait")
             return "ok"
-        if (!_startLoad(key)) {
-            _clearQueue(key)
-            _setSessionOpen(key, false)
-            if (internalActiveId === key)
-                internalActiveId = ""
-            return "error"
-        }
-        return "ok"
+
+        _clearQueue(key)
+        _setSessionOpen(key, false)
+        if (internalActiveId === key)
+            internalActiveId = ""
+        return "error"
     }
 
     function close(pluginId) {
@@ -134,22 +181,14 @@ QtObject {
         if (internalActiveId === key)
             internalActiveId = ""
 
-        var currentState = state(key)
-        if (currentState === "loaded") {
-            if (!_invokeClose(key))
-                return "error"
-            var entry = catalog.get(key)
-            if (entry.manifest.keepLoaded !== true)
-                _unloadObjects(key)
-            return "ok"
-        }
-        if (currentState === "loading") {
-            var loadingEntry = catalog.get(key)
-            if (loadingEntry.manifest.keepLoaded !== true)
-                _unloadObjects(key)
-            return "ok"
-        }
-        return currentState === "error" ? "error" : "ok"
+        var primaryKind = catalog.primarySurfaceKind(key)
+        var primaryState = contributionState(key, primaryKind)
+        if (primaryState === "loaded" && !_invokeClose(key, primaryKind))
+            return "error"
+        if ((primaryState === "loaded" || primaryState === "loading")
+                && catalog.get(key).manifest.keepLoaded !== true)
+            _unloadObjects(key)
+        return primaryState === "error" ? "error" : "ok"
     }
 
     function toggle(pluginId, payloadJson) {
@@ -163,12 +202,11 @@ QtObject {
         if (internalActiveId === key)
             internalActiveId = ""
         _unloadObjects(key)
-        _clearError(key)
-        _setState(key, "unloaded")
+        _clearErrors(key)
     }
 
     function unloadAll() {
-        var ids = Object.keys(states)
+        var ids = _loadedPluginIds()
         for (var index = 0; index < ids.length; index++)
             unload(ids[index])
     }
@@ -186,14 +224,26 @@ QtObject {
         var ids = Object.keys(catalog.entries).sort()
         for (var index = 0; index < ids.length; index++) {
             var pluginId = ids[index]
-            if (catalog.primarySurfaceKind(pluginId) === "")
+            var kinds = _routedKindsForPlugin(pluginId)
+            if (kinds.length === 0)
                 continue
+            var contributionRecords = {}
+            for (var kindIndex = 0; kindIndex < kinds.length; kindIndex++) {
+                var kind = kinds[kindIndex]
+                contributionRecords[kind] = {
+                    state: contributionState(pluginId, kind),
+                    instances: contributionInstances(pluginId, kind).length,
+                    error: contributionError(pluginId, kind)
+                }
+            }
             result[pluginId] = {
                 state: state(pluginId),
                 open: isOpen(pluginId),
                 outputId: placementOutputId(pluginId),
                 queuedPayloads: pendingCount(pluginId),
-                error: error(pluginId)
+                queuedKinds: pendingKinds(pluginId),
+                error: error(pluginId),
+                contributions: contributionRecords
             }
         }
         return result
@@ -209,17 +259,15 @@ QtObject {
             return "error"
 
         var dependencyState = _dependencyState(catalog.get(pluginId))
-        if (dependencyState !== "ready")
-            return "error"
-        return "ok"
+        return dependencyState === "ready" || dependencyState === "wait" ? "ok" : "error"
     }
 
     function _payloadValid(payloadJson) {
-        var text = String(payloadJson || "")
-        if (text === "")
+        var value = String(payloadJson || "")
+        if (value === "")
             return true
         try {
-            JSON.parse(text)
+            JSON.parse(value)
             return true
         } catch (error) {
             return false
@@ -227,79 +275,109 @@ QtObject {
     }
 
     function _dependencyState(entry) {
+        if (!entry || !catalog)
+            return "error"
+        var pluginId = String(entry.manifest.id)
+        if (catalog.hasKind(pluginId, "service")) {
+            var ownState = serviceRegistry ? serviceRegistry.state(pluginId) : "unloaded"
+            if (ownState === "loading" || ownState === "unloaded")
+                return "wait"
+            if (ownState !== "loaded")
+                return "error"
+        }
+
         var dependencies = entry.manifest.dependencies || []
         for (var index = 0; index < dependencies.length; index++) {
             var dependencyId = dependencies[index]
             if (!catalog.isEnabled(dependencyId))
                 return "disabled"
-            if (catalog.hasKind(dependencyId, "service")) {
-                var dependencyServiceState = serviceRegistry
-                    ? serviceRegistry.state(dependencyId)
-                    : "unloaded"
-                if (dependencyServiceState === "loading" || dependencyServiceState === "unloaded")
-                    return "wait"
-                if (dependencyServiceState !== "loaded")
-                    return "error"
-            }
+            if (!catalog.hasKind(dependencyId, "service"))
+                continue
+            var dependencyState = serviceRegistry
+                ? serviceRegistry.state(dependencyId)
+                : "unloaded"
+            if (dependencyState === "loading" || dependencyState === "unloaded")
+                return "wait"
+            if (dependencyState !== "loaded")
+                return "error"
         }
         return "ready"
     }
 
-    function _startLoad(pluginId) {
-        var entry = catalog.get(pluginId)
+    function _startLoadAll(pluginId) {
+        var entry = catalog ? catalog.get(pluginId) : null
+        if (!entry)
+            return "error"
         var dependencyState = _dependencyState(entry)
         if (dependencyState === "wait")
-            return false
+            return "wait"
         if (dependencyState !== "ready") {
-            _fail(pluginId, "surface dependency is unavailable")
-            return false
+            _failPlugin(pluginId, catalog.primarySurfaceKind(pluginId),
+                "surface dependency is unavailable")
+            return "error"
         }
 
-        var kind = catalog.primarySurfaceKind(pluginId)
+        var kinds = _routedKinds(entry)
+        for (var index = 0; index < kinds.length; index++) {
+            var kind = kinds[index]
+            var contribution = contributionState(pluginId, kind)
+            if (contribution === "error")
+                return "error"
+            if (contribution === "unloaded"
+                    && !_startContributionLoad(pluginId, kind, entry))
+                return "error"
+        }
+        return "started"
+    }
+
+    function _startContributionLoad(pluginId, kind, entry) {
         var url = catalog.entryPointUrl(entry, kind)
         if (url === "") {
-            _fail(pluginId, "invalid surface entry-point path")
+            _failPlugin(pluginId, kind, "invalid " + kind + " entry-point path")
             return false
         }
 
+        var routeKey = _routeKey(pluginId, kind)
         var token = ++nextToken
         var tokensNext = _copy(tokens)
-        tokensNext[pluginId] = token
+        tokensNext[routeKey] = token
         tokens = tokensNext
-        _setState(pluginId, "loading")
+        _setContributionState(pluginId, kind, "loading")
         pendingLoads++
         var component = componentFactory(url, Component.Asynchronous)
         var componentsNext = _copy(components)
-        componentsNext[pluginId] = component
+        componentsNext[routeKey] = component
         components = componentsNext
 
         function finalize() {
-            if (tokens[pluginId] !== token)
+            if (tokens[routeKey] !== token)
                 return
             if (component.status === Component.Loading)
                 return
             var tokensDone = _copy(tokens)
-            delete tokensDone[pluginId]
+            delete tokensDone[routeKey]
             tokens = tokensDone
             pendingLoads = Math.max(0, pendingLoads - 1)
 
             if (component.status !== Component.Ready) {
-                _fail(pluginId, component.errorString())
+                _failPlugin(pluginId, kind, component.errorString())
                 return
             }
 
             var instances = _createInstances(pluginId, component, entry, kind)
-            if (!instances) {
-                _fail(pluginId, "surface construction returned null")
+            if (instances === null) {
+                _failPlugin(pluginId, kind, kind + " construction returned null")
                 return
             }
             var objectsNext = _copy(objects)
-            objectsNext[pluginId] = instances
+            objectsNext[routeKey] = instances
             objects = objectsNext
-            _clearError(pluginId)
-            _setState(pluginId, "loaded")
-            _applyPlacement(pluginId)
-            _deliverQueue(pluginId)
+            _clearContributionError(pluginId, kind)
+            _setContributionState(pluginId, kind, "loaded")
+            if (kind === catalog.primarySurfaceKind(pluginId)) {
+                _applyPlacement(pluginId)
+                _deliverQueue(pluginId)
+            }
         }
 
         if (component.status === Component.Loading)
@@ -310,29 +388,39 @@ QtObject {
     }
 
     function _createInstances(pluginId, component, entry, kind) {
-        var context = hostContext ? hostContext.contextFor(entry) : null
         var scopeKey = ManifestValidator.entryPointKey(kind)
-        var contributionScope = entry.manifest.scope[scopeKey]
-        var outputSnapshots = contributionScope === "per-output" ? _outputs() : [null]
-        if (outputSnapshots.length === 0)
-            outputSnapshots = [null]
-        var instances = []
+        if (entry.manifest.scope[scopeKey] !== "per-output") {
+            var globalInstance = component.createObject(surfaceHost,
+                _constructionProperties(entry, null, false))
+            return globalInstance ? [globalInstance] : null
+        }
 
-        for (var index = 0; index < outputSnapshots.length; index++) {
-            var instance = component.createObject(surfaceHost, { context: context })
+        var instances = []
+        var currentScreens = _screens()
+        for (var index = 0; index < currentScreens.length; index++) {
+            var instance = component.createObject(surfaceHost,
+                _constructionProperties(entry, currentScreens[index], true))
             if (!instance) {
-                for (var cleanupIndex = 0; cleanupIndex < instances.length; cleanupIndex++)
-                    instances[cleanupIndex].destroy()
+                _destroyInstances(instances)
                 return null
             }
-            var output = outputSnapshots[index]
-            if ("output" in instance)
-                instance.output = output
-            if ("outputId" in instance)
-                instance.outputId = _outputId(output)
             instances.push(instance)
         }
         return instances
+    }
+
+    function _constructionProperties(entry, screen, perOutput) {
+        var properties = {
+            context: hostContext ? hostContext.contextFor(entry) : null
+        }
+        var pluginId = String(entry.manifest.id)
+        if (catalog.hasKind(pluginId, "service"))
+            properties.service = serviceRegistry ? serviceRegistry.get(pluginId) : null
+        if (perOutput) {
+            properties.screen = screen
+            properties.outputId = _outputId(screen)
+        }
+        return properties
     }
 
     function _deliverQueue(pluginId) {
@@ -343,18 +431,21 @@ QtObject {
         var queue = queues[pluginId]
         if (!Array.isArray(queue) || queue.length === 0)
             return true
+        var primaryKind = catalog.primarySurfaceKind(pluginId)
         _clearQueue(pluginId)
         for (var index = 0; index < queue.length; index++) {
-            if (!_deliverOne(pluginId, queue[index]))
+            if (queue[index].kind !== primaryKind)
+                continue
+            if (!_deliverOne(pluginId, primaryKind, queue[index].payload))
                 return false
         }
         return true
     }
 
-    function _deliverOne(pluginId, payloadJson) {
-        var instance = _placedInstance(pluginId)
+    function _deliverOne(pluginId, kind, payloadJson) {
+        var instance = _placedInstance(pluginId, kind)
         if (!instance) {
-            _fail(pluginId, "surface has no instance for the selected output")
+            _failPlugin(pluginId, kind, "surface has no instance for the selected output")
             return false
         }
         try {
@@ -364,13 +455,13 @@ QtObject {
                 instance.visible = true
             return true
         } catch (error) {
-            _fail(pluginId, "surface open failed: " + error)
+            _failPlugin(pluginId, kind, "surface open failed: " + error)
             return false
         }
     }
 
-    function _invokeClose(pluginId) {
-        var instances = objects[pluginId] || []
+    function _invokeClose(pluginId, kind) {
+        var instances = contributionInstances(pluginId, kind)
         try {
             for (var index = 0; index < instances.length; index++) {
                 if (typeof instances[index].close === "function")
@@ -380,24 +471,31 @@ QtObject {
             }
             return true
         } catch (error) {
-            _fail(pluginId, "surface close failed: " + error)
+            _failPlugin(pluginId, kind, "surface close failed: " + error)
             return false
         }
     }
 
     function _applyPlacement(pluginId) {
-        var instance = _placedInstance(pluginId)
+        var kind = catalog.primarySurfaceKind(pluginId)
+        var instance = _placedInstance(pluginId, kind)
         if (!instance)
             return
-        var output = _outputById(placementOutputId(pluginId))
+        var entry = catalog.get(pluginId)
+        var scopeKey = ManifestValidator.entryPointKey(kind)
+        if (entry.manifest.scope[scopeKey] === "per-output")
+            return
+        var screen = _screenById(placementOutputId(pluginId))
+        if ("screen" in instance)
+            instance.screen = screen
         if ("output" in instance)
-            instance.output = output
+            instance.output = screen
         if ("outputId" in instance)
             instance.outputId = placementOutputId(pluginId)
     }
 
-    function _placedInstance(pluginId) {
-        var instances = objects[pluginId] || []
+    function _placedInstance(pluginId, kind) {
+        var instances = contributionInstances(pluginId, kind)
         if (instances.length === 0)
             return null
         var desiredOutputId = placementOutputId(pluginId)
@@ -412,52 +510,132 @@ QtObject {
     function _preloadAll() {
         if (!catalog || !catalog.loaded)
             return
-        var ids = Object.keys(catalog.entries)
-        for (var index = 0; index < ids.length; index++)
-            _preloadIfNeeded(ids[index])
+        var order = typeof catalog.topologicalOrder === "function"
+            ? catalog.topologicalOrder()
+            : Object.keys(catalog.entries).sort()
+        for (var index = 0; index < order.length; index++)
+            _preloadIfNeeded(order[index])
     }
 
     function _preloadIfNeeded(pluginId) {
         if (!catalog || !catalog.has(pluginId) || !catalog.isEnabled(pluginId)
-                || catalog.primarySurfaceKind(pluginId) === ""
-                || state(pluginId) !== "unloaded")
+                || _routedKindsForPlugin(pluginId).length === 0)
             return
         var entry = catalog.get(pluginId)
-        if (entry.manifest.keepLoaded !== true)
+        if (entry.manifest.keepLoaded !== true || state(pluginId) === "error")
             return
         if (_dependencyState(entry) !== "ready")
             return
-        _startLoad(pluginId)
+        _startLoadAll(pluginId)
+    }
+
+    function _containUnavailable() {
+        if (!catalog)
+            return
+        var ids = _loadedPluginIds()
+        for (var index = 0; index < ids.length; index++) {
+            var pluginId = ids[index]
+            if (!catalog.has(pluginId) || !catalog.isEnabled(pluginId)
+                    || _dependencyState(catalog.get(pluginId)) !== "ready")
+                unload(pluginId)
+        }
+    }
+
+    function _reconcileScreens() {
+        if (!catalog)
+            return
+        var ids = _loadedPluginIds()
+        for (var idIndex = 0; idIndex < ids.length; idIndex++) {
+            var pluginId = ids[idIndex]
+            var entry = catalog.get(pluginId)
+            if (!entry)
+                continue
+            var kinds = _routedKinds(entry)
+            for (var kindIndex = 0; kindIndex < kinds.length; kindIndex++) {
+                var kind = kinds[kindIndex]
+                var scopeKey = ManifestValidator.entryPointKey(kind)
+                if (entry.manifest.scope[scopeKey] !== "per-output"
+                        || contributionState(pluginId, kind) !== "loaded")
+                    continue
+                if (!_reconcileContributionScreens(pluginId, kind, entry))
+                    return
+            }
+        }
+    }
+
+    function _reconcileContributionScreens(pluginId, kind, entry) {
+        var routeKey = _routeKey(pluginId, kind)
+        var component = components[routeKey]
+        if (!component)
+            return true
+        var existing = contributionInstances(pluginId, kind)
+        var existingById = {}
+        for (var index = 0; index < existing.length; index++)
+            existingById[String(existing[index].outputId || "")] = existing[index]
+
+        var nextInstances = []
+        var created = []
+        var currentScreens = _screens()
+        for (var screenIndex = 0; screenIndex < currentScreens.length; screenIndex++) {
+            var screen = currentScreens[screenIndex]
+            var outputId = _outputId(screen)
+            var instance = existingById[outputId]
+            if (instance) {
+                delete existingById[outputId]
+            } else {
+                instance = component.createObject(surfaceHost,
+                    _constructionProperties(entry, screen, true))
+                if (!instance) {
+                    _destroyInstances(created)
+                    _failPlugin(pluginId, kind, kind + " screen reconciliation failed")
+                    return false
+                }
+                created.push(instance)
+            }
+            nextInstances.push(instance)
+        }
+        for (var removedId in existingById)
+            existingById[removedId].destroy()
+        var objectsNext = _copy(objects)
+        objectsNext[routeKey] = nextInstances
+        objects = objectsNext
+        internalRevision++
+        return true
     }
 
     function _unloadObjects(pluginId) {
-        var key = String(pluginId)
-        var tokensNext = _copy(tokens)
-        if (tokensNext[key] !== undefined) {
-            delete tokensNext[key]
-            tokens = tokensNext
-            if (state(key) === "loading")
-                pendingLoads = Math.max(0, pendingLoads - 1)
-        }
-
-        var instances = objects[key] || []
-        for (var index = 0; index < instances.length; index++) {
-            if (instances[index] && typeof instances[index].destroy === "function")
-                instances[index].destroy()
-        }
-        var component = components[key]
-        if (component && typeof component.destroy === "function")
-            component.destroy()
-        var objectsNext = _copy(objects)
-        delete objectsNext[key]
-        objects = objectsNext
-        var componentsNext = _copy(components)
-        delete componentsNext[key]
-        components = componentsNext
-        _setState(key, "unloaded")
+        var prefix = String(pluginId) + ":"
+        var keys = _contributionKeys(prefix)
+        for (var index = 0; index < keys.length; index++)
+            _unloadContributionKey(keys[index])
     }
 
-    function _fail(pluginId, message) {
+    function _unloadContributionKey(routeKey) {
+        var tokenNext = _copy(tokens)
+        if (tokenNext[routeKey] !== undefined) {
+            delete tokenNext[routeKey]
+            tokens = tokenNext
+            if (states[routeKey] === "loading")
+                pendingLoads = Math.max(0, pendingLoads - 1)
+        }
+        _destroyInstances(objects[routeKey] || [])
+        var component = components[routeKey]
+        if (component && typeof component.destroy === "function")
+            component.destroy()
+
+        var objectsNext = _copy(objects)
+        delete objectsNext[routeKey]
+        objects = objectsNext
+        var componentsNext = _copy(components)
+        delete componentsNext[routeKey]
+        components = componentsNext
+        var statesNext = _copy(states)
+        delete statesNext[routeKey]
+        states = statesNext
+        internalRevision++
+    }
+
+    function _failPlugin(pluginId, kind, message) {
         var key = String(pluginId)
         _clearQueue(key)
         _setSessionOpen(key, false)
@@ -465,21 +643,31 @@ QtObject {
             internalActiveId = ""
         _unloadObjects(key)
         var errorsNext = _copy(errors)
-        errorsNext[key] = String(message || "unknown surface error")
+        errorsNext[_routeKey(key, kind)] = String(message || "unknown surface error")
         errors = errorsNext
-        _setState(key, "error")
+        _setContributionState(key, kind, "error")
     }
 
-    function _clearError(pluginId) {
+    function _clearContributionError(pluginId, kind) {
         var errorsNext = _copy(errors)
-        delete errorsNext[pluginId]
+        delete errorsNext[_routeKey(pluginId, kind)]
         errors = errorsNext
     }
 
-    function _enqueue(pluginId, payloadJson) {
+    function _clearErrors(pluginId) {
+        var prefix = String(pluginId) + ":"
+        var errorsNext = {}
+        for (var key in errors) {
+            if (key.indexOf(prefix) !== 0)
+                errorsNext[key] = errors[key]
+        }
+        errors = errorsNext
+    }
+
+    function _enqueue(pluginId, kind, payloadJson) {
         var queuesNext = _copyQueues(queues)
         var queue = queuesNext[pluginId] || []
-        queue.push(payloadJson)
+        queue.push({ kind: kind, payload: payloadJson })
         queuesNext[pluginId] = queue
         queues = queuesNext
     }
@@ -509,12 +697,13 @@ QtObject {
         placements = placementsNext
     }
 
-    function _setState(pluginId, nextState) {
+    function _setContributionState(pluginId, kind, nextState) {
         var statesNext = _copy(states)
+        var routeKey = _routeKey(pluginId, kind)
         if (nextState === "unloaded")
-            delete statesNext[pluginId]
+            delete statesNext[routeKey]
         else
-            statesNext[pluginId] = nextState
+            statesNext[routeKey] = nextState
         states = statesNext
         internalRevision++
     }
@@ -522,39 +711,89 @@ QtObject {
     function _currentFocusedOutputId() {
         if (compositor && String(compositor.focusedOutputId || "") !== "")
             return String(compositor.focusedOutputId)
-        var outputSnapshots = _outputs()
-        return outputSnapshots.length > 0 ? _outputId(outputSnapshots[0]) : ""
+        var currentScreens = _screens()
+        return currentScreens.length > 0 ? _outputId(currentScreens[0]) : ""
     }
 
-    function _outputs() {
-        if (!compositor || !compositor.outputs)
-            return []
+    function _screens() {
         var result = []
-        for (var index = 0; index < compositor.outputs.length; index++)
-            result.push(compositor.outputs[index])
+        if (!screens)
+            return result
+        for (var index = 0; index < screens.length; index++)
+            result.push(screens[index])
         return result
     }
 
-    function _outputId(output) {
-        if (!output)
+    function _outputId(screen) {
+        if (!screen)
             return ""
-        return String(output.id || output.name || "")
+        return String(screen.name || screen.id || "")
     }
 
-    function _outputById(outputId) {
-        var outputSnapshots = _outputs()
-        for (var index = 0; index < outputSnapshots.length; index++) {
-            if (_outputId(outputSnapshots[index]) === outputId)
-                return outputSnapshots[index]
+    function _screenById(outputId) {
+        var currentScreens = _screens()
+        for (var index = 0; index < currentScreens.length; index++) {
+            if (_outputId(currentScreens[index]) === outputId)
+                return currentScreens[index]
         }
         return null
     }
 
+    function _routedKindsForPlugin(pluginId) {
+        return catalog && catalog.has(pluginId) ? _routedKinds(catalog.get(pluginId)) : []
+    }
+
+    function _routedKinds(entry) {
+        var result = []
+        if (!entry || !entry.manifest)
+            return result
+        var order = ["panel", "overlay", "menu"]
+        for (var index = 0; index < order.length; index++) {
+            if (entry.manifest.kinds.indexOf(order[index]) !== -1)
+                result.push(order[index])
+        }
+        return result
+    }
+
+    function _routeKey(pluginId, kind) {
+        return String(pluginId) + ":" + String(kind)
+    }
+
+    function _contributionKeys(prefix) {
+        var found = {}
+        var sources = [states, errors, objects, components, tokens]
+        for (var sourceIndex = 0; sourceIndex < sources.length; sourceIndex++) {
+            for (var key in sources[sourceIndex]) {
+                if (key.indexOf(prefix) === 0)
+                    found[key] = true
+            }
+        }
+        return Object.keys(found)
+    }
+
+    function _loadedPluginIds() {
+        var found = {}
+        var keys = _contributionKeys("")
+        for (var index = 0; index < keys.length; index++) {
+            var separator = keys[index].lastIndexOf(":")
+            if (separator !== -1)
+                found[keys[index].substring(0, separator)] = true
+        }
+        return Object.keys(found).sort()
+    }
+
     function _objectCount() {
         var count = 0
-        for (var pluginId in objects)
-            count += objects[pluginId].length
+        for (var routeKey in objects)
+            count += objects[routeKey].length
         return count
+    }
+
+    function _destroyInstances(instances) {
+        for (var index = 0; index < instances.length; index++) {
+            if (instances[index] && typeof instances[index].destroy === "function")
+                instances[index].destroy()
+        }
     }
 
     function _copy(value) {

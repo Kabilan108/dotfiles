@@ -16,6 +16,7 @@ ShellRoot {
         || xdgConfigRoot + "/stillsuit/catalog.json"
     readonly property string themePath: Quickshell.env("STILLSUIT_THEME_PATH")
         || xdgConfigRoot + "/stillsuit/theme.json"
+    readonly property bool shadowMode: Quickshell.env("STILLSUIT_SHADOW_MODE") === "1"
     readonly property bool ready: themeLoaded
         && themeError === ""
         && pluginCatalog.ready
@@ -88,6 +89,7 @@ ShellRoot {
         hostContext: hostContext
         serviceRegistry: serviceRegistry
         compositor: compositorSnapshot
+        screens: Quickshell.screens
     }
 
     IpcFacade {
@@ -96,6 +98,7 @@ ShellRoot {
         serviceRegistry: serviceRegistry
         surfaceRouter: surfaceRouter
         theme: shell.effectiveTheme
+        fallbackContext: pluginCatalog.fallbackContext
         configId: shell.configId
         instanceId: shell.processInstanceId
         ready: shell.ready
@@ -110,7 +113,8 @@ ShellRoot {
             _loadTheme(text)
         }
         pluginCatalog.fallbackContext = hostContext.contextForBuiltin(
-            "stillsuit.builtin-bar", Quickshell.shellDir)
+            "stillsuit.builtin-bar", Quickshell.shellDir,
+            { shadowMode: shell.shadowMode })
         pluginCatalog.rescan()
     }
 

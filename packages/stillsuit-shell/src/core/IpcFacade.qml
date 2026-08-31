@@ -8,6 +8,7 @@ QtObject {
     property QtObject catalog: null
     property QtObject serviceRegistry: null
     property QtObject surfaceRouter: null
+    property QtObject fallbackContext: null
     property var theme: ({})
     property string configId: "stillsuit"
     property string instanceId: ""
@@ -15,7 +16,7 @@ QtObject {
     property string agentPanelHelper: Quickshell.env("STILLSUIT_AGENT_PANEL_HELPER")
         || "stillsuit-agent-panel"
     property string agentPanelLastAction: ""
-    property string agentPanelLastResult: ""
+    property var agentPanelLastResult: null
 
     property Process agentPanelProcess: Process {
         stdout: StdioCollector {
@@ -28,10 +29,22 @@ QtObject {
         onExited: function(exitCode, exitStatus) {
             var output = agentPanelStdout.text.trim()
             var diagnostic = agentPanelStderr.text.trim()
-            if (exitCode === 0)
-                root.agentPanelLastResult = output || "ok"
-            else
-                root.agentPanelLastResult = diagnostic || "error"
+            if (exitCode === 0) {
+                try {
+                    root.agentPanelLastResult = JSON.parse(output)
+                } catch (error) {
+                    root.agentPanelLastResult = {
+                        ok: false,
+                        error: "helper returned invalid JSON"
+                    }
+                }
+            } else {
+                root.agentPanelLastResult = {
+                    ok: false,
+                    exitCode: exitCode,
+                    error: diagnostic || "helper failed"
+                }
+            }
         }
     }
 
@@ -113,6 +126,7 @@ QtObject {
 
     function shellStatus() {
         var pluginRecords = catalog ? catalog.statusRecords() : {}
+        var surfaceRecords = surfaceRouter ? surfaceRouter.statusRecords() : {}
         for (var pluginId in pluginRecords) {
             if (pluginRecords[pluginId].state === "error")
                 continue
@@ -122,14 +136,8 @@ QtObject {
                     state: serviceRegistry.state(pluginId),
                     error: serviceRegistry.error(pluginId)
                 }
-            if (surfaceRouter && surfaceRouter.state(pluginId) !== "unloaded")
-                pluginRecords[pluginId].surface = {
-                    state: surfaceRouter.state(pluginId),
-                    open: surfaceRouter.isOpen(pluginId),
-                    outputId: surfaceRouter.placementOutputId(pluginId),
-                    queuedPayloads: surfaceRouter.pendingCount(pluginId),
-                    error: surfaceRouter.error(pluginId)
-                }
+            if (surfaceRecords[pluginId] !== undefined)
+                pluginRecords[pluginId].surface = surfaceRecords[pluginId]
         }
 
         return JSON.stringify({
@@ -147,6 +155,10 @@ QtObject {
             } : {},
             serviceObjectCount: serviceRegistry ? serviceRegistry.objectCount : 0,
             surfaceObjectCount: surfaceRouter ? surfaceRouter.objectCount : 0,
+            screenCount: surfaceRouter ? surfaceRouter.screenCount : 0,
+            fallbackShadowMode: fallbackContext
+                ? fallbackContext.settings.values.shadowMode === true
+                : false,
             agentPanel: {
                 running: agentPanelProcess.running,
                 lastAction: agentPanelLastAction,
@@ -214,15 +226,23 @@ QtObject {
     function _agentPanelAction(action) {
         var allowedActions = ["open", "hide", "toggle", "status", "terminate"]
         if (allowedActions.indexOf(action) === -1)
-            return "error"
+            return _agentPanelEnvelope("error")
         if (agentPanelProcess.running)
-            return "busy"
+            return _agentPanelEnvelope("busy")
 
         agentPanelLastAction = action
-        agentPanelLastResult = "started"
         agentPanelProcess.command = [agentPanelHelper, action]
         agentPanelProcess.running = true
-        return "started"
+        return _agentPanelEnvelope("started")
+    }
+
+    function _agentPanelEnvelope(dispatch) {
+        return JSON.stringify({
+            dispatch: dispatch,
+            running: agentPanelProcess.running,
+            lastAction: agentPanelLastAction,
+            lastResult: agentPanelLastResult
+        })
     }
 
     function _pluginState(pluginId) {

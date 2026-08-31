@@ -19,6 +19,8 @@ QtObject {
     property var tokens: ({})
     property QtObject serviceHost: QtObject {}
 
+    signal dependencyContained(string pluginId)
+
     property Connections catalogConnections: Connections {
         target: root.catalog
         ignoreUnknownSignals: true
@@ -28,27 +30,25 @@ QtObject {
         }
 
         function onEntryChanged(pluginId) {
-            root.unload(pluginId)
-            root._clearError(pluginId)
+            root._prepareReload(pluginId)
             root._loadEligibleServices()
         }
 
         function onEntryRemoved(pluginId) {
-            root.unload(pluginId)
+            root._containAndUnload(pluginId)
             if (root.hostContext)
                 root.hostContext.dropContext(pluginId)
         }
 
         function onPluginUnloaded(pluginId) {
-            root.unload(pluginId)
+            root._containAndUnload(pluginId)
             if (root.hostContext)
                 root.hostContext.dropContext(pluginId)
             root._loadEligibleServices()
         }
 
         function onPluginReloaded(pluginId) {
-            root.unload(pluginId)
-            root._clearError(pluginId)
+            root._prepareReload(pluginId)
             if (root.hostContext)
                 root.hostContext.dropContext(pluginId)
             root._loadEligibleServices()
@@ -76,6 +76,10 @@ QtObject {
     }
 
     function unload(pluginId) {
+        _containAndUnload(String(pluginId))
+    }
+
+    function _unloadOne(pluginId) {
         var key = String(pluginId)
         var tokenNext = _copy(tokens)
         if (tokenNext[key] !== undefined) {
@@ -104,7 +108,7 @@ QtObject {
     function unloadAll() {
         var ids = Object.keys(states)
         for (var index = 0; index < ids.length; index++)
-            unload(ids[index])
+            _unloadOne(ids[index])
     }
 
     function statusRecords() {
@@ -137,7 +141,7 @@ QtObject {
                     continue
 
                 var dependencyState = _dependencyState(catalog.get(pluginId))
-                if (dependencyState === "wait")
+                if (dependencyState === "wait" || dependencyState === "blocked")
                     continue
                 if (dependencyState !== "ready") {
                     _setError(pluginId, dependencyState)
@@ -155,7 +159,7 @@ QtObject {
         for (var index = 0; index < dependencies.length; index++) {
             var dependencyId = dependencies[index]
             if (!catalog.isEnabled(dependencyId))
-                return "dependency is disabled: " + dependencyId
+                return "blocked"
             if (!catalog.hasKind(dependencyId, "service"))
                 continue
             var dependencyServiceState = state(dependencyId)
@@ -165,6 +169,70 @@ QtObject {
                 return "dependency service failed: " + dependencyId
         }
         return "ready"
+    }
+
+    function _containAndUnload(pluginId) {
+        var affected = _affectedIds(pluginId)
+        for (var index = 0; index < affected.length; index++) {
+            var affectedId = affected[index]
+            if (affectedId !== pluginId)
+                dependencyContained(affectedId)
+            if (catalog && catalog.hasKind(affectedId, "service"))
+                _unloadOne(affectedId)
+            _clearError(affectedId)
+        }
+        if (affected.indexOf(pluginId) === -1)
+            _unloadOne(pluginId)
+    }
+
+    function _prepareReload(pluginId) {
+        var affected = _affectedIds(pluginId)
+        for (var index = 0; index < affected.length; index++) {
+            var affectedId = affected[index]
+            if (affectedId !== pluginId)
+                dependencyContained(affectedId)
+            if (catalog && catalog.hasKind(affectedId, "service"))
+                _unloadOne(affectedId)
+            _clearError(affectedId)
+        }
+    }
+
+    function _affectedIds(pluginId) {
+        if (!catalog)
+            return [String(pluginId)]
+        var target = String(pluginId)
+        var affected = {}
+        affected[target] = true
+        var changed = true
+        while (changed) {
+            changed = false
+            var ids = Object.keys(catalog.entries)
+            for (var index = 0; index < ids.length; index++) {
+                var candidate = ids[index]
+                if (affected[candidate] === true)
+                    continue
+                var dependencies = catalog.get(candidate).manifest.dependencies || []
+                for (var dependencyIndex = 0;
+                        dependencyIndex < dependencies.length;
+                        dependencyIndex++) {
+                    if (affected[dependencies[dependencyIndex]] === true) {
+                        affected[candidate] = true
+                        changed = true
+                        break
+                    }
+                }
+            }
+        }
+
+        var order = catalog.topologicalOrder().reverse()
+        var result = []
+        for (var orderIndex = 0; orderIndex < order.length; orderIndex++) {
+            if (affected[order[orderIndex]] === true)
+                result.push(order[orderIndex])
+        }
+        if (result.indexOf(target) === -1)
+            result.push(target)
+        return result
     }
 
     function _startLoad(pluginId) {

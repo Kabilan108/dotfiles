@@ -2,11 +2,13 @@ import QtQuick
 
 QtObject {
     required property var context
-    property var service: null
-    property string outputId: ""
-    property var output: null
+    required property var screen
+    required property string outputId
+    required property var service
+
     property bool opened: false
     property var receivedPayloads: []
+    readonly property string fixtureKind: "panel"
 
     function open(payloadJson) {
         var next = receivedPayloads.slice()

@@ -266,11 +266,15 @@ QtObject {
         return context
     }
 
-    function contextForBuiltin(pluginId, packageRoot) {
+    function contextForBuiltin(pluginId, packageRoot, values) {
+        var builtinValues = { shadowMode: false }
+        var suppliedValues = values || {}
+        for (var key in suppliedValues)
+            builtinValues[key] = suppliedValues[key]
         return contextFor({
             packageRoot: packageRoot || "",
-            settings: {},
-            signature: "builtin:" + String(pluginId),
+            settings: builtinValues,
+            signature: "builtin:" + String(pluginId) + ":" + JSON.stringify(builtinValues),
             manifest: {
                 id: String(pluginId),
                 dependencies: []

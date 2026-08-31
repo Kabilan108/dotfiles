@@ -38,6 +38,7 @@ catalog_path="$fixture_tmp/catalog.json"
 theme_path="$script_dir/fixtures/theme.v1.json"
 
 jq -n --arg valid "$fixture_root/valid" \
+    --arg multi "$fixture_root/multi" \
     --arg brokenPanel "$fixture_root/broken-panel" \
     --arg brokenBar "$fixture_root/broken-bar" \
     --arg brokenWidget "$fixture_root/broken-widget" \
@@ -60,6 +61,49 @@ jq -n --arg valid "$fixture_root/valid" \
                     entryPoints: { service: "Service.qml", panel: "Panel.qml" },
                     scope: { service: "global", panel: "global" },
                     dependencies: []
+                }
+            },
+            {
+                packageRoot: $multi,
+                sourceMode: "local",
+                enabled: true,
+                settings: {},
+                manifest: {
+                    schemaVersion: 1,
+                    id: "stillsuit.multi",
+                    name: "Multi contribution fixture",
+                    version: "1.0.0",
+                    apiVersion: "1",
+                    kinds: ["service", "panel", "overlay"],
+                    entryPoints: {
+                        service: "Service.qml",
+                        panel: "Panel.qml",
+                        overlay: "Overlay.qml"
+                    },
+                    scope: {
+                        service: "global",
+                        panel: "per-output",
+                        overlay: "per-output"
+                    },
+                    dependencies: [],
+                    keepLoaded: true
+                }
+            },
+            {
+                packageRoot: $multi,
+                sourceMode: "local",
+                enabled: true,
+                settings: {},
+                manifest: {
+                    schemaVersion: 1,
+                    id: "stillsuit.multi-dependent",
+                    name: "Multi dependent fixture",
+                    version: "1.0.0",
+                    apiVersion: "1",
+                    kinds: ["service"],
+                    entryPoints: { service: "DependentService.qml" },
+                    scope: { service: "global" },
+                    dependencies: ["stillsuit.multi"]
                 }
             },
             {
@@ -315,6 +359,7 @@ export STILLSUIT_THEME_PATH="$theme_path"
 export STILLSUIT_ALLOW_LOCAL_PLUGINS=1
 export STILLSUIT_AGENT_PANEL_HELPER="$script_dir/fixtures/fake-agent-panel-helper"
 export STILLSUIT_AGENT_PANEL_FIXTURE_LOG="$fixture_tmp/agent-panel-actions.log"
+export STILLSUIT_SHADOW_MODE=1
 
 host_log="$fixture_tmp/host.log"
 quickshell --no-color -c "$host_config_id" > "$host_log" 2>&1 &
@@ -379,6 +424,7 @@ host_status=$(quickshell ipc --pid "$host_pid" call stillsuit status)
 jq -e '
     .configId == "stillsuit-lane-b-host"
     and .ready == true
+    and .fallbackShadowMode == true
     and .bar.fallback == true
     and .bar.activeId == "stillsuit.builtin-bar"
     and .plugins["stillsuit.valid"].state == "loaded"
@@ -396,7 +442,13 @@ jq -e '
     and .plugins["stillsuit.broken-service"].state == "error"
     and .plugins["stillsuit.service-dependent"].state == "error"
     and .plugins["stillsuit.broken-widget"].widgetClaimed == false
-    and .serviceObjectCount == 1
+    and .serviceObjectCount == 3
+    and .screenCount >= 1
+    and .plugins["stillsuit.multi"].surface.contributions.panel.state == "loaded"
+    and .plugins["stillsuit.multi"].surface.contributions.overlay.state == "loaded"
+    and .plugins["stillsuit.multi"].surface.contributions.panel.instances == .screenCount
+    and .plugins["stillsuit.multi"].surface.contributions.overlay.instances == .screenCount
+    and .plugins["stillsuit.multi-dependent"].service.state == "loaded"
 ' >/dev/null <<< "$host_status"
 
 broken_open=$(quickshell ipc --pid "$host_pid" call stillsuit-surface open \
@@ -424,7 +476,7 @@ unload_result=$(quickshell ipc --pid "$host_pid" call stillsuit-plugin unload st
 unloaded_status=$(quickshell ipc --pid "$host_pid" call stillsuit status)
 jq -e '
     .plugins["stillsuit.valid"].state == "unloaded"
-    and .serviceObjectCount == 0
+    and .serviceObjectCount == 2
 ' >/dev/null <<< "$unloaded_status"
 reload_result=$(quickshell ipc --pid "$host_pid" call stillsuit-plugin reload stillsuit.valid)
 [[ "$reload_result" == "ok" ]]
@@ -440,7 +492,7 @@ post_reload_status=$(quickshell ipc --pid "$host_pid" call stillsuit status)
 jq -e --arg instance "$(jq -r '.instanceId' <<< "$host_status")" '
     .ready == true
     and .instanceId == $instance
-    and .serviceObjectCount == 1
+    and .serviceObjectCount == 3
     and .plugins["stillsuit.valid"].service.state == "loaded"
 ' >/dev/null <<< "$post_reload_status"
 
@@ -450,7 +502,7 @@ rescan_result=$(quickshell ipc --pid "$host_pid" call stillsuit-plugin rescan)
 post_rescan_status=$(quickshell ipc --pid "$host_pid" call stillsuit status)
 jq -e --argjson revision "$pre_rescan_revision" '
     .catalogRevision == ($revision + 1)
-    and .serviceObjectCount == 1
+    and .serviceObjectCount == 3
     and .plugins["stillsuit.broken-panel"].state == "error"
     and .plugins["stillsuit.broken-widget"].state == "error"
 ' >/dev/null <<< "$post_rescan_status"
@@ -475,11 +527,39 @@ jq -e '
     and .plugins["stillsuit.broken-bar"].state == "error"
 ' >/dev/null <<< "$bar_reloaded_status"
 
+multi_unload=$(quickshell ipc --pid "$host_pid" call stillsuit-plugin unload stillsuit.multi)
+[[ "$multi_unload" == "ok" ]]
+multi_unloaded_status=$(quickshell ipc --pid "$host_pid" call stillsuit status)
+jq -e '
+    .serviceObjectCount == 1
+    and .plugins["stillsuit.multi"].state == "unloaded"
+    and .plugins["stillsuit.multi-dependent"].state == "unloaded"
+    and .plugins["stillsuit.multi"].surface.contributions.panel.state == "unloaded"
+    and .plugins["stillsuit.multi"].surface.contributions.overlay.state == "unloaded"
+' >/dev/null <<< "$multi_unloaded_status"
+multi_reload=$(quickshell ipc --pid "$host_pid" call stillsuit-plugin reload stillsuit.multi)
+[[ "$multi_reload" == "ok" ]]
+wait_for_status "$host_pid" '
+    .ready == true
+    and .serviceObjectCount == 3
+    and .plugins["stillsuit.multi-dependent"].service.state == "loaded"
+    and .plugins["stillsuit.multi"].surface.contributions.panel.instances == .screenCount
+    and .plugins["stillsuit.multi"].surface.contributions.overlay.instances == .screenCount
+' >/dev/null
+
 for action in open hide toggle status terminate; do
     action_result=$(quickshell ipc --pid "$host_pid" call stillsuit-agent-panel "$action")
-    [[ "$action_result" == "started" ]]
+    jq -e --arg action "$action" '
+        .dispatch == "started"
+        and .running == true
+        and .lastAction == $action
+        and has("lastResult")
+    ' >/dev/null <<< "$action_result"
     wait_for_status "$host_pid" \
-        ".agentPanel.running == false and .agentPanel.lastAction == \"$action\"" >/dev/null
+        ".agentPanel.running == false
+            and .agentPanel.lastAction == \"$action\"
+            and .agentPanel.lastResult.action == \"$action\"
+            and .agentPanel.lastResult.fixture == true" >/dev/null
 done
 mapfile -t agent_panel_actions < "$STILLSUIT_AGENT_PANEL_FIXTURE_LOG"
 [[ "${agent_panel_actions[*]}" == "open hide toggle status terminate" ]]
@@ -518,6 +598,7 @@ mkdir -p "$core_config_dir"
 ln -s "$script_dir/CoreContractFixture.qml" "$core_config_dir/shell.qml"
 ln -s "$source_root/core" "$core_config_dir/core"
 ln -s "$source_root/ui" "$core_config_dir/ui"
+ln -s "$script_dir/fixtures" "$core_config_dir/fixtures"
 
 core_log="$fixture_tmp/core.log"
 quickshell --no-color -c "$core_config_id" > "$core_log" 2>&1 &
@@ -538,7 +619,7 @@ while (( SECONDS < core_deadline )); do
     fi
 done
 
-jq -e '.ok == true and .checks >= 38' >/dev/null <<< "$core_result"
+jq -e '.ok == true and .checks >= 56' >/dev/null <<< "$core_result"
 printf 'core-contract fixture ok: %s checks\n' "$(jq -r '.checks' <<< "$core_result")"
 if rg -n 'Binding loop|TypeError|ReferenceError|Cannot assign|Failed to load configuration' \
         "$core_log"; then
