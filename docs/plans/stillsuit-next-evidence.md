@@ -265,10 +265,29 @@ the host claim when a slot failed.
 
 ## Lane D2: compositor
 
-Status: original diff reviewed in full and rejected. A fresh blank-context
-correction is in progress. The original modeled real `niri msg -j outputs` as
-an array instead of its connector-keyed object and allowed failed/empty partial
-refreshes to overwrite a coherent snapshot.
+Status: reviewed and merged from lane commits
+`080dbf203584519d07f9a62cb56a19684c60aedd` and
+`2984c9215ef02334489cb3040e9f775389acf22e`.
+
+- Added one global Niri service behind a read-only compositor adapter, with a
+  fixed-argv event stream, bounded reconciliation, reconnect, and plain
+  output/workspace/window snapshots.
+- The original diff was read in full and rejected because it modeled real
+  `niri msg -j outputs` as an array instead of its connector-keyed object and
+  allowed failed/empty partial refreshes to overwrite a coherent snapshot.
+- The corrected service normalizes keyed maps to a deterministic array,
+  accepts only a completed normal/zero-exit triplet as one generation, keeps
+  the complete last-good snapshot after nonzero/empty/malformed generations,
+  and recovers atomically.
+- The D2 fixture passed independently and in merged main. It proves one service
+  and adapter, four exact Niri argv forms, failed/malformed containment,
+  recovery, and the absence of binding-loop/type/reference errors.
+- The merged manifest/duplicate-ID and all prior fixture gates, `nixfmt
+  --check`, `nix flake check --no-build`, Jacurutu `drvPath`, shell-package
+  build, and Jacurutu no-link build exited 0.
+
+Open issue: the composition root still needs to replace its frozen inert
+snapshot with this adapter during orchestrator integration.
 
 ## Lane D3: desktop services
 
