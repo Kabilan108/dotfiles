@@ -13,9 +13,27 @@ if [[ -z ${DBUS_SESSION_BUS_ADDRESS:-} ]]; then
 fi
 
 tmp_dir=$(mktemp -d -t stillsuit-notification-views.XXXXXXXX)
-config_dir="$tmp_dir/config"
-state_dir="$tmp_dir/state"
-mkdir -p "$config_dir/services" "$config_dir/notifications" "$state_dir"
+fixture_home_dir="$tmp_dir/home"
+config_home_dir="$tmp_dir/xdg-config"
+data_home_dir="$tmp_dir/xdg-data"
+cache_home_dir="$tmp_dir/xdg-cache"
+state_dir="$tmp_dir/xdg-state"
+runtime_dir="$tmp_dir/xdg-runtime"
+config_dir="$tmp_dir/fixture-config"
+wayland_display=${WAYLAND_DISPLAY:-}
+wayland_runtime_dir=${XDG_RUNTIME_DIR:-}
+export HOME="$fixture_home_dir"
+export XDG_CONFIG_HOME="$config_home_dir"
+export XDG_DATA_HOME="$data_home_dir"
+export XDG_CACHE_HOME="$cache_home_dir"
+export XDG_STATE_HOME="$state_dir"
+export XDG_RUNTIME_DIR="$runtime_dir"
+if [[ -n $wayland_display && $wayland_display != /* ]]; then
+  export WAYLAND_DISPLAY="$wayland_runtime_dir/$wayland_display"
+fi
+mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" \
+  "$XDG_STATE_HOME" "$XDG_RUNTIME_DIR" "$config_dir/services" "$config_dir/notifications"
+chmod 700 "$runtime_dir"
 cp "$fixture_dir/view-fixture-shell.qml" "$config_dir/shell.qml"
 cp "$fixture_dir/../../services/NotificationModel.js" "$config_dir/services/NotificationModel.js"
 cp "$fixture_dir/../../services/NotificationPolicy.js" "$config_dir/services/NotificationPolicy.js"
@@ -24,6 +42,19 @@ cp "$fixture_dir/../../plugins/builtin/notifications/NotificationCard.qml" "$con
 cp "$fixture_dir/../../plugins/builtin/notifications/NotificationCenter.qml" "$config_dir/notifications/NotificationCenter.qml"
 cp "$fixture_dir/../../plugins/builtin/notifications/NotificationToasts.qml" "$config_dir/notifications/NotificationToasts.qml"
 shell_pid=""
+
+assert_private_environment() {
+  local variable_name variable_value
+  for variable_name in HOME XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME XDG_RUNTIME_DIR; do
+    variable_value=${!variable_name}
+    if [[ $variable_value != "$tmp_dir"/* ]]; then
+      printf 'view fixture bug: %s is outside temporary root: %s\n' "$variable_name" "$variable_value" >&2
+      return 1
+    fi
+  done
+}
+
+assert_private_environment
 
 # shellcheck disable=SC2329 # Invoked by the EXIT trap.
 cleanup() {
@@ -35,7 +66,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-XDG_STATE_HOME="$state_dir" qs --no-color -p "$config_dir" >"$tmp_dir/quickshell.log" 2>&1 &
+qs --no-color -p "$config_dir" >"$tmp_dir/quickshell.log" 2>&1 &
 shell_pid=$!
 
 for _ in {1..120}; do

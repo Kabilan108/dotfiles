@@ -14,11 +14,27 @@ fi
 
 fixture_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 tmp_dir=$(mktemp -d -t stillsuit-notifications.XXXXXXXX)
-state_dir="$tmp_dir/state"
-runtime_dir="$tmp_dir/runtime"
+fixture_home_dir="$tmp_dir/home"
+config_home_dir="$tmp_dir/xdg-config"
+data_home_dir="$tmp_dir/xdg-data"
+cache_home_dir="$tmp_dir/xdg-cache"
+state_dir="$tmp_dir/xdg-state"
+runtime_dir="$tmp_dir/xdg-runtime"
 marker="$tmp_dir/executable-hint-ran"
-config_dir="$tmp_dir/config"
-mkdir -p "$state_dir" "$runtime_dir"
+config_dir="$tmp_dir/fixture-config"
+wayland_display=${WAYLAND_DISPLAY:-}
+wayland_runtime_dir=${XDG_RUNTIME_DIR:-}
+export HOME="$fixture_home_dir"
+export XDG_CONFIG_HOME="$config_home_dir"
+export XDG_DATA_HOME="$data_home_dir"
+export XDG_CACHE_HOME="$cache_home_dir"
+export XDG_STATE_HOME="$state_dir"
+export XDG_RUNTIME_DIR="$runtime_dir"
+if [[ -n $wayland_display && $wayland_display != /* ]]; then
+  export WAYLAND_DISPLAY="$wayland_runtime_dir/$wayland_display"
+fi
+mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" \
+  "$XDG_STATE_HOME" "$XDG_RUNTIME_DIR"
 chmod 700 "$runtime_dir"
 mkdir -p "$config_dir/services"
 cp "$fixture_dir/fixture-shell.qml" "$config_dir/shell.qml"
@@ -26,6 +42,19 @@ cp "$fixture_dir/../../services/NotificationModel.js" "$config_dir/services/Noti
 cp "$fixture_dir/../../services/NotificationPolicy.js" "$config_dir/services/NotificationPolicy.js"
 cp "$fixture_dir/../../services/NotificationService.qml" "$config_dir/services/NotificationService.qml"
 shell_pid=""
+
+assert_private_environment() {
+  local variable_name variable_value
+  for variable_name in HOME XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME XDG_RUNTIME_DIR; do
+    variable_value=${!variable_name}
+    if [[ $variable_value != "$tmp_dir"/* ]]; then
+      printf 'fixture bug: %s is outside temporary root: %s\n' "$variable_name" "$variable_value" >&2
+      return 1
+    fi
+  done
+}
+
+assert_private_environment
 
 cleanup() {
   if [[ -n $shell_pid ]] && kill -0 "$shell_pid" 2>/dev/null; then
@@ -69,8 +98,7 @@ wait_for_json() {
 }
 
 start_shell() {
-  XDG_STATE_HOME="$state_dir" \
-    qs --no-color -p "$config_dir" >"$tmp_dir/quickshell.log" 2>&1 &
+  qs --no-color -p "$config_dir" >"$tmp_dir/quickshell.log" 2>&1 &
   shell_pid=$!
   wait_ready
 }
