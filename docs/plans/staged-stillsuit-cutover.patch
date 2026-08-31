@@ -1,7 +1,7 @@
 diff --git a/home/desktop/wayland/quickshell/default.nix b/home/desktop/wayland/quickshell/default.nix
 --- a/home/desktop/wayland/quickshell/default.nix
 +++ b/home/desktop/wayland/quickshell/default.nix
-@@ -22,0 +23,3 @@
+@@ -24,0 +25,3 @@
 +  programs.stillsuitShell.enable = true;
 +  programs.stillsuitShell.ownership.barOwners = [ "stillsuit.builtin-bar" ];
 +  programs.stillsuitShell.ownership.notificationOwners = [ "stillsuit.notifications" ];
