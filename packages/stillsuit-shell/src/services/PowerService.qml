@@ -6,10 +6,11 @@ QtObject {
 
     required property var context
     property var model: null
+    property bool forceUnavailable: false
     readonly property string apiVersion: "1"
     property var profiles: []
     property string activeProfile: ""
-    readonly property bool available: model !== null || profiles.length > 0
+    readonly property bool available: !forceUnavailable && (model !== null || profiles.length > 0)
     readonly property int revision: model && model.revision !== undefined ? Number(model.revision) : 0
     readonly property var helperArgv: ["powerprofilesctl", "get"]
 
@@ -24,6 +25,7 @@ QtObject {
         if (value !== "") { activeProfile = value; profiles = ["power-saver", "balanced", "performance"] }
     }
     function setProfile(profile) {
+        if (forceUnavailable) return "unavailable"
         var next = String(profile)
         if (model && typeof model.setProfile === "function") return model.setProfile(next)
         if (profiles.indexOf(next) === -1) return "unavailable"

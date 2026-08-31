@@ -33,6 +33,11 @@ ShellRoot {
     Services.PowerService { id: power; context: root.fakeContext; model: root.fakePower }
     Services.BatteryService { id: battery; context: root.fakeContext; model: root.fakeBattery }
     Services.BluetoothService { id: bluetooth; context: root.fakeContext; model: root.fakeBluetooth }
+    Services.AudioService { id: unavailableAudio; context: root.fakeContext; model: root.fakeAudio; forceUnavailable: true }
+    Services.NetworkService { id: unavailableNetwork; context: root.fakeContext; model: root.fakeNetwork; forceUnavailable: true }
+    Services.PowerService { id: unavailablePower; context: root.fakeContext; model: root.fakePower; forceUnavailable: true }
+    Services.BatteryService { id: unavailableBattery; context: root.fakeContext; model: root.fakeBattery; forceUnavailable: true }
+    Services.BluetoothService { id: unavailableBluetooth; context: root.fakeContext; model: root.fakeBluetooth; forceUnavailable: true }
     QtObject {
         id: fakeRegistry
         function get(id) {
@@ -56,5 +61,70 @@ ShellRoot {
         for (var index = 0; index < urls.length; index++)
             viewComponents.push(Qt.createComponent(urls[index], Component.Asynchronous))
     }
-    Timer { interval: 300; running: true; repeat: false; onTriggered: { var services = [audio, network, power, battery, bluetooth]; for (var index = 0; index < services.length; index++) { if (!services[index] || services[index].apiVersion !== "1") { console.error("D3 fixture service failed " + index); Qt.quit(); return } }; var viewCount = 0; for (var viewIndex = 0; viewIndex < viewComponents.length; viewIndex++) { if (viewComponents[viewIndex].status !== Component.Ready) { console.error("D3 fixture view failed " + viewComponents[viewIndex].errorString()); Qt.quit(); return }; for (var output = 0; output < 2; output++) { var view = viewComponents[viewIndex].createObject(root, { context: fakeWidgetContext }); if (!view) { console.error("D3 fixture widget construction failed"); Qt.quit(); return }; viewCount++ } }; if (audio.volume !== 0.42 || !network.connectedNetwork || battery.percentage !== 56 || !bluetooth.connected || viewCount !== 8) { console.error("D3 fixture state propagation failed"); Qt.quit(); return }; console.log("D3_FIXTURE_OK singleton=5 outputs=2 unavailable=contained argv=fixed"); Qt.quit() } }
+    Timer {
+        interval: 300
+        running: true
+        repeat: false
+        onTriggered: {
+            var services = [audio, network, power, battery, bluetooth]
+            for (var index = 0; index < services.length; index++) {
+                if (!services[index] || services[index].apiVersion !== "1") {
+                    console.error("D3 fixture service failed " + index)
+                    Qt.quit()
+                    return
+                }
+            }
+
+            var unavailable = [unavailableAudio, unavailableNetwork, unavailablePower,
+                unavailableBattery, unavailableBluetooth]
+            for (var unavailableIndex = 0; unavailableIndex < unavailable.length;
+                    unavailableIndex++) {
+                if (unavailable[unavailableIndex].available) {
+                    console.error("D3 fixture unavailable state failed " + unavailableIndex)
+                    Qt.quit()
+                    return
+                }
+            }
+            if (unavailableAudio.setVolume(0.5) !== "unavailable"
+                    || unavailableNetwork.scan() !== "unavailable"
+                    || unavailablePower.setProfile("balanced") !== "unavailable"
+                    || unavailableBluetooth.scan() !== "unavailable") {
+                console.error("D3 fixture unavailable action containment failed")
+                Qt.quit()
+                return
+            }
+
+            var widgetServices = [audio, network, battery, bluetooth]
+            var viewCount = 0
+            for (var viewIndex = 0; viewIndex < viewComponents.length; viewIndex++) {
+                if (viewComponents[viewIndex].status !== Component.Ready) {
+                    console.error("D3 fixture view failed "
+                        + viewComponents[viewIndex].errorString())
+                    Qt.quit()
+                    return
+                }
+                for (var output = 0; output < 2; output++) {
+                    var view = viewComponents[viewIndex].createObject(root, {
+                        context: fakeWidgetContext,
+                        service: widgetServices[viewIndex]
+                    })
+                    if (!view || view.service !== widgetServices[viewIndex]) {
+                        console.error("D3 fixture singleton injection failed " + viewIndex)
+                        Qt.quit()
+                        return
+                    }
+                    viewCount++
+                }
+            }
+            if (audio.volume !== 0.42 || !network.connectedNetwork
+                    || battery.percentage !== 56 || !bluetooth.connected
+                    || viewCount !== 8) {
+                console.error("D3 fixture state propagation failed")
+                Qt.quit()
+                return
+            }
+            console.log("D3_FIXTURE_OK singleton=5 outputs=2 unavailable=contained argv=fixed")
+            Qt.quit()
+        }
+    }
 }

@@ -47,4 +47,7 @@ rg -F 'readonly property var helperArgv: ["powerprofilesctl", "get"]' "$source_r
 rg -F 'setProfileProcess.command = ["powerprofilesctl", "set", next]' "$source_root/services/PowerService.qml" >/dev/null
 
 quickshell --config "$STILLSUIT_CONFIG_ID" --no-color >"$fixture_root/quickshell.log" 2>&1
+if rg -n 'ERROR qml| ERROR:' "$fixture_root/quickshell.log"; then
+    exit 1
+fi
 grep -F 'D3_FIXTURE_OK singleton=5 outputs=2 unavailable=contained argv=fixed' "$fixture_root/quickshell.log" >/dev/null

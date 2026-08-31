@@ -8,8 +8,9 @@ QtObject {
     // Tests inject a plain model. Production reads PipeWire without making a
     // process or timer per output.
     property var model: null
+    property bool forceUnavailable: false
     readonly property string apiVersion: "1"
-    readonly property bool available: model !== null || Pipewire.defaultAudioSink !== null
+    readonly property bool available: !forceUnavailable && (model !== null || Pipewire.defaultAudioSink !== null)
     readonly property var sink: model ? model.sink || null : Pipewire.defaultAudioSink
     readonly property var source: model ? model.source || null : Pipewire.defaultAudioSource
     readonly property var outputs: model ? model.outputs || [] : []
@@ -27,6 +28,8 @@ QtObject {
     }
 
     function setVolume(value) {
+        if (forceUnavailable)
+            return "unavailable"
         var next = Math.max(0, Math.min(1.5, Number(value)))
         if (model && typeof model.setVolume === "function")
             return model.setVolume(next)
@@ -36,6 +39,8 @@ QtObject {
     }
 
     function toggleMuted() {
+        if (forceUnavailable)
+            return "unavailable"
         if (model && typeof model.toggleMuted === "function")
             return model.toggleMuted()
         if (sink && sink.audio)
@@ -44,12 +49,16 @@ QtObject {
     }
 
     function selectOutput(name) {
+        if (forceUnavailable)
+            return "unavailable"
         if (model && typeof model.selectOutput === "function")
             return model.selectOutput(String(name))
         return "unavailable"
     }
 
     function selectInput(name) {
+        if (forceUnavailable)
+            return "unavailable"
         if (model && typeof model.selectInput === "function")
             return model.selectInput(String(name))
         return "unavailable"

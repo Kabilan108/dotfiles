@@ -6,9 +6,11 @@ QtObject {
 
     required property var context
     property var model: null
+    property bool forceUnavailable: false
     readonly property string apiVersion: "1"
     readonly property var device: model ? model.device || null : UPower.displayDevice
     readonly property bool present: device !== null && Boolean(device.isPresent !== undefined ? device.isPresent : true)
+    readonly property bool available: !forceUnavailable && present
     readonly property int percentage: present ? Math.round(Number(device.percentage || 0) * (Number(device.percentage || 0) <= 1 ? 100 : 1)) : 0
     readonly property string state: model ? String(model.state || "unknown") : _stateName(device ? device.state : null)
     readonly property bool charging: state === "charging"
