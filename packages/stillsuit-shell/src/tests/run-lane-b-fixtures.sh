@@ -627,3 +627,43 @@ if rg -n 'Binding loop|TypeError|ReferenceError|Cannot assign|Failed to load con
     exit 1
 fi
 stop_fixture "$core_pid"
+
+repair_config_id="stillsuit-host-core-repair"
+repair_config_dir="$XDG_CONFIG_HOME/quickshell/$repair_config_id"
+mkdir -p "$repair_config_dir"
+ln -s "$script_dir/fixtures/HostCoreRepairFixture.qml" "$repair_config_dir/shell.qml"
+ln -s "$source_root/core" "$repair_config_dir/core"
+export STILLSUIT_REPAIR_FIXTURE_ROOT="$script_dir/fixtures"
+
+repair_log="$fixture_tmp/host-core-repair.log"
+quickshell --no-color -c "$repair_config_id" > "$repair_log" 2>&1 &
+fixture_pid=$!
+repair_pid=$fixture_pid
+
+repair_deadline=$((SECONDS + 20))
+repair_result=""
+while (( SECONDS < repair_deadline )); do
+    if ! kill -0 "$repair_pid" 2>/dev/null; then
+        printf 'host-core repair fixture exited before IPC became available\n' >&2
+        sed -n '1,240p' "$repair_log" >&2
+        exit 1
+    fi
+    if repair_result=$(quickshell ipc --pid "$repair_pid" call \
+            stillsuit-host-core-repair run 2>/dev/null); then
+        break
+    fi
+done
+
+if ! jq -e '.ok == true and .checks >= 13' >/dev/null <<< "$repair_result"; then
+    printf 'host-core repair fixture failed: %s\n' "$repair_result" >&2
+    sed -n '1,240p' "$repair_log" >&2
+    exit 1
+fi
+printf 'host-core repair fixture ok: %s checks\n' \
+    "$(jq -r '.checks' <<< "$repair_result")"
+if rg -n 'Binding loop|TypeError|ReferenceError|Cannot assign|Failed to load configuration' \
+        "$repair_log"; then
+    printf 'host-core repair fixture logged an unexpected QML failure\n' >&2
+    exit 1
+fi
+stop_fixture "$repair_pid"

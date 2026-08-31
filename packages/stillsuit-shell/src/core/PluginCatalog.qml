@@ -536,6 +536,7 @@ QtObject {
         internalLoaded = true
         internalFailures = { catalog: [message] }
         internalRevision++
+        _invalidateBarLoad()
         _activateFallback(message)
         catalogChanged()
         rescanFinished()

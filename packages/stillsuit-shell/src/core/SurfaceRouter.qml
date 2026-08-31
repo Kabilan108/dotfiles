@@ -601,19 +601,24 @@ QtObject {
                 }
             }
             var kinds = _routedKinds(entry)
+            var reconciliationFailed = false
             for (var kindIndex = 0; kindIndex < kinds.length; kindIndex++) {
                 var kind = kinds[kindIndex]
                 var scopeKey = ManifestValidator.entryPointKey(kind)
                 if (entry.manifest.scope[scopeKey] !== "per-output"
                         || contributionState(pluginId, kind) !== "loaded")
                     continue
-                if (!_reconcileContributionScreens(pluginId, kind, entry))
-                    return
+                if (!_reconcileContributionScreens(pluginId, kind, entry)) {
+                    reconciliationFailed = true
+                    break
+                }
             }
+            if (reconciliationFailed)
+                continue
             if (reopenOnReplacement && isOpen(pluginId)
                     && contributionState(pluginId, primaryKind) === "loaded"
                     && !_deliverOne(pluginId, primaryKind, ""))
-                return
+                continue
         }
     }
 
