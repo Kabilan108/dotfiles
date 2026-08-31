@@ -1,0 +1,26 @@
+diff --git a/home/desktop/wayland/compositors/niri/config.kdl b/home/desktop/wayland/compositors/niri/config.kdl
+index 80006ea..fd9c33d 100644
+--- a/home/desktop/wayland/compositors/niri/config.kdl
++++ b/home/desktop/wayland/compositors/niri/config.kdl
+@@ -343,6 +343,1 @@ animations {
+-// Persistent staging workspace for agent-driven (computer-use) windows.
+-// Windows spawned there stay out of the way; move them over with
+-// `nirius move-to-current-workspace` or normal workspace navigation.
+-workspace "agent"
+-
+ // Window rules let you adjust behavior for individual windows.
+@@ -352,9 +347,1 @@ workspace "agent"
+-// Agent-spawned windows (acu spawn --bg marks them with an acu.* app-id):
+-// open on the agent workspace without stealing focus.
+-window-rule {
+-    match app-id=r#"^acu\."#
+-    open-on-workspace "agent"
+-    open-focused false
+-}
+-
+ // Hide windows from screen capture
+@@ -633,4 +620,2 @@ binds {
+     Mod+9 { focus-workspace 9; }
+-    Mod+0 hotkey-overlay-title="Focus Agent Workspace" { focus-workspace "agent"; }
+-    Mod+Shift+0 { move-column-to-workspace "agent"; }
+     Mod+Shift+1 { move-column-to-workspace 1; }

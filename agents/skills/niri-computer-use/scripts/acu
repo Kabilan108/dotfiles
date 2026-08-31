@@ -585,10 +585,6 @@ def cmd_doctor(_args: argparse.Namespace) -> None:
     report(not ov, "overview", "open — input will not reach windows" if ov else "closed",
            hint="niri msg action close-overview")
 
-    names = {ws.get("name") for ws in get_workspaces()}
-    report("agent" in names, 'workspace "agent"', "present" if "agent" in names else "missing",
-           hint='declare `workspace "agent"` in niri config for background spawns')
-
     sr = subprocess.run(
         ["busctl", "--user", "get-property", "org.a11y.Bus", "/org/a11y/bus", "org.a11y.Status", "ScreenReaderEnabled"],
         capture_output=True, text=True,
@@ -842,11 +838,10 @@ def cmd_scroll(args: argparse.Namespace) -> None:
 
 def cmd_spawn(args: argparse.Namespace) -> None:
     if not args.command:
-        die("no command given", hint="acu spawn [--bg] -- <command...>")
+        die("no command given", hint="acu spawn [--wait] -- <command...>")
     before_ids = {w["id"] for w in get_windows()}
-    previous_focus = focused_window_id()
     niri_action("spawn", "--", *args.command)
-    if not args.bg and not args.wait:
+    if not args.wait:
         print("spawned (not waiting; new window will take focus)")
         return
     deadline = time.monotonic() + args.timeout
@@ -860,20 +855,7 @@ def cmd_spawn(args: argparse.Namespace) -> None:
     if new_window is None:
         die(f"no new window appeared within {args.timeout}s",
             hint="command may have failed or reused an existing window; check acu state")
-    if args.bg:
-        ws = {w["id"]: w for w in get_workspaces()}.get(new_window.get("workspace_id"))
-        if not (ws and ws.get("name") == "agent"):
-            niri_action(
-                "move-window-to-workspace", "--window-id", str(new_window["id"]),
-                "--focus", "false", "agent",
-            )
-        time.sleep(0.15)
-        if previous_focus is not None and focused_window_id() != previous_focus:
-            niri_action("focus-window", "--id", str(previous_focus))
-        print(json.dumps({**{k: new_window.get(k) for k in ("id", "app_id", "title", "pid")}, "workspace": "agent"}))
-        print(f"background window {new_window['id']} on workspace \"agent\"; focus preserved on {previous_focus}")
-    else:
-        print(json.dumps({k: new_window.get(k) for k in ("id", "app_id", "title", "pid", "workspace_id")}))
+    print(json.dumps({k: new_window.get(k) for k in ("id", "app_id", "title", "pid", "workspace_id")}))
 
 
 def cmd_ui(args: argparse.Namespace) -> None:
@@ -1005,8 +987,7 @@ def main() -> None:
     p.add_argument("dx", type=int, nargs="?", default=0)
     p.set_defaults(func=cmd_scroll)
 
-    p = sub.add_parser("spawn", help="spawn a command; --bg = agent workspace without focus steal")
-    p.add_argument("--bg", action="store_true")
+    p = sub.add_parser("spawn", help="spawn a command (the new window may take focus)")
     p.add_argument("--wait", action="store_true", help="wait for the new window and print it")
     p.add_argument("--timeout", type=float, default=10.0)
     p.add_argument("command", nargs=argparse.REMAINDER)
