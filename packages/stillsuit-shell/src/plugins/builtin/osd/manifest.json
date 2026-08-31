@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.osd",
+  "name": "On-screen display",
+  "description": "Per-output volume, brightness, and Dictator waveform overlay backed by the global workflow service.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["overlay"],
+  "entryPoints": { "overlay": "OsdOverlay.qml" },
+  "scope": { "overlay": "per-output" },
+  "dependencies": ["stillsuit.workflows"],
+  "capabilities": ["audio-observe", "backlight-observe", "workflow-state"],
+  "keepLoaded": true
+}

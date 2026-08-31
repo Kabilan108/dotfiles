@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$*" >> "$STILLSUIT_FIXTURE_HELPER_LOG"
+printf '{"schemaVersion":1,"phase":"idle"}\n'

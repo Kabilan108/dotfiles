@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.workflows",
+  "name": "Workflow services",
+  "description": "One global, versioned projection of recording, meeting-minutes, and Dictator workflow state.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["service"],
+  "entryPoints": { "service": "Service.qml" },
+  "scope": { "service": "global" },
+  "capabilities": ["recording-control", "workflow-state", "dictator-socket"],
+  "stateSchemaVersion": 1
+}
