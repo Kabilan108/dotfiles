@@ -102,6 +102,40 @@ in
       '';
     };
 
+    integrations.agentPanelDefaults = {
+      model = mkOption {
+        type = types.enum [
+          "gpt-5.6-sol"
+          "gpt-5.6-terra"
+          "gpt-5.6-luna"
+        ];
+        default = "gpt-5.6-sol";
+        description = "Initial agent-panel model, written only when its runtime configuration is absent.";
+      };
+
+      reasoningEffort = mkOption {
+        type = types.enum [
+          "low"
+          "medium"
+          "high"
+          "xhigh"
+          "max"
+          "ultra"
+        ];
+        default = "low";
+        description = "Initial agent-panel reasoning effort, written only when its runtime configuration is absent.";
+      };
+
+      serviceTier = mkOption {
+        type = types.enum [
+          "fast"
+          "priority"
+        ];
+        default = "fast";
+        description = "Initial agent-panel service tier, written only when its runtime configuration is absent.";
+      };
+    };
+
     development = {
       sourceMode = mkOption {
         type = types.enum [
@@ -116,6 +150,12 @@ in
         type = types.nullOr types.path;
         default = null;
         description = "Local shell source used only when sourceMode is local.";
+      };
+
+      shadowMode = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Disable production surface and service authority for isolated preview runs.";
       };
     };
   };

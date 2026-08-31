@@ -80,7 +80,47 @@ Verification: pending.
 
 Review notes: pending.
 
-Open issues: none recorded.
+- `nixfmt --check` on all Lane A Nix files and `home/default.nix`, exit 0.
+- `check-jsonschema` on the merged builtin manifests, exit 0.
+- Canonical theme evaluation checked against `theme.v1.json`, exit 0.
+- Stylix's pinned `catppuccin-mocha.yaml` was inspected; the generated
+  `system/name/author/variant/palette` shape matches its current schema.
+- Exact extracted license notice compared with
+  `/vault/repos/omarchy-quattro/LICENSE`, exit 0.
+- Positive enabled-module fixture with capability `notification-server`, exit
+  0. The same service with capability `notifications` exits 1 with the expected
+  owner assertion.
+- Lane package build from the clean worktree, exit 0.
+- Main-checkout package build including the merged Lane C source, exit 0.
+- Main-checkout `nix flake check --no-build`, exit 0.
+- Main-checkout Jacurutu toplevel `drvPath` evaluation, exit 0.
+- Main-checkout `nix build --no-link
+  .#nixosConfigurations.jacurutu.config.system.build.toplevel`, exit 0.
+- One initial impure package-expression build exited 1 because
+  `builtins.getFlake` tried to copy an ignored live Unix socket below the dirty
+  main checkout. The corrected expression used the clean lane worktree only
+  for the pinned nixpkgs input and the main checkout for the package source;
+  it exited 0.
+
+Review notes:
+
+- The first review rejected the attribution document because it linked to,
+  but did not retain, the binding MIT notice. A fresh blank-context correction
+  lane added the exact notice and adapted-file inventory.
+- A second fresh correction aligned the notification-owner assertion with
+  Lane E's actual `notification-server` capability.
+- The orchestrator read the full cumulative diff, reran the module, package,
+  schema, theme, provenance, flake, closure, and build checks, and imported the
+  module without enabling it.
+- Flake evaluation emitted only the existing `stdenv.isLinux` and
+  `stdenv.isDarwin` deprecation warnings.
+
+Open issues:
+
+- Desktop plugin registration and its final exact runtime closure remain
+  integration work after the D lanes are accepted.
+- No ownership selection or service enablement has been added; Gate 2 remains
+  human-owned.
 
 ## Lane B: host core and interaction primitives
 
@@ -92,7 +132,57 @@ Verification: pending.
 
 Review notes: pending.
 
-Open issues: none recorded.
+- `packages/stillsuit-shell/src/tests/run-lane-b-fixtures.sh`, exit 0 in both
+  the final lane worktree and merged main checkout. The real isolated host
+  fixture passed and the deterministic core fixture reported 67 checks.
+- Lane-B fixture ShellCheck, exit 0.
+- Fixture theme validation against `theme.v1.json`, exit 0.
+- Merged builtin manifest validation against `manifest.v1.json`, exit 0; the
+  two current IDs are distinct.
+- Provenance-header query over the four adapted interaction primitives, exit
+  0; the forbidden-runtime query found no matches, exit 1 as expected.
+- Cumulative lane ownership and `git diff --check` gates, exit 0.
+- Merged Lane C agent-panel fixture, exit 0.
+- Merged notification engine, shadow-owner, and view-topology fixtures, exit
+  0 under their private session buses and XDG roots.
+- Merged `nixfmt --check`, `nix flake check --no-build`, Jacurutu toplevel
+  `drvPath` evaluation, shell package build, and Jacurutu no-link toplevel
+  build, exit 0.
+- `git apply --check` for the staged workspace-removal patch and
+  `niri validate --config` for the unchanged live-config preimage, exit 0.
+
+Review notes:
+
+- The original lane diff was read in full and rejected. It selected only one
+  primary surface kind, assigned per-output properties after construction,
+  omitted the plugin-owned service injection required by Lane E, returned a
+  literal agent status, left live dependants after runtime unload, and did not
+  expose shadow mode to the built-in fallback bar.
+- A fresh blank-context, high-effort correction added multi-contribution
+  routing, constructor-time injection, dependency containment/recovery,
+  structured helper results, and fallback shadow settings. Its cumulative
+  diff was read in full.
+- That correction was rejected once more because queued opens were never
+  resumed after a non-keep-loaded route's service became ready, and removing
+  the selected screen left a per-output route logically open but invisible.
+  A second fresh blank-context correction added deterministic retry and
+  coherent open-surface migration. Its two-file diff was read in full and the
+  complete lane suite was rerun independently before merge.
+- One combined static-check shell harness exited 127 because its inline quoting
+  was malformed. No repository file changed. The same checks were rerun with
+  literal manifest targets and exited 0.
+- One `nixfmt --check` invocation exited 1 because it used the stale path
+  `home/desktop/wayland/niri/default.nix`. The corrected compositor path exited
+  0; no formatting change was needed.
+- The stale-workspace query now matches only the deliberately untouched live
+  Niri preimage. The reviewed removal remains staged as a patch for Gate 1.
+
+Open issues:
+
+- Desktop service/bar wiring from the D lanes and its full-host fixtures remain
+  orchestrator integration work.
+- Lane D must replace the built-in fallback marker and inert compositor
+  snapshot with the reviewed desktop implementation before either human gate.
 
 ## Lane C: agent quake panel
 
@@ -104,7 +194,43 @@ Verification: pending.
 
 Review notes: pending.
 
-Open issues: none recorded.
+- `bash -n` on the helper and fixture suite, exit 0.
+- `nix shell nixpkgs#shellcheck --command shellcheck <helper> <fixture>`,
+  exit 0.
+- `packages/stillsuit-shell/src/plugins/builtin/agent-panel/tests/run.sh`,
+  exit 0. This includes hostile configuration, extra arguments, a toggle
+  storm, delayed Niri/Ghostty disappearance, unrelated-PID protection, and an
+  isolated real-tmux prefix-decoy regression.
+- `check-jsonschema` against `manifest.v1.json`, exit 0.
+- Static duplicate-plugin-ID query over all current builtin manifests, exit 0.
+- Applied the documented window rule and binding only to a temporary archived
+  configuration and ran `niri validate --config <temporary-config>`, exit 0.
+  The live `config.kdl` was not edited.
+- Main-checkout `nix flake check --no-build`, exit 0.
+- Main-checkout Jacurutu toplevel `drvPath` evaluation, exit 0.
+- Main-checkout `nix build --no-link
+  .#nixosConfigurations.jacurutu.config.system.build.toplevel`, exit 0.
+- `git diff 5d0b515..stillsuit-next-lane-c --check`, exit 0.
+
+Review notes:
+
+- The first lane diff was rejected because tmux `-t stillsuit-agent` accepted
+  prefixed sessions and window/PID shutdown removed state before the old
+  process was proven gone. A fresh blank-context correction lane changed every
+  tmux target to exact `=stillsuit-agent` matching and added bounded shutdown
+  barriers.
+- The orchestrator read the corrected cumulative diff and independently reran
+  all checks above before merging.
+- The helper package must be installed in the Home Manager profile as well as
+  placed on the shell's restricted PATH; otherwise Niri cannot resolve the
+  staged literal command.
+
+Open issues:
+
+- The agent-panel plugin is registered and its helper integration is complete;
+  its full-host path will be exercised in the final shadow preview.
+- `docs/plans/staged-niri-changes.md` remains documentation-only. Its rule and
+  binding are not part of the live compositor configuration.
 
 ## Lane E: notification engine
 
@@ -132,27 +258,57 @@ Open issues: none recorded.
 
 ## Lane D1: bar
 
-Status: blocked on Lane B compiling.
+Status: original diff reviewed in full and rejected. A fresh blank-context
+correction is in progress. The original used a nonexistent Loader API, did not
+construct a real required-property widget in its fixture, and did not release
+the host claim when a slot failed.
 
 ## Lane D2: compositor
 
-Status: blocked on Lane B compiling.
+Status: original diff reviewed in full and rejected. A fresh blank-context
+correction is in progress. The original modeled real `niri msg -j outputs` as
+an array instead of its connector-keyed object and allowed failed/empty partial
+refreshes to overwrite a coherent snapshot.
 
 ## Lane D3: desktop services
 
-Status: blocked on Lane B compiling.
+Status: original diff reviewed in full; a narrow correction is in progress.
+The service implementations and fixed power-profile argv were retained, but
+owning widgets must consume the exact injected singleton rather than asking a
+dependency-only facade for their own plugin ID. The fixture also needs direct
+unavailable-state evidence.
 
 ## Lane D4: widgets and panels
 
-Status: blocked on Lane B compiling.
+Status: original diff reviewed in full; a narrow correction is in progress.
+The first version put a one-second Timer in every per-output clock widget,
+violating the global-service/per-output-view rule. Clock state is being moved
+to one versioned global service shared by all views.
 
 ## Lane D5: OSD and workflow state
 
-Status: blocked on Lane B compiling.
+Status: lane commit `dda9979e113fde525b34813cba5ef8248ce68006`
+reported with isolated workflow, state-version, socket-singleton, helper-argv,
+and recorder-survival fixtures. The orchestrator review gate is pending.
 
 ## Integration verification
 
-Status: pending.
+Status: foundational A/B/C integration complete; desktop integration pending
+accepted D-lane commits.
+
+- Added a Nix-built agent-panel helper with an exact restricted closure and
+  installed it in the profile only when the default-off module is enabled.
+- Added typed model/effort/tier defaults, only-if-absent runtime config
+  materialization, exact host environment names, shadow mode, state/runtime
+  directories, and deterministic catalog reconciliation.
+- The helper derivation build, `git diff --check`, `nixfmt`, and
+  `nix flake check --no-build` exited 0.
+- The first forced-enabled Jacurutu closure build exposed that a `writeText`
+  store path cannot be parsed as Stylix YAML during module evaluation. The
+  Base16 projection was changed to the equivalent already-parsed attrset.
+- A second forced-enabled Jacurutu closure build from the staged git tree
+  exited 0. This built only a disposable closure; it did not activate, switch,
+  restart, or signal any live service.
 
 Static, Nix, isolated-runtime, notification, Niri, and preview evidence will be
 recorded here with exact commands and exit codes.
@@ -169,7 +325,6 @@ plus rollback.
 
 ## Remaining work
 
-- Complete and merge Lanes A, B, C, E, and F through the review gate.
-- Complete and merge Lanes D1 through D5 after Lane B compiles.
+- Complete and merge Lanes D1 through D5 through the review gate.
 - Run the integration verification ladder.
 - Prepare both human-owned gates without running them.

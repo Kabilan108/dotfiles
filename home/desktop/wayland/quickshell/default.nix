@@ -14,6 +14,10 @@ in
 {
   home.packages = [ pkgs.quickshell ];
 
+  programs.stillsuitShell.integrations.agentPanelHelperPackage =
+    pkgs.callPackage ../../../../packages/stillsuit-shell/agent-panel-helper.nix
+      { };
+
   xdg.configFile."quickshell/osd".source =
     config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/home/desktop/wayland/quickshell/osd";
 

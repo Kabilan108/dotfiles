@@ -45,12 +45,25 @@ let
   ) cfg.plugins;
   enabledPlugins = lib.filter (plugin: plugin.enable) indexedPlugins;
   sortedPlugins = lib.sort (left: right: left.id < right.id) enabledPlugins;
+  selectedBarOwner =
+    if cfg.ownership.barOwners == [ ] then "external" else lib.head cfg.ownership.barOwners;
+  selectedBar =
+    if
+      lib.elem selectedBarOwner [
+        "external"
+        "stillsuit.builtin-bar"
+      ]
+    then
+      ""
+    else
+      selectedBarOwner;
   catalogData = {
     schemaVersion = 1;
-    hostApiVersion = "1";
-    configId = cfg.configId;
+    inherit selectedBar;
     plugins = map (plugin: {
       inherit (plugin) manifest packageRoot settings;
+      enabled = true;
+      sourceMode = "store";
     }) sortedPlugins;
   };
   catalogSource = pkgs.writeText "stillsuit-plugin-catalog.json" (builtins.toJSON catalogData);
