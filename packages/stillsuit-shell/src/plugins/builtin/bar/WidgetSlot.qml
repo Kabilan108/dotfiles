@@ -6,53 +6,98 @@ Item {
     id: root
 
     required property var registration
-    readonly property string pluginId: registration && registration.manifest
-        ? String(registration.manifest.id)
+    readonly property string pluginId: activeRegistration && activeRegistration.manifest
+        ? String(activeRegistration.manifest.id)
         : "unknown"
     property bool failed: false
+    property bool componentComplete: false
+    property bool releaseNotified: false
+    property var activeRegistration: null
+    property var createdWidget: null
 
-    implicitWidth: failed || !widgetLoader.item
+    implicitWidth: failed || !createdWidget
         ? 0
-        : Math.max(0, widgetLoader.item.implicitWidth || widgetLoader.item.width || 0)
-    implicitHeight: failed || !widgetLoader.item
+        : Math.max(0, createdWidget.implicitWidth || createdWidget.width || 0)
+    implicitHeight: failed || !createdWidget
         ? 0
-        : Math.max(0, widgetLoader.item.implicitHeight || widgetLoader.item.height || 0)
-    visible: !failed && widgetLoader.item !== null
+        : Math.max(0, createdWidget.implicitHeight || createdWidget.height || 0)
+    visible: !failed && createdWidget !== null
 
     function loadRegistration() {
+        constructionTimer.stop()
+        destroyWidget()
         failed = false
-        if (!registration || !registration.component || !registration.context) {
-            failed = true
+        releaseNotified = false
+        activeRegistration = registration
+        constructionTimer.start()
+    }
+
+    function constructWidget() {
+        var record = activeRegistration
+        if (!record || !record.component || !record.context) {
+            releaseSlot("registration is incomplete")
             return
         }
-        var properties = { context: registration.context }
-        if (registration.service !== undefined)
-            properties.service = registration.service
-        widgetLoader.setSourceComponent(registration.component, properties)
+
+        var component = record.component
+        if (component.status !== Component.Ready) {
+            var detail = component.status === Component.Error
+                ? component.errorString()
+                : "component is not ready"
+            releaseSlot("component compilation failed: " + detail)
+            return
+        }
+
+        var properties = { context: record.context }
+        if (record.service !== undefined)
+            properties.service = record.service
+        var widget = component.createObject(root, properties)
+        if (!widget) {
+            releaseSlot("component construction returned null")
+            return
+        }
+        createdWidget = widget
+    }
+
+    function destroyWidget() {
+        var widget = createdWidget
+        createdWidget = null
+        if (widget && typeof widget.destroy === "function")
+            widget.destroy()
     }
 
     function releaseSlot(message) {
         if (failed)
             return
         failed = true
-        widgetLoader.active = false
-        if (registration && registration.context && registration.context.logger)
-            registration.context.logger.warn("bar widget " + pluginId + " omitted: " + message)
-    }
-
-    Loader {
-        id: widgetLoader
-        asynchronous: true
-        onStatusChanged: {
-            if (status === Loader.Error)
-                root.releaseSlot("component construction failed")
-        }
-        onLoaded: {
-            if (!item)
-                root.releaseSlot("component returned no item")
+        constructionTimer.stop()
+        destroyWidget()
+        var record = activeRegistration
+        if (record && record.context && record.context.logger)
+            record.context.logger.warn("bar widget " + pluginId + " omitted: " + message)
+        if (!releaseNotified && record && typeof record.release === "function") {
+            releaseNotified = true
+            record.release(message)
         }
     }
 
-    Component.onCompleted: loadRegistration()
-    onRegistrationChanged: loadRegistration()
+    Timer {
+        id: constructionTimer
+        interval: 0
+        repeat: false
+        onTriggered: root.constructWidget()
+    }
+
+    Component.onCompleted: {
+        componentComplete = true
+        loadRegistration()
+    }
+    Component.onDestruction: {
+        constructionTimer.stop()
+        destroyWidget()
+    }
+    onRegistrationChanged: {
+        if (componentComplete)
+            loadRegistration()
+    }
 }

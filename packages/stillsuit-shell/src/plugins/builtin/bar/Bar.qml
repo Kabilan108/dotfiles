@@ -13,9 +13,9 @@ Scope {
     required property var context
 
     // The host owns component loading and supplies only ready registrations.
-    // Each record has component, context, manifest, defaultSection,
-    // allowMultiple, and optional service. The bar must not receive a catalog
-    // or composition root.
+    // Each immutable record has component, context, manifest, defaultSection,
+    // allowMultiple, optional service, and an optional release(message)
+    // callback. The bar must not receive a catalog or composition root.
     property var widgetRegistrations: []
 
     // The host supplies Quickshell.screens. It remains the only source of

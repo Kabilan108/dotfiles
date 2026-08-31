@@ -28,7 +28,9 @@ mkdir -p "$HOME" "$XDG_CONFIG_HOME/quickshell" "$XDG_DATA_HOME" \
 chmod 700 "$XDG_RUNTIME_DIR"
 mkdir -p "$fixture_tmp/config-id/bar"
 cp "$script_dir/fixture-shell.qml" "$fixture_tmp/config-id/shell.qml"
+cp "$script_dir/RequiredWidget.qml" "$fixture_tmp/config-id/RequiredWidget.qml"
 cp "$script_dir/../../plugins/builtin/bar/Bar.qml" "$fixture_tmp/config-id/bar/Bar.qml"
 cp "$script_dir/../../plugins/builtin/bar/WidgetSlot.qml" "$fixture_tmp/config-id/bar/WidgetSlot.qml"
 
-qs --no-color -p "$fixture_tmp/config-id"
+timeout --signal=TERM --kill-after=2s 10s \
+    qs --no-color -p "$fixture_tmp/config-id"
