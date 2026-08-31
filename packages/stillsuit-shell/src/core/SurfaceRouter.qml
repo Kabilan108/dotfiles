@@ -64,6 +64,7 @@ QtObject {
         function onCatalogChanged() {
             root._containUnavailable()
             root._preloadAll()
+            root._retryQueuedOpenRoutes()
         }
     }
 
@@ -74,6 +75,7 @@ QtObject {
         function onRevisionChanged() {
             root._containUnavailable()
             root._preloadAll()
+            root._retryQueuedOpenRoutes()
         }
 
         function onDependencyContained(pluginId) {
@@ -166,6 +168,7 @@ QtObject {
 
         _clearQueue(key)
         _setSessionOpen(key, false)
+        _setPlacement(key, "")
         if (internalActiveId === key)
             internalActiveId = ""
         return "error"
@@ -178,6 +181,7 @@ QtObject {
 
         _clearQueue(key)
         _setSessionOpen(key, false)
+        _setPlacement(key, "")
         if (internalActiveId === key)
             internalActiveId = ""
 
@@ -199,6 +203,7 @@ QtObject {
         var key = String(pluginId)
         _clearQueue(key)
         _setSessionOpen(key, false)
+        _setPlacement(key, "")
         if (internalActiveId === key)
             internalActiveId = ""
         _unloadObjects(key)
@@ -529,6 +534,31 @@ QtObject {
         _startLoadAll(pluginId)
     }
 
+    function _retryQueuedOpenRoutes() {
+        if (!catalog || !catalog.loaded)
+            return
+        var order = typeof catalog.topologicalOrder === "function"
+            ? catalog.topologicalOrder()
+            : Object.keys(catalog.entries).sort()
+        for (var index = 0; index < order.length; index++) {
+            var pluginId = order[index]
+            if (!isOpen(pluginId) || pendingCount(pluginId) === 0)
+                continue
+            if (!catalog.has(pluginId) || !catalog.isEnabled(pluginId)) {
+                unload(pluginId)
+                continue
+            }
+            var dependencyState = _dependencyState(catalog.get(pluginId))
+            if (dependencyState === "wait")
+                continue
+            if (dependencyState !== "ready") {
+                unload(pluginId)
+                continue
+            }
+            _startLoadAll(pluginId)
+        }
+    }
+
     function _containUnavailable() {
         if (!catalog)
             return
@@ -544,12 +574,32 @@ QtObject {
     function _reconcileScreens() {
         if (!catalog)
             return
+        var currentScreens = _screens()
+        if (currentScreens.length === 0) {
+            var openIds = Object.keys(sessionOpen).sort()
+            for (var openIndex = 0; openIndex < openIds.length; openIndex++)
+                close(openIds[openIndex])
+        }
         var ids = _loadedPluginIds()
         for (var idIndex = 0; idIndex < ids.length; idIndex++) {
             var pluginId = ids[idIndex]
             var entry = catalog.get(pluginId)
             if (!entry)
                 continue
+            var primaryKind = catalog.primarySurfaceKind(pluginId)
+            var primaryScopeKey = ManifestValidator.entryPointKey(primaryKind)
+            var reopenOnReplacement = isOpen(pluginId)
+                && entry.manifest.scope[primaryScopeKey] === "per-output"
+                && _screenById(placementOutputId(pluginId)) === null
+            if (reopenOnReplacement) {
+                var replacementOutputId = _availableFocusedOutputId()
+                if (replacementOutputId === "") {
+                    close(pluginId)
+                    reopenOnReplacement = false
+                } else {
+                    _setPlacement(pluginId, replacementOutputId)
+                }
+            }
             var kinds = _routedKinds(entry)
             for (var kindIndex = 0; kindIndex < kinds.length; kindIndex++) {
                 var kind = kinds[kindIndex]
@@ -560,6 +610,10 @@ QtObject {
                 if (!_reconcileContributionScreens(pluginId, kind, entry))
                     return
             }
+            if (reopenOnReplacement && isOpen(pluginId)
+                    && contributionState(pluginId, primaryKind) === "loaded"
+                    && !_deliverOne(pluginId, primaryKind, ""))
+                return
         }
     }
 
@@ -639,6 +693,7 @@ QtObject {
         var key = String(pluginId)
         _clearQueue(key)
         _setSessionOpen(key, false)
+        _setPlacement(key, "")
         if (internalActiveId === key)
             internalActiveId = ""
         _unloadObjects(key)
@@ -709,8 +764,15 @@ QtObject {
     }
 
     function _currentFocusedOutputId() {
-        if (compositor && String(compositor.focusedOutputId || "") !== "")
-            return String(compositor.focusedOutputId)
+        return _availableFocusedOutputId()
+    }
+
+    function _availableFocusedOutputId() {
+        var focusedOutputId = compositor
+            ? String(compositor.focusedOutputId || "")
+            : ""
+        if (focusedOutputId !== "" && _screenById(focusedOutputId) !== null)
+            return focusedOutputId
         var currentScreens = _screens()
         return currentScreens.length > 0 ? _outputId(currentScreens[0]) : ""
     }

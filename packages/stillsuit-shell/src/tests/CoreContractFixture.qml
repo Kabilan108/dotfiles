@@ -44,16 +44,26 @@ ShellRoot {
     QtObject {
         id: fakeServices
         property int revision: 0
+        property var serviceStates: ({})
         readonly property int objectCount: 1
 
         signal dependencyContained(string pluginId)
 
         function state(pluginId) {
-            return "loaded"
+            return serviceStates[String(pluginId)] || "loaded"
         }
 
         function get(pluginId) {
             return fixtureSingleton
+        }
+
+        function setState(pluginId, nextState) {
+            var next = {}
+            for (var key in serviceStates)
+                next[key] = serviceStates[key]
+            next[String(pluginId)] = String(nextState)
+            serviceStates = next
+            revision++
         }
     }
 
@@ -398,10 +408,36 @@ ShellRoot {
             _assert(router.state("stillsuit.async") === "unloaded",
                 "late completion revived a disabled surface")
 
+            fakeServices.setState("stillsuit.dependency", "loading")
             _assert(router.open("stillsuit.dependent", "{\"queued\":true}") === "ok",
-                "dependent surface did not begin loading")
+                "waiting dependent surface rejected its open")
+            _assert(router.state("stillsuit.dependent") === "unloaded"
+                    && router.pendingCount("stillsuit.dependent") === 1,
+                "waiting dependent surface did not retain its queued payload")
+            fakeServices.setState("stillsuit.dependency", "loaded")
+            _assert(router.state("stillsuit.dependent") === "loading",
+                "ready dependency did not retry the queued open")
+            fakeComponent.status = Component.Ready
+            var dependent = router.contributionInstances(
+                "stillsuit.dependent", "panel")[0]
+            _assert(router.state("stillsuit.dependent") === "loaded"
+                    && router.pendingCount("stillsuit.dependent") === 0,
+                "retried dependent surface did not finish loading")
+            _assert(dependent.receivedPayloads.length === 1
+                    && dependent.receivedPayloads[0] === "{\"queued\":true}",
+                "retried dependent surface did not receive its payload once")
+            fakeServices.revision++
+            _assert(router.contributionInstances(
+                        "stillsuit.dependent", "panel")[0] === dependent
+                    && dependent.receivedPayloads.length === 1,
+                "later service revision duplicated the retried open")
+            _assert(router.close("stillsuit.dependent") === "ok",
+                "retried dependent surface did not close")
+
+            _assert(router.open("stillsuit.dependent", "{\"contained\":true}") === "ok",
+                "dependent containment fixture did not begin loading")
             _assert(router.pendingCount("stillsuit.dependent") === 1,
-                "dependent surface did not queue its payload")
+                "dependent containment fixture did not queue its payload")
             fakeServices.dependencyContained("stillsuit.dependent")
             _assert(router.state("stillsuit.dependent") === "unloaded"
                     && router.pendingCount("stillsuit.dependent") === 0,
@@ -430,6 +466,13 @@ ShellRoot {
             _assert(panels[0].screen === screenA && panels[0].outputId === "output-a"
                     && overlays[1].screen === screenB && overlays[1].outputId === "output-b",
                 "screen and output ID were not available during construction")
+            fakeCompositor.focusedOutputId = "output-a"
+            _assert(multiRouter.open("stillsuit.multi", "{\"screen\":\"a\"}") === "ok",
+                "per-output primary panel did not open")
+            _assert(multiRouter.activeId === "stillsuit.multi"
+                    && multiRouter.placementOutputId("stillsuit.multi") === "output-a"
+                    && panels[0].opened && !panels[1].opened,
+                "per-output primary panel opened on the wrong output")
             var retainedPanel = panels[1]
             var retainedOverlay = overlays[1]
             multiRouter.screens = [screenB, screenC]
@@ -441,6 +484,14 @@ ShellRoot {
                 "screen reconciliation changed the contribution cardinality")
             _assert(panels[0] === retainedPanel && overlays[0] === retainedOverlay,
                 "screen reconciliation replaced an unchanged output instance")
+            _assert(multiRouter.isOpen("stillsuit.multi")
+                    && multiRouter.activeId === "stillsuit.multi"
+                    && multiRouter.placementOutputId("stillsuit.multi") === "output-b",
+                "screen reconciliation left the open session on a removed output")
+            _assert(panels[0].opened && !panels[1].opened
+                    && panels[0].receivedPayloads.length === 1
+                    && panels[0].receivedPayloads[0] === "",
+                "screen reconciliation did not open exactly one replacement instance")
             _assert(panels[1].outputId === "output-c"
                     && overlays[1].outputId === "output-c",
                 "screen reconciliation did not add both contribution kinds")
