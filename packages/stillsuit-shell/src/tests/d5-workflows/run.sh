@@ -28,6 +28,8 @@ export STILLSUIT_FIXTURE_HELPER="$fixture_dir/fake-recorder"
 export STILLSUIT_FIXTURE_HELPER_LOG="$tmp_dir/helper.log"
 export STILLSUIT_FIXTURE_RECORDING_STATE="$tmp_dir/recording.json"
 export STILLSUIT_FIXTURE_MEETING_STATE="$tmp_dir/meeting.json"
+export STILLSUIT_FIXTURE_OPEN_HELPER="$fixture_dir/fake-open"
+export STILLSUIT_FIXTURE_OPEN_LOG="$tmp_dir/open.log"
 export STILLSUIT_FIXTURE_SOCKET="$tmp_dir/dictator.sock"
 # This fixture exercises services only; force the isolated renderer rather than
 # attaching an overlay test to the live compositor.
@@ -40,7 +42,7 @@ for variable_name in HOME XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE
 done
 
 printf '%s\n' '{"schemaVersion":1,"phase":"recording","pid":1,"monitor":"DP-1","elapsed_seconds":4}' > "$STILLSUIT_FIXTURE_RECORDING_STATE"
-printf '%s\n' '{"schemaVersion":1,"phase":"transcribing","label":"fixture","progress":1,"total":2}' > "$STILLSUIT_FIXTURE_MEETING_STATE"
+printf '%s\n' '{"schemaVersion":1,"phase":"completed","label":"fixture","note_path":"/tmp/fixture-note.md","visible_until":4102444800}' > "$STILLSUIT_FIXTURE_MEETING_STATE"
 python3 "$fixture_dir/socket-server.py" "$STILLSUIT_FIXTURE_SOCKET" >"$tmp_dir/socket.log" 2>&1 &
 socket_pid=$!
 for _ in {1..100}; do [[ -S $STILLSUIT_FIXTURE_SOCKET ]] && break; sleep 0.02; done
@@ -51,6 +53,7 @@ mkdir -p "$config_dir/plugins/builtin" "$config_dir/services"
 cp "$fixture_dir/WorkflowFixture.qml" "$config_dir/shell.qml"
 cp -R "$package_dir/src/services/." "$config_dir/services/"
 cp -R "$package_dir/src/plugins/builtin/workflows" "$config_dir/plugins/builtin/workflows"
+cp -R "$package_dir/src/plugins/builtin/osd" "$config_dir/plugins/builtin/osd"
 
 ipc() { qs ipc --pid "$shell_pid" call stillsuit-d5-fixture "$@"; }
 wait_json() {
@@ -78,12 +81,27 @@ stop_shell() {
 
 start_shell
 state=$(ipc state)
-jq -e '.serviceObjects == 1 and .overlays == 2 and .overlaySharesAggregate and .dictator.levels == 23 and .dictator.state == "recording"' >/dev/null <<<"$state"
+jq -e '.serviceObjects == 1 and .osdServiceObjects == 1 and .overlays == 2 and .overlaySharesAggregate and .overlaySharesOsdService and .dictator.levels == 23 and .dictator.state == "recording" and .meeting.visible and .meeting.completed and .meeting.label == "fixture"' >/dev/null <<<"$state"
 
 # The action uses only literal argv; the fake helper sees the exact reviewed order.
 [[ $(ipc start) == started ]]
 for _ in {1..100}; do [[ -s $STILLSUIT_FIXTURE_HELPER_LOG ]] && break; sleep 0.02; done
 [[ $(<"$STILLSUIT_FIXTURE_HELPER_LOG") == 'start --directory /tmp/fixture-recordings --monitor DP-1 --title fixture-title --desktop-audio --no-microphone' ]]
+
+# The zero-argument D4 contract uses only reviewed configured defaults.
+[[ $(ipc d4Start) == started ]]
+for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 2 ]] && break; sleep 0.02; done
+[[ $(sed -n '2p' "$STILLSUIT_FIXTURE_HELPER_LOG") == 'start --directory /tmp/fixture-recordings --monitor DP-1 --title fixture-default-title --desktop-audio --no-microphone' ]]
+[[ $(ipc d4Finish) == started ]]
+for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 3 ]] && break; sleep 0.02; done
+[[ $(sed -n '3p' "$STILLSUIT_FIXTURE_HELPER_LOG") == 'stop' ]]
+[[ $(ipc openResult) == started ]]
+for _ in {1..100}; do [[ -s $STILLSUIT_FIXTURE_OPEN_LOG ]] && break; sleep 0.02; done
+[[ $(<"$STILLSUIT_FIXTURE_OPEN_LOG") == '/tmp/fixture-note.md' ]]
+
+printf '%s\n' '{"schemaVersion":1,"phase":"error","label":"fixture failed","error":"fixture error","visible_until":4102444800}' > "$STILLSUIT_FIXTURE_MEETING_STATE"
+[[ $(ipc refresh) == ok ]]
+wait_json '.meeting.failed and .meeting.visible and .meeting.label == "fixture failed" and .meeting.errorMessage == "fixture error"' >/dev/null
 
 # Corrupt and future-version durable state are contained without commanding the helper.
 printf '%s\n' '{broken' > "$STILLSUIT_FIXTURE_RECORDING_STATE"
@@ -104,6 +122,10 @@ stop_shell
 kill -0 "$fake_recorder_pid"
 start_shell
 kill -0 "$fake_recorder_pid"
-[[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 1 ]]
+[[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 3 ]]
+
+# Presentational per-output files may not own workflow authority.
+! rg -n '(^|[^[:alnum:]_])(Timer|FileView|PwObjectTracker|Socket|Process|IpcHandler)[[:space:]]*\{' "$package_dir/src/plugins/builtin/osd/OsdOverlay.qml" "$package_dir/src/plugins/builtin/osd/DictationPill.qml"
+! rg -n 'ERROR:|Failed to load configuration|Type .* unavailable' "$tmp_dir/quickshell.log"
 
 echo "d5-workflows: ok"

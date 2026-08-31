@@ -16,7 +16,6 @@ Rectangle {
     readonly property color activeColor: dictator.visualizerState === "error"
         ? context.theme.colors.status.danger : context.theme.colors.status.info
 
-    property real scanPos: 0
     implicitWidth: content.implicitWidth + 36
     implicitHeight: barMaxHeight + 22
     radius: height / 2
@@ -45,12 +44,6 @@ Rectangle {
     function repaint() { waveform.requestPaint() }
     onDictatorChanged: repaint()
 
-    Timer {
-        interval: 16
-        repeat: true
-        running: root.visible && root.dictator.visualizerState === "transcribing"
-        onTriggered: { root.scanPos = (root.scanPos + 0.2) % (root.barCount + 5); root.repaint() }
-    }
     Connections {
         target: root.dictator
         function onLevelsChanged() { root.repaint() }
@@ -74,7 +67,7 @@ Rectangle {
                     var barHeight = root.barMinHeight + level * (root.barMaxHeight - root.barMinHeight)
                     if (root.dictator.visualizerState === "error") barHeight = root.barMinHeight
                     if (root.dictator.visualizerState === "transcribing") {
-                        var pulse = root.clamp(1 - Math.abs(index - root.scanPos) / 4, 0, 1)
+                        var pulse = root.clamp(1 - Math.abs(index - root.dictator.scanPos) / 4, 0, 1)
                         barHeight = Math.max(barHeight * 0.34, root.barMinHeight + Math.pow(pulse, 0.8) * (root.barMaxHeight - root.barMinHeight))
                     }
                     root.drawBar(ctx, index, barHeight, root.dictator.visualizerState === "typing" ? 0.45 : 0.9)

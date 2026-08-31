@@ -12,10 +12,12 @@ Scope {
     readonly property string apiVersion: "1"
     readonly property var settings: context.settings ? context.settings.values : ({})
     readonly property string statusPath: String(settings.meetingStatusPath || "")
-    readonly property bool configured: statusPath.charAt(0) === "/"
+    readonly property string openHelperPath: String(settings.openHelperPath || "")
+    readonly property bool configured: statusPath.charAt(0) === "/" && openHelperPath.charAt(0) === "/"
     readonly property bool active: ["staging", "queued", "preparing", "chunking", "transcribing", "diarizing", "aligning", "generating", "enriching", "writing"].indexOf(phase) !== -1
     readonly property bool completed: phase === "completed"
     readonly property bool failed: phase === "error"
+    readonly property bool visible: active || ((completed || failed) && currentTime < visibleUntil)
 
     property string phase: "idle"
     property string label: ""
@@ -24,8 +26,11 @@ Scope {
     property int progress: 0
     property int total: 0
     property double visibleUntil: 0
+    property double currentTime: Date.now() / 1000
     property string stateStatus: configured ? "missing" : "unconfigured"
     property var snapshot: ({ schemaVersion: 1, phase: "idle" })
+    property bool actionRunning: false
+    property string lastCommandJson: "[]"
 
     function _reset(status, message) {
         phase = "idle"
@@ -66,6 +71,17 @@ Scope {
 
     function refresh() { if (configured) statusFile.reload() }
 
+    function openResult() {
+        if (!completed || !notePath.startsWith("/") || notePath.indexOf("\u0000") !== -1 || actionRunning)
+            return "unavailable"
+        var argv = [openHelperPath, notePath]
+        lastCommandJson = JSON.stringify(argv)
+        actionRunning = true
+        opener.command = argv
+        opener.running = true
+        return "started"
+    }
+
     FileView {
         id: statusFile
         path: root.statusPath
@@ -73,6 +89,18 @@ Scope {
         onFileChanged: reload()
         onLoaded: root._apply(text())
         onLoadFailed: root._reset(root.configured ? "missing" : "unconfigured", "")
+    }
+
+    Process {
+        id: opener
+        onExited: function(exitCode) { root.actionRunning = false }
+    }
+
+    Timer {
+        interval: 1000
+        repeat: true
+        running: root.completed || root.failed
+        onTriggered: root.currentTime = Date.now() / 1000
     }
 
     Component.onCompleted: refresh()

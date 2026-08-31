@@ -13,10 +13,16 @@ Scope {
     readonly property var settings: context.settings ? context.settings.values : ({})
     readonly property string helperPath: String(settings.recorderHelperPath || "")
     readonly property string statePath: String(settings.recordingStatePath || "")
+    readonly property string recordingDirectory: String(settings.recordingDirectory || "")
     readonly property bool configured: helperPath.charAt(0) === "/" && statePath.charAt(0) === "/"
     readonly property bool active: phase === "recording" || phase === "paused" || phase === "stopping"
     readonly property bool paused: phase === "paused"
     readonly property bool completed: phase === "completed"
+    readonly property string elapsedText: _formatDuration(elapsedSeconds)
+    readonly property string outputFilename: {
+        var parts = outputPath.split("/")
+        return parts.length > 0 ? parts[parts.length - 1] : ""
+    }
 
     property string phase: "idle"
     property string outputPath: ""
@@ -33,6 +39,25 @@ Scope {
     function _finiteNumber(value, fallback) {
         var number = Number(value)
         return isFinite(number) ? number : fallback
+    }
+
+    function _formatDuration(seconds) {
+        var total = Math.max(0, Math.round(seconds || 0))
+        var hours = Math.floor(total / 3600)
+        var minutes = Math.floor((total % 3600) / 60)
+        var remaining = total % 60
+        function pad(value) { return String(value).padStart(2, "0") }
+        return hours > 0 ? pad(hours) + ":" + pad(minutes) + ":" + pad(remaining)
+            : pad(minutes) + ":" + pad(remaining)
+    }
+
+    function _defaultTitle() {
+        if (typeof settings.recordingDefaultTitle === "string" && settings.recordingDefaultTitle)
+            return settings.recordingDefaultTitle
+        var now = new Date()
+        function pad(value) { return String(value).padStart(2, "0") }
+        return now.getFullYear() + "." + pad(now.getMonth() + 1) + "." + pad(now.getDate())
+            + "-" + pad(now.getHours()) + "." + pad(now.getMinutes()) + "." + pad(now.getSeconds())
     }
 
     function _reset(status, message) {
@@ -97,6 +122,13 @@ Scope {
     // Every command starts with the configured immutable helper path. No shell
     // string is constructed and this service never starts or owns the recorder.
     function start(directory, selectedMonitor, requestedTitle, desktopAudio, microphone) {
+        if (arguments.length === 0) {
+            directory = recordingDirectory
+            selectedMonitor = context.compositor ? String(context.compositor.focusedOutputId || "") : ""
+            requestedTitle = _defaultTitle()
+            desktopAudio = settings.desktopAudioDefault === undefined ? true : Boolean(settings.desktopAudioDefault)
+            microphone = settings.microphoneDefault === undefined ? false : Boolean(settings.microphoneDefault)
+        }
         if (!String(directory || "").startsWith("/") || !String(selectedMonitor || "") || !String(requestedTitle || ""))
             return "invalid"
         return _run([
@@ -107,6 +139,7 @@ Scope {
     }
 
     function togglePause() { return _run([helperPath, "toggle-pause"]) }
+    function finish() { return _run([helperPath, "stop"]) }
     function stop() { return _run([helperPath, "stop"]) }
     function stopAsMeeting() { return _run([helperPath, "stop", "--meeting"]) }
     function cancel() { return _run([helperPath, "cancel"]) }

@@ -25,6 +25,7 @@ Scope {
     property real smoothedLevel: 0
     property real recordingBaseMs: 0
     property real recordingAnchorMs: 0
+    property real scanPos: 0
 
     function _clamp(value, minimum, maximum) { return Math.min(Math.max(value, minimum), maximum) }
     function _finite(value) { return typeof value === "number" && isFinite(value) }
@@ -94,6 +95,12 @@ Scope {
         repeat: true
         running: root.visualizerState === "recording"
         onTriggered: root._updateDuration()
+    }
+    Timer {
+        interval: 16
+        repeat: true
+        running: root.visualizerState === "transcribing"
+        onTriggered: root.scanPos = (root.scanPos + 0.2) % (root.barCount + 5)
     }
     Socket {
         id: socket
