@@ -464,6 +464,8 @@ Current verification:
   validation, Nix formatting, and flake evaluation exited 0; the tracked live
   Niri file was not changed. The reverse sequence also passed its apply checks,
   Niri validation, and byte comparison with both original preimages.
+- Every `/tmp/stillsuit-lanes/*` worktree reported clean before removal and was
+  pruned. The pre-existing unrelated `skill-audit` worktree was preserved.
 
 ## Human-owned gates
 
