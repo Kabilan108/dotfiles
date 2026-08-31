@@ -493,6 +493,22 @@ boundaries with no blocker or major finding. The host-core reviewer and primary
 session both judged Gate 1 technically safe because it does not enable
 Stillsuit Next. No gate was run during recovery.
 
+Repair progress:
+
+- A2 and A3 were implemented in isolated host-core commit `e1822e6b` and
+  accepted through merge commit `60a08530`. The orchestrator read the complete
+  cumulative diff before merge.
+- The repair invalidates only the in-flight selected-bar load from the catalog
+  document-failure path, so component-error fallback paths cannot decrement the
+  pending-load count twice. Screen reconciliation now contains a failed
+  contribution to its plugin and continues with later plugins.
+- The new regressions failed on `8da6ac7f` before the fix. The lane reported the
+  existing 67 core checks plus 13 repair checks passing. The orchestrator then
+  reran the complete Lane B fixture independently after review; it exited 0
+  with the same 67 plus 13 checks.
+- A1, A4 through A7, N1, and N2 remain in their isolated repair lanes. No gate
+  or activation has been performed.
+
 ## Human-owned gates
 
 Gate 1, workspace removal and Waybar ownership, has not been run. Its exact
