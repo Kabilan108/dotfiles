@@ -479,7 +479,7 @@ The deduplicated findings, source locators, repair order, reviewer completion
 status, and recovery limitation are recorded in
 `docs/plans/stillsuit-next-claude-review-recovery.md`.
 
-Gate 2 is now blocked on the recovered repair list. The required items are:
+The recovered review blocked Gate 2 on this repair list:
 
 - pass the real bar output identity into the workspaces widget;
 - invalidate an in-flight selected-bar load before fallback activation;
@@ -531,8 +531,70 @@ Repair progress:
   `nix flake check --no-build` all exited 0. The unsupported user-unit
   `DataDirectory` directive was removed.
 - All recovered repair items are now merged. The complete post-integration
-  fixture ladder and disposable forced-enabled build remain in progress. No
+  fixture ladder and disposable forced-enabled build are recorded below. No
   gate or activation has been performed.
+
+Post-repair integration verification:
+
+- Draft 2020-12 validation over all 15 built-in manifests exited 0. Static
+  duplicate-ID and four-target IPC checks, expected pre-Gate-1 workspace
+  containment, eight-file provenance-header checks, and the no-runtime-upstream
+  dependency check exited 0. The first inline static harness exited 1 because
+  its IPC regex was over-escaped; the corrected identical assertions exited 0.
+- The complete isolated fixture ladder exited 0: host boot; 67 core-contract
+  checks; 13 host-repair checks; agent panel; all three private-D-Bus
+  notification suites; D1 static and real-QML; D2 compositor; D3 services; D4
+  real two-output widgets; and D5 recorder/workflow behavior.
+- D3 initially exited 1 because its direct widget construction had not been
+  updated for A1's required `outputId`. Integration commit `e82aed8` supplies
+  and asserts two distinct output identities. The orchestrator read the diff,
+  reran D3, and accepted the fixture-only correction.
+- Bash syntax and Nix-shell ShellCheck over all 12 shell drivers/helpers exited
+  0. The first syntax command exited 127 because it used the stale helper path
+  `bin/stillsuit-agent-panel`; the corrected package-local path exited 0.
+- Python compilation over the recorder, meeting enqueue source, and D5 socket
+  fixture exited 0. Ruff and `ty` over the two modified Python programs exited
+  0. A broad Ruff run exited 1 on four pre-existing `bin/meeting-minutes`
+  findings outside this branch's one added schema-version line; the same file
+  exited 0 with only those unchanged `RUF046` and `DTZ006` findings excluded.
+  They were not expanded into this migration.
+- `nixfmt --check` over all 16 Nix files changed since the starting commit,
+  the empty-PATH meeting-enqueue build fixture, two deterministic valid
+  registry evaluations, `nix flake check --no-build`, and default-off Jacurutu
+  closure evaluation exited 0. Malformed JSON evaluation exited 1 as expected
+  with both the manifest path and underlying parse error.
+- The first main-source meeting fixture invocation exited 1 because
+  `builtins.getFlake` tried to copy the ignored live Unix socket below the dirty
+  checkout. Reusing the clean repair worktree only for the pinned nixpkgs input
+  while retaining main-checkout fixture sources exited 0.
+- The first disposable no-link build exited 0 but was rejected: its temporary
+  Git repository still had the gate patches uncommitted, so a post-build option
+  audit proved Nix had evaluated `enable = false`. Committing the temporary
+  changes then exposed a real defect in the staged Gate 2 patch: its zero-context
+  hunk placed enablement inside the Nix `let` block as unused local bindings.
+- Integration commit `0e0f202` moves that hunk below `in {`. A fresh archive of
+  current `HEAD` accepted both Gate 1 patches and the corrected Gate 2 patch,
+  passed `git diff --check`, Niri validation, Nix formatting, and forced-enabled
+  flake evaluation, and proved `enable = true`, Stillsuit bar and notification
+  ownership, catalog presence, and user-unit presence before the final build.
+- The actual forced-enabled Jacurutu closure evaluated to
+  `/nix/store/gcjy1qhxm8bd15fm8nmp79qvkk2bhwbk-nixos-system-jacurutu-26.11.20260822.2c423e0.drv`;
+  `nix build --no-link` exited 0. The built catalog has 15 unique plugins and
+  selected bar `stillsuit.bar`. The generated unit uses canonical config ID
+  `stillsuit-next`, has no `DataDirectory`, and passed `systemd-analyze --user
+  verify` with its packaged user-unit search path. The built recorder wrapper
+  exposes only `gpu-screen-recorder` on PATH and references the store-backed
+  meeting enqueue helper.
+- One unit inspection and verification attempt used the derivation's output
+  directory as if it were the unit file and exited 4/1. Resolving its contained
+  `stillsuit-shell.service` and the packaged systemd user-target path produced
+  the successful checks above.
+- The three clean repair worktrees were removed and their merged temporary
+  branches deleted. All disposable cutover archives and the temporary Python
+  bytecode cache were deleted after evidence capture; their source remains in
+  Git and the successful build outputs remain in the Nix store. The pre-existing
+  `skill-audit` worktree and unrelated untracked
+  `agents/skills/html-plans/todos.md` were preserved.
 
 ## Human-owned gates
 
@@ -549,9 +611,6 @@ barriers, single-instance/owner assertions, and rollback.
 
 ## Remaining work
 
-- Complete the post-integration isolated fixture ladder and a forced-enabled
-  Jacurutu build in a disposable cutover tree without activation. Record the
-  exact results here before considering either gate.
 - Resume the independent Claude review against the repaired branch. The
   recovered review did not inspect these repair commits.
 - After the session is unlocked, repeat the shadow-only screenshot checklist
