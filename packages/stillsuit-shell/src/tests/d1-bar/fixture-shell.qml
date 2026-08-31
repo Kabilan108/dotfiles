@@ -60,9 +60,11 @@ ShellRoot {
         property int warningCount: 0
         property string releasedMessage: ""
 
-        function recordConstruction(instanceId) {
+        function recordConstruction(instanceId, outputId) {
             fixture.assert(instanceId === "d1-bar-fixture",
                 "constructed widget did not receive its required context")
+            fixture.assert(outputId === "fixture-output",
+                "constructed widget did not receive its required output")
             constructionCount++
         }
 
@@ -83,7 +85,7 @@ ShellRoot {
     QtObject {
         id: staleService
 
-        function recordConstruction(instanceId) {
+        function recordConstruction(instanceId, outputId) {
             tracker.staleConstructionCount++
         }
 
@@ -136,6 +138,7 @@ ShellRoot {
 
     WidgetSlot {
         id: testedSlot
+        outputId: "fixture-output"
         registration: fixture.goodRegistration
     }
 
