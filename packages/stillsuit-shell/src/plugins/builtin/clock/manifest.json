@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.clock",
+  "name": "Clock",
+  "description": "Per-output wall clock bar widget.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "ClockWidget.qml" },
+  "scope": { "barWidget": "per-output" },
+  "barWidget": { "defaultSection": "center", "allowMultiple": false }
+}

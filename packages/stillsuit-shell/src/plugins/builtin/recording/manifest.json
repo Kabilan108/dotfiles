@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.recording",
+  "name": "Recording",
+  "description": "Screen recording workflow state and controls.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["bar-widget", "panel"],
+  "entryPoints": { "barWidget": "RecordingWidget.qml", "panel": "RecordingPanel.qml" },
+  "scope": { "barWidget": "per-output", "panel": "per-output" },
+  "dependencies": ["stillsuit.workflows"],
+  "barWidget": { "defaultSection": "left", "allowMultiple": false }
+}
