@@ -10,6 +10,7 @@ import "workspaces" as Workspaces
 ShellRoot {
     id: fixture
 
+    property int clockServiceInstances: 0
     property int resourceServiceInstances: 0
     property var actionCalls: []
 
@@ -96,9 +97,16 @@ ShellRoot {
         Component.onDestruction: fixture.resourceServiceInstances -= 1
     }
 
+    Clock.ClockService {
+        id: clockService
+        context: context
+        Component.onCompleted: fixture.clockServiceInstances += 1
+        Component.onDestruction: fixture.clockServiceInstances -= 1
+    }
+
     Item {
-        Clock.ClockWidget { id: clockOne; context: context }
-        Clock.ClockWidget { id: clockTwo; context: context }
+        Clock.ClockWidget { id: clockOne; context: context; service: clockService }
+        Clock.ClockWidget { id: clockTwo; context: context; service: clockService }
         Workspaces.WorkspaceWidget { id: workspacePrimary; context: context; outputId: "primary" }
         Workspaces.WorkspaceWidget { id: workspaceSecondary; context: context; outputId: "secondary" }
         Resources.ResourceWidget { id: resourcesPrimary; context: context; service: resourceService }
@@ -111,16 +119,21 @@ ShellRoot {
 
     IpcHandler {
         target: "stillsuit-d4-fixture"
-        function ready(): string { return fixture.resourceServiceInstances === 1 ? "ready" : "loading" }
+        function ready(): string {
+            return fixture.clockServiceInstances === 1 && fixture.resourceServiceInstances === 1
+                ? "ready" : "loading"
+        }
         function topology(): string {
             return JSON.stringify({
-                serviceInstances: fixture.resourceServiceInstances,
+                clockServiceInstances: fixture.clockServiceInstances,
+                resourceServiceInstances: fixture.resourceServiceInstances,
                 outputs: 2,
                 clockViews: 2,
                 workspaceViews: 2,
                 resourceViews: 2,
                 meetingViews: 2,
                 recordingViews: 2,
+                sharedClockService: clockOne.service === clockTwo.service,
                 sharedResourceService: resourcesPrimary.service === resourcesSecondary.service
             })
         }

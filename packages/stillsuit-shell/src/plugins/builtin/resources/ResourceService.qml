@@ -5,6 +5,7 @@ QtObject {
     id: root
 
     required property var context
+    readonly property string apiVersion: "1"
     property int cpuPercent: 0
     property int memoryPercent: 0
     property double previousTotal: 0

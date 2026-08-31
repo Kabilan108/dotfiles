@@ -36,6 +36,8 @@ done
 for manifest in "$source_root"/plugins/builtin/{clock,workspaces,resources,meeting,recording}/manifest.json; do
     jq -e '.schemaVersion == 1 and (.id | startswith("stillsuit."))' "$manifest" >/dev/null
 done
+jq -e '.kinds == ["service", "bar-widget"] and .scope.service == "global"' \
+    "$source_root/plugins/builtin/clock/manifest.json" >/dev/null
 jq -e '.kinds == ["service", "bar-widget", "panel"] and .scope.service == "global"' \
     "$source_root/plugins/builtin/resources/manifest.json" >/dev/null
 jq -e '.dependencies == ["stillsuit.workflows"]' "$source_root/plugins/builtin/meeting/manifest.json" >/dev/null
@@ -59,7 +61,7 @@ if [[ $(ipc ready) != ready ]]; then
 fi
 
 topology=$(ipc topology)
-jq -e '.serviceInstances == 1 and .outputs == 2 and .clockViews == 2 and .workspaceViews == 2 and .resourceViews == 2 and .meetingViews == 2 and .recordingViews == 2 and .sharedResourceService' >/dev/null <<<"$topology"
+jq -e '.clockServiceInstances == 1 and .resourceServiceInstances == 1 and .outputs == 2 and .clockViews == 2 and .workspaceViews == 2 and .resourceViews == 2 and .meetingViews == 2 and .recordingViews == 2 and .sharedClockService and .sharedResourceService' >/dev/null <<<"$topology"
 workspace=$(ipc workspaceSnapshot)
 jq -e '.primaryWorkspaces == 1 and .secondaryWorkspaces == 2 and .secondaryColumns == 4 and .secondaryFocusedColumn == 2' >/dev/null <<<"$workspace"
 routes=$(ipc routeActions)

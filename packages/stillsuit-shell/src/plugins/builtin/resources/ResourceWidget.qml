@@ -5,7 +5,7 @@ Rectangle {
     id: root
 
     required property var context
-    property var service: null
+    required property var service
     readonly property var metrics: service
 
     implicitWidth: row.implicitWidth + 14

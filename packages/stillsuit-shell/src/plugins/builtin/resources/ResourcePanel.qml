@@ -8,7 +8,7 @@ Scope {
     required property var context
     required property var screen
     required property string outputId
-    property var service: null
+    required property var service
     readonly property var metrics: service
     property bool opened: false
 

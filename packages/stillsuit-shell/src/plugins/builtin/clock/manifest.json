@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "id": "stillsuit.clock",
   "name": "Clock",
-  "description": "Per-output wall clock bar widget.",
+  "description": "Shared wall clock state with per-output bar views.",
   "version": "1.0.0",
   "apiVersion": "1",
-  "kinds": ["bar-widget"],
-  "entryPoints": { "barWidget": "ClockWidget.qml" },
-  "scope": { "barWidget": "per-output" },
+  "kinds": ["service", "bar-widget"],
+  "entryPoints": { "service": "ClockService.qml", "barWidget": "ClockWidget.qml" },
+  "scope": { "service": "global", "barWidget": "per-output" },
   "barWidget": { "defaultSection": "center", "allowMultiple": false }
 }
