@@ -506,8 +506,33 @@ Repair progress:
   existing 67 core checks plus 13 repair checks passing. The orchestrator then
   reran the complete Lane B fixture independently after review; it exited 0
   with the same 67 plus 13 checks.
-- A1, A4 through A7, N1, and N2 remain in their isolated repair lanes. No gate
-  or activation has been performed.
+- A1, A4, A5, and A6 were implemented in isolated bar/workflow commit
+  `e193d6fd` and accepted through merge commit `dd5796e4`. The orchestrator
+  read the complete cumulative diff before merge, then independently reran the
+  real two-output D4 fixture and the real recorder/meeting D5 fixture; both
+  exited 0.
+- The bar now supplies `outputId` at construction to every built-in widget;
+  recorder state accepts `meeting_queued`; resource file views reload before
+  reads; and the singleton recorder service derives a live elapsed value while
+  preserving exact paused-time arithmetic.
+- The D1 real-QML fixture was updated in integration commit `0058fe54` to assert
+  the same constructor-time `outputId` contract. Its static and QML runs both
+  exited 0 after the orchestrator reviewed the integration diff.
+- A7, N1, and N2 were implemented in isolated Nix commit `3fa5bb71` and
+  accepted through merge commit `a664a2f7`. The orchestrator read all nine
+  changed files before merge.
+- The store-backed enqueue helper pins Python and `systemctl`; the recorder
+  wrapper's PATH still contains only `gpu-screen-recorder`. Independent builds
+  showed exactly Python and `systemd-minimal` as the enqueue helper's direct
+  references, and the empty-PATH/fake-systemctl enqueue fixture exited 0.
+  Deterministic valid registry evaluation exited 0 twice; malformed JSON
+  failed with both its manifest path and the underlying parse error. Nix
+  formatting, recorder/helper builds, commit diff checks, and
+  `nix flake check --no-build` all exited 0. The unsupported user-unit
+  `DataDirectory` directive was removed.
+- All recovered repair items are now merged. The complete post-integration
+  fixture ladder and disposable forced-enabled build remain in progress. No
+  gate or activation has been performed.
 
 ## Human-owned gates
 
@@ -524,13 +549,11 @@ barriers, single-instance/owner assertions, and rollback.
 
 ## Remaining work
 
-- Resolve and independently review the required findings in
-  `docs/plans/stillsuit-next-claude-review-recovery.md`. Gate 2 must not run
-  against commit `5f487bf3`.
-- Extend the isolated fixtures to cover the real bar output path, asynchronous
-  bar-failure invalidation, multi-plugin screen reconciliation, recorder phase
-  compatibility, changing resource samples, live elapsed time, and the
-  recorder-to-meeting restricted closure.
+- Complete the post-integration isolated fixture ladder and a forced-enabled
+  Jacurutu build in a disposable cutover tree without activation. Record the
+  exact results here before considering either gate.
+- Resume the independent Claude review against the repaired branch. The
+  recovered review did not inspect these repair commits.
 - After the session is unlocked, repeat the shadow-only screenshot checklist
   for both bar outputs plus audio/resources panels; confirm workspace content
   and changing resource readings. Do not use it to perform Gate 2.
