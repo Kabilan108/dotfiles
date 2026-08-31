@@ -2,10 +2,13 @@
 set -euo pipefail
 
 readonly SESSION_NAME="stillsuit-agent"
+readonly SESSION_TARGET="=$SESSION_NAME"
 readonly APP_ID="io.stillsuit.AgentPanel"
 readonly DEFAULT_MODEL="gpt-5.6-sol"
 readonly DEFAULT_EFFORT="low"
 readonly DEFAULT_TIER="fast"
+readonly SHUTDOWN_POLL_INTERVAL="0.05"
+readonly SHUTDOWN_POLL_ATTEMPTS=100
 
 usage() {
   printf 'usage: %s {open|hide|toggle|status|terminate}\n' "${0##*/}" >&2
@@ -30,12 +33,29 @@ mkdir -p "$RUNTIME_ROOT"
 exec 9>"$LOCK_FILE"
 flock 9
 
-window_ids() {
+query_window_ids() {
   local windows
-  if ! windows=$(niri msg -j windows 2>/dev/null); then
-    windows='[]'
-  fi
+  windows=$(niri msg -j windows 2>/dev/null) || return
   jq -r --arg app_id "$APP_ID" '.[] | select(.app_id == $app_id) | .id' <<<"$windows"
+}
+
+window_ids() {
+  query_window_ids || true
+}
+
+load_window_ids() {
+  local output id
+  local -n destination=$1
+  if ! output=$(query_window_ids); then
+    printf 'failed to query Niri windows for the agent panel\n' >&2
+    return 75
+  fi
+  destination=()
+  if [[ -n $output ]]; then
+    while IFS= read -r id; do
+      destination+=("$id")
+    done <<<"$output"
+  fi
 }
 
 pending_pid() {
@@ -67,11 +87,11 @@ pid_is_agent_ghostty() {
 
 session_state() {
   local panes
-  if ! tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+  if ! tmux has-session -t "$SESSION_TARGET" 2>/dev/null; then
     printf 'absent\n'
     return
   fi
-  if ! panes=$(tmux list-panes -t "$SESSION_NAME" -F '#{pane_dead}' 2>/dev/null); then
+  if ! panes=$(tmux list-panes -t "$SESSION_TARGET" -F '#{pane_dead}' 2>/dev/null); then
     printf 'dead\n'
     return
   fi
@@ -115,27 +135,94 @@ read_launch_config() {
   readonly MODEL EFFORT TIER
 }
 
-close_windows() {
+wait_for_windows_closed() {
+  local attempt id windows all_closed
+  local -a ids=("$@")
+  ((${#ids[@]} > 0)) || return 0
+
+  for ((attempt = 0; attempt < SHUTDOWN_POLL_ATTEMPTS; attempt++)); do
+    if ! windows=$(query_window_ids); then
+      printf 'failed to query Niri while waiting for agent panel windows to close\n' >&2
+      return 75
+    fi
+    all_closed=true
+    for id in "${ids[@]}"; do
+      if grep -Fqx -- "$id" <<<"$windows"; then
+        all_closed=false
+        break
+      fi
+    done
+    if [[ $all_closed == true ]]; then
+      return
+    fi
+    ((attempt + 1 == SHUTDOWN_POLL_ATTEMPTS)) || sleep "$SHUTDOWN_POLL_INTERVAL"
+  done
+
+  printf 'timed out waiting for agent panel window IDs to close: %s\n' "${ids[*]}" >&2
+  return 75
+}
+
+close_window_ids() {
   local id
-  while IFS= read -r id; do
-    [[ -n $id ]] || continue
+  local -a ids=("$@")
+  ((${#ids[@]} > 0)) || return 0
+  for id in "${ids[@]}"; do
     niri msg action close-window --id "$id" >/dev/null
-  done < <(window_ids)
+  done
+  wait_for_windows_closed "${ids[@]}"
+}
+
+close_windows() {
+  local -a ids=()
+  load_window_ids ids
+  close_window_ids "${ids[@]}"
+}
+
+clear_pending_pid() {
+  local expected_pid=$1 recorded_pid
+  [[ -r $GHOSTTY_PID_FILE ]] || return
+  IFS= read -r recorded_pid <"$GHOSTTY_PID_FILE"
+  if [[ $recorded_pid == "$expected_pid" ]]; then
+    rm -f "$GHOSTTY_PID_FILE"
+  fi
+}
+
+wait_for_pid_exit() {
+  local pid=$1 attempt
+  for ((attempt = 0; attempt < SHUTDOWN_POLL_ATTEMPTS; attempt++)); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      clear_pending_pid "$pid"
+      return
+    fi
+    ((attempt + 1 == SHUTDOWN_POLL_ATTEMPTS)) || sleep "$SHUTDOWN_POLL_INTERVAL"
+  done
+
+  printf 'timed out waiting for agent panel Ghostty PID %s to exit\n' "$pid" >&2
+  return 75
 }
 
 stop_pending_window() {
   local pid
   if pid=$(pending_pid); then
-    kill "$pid" 2>/dev/null || true
+    if ! pid_is_agent_ghostty "$pid"; then
+      printf 'refusing to terminate unverified agent panel PID %s\n' "$pid" >&2
+      return 75
+    fi
+    if ! kill "$pid" 2>/dev/null && kill -0 "$pid" 2>/dev/null; then
+      printf 'failed to terminate agent panel Ghostty PID %s\n' "$pid" >&2
+      return 75
+    fi
+    wait_for_pid_exit "$pid"
+  else
+    rm -f "$GHOSTTY_PID_FILE"
   fi
-  rm -f "$GHOSTTY_PID_FILE"
 }
 
 ensure_session() {
   local state=$1
   case "$state" in
     running) return ;;
-    dead) tmux kill-session -t "$SESSION_NAME" 2>/dev/null || true ;;
+    dead) tmux kill-session -t "$SESSION_TARGET" 2>/dev/null || true ;;
     absent) ;;
   esac
 
@@ -144,7 +231,7 @@ ensure_session() {
     codex --yolo --model "$MODEL" \
     --config "model_reasoning_effort=$EFFORT" \
     --config "service_tier=$TIER"
-  tmux set-option -t "$SESSION_NAME" remain-on-exit on >/dev/null
+  tmux set-option -t "$SESSION_TARGET" remain-on-exit on >/dev/null
 }
 
 launch_window() {
@@ -153,13 +240,13 @@ launch_window() {
     return
   fi
   ghostty --class="$APP_ID" --title="Stillsuit Agent" \
-    -e tmux attach-session -t "$SESSION_NAME" >/dev/null 2>&1 9>&- &
+    -e tmux attach-session -t "$SESSION_TARGET" >/dev/null 2>&1 9>&- &
   pid=$!
   printf '%s\n' "$pid" >"$GHOSTTY_PID_FILE"
 }
 
 open_panel() {
-  local before id
+  local before
   local -a ids=()
   before=$(session_state)
   if [[ $before != running ]]; then
@@ -168,14 +255,22 @@ open_panel() {
   fi
   ensure_session "$before"
 
-  mapfile -t ids < <(window_ids)
+  load_window_ids ids
   if ((${#ids[@]} > 0)); then
     niri msg action focus-window --id "${ids[0]}" >/dev/null
-    for id in "${ids[@]:1}"; do
-      niri msg action close-window --id "$id" >/dev/null
-    done
+    close_window_ids "${ids[@]:1}"
   else
     launch_window
+  fi
+}
+
+toggle_panel() {
+  local -a ids=()
+  load_window_ids ids
+  if ((${#ids[@]} > 0)) || pending_pid >/dev/null; then
+    hide_panel
+  else
+    open_panel
   fi
 }
 
@@ -186,8 +281,8 @@ hide_panel() {
 
 terminate_panel() {
   hide_panel
-  if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
-    tmux kill-session -t "$SESSION_NAME"
+  if tmux has-session -t "$SESSION_TARGET" 2>/dev/null; then
+    tmux kill-session -t "$SESSION_TARGET"
   fi
 }
 
@@ -218,13 +313,7 @@ print_status() {
 case "$ACTION" in
   open) open_panel ;;
   hide) hide_panel ;;
-  toggle)
-    if [[ -n $(window_ids) ]] || pending_pid >/dev/null; then
-      hide_panel
-    else
-      open_panel
-    fi
-    ;;
+  toggle) toggle_panel ;;
   status) ;;
   terminate) terminate_panel ;;
 esac

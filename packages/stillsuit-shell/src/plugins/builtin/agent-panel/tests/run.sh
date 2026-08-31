@@ -6,14 +6,21 @@ readonly TEST_DIR
 HELPER=${HELPER:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)/bin/stillsuit-agent-panel}
 readonly HELPER
 readonly REAL_PATH=$PATH
+REAL_TMUX=$(command -v tmux)
+readonly REAL_TMUX
+readonly FIXTURE_TMUX_SOCKET="$TEST_DIR/tmux.sock"
 
 cleanup() {
+  if [[ -r $TEST_DIR/fixture/innocent.pid ]]; then
+    kill "$(<"$TEST_DIR/fixture/innocent.pid")" 2>/dev/null || true
+  fi
   if [[ -r $TEST_DIR/fixture/ghostty.pids ]]; then
     local pid
     while IFS= read -r pid; do
       if [[ $pid =~ ^[1-9][0-9]*$ ]]; then kill "$pid" 2>/dev/null || true; fi
     done <"$TEST_DIR/fixture/ghostty.pids"
   fi
+  "$REAL_TMUX" -S "$FIXTURE_TMUX_SOCKET" kill-server 2>/dev/null || true
   rm -rf "$TEST_DIR"
 }
 trap cleanup EXIT
@@ -41,15 +48,24 @@ assert_eq() {
 cat >"$TEST_DIR/bin/tmux" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+require_exact_target() {
+  [[ ${2:-} == -t && ${3:-} == =stillsuit-agent ]] || {
+    printf 'non-exact tmux target: %q\n' "$*" >&2
+    exit 97
+  }
+}
 case ${1:-} in
   has-session)
+    require_exact_target "$@"
     [[ -e $FIXTURE_ROOT/session ]]
     ;;
   list-panes)
+    require_exact_target "$@"
     [[ -e $FIXTURE_ROOT/session ]] || exit 1
     if [[ -e $FIXTURE_ROOT/dead ]]; then printf '1\n'; else printf '0\n'; fi
     ;;
   new-session)
+    [[ ${2:-} == -d && ${3:-} == -s && ${4:-} == stillsuit-agent ]] || exit 97
     touch "$FIXTURE_ROOT/session"
     rm -f "$FIXTURE_ROOT/dead"
     count=0
@@ -63,11 +79,16 @@ case ${1:-} in
     done
     exit 0
     ;;
-  set-option) ;;
+  set-option)
+    require_exact_target "$@"
+    ;;
   kill-session)
+    require_exact_target "$@"
     rm -f "$FIXTURE_ROOT/session" "$FIXTURE_ROOT/dead"
     ;;
-  attach-session) ;;
+  attach-session)
+    require_exact_target "$@"
+    ;;
   *) exit 2 ;;
 esac
 EOF
@@ -76,6 +97,17 @@ cat >"$TEST_DIR/bin/niri" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ ${1:-} == msg && ${2:-} == -j && ${3:-} == windows ]]; then
+  count=0
+  [[ -r $FIXTURE_ROOT/window-query-count ]] && count=$(<"$FIXTURE_ROOT/window-query-count")
+  printf '%s\n' "$((count + 1))" >"$FIXTURE_ROOT/window-query-count"
+  if [[ -s $FIXTURE_ROOT/window-closing-polls ]]; then
+    polls=$(<"$FIXTURE_ROOT/window-closing-polls")
+    if ((polls <= 1)); then
+      rm -f "$FIXTURE_ROOT/window" "$FIXTURE_ROOT/window-closing-polls"
+    else
+      printf '%s\n' "$((polls - 1))" >"$FIXTURE_ROOT/window-closing-polls"
+    fi
+  fi
   if [[ -s $FIXTURE_ROOT/window ]]; then
     id=$(<"$FIXTURE_ROOT/window")
     printf '[{"id":%s,"app_id":"io.stillsuit.AgentPanel"}]\n' "$id"
@@ -83,7 +115,11 @@ if [[ ${1:-} == msg && ${2:-} == -j && ${3:-} == windows ]]; then
     printf '[]\n'
   fi
 elif [[ ${1:-} == msg && ${2:-} == action && ${3:-} == close-window ]]; then
-  rm -f "$FIXTURE_ROOT/window"
+  if [[ -s $FIXTURE_ROOT/close-delay-polls ]]; then
+    cp "$FIXTURE_ROOT/close-delay-polls" "$FIXTURE_ROOT/window-closing-polls"
+  else
+    rm -f "$FIXTURE_ROOT/window"
+  fi
 elif [[ ${1:-} == msg && ${2:-} == action && ${3:-} == focus-window ]]; then
   :
 else
@@ -97,10 +133,34 @@ set -euo pipefail
 [[ " $* " == *" --class=io.stillsuit.AgentPanel "* ]] || exit 2
 printf '%s\n' "$@" >"$FIXTURE_ROOT/ghostty.argv"
 printf '%s\n' "$BASHPID" >>"$FIXTURE_ROOT/ghostty.pids"
+if [[ -r $FIXTURE_ROOT/active-ghostty.pid ]]; then
+  previous_pid=$(<"$FIXTURE_ROOT/active-ghostty.pid")
+  if kill -0 "$previous_pid" 2>/dev/null; then
+    touch "$FIXTURE_ROOT/ghostty-overlap"
+  fi
+fi
+printf '%s\n' "$BASHPID" >"$FIXTURE_ROOT/active-ghostty.pid"
+if [[ -e $FIXTURE_ROOT/window ]]; then
+  touch "$FIXTURE_ROOT/window-overlap"
+fi
 printf '41\n' >"$FIXTURE_ROOT/window"
-trap 'rm -f "$FIXTURE_ROOT/window"' EXIT
-trap 'exit 0' TERM INT
-while :; do sleep 1; done
+cleanup_ghostty() {
+  active_pid=''
+  [[ -r $FIXTURE_ROOT/active-ghostty.pid ]] && active_pid=$(<"$FIXTURE_ROOT/active-ghostty.pid")
+  if [[ $active_pid == "$BASHPID" ]]; then
+    rm -f "$FIXTURE_ROOT/active-ghostty.pid" "$FIXTURE_ROOT/window"
+  fi
+}
+stop_ghostty() {
+  touch "$FIXTURE_ROOT/term-requested"
+  if [[ -s $FIXTURE_ROOT/term-delay ]]; then
+    sleep "$(<"$FIXTURE_ROOT/term-delay")"
+  fi
+  exit 0
+}
+trap cleanup_ghostty EXIT
+trap stop_ghostty TERM INT
+while :; do sleep 0.05; done
 EOF
 
 cat >"$TEST_DIR/bin/codex" <<'EOF'
@@ -114,7 +174,13 @@ reset_fixture() {
   if [[ -r $FIXTURE_ROOT/ghostty.pids ]]; then
     local pid
     while IFS= read -r pid; do
-      if [[ $pid =~ ^[1-9][0-9]*$ ]]; then kill "$pid" 2>/dev/null || true; fi
+      if [[ $pid =~ ^[1-9][0-9]*$ ]]; then
+        kill "$pid" 2>/dev/null || true
+        for _ in $(seq 1 100); do
+          kill -0 "$pid" 2>/dev/null || break
+          sleep 0.01
+        done
+      fi
     done <"$FIXTURE_ROOT/ghostty.pids"
   fi
   rm -f "$FIXTURE_ROOT"/* "$XDG_RUNTIME_DIR/agent-panel-ghostty.pid" \
@@ -127,6 +193,9 @@ assert_eq running "$("$HELPER" status | jq -r .session)" "absent session launch"
 mapfile -t argv <"$FIXTURE_ROOT/codex.argv"
 expected=(codex --yolo --model gpt-5.6-sol --config model_reasoning_effort=low --config service_tier=fast)
 assert_eq "${expected[*]}" "${argv[*]}" "fixed default Codex argv"
+mapfile -t ghostty_argv <"$FIXTURE_ROOT/ghostty.argv"
+[[ " ${ghostty_argv[*]} " == *" tmux attach-session -t =stillsuit-agent "* ]] ||
+  fail "Ghostty did not receive an exact tmux attach target"
 
 if "$HELPER" open injected >/dev/null 2>&1; then
   fail "extra action argument was accepted"
@@ -143,9 +212,11 @@ fi
 
 reset_fixture
 printf '73\n' >"$FIXTURE_ROOT/window"
+printf '4\n' >"$FIXTURE_ROOT/close-delay-polls"
 "$HELPER" open >/dev/null
 [[ -e $FIXTURE_ROOT/session ]] || fail "stale window did not create a session"
 assert_eq 41 "$(<"$FIXTURE_ROOT/window")" "stale window replacement"
+[[ ! -e $FIXTURE_ROOT/window-overlap ]] || fail "new Ghostty overlapped a closing window"
 
 reset_fixture
 touch "$FIXTURE_ROOT/session" "$FIXTURE_ROOT/dead"
@@ -153,6 +224,34 @@ printf '74\n' >"$FIXTURE_ROOT/window"
 "$HELPER" open >/dev/null
 [[ ! -e $FIXTURE_ROOT/dead ]] || fail "dead Codex session was not replaced"
 assert_eq 41 "$(<"$FIXTURE_ROOT/window")" "dead Codex window replacement"
+
+reset_fixture
+touch "$FIXTURE_ROOT/session"
+"$HELPER" open >/dev/null
+old_pid=$(<"$XDG_RUNTIME_DIR/agent-panel-ghostty.pid")
+printf '0.25\n' >"$FIXTURE_ROOT/term-delay"
+"$HELPER" hide >/dev/null &
+hide_pid=$!
+for _ in $(seq 1 100); do
+  [[ -e $FIXTURE_ROOT/term-requested ]] && break
+  sleep 0.01
+done
+[[ -e $FIXTURE_ROOT/term-requested ]] || fail "delayed Ghostty did not receive TERM"
+"$HELPER" open >/dev/null
+wait "$hide_pid"
+kill -0 "$old_pid" 2>/dev/null && fail "open returned before the old Ghostty exited"
+[[ ! -e $FIXTURE_ROOT/ghostty-overlap ]] || fail "new Ghostty overlapped the exiting Ghostty"
+
+reset_fixture
+sleep 60 &
+innocent_pid=$!
+printf '%s\n' "$innocent_pid" >"$FIXTURE_ROOT/innocent.pid"
+printf '%s\n' "$innocent_pid" >"$XDG_RUNTIME_DIR/agent-panel-ghostty.pid"
+"$HELPER" hide >/dev/null
+kill -0 "$innocent_pid" 2>/dev/null || fail "hide terminated an unverified fixture process"
+kill "$innocent_pid"
+wait "$innocent_pid" 2>/dev/null || true
+rm -f "$FIXTURE_ROOT/innocent.pid"
 
 reset_fixture
 for _ in $(seq 1 24); do
@@ -169,5 +268,24 @@ assert_eq 1 "$(jq -r .windowCount < <("$HELPER" status))" "single window after s
 
 "$HELPER" terminate >/dev/null
 assert_eq absent "$("$HELPER" status | jq -r .session)" "fixture termination"
+
+reset_fixture
+mkdir -p "$TEST_DIR/real-bin"
+ln -s "$TEST_DIR/bin/niri" "$TEST_DIR/real-bin/niri"
+cat >"$TEST_DIR/real-bin/tmux" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exec "$REAL_TMUX" -S "$FIXTURE_TMUX_SOCKET" "$@"
+EOF
+chmod +x "$TEST_DIR/real-bin/tmux"
+export REAL_TMUX FIXTURE_TMUX_SOCKET
+export PATH="$TEST_DIR/real-bin:$REAL_PATH"
+"$REAL_TMUX" -S "$FIXTURE_TMUX_SOCKET" new-session -d -s stillsuit-agent-extra sleep 60
+assert_eq absent "$("$HELPER" status | jq -r .session)" "real tmux prefix decoy ignored"
+"$REAL_TMUX" -S "$FIXTURE_TMUX_SOCKET" new-session -d -s stillsuit-agent sleep 60
+assert_eq running "$("$HELPER" status | jq -r .session)" "real tmux exact session found"
+"$HELPER" terminate >/dev/null
+"$REAL_TMUX" -S "$FIXTURE_TMUX_SOCKET" has-session -t =stillsuit-agent-extra ||
+  fail "terminate killed the prefixed real tmux decoy"
 
 printf 'agent-panel fixtures: ok\n'
