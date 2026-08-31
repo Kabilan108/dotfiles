@@ -24,6 +24,8 @@ def runtime_dir() -> Path:
 STATE_PATH = runtime_dir() / "recording.json"
 LOG_PATH = runtime_dir() / "gpu-screen-recorder.log"
 MEETING_HELPER = Path.home() / "bin/meeting-minutes"
+ACTIVE_PHASES = frozenset({"recording", "paused", "stopping"})
+FINISHED_PHASES = frozenset({"completed", "meeting_queued"})
 
 
 def read_state() -> dict[str, Any]:
@@ -64,12 +66,12 @@ def elapsed_seconds(state: dict[str, Any]) -> int:
 
 def refreshed_state() -> dict[str, Any]:
     state = read_state()
-    if state.get("phase") == "completed":
+    if state.get("phase") in FINISHED_PHASES:
         output = Path(str(state.get("output", "")))
         if output.is_file():
             state["size_bytes"] = output.stat().st_size
         return state
-    if state.get("phase") not in {"recording", "paused", "stopping"}:
+    if state.get("phase") not in ACTIVE_PHASES:
         return state
 
     pid = int(state.get("pid", 0))
@@ -123,7 +125,7 @@ def require_active() -> dict[str, Any]:
 
 def start_recording(args: argparse.Namespace) -> None:
     current = refreshed_state()
-    if current.get("phase") in {"recording", "paused", "stopping"}:
+    if current.get("phase") in ACTIVE_PHASES:
         raise RuntimeError("A Stillsuit recording is already active")
 
     directory = Path(args.directory).expanduser()
@@ -318,7 +320,7 @@ def rename_recording(title: str) -> None:
 
 def dismiss() -> None:
     state = refreshed_state()
-    if state.get("phase") in {"recording", "paused", "stopping"}:
+    if state.get("phase") in ACTIVE_PHASES:
         raise RuntimeError("Cannot dismiss an active recording")
     STATE_PATH.unlink(missing_ok=True)
     print_state({"phase": "idle"})

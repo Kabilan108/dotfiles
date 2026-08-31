@@ -7,12 +7,14 @@ tmp_dir=$(mktemp -d -t stillsuit-d5.XXXXXXXX)
 shell_pid=""
 socket_pid=""
 fake_recorder_pid=""
+helper_recorder_pid=""
 
 cleanup() {
   local status=$?
   if [[ -n $shell_pid ]] && kill -0 "$shell_pid" 2>/dev/null; then kill "$shell_pid"; wait "$shell_pid" 2>/dev/null || true; fi
   if [[ -n $socket_pid ]] && kill -0 "$socket_pid" 2>/dev/null; then kill "$socket_pid"; wait "$socket_pid" 2>/dev/null || true; fi
   if [[ -n $fake_recorder_pid ]] && kill -0 "$fake_recorder_pid" 2>/dev/null; then kill "$fake_recorder_pid"; wait "$fake_recorder_pid" 2>/dev/null || true; fi
+  if [[ -n $helper_recorder_pid ]] && kill -0 "$helper_recorder_pid" 2>/dev/null; then kill "$helper_recorder_pid"; fi
   if [[ -z ${STILLSUIT_FIXTURE_KEEP:-} ]]; then rm -rf -- "$tmp_dir"; else printf 'fixture retained: %s\n' "$tmp_dir" >&2; fi
   exit "$status"
 }
@@ -31,6 +33,7 @@ export STILLSUIT_FIXTURE_MEETING_STATE="$tmp_dir/meeting.json"
 export STILLSUIT_FIXTURE_OPEN_HELPER="$fixture_dir/fake-open"
 export STILLSUIT_FIXTURE_OPEN_LOG="$tmp_dir/open.log"
 export STILLSUIT_FIXTURE_SOCKET="$tmp_dir/dictator.sock"
+export STILLSUIT_FIXTURE_MEETING_LOG="$tmp_dir/meeting-helper.log"
 # This fixture exercises services only; force the isolated renderer rather than
 # attaching an overlay test to the live compositor.
 export QT_QPA_PLATFORM=offscreen
@@ -41,7 +44,8 @@ for variable_name in HOME XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE
   [[ ${!variable_name} == "$tmp_dir"/* ]] || { echo "fixture escaped temporary roots: $variable_name" >&2; exit 1; }
 done
 
-printf '%s\n' '{"schemaVersion":1,"phase":"recording","pid":1,"monitor":"DP-1","elapsed_seconds":4}' > "$STILLSUIT_FIXTURE_RECORDING_STATE"
+fixture_started_at=$(($(date +%s) - 4))
+printf '{"schemaVersion":1,"phase":"recording","pid":1,"monitor":"DP-1","started_at":%s,"paused_at":0,"paused_total":0,"elapsed_seconds":4}\n' "$fixture_started_at" > "$STILLSUIT_FIXTURE_RECORDING_STATE"
 printf '%s\n' '{"schemaVersion":1,"phase":"completed","label":"fixture","note_path":"/tmp/fixture-note.md","visible_until":4102444800}' > "$STILLSUIT_FIXTURE_MEETING_STATE"
 python3 "$fixture_dir/socket-server.py" "$STILLSUIT_FIXTURE_SOCKET" >"$tmp_dir/socket.log" 2>&1 &
 socket_pid=$!
@@ -82,6 +86,43 @@ stop_shell() {
 start_shell
 state=$(ipc state)
 jq -e '.serviceObjects == 1 and .osdServiceObjects == 1 and .overlays == 2 and .overlaySharesAggregate and .overlaySharesOsdService and .dictator.levels == 23 and .dictator.state == "recording" and .meeting.visible and .meeting.completed and .meeting.label == "fixture"' >/dev/null <<<"$state"
+
+# The global service derives elapsed time once per second from the recorder's
+# timestamps. No helper rewrite is needed, and a current pause stays excluded.
+first_elapsed=$(jq -r '.recording.elapsedSeconds' <<<"$state")
+sleep 1.2
+second_elapsed=$(jq -r '.recording.elapsedSeconds' <<<"$(ipc state)")
+(( second_elapsed >= first_elapsed + 1 ))
+
+pause_now=$(date +%s)
+pause_started=$((pause_now - 20))
+pause_at=$((pause_now - 5))
+printf '{"schemaVersion":1,"phase":"paused","pid":1,"monitor":"DP-1","started_at":%s,"paused_at":%s,"paused_total":3,"elapsed_seconds":12}\n' "$pause_started" "$pause_at" > "$STILLSUIT_FIXTURE_RECORDING_STATE"
+[[ $(ipc refresh) == ok ]]
+paused_state=$(wait_json '.recording.paused and .recording.status == "ready"')
+paused_elapsed=$(jq -r '.recording.elapsedSeconds' <<<"$paused_state")
+[[ $paused_elapsed == 12 ]]
+sleep 1.2
+[[ $(jq -r '.recording.elapsedSeconds' <<<"$(ipc state)") == "$paused_elapsed" ]]
+
+# Drive the real recorder helper through start and stop --meeting using only
+# temporary fake process and enqueue executables. Feed its emitted version-1
+# state directly into the production RecordingService parser.
+mkdir -p "$HOME/bin" "$tmp_dir/actual-recordings"
+cp "$fixture_dir/fake-meeting-minutes" "$HOME/bin/meeting-minutes"
+recorder_helper="$package_dir/../../bin/stillsuit-recorder"
+PATH="$fixture_dir:$PATH" "$recorder_helper" start \
+  --directory "$tmp_dir/actual-recordings" --monitor DP-1 --title fixture-meeting \
+  --desktop-audio --no-microphone > "$tmp_dir/recorder-start.json"
+helper_recorder_pid=$(jq -r '.pid' "$tmp_dir/recorder-start.json")
+PATH="$fixture_dir:$PATH" "$recorder_helper" stop --meeting > "$tmp_dir/recorder-meeting.json"
+helper_recorder_pid=""
+jq -e '.schemaVersion == 1 and .phase == "meeting_queued" and .meeting_job_id == "fixture-job"' "$tmp_dir/recorder-meeting.json" >/dev/null
+cp "$tmp_dir/recorder-meeting.json" "$STILLSUIT_FIXTURE_RECORDING_STATE"
+[[ $(ipc refresh) == ok ]]
+wait_json '.recording.status == "ready" and .recording.phase == "meeting_queued" and .recording.completed and (.recording.outputFilename | endswith("fixture-meeting.mp4"))' >/dev/null
+meeting_recording=$(jq -r '.output' "$tmp_dir/recorder-meeting.json")
+[[ $(<"$STILLSUIT_FIXTURE_MEETING_LOG") == "enqueue --recording $meeting_recording --started-at "*" --duration-seconds "* ]]
 
 # The action uses only literal argv; the fake helper sees the exact reviewed order.
 [[ $(ipc start) == started ]]

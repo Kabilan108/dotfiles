@@ -6,6 +6,7 @@ Item {
     id: root
 
     required property var registration
+    required property string outputId
     readonly property string pluginId: activeRegistration && activeRegistration.manifest
         ? String(activeRegistration.manifest.id)
         : "unknown"
@@ -66,7 +67,7 @@ Item {
             return
         }
 
-        var properties = { context: record.context }
+        var properties = { context: record.context, outputId: outputId }
         if (record.service !== undefined)
             properties.service = record.service
         var widget = component.createObject(root, properties)

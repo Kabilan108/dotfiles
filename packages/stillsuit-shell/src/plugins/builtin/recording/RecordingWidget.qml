@@ -7,6 +7,7 @@ Rectangle {
     id: root
 
     required property var context
+    required property string outputId
     readonly property var workflows: context.services.get("stillsuit.workflows")
     readonly property var recording: workflows ? workflows.recording : null
     readonly property bool active: recording && recording.active === true

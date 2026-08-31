@@ -17,7 +17,7 @@ Scope {
     readonly property bool configured: helperPath.charAt(0) === "/" && statePath.charAt(0) === "/"
     readonly property bool active: phase === "recording" || phase === "paused" || phase === "stopping"
     readonly property bool paused: phase === "paused"
-    readonly property bool completed: phase === "completed"
+    readonly property bool completed: phase === "completed" || phase === "meeting_queued"
     readonly property string elapsedText: _formatDuration(elapsedSeconds)
     readonly property string outputFilename: {
         var parts = outputPath.split("/")
@@ -29,6 +29,10 @@ Scope {
     property string monitor: ""
     property string title: ""
     property int elapsedSeconds: 0
+    property double startedAt: 0
+    property double pausedAt: 0
+    property double pausedTotal: 0
+    property int stateElapsedSeconds: 0
     property double outputSizeBytes: 0
     property string errorMessage: ""
     property string stateStatus: configured ? "missing" : "unconfigured"
@@ -51,6 +55,17 @@ Scope {
             : pad(minutes) + ":" + pad(remaining)
     }
 
+    function _derivedElapsed(nowSeconds) {
+        if (!active || startedAt <= 0)
+            return stateElapsedSeconds
+        var end = paused && pausedAt > 0 ? pausedAt : nowSeconds
+        return Math.max(0, Math.round(end - startedAt - pausedTotal))
+    }
+
+    function _updateElapsed() {
+        elapsedSeconds = _derivedElapsed(Date.now() / 1000)
+    }
+
     function _defaultTitle() {
         if (typeof settings.recordingDefaultTitle === "string" && settings.recordingDefaultTitle)
             return settings.recordingDefaultTitle
@@ -66,6 +81,10 @@ Scope {
         monitor = ""
         title = ""
         elapsedSeconds = 0
+        startedAt = 0
+        pausedAt = 0
+        pausedTotal = 0
+        stateElapsedSeconds = 0
         outputSizeBytes = 0
         errorMessage = String(message || "")
         stateStatus = status
@@ -89,7 +108,7 @@ Scope {
             return
         }
         var nextPhase = String(value.phase || "idle")
-        if (["idle", "recording", "paused", "stopping", "completed", "error"].indexOf(nextPhase) === -1) {
+        if (["idle", "recording", "paused", "stopping", "completed", "meeting_queued", "error"].indexOf(nextPhase) === -1) {
             _reset("corrupt", "recording state phase is invalid")
             return
         }
@@ -97,7 +116,11 @@ Scope {
         outputPath = String(value.output || "")
         monitor = String(value.monitor || "")
         title = String(value.title || "")
-        elapsedSeconds = Math.max(0, Math.round(_finiteNumber(value.elapsed_seconds, 0)))
+        startedAt = Math.max(0, _finiteNumber(value.started_at, 0))
+        pausedAt = Math.max(0, _finiteNumber(value.paused_at, 0))
+        pausedTotal = Math.max(0, _finiteNumber(value.paused_total, 0))
+        stateElapsedSeconds = Math.max(0, Math.round(_finiteNumber(value.elapsed_seconds, 0)))
+        _updateElapsed()
         outputSizeBytes = Math.max(0, _finiteNumber(value.size_bytes, 0))
         errorMessage = String(value.error || "")
         stateStatus = "ready"
@@ -157,6 +180,13 @@ Scope {
         onFileChanged: reload()
         onLoaded: root._apply(text())
         onLoadFailed: root._reset(root.configured ? "missing" : "unconfigured", "")
+    }
+
+    Timer {
+        interval: 1000
+        running: root.active
+        repeat: true
+        onTriggered: root._updateElapsed()
     }
 
     Process {

@@ -31,6 +31,12 @@ Dynamic construction must handle `QQmlComponent.Loading`. The registry keeps
 the `QQmlComponent` alive for as long as a registered widget can create visual
 instances. A component is not registered until it reaches `Ready`.
 
+Every `barWidget` entry point declares `required property string outputId` in
+addition to its required `context` property and any required service. The bar
+passes the owning window's output identity to `WidgetSlot`, and `WidgetSlot`
+includes it in the initial-property map passed to `createObject`. Widgets must
+not infer their output later from global focus state.
+
 ## Injected `HostContext`
 
 Every entry point may declare `required property var context`. The host injects
@@ -264,6 +270,23 @@ Any standalone recovery helper must instead:
 
 A live PID is not readiness proof. Plugins may unload, reload, or rescan their
 objects. They never receive a whole-shell kill or restart action.
+
+## Recorder state v1
+
+The external recorder owns
+`settings.values.recordingStatePath`. The one global `RecordingService` reads
+that file and never starts, stops, pauses, resumes, or signals the recorder
+except in direct response to a typed user action. Per-output views only consume
+the service snapshot.
+
+Version 1 accepts `idle`, `recording`, `paused`, `stopping`, `completed`,
+`meeting_queued`, and `error` phases. `meeting_queued` is a successful completed
+state with the additional `meeting_job_id` field. While a recording is active,
+the service derives elapsed seconds once per second from `started_at`,
+`paused_at`, and `paused_total`. A current pause ends the elapsed interval at
+`paused_at`; completed pause time is subtracted through `paused_total`. The
+helper's `elapsed_seconds` remains the fallback for older or incomplete
+version-1 active records without `started_at`.
 
 ## Shadow-mode boundary
 

@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "bar" as Bar
 import "clock" as Clock
 import "meeting" as Meeting
 import "recording" as Recording
@@ -12,7 +13,20 @@ ShellRoot {
 
     property int clockServiceInstances: 0
     property int resourceServiceInstances: 0
+    property int workspaceConstructionCount: 0
+    property var productionWorkspaceCounts: ({})
     property var actionCalls: []
+    readonly property string primaryOutputId: Quickshell.screens.length > 0
+        ? String(Quickshell.screens[0].name) : ""
+    readonly property string secondaryOutputId: Quickshell.screens.length > 1
+        ? String(Quickshell.screens[1].name) : ""
+
+    function recordProductionWorkspace(outputId, count) {
+        var next = Object.assign({}, productionWorkspaceCounts)
+        next[String(outputId)] = count
+        productionWorkspaceCounts = next
+        workspaceConstructionCount++
+    }
 
     QtObject {
         id: recordingModel
@@ -66,13 +80,20 @@ ShellRoot {
         id: context
         property var services: serviceFacade
         property var actions: actions
+        property var settings: ({ values: { shadowMode: true } })
+        property var logger: ({
+            debug: function(message) {},
+            info: function(message) {},
+            warn: function(message) { console.warn(message) },
+            error: function(message) { console.error(message) }
+        })
         property var compositor: ({
-            outputs: [{ id: "primary" }, { id: "secondary" }],
-            focusedOutputId: "secondary",
+            outputs: [{ id: fixture.primaryOutputId }, { id: fixture.secondaryOutputId }],
+            focusedOutputId: fixture.secondaryOutputId,
             workspaces: [
-                { id: 1, idx: 1, output: "primary", is_active: true, active_window_id: 11 },
-                { id: 2, idx: 1, output: "secondary", is_active: true, active_window_id: 22 },
-                { id: 3, idx: 2, output: "secondary", is_urgent: true }
+                { id: 1, idx: 1, output: fixture.primaryOutputId, is_active: true, active_window_id: 11 },
+                { id: 2, idx: 1, output: fixture.secondaryOutputId, is_active: true, active_window_id: 22 },
+                { id: 3, idx: 2, output: fixture.secondaryOutputId, is_urgent: true }
             ],
             windows: [
                 { id: 11, workspace_id: 1, is_focused: true, layout: { pos_in_scrolling_layout: [1] } },
@@ -93,6 +114,8 @@ ShellRoot {
     Resources.ResourceService {
         id: resourceService
         context: context
+        statPath: Quickshell.env("STILLSUIT_FIXTURE_STAT")
+        memoryPath: Quickshell.env("STILLSUIT_FIXTURE_MEMINFO")
         Component.onCompleted: fixture.resourceServiceInstances += 1
         Component.onDestruction: fixture.resourceServiceInstances -= 1
     }
@@ -104,23 +127,45 @@ ShellRoot {
         Component.onDestruction: fixture.clockServiceInstances -= 1
     }
 
+    Component {
+        id: productionWorkspaceComponent
+
+        Workspaces.WorkspaceWidget {
+            Component.onCompleted: fixture.recordProductionWorkspace(outputId, workspaces.length)
+        }
+    }
+
+    Bar.Bar {
+        id: productionBar
+        context: context
+        widgetRegistrations: [{
+            component: productionWorkspaceComponent,
+            context: context,
+            manifest: { id: "stillsuit.workspaces" },
+            defaultSection: "left",
+            allowMultiple: false
+        }]
+        outputScreens: Quickshell.screens
+    }
+
     Item {
-        Clock.ClockWidget { id: clockOne; context: context; service: clockService }
-        Clock.ClockWidget { id: clockTwo; context: context; service: clockService }
-        Workspaces.WorkspaceWidget { id: workspacePrimary; context: context; outputId: "primary" }
-        Workspaces.WorkspaceWidget { id: workspaceSecondary; context: context; outputId: "secondary" }
-        Resources.ResourceWidget { id: resourcesPrimary; context: context; service: resourceService }
-        Resources.ResourceWidget { id: resourcesSecondary; context: context; service: resourceService }
-        Meeting.MeetingWidget { id: meetingPrimary; context: context }
-        Meeting.MeetingWidget { id: meetingSecondary; context: context }
-        Recording.RecordingWidget { id: recordingPrimary; context: context }
-        Recording.RecordingWidget { id: recordingSecondary; context: context }
+        Clock.ClockWidget { id: clockOne; context: context; service: clockService; outputId: fixture.primaryOutputId }
+        Clock.ClockWidget { id: clockTwo; context: context; service: clockService; outputId: fixture.secondaryOutputId }
+        Workspaces.WorkspaceWidget { id: workspacePrimary; context: context; outputId: fixture.primaryOutputId }
+        Workspaces.WorkspaceWidget { id: workspaceSecondary; context: context; outputId: fixture.secondaryOutputId }
+        Resources.ResourceWidget { id: resourcesPrimary; context: context; service: resourceService; outputId: fixture.primaryOutputId }
+        Resources.ResourceWidget { id: resourcesSecondary; context: context; service: resourceService; outputId: fixture.secondaryOutputId }
+        Meeting.MeetingWidget { id: meetingPrimary; context: context; outputId: fixture.primaryOutputId }
+        Meeting.MeetingWidget { id: meetingSecondary; context: context; outputId: fixture.secondaryOutputId }
+        Recording.RecordingWidget { id: recordingPrimary; context: context; outputId: fixture.primaryOutputId }
+        Recording.RecordingWidget { id: recordingSecondary; context: context; outputId: fixture.secondaryOutputId }
     }
 
     IpcHandler {
         target: "stillsuit-d4-fixture"
         function ready(): string {
             return fixture.clockServiceInstances === 1 && fixture.resourceServiceInstances === 1
+                && fixture.workspaceConstructionCount === 2
                 ? "ready" : "loading"
         }
         function topology(): string {
@@ -137,12 +182,27 @@ ShellRoot {
                 sharedResourceService: resourcesPrimary.service === resourcesSecondary.service
             })
         }
+        function productionBarSnapshot(): string {
+            return JSON.stringify({
+                constructions: fixture.workspaceConstructionCount,
+                outputIds: [fixture.primaryOutputId, fixture.secondaryOutputId],
+                primaryWorkspaces: fixture.productionWorkspaceCounts[fixture.primaryOutputId],
+                secondaryWorkspaces: fixture.productionWorkspaceCounts[fixture.secondaryOutputId]
+            })
+        }
         function workspaceSnapshot(): string {
             return JSON.stringify({
                 primaryWorkspaces: workspacePrimary.workspaces.length,
                 secondaryWorkspaces: workspaceSecondary.workspaces.length,
                 secondaryColumns: workspaceSecondary.columns,
                 secondaryFocusedColumn: workspaceSecondary.focusedColumn
+            })
+        }
+        function resourceSnapshot(): string {
+            resourceService.refresh()
+            return JSON.stringify({
+                cpuPercent: resourceService.cpuPercent,
+                memoryPercent: resourceService.memoryPercent
             })
         }
         function routeActions(): string {

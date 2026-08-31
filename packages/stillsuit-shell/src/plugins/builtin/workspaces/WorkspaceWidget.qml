@@ -8,7 +8,7 @@ RowLayout {
     id: root
 
     required property var context
-    property string outputId: ""
+    required property string outputId
     spacing: 8
 
     readonly property var workspaces: workspacesForOutput(context.compositor.workspaces || [], outputId)

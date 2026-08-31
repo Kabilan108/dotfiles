@@ -6,6 +6,7 @@ Rectangle {
 
     required property var context
     required property var service
+    required property string outputId
     readonly property var metrics: service
 
     implicitWidth: row.implicitWidth + 14

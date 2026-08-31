@@ -10,10 +10,12 @@ QtObject {
     property int memoryPercent: 0
     property double previousTotal: 0
     property double previousIdle: 0
+    property string statPath: "/proc/stat"
+    property string memoryPath: "/proc/meminfo"
 
     property FileView statFile: FileView {
         id: statFile
-        path: "/proc/stat"
+        path: root.statPath
         preload: false
         blockLoading: true
         blockAllReads: true
@@ -22,7 +24,7 @@ QtObject {
 
     property FileView memoryFile: FileView {
         id: memoryFile
-        path: "/proc/meminfo"
+        path: root.memoryPath
         preload: false
         blockLoading: true
         blockAllReads: true
@@ -38,6 +40,8 @@ QtObject {
     }
 
     function refresh() {
+        statFile.reload()
+        memoryFile.reload()
         updateCpu(statFile.text())
         updateMemory(memoryFile.text())
     }

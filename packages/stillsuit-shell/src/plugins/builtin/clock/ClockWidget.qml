@@ -5,6 +5,7 @@ Rectangle {
 
     required property var context
     required property var service
+    required property string outputId
 
     implicitWidth: label.implicitWidth + 20
     implicitHeight: context.theme.geometry.barHeight

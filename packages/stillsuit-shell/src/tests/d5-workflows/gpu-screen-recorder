@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+output_path=""
+while (($# > 0)); do
+  if [[ $1 == -o ]]; then
+    output_path=$2
+    shift 2
+  else
+    shift
+  fi
+done
+
+[[ -n $output_path ]]
+finish() {
+  : > "$output_path"
+  exit 0
+}
+trap finish INT TERM
+
+while true; do
+  sleep 0.1
+done

@@ -4,6 +4,7 @@ Rectangle {
     id: root
     required property var context
     required property var service
+    required property string outputId
     implicitWidth: 54
     implicitHeight: context.theme.geometry.barHeight
     radius: context.theme.geometry.radius

@@ -3,6 +3,7 @@ Rectangle {
     id: root
     required property var context
     required property var service
+    required property string outputId
     implicitWidth: 76; implicitHeight: context.theme.geometry.barHeight
     radius: context.theme.geometry.radius
     color: mouse.containsMouse ? context.theme.controls.hover.fill : "transparent"

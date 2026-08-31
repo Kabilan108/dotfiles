@@ -7,6 +7,7 @@ Rectangle {
     id: root
 
     required property var context
+    required property string outputId
     readonly property var workflows: context.services.get("stillsuit.workflows")
     readonly property var meeting: workflows ? workflows.meeting : null
     readonly property bool visibleState: meeting && meeting.visible !== false

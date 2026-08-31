@@ -137,6 +137,7 @@ Scope {
                             WidgetSlot {
                                 required property var modelData
                                 registration: modelData.registration
+                                outputId: barWindow.outputId
                             }
                         }
                     }
@@ -153,6 +154,7 @@ Scope {
                             WidgetSlot {
                                 required property var modelData
                                 registration: modelData.registration
+                                outputId: barWindow.outputId
                             }
                         }
                     }
@@ -169,6 +171,7 @@ Scope {
                             WidgetSlot {
                                 required property var modelData
                                 registration: modelData.registration
+                                outputId: barWindow.outputId
                             }
                         }
                     }
