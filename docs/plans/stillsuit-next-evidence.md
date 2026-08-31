@@ -467,6 +467,32 @@ Current verification:
 - Every `/tmp/stillsuit-lanes/*` worktree reported clean before removal and was
   pruned. The pre-existing unrelated `skill-audit` worktree was preserved.
 
+## Independent Claude review recovery
+
+The independent review in Claude session
+`d443951d-085e-47a9-9c14-29beaa773fd0` stopped when the account reached its
+rate limit. Its primary record and four child records were recovered read-only
+on 2026-08-31. Three child reviewers completed. The Nix reviewer reached the
+end of its command-level inspection but did not produce a final report.
+
+The deduplicated findings, source locators, repair order, reviewer completion
+status, and recovery limitation are recorded in
+`docs/plans/stillsuit-next-claude-review-recovery.md`.
+
+Gate 2 is now blocked on the recovered repair list. The required items are:
+
+- pass the real bar output identity into the workspaces widget;
+- invalidate an in-flight selected-bar load before fallback activation;
+- contain screen-reconciliation failures to one plugin;
+- align the `meeting_queued` recorder phase with the service parser;
+- reload resource file views and derive live recording elapsed time; and
+- give the recorder-to-meeting enqueue path an exact executable closure.
+
+The security-focused reviewer passed the agent-panel and fixed-action IPC
+boundaries with no blocker or major finding. The host-core reviewer and primary
+session both judged Gate 1 technically safe because it does not enable
+Stillsuit Next. No gate was run during recovery.
+
 ## Human-owned gates
 
 Gate 1, workspace removal and Waybar ownership, has not been run. Its exact
@@ -482,8 +508,17 @@ barriers, single-instance/owner assertions, and rollback.
 
 ## Remaining work
 
+- Resolve and independently review the required findings in
+  `docs/plans/stillsuit-next-claude-review-recovery.md`. Gate 2 must not run
+  against commit `5f487bf3`.
+- Extend the isolated fixtures to cover the real bar output path, asynchronous
+  bar-failure invalidation, multi-plugin screen reconciliation, recorder phase
+  compatibility, changing resource samples, live elapsed time, and the
+  recorder-to-meeting restricted closure.
 - After the session is unlocked, repeat the shadow-only screenshot checklist
-  for the bar plus audio/resources panels; do not use it to perform Gate 2.
+  for both bar outputs plus audio/resources panels; confirm workspace content
+  and changing resource readings. Do not use it to perform Gate 2.
 - Human review decides whether to run Gate 1. Gate 2 remains explicitly not for
-  tonight and must use the prepared ordered handoff rather than an unbounded or
-  newest-instance selection.
+  tonight. After the required repair and verification passes, it must use the
+  prepared ordered handoff rather than an unbounded or newest-instance
+  selection.
