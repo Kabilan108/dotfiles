@@ -280,10 +280,31 @@ unavailable-state evidence.
 
 ## Lane D4: widgets and panels
 
-Status: original diff reviewed in full; a narrow correction is in progress.
-The first version put a one-second Timer in every per-output clock widget,
-violating the global-service/per-output-view rule. Clock state is being moved
-to one versioned global service shared by all views.
+Status: reviewed and merged from lane commits
+`f5404417d6ad3427e83827a733da1b81f27cf89d` and
+`d9561e7592927b8c75becf45f02221c5b29f7519`.
+
+- Added clock, workspaces, resources, meeting, and recording widgets, with
+  resource/meeting/recording panels routed through the typed host actions.
+- Clock and resource collection each use one global versioned service shared
+  by all per-output views. Meeting and recording consume only their declared
+  `stillsuit.workflows` dependency.
+- The original diff was read in full and rejected because it put a one-second
+  Timer in every per-output clock widget. The corrected diff moved the timer to
+  one global clock service, made own-service injection required, versioned the
+  resource service, and made the fixture driver executable.
+- The corrected isolated fixture, QML error scan, five-manifest validation,
+  `git diff --check`, and the merged main static/fixture ladder exited 0. The
+  fixture proves one clock service and one resource service shared across two
+  output views, workspace/column projection, typed panel routes, and workflow
+  state propagation.
+- Merged-main `nixfmt --check`, `nix flake check --no-build`, Jacurutu toplevel
+  `drvPath` evaluation, shell-package build through its evaluated Home Manager
+  option, and Jacurutu no-link toplevel build exited 0.
+- An initial package build command exited 1 because the flake does not export a
+  top-level `packages.x86_64-linux.stillsuit-shell` attribute. The corrected
+  evaluated Home Manager package path above exited 0; no repository or live
+  system state changed.
 
 ## Lane D5: OSD and workflow state
 
