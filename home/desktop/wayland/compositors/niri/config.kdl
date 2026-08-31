@@ -340,22 +340,9 @@ animations {
     slowdown 0.9
 }
 
-// Persistent staging workspace for agent-driven (computer-use) windows.
-// Windows spawned there stay out of the way; move them over with
-// `nirius move-to-current-workspace` or normal workspace navigation.
-workspace "agent"
-
 // Window rules let you adjust behavior for individual windows.
 // Find more information on the wiki:
 // https://yalter.github.io/niri/Configuration:-Window-Rules
-
-// Agent-spawned windows (acu spawn --bg marks them with an acu.* app-id):
-// open on the agent workspace without stealing focus.
-window-rule {
-    match app-id=r#"^acu\."#
-    open-on-workspace "agent"
-    open-focused false
-}
 
 // Hide windows from screen capture
 window-rule {
@@ -631,8 +618,6 @@ binds {
     Mod+7 { focus-workspace 7; }
     Mod+8 { focus-workspace 8; }
     Mod+9 { focus-workspace 9; }
-    Mod+0 hotkey-overlay-title="Focus Agent Workspace" { focus-workspace "agent"; }
-    Mod+Shift+0 { move-column-to-workspace "agent"; }
     Mod+Shift+1 { move-column-to-workspace 1; }
     Mod+Shift+2 { move-column-to-workspace 2; }
     Mod+Shift+3 { move-column-to-workspace 3; }

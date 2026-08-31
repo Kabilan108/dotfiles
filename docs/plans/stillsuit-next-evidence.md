@@ -624,10 +624,13 @@ Post-repair integration verification:
 
 ## Human-owned gates
 
-Gate 1, workspace removal and Waybar ownership, has not been run. Its exact
-apply, build, verification, and rollback commands are in
-`docs/plans/stillsuit-next-human-gates.md`; both patch preimages were verified
-in a disposable archived tree.
+Gate 1 was approved by the human on 2026-08-31. Its workspace-removal and
+Waybar-disable patches are applied in the main checkout. The changed Niri
+configuration passed `niri validate`, the Waybar module passed `nixfmt
+--check`, and `nix flake check --no-build` exited 0. The agent did not run the
+repository-prohibited NixOS rebuild or generation switch. Waybar therefore
+remains active until the human runs those two commands and verifies the unit is
+inactive. Gate 1 is approved and source-staged, but activation is incomplete.
 
 Gate 2, Stillsuit Next process and notification cutover, has not been run and
 will not be run during this execution. The same command sheet contains its
@@ -639,6 +642,7 @@ barriers, single-instance/owner assertions, and rollback.
 
 - Triage the secondary, non-gate-blocking findings from the resumed independent
   Claude review before declaring the shell finished.
-- Human review decides whether to run Gate 1. Gate 2 remains a separate,
+- The human must complete Gate 1 with its prepared NixOS build and generation
+  switch, then confirm that Waybar is inactive. Gate 2 remains a separate,
   explicit human decision and must use the prepared ordered handoff rather than
   an unbounded or newest-instance selection.
