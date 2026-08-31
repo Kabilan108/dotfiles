@@ -272,11 +272,25 @@ refreshes to overwrite a coherent snapshot.
 
 ## Lane D3: desktop services
 
-Status: original diff reviewed in full; a narrow correction is in progress.
-The service implementations and fixed power-profile argv were retained, but
-owning widgets must consume the exact injected singleton rather than asking a
-dependency-only facade for their own plugin ID. The fixture also needs direct
-unavailable-state evidence.
+Status: reviewed and merged from lane commits
+`9c2281a44807d79c58669d0a432dc969ae74d023` and
+`920bf8f5c16a0bc41d14644ec753b968c0c1d328`.
+
+- Added global, versioned audio, network, power-profile, battery, and Bluetooth
+  services with per-output widgets and routed panels where applicable. The only
+  process helper uses literal `powerprofilesctl get`/`set <validated-profile>`
+  argv.
+- The original cumulative diff was read in full. A narrow correction was
+  required because owning widgets asked a dependency-only facade for their own
+  plugin ID and the fixture did not directly exercise unavailable states.
+- The correction makes widgets require the exact injected owning singleton,
+  leaves only battery's declared power dependency in `context.services`, and
+  fixtures all five unavailable contracts without touching system services.
+- The corrected isolated D3 fixture, explicit QML error scan, cumulative
+  `git diff --check`, merged 12-manifest schema/duplicate-ID gates, all prior
+  host/plugin fixtures, `nixfmt --check`, `nix flake check --no-build`,
+  Jacurutu `drvPath` evaluation, shell-package build, and Jacurutu no-link
+  toplevel build exited 0.
 
 ## Lane D4: widgets and panels
 
