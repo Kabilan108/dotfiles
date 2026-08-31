@@ -14,7 +14,7 @@ upstream implementation code must retain a file-level MIT attribution. This
 notice applies to these adapted notification sources:
 
 - `packages/stillsuit-shell/src/services/NotificationService.qml`
-- `packages/stillsuit-shell/src/plugins/builtin/notifications/NotificationModel.js`
+- `packages/stillsuit-shell/src/services/NotificationModel.js`
 
 This repository's generated plugin catalog, typed Home Manager module,
 canonical theme record, and Base16 projection are original Stillsuit
