@@ -104,11 +104,14 @@ ShellRoot {
                     return
                 }
                 for (var output = 0; output < 2; output++) {
+                    var expectedOutputId = "fixture-output-" + output
                     var view = viewComponents[viewIndex].createObject(root, {
                         context: fakeWidgetContext,
-                        service: widgetServices[viewIndex]
+                        service: widgetServices[viewIndex],
+                        outputId: expectedOutputId
                     })
-                    if (!view || view.service !== widgetServices[viewIndex]) {
+                    if (!view || view.service !== widgetServices[viewIndex]
+                            || view.outputId !== expectedOutputId) {
                         console.error("D3 fixture singleton injection failed " + viewIndex)
                         Qt.quit()
                         return
