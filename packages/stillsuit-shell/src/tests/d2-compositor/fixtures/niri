@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${STILLSUIT_D2_FIXTURE_STATE:?}"
+printf '%s\n' "$*" >>"$STILLSUIT_D2_FIXTURE_STATE/argv.log"
+
+if [[ $* == 'msg --json event-stream' ]]; then
+  count_file="$STILLSUIT_D2_FIXTURE_STATE/stream-count"
+  count=0
+  if [[ -f $count_file ]]; then count=$(<"$count_file"); fi
+  count=$((count + 1))
+  printf '%s\n' "$count" >"$count_file"
+  if (( count == 1 )); then
+    printf '%s\n' '{"OutputsChanged":{"outputs":[{"id":"DP-1","name":"DP-1"}]}}'
+    printf '%s\n' '{"WorkspacesChanged":{"workspaces":[{"id":1,"idx":1,"output":"DP-1","is_active":true,"is_focused":true}]}}'
+    printf '%s\n' '{"WindowsChanged":{"windows":[{"id":10,"workspace_id":1,"title":"initial","is_focused":true}]}}'
+    printf '%s\n' 'not-json'
+    sleep 0.4
+  else
+    printf '%s\n' '{"WorkspaceActiveWindowChanged":{"workspace_id":1,"active_window_id":11}}'
+    printf '%s\n' '{"WindowOpenedOrChanged":{"window":{"id":11,"workspace_id":1,"title":"reconnected","is_focused":false}}}'
+    printf '%s\n' '{"WindowFocusChanged":{"id":11}}'
+    sleep 0.4
+  fi
+  exit 0
+fi
+
+case "$*" in
+  'msg -j outputs')
+    output_count_file="$STILLSUIT_D2_FIXTURE_STATE/outputs-count"
+    output_count=0
+    if [[ -f $output_count_file ]]; then output_count=$(<"$output_count_file"); fi
+    output_count=$((output_count + 1))
+    printf '%s\n' "$output_count" >"$output_count_file"
+    if (( output_count == 2 )); then printf '%s\n' 'malformed-command-output'; else printf '%s\n' '[{"id":"DP-1","name":"DP-1"}]'; fi
+    ;;
+  'msg -j workspaces') printf '%s\n' '[{"id":1,"idx":1,"output":"DP-1","is_active":true,"is_focused":true,"active_window_id":11}]' ;;
+  'msg -j windows') printf '%s\n' '[{"id":10,"workspace_id":1,"title":"initial","is_focused":false},{"id":11,"workspace_id":1,"title":"reconciled","is_focused":true}]' ;;
+  *) exit 64 ;;
+esac
