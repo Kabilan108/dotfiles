@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stillsuit.local/schemas/manifest.v1.json",
+  "title": "Stillsuit plugin manifest v1",
+  "description": "Build-time and host-load contract for trusted Stillsuit plugins.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "version", "apiVersion", "kinds", "entryPoints", "scope"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "$ref": "#/$defs/pluginId" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "description": { "type": "string", "maxLength": 500 },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "apiVersion": {
+      "description": "Host API major accepted by this manifest. The v1 host rejects every other value.",
+      "const": "1"
+    },
+    "kinds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["bar", "bar-widget", "service", "panel", "overlay", "menu"] }
+    },
+    "entryPoints": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "bar": { "$ref": "#/$defs/entryPoint" },
+        "barWidget": { "$ref": "#/$defs/entryPoint" },
+        "service": { "$ref": "#/$defs/entryPoint" },
+        "panel": { "$ref": "#/$defs/entryPoint" },
+        "overlay": { "$ref": "#/$defs/entryPoint" },
+        "menu": { "$ref": "#/$defs/entryPoint" }
+      }
+    },
+    "scope": {
+      "description": "Construction scope for every declared contribution. Services are global; per-output views are explicit.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "bar": { "const": "per-output" },
+        "barWidget": { "const": "per-output" },
+        "service": { "const": "global" },
+        "panel": { "enum": ["global", "per-output"] },
+        "overlay": { "enum": ["global", "per-output"] },
+        "menu": { "enum": ["global", "per-output"] }
+      }
+    },
+    "capabilities": {
+      "description": "Reviewable authority declarations. They do not sandbox in-process QML.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$" }
+    },
+    "dependencies": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/pluginId" }
+    },
+    "barWidget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "defaultSection": { "enum": ["left", "center", "right"] },
+        "allowMultiple": { "type": "boolean" }
+      }
+    },
+    "keepLoaded": { "type": "boolean" },
+    "stateSchemaVersion": { "type": "integer", "minimum": 1 }
+  },
+  "$defs": {
+    "pluginId": {
+      "type": "string",
+      "pattern": "^stillsuit(?:\\.[a-z][a-z0-9-]*)+$"
+    },
+    "entryPoint": {
+      "description": "Relative QML path below the plugin package root.",
+      "type": "string",
+      "pattern": "^(?!/)(?!.*//)(?:[A-Za-z0-9][A-Za-z0-9._-]*/)*[A-Za-z0-9][A-Za-z0-9._-]*\\.qml$"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kinds": { "contains": { "const": "bar" } } } },
+      "then": { "properties": { "entryPoints": { "required": ["bar"] }, "scope": { "required": ["bar"] } } }
+    },
+    {
+      "if": { "properties": { "kinds": { "contains": { "const": "bar-widget" } } } },
+      "then": { "properties": { "entryPoints": { "required": ["barWidget"] }, "scope": { "required": ["barWidget"] } } }
+    },
+    {
+      "if": { "properties": { "kinds": { "contains": { "const": "service" } } } },
+      "then": { "properties": { "entryPoints": { "required": ["service"] }, "scope": { "required": ["service"] } } }
+    },
+    {
+      "if": { "properties": { "kinds": { "contains": { "const": "panel" } } } },
+      "then": { "properties": { "entryPoints": { "required": ["panel"] }, "scope": { "required": ["panel"] } } }
+    },
+    {
+      "if": { "properties": { "kinds": { "contains": { "const": "overlay" } } } },
+      "then": { "properties": { "entryPoints": { "required": ["overlay"] }, "scope": { "required": ["overlay"] } } }
+    },
+    {
+      "if": { "properties": { "kinds": { "contains": { "const": "menu" } } } },
+      "then": { "properties": { "entryPoints": { "required": ["menu"] }, "scope": { "required": ["menu"] } } }
+    },
+    {
+      "if": { "required": ["barWidget"] },
+      "then": { "properties": { "kinds": { "contains": { "const": "bar-widget" } } } }
+    },
+    {
+      "if": { "required": ["keepLoaded"] },
+      "then": { "properties": { "kinds": { "contains": { "enum": ["panel", "overlay", "menu"] } } } }
+    }
+  ]
+}
