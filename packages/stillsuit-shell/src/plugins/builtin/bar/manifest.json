@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.bar",
+  "name": "Stillsuit bar",
+  "description": "Per-output Stillsuit status bar with manifest-backed widget slots.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["bar"],
+  "entryPoints": {"bar": "Bar.qml"},
+  "scope": {"bar": "per-output"}
+}
