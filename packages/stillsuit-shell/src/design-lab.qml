@@ -25,8 +25,8 @@ ShellRoot {
         iconFont: "Material Symbols Rounded",
         barHeight: 26,
         anchored: true,
-        opacity: 0.85,
-        radius: 4,
+        opacity: 0.80,
+        radius: 7,
         motionScale: 0.55,
         accent: "#89b4fa",
         panel: "#181825",
@@ -118,7 +118,7 @@ ShellRoot {
                 radius: lab.radiusChoice,
                 motionScale: lab.motionScaleChoice,
                 panelBackground: lab.theme.semantic.surface.panel,
-                osdBackground: lab.theme.component.osd.background,
+                osdSurfaceRole: "semantic.surface.panel",
                 windowSize: [window.width, window.height],
                 loaderSize: [contentLoader.width, contentLoader.height],
                 loaderStatus: contentLoader.status,
@@ -214,7 +214,6 @@ ShellRoot {
         next.semantic.surface.panel = panelChoice
         next.component.panel.background = panelChoice
         next.component.notification.background = panelChoice
-        next.component.osd.background = panelChoice
 
         next.semantic.surface.raised = raisedChoice
         next.component.panel.section = raisedChoice
@@ -426,7 +425,7 @@ ShellRoot {
 
                             Ui.ShellButton {
                                 theme: lab.theme
-                                label: "Restore your saved pick"
+                                label: "Restore approved settings"
                                 iconName: "check"
                                 ghost: true
                                 onClicked: lab.chooseReviewPreset()
@@ -688,7 +687,7 @@ ShellRoot {
 
                                 Ui.ShellButton {
                                     theme: lab.theme
-                                    label: "Your pick"
+                                    label: "Approved"
                                     iconName: "check"
                                     active: true
                                     onClicked: lab.chooseReviewPreset()
@@ -867,7 +866,6 @@ ShellRoot {
                                     { name: "accent.primary", value: lab.theme.semantic.accent.primary },
                                     { name: "surface.panel", value: lab.theme.semantic.surface.panel },
                                     { name: "surface.raised", value: lab.theme.semantic.surface.raised },
-                                    { name: "osd.background", value: lab.theme.component.osd.background },
                                     { name: "content.primary", value: lab.theme.semantic.content.primary },
                                     { name: "content.secondary", value: lab.theme.semantic.content.secondary },
                                     { name: "outline.default", value: lab.theme.semantic.outline.default },

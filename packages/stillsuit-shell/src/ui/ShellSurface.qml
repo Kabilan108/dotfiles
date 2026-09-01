@@ -32,7 +32,7 @@ Rectangle {
         if (kind === "bar")
             return theme.component.bar.background
         if (kind === "osd")
-            return theme.component.osd.background
+            return theme.semantic.surface.panel
         if (kind === "notification")
             return theme.component.notification.background
         if (kind === "raised")

@@ -123,7 +123,6 @@
       "muted": "#6c7086"
     },
     "osd": {
-      "background": "#181825",
       "border": "#45475a",
       "track": "#45475a",
       "fill": "#89b4fa",

@@ -1,233 +1,230 @@
-# Stillsuit Shell — Design Philosophy & Handoff
+# Stillsuit design language
 
-A cohesive desktop shell concept for **Quickshell** on **Niri / NixOS**, themed
-loosely around Dune ("stillsuit"). This document is the design contract for the
-implementation; the HTML prototype (`Stillsuit Shell.html`) is the visual
-reference. Treat the prototype as *intent*, not as code to port — rebuild it
-natively in QML.
+This is the approved visual contract for Stillsuit on Quickshell and Niri. The
+native design lab in `packages/stillsuit-shell` is the visual reference. The
+old HTML prototype is retired and must not be used to infer shell behavior or
+panel composition.
 
----
+The production shell still uses theme v1 while the UI migration is in
+progress. The approved v2 contract is staged in
+`packages/stillsuit-shell/schemas/theme.v2.draft.json`. The filename remains
+marked as a draft until production switches to it.
 
-## 1. First principles
+## Approved baseline
 
-1. **One language, everywhere.** Every surface — bar, launcher, OSDs,
-   notifications, panels — is the *same* glass card with the *same* hairline,
-   radius, blur, type and spacing. No surface invents its own treatment. If a
-   new surface is needed, it is assembled from the existing primitives.
-2. **Theme-agnostic via base16.** Nothing hardcodes a colour. Every colour is a
-   semantic role resolved from the 16 base16 slots. Swap the scheme (Stylix)
-   and the whole shell reskins with zero layout change. Catppuccin Mocha is the
-   reference scheme, not a dependency.
-3. **Quiet, dense, modern.** Compact spacing, monospace throughout, thin
-   single-weight icons, near-instant motion. The shell informs and gets out of
-   the way. No emoji, no gradients-as-decoration, no faux-skeuomorphism.
-4. **Legible over anything.** Surfaces stay readable over a busy photographic
-   wallpaper *and* a flat one. This is a hard constraint (see §5).
-5. **One panel background.** Every interactive popup uses the canonical dark
-   `panelChrome` surface supplied by `PopupPanel`. Components must not select a
-   lighter panel background or locally override the popup chrome.
+The design lab was approved with these settings:
 
----
+| Setting | Value |
+|---|---|
+| Theme | Catppuccin Mocha |
+| Body type | Noto Sans |
+| Monospace type | JetBrainsMono Nerd Font |
+| Icons | Material Symbols Rounded |
+| Bar | 26 px, anchored to the top edge |
+| Workspaces | Inline |
+| Surface opacity | 0.80 |
+| Medium radius | 7 px |
+| Motion scale | 0.55 |
+| Accent | `#89b4fa` |
+| Panel | `#181825` |
+| Raised | `#313244` |
+| Primary text | `#cdd6f4` |
 
-## 2. The token system
+These are defaults, not a frozen palette. The token model supports other
+themes without changing component QML.
 
-Implement these as a single resolved palette/style object the whole shell reads
-from. The 16 inputs come from Stylix; everything else is derived.
+## Principles
 
-### Inputs — base16 (Stylix provides these)
-`base00`…`base0F`. Conventional meaning: `base00` darkest bg → `base05` default
-fg → `base07` brightest; `base08`–`base0F` are the accents (red, orange, yellow,
-green, cyan, blue, magenta, brown).
+1. One theme record owns the shell's visual language. Plugins do not carry
+   private palettes or reinterpret shared roles.
+2. Color names describe meaning. A component asks for panel, raised, selected,
+   warning, or audio. It does not read a raw Catppuccin color.
+3. The shell is compact but readable. Body copy uses a sans serif face. Codes,
+   measurements, timestamps, and other telemetry use monospace.
+4. Icons lead compact controls and bar clusters. Text follows when an icon
+   alone would make the action unclear.
+5. Motion explains state changes. It must not delay opening a panel or make a
+   frequently used action feel theatrical.
+6. Mock content in the design lab proves composition and states. It does not
+   assign production features to panels.
 
-### Derived semantic roles
-| Role | Source | Use |
-|---|---|---|
-| `accent` | `base0D` (blue) | **all** interactive / focused / active state |
-| `accent2` | accent mixed 78% with `base05` | accent text on dark |
-| `text` | `base05` | primary text |
-| `dim` | `base05`·74% + `base04` | secondary text / inactive icons |
-| `faint` | `base05`·52% + `base04` | tertiary text, timestamps, meta |
-| `bright` | `base0A` (yellow) | **brightness** OSD only |
-| `vol` | `base0B` (green) | **volume** OSD / output level only |
-| `mic` | `base08` (red) | **microphone** / input level only |
-| `charge` | `base09` (orange) | **charging** only |
-| `ok` / `warn` | `base0B` / `base08` | success / low-battery, alerts |
+## Theme model
 
-**Accent rule:** exactly one primary accent (`base0D`) carries every
-interactive and active state. Semantic colours (`bright`/`vol`/`mic`/`charge`)
-appear *only* where they encode that specific meaning — never decoratively.
+The theme has three levels.
 
-**Dictation vs `mic`:** the `mic` role (`base08` red) is for *microphone chrome*
-— the input-level meter, the muted-input glyph. The **dictation indicator** is a
-distinct surface (active voice→text transcription), not generic mic chrome, so
-it carries the primary `accent` (blue), consistent with every other active
-state. Its only semantic override is `urgent` (red) for the `error` state. This
-split is intentional and standardised: red = "this is your microphone", accent =
-"the shell is actively working with your voice".
+### Raw palette
 
-### Locked constants
-| Token | Value | Notes |
-|---|---|---|
-| Corner radius | **5 px** | shell-wide. Inner elements `radius − 1`. OSD & dictation pills are the exception: **fully rounded** (999px). |
-| Hairline border | `rgba(255,255,255, 0.10)`, 1px | the *only* separation line |
-| Blur | **22 px** backdrop blur | + `saturate(1.1)` |
-| Surface fill | ~**85%** over a darkened backdrop | see §5 |
-| Font | **IBM Plex Mono** | monospace everywhere; tabular numerals on |
-| Base size | **13 px**; metadata is **11 px minimum** | Reserve 10px for short uppercase micro-labels only. |
-| Density unit | **4 px** | gaps are multiples of it (4/8/12) |
-| Shadow | `0 18px 50px -12px rgba(0,0,0,.62)` | one elevation only |
-| Motion | 120 / 180 / 260 ms tiers, decelerate curve | transform/opacity only; snappy. Full contract in §7 |
+The palette records named neutral and chromatic colors from the source theme.
+Only the theme resolver reads it. Catppuccin Mocha is the canonical baseline,
+but the schema does not depend on Base16 or on Catppuccin-specific slot names.
 
----
+### Semantic roles
 
-## 3. Surface inventory
+Semantic roles describe what a color means across the shell.
 
-All are independent Quickshell windows/layers, summoned by Niri keybinds or IPC
-events. (The prototype's bottom "preview" dock is a demo harness only — it has
-no place in the real shell.)
+| Group | Roles |
+|---|---|
+| Background | canvas, desktop, scrim |
+| Surface | bar, panel, raised, overlay, hover, pressed, selected |
+| Content | primary, secondary, muted, disabled, inverse |
+| Outline | subtle, default, strong, focus |
+| Accent | primary, hover, pressed, subtle, on-accent |
+| Status | info, success, warning, danger |
+| Signal | audio, microphone, brightness, charging, recording |
 
-- **Top bar** — floating, detached, 8px margins, ~38px tall, rounded. Three
-  zones: *left* workspaces + columns, *centre* date/time, *right* clustered
-  tray. Details in §4.
-- **Launcher** (Walker/elephant replacement) — centred glass card, search field
-  + result rows + footer action pill. One shell, four modes: **app**,
-  **window**, **clipboard** (two-pane with preview), **power**. Row hotkeys are
-  quiet plain-mono `F1…F4`; the footer's primary action is a pill with the key
-  glyph *inside* it.
-- **OSDs** — brightness / volume / mic. Fully-rounded pill: semantic-coloured
-  icon (no halo, no box) + progress track. No numeric readout, no label.
-- **Dictation indicator** — fully-rounded pill, audio-reactive waveform only; no
-  mic icon, no text. Driven live by Dictator's OSD meter socket as a scrolling
-  level-history — it **must** react to real audio, never loop a canned
-  animation. Waveform carries `accent` (see §2, "Dictation vs `mic`"). States:
-  `recording` (live scrolling waveform), `transcribing` (dimmed hold + a
-  sweeping accent scan), `typing` (dimmed hold), `error` (flat bars in `urgent`).
-- **Notifications** — transient **toast** (top-right) and a **history panel**
-  (header "N recent" + "clear all"). Borderless cards: a bare accent-coloured
-  glyph, app name, title, body, timestamp. Toast close buttons appear on hover;
-  history rows always show close buttons. Double-clicking or swiping a card
-  dismisses it.
-- **Media panel** — art, title/artist, scrubber, transport (primary = filled
-  accent circle), output/input level sliders, output-device picker.
-- **Quick settings** — Wi-Fi/Bluetooth/DND/Power-saver toggles, brightness &
-  volume sliders, connected Bluetooth devices, and a **Nearby** section that is
-  empty until you press **Scan** (then reveals discovered devices).
-- **Battery** — large %, fuel bar, stat grid (size / time / threshold /
-  discharge rate), power-profile segmented control. (Reference: Omarchy.)
+Signal colors are not decoration. Green means audio, yellow means brightness,
+pink means microphone or recording, and peach means charging. General active
+state uses the blue accent.
 
----
+### Component assignments
 
-## 4. Top bar specifics
+Component assignments map semantic meaning onto a reusable control. Plugin QML
+uses these assignments or an explicitly documented semantic role. It never
+reads the raw palette.
 
-- **Workspaces (Niri).** Niri scrolls *columns* horizontally within a
-  workspace. Two layouts were designed (pick per taste; default is the first):
-  - **inline** — workspace **pips** (active pip elongates) · `|` divider · a
-    compact **column indicator**: bare blocks where the focused column is a
-    solid accent block, the rest are dim ticks. No surrounding box.
-  - **stacked** — `X/Y` count + a *vertical* card-stack: workspaces stacked,
-    active centred and accent-bordered with its column blocks inside, neighbours
-    peeking above/below behind a soft fade; slides vertically as you switch.
-  Both must be driven by Niri's real workspace/column state (IPC), not faked.
-- **Clustered tray.** The right side is grouped into clickable clusters, each
-  opening the relevant panel: resources (cpu/mem, display-only) · connectivity
-  (wifi+bt → quick settings) · audio (→ media) · notifications (→ history,
-  badge = unread count) · battery (→ battery panel). Active cluster shows an
-  accent-tinted background.
+| Component | Contract |
+|---|---|
+| Bar | background, border, separator, workspace, and cluster states |
+| Panel | background, border, section, hover, selected, danger, and shadow |
+| Control | background, interaction states, focus, text, and on-active text |
+| Notification | background, border, unread, info, success, warning, danger, and muted |
+| OSD | border, track, fill, and text |
 
----
+There is deliberately no `component.osd.background`. Every OSD reads
+`semantic.surface.panel` directly. This is a design rule, not a default that a
+theme may override.
 
-## 5. The legibility technique (important)
+## Type and icons
 
-Translucent surfaces over a *bright* wallpaper region wash out: backdrop-blur
-pulls the bright pixels through and text loses contrast. The fix used here is
-**darken the backdrop, don't just lower opacity**:
+Noto Sans is the body family. Use it for labels, prose, notification bodies,
+panel rows, and explanatory text.
 
-```
-backdrop-filter: blur(22px) saturate(1.1) brightness(0.5);
-background: <panelbase> at ~85%;   /* panelbase = base00 darkened ~34% */
-text-shadow: 0 1px 3px rgba(0,0,0,.52);  /* faint scrim on text */
-```
+JetBrainsMono Nerd Font is the monospace family. Use it for clocks, resource
+readouts, percentages, identifiers, keyboard hints, and short uppercase
+section labels.
 
-This keeps the glassy, blurred quality while guaranteeing readable text over any
-wallpaper. In QML this maps to a `MultiEffect`/blur source plus a semi-opaque
-dark `Rectangle` overlay — replicate the *darkening*, not only the alpha.
+Material Symbols Rounded is the icon family. Use the filled rounded vocabulary
+consistently. Do not mix outlined and rounded symbols within a production
+surface. Shared `ShellIcon` names are the only icon API exposed to plugins.
 
-`Theme.panelChrome` is the canonical resolved panel fill. `PopupPanel` applies
-it by default, and all shell panels must inherit that default rather than
-choosing `panelBg`, `panelBgStrong`, or a component-local background.
+| Type role | Size |
+|---|---|
+| Body and label | 13 px |
+| Caption | 11 px |
+| Heading | 17 px |
 
----
+Use regular, medium, and bold weights at 400, 500, and 700. Do not use body
+text smaller than 11 px.
 
-## 6. Implementation notes for Quickshell
+## Geometry and density
 
-- Build a single **Theme singleton** holding the resolved tokens of §2; bind
-  every component to it. Re-resolving from new base16 values is the entire
-  retheme path.
-- Each surface = its own `PanelWindow` / layer-shell surface. Drive
-  show/hide and all live data from Niri IPC, MPRIS, PipeWire/WirePlumber,
-  UPower, BlueZ, NetworkManager, and the notification server — never poll fake
-  state.
-- Icons: one thin-stroke line set (the prototype uses Lucide at stroke-width
-  1.6). Pick a single QML icon source and keep stroke weight uniform.
-- Motion: transform/opacity only, decelerate easing, tiered durations. Avoid
-  long or bouncy transitions. Full contract in §7.
-- Respect the **44px minimum** hit target for anything clickable even though the
-  visuals are dense.
-- Keep the Dune flavour *restrained*: it lives in naming and the wallpaper, not
-  in chrome. (e.g. battery panel's "water reserves" label is optional flavour —
-  drop to plain "Battery" if it ever reads as costume.)
+The base spacing unit is 4 px. Normal gaps and padding use multiples of that
+unit. The approved component metrics are:
 
----
+| Metric | Value |
+|---|---|
+| Small radius | 5 px |
+| Medium radius | 7 px |
+| Large radius | 11 px |
+| Bar height | 26 px |
+| Bar outer gap | 0 px |
+| Bar inner gap | 7 px |
+| Small, medium, large icons | 15, 18, 24 px |
+| Panel width | 380 px |
+| Panel padding | 16 px |
+| Standard row height | 38 px |
 
-## 7. Motion & interaction conventions
+Use the small radius for controls and contained row treatments. Use the medium
+radius for the bar and OSDs. Use the large radius for panels and notification
+cards.
 
-Motion exists to explain *where things went*, never to decorate. Every animation
-is quick, decelerating, and driven from the Theme singleton so the whole shell
-moves with one rhythm.
+The standard panel, bar, and notification opacity is 0.80. Raised controls and
+OSDs may render opaquely while keeping their assigned surface color. The
+approved effect defaults are 24 px blur and 0.50 shadow opacity. Legibility over
+the wallpaper takes priority over showing more wallpaper through a panel.
 
-### Duration tiers (`Theme`)
-| Token | ms | Use |
-|---|---|---|
-| `animationFast` | **120** | hover / colour / opacity state, snap-back |
-| `animationMedium` | **180** | element enter & exit, swipe slide-away |
-| `animationSlow` | **260** | larger or rare transitions only |
+## Surface rules
 
-### Rules
-1. **Decelerate by default.** Use `Easing.OutCubic` (fast start, gentle settle)
-   for anything the user triggers. Never `InCubic`/accelerate on a release — a
-   slow start reads as lag. No overshoot/bounce in chrome.
-2. **Animate `transform` and `opacity` only.** Never animate layout-driving
-   properties (`Layout.preferredWidth/Height`, reflowing anchor margins) — they
-   thrash the layout engine and cause visible choppiness. If an element must
-   appear/disappear inside a layout, **reserve a fixed slot and cross-fade
-   opacity** rather than animating its size. (This is why the notification close
-   button keeps an 18px slot and only fades.)
-3. **Bind, don't tween, during a gesture.** While a finger/pointer is down,
-   assign the tracked value directly (e.g. `dragOffset = dx`) so it tracks 1:1.
-   Only animate on *release* (snap-back or fling-away).
+- `semantic.surface.panel` is the common dark panel color.
+- `semantic.surface.raised` belongs to controls and contained sections. It is
+  not a replacement panel background.
+- Selected rows use the component's selected fill with no decorative outline.
+- Failed rows use `component.panel.rowDanger` as a borderless tinted fill.
+- Empty states center their icon and copy within the available section.
+- Borders separate a whole panel or card. Do not add nested outlines to every
+  button or row.
+- Notification state color belongs in a compact tinted icon tile. Do not use a
+  detached full-height stripe along the card edge.
+- OSDs use `semantic.surface.panel`, the medium radius, the OSD border, and the
+  semantic signal color appropriate to the value being changed.
 
-### Swipe-to-dismiss contract (`NotificationCard.qml`)
-The canonical dismissal gesture; reuse these values for any future swipeable card.
-| Parameter | Value | Why |
-|---|---|---|
-| Drag-start gate | `|dx| > 6px` **and** `|dx| > |dy|·1.2` | horizontal intent; lets vertical scroll pass through |
-| Dismiss distance | `min(width·0.25, 80px)` | short and deliberate, not a marathon drag |
-| Flick velocity | `≥ 420 px/s` in the drag direction | a fast flick dismisses regardless of distance |
-| Snap-back | `dragOffset → 0`, **120ms** OutCubic | quick, crisp return |
-| Slide-away | `dragOffset → ±(width+56)`, **180ms** OutCubic | responsive exit that fully clears the edge |
-| Fade | `opacity → ~0.52` as it travels | reinforces that it's leaving |
-| `preventStealing` | enabled **only** after horizontal intent | coexists with the history panel's `Flickable` |
+## Bar
 
-- **Dismiss on distance OR flick** — combine both, don't rely on distance alone.
-- Smooth velocity lightly (`v = 0.6·v + 0.4·instantaneous`) so a stray final
-  event can't misfire the flick.
-- Double-click also dismisses. Close buttons: hover-only on toasts, always
-  visible on history rows.
+The bar is 26 px tall and anchored to the top edge with no outer gap. It spans
+each output edge. This replaces the earlier floating treatment.
 
----
+Workspace treatment is fixed to inline. Workspace pips and the Niri column
+indicator share one horizontal line. The active workspace uses the primary
+accent. Do not reintroduce the stacked workspace experiment.
 
-## 8. What's intentionally NOT here
+The right side favors icon-led clusters for resources, connectivity, audio,
+notifications, and battery. Active clusters use an accent-tinted background.
+Each cluster must expose a clear accessible label even when the visible control
+is icon-only.
 
-No system tray spillover, no calendar (removed by design), no decorative
-gradients, no per-surface accent colours, no emoji. Add new surfaces only by
-composing the existing primitives so the system stays coherent.
+## Controls and state ownership
+
+Controls use the shared `ShellButton`, `ShellToggle`, `ShellSlider`,
+`ShellText`, `ShellIcon`, `ShellSurface`, and `ShellBarCluster` components.
+Freeze these contracts before rebuilding production panels.
+
+Do Not Disturb belongs to notification behavior and its notification panel. A
+network preview must not imply ownership of it. A network scan action is a
+borderless, right-aligned text and icon action. Network rows reserve a fixed
+icon column so labels align across connected, scanning, joining, off, and
+failure states.
+
+The design does not prescribe a consolidated media and quick-settings panel.
+The old HTML demo is not a requirements source. Panel contents and ownership
+must come from a functional inventory and an explicit panel review.
+
+## Notification states
+
+Notification views support unread, info, success, warning, danger, and muted
+roles. The state changes the icon tile and relevant status content. The card
+keeps one joined background and its normal border.
+
+The notification service remains the owner of history, actions, timeout
+policy, and Do Not Disturb behavior. Rebuilding a view must not weaken those
+behavioral contracts.
+
+## Motion
+
+The approved motion scale is 0.55 against the base 120, 180, and 260 ms tiers.
+The effective Catppuccin baseline is therefore 66, 99, and 143 ms. Use
+out-cubic easing.
+
+Animate opacity and transforms. Do not animate layout measurements. A gesture
+tracks the pointer directly and animates only after release. Reduced-motion
+mode resolves transitions immediately.
+
+Panel-open performance is part of the design. A transition cannot hide slow
+construction. Keep persistent or lazy-loaded views warm when measurements show
+that creation time is visible.
+
+## Implementation boundary
+
+The design lab may stay as a regression and theme-development tool. Its mock
+network and notification states are examples, not production data sources.
+
+The next implementation phase is:
+
+1. Review panel functionality and ownership one panel at a time.
+2. Promote the approved v2 theme and freeze the shared component contracts in
+   the production shell.
+3. Rebuild approved panels with the frozen shared components.
+4. Enable persistent Quickshell logging, then run the live soak after the UI
+   pass.
+
+Do not infer missing panel requirements from removed prototypes or old design
+notes.

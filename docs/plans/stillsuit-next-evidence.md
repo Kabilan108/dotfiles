@@ -901,19 +901,48 @@ No rebuild, service restart, production-shell reload, or panel conversion was
 performed. `DESIGN.md` and the old UI demo remain unchanged pending visual
 approval.
 
+## Design approval and contract lock
+
+The human approved the native design lab with Catppuccin Mocha, Noto Sans body
+text, JetBrainsMono Nerd Font telemetry, rounded Material Symbols, a 26 px
+anchored bar, inline workspaces, 0.80 surface opacity, 7 px medium radius, and
+0.55 motion scale. The lab's restore action is now labeled `Approved` and
+restores those exact values.
+
+The approved language gives OSDs `semantic.surface.panel` directly. The
+redundant `component.osd.background` field was removed from all candidate
+themes, the v2 schema, the lab resolver, and the token map. `ShellSurface`
+reads the semantic panel role for OSDs, and the schema test rejects a theme
+that tries to restore the retired field.
+
+`home/desktop/wayland/quickshell/DESIGN.md` was rewritten from the approved
+native lab. It now records the three-level theme model, selected typography,
+metrics, surfaces, fixed inline workspace treatment, anchored bar, motion,
+state treatments, and feature-ownership boundaries. It explicitly rejects the
+old consolidated media/quick-settings assumption. The obsolete 1.3 MB
+`ui-demo.html` bundle was deleted.
+
+The live lab hot-reloaded and reported a ready Loader with opacity `0.8`, radius
+`7`, motion scale `0.55`, and OSD role `semantic.surface.panel`. Its token map
+no longer shows `osd.background`. JSON/schema validation, the explicit retired
+token scan, Qt 6 QML parsing, Ruff, Ty, `git diff --check`, the schema/theme
+suite, Lane B (67 core and 24 repair checks), `nix flake check --no-build`, and
+the evaluated Jacurutu Stillsuit package build all exited 0. The production
+shell remained PID `1370585`; no rebuild, restart, reload, or panel conversion
+was performed.
+
 ## Remaining work
 
-- Review the design lab and settle the theme, typography, bar height and edge
-  treatment, surfaces, and motion. Then rewrite `DESIGN.md`, remove the old UI
-  demo, and only afterward discuss and authorize panel conversions.
+- Review panel functionality and ownership with the human. The old HTML demo is
+  not a source of requirements, and no consolidated media/quick-settings panel
+  is assumed.
+- Promote the approved v2 theme and freeze shared component contracts before
+  rebuilding the first approved panel.
 - After a future human-run rebuild, measure the optimized agent panel's live
   reopen latency and confirm its surface, process, tmux, and termination
   invariants.
 - Complete the planned 8-24 hour live soak, including output hotplug and restart
   observation. The disposable reverse patch was proven, but live rollback has
   not been exercised.
-- Inventory panel functionality with the human and decide which legacy
-  behaviors should be retained, redesigned, or intentionally dropped before
-  implementation work is queued.
 - Remove legacy Stillsuit and disabled Waybar material only after the soak and
   explicit cleanup approval.

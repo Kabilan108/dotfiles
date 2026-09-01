@@ -13,16 +13,17 @@ The lab compares three draft themes and lets you tune:
 - surface opacity, radius, and core semantic colors;
 - motion speed and reduced-motion behavior.
 
-The default review preset reproduces the accepted screenshot baseline:
+The approved preset reproduces the accepted screenshot baseline:
 Catppuccin Mocha, Noto Sans, JetBrainsMono Nerd Font, rounded Material Symbols,
-a 26 px anchored bar, 0.85 opacity, 4 px medium radius, and 0.55 motion scale.
-Use `Your pick` to restore it after comparing theme defaults.
+a 26 px anchored bar, 0.80 opacity, 7 px medium radius, and 0.55 motion scale.
+Use `Approved` to restore it after comparing theme defaults.
 
 The composition preview includes six notification states and five network
 states. The network header's borderless `Scan` action switches to the scanning
-state. Do Not Disturb is owned by the notification preview. OSDs derive their
-background directly from `surface.panel` and always use the selected medium
-radius; `surface.raised` remains the role for controls and panel sections.
+state. Do Not Disturb is owned by the notification preview. OSDs read
+`semantic.surface.panel` directly and always use the selected medium radius;
+there is no `component.osd.background` token. `surface.raised` remains the role
+for controls and panel sections.
 
 The previews import the shared components in `../src/ui/`; they are not copies
 of production-looking controls. Candidate files live in `themes/` and validate
@@ -37,6 +38,6 @@ STILLSUIT_LAB_ROOT="$PWD/packages/stillsuit-shell/design-lab" \
   --path "$PWD/packages/stillsuit-shell/src/design-lab.qml"
 ```
 
-The current production theme schema remains v1. The v2 schema is explicitly a
-draft until the lab is approved; `DESIGN.md` and the production panels should
-not be migrated before then.
+The current production theme schema remains v1. The v2 filename remains marked
+as a draft until the production migration, but its design decisions are now
+approved and recorded in `DESIGN.md`.

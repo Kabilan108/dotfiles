@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://stillsuit.local/schemas/theme.v2.draft.json",
   "title": "Stillsuit theme v2 draft",
-  "description": "Design-lab contract. Palette tokens feed semantic roles; shared components consume only component roles.",
+  "description": "Approved design contract staged beside production v1. Palette tokens feed semantic roles; shared components consume semantic and component assignments, never raw palette values.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -377,9 +377,8 @@
     "osdComponent": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["background", "border", "track", "fill", "text"],
+      "required": ["border", "track", "fill", "text"],
       "properties": {
-        "background": { "$ref": "#/$defs/color" },
         "border": { "$ref": "#/$defs/color" },
         "track": { "$ref": "#/$defs/color" },
         "fill": { "$ref": "#/$defs/color" },
