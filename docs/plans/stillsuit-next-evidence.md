@@ -767,8 +767,26 @@ process, confirmed that its PID matches systemd and its config path is
 real `stillsuit.bar` loaded without fallback, and zero plugin errors. Gate 2 is
 technically complete.
 
+The human then confirmed that `Mod+A` opens audio, `Mod+N` opens notifications,
+and `Mod+Grave` opens the agent panel with its tmux session preserved across
+window closes. Read-only output captures independently showed the live bar on
+both `DP-4` and `eDP-1`, with populated workspace indicators and resource
+widgets. Cropped bar and agent-panel captures were deleted after inspection.
+
+The human noted that the agent-panel window opens more slowly than desired. A
+controlled open/close measurement restored the prior focus and measured 39 ms
+for IPC dispatch, 38-43 ms for helper status, and 429 ms until Niri mapped the
+window. The helper intentionally closes Ghostty on hide and starts a fresh
+Ghostty window on open; only the tmux session persists. The fresh terminal
+window accounts for nearly all measured latency. No window-lifecycle redesign
+was added during gate closure.
+
+After visual acceptance, the disposable `result` symlink and one-off
+`gate-2-switch.sh` were removed. The canonical command sheet remains in
+`docs/plans/stillsuit-next-human-gates.md`.
+
 ## Remaining work
 
-- Complete the human visual check of the live bar and the primary panel
-  bindings. Remove the local `result` symlink and one-off switch script only
-  after that acceptance.
+- Decide whether to keep the agent panel's approximately 429 ms fresh-window
+  behavior or design a persistent-window hiding mechanism. Any change must
+  preserve the exact tmux session, single-window invariant, and PID checks.
