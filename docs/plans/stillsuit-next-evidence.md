@@ -1203,6 +1203,36 @@ Verification:
 No panel workflow was changed. No rebuild, activation, service restart,
 production-shell reload, Niri mutation, legacy cleanup, or soak was performed.
 
+## Panel implementation: agent surface
+
+Status: reviewed and merged from isolated lane commit
+`cf32cf9607f606187d0b9c57ba975ac1337139bd`.
+
+Built:
+
+- Removed the agent bar-widget contribution and source. The plugin now exposes
+  only its global fixed-action service.
+- Preserved the Mod+Grave IPC route, exact `=stillsuit-agent` tmux identity,
+  external Ghostty surface, helper safety, and source-only warm-reopen work.
+- Staged the approved 72% to 60% width and height change as
+  `docs/plans/stillsuit-agent-geometry.patch`; the live Niri configuration was
+  not edited.
+
+Verification:
+
+- The orchestrator read the complete five-file diff before merge.
+- `packages/stillsuit-shell/src/plugins/builtin/agent-panel/tests/run.sh`, exit
+  0, including the service-only manifest and absent-widget assertions.
+- `git apply --check docs/plans/stillsuit-agent-geometry.patch`, exit 0.
+- The patch was applied to an archived disposable copy of the current Niri
+  configuration and `niri validate --config` exited 0.
+- `git diff --check dd9ea414..stillsuit-next-panel-agent`, exit 0.
+
+The staged geometry patch and warm reopen remain part of a later human-approved
+deployment. No live IPC, window/process action, rebuild, activation, service
+restart, production-shell reload, live Niri edit, soak, or legacy cleanup was
+performed.
+
 ## Panel implementation: shared UI contracts
 
 Status: reviewed and merged from isolated lane commit
