@@ -1233,6 +1233,49 @@ deployment. No live IPC, window/process action, rebuild, activation, service
 restart, production-shell reload, live Niri edit, soak, or legacy cleanup was
 performed.
 
+## Panel implementation: bar, workspaces, clock, and OSDs
+
+Status: reviewed and merged from isolated lane commits
+`40674c9be87699eb9544e0e17033326f046df3cd` and
+`af22a8208622856557be63bcd93609b28698f14d`.
+
+Built:
+
+- Migrated the per-output bar, inline workspace and Niri-column treatment,
+  clock, and OSD views to theme v2 and the shared UI contracts.
+- Locked a 26-pixel full-width top bar, zero outer gap, 26-pixel exclusion
+  zone, and square anchored corners.
+- Kept one global OSD service with per-output views. Audio, brightness, and
+  dictation use their semantic signal roles; error uses semantic danger.
+- OSD surfaces use `semantic.surface.panel`, the medium radius, and the OSD
+  border, track, fill, and text assignments.
+- Added a deterministic two-output headless fixture under `src/tests/bar-v2`.
+
+Verification:
+
+- The orchestrator read every production file, the source contract, runner,
+  and full headless fixture before merge.
+- `packages/stillsuit-shell/src/tests/bar-v2/run.sh`, exit 0 after correction.
+- The fixture proves distinct output IDs and workspace rows, one clock service,
+  one OSD service with two views, inline workspace/column layout, accessibility
+  hooks, signal mapping, and reduced motion.
+- The lane's d1 static, schema/theme, shared UI, d5 workflow, Node syntax, and
+  diff checks exited 0.
+
+Review notes:
+
+- The first reviewed bar inherited `radiusMedium` from `ShellSurface`, which
+  contradicted the approved anchored treatment and left transparent corner
+  cutouts. A fresh blank-context correction set the anchored production bar
+  radius to zero and added a rejecting source assertion.
+- Existing d1 QML and d4 harnesses flatten plugin directories and therefore do
+  not preserve the new shared `ui/` import. The d1 static fixture also retains
+  an obsolete 40-pixel exclusion assertion. These are integration-owned test
+  harness updates, not accepted lane failures, and remain required before full
+  verification.
+- No rebuild, activation, service restart, production-shell reload, compositor
+  mutation, soak, or legacy cleanup was performed.
+
 ## Panel implementation: shared UI contracts
 
 Status: reviewed and merged from isolated lane commit
