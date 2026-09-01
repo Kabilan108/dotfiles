@@ -1,12 +1,28 @@
 import QtQuick
-Rectangle {
+import "../../../ui" as Ui
+
+Ui.ShellBarCluster {
     id: root
+
     required property var context
     required property var service
     required property string outputId
-    implicitWidth: 76; implicitHeight: context.theme.geometry.barHeight
-    radius: context.theme.geometry.radius
-    color: mouse.containsMouse ? context.theme.controls.hover.fill : "transparent"
-    Text { anchors.centerIn: parent; text: !service || !service.available ? "VOL --" : service.muted ? "VOL mute" : "VOL " + Math.round(service.volume * 100) + "%"; color: root.context.theme.colors.text.primary; font.family: root.context.theme.typography.monospaceFamily; font.pixelSize: root.context.theme.typography.baseSize }
-    MouseArea { id: mouse; anchors.fill: parent; hoverEnabled: true; onClicked: root.context.actions.surfaceToggle("stillsuit.audio", "") }
+
+    theme: context.theme
+    iconName: !service || !service.available || service.muted
+        ? "volume-mute"
+        : service.volume < 0.5
+            ? "volume-down"
+            : "volume-up"
+    label: service && service.available && !service.muted
+        ? Math.round(Math.min(1, service.volume) * 100) + "%"
+        : ""
+    accessibleName: !service || !service.available
+        ? "Audio unavailable"
+        : service.muted
+            ? "Audio muted, open audio and media panel"
+            : "Volume " + Math.round(Math.min(1, service.volume) * 100)
+                + " percent, open audio and media panel"
+    active: context.panels && context.panels.isOpen("stillsuit.audio")
+    onClicked: context.actions.surfaceToggle("stillsuit.audio", "")
 }
