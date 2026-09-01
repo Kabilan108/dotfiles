@@ -96,4 +96,19 @@ QtObject {
         }
         return -1
     }
+
+    function usageBand(value) {
+        if (value === undefined || value === null || value === "")
+            return ""
+        var percent = Number(value)
+        if (!isFinite(percent))
+            return ""
+        if (percent >= 90)
+            return "critical"
+        if (percent >= 75)
+            return "high"
+        if (percent >= 60)
+            return "elevated"
+        return "normal"
+    }
 }

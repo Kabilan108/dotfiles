@@ -114,8 +114,16 @@ Scope {
                             iconName: "cpu"
                             label: "CPU"
                             description: "Aggregate utilization"
-                            trailingText: root._percent(
-                                root.service ? root.service.cpuPercent : null)
+
+                            Ui.ShellText {
+                                theme: root.context.theme
+                                text: root._percent(root.service
+                                    ? root.service.cpuPercent : null)
+                                sizeRole: "caption"
+                                monospace: true
+                                color: root._usageColor(root.service
+                                    ? root.service.cpuPercent : null)
+                            }
                         }
 
                         Ui.ShellRow {
@@ -125,8 +133,16 @@ Scope {
                             iconName: "memory"
                             label: "Memory"
                             description: "Used physical memory"
-                            trailingText: root._percent(
-                                root.service ? root.service.memoryPercent : null)
+
+                            Ui.ShellText {
+                                theme: root.context.theme
+                                text: root._percent(root.service
+                                    ? root.service.memoryPercent : null)
+                                sizeRole: "caption"
+                                monospace: true
+                                color: root._usageColor(root.service
+                                    ? root.service.memoryPercent : null)
+                            }
                         }
                     }
                 }
@@ -146,5 +162,12 @@ Scope {
         if (value === undefined || value === null || value === "")
             return "--"
         return Math.round(Number(value)) + "%"
+    }
+
+    function _usageColor(value) {
+        var band = service ? service.usageBand(value) : ""
+        var colors = context.theme.component.resources
+        return band !== "" && colors && colors[band] !== undefined
+            ? colors[band] : context.theme.semantic.content.secondary
     }
 }

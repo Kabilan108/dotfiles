@@ -127,6 +127,12 @@
       "track": "#303746",
       "fill": "#d98952",
       "text": "#e6ded0"
+    },
+    "resources": {
+      "normal": "#8ebf84",
+      "elevated": "#d8b466",
+      "high": "#d98952",
+      "critical": "#dc727b"
     }
   },
   "typography": {

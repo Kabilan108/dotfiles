@@ -231,6 +231,26 @@ ShellRoot {
             verify(resources.memoryPercent === 75,
                 "missing memory preserves last good")
             verify(resources.refreshTimer.interval === 3000, "resource cadence")
+            verify(resources.usageBand(59) === "normal", "normal usage band")
+            verify(resources.usageBand(60) === "elevated", "elevated usage band")
+            verify(resources.usageBand(75) === "high", "high usage band")
+            verify(resources.usageBand(90) === "critical", "critical usage band")
+            verify(resources.usageBand("invalid") === "", "invalid usage band")
+
+            var resourceWidgetComponent = Qt.createComponent(
+                "plugins/builtin/resources/ResourceWidget.qml",
+                Component.PreferSynchronous)
+            var resourceWidget = resourceWidgetComponent.createObject(root, {
+                context: fakeContext,
+                service: resources,
+                outputId: "fixture-output"
+            })
+            verify(resourceWidget !== null, "resource widget construction")
+            verify(String(resourceWidget.cpuColor).toLowerCase() === "#a6e3a1",
+                "normal CPU color")
+            verify(String(resourceWidget.memoryColor).toLowerCase() === "#fab387",
+                "high memory color")
+            resourceWidget.destroy()
 
             console.log("POWER_RESOURCES_FIXTURE_OK checks=" + checks)
             Qt.quit()

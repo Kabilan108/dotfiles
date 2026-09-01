@@ -140,6 +140,12 @@
       fill = "#89b4fa";
       text = "#cdd6f4";
     };
+    resources = {
+      normal = "#a6e3a1";
+      elevated = "#f9e2af";
+      high = "#fab387";
+      critical = "#f38ba8";
+    };
   };
 
   typography = {

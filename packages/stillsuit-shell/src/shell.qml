@@ -139,7 +139,8 @@ ShellRoot {
                         "accent", "status", "signal"
                     ])
                     || !_hasRecords(parsed.component, [
-                        "bar", "panel", "control", "notification", "osd"
+                        "bar", "panel", "control", "notification", "osd",
+                        "resources"
                     ]))
                 throw new Error("theme does not satisfy theme.v2")
             effectiveTheme = parsed

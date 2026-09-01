@@ -286,6 +286,14 @@ def _check_design_lab_theme_schema() -> None:
         "a design-lab theme without component.notification.warning",
     )
 
+    missing_resources_high = deepcopy(themes[0])
+    del missing_resources_high["component"]["resources"]["high"]
+    _assert_rejected(
+        validator,
+        missing_resources_high,
+        "a design-lab theme without component.resources.high",
+    )
+
 
 def main() -> None:
     _check_manifest_schema()
