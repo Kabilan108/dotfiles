@@ -134,6 +134,20 @@ wait_for_state_file() {
   return 1
 }
 
+wait_for_pid_exit() {
+  local pid=$1
+  local _
+  for _ in {1..120}; do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      wait "$pid" 2>/dev/null || true
+      return 0
+    fi
+    sleep 0.05
+  done
+  echo "process did not exit: $pid" >&2
+  return 1
+}
+
 node "$fixture_dir/model-policy.test.js"
 node "$fixture_dir/notification-card-source.test.js"
 start_shell
@@ -241,6 +255,41 @@ start_shell
 wait_for_json '.popups[0].summary == "restart-deadline" and .unreadCount == 0' >/dev/null
 [[ $(ipc firstActionState) == none ]]
 wait_for_json '(.popups | length) == 0 and .history[0].summary == "restart-deadline"' >/dev/null
+
+# Restart hydration drops an old deadline-zero popup instead of restoring it.
+ipc dismissAll >/dev/null
+stop_shell
+jq -n '{
+  schemaVersion: 1,
+  dnd: false,
+  popups: [{
+    key: "old-persistent-restart",
+    originalId: 1,
+    summary: "old-persistent-restart",
+    timestamp: 1,
+    deadline: 0,
+    read: false
+  }],
+  history: []
+}' >"$state_dir/notifications-v1.json"
+start_shell
+old_restart_state=$(wait_for_json '(.popups | length) == 0 and (.history | length) == 0')
+jq -e '.trackedCount == 0 and .unreadCount == 0 and .liveRefCount == 0' \
+  >/dev/null <<<"$old_restart_state"
+
+# Runtime cleanup drops an old live popup, closes its sender, and releases its ref.
+notify-send -u critical -a lane-e -t 0 -A default=Open "old-live-cleanup" \
+  >"$tmp_dir/old-live.out" &
+old_live_pid=$!
+old_live_state=$(wait_for_json '.popups[0].summary == "old-live-cleanup" and .liveRefCount == 1')
+old_live_timestamp=$(jq -r '.popups[0].timestamp' <<<"$old_live_state")
+prune_timestamp=$(jq -nr --argjson timestamp "$old_live_timestamp" \
+  '$timestamp + (24 * 60 * 60 * 1000) + 1')
+[[ $(ipc pruneAt "$prune_timestamp") == 1 ]]
+pruned_live_state=$(wait_for_json '(.popups | length) == 0 and (.history | length) == 0')
+jq -e '.trackedCount == 0 and .unreadCount == 0 and .liveRefCount == 0' \
+  >/dev/null <<<"$pruned_live_state"
+wait_for_pid_exit "$old_live_pid"
 
 # Executable-looking hints remain data before and after a process restart.
 ipc dismissAll >/dev/null

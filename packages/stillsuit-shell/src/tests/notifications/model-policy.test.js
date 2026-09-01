@@ -106,6 +106,24 @@ const agePruned = Model.pruneHistory([
 ], pruningNow, day, 100)
 assert.deepEqual(agePruned.map(row => row.key), ["inside"], "history prunes after 24 hours")
 
+const restartedWithOldPersistentPopup = Model.parseState(JSON.stringify({
+    dnd: false,
+    popups: [{
+        ...good,
+        key: "old-persistent-popup",
+        timestamp: pruningNow - day - 1,
+        deadline: 0
+    }],
+    history: []
+}), 5, 100, pruningNow, day)
+assert.equal(
+    restartedWithOldPersistentPopup.popups.length,
+    0,
+    "restart drops a deadline-zero popup older than 24 hours"
+)
+assert.equal(restartedWithOldPersistentPopup.history.length, 0)
+assert.equal(restartedWithOldPersistentPopup.corrupt, false, "age pruning is not state corruption")
+
 const popupRows = Array.from({ length: 5 }, (_, index) => ({
     ...good,
     key: `popup-${index}`,

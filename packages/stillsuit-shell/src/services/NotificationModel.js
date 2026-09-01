@@ -161,10 +161,11 @@ function parseState(raw, popupLimit, historyLimit, now, historyMaxAgeMs) {
             return result
         }
         result.dnd = typeof parsed.dnd === "boolean" ? parsed.dnd : false
-        result.popups = isolateRecords(parsed.popups, popupLimit)
+        var isolatedPopups = isolateRecords(parsed.popups, popupLimit)
+        result.popups = pruneSnapshots(isolatedPopups, now, historyMaxAgeMs, popupLimit)
         var isolatedHistory = isolateRecords(parsed.history, historyLimit)
         result.history = pruneHistory(isolatedHistory, now, historyMaxAgeMs, historyLimit)
-        result.corrupt = result.popups.length !== (Array.isArray(parsed.popups) ? Math.min(parsed.popups.length, popupLimit) : 0)
+        result.corrupt = isolatedPopups.length !== (Array.isArray(parsed.popups) ? Math.min(parsed.popups.length, popupLimit) : 0)
             || isolatedHistory.length !== (Array.isArray(parsed.history) ? Math.min(parsed.history.length, historyLimit) : 0)
         return result
     } catch (error) {
@@ -184,8 +185,8 @@ function boundedHistory(history, snapshot, limit) {
     return result
 }
 
-function pruneHistory(history, now, maxAgeMs, limit) {
-    var rows = Array.isArray(history) ? history : []
+function pruneSnapshots(snapshots, now, maxAgeMs, limit) {
+    var rows = Array.isArray(snapshots) ? snapshots : []
     var referenceTime = finiteNumber(now, Date.now())
     var ageLimit = Math.max(1, finiteNumber(maxAgeMs, DEFAULT_HISTORY_MAX_AGE_MS))
     var rowLimit = Math.max(1, Math.min(DEFAULT_HISTORY_LIMIT,
@@ -203,6 +204,10 @@ function pruneHistory(history, now, maxAgeMs, limit) {
         result.push(row)
     }
     return result
+}
+
+function pruneHistory(history, now, maxAgeMs, limit) {
+    return pruneSnapshots(history, now, maxAgeMs, limit)
 }
 
 function retainedHistory(popups, history, limit, now, maxAgeMs) {
@@ -298,6 +303,7 @@ if (typeof module !== "undefined") {
         validSnapshot: validSnapshot,
         parseState: parseState,
         boundedHistory: boundedHistory,
+        pruneSnapshots: pruneSnapshots,
         pruneHistory: pruneHistory,
         retainedHistory: retainedHistory,
         markRead: markRead,

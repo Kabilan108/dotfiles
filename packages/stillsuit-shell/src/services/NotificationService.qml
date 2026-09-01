@@ -191,10 +191,14 @@ Scope {
     }
 
     function enforceRetention(now) {
+        var previousPopups = popups
         var previousHistory = history
+        popups = NotificationModel.pruneSnapshots(previousPopups, now,
+            policy.historyMaxAgeMs, policy.popupLimit)
         history = NotificationModel.retainedHistory(popups, previousHistory,
             policy.historyLimit, now, policy.historyMaxAgeMs)
-        var removedKeys = NotificationModel.historyKeysRemoved(previousHistory, history)
+        var removedKeys = NotificationModel.historyKeysRemoved(
+            previousPopups.concat(previousHistory), popups.concat(history))
         closeEvictedLive(removedKeys)
         return removedKeys.length
     }
@@ -235,7 +239,7 @@ Scope {
             try {
                 if (ref && typeof ref.dismiss === "function") ref.dismiss()
             } catch (error) {
-                logWarning("live notification closed before history eviction completed")
+                logWarning("live notification closed before retention cleanup completed")
             }
         }
     }

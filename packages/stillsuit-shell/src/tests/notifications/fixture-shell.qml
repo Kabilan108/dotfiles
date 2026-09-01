@@ -102,6 +102,10 @@ ShellRoot {
             return notificationService.setDnd(normalized === "on" || normalized === "true" || normalized === "1")
         }
 
+        function pruneAt(timestamp: string): string {
+            return String(notificationService.pruneHistoryAt(Number(timestamp)))
+        }
+
         function presentationProof(): string {
             var rowsA = notificationService.toastsForOutput("output-a")
             var rowsB = notificationService.toastsForOutput("output-b")
