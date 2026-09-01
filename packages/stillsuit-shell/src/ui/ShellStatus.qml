@@ -13,13 +13,15 @@ Rectangle {
     property string accessibleName: ""
     property bool compact: false
     property bool showIcon: true
+    property bool wrap: false
+    property int maximumLines: 3
 
     readonly property string effectiveAccessibleName: accessibleName !== ""
         ? accessibleName
         : label
 
     implicitWidth: statusRow.implicitWidth + (compact ? 12 : 16)
-    implicitHeight: compact ? 22 : 28
+    implicitHeight: compact ? 22 : Math.max(28, statusRow.implicitHeight + 12)
     radius: theme.metrics.radiusSmall
     color: status === "danger"
         ? theme.component.panel.rowDanger
@@ -29,7 +31,8 @@ Rectangle {
     RowLayout {
         id: statusRow
 
-        anchors.centerIn: parent
+        anchors.fill: parent
+        anchors.margins: root.compact ? 6 : 8
         spacing: 5
 
         ShellIcon {
@@ -42,10 +45,14 @@ Rectangle {
 
         ShellText {
             visible: root.label !== ""
+            Layout.fillWidth: true
             theme: root.theme
             text: root.label
             sizeRole: "caption"
             role: root._colorRole()
+            wrapMode: root.wrap ? Text.Wrap : Text.NoWrap
+            maximumLineCount: root.wrap ? root.maximumLines : 1
+            elide: Text.ElideRight
         }
     }
 

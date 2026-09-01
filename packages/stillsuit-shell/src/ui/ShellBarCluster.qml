@@ -8,6 +8,7 @@ ShellAction {
 
     required property var theme
     property string iconName: "settings"
+    property string badgeIconName: ""
     property string label: ""
     property bool active: false
     property bool reducedMotion: false
@@ -58,14 +59,37 @@ ShellAction {
                 : root.theme.component.bar.clusterText
         }
 
-        ShellIcon {
+        Item {
             visible: !root.busy
-            theme: root.theme
-            name: root.iconName
-            sizeRole: "small"
-            color: root.active
-                ? root.theme.component.bar.clusterActiveText
-                : root.theme.component.bar.clusterText
+            Layout.preferredWidth: root.theme.metrics.iconSmall
+            Layout.preferredHeight: root.theme.metrics.iconSmall
+
+            ShellIcon {
+                anchors.centerIn: parent
+                theme: root.theme
+                name: root.iconName
+                sizeRole: "small"
+                color: root.active
+                    ? root.theme.component.bar.clusterActiveText
+                    : root.theme.component.bar.clusterText
+            }
+
+            ShellIcon {
+                visible: root.badgeIconName !== ""
+                anchors {
+                    right: parent.right
+                    bottom: parent.bottom
+                    rightMargin: -4
+                    bottomMargin: -3
+                }
+                theme: root.theme
+                name: root.badgeIconName
+                sizeRole: "small"
+                scale: 0.56
+                color: root.active
+                    ? root.theme.component.bar.clusterActiveText
+                    : root.theme.component.bar.clusterText
+            }
         }
 
         ShellText {

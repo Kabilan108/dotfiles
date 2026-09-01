@@ -13,7 +13,14 @@ QtObject {
         wiredName: "",
         networks: [],
         vpns: [],
-        tailscale: ({ available: false, status: "unavailable", ip: "", tailnet: "" })
+        tailscale: ({
+            available: false,
+            status: "unavailable",
+            ip: "",
+            hostName: "",
+            dnsName: "",
+            services: []
+        })
     })
     property string operation: "idle"
     property string operationTarget: ""
@@ -47,12 +54,16 @@ QtObject {
         available: false,
         status: "unavailable",
         ip: "",
-        tailnet: ""
+        hostName: "",
+        dnsName: "",
+        services: []
     }) : snapshot.tailscale || ({
         available: false,
         status: "unavailable",
         ip: "",
-        tailnet: ""
+        hostName: "",
+        dnsName: "",
+        services: []
     })
     readonly property var connectedNetwork: _connected()
     readonly property bool scanning: operation === "scan"
@@ -292,6 +303,36 @@ QtObject {
 
     function openHiddenEditor() {
         return openEditor(null)
+    }
+
+    function openManager() {
+        if (!_begin("open-editor", "manage"))
+            return forceUnavailable ? "unavailable" : "busy"
+        if (model && typeof model.openEditor === "function")
+            return _finishModel(model.openEditor("manage", null), "handoff")
+        return _send({ operation: "open-editor", mode: "manage", uuid: "" })
+    }
+
+    function copyTailscale(field, serviceName) {
+        var requestedField = String(field || "")
+        if (requestedField !== "dns" && requestedField !== "ip"
+                && requestedField !== "service")
+            return "invalid"
+        var requestedService = String(serviceName || "")
+        if (requestedField === "service" && requestedService === "")
+            return "invalid"
+        if (!_begin("copy-tailscale", requestedField))
+            return forceUnavailable ? "unavailable" : "busy"
+        if (model && typeof model.copyTailscale === "function")
+            return _finishModel(model.copyTailscale(
+                requestedField, requestedService), "copied")
+        if (model)
+            return _finishModel("ok", "copied")
+        return _send({
+            operation: "copy-tailscale",
+            field: requestedField,
+            serviceName: requestedService
+        })
     }
 
     function toggleVpn(vpn) {

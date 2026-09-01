@@ -7,6 +7,7 @@ its process argv never contains an SSID, connection identifier, or secret.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import subprocess
 import sys
@@ -15,12 +16,46 @@ from typing import Any
 VPN_NAME = "MobergAnalytics"
 
 
+def _tailscale_ipv4(addresses: Any) -> str:
+    if not isinstance(addresses, list):
+        return ""
+    for value in addresses:
+        try:
+            address = ipaddress.ip_address(str(value))
+        except ValueError:
+            continue
+        if address.version == 4:
+            return str(address)
+    return ""
+
+
+def _tailscale_services(records: Any) -> list[str]:
+    if not isinstance(records, list):
+        return []
+    names = {
+        str(record.get("Name", "")).rstrip(".")
+        for record in records
+        if isinstance(record, dict) and str(record.get("Name", "")).rstrip(".")
+    }
+    return sorted(names, key=str.casefold)
+
+
 def _run(
     command: list[str],
     *,
     input_text: str | None = None,
     timeout: int = 25,
 ) -> subprocess.CompletedProcess[str]:
+    if command == ["wl-copy"]:
+        return subprocess.run(
+            command,
+            check=False,
+            input=input_text,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=timeout,
+        )
     return subprocess.run(
         command,
         check=False,
@@ -202,18 +237,24 @@ def _snapshot() -> dict[str, Any]:
         "available": False,
         "status": "unavailable",
         "ip": "",
-        "tailnet": "",
+        "hostName": "",
+        "dnsName": "",
+        "services": [],
     }
     tailscale_result = _run(["tailscale", "status", "--json"], timeout=8)
     if tailscale_result.returncode == 0:
         try:
             status = json.loads(tailscale_result.stdout)
-            addresses = status.get("Self", {}).get("TailscaleIPs", [])
+            self_status = status.get("Self", {})
+            if not isinstance(self_status, dict):
+                self_status = {}
             tailscale = {
                 "available": True,
                 "status": str(status.get("BackendState", "unknown")).lower(),
-                "ip": str(addresses[0]) if addresses else "",
-                "tailnet": str(status.get("CurrentTailnet", {}).get("Name", "")),
+                "ip": _tailscale_ipv4(self_status.get("TailscaleIPs", [])),
+                "hostName": str(self_status.get("HostName", "")),
+                "dnsName": str(self_status.get("DNSName", "")).rstrip("."),
+                "services": _tailscale_services(status.get("ExtraRecords", [])),
             }
         except (TypeError, ValueError, KeyError):
             tailscale["status"] = "invalid status"
@@ -303,6 +344,23 @@ def _dispatch(request: dict[str, Any]) -> dict[str, Any]:
             )
         elif operation == "vpn-toggle":
             _toggle_vpn(request)
+        elif operation == "copy-tailscale":
+            field = str(request.get("field", ""))
+            if field not in {"dns", "ip", "service"}:
+                raise RuntimeError("unsupported Tailscale copy field")
+            snapshot = _snapshot()
+            if field == "service":
+                service_name = str(request.get("serviceName", "")).rstrip(".")
+                if service_name not in snapshot["tailscale"].get("services", []):
+                    raise RuntimeError("Tailscale service is unavailable")
+                copy_value = f"https://{service_name}"
+            else:
+                key = "dnsName" if field == "dns" else "ip"
+                copy_value = str(snapshot["tailscale"].get(key, ""))
+            if not copy_value:
+                raise RuntimeError("Tailscale value is unavailable")
+            _checked(["wl-copy"], input_text=copy_value)
+            return {"ok": True, "operation": operation, "snapshot": snapshot}
         elif operation == "open-editor":
             _open_editor(request)
             return {"ok": True, "operation": operation, "handoff": True}

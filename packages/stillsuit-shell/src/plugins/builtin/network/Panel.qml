@@ -11,6 +11,7 @@ Scope {
     required property var screen
     required property string outputId
     property var credentialNetwork: null
+    property bool tailscaleExpanded: false
 
     readonly property var connectedRows: service ? service.networks.filter(function(network) {
         return network && network.connected
@@ -59,6 +60,8 @@ Scope {
         }
 
     Ui.ShellSurface {
+        id: panelSurface
+
         anchors {
             top: parent.top
             right: parent.right
@@ -67,8 +70,10 @@ Scope {
             rightMargin: root.context.theme.metrics.spaceUnit
         }
         width: root.context.theme.metrics.panelWidth
-        height: Math.min(620, parent.height - anchors.topMargin
-            - root.context.theme.metrics.spaceUnit)
+        height: Math.min(panelContent.implicitHeight
+                + root.context.theme.metrics.panelPadding * 2,
+            parent.height - anchors.topMargin
+                - root.context.theme.metrics.spaceUnit)
         theme: root.context.theme
         kind: "panel"
 
@@ -78,29 +83,52 @@ Scope {
         }
 
         ColumnLayout {
+            id: panelContent
+
             anchors.fill: parent
             anchors.margins: root.context.theme.metrics.panelPadding
             spacing: 10
 
-            RowLayout {
+            ColumnLayout {
                 Layout.fillWidth: true
+                spacing: 4
 
-                Ui.ShellText {
+                RowLayout {
                     Layout.fillWidth: true
-                    theme: root.context.theme
-                    text: "Network"
-                    sizeRole: "heading"
+
+                    Ui.ShellText {
+                        Layout.fillWidth: true
+                        theme: root.context.theme
+                        text: "Network"
+                        sizeRole: "heading"
+                    }
+
+                    Ui.ShellStatus {
+                        visible: root.service && root.service.wiredConnected
+                        theme: root.context.theme
+                        status: "success"
+                        iconName: "network"
+                        label: root.service && root.service.wiredName !== ""
+                            ? root.service.wiredName
+                            : "Wired"
+                        compact: true
+                    }
+
+                    Ui.ShellButton {
+                        theme: root.context.theme
+                        label: ""
+                        iconName: "settings"
+                        compact: true
+                        ghost: true
+                        accessibleName: "Manage network connections"
+                        onClicked: root.service.openManager()
+                    }
                 }
 
-                Ui.ShellStatus {
-                    visible: root.service && root.service.wiredConnected
-                    theme: root.context.theme
-                    status: "success"
-                    iconName: "network"
-                    label: root.service && root.service.wiredName !== ""
-                        ? root.service.wiredName
-                        : "Wired"
-                    compact: true
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 1
+                    color: root.context.theme.semantic.outline.subtle
                 }
             }
 
@@ -124,6 +152,8 @@ Scope {
                 status: "danger"
                 iconName: "danger"
                 label: root.service ? root.service.lastError : ""
+                wrap: true
+                maximumLines: 3
             }
 
             Ui.ShellStateView {
@@ -139,18 +169,164 @@ Scope {
 
             Flickable {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                implicitHeight: Math.min(panelBody.implicitHeight, 430)
                 visible: root.service && root.service.available
                 clip: true
                 contentWidth: width
                 contentHeight: panelBody.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
+                interactive: contentHeight > height
 
                 ColumnLayout {
                     id: panelBody
 
                     width: parent.width
                     spacing: 6
+
+                    GridLayout {
+                        Layout.fillWidth: true
+                        visible: root.service && root.service.tailscale.available
+                        columns: 2
+                        columnSpacing: 12
+                        rowSpacing: 0
+
+                        Ui.ShellText {
+                            Layout.rowSpan: 2
+                            theme: root.context.theme
+                            text: "tailscale"
+                            sizeRole: "label"
+                        }
+
+                        Ui.ShellAction {
+                            Layout.fillWidth: true
+                            implicitHeight: 16
+                            accessibleName: "Copy Tailscale DNS name"
+                            onActivated: root.service.copyTailscale("dns")
+
+                            Ui.ShellText {
+                                anchors.fill: parent
+                                theme: root.context.theme
+                                text: String(root.service.tailscale.dnsName || "")
+                                sizeRole: "caption"
+                                role: "muted"
+                                elide: Text.ElideLeft
+                                horizontalAlignment: Text.AlignRight
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.service.copyTailscale("dns")
+                            }
+                        }
+
+                        Ui.ShellAction {
+                            Layout.fillWidth: true
+                            implicitHeight: 16
+                            accessibleName: "Copy Tailscale IPv4 address"
+                            onActivated: root.service.copyTailscale("ip")
+
+                            Ui.ShellText {
+                                anchors.fill: parent
+                                theme: root.context.theme
+                                text: String(root.service.tailscale.ip || "")
+                                sizeRole: "caption"
+                                role: "muted"
+                                monospace: true
+                                elide: Text.ElideLeft
+                                horizontalAlignment: Text.AlignRight
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.service.copyTailscale("ip")
+                            }
+                        }
+                    }
+
+                    Ui.ShellAction {
+                        Layout.fillWidth: true
+                        implicitHeight: 14
+                        visible: root.service
+                            && root.service.tailscale.available
+                            && root.service.tailscale.services.length > 0
+                        accessibleName: root.tailscaleExpanded
+                            ? "Collapse Tailscale services"
+                            : "Expand Tailscale services"
+                        onActivated: root.tailscaleExpanded = !root.tailscaleExpanded
+
+                        Ui.ShellIcon {
+                            anchors.centerIn: parent
+                            theme: root.context.theme
+                            name: "chevron-right"
+                            sizeRole: "small"
+                            role: "muted"
+                            rotation: root.tailscaleExpanded ? -90 : 90
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: root.tailscaleExpanded
+                            && root.service.tailscale.services.length > 0
+                        Layout.leftMargin: 0
+                        Layout.rightMargin: 12
+                        spacing: 8
+
+                        Rectangle {
+                            Layout.fillHeight: true
+                            Layout.preferredWidth: 1
+                            color: root.context.theme.semantic.outline.subtle
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            Repeater {
+                                model: root.service.tailscale.services
+
+                                delegate: Ui.ShellAction {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    implicitHeight: 16
+                                    accessibleName: "Copy Tailscale service URL "
+                                        + String(modelData)
+                                    onActivated: root.service.copyTailscale(
+                                        "service", String(modelData))
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        spacing: 0
+
+                                        Ui.ShellText {
+                                            theme: root.context.theme
+                                            text: root.tailscaleServiceName(modelData)
+                                            sizeRole: "caption"
+                                            role: "secondary"
+                                        }
+
+                                        Ui.ShellText {
+                                            Layout.fillWidth: true
+                                            theme: root.context.theme
+                                            text: root.tailscaleServiceSuffix(modelData)
+                                            sizeRole: "caption"
+                                            role: "muted"
+                                            elide: Text.ElideRight
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.service.copyTailscale(
+                                            "service", String(modelData))
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     Ui.ShellSectionLabel {
                         visible: root.connectedRows.length > 0
@@ -189,20 +365,37 @@ Scope {
                             accessibleName: "Scan for Wi-Fi networks"
                             onClicked: root.service.scan()
                         }
+
                     }
 
-                    Ui.ShellStateView {
-                        Layout.fillWidth: true
+                    RowLayout {
+                        Layout.alignment: Qt.AlignHCenter
                         visible: root.availableRows.length === 0
-                        theme: root.context.theme
-                        mode: root.service && root.service.scanning ? "loading" : "empty"
-                        title: root.service && root.service.scanning
-                            ? "Scanning"
-                            : "No available networks"
-                        message: root.service && root.service.scanning
-                            ? "NetworkManager is refreshing access points."
-                            : "Scan again or use the editor for a hidden network."
-                        iconName: "wifi"
+                        spacing: 8
+
+                        Ui.ShellBusyIndicator {
+                            visible: root.service && root.service.scanning
+                            theme: root.context.theme
+                            sizeRole: "small"
+                            role: "muted"
+                        }
+
+                        Ui.ShellIcon {
+                            visible: !root.service || !root.service.scanning
+                            theme: root.context.theme
+                            name: "wifi"
+                            sizeRole: "small"
+                            role: "muted"
+                        }
+
+                        Ui.ShellText {
+                            theme: root.context.theme
+                            text: root.service && root.service.scanning
+                                ? "Scanning"
+                                : "No available networks"
+                            sizeRole: "caption"
+                            role: "muted"
+                        }
                     }
 
                     Repeater {
@@ -213,17 +406,6 @@ Scope {
                             Layout.fillWidth: true
                             network: modelData
                         }
-                    }
-
-                    Ui.ShellButton {
-                        Layout.alignment: Qt.AlignRight
-                        theme: root.context.theme
-                        label: "Hidden network"
-                        iconName: "edit"
-                        compact: true
-                        ghost: true
-                        accessibleName: "Open NetworkManager editor for a hidden network"
-                        onClicked: root.service.openHiddenEditor()
                     }
 
                     Ui.ShellSectionLabel {
@@ -364,59 +546,6 @@ Scope {
                         }
                     }
 
-                    Ui.ShellSectionLabel {
-                        Layout.fillWidth: true
-                        theme: root.context.theme
-                        text: "Tailscale"
-                    }
-
-                    Ui.ShellSurface {
-                        Layout.fillWidth: true
-                        implicitHeight: tailscaleColumn.implicitHeight + 20
-                        theme: root.context.theme
-                        kind: "raised"
-
-                        ColumnLayout {
-                            id: tailscaleColumn
-
-                            anchors.fill: parent
-                            anchors.margins: 10
-                            spacing: 3
-
-                            Ui.ShellText {
-                                Layout.fillWidth: true
-                                theme: root.context.theme
-                                text: root.service && root.service.tailscale.available
-                                    ? String(root.service.tailscale.status || "unknown")
-                                    : "Unavailable"
-                                sizeRole: "label"
-                                role: root.service && root.service.tailscale.status === "running"
-                                    ? "success"
-                                    : "muted"
-                            }
-
-                            Ui.ShellText {
-                                Layout.fillWidth: true
-                                theme: root.context.theme
-                                text: root.service && root.service.tailscale.tailnet
-                                    ? "Tailnet  " + root.service.tailscale.tailnet
-                                    : "Tailnet unavailable"
-                                sizeRole: "caption"
-                                role: "muted"
-                            }
-
-                            Ui.ShellText {
-                                Layout.fillWidth: true
-                                theme: root.context.theme
-                                text: root.service && root.service.tailscale.ip
-                                    ? "IP  " + root.service.tailscale.ip
-                                    : "IP unavailable"
-                                sizeRole: "caption"
-                                role: "muted"
-                                monospace: true
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -464,6 +593,18 @@ Scope {
         credentialNetwork = null
         service.activate(network, password)
         password = ""
+    }
+
+    function tailscaleServiceName(serviceName) {
+        var value = String(serviceName || "")
+        var separator = value.indexOf(".")
+        return separator === -1 ? value : value.slice(0, separator)
+    }
+
+    function tailscaleServiceSuffix(serviceName) {
+        var value = String(serviceName || "")
+        var separator = value.indexOf(".")
+        return separator === -1 ? "" : value.slice(separator)
     }
 
     function open(payloadJson) {

@@ -55,9 +55,15 @@ def main() -> None:
         if command[:2] == ["tailscale", "status"]:
             return completed(
                 command,
-                '{"BackendState":"Running","Self":{"TailscaleIPs":["100.64.0.9"]},'
-                '"CurrentTailnet":{"Name":"fixture.ts.net"}}',
+                '{"BackendState":"Running","Self":{"HostName":"fixture-host",'
+                '"DNSName":"fixture-host.fixture.ts.net.","TailscaleIPs":['
+                '"fd7a:115c:a1e0::1","100.64.0.9"]},"ExtraRecords":['
+                '{"Name":"siren.fixture.ts.net.","Value":"100.64.0.10"},'
+                '{"Name":"siren.fixture.ts.net.","Value":"fd7a:115c:a1e0::2"},'
+                '{"Name":"vault.fixture.ts.net.","Value":"100.64.0.11"}]}',
             )
+        if command == ["wl-copy"]:
+            return completed(command)
         return completed(command)
 
     setattr(helper, "_run", fake_run)  # noqa: B010
@@ -91,8 +97,35 @@ def main() -> None:
         "available": True,
         "status": "running",
         "ip": "100.64.0.9",
-        "tailnet": "fixture.ts.net",
+        "hostName": "fixture-host",
+        "dnsName": "fixture-host.fixture.ts.net",
+        "services": ["siren.fixture.ts.net", "vault.fixture.ts.net"],
     }
+    copied_dns = helper._dispatch({"operation": "copy-tailscale", "field": "dns"})
+    assert copied_dns["ok"] is True
+    dns_copy_call = next(call for call in calls if call["command"] == ["wl-copy"])
+    assert dns_copy_call["input"] == "fixture-host.fixture.ts.net"
+    calls.clear()
+    copied_service = helper._dispatch(
+        {
+            "operation": "copy-tailscale",
+            "field": "service",
+            "serviceName": "siren.fixture.ts.net",
+        }
+    )
+    assert copied_service["ok"] is True
+    service_copy_call = next(
+        call for call in calls if call["command"] == ["wl-copy"]
+    )
+    assert service_copy_call["input"] == "https://siren.fixture.ts.net"
+    rejected_service = helper._dispatch(
+        {
+            "operation": "copy-tailscale",
+            "field": "service",
+            "serviceName": "unknown.fixture.ts.net",
+        }
+    )
+    assert rejected_service["ok"] is False
     list_call = next(
         call
         for call in calls

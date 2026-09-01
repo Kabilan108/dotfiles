@@ -76,11 +76,15 @@ ShellRoot {
             available: true,
             status: "running",
             ip: "100.64.0.8",
-            tailnet: "fixture.ts.net"
+            hostName: "fixture-host",
+            dnsName: "fixture-host.fixture.ts.net",
+            services: ["siren.fixture.ts.net", "vault.fixture.ts.net"]
         })
         property int scans: 0
         property int editorHandoffs: 0
         property int vpnToggles: 0
+        property string copiedTailscaleField: ""
+        property string copiedTailscaleService: ""
         property bool failNext: false
 
         function scan() {
@@ -90,6 +94,12 @@ ShellRoot {
 
         function setWifiEnabled(value) {
             wifiEnabled = value
+            return "ok"
+        }
+
+        function copyTailscale(field, serviceName) {
+            copiedTailscaleField = field
+            copiedTailscaleService = serviceName || ""
             return "ok"
         }
 
@@ -303,6 +313,9 @@ ShellRoot {
             expect(network.openHiddenEditor() === "ok"
                     && events.indexOf("editor:hidden") !== -1,
                 "hidden-network handoff failed")
+            expect(network.openManager() === "ok"
+                    && events.indexOf("editor:manage") !== -1,
+                "network-manager handoff failed")
 
             expect(network.toggleVpn(otherVpn) === "read-only"
                     && fakeNetwork.vpnToggles === 0,
@@ -312,8 +325,17 @@ ShellRoot {
                 "MobergAnalytics quick toggle failed")
             expect(network.tailscale.status === "running"
                     && network.tailscale.ip === "100.64.0.8"
-                    && network.tailscale.tailnet === "fixture.ts.net",
+                    && network.tailscale.hostName === "fixture-host"
+                    && network.tailscale.dnsName === "fixture-host.fixture.ts.net"
+                    && network.tailscale.services.length === 2,
                 "Tailscale metadata was not exposed")
+            expect(network.copyTailscale("dns") === "ok"
+                    && fakeNetwork.copiedTailscaleField === "dns",
+                "Tailscale copy did not reach the network owner")
+            expect(network.copyTailscale("service", "siren.fixture.ts.net") === "ok"
+                    && fakeNetwork.copiedTailscaleField === "service"
+                    && fakeNetwork.copiedTailscaleService === "siren.fixture.ts.net",
+                "Tailscale service copy did not reach the network owner")
 
             expect(bluetooth.connectedDevices.length === 1
                     && bluetooth.pairedDevices.length === 2

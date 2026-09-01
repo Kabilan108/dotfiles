@@ -375,6 +375,13 @@ window-rule {
 }
 
 window-rule {
+    match app-id=r#"^nm-connection-editor$"#
+    open-floating true
+    default-column-width { fixed 560; }
+    default-window-height { fixed 420; }
+}
+
+window-rule {
     match app-id=r#"^org\.gnome\.Loupe$"#
     open-floating true
 }
