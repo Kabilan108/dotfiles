@@ -1322,6 +1322,42 @@ Review notes:
   activation, service restart, production-shell reload, soak, or legacy cleanup
   was performed.
 
+## Panel implementation: recording and meetings
+
+Status: reviewed and merged from isolated lane commits
+`42609fb60b4ab2408875f0db3e4db3248ce8cfcf` and
+`01cd616103e7240f30c5a1b3da3e2e26c4355892` in merge commit
+`7cc2f1adbb51bebc6094ad8d2dc4e0fcdd42ef8b`.
+
+Built:
+
+- Restored capture setup, a compact active transport, the older custom
+  recording indicator's visual intent, finish-as-meeting, durable completion
+  state, copy-path access, and a five-second interaction-aware completion
+  close.
+- Added a Recent meetings view inside the recording panel. It is a bounded
+  five-row operational queue: queued, processing, and failed jobs rank before
+  completed jobs; older actionable jobs page in capped groups; completed jobs
+  only fill spare capacity and do not create history-only overflow pages.
+- Kept retry manual and identity-preserving, with attempt increments, job-level
+  dispatch exclusion, concise errors, separate Details and Retry actions, and
+  completed-result access through Obsidian.
+- Made both recording pulses honor reduced motion while retaining a static
+  state indicator.
+
+Verification:
+
+- The orchestrator read the complete backend, service, panel, model, widget,
+  fixture, and Nix-test diffs before merge, including the blank-context
+  correction that embedded the queue in the recording panel.
+- `packages/stillsuit-shell/src/tests/d5-workflows/run.sh`, exit 0.
+- `packages/stillsuit-shell/src/tests/recording-meetings/run.sh`, exit 0.
+- `qmlformat` parsed every QML file changed by the correction, exit 0.
+- `git diff 42609fb6..01cd6161 --check`, exit 0.
+
+No rebuild, activation, service restart, production-shell reload, compositor
+mutation, soak, or legacy cleanup was performed.
+
 ## Panel implementation: theme-v2 host integration
 
 Status: integrated by the orchestrator in commit
