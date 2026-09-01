@@ -624,6 +624,84 @@ Post-repair integration verification:
   `skill-audit` worktree and unrelated untracked
   `agents/skills/html-plans/todos.md` were preserved.
 
+## Secondary review repairs
+
+The non-blocking findings retained by the resumed Claude review were completed
+before requesting Gate 2. Four repair lanes started from Gate 1 commit
+`9c388f73`, received blank context and explicit file ownership, and performed
+no activation or live desktop changes. The orchestrator read every complete
+lane diff before merging it:
+
+- host runtime `637791b0`, merged by `067795f6`;
+- notifications `c7840e5c`, merged by `fa4cb1a1`;
+- schema and theme `a097144c` plus fixture-isolation correction `c59d1ae2`,
+  merged by `8f0f7a9a`; and
+- services and workflows `a153b368`, merged by `08dca3d7`.
+
+The host lane preserves per-plugin failures when adding a catalog-document
+failure and rehomes an open global surface when its output disappears. The
+notification lane releases final evicted live references, makes clear-all
+durable before returning, and renders sender-controlled bodies as plain text.
+The schema/theme lane enforces reverse manifest kind constraints in both schema
+and runtime validation, requires the schema's `identity` and `palette` records
+at runtime, and replaces the missing cursor accent role. The service lane adds
+bounded Niri reconnect backoff and reconciliation timeouts, proves missing-at-
+startup recorder-file discovery against the pinned Quickshell behavior, fixes
+the pinned normalized battery and Wi-Fi unit contracts, and migrates the exact
+historical pre-version meeting state in memory.
+
+Two review interventions were required before acceptance. The first
+schema/theme draft expanded into an unnecessary hand-written copy of the theme
+schema and was narrowed to the runtime boundary actually at issue. Its first
+committed fixture inherited the real home directory and used busy polling; the
+follow-up commit gave it a private home and bounded sleeps. The other three lane
+diffs were accepted after full review and focused reruns.
+
+The two deliberately retained notes were also assessed. `CompositorAdapter`
+profiling measured about 0.20 ms per event at 20 windows, 0.61 ms at 100, and
+5.81 ms at an artificial 1000; caching would expose mutable consumer arrays, so
+no change was justified. The agent-panel check-then-kill PID recycle window
+needs a pidfd-like identity primitive and was not obscured by a weaker patch.
+
+Post-merge verification on `08dca3d7` exited 0 for the focused schema/theme
+suite, Lane B (67 core and 24 repair checks), agent panel, all three
+private-D-Bus notification suites, D1 through D5, Bash syntax, ShellCheck,
+Python compilation, Ruff, `ty`, manifest schema validation and unique-ID
+checks, `niri validate`, `nixfmt --check`, and `nix flake check --no-build`.
+The D1 QML driver initially exited 126 when invoked directly because it is not
+executable; invoking its documented Bash entry point passed. Two `ty` attempts
+could not discover the temporary `jsonschema` dependency; resolving its site
+package directory and supplying it through `--extra-search-path` passed. These
+failed invocations were harness/environment corrections, not suppressed test
+failures.
+
+A clean Git archive of `08dca3d7` accepted the Gate 2 patch only inside a
+disposable repository. The patched option audit proved `enable = true`, bar
+owner `stillsuit.builtin-bar`, and notification owner
+`stillsuit.notifications`. Its shell package build produced
+`/nix/store/v4mga6hs2nkfyqym49807ykzvix7ds5m-stillsuit-shell-0.1.0.drv`.
+The forced-enabled Jacurutu closure build exited 0 with derivation
+`/nix/store/8v212y04l8n8l9phq4siwp4i4vhc3h46-nixos-system-jacurutu-26.11.20260822.2c423e0.drv`
+and output
+`/nix/store/6nlz1x4cq38q7r6zpp4pjcab815xz7iz-nixos-system-jacurutu-26.11.20260822.2c423e0`.
+The built catalog contains schema version 1, selected bar `stillsuit.bar`, and
+15 unique plugins.
+
+The generated unit at
+`/nix/store/xn289ma6qhbrx5mr85rfv9za3yhm6lp7-stillsuit-shell.service/stillsuit-shell.service`
+uses canonical config `stillsuit-next`, sets shadow mode off, has no
+`DataDirectory=`, and passed `systemd-analyze --user verify` with the packaged
+systemd user targets. Two earlier verifier attempts exited 1 because their
+search paths omitted the systemd package's `basic.target`; adding the complete
+packaged target path produced the successful audit.
+
+The human later supplied the resumed primary Claude report, which independently
+accepted every A1-A7/N1-N2 repair and reported no remaining blocker or major.
+A Tracer sync retry spent its scan without finding a session to import and
+finished with zero created, updated, skipped, or errored records. The supplied
+report is therefore recorded as human-provided evidence rather than claimed as
+a newly recovered transcript.
+
 ## Human-owned gates
 
 Gate 1 was approved by the human on 2026-08-31. Its workspace-removal and
@@ -645,7 +723,9 @@ barriers, single-instance/owner assertions, and rollback.
 
 ## Remaining work
 
-- Triage the secondary, non-gate-blocking findings from the resumed independent
-  Claude review before declaring the shell finished.
 - Gate 2 remains a separate, explicit human decision and must use the prepared
   ordered handoff rather than an unbounded or newest-instance selection.
+- The Gate 2 patch has passed disposable application and forced-enabled build
+  verification but is not applied to the live checkout. A rebuild now would
+  remain at the Gate 1/default-off boundary until that gate is explicitly
+  approved and staged.

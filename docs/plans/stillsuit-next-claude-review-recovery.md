@@ -6,9 +6,10 @@ Primary Claude session: `d443951d-085e-47a9-9c14-29beaa773fd0`
 
 Branch and reviewed range: `stillsuit-next`, `bb167a9..5f487bf3`
 
-Activation status: none. This recovery did not switch a NixOS or Home Manager
-generation, restart a production service, claim the notification bus, or touch a
-live tmux session.
+Recovery activation status: none. The recovery itself did not switch a NixOS or
+Home Manager generation, restart a production service, claim the notification
+bus, or touch a live tmux session. Gate 1 was subsequently approved, rebuilt,
+and activated by the human. Gate 2 has not been applied or activated.
 
 ## Recovery status
 
@@ -28,6 +29,14 @@ sync remained in the scanning phase and produced no archive entry, so recovery
 continued from Tracer's configured Claude provider source under
 `~/.claude/projects/-home-kabilan-dotfiles/`. The primary record and all four
 child records were present there. Reads did not alter or annotate the records.
+
+After the original rate limit cleared, the human supplied the resumed primary
+Claude session's final report. It independently reread every A1-A7/N1-N2 repair
+diff and reran the focused proofs, agreed that Gate 1 was safe, and found no
+remaining blocker or major before Gate 2. A later Tracer sync retry again found
+no sessions to import (`0 created`, `0 updated`, `0 skipped`, `0 errors`), so
+that resumed report is represented here from the human-supplied text rather
+than a newly recovered archive record.
 
 ## Verdict
 
@@ -177,8 +186,8 @@ Stillsuit Base16 projection and system Stylix integration evaluate together.
 
 ## Secondary fixes
 
-These are not Gate 2 blockers, but they should be triaged before declaring the
-shell finished.
+These were not Gate 2 blockers. They were retained for pre-finish triage and
+were resolved in the follow-up repair lanes described below.
 
 - `NotificationModel.js:166-175` and `NotificationService.qml`: release live
   notification references when bounded history evicts their final row.
@@ -215,6 +224,45 @@ The security reviewer reported two low-value notes only: the unavoidable
 check-then-kill PID recycle window in the agent panel, and the need to keep the
 existing `niri validate` guard for the staged proportional window height.
 
+### Secondary resolution
+
+Four blank-context repair lanes implemented the secondary set without
+activation. The orchestrator read each complete lane diff before merge and
+independently reran its focused tests.
+
+- Notification history eviction now releases a live notification reference
+  only after its final popup or history row disappears. Clear-all persists
+  synchronously and atomically, and sender-controlled bodies render as plain
+  text. All three private-bus notification suites pass.
+- Niri event reconnects now use bounded exponential backoff, reconciliation has
+  a timeout, and replacement refreshes wait for stuck processes to exit. The
+  recorder state watcher is covered for a file created after startup using the
+  parent-directory behavior of the pinned Quickshell 0.3 `FileView`.
+- Battery and Wi-Fi percentages now follow the pinned normalized `0..1`
+  Quickshell contracts, eliminating the ambiguous one-percent heuristic.
+- Runtime theme validation now requires record-valued `identity` and `palette`
+  sections. `CursorSurface` uses the defined `colors.border.focus` role with a
+  foreground fallback.
+- The manifest schema and runtime validator now enforce the reverse
+  entry-point/scope-to-kind constraints independently. Fifteen built-in
+  manifests pass both validation paths.
+- Catalog-document failure reporting preserves existing per-plugin failures.
+  An open global surface is rehomed deterministically when its output
+  disappears, without replaying its payload; per-output surfaces are unchanged.
+- Exact pre-version meeting state is migrated in memory to schema version 1;
+  incomplete unversioned and future-version documents remain rejected.
+- `CompositorAdapter` remains unchanged. Profiling measured about 0.20 ms per
+  event at 20 windows and 0.61 ms at 100; caching would expose mutable consumer
+  arrays, so the review found no justified change.
+- The agent-panel PID recycle window remains documented rather than papered
+  over without a pidfd-like identity primitive. The existing Niri validation
+  gates remain in place.
+
+The lane commits are `637791b0` (host runtime), `c7840e5c`
+(notifications), `a097144c` plus `c59d1ae2` (schema/theme), and `a153b368`
+(services/workflows). They were accepted through merge commits `067795f6`,
+`fa4cb1a1`, `8f0f7a9a`, and `08dca3d7` respectively.
+
 ## Repair and review order
 
 1. Fix A1 through A7 without activating the module.
@@ -233,3 +281,7 @@ existing `niri validate` guard for the staged proportional window height.
 7. Review the resulting diff and evidence ledger. Gate 1 may then be approved
    independently. Gate 2 still requires explicit human approval and the
    prepared bounded cutover procedure.
+
+Status on 2026-08-31: steps 1 through 6 are complete, Gate 1 is complete, all
+secondary findings above are resolved, and Gate 2 remains unapplied pending an
+explicit human decision.
