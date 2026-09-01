@@ -7,9 +7,16 @@ QtObject {
     property var jobs: []
     property int page: 0
     readonly property var rankedJobs: _rank(jobs)
-    readonly property int pageCount: Math.max(1, Math.ceil(rankedJobs.length / pageSize))
-    readonly property var pageJobs: rankedJobs.slice(page * pageSize, (page + 1) * pageSize)
-    readonly property int actionableCount: rankedJobs.filter(function(job) { return _actionable(job.phase) }).length
+    readonly property var actionableJobs: rankedJobs.filter(function(job) { return _actionable(job.phase) })
+    readonly property var completedJobs: rankedJobs.filter(function(job) { return String(job.phase || "") === "completed" })
+    readonly property int actionableCount: actionableJobs.length
+    // Pages exist to make actionable work reachable. Completed rows only fill
+    // the spare slots on an actionable page, never create their own overflow.
+    readonly property int pageCount: Math.max(1, Math.ceil(actionableCount / pageSize))
+    readonly property var pageJobs: {
+        var actionable = actionableJobs.slice(page * pageSize, (page + 1) * pageSize)
+        return actionable.concat(completedJobs.slice(0, Math.max(0, pageSize - actionable.length)))
+    }
     readonly property int olderActionableCount: Math.max(0, actionableCount - (page + 1) * pageSize)
     readonly property bool hasPreviousPage: page > 0
     readonly property bool hasNextPage: page + 1 < pageCount

@@ -19,5 +19,12 @@ Ui.ShellBarCluster {
     busy: processing
     accessibleName: processing ? "Meeting processing, " + meeting.label
         : failed ? "Meeting failed, open recent meetings" : "Open recent meetings"
-    onClicked: context.actions.surfaceToggle("stillsuit.meeting", "")
+
+    function openMeetings() {
+        return context.actions.surfaceOpen("stillsuit.recording", "{\"view\":\"meetings\"}")
+    }
+
+    // The fixed payload selects the operational queue in RecordingPanel.
+    // Do not toggle: a recording panel already open must switch views.
+    onClicked: root.openMeetings()
 }

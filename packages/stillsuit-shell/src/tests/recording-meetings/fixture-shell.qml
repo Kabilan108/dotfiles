@@ -96,12 +96,26 @@ ShellRoot {
 
     QtObject {
         id: actions
+        property string lastOpenPlugin: ""
+        property string lastOpenPayload: ""
         function surfaceClose(pluginId) {
             if (pluginId === "stillsuit.recording") recordingPanel.close()
             if (pluginId === "stillsuit.meeting") meetingPanel.close()
             return "ok"
         }
         function surfaceToggle(pluginId, payloadJson) { return "ok" }
+        function surfaceOpen(pluginId, payloadJson) {
+            lastOpenPlugin = String(pluginId)
+            lastOpenPayload = String(payloadJson)
+            if (pluginId === "stillsuit.recording") recordingPanel.open(payloadJson)
+            if (pluginId === "stillsuit.meeting") meetingPanel.open(payloadJson)
+            return "ok"
+        }
+    }
+
+    QtObject {
+        id: settings
+        property var values: ({ reducedMotion: false })
     }
 
     QtObject {
@@ -109,6 +123,7 @@ ShellRoot {
         property var theme: fixture.theme
         property var services: services
         property var actions: actions
+        property var settings: settings
         property var compositor: ({
             focusedOutputId: fixture.outputId,
             outputs: [{ id: fixture.outputId, name: fixture.outputId, make: "Fixture", model: "Display", logical: { width: 1280, height: 720 } }]
@@ -127,12 +142,42 @@ ShellRoot {
         screen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
         outputId: fixture.outputId
     }
+    Meeting.MeetingWidget {
+        id: meetingWidget
+        context: context
+        outputId: fixture.outputId
+    }
+    Recording.RecordingWidget {
+        id: recordingWidget
+        context: context
+        outputId: fixture.outputId
+    }
 
     IpcHandler {
         target: "stillsuit-recording-meetings-fixture"
         function ready(): string { return Quickshell.screens.length > 0 ? "ready" : "loading" }
         function openRecording(phase: string): string { recordingModel.phase = phase; recordingPanel.open(""); return recordingPanel.opened ? "open" : "closed" }
-        function openMeetings(): string { meetingPanel.open(""); return meetingPanel.opened ? "open" : "closed" }
-        function state(): string { return JSON.stringify({ recordingOpen: recordingPanel.opened, meetingOpen: meetingPanel.opened, meetingRows: meetingModel.jobs.length }) }
+        function openMeetings(): string { return meetingWidget.openMeetings() }
+        function setReducedMotion(value: bool): string {
+            settings.values = { reducedMotion: value }
+            recordingModel.phase = "recording"
+            return "ok"
+        }
+        function state(): string {
+            return JSON.stringify({
+                recordingOpen: recordingPanel.opened,
+                selectedView: recordingPanel.selectedView,
+                recordingMeetingRows: recordingPanel.meetingQueueRowCount,
+                meetingOpen: meetingPanel.opened,
+                meetingRows: meetingModel.jobs.length,
+                meetingRoute: { pluginId: actions.lastOpenPlugin, payload: actions.lastOpenPayload },
+                pulses: {
+                    widget: recordingWidget.pulseRunning,
+                    panel: recordingPanel.pulseRunning,
+                    widgetScale: recordingWidget.pulseScale,
+                    panelScale: recordingPanel.pulseScale
+                }
+            })
+        }
     }
 }

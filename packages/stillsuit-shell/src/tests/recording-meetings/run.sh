@@ -60,14 +60,27 @@ for _ in {1..120}; do [[ $(ipc ready 2>/dev/null || true) == ready ]] && break; 
 [[ $(ipc openRecording idle) == open ]]
 [[ $(ipc openRecording recording) == open ]]
 [[ $(ipc openRecording completed) == open ]]
-[[ $(ipc openMeetings) == open ]]
-jq -e '.recordingOpen and .meetingOpen and .meetingRows == 2' <<< "$(ipc state)" >/dev/null
+[[ $(ipc openMeetings) == ok ]]
+jq -e '.recordingOpen and .selectedView == "meetings" and .recordingMeetingRows == 2
+  and (.meetingOpen | not) and .meetingRows == 2
+  and .meetingRoute == {pluginId:"stillsuit.recording",payload:"{\"view\":\"meetings\"}"}' \
+  <<< "$(ipc state)" >/dev/null
+
+# Both real recording indicators retain their static dot but expose no running
+# pulse when the user requests reduced motion.
+[[ $(ipc setReducedMotion true) == ok ]]
+state=$(ipc state)
+jq -e '.pulses.widget == false and .pulses.panel == false
+  and .pulses.widgetScale == 1 and .pulses.panelScale == 1' <<< "$state" >/dev/null
+[[ $(ipc setReducedMotion false) == ok ]]
+jq -e '.pulses.widget and .pulses.panel' <<< "$(ipc state)" >/dev/null
 
 if rg -n 'ERROR:|Failed to load configuration|Type .* unavailable|Cannot assign to non-existent property' "$tmp_dir/quickshell.log"; then
   echo "recording-meetings fixture logged a QML error" >&2
   exit 1
 fi
 
-rg -n 'Finish as meeting|Pause|Resume|Finish|Cancel|Copy path' "$source_root/plugins/builtin/recording/RecordingPanel.qml" >/dev/null
-rg -n 'Details|Retry|Open in Obsidian' "$source_root/plugins/builtin/meeting/MeetingPanel.qml" >/dev/null
+rg -n 'Recent meetings|MeetingQueueView|Finish as meeting|Pause|Resume|Finish|Cancel|Copy path' "$source_root/plugins/builtin/recording/RecordingPanel.qml" >/dev/null
+rg -n 'surfaceOpen\("stillsuit\.recording", "\{\\"view\\":\\"meetings\\"\}"\)' "$source_root/plugins/builtin/meeting/MeetingWidget.qml" >/dev/null
+rg -n 'Details|Retry|Open in Obsidian' "$source_root/plugins/builtin/meeting/MeetingQueueView.qml" >/dev/null
 echo "recording-meetings panels: ok"

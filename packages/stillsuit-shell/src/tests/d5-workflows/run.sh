@@ -116,6 +116,13 @@ jq -e '.queue.page == 1 and (.queue.jobs | length) == 5
   and [.queue.jobs[].phase] == ["error","error","completed","completed","completed"]' >/dev/null <<<"$state"
 [[ $(ipc previousPage) == ok ]]
 
+# Completed history fills spare actionable slots but never creates a history-
+# only overflow page; with no actionable jobs it is a newest-first five-row view.
+jq -e '.completedOnlyQueue.page == 0 and .completedOnlyQueue.pageCount == 1
+  and .completedOnlyQueue.actionableCount == 0 and (.completedOnlyQueue.hasNextPage | not)
+  and [.completedOnlyQueue.jobs[].jobId] == ["completed-6","completed-5","completed-4","completed-3","completed-2"]' \
+  >/dev/null <<<"$state"
+
 # Completion closes after exactly five seconds of unpaused ticks. Pointer or
 # focus interaction uses the same model flag and preserves the remaining time.
 [[ $(ipc completionStart) == ok ]]

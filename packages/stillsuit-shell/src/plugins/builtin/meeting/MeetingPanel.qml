@@ -274,7 +274,7 @@ Scope {
                 }
 
                 RowLayout {
-                    visible: queue.rankedJobs.length > queue.pageSize
+                    visible: queue.pageCount > 1
                     Layout.fillWidth: true
                     Ui.ShellButton {
                         theme: root.context.theme

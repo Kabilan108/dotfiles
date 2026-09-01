@@ -11,9 +11,15 @@ Ui.ShellAction {
     readonly property var recording: workflows ? workflows.recording : null
     readonly property bool activeRecording: recording && recording.active === true
     readonly property bool paused: recording && recording.paused === true
+    readonly property bool pulseRunning: activeRecording && !paused
+        && !(context.settings && context.settings.values
+            && context.settings.values.reducedMotion === true)
+    readonly property real pulseScale: recordingPulse.scale
     readonly property color stateColor: paused
         ? context.theme.semantic.status.warning
         : context.theme.semantic.signal.recording
+
+    onPulseRunningChanged: if (!pulseRunning) recordingPulse.scale = 1
 
     visible: activeRecording
     accessibleName: paused ? "Recording paused, " + recording.elapsedText
@@ -42,13 +48,14 @@ Ui.ShellAction {
             implicitWidth: 12
             implicitHeight: 12
             Rectangle {
+                id: recordingPulse
                 anchors.centerIn: parent
                 width: 8
                 height: 8
                 radius: 4
                 color: root.stateColor
                 SequentialAnimation on scale {
-                    running: root.activeRecording && !root.paused
+                    running: root.pulseRunning
                     loops: Animation.Infinite
                     NumberAnimation { to: 0.55; duration: 700; easing.type: Easing.InOutQuad }
                     NumberAnimation { to: 1; duration: 700; easing.type: Easing.InOutQuad }

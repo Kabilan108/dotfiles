@@ -3,6 +3,7 @@ import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import Quickshell
 import "../../../ui" as Ui
+import "../meeting" as Meeting
 
 Scope {
     id: root
@@ -12,6 +13,12 @@ Scope {
     required property string outputId
     readonly property var workflows: context.services.get("stillsuit.workflows")
     readonly property var recording: workflows ? workflows.recording : null
+    readonly property var meeting: workflows ? workflows.meeting : null
+    readonly property bool pulseRunning: recording && recording.phase === "recording"
+        && !(context.settings && context.settings.values
+            && context.settings.values.reducedMotion === true)
+    readonly property real pulseScale: panelPulse.scale
+    readonly property int meetingQueueRowCount: meetingQueue.rowCount
     readonly property var monitorRows: {
         var rows = context.compositor && Array.isArray(context.compositor.outputs)
             ? context.compositor.outputs : []
@@ -21,14 +28,25 @@ Scope {
         return focused ? [{ id: focused, name: focused }] : []
     }
     property bool opened: false
+    property string selectedView: "recording"
     property string selectedMonitor: ""
     property string draftTitle: ""
     property string renameTitle: ""
     property bool desktopAudio: true
     property bool microphone: false
 
+    onPulseRunningChanged: if (!pulseRunning) panelPulse.scale = 1
+
     function open(payloadJson) {
         opened = true
+        selectedView = String(payloadJson || "") === "{\"view\":\"meetings\"}"
+            ? "meetings" : "recording"
+        if (selectedView === "meetings") {
+            completionCountdown.stop()
+            if (meeting)
+                meeting.refresh()
+            return
+        }
         if (!recording || recording.phase === "idle" || recording.phase === "error")
             resetSetup()
         if (recording && recording.completed) {
@@ -40,6 +58,19 @@ Scope {
     function close() {
         opened = false
         completionCountdown.stop()
+    }
+
+    function showRecording() {
+        selectedView = "recording"
+        if (recording && recording.completed)
+            completionCountdown.start()
+    }
+
+    function showMeetings() {
+        selectedView = "meetings"
+        completionCountdown.stop()
+        if (meeting)
+            meeting.refresh()
     }
 
     function resetSetup() {
@@ -101,7 +132,7 @@ Scope {
         function onPhaseChanged() {
             if (!root.recording)
                 return
-            if (root.opened && root.recording.completed) {
+            if (root.opened && root.selectedView === "recording" && root.recording.completed) {
                 root.renameTitle = root.recording.title
                 completionCountdown.start()
             } else if (!root.recording.completed) {
@@ -134,7 +165,8 @@ Scope {
                 horizontalCenter: parent.horizontalCenter
                 topMargin: root.context.theme.metrics.barHeight + 8
             }
-            width: root.recording && root.recording.active ? activeContent.implicitWidth + 32 : 480
+            width: root.selectedView === "meetings" ? 500
+                : root.recording && root.recording.active ? activeContent.implicitWidth + 32 : 480
             height: panelContent.implicitHeight + 32
             theme: root.context.theme
             kind: "panel"
@@ -154,17 +186,36 @@ Scope {
 
                     Ui.ShellIcon {
                         theme: root.context.theme
-                        name: root.recording && root.recording.completed ? "success"
+                        name: root.selectedView === "meetings" ? "success"
+                            : root.recording && root.recording.completed ? "success"
                             : root.recording && root.recording.phase === "error" ? "danger" : "record"
-                        role: root.recording && root.recording.completed ? "success"
+                        role: root.selectedView === "meetings" ? "success"
+                            : root.recording && root.recording.completed ? "success"
                             : root.recording && root.recording.phase === "error" ? "danger" : "recording"
                     }
                     Ui.ShellText {
                         Layout.fillWidth: true
                         theme: root.context.theme
-                        text: root.recording && root.recording.completed ? "Recording saved"
+                        text: root.selectedView === "meetings" ? "Recent meetings"
+                            : root.recording && root.recording.completed ? "Recording saved"
                             : root.recording && root.recording.active ? "Screen recording" : "New recording"
                         sizeRole: "heading"
+                    }
+                    Ui.ShellButton {
+                        theme: root.context.theme
+                        label: "Recording"
+                        compact: true
+                        ghost: root.selectedView !== "recording"
+                        active: root.selectedView === "recording"
+                        onClicked: root.showRecording()
+                    }
+                    Ui.ShellButton {
+                        theme: root.context.theme
+                        label: "Recent meetings"
+                        compact: true
+                        ghost: root.selectedView !== "meetings"
+                        active: root.selectedView === "meetings"
+                        onClicked: root.showMeetings()
                     }
                     Ui.ShellButton {
                         theme: root.context.theme
@@ -178,7 +229,7 @@ Scope {
                 }
 
                 ColumnLayout {
-                    visible: root.recording && root.recording.phase === "idle"
+                    visible: root.selectedView === "recording" && root.recording && root.recording.phase === "idle"
                     Layout.fillWidth: true
                     spacing: 12
 
@@ -266,11 +317,12 @@ Scope {
 
                 RowLayout {
                     id: activeContent
-                    visible: root.recording && root.recording.active
+                    visible: root.selectedView === "recording" && root.recording && root.recording.active
                     Layout.alignment: Qt.AlignHCenter
                     spacing: 8
 
                     Rectangle {
+                        id: panelPulse
                         implicitWidth: 10
                         implicitHeight: 10
                         radius: 5
@@ -278,7 +330,7 @@ Scope {
                             ? root.context.theme.semantic.status.warning
                             : root.context.theme.semantic.signal.recording
                         SequentialAnimation on scale {
-                            running: root.recording && root.recording.phase === "recording"
+                            running: root.pulseRunning
                             loops: Animation.Infinite
                             NumberAnimation { to: 0.58; duration: 700; easing.type: Easing.InOutQuad }
                             NumberAnimation { to: 1; duration: 700; easing.type: Easing.InOutQuad }
@@ -327,7 +379,7 @@ Scope {
 
                 FocusScope {
                     id: completionFocus
-                    visible: root.recording && root.recording.completed
+                    visible: root.selectedView === "recording" && root.recording && root.recording.completed
                     Layout.fillWidth: true
                     implicitHeight: completionContent.implicitHeight
 
@@ -452,7 +504,8 @@ Scope {
                 }
 
                 ColumnLayout {
-                    visible: !root.recording || root.recording.phase === "error"
+                    visible: root.selectedView === "recording"
+                        && (!root.recording || root.recording.phase === "error")
                     Layout.fillWidth: true
                     spacing: 10
                     Ui.ShellText {
@@ -468,6 +521,14 @@ Scope {
                         label: "Dismiss"
                         onClicked: if (root.recording) root.recording.dismiss()
                     }
+                }
+
+                Meeting.MeetingQueueView {
+                    id: meetingQueue
+                    visible: root.selectedView === "meetings"
+                    Layout.fillWidth: true
+                    context: root.context
+                    meeting: root.meeting
                 }
             }
         }
