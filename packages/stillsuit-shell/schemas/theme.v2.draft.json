@@ -1,0 +1,313 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stillsuit.local/schemas/theme.v2.draft.json",
+  "title": "Stillsuit theme v2 draft",
+  "description": "Design-lab contract. Palette tokens feed semantic roles; shared components consume only component roles.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "identity",
+    "palette",
+    "semantic",
+    "component",
+    "typography",
+    "metrics",
+    "motion",
+    "effects"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "mode", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^stillsuit\\.[a-z][a-z0-9-]*$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "mode": {
+          "enum": ["dark", "light"]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        }
+      }
+    },
+    "palette": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["neutral", "chromatic"],
+      "properties": {
+        "neutral": {
+          "type": "object",
+          "minProperties": 6,
+          "additionalProperties": {
+            "$ref": "#/$defs/color"
+          }
+        },
+        "chromatic": {
+          "type": "object",
+          "minProperties": 6,
+          "additionalProperties": {
+            "$ref": "#/$defs/color"
+          }
+        }
+      }
+    },
+    "semantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["background", "surface", "content", "outline", "accent", "status", "signal"],
+      "properties": {
+        "background": {
+          "$ref": "#/$defs/colorMap"
+        },
+        "surface": {
+          "$ref": "#/$defs/colorMap"
+        },
+        "content": {
+          "$ref": "#/$defs/colorMap"
+        },
+        "outline": {
+          "$ref": "#/$defs/colorMap"
+        },
+        "accent": {
+          "$ref": "#/$defs/colorMap"
+        },
+        "status": {
+          "$ref": "#/$defs/colorMap"
+        },
+        "signal": {
+          "$ref": "#/$defs/colorMap"
+        }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bar", "panel", "control", "notification", "osd"],
+      "properties": {
+        "bar": {
+          "$ref": "#/$defs/colorMap"
+        },
+        "panel": {
+          "$ref": "#/$defs/colorMap"
+        },
+        "control": {
+          "$ref": "#/$defs/colorMap"
+        },
+        "notification": {
+          "$ref": "#/$defs/colorMap"
+        },
+        "osd": {
+          "$ref": "#/$defs/colorMap"
+        }
+      }
+    },
+    "typography": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bodyFamily",
+        "monoFamily",
+        "iconFamily",
+        "baseSize",
+        "captionSize",
+        "headingSize",
+        "weightRegular",
+        "weightMedium",
+        "weightBold"
+      ],
+      "properties": {
+        "bodyFamily": {
+          "type": "string",
+          "minLength": 1
+        },
+        "monoFamily": {
+          "type": "string",
+          "minLength": 1
+        },
+        "iconFamily": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseSize": {
+          "type": "number",
+          "minimum": 9,
+          "maximum": 24
+        },
+        "captionSize": {
+          "type": "number",
+          "minimum": 8,
+          "maximum": 20
+        },
+        "headingSize": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 32
+        },
+        "weightRegular": {
+          "$ref": "#/$defs/fontWeight"
+        },
+        "weightMedium": {
+          "$ref": "#/$defs/fontWeight"
+        },
+        "weightBold": {
+          "$ref": "#/$defs/fontWeight"
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "spaceUnit",
+        "radiusSmall",
+        "radiusMedium",
+        "radiusLarge",
+        "barHeight",
+        "barOuterGap",
+        "barInnerGap",
+        "iconSmall",
+        "iconMedium",
+        "iconLarge",
+        "panelWidth",
+        "panelPadding",
+        "rowHeight"
+      ],
+      "properties": {
+        "spaceUnit": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "radiusSmall": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "radiusMedium": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "radiusLarge": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "barHeight": {
+          "type": "number",
+          "minimum": 20,
+          "maximum": 64
+        },
+        "barOuterGap": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "barInnerGap": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "iconSmall": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "iconMedium": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "iconLarge": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "panelWidth": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "panelPadding": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "rowHeight": {
+          "$ref": "#/$defs/positiveNumber"
+        }
+      }
+    },
+    "motion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fast", "normal", "slow", "distanceSmall", "distanceMedium", "easing"],
+      "properties": {
+        "fast": {
+          "$ref": "#/$defs/duration"
+        },
+        "normal": {
+          "$ref": "#/$defs/duration"
+        },
+        "slow": {
+          "$ref": "#/$defs/duration"
+        },
+        "distanceSmall": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "distanceMedium": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "easing": {
+          "enum": ["out-cubic", "out-quart", "out-expo"]
+        }
+      }
+    },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surfaceOpacity", "blurEnabled", "blurRadius", "shadowOpacity"],
+      "properties": {
+        "surfaceOpacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "blurEnabled": {
+          "type": "boolean"
+        },
+        "blurRadius": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "shadowOpacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  },
+  "$defs": {
+    "color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "colorMap": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/color"
+      }
+    },
+    "fontWeight": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "nonNegativeNumber": {
+      "type": "number",
+      "minimum": 0
+    },
+    "positiveNumber": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "duration": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2000
+    }
+  }
+}

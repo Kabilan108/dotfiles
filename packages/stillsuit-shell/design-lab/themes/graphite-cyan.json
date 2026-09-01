@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 2,
+  "identity": {
+    "id": "stillsuit.graphite-cyan",
+    "name": "Graphite Cyan",
+    "mode": "dark",
+    "description": "Neutral graphite layers with crisp text and a restrained cyan interaction color."
+  },
+  "palette": {
+    "neutral": {
+      "black": "#080a0c",
+      "crust": "#0d1013",
+      "base": "#12161a",
+      "surface0": "#1b2127",
+      "surface1": "#262e36",
+      "surface2": "#35404a",
+      "overlay0": "#596672",
+      "overlay1": "#7b8791",
+      "subtext": "#b2bbc2",
+      "text": "#eef1f3"
+    },
+    "chromatic": {
+      "cyan": "#69c4d2",
+      "blue": "#78a9e6",
+      "green": "#89c59b",
+      "yellow": "#d8bd77",
+      "orange": "#d89a68",
+      "red": "#df7d86",
+      "violet": "#ab93d1",
+      "magenta": "#ce8fb8"
+    }
+  },
+  "semantic": {
+    "background": {
+      "canvas": "#080a0c",
+      "desktop": "#0d1013",
+      "scrim": "#060708"
+    },
+    "surface": {
+      "bar": "#0d1013",
+      "panel": "#12161a",
+      "raised": "#1b2127",
+      "overlay": "#171c21",
+      "hover": "#262e36",
+      "pressed": "#35404a",
+      "selected": "#173940"
+    },
+    "content": {
+      "primary": "#eef1f3",
+      "secondary": "#cbd1d5",
+      "muted": "#7b8791",
+      "disabled": "#596672",
+      "inverse": "#080a0c"
+    },
+    "outline": {
+      "subtle": "#262e36",
+      "default": "#35404a",
+      "strong": "#596672",
+      "focus": "#69c4d2"
+    },
+    "accent": {
+      "primary": "#69c4d2",
+      "hover": "#88d2dc",
+      "pressed": "#4ba8b6",
+      "subtle": "#173940",
+      "onAccent": "#080a0c"
+    },
+    "status": {
+      "info": "#78a9e6",
+      "success": "#89c59b",
+      "warning": "#d8bd77",
+      "danger": "#df7d86"
+    },
+    "signal": {
+      "audio": "#89c59b",
+      "microphone": "#df7d86",
+      "brightness": "#d8bd77",
+      "charging": "#d89a68",
+      "recording": "#df7d86"
+    }
+  },
+  "component": {
+    "bar": {
+      "background": "#0d1013",
+      "border": "#262e36",
+      "separator": "#35404a",
+      "workspaceIdle": "#596672",
+      "workspaceActive": "#69c4d2",
+      "clusterHover": "#262e36",
+      "clusterActive": "#173940",
+      "clusterText": "#cbd1d5",
+      "clusterActiveText": "#eef1f3"
+    },
+    "panel": {
+      "background": "#12161a",
+      "border": "#35404a",
+      "section": "#1b2127",
+      "rowHover": "#262e36",
+      "rowSelected": "#173940",
+      "shadow": "#060708"
+    },
+    "control": {
+      "background": "#1b2127",
+      "hover": "#262e36",
+      "pressed": "#35404a",
+      "active": "#69c4d2",
+      "disabled": "#12161a",
+      "outline": "#35404a",
+      "focus": "#69c4d2",
+      "text": "#eef1f3",
+      "textDisabled": "#596672",
+      "onActive": "#080a0c"
+    },
+    "notification": {
+      "background": "#12161a",
+      "border": "#35404a",
+      "unread": "#69c4d2",
+      "danger": "#df7d86"
+    },
+    "osd": {
+      "background": "#12161a",
+      "track": "#262e36",
+      "fill": "#69c4d2",
+      "text": "#eef1f3"
+    }
+  },
+  "typography": {
+    "bodyFamily": "IBM Plex Sans",
+    "monoFamily": "JetBrainsMono Nerd Font",
+    "iconFamily": "Material Symbols Outlined",
+    "baseSize": 13,
+    "captionSize": 11,
+    "headingSize": 17,
+    "weightRegular": 400,
+    "weightMedium": 500,
+    "weightBold": 650
+  },
+  "metrics": {
+    "spaceUnit": 4,
+    "radiusSmall": 4,
+    "radiusMedium": 7,
+    "radiusLarge": 11,
+    "barHeight": 28,
+    "barOuterGap": 0,
+    "barInnerGap": 6,
+    "iconSmall": 15,
+    "iconMedium": 18,
+    "iconLarge": 24,
+    "panelWidth": 380,
+    "panelPadding": 16,
+    "rowHeight": 36
+  },
+  "motion": {
+    "fast": 90,
+    "normal": 150,
+    "slow": 220,
+    "distanceSmall": 4,
+    "distanceMedium": 8,
+    "easing": "out-quart"
+  },
+  "effects": {
+    "surfaceOpacity": 0.9,
+    "blurEnabled": true,
+    "blurRadius": 30,
+    "shadowOpacity": 0.55
+  }
+}

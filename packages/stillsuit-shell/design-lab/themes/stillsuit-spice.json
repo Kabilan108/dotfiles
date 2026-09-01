@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 2,
+  "identity": {
+    "id": "stillsuit.spice",
+    "name": "Stillsuit Spice",
+    "mode": "dark",
+    "description": "Warm graphite neutrals, sand-colored text, spice-orange interaction, and cool cyan information states."
+  },
+  "palette": {
+    "neutral": {
+      "void": "#0b0c0f",
+      "crust": "#101217",
+      "base": "#151820",
+      "mantle": "#1b1f29",
+      "surface0": "#242a36",
+      "surface1": "#303746",
+      "surface2": "#414a5c",
+      "overlay": "#687285",
+      "subtext": "#afa797",
+      "text": "#e6ded0"
+    },
+    "chromatic": {
+      "spice": "#d98952",
+      "sand": "#d9bd8b",
+      "cyan": "#74b8c4",
+      "blue": "#7199cf",
+      "green": "#8ebf84",
+      "yellow": "#d8b466",
+      "red": "#dc727b",
+      "violet": "#a88ac8"
+    }
+  },
+  "semantic": {
+    "background": {
+      "canvas": "#0b0c0f",
+      "desktop": "#101217",
+      "scrim": "#090a0d"
+    },
+    "surface": {
+      "bar": "#151820",
+      "panel": "#181c24",
+      "raised": "#242a36",
+      "overlay": "#1b1f29",
+      "hover": "#303746",
+      "pressed": "#414a5c",
+      "selected": "#4a3328"
+    },
+    "content": {
+      "primary": "#e6ded0",
+      "secondary": "#c2b9aa",
+      "muted": "#8c8b87",
+      "disabled": "#62646a",
+      "inverse": "#101217"
+    },
+    "outline": {
+      "subtle": "#2b313d",
+      "default": "#414a5c",
+      "strong": "#687285",
+      "focus": "#e19a68"
+    },
+    "accent": {
+      "primary": "#d98952",
+      "hover": "#e19a68",
+      "pressed": "#bc7043",
+      "subtle": "#4a3328",
+      "onAccent": "#101217"
+    },
+    "status": {
+      "info": "#74b8c4",
+      "success": "#8ebf84",
+      "warning": "#d8b466",
+      "danger": "#dc727b"
+    },
+    "signal": {
+      "audio": "#8ebf84",
+      "microphone": "#dc727b",
+      "brightness": "#d8b466",
+      "charging": "#d98952",
+      "recording": "#dc727b"
+    }
+  },
+  "component": {
+    "bar": {
+      "background": "#151820",
+      "border": "#2b313d",
+      "separator": "#414a5c",
+      "workspaceIdle": "#687285",
+      "workspaceActive": "#d98952",
+      "clusterHover": "#303746",
+      "clusterActive": "#4a3328",
+      "clusterText": "#c2b9aa",
+      "clusterActiveText": "#e6ded0"
+    },
+    "panel": {
+      "background": "#181c24",
+      "border": "#414a5c",
+      "section": "#242a36",
+      "rowHover": "#303746",
+      "rowSelected": "#4a3328",
+      "shadow": "#090a0d"
+    },
+    "control": {
+      "background": "#242a36",
+      "hover": "#303746",
+      "pressed": "#414a5c",
+      "active": "#d98952",
+      "disabled": "#1b1f29",
+      "outline": "#414a5c",
+      "focus": "#e19a68",
+      "text": "#e6ded0",
+      "textDisabled": "#62646a",
+      "onActive": "#101217"
+    },
+    "notification": {
+      "background": "#181c24",
+      "border": "#414a5c",
+      "unread": "#d98952",
+      "danger": "#dc727b"
+    },
+    "osd": {
+      "background": "#181c24",
+      "track": "#303746",
+      "fill": "#d98952",
+      "text": "#e6ded0"
+    }
+  },
+  "typography": {
+    "bodyFamily": "Inter",
+    "monoFamily": "JetBrainsMono Nerd Font",
+    "iconFamily": "Material Symbols Rounded",
+    "baseSize": 13,
+    "captionSize": 11,
+    "headingSize": 17,
+    "weightRegular": 400,
+    "weightMedium": 550,
+    "weightBold": 700
+  },
+  "metrics": {
+    "spaceUnit": 4,
+    "radiusSmall": 5,
+    "radiusMedium": 9,
+    "radiusLarge": 13,
+    "barHeight": 30,
+    "barOuterGap": 0,
+    "barInnerGap": 7,
+    "iconSmall": 15,
+    "iconMedium": 18,
+    "iconLarge": 24,
+    "panelWidth": 380,
+    "panelPadding": 16,
+    "rowHeight": 38
+  },
+  "motion": {
+    "fast": 100,
+    "normal": 170,
+    "slow": 240,
+    "distanceSmall": 4,
+    "distanceMedium": 10,
+    "easing": "out-cubic"
+  },
+  "effects": {
+    "surfaceOpacity": 0.92,
+    "blurEnabled": true,
+    "blurRadius": 28,
+    "shadowOpacity": 0.48
+  }
+}

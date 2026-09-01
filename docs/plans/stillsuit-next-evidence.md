@@ -816,11 +816,47 @@ performed for this optimization. The active desktop therefore still uses the
 pre-optimization helper until the human chooses to rebuild. No live reopen
 latency claim is made yet.
 
+## Design-lab foundation
+
+The human fixed inline workspaces as the production direction and authorized a
+native Quickshell design lab before any panel overhaul. The lab adds a draft v2
+theme contract with three levels: raw palette, semantic roles, and component
+assignments. Three schema-valid candidates are available: Stillsuit Spice,
+Catppuccin Mocha, and Graphite Cyan. The controls compare Inter, IBM Plex Sans,
+Noto Sans, JetBrainsMono Nerd Font, FiraMono Nerd Font, IBM Plex Mono, and the
+rounded and outlined Material Symbols faces. Omarchy's JetBrainsMono Nerd Font
+default is included explicitly.
+
+The lab uses mock data and imports the new shared `ShellText`, `ShellIcon`,
+`ShellSurface`, `ShellButton`, `ShellToggle`, `ShellSlider`, and
+`ShellBarCluster` components. It has no notification, compositor, or service
+authority. It previews only inline workspaces, both live output proportions,
+26-32 px bar heights, anchored and floating edge treatments, surface tokens,
+typography, icon families, and motion/reduced-motion behavior. The production
+v1 theme and panels are unchanged; `DESIGN.md` and the old UI demo remain in
+place until the human approves the lab direction.
+
+All three candidates passed `check-jsonschema` against
+`theme.v2.draft.json`. Every new QML file parsed with Qt 6 `qmlformat`.
+`nixfmt --check`, `git diff --check`, `nix flake check --no-build`, the
+Stillsuit package build, the Lane B fixtures (67 core and 24 repair checks),
+and the existing schema/theme suite exited 0. A separate live design-lab
+Quickshell process loaded all three candidates through its IPC control and
+reported a ready Loader with the expected effective font, icon, bar height,
+and edge treatment for each. The production shell remained PID `1370585` and
+was neither restarted nor reloaded.
+
+JetBrainsMono Nerd Font, Inter, and IBM Plex were added declaratively to Home
+Manager. For the current review, the lab uses a disposable fontconfig closure,
+so no rebuild was required to launch it. A future human-run rebuild is still
+required to install those fonts system-wide and will also activate the already
+approved agent-panel optimization.
+
 ## Remaining work
 
-- Review and approve a visual design language before authorizing panel
-  overhauls. The existing `DESIGN.md` is an input, not an approved final
-  specification; the design backlog remains review-only.
+- Review the design lab and settle the theme, typography, bar height and edge
+  treatment, surfaces, and motion. Then rewrite `DESIGN.md`, remove the old UI
+  demo, and only afterward discuss and authorize panel conversions.
 - After a future human-run rebuild, measure the optimized agent panel's live
   reopen latency and confirm its surface, process, tmux, and termination
   invariants.
