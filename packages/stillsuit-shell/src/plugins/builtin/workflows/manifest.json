@@ -8,6 +8,6 @@
   "kinds": ["service"],
   "entryPoints": { "service": "Service.qml" },
   "scope": { "service": "global" },
-  "capabilities": ["recording-control", "workflow-state", "dictator-socket"],
+  "capabilities": ["recording-control", "meeting-retry", "workflow-state", "dictator-socket"],
   "stateSchemaVersion": 1
 }

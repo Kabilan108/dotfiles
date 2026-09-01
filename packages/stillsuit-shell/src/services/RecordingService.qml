@@ -12,6 +12,7 @@ Scope {
     readonly property string apiVersion: "1"
     readonly property var settings: context.settings ? context.settings.values : ({})
     readonly property string helperPath: String(settings.recorderHelperPath || "")
+    readonly property string openHelperPath: String(settings.openHelperPath || "")
     readonly property string statePath: String(settings.recordingStatePath || "")
     readonly property string recordingDirectory: String(settings.recordingDirectory || "")
     readonly property bool configured: helperPath.charAt(0) === "/" && statePath.charAt(0) === "/"
@@ -23,6 +24,15 @@ Scope {
         var parts = outputPath.split("/")
         return parts.length > 0 ? parts[parts.length - 1] : ""
     }
+    readonly property string outputDirectory: {
+        var separator = outputPath.lastIndexOf("/")
+        return separator > 0 ? outputPath.slice(0, separator) : recordingDirectory
+    }
+    readonly property string outputSizeText: _formatBytes(outputSizeBytes)
+    readonly property bool defaultDesktopAudio: settings.desktopAudioDefault === undefined
+        ? true : Boolean(settings.desktopAudioDefault)
+    readonly property bool defaultMicrophone: settings.microphoneDefault === undefined
+        ? false : Boolean(settings.microphoneDefault)
 
     property string phase: "idle"
     property string outputPath: ""
@@ -38,7 +48,9 @@ Scope {
     property string stateStatus: configured ? "missing" : "unconfigured"
     property var snapshot: ({ schemaVersion: 1, phase: "idle" })
     property bool actionRunning: false
+    property string actionKind: ""
     property string lastCommandJson: "[]"
+    property string copiedPath: ""
 
     function _finiteNumber(value, fallback) {
         var number = Number(value)
@@ -55,6 +67,14 @@ Scope {
             : pad(minutes) + ":" + pad(remaining)
     }
 
+    function _formatBytes(bytes) {
+        var value = Math.max(0, Number(bytes || 0))
+        if (value < 1024) return Math.round(value) + " B"
+        if (value < 1024 * 1024) return (value / 1024).toFixed(1) + " KB"
+        if (value < 1024 * 1024 * 1024) return (value / (1024 * 1024)).toFixed(1) + " MB"
+        return (value / (1024 * 1024 * 1024)).toFixed(1) + " GB"
+    }
+
     function _derivedElapsed(nowSeconds) {
         if (!active || startedAt <= 0)
             return stateElapsedSeconds
@@ -66,7 +86,7 @@ Scope {
         elapsedSeconds = _derivedElapsed(Date.now() / 1000)
     }
 
-    function _defaultTitle() {
+    function defaultTitle() {
         if (typeof settings.recordingDefaultTitle === "string" && settings.recordingDefaultTitle)
             return settings.recordingDefaultTitle
         var now = new Date()
@@ -132,10 +152,11 @@ Scope {
             stateFile.reload()
     }
 
-    function _run(argv) {
+    function _run(argv, kind) {
         if (!configured || actionRunning)
             return "unavailable"
         lastCommandJson = JSON.stringify(argv)
+        actionKind = String(kind || "")
         actionRunning = true
         action.command = argv
         action.running = true
@@ -148,9 +169,9 @@ Scope {
         if (arguments.length === 0) {
             directory = recordingDirectory
             selectedMonitor = context.compositor ? String(context.compositor.focusedOutputId || "") : ""
-            requestedTitle = _defaultTitle()
-            desktopAudio = settings.desktopAudioDefault === undefined ? true : Boolean(settings.desktopAudioDefault)
-            microphone = settings.microphoneDefault === undefined ? false : Boolean(settings.microphoneDefault)
+            requestedTitle = defaultTitle()
+            desktopAudio = defaultDesktopAudio
+            microphone = defaultMicrophone
         }
         if (!String(directory || "").startsWith("/") || !String(selectedMonitor || "") || !String(requestedTitle || ""))
             return "invalid"
@@ -158,19 +179,43 @@ Scope {
             helperPath, "start", "--directory", String(directory), "--monitor", String(selectedMonitor),
             "--title", String(requestedTitle), desktopAudio ? "--desktop-audio" : "--no-desktop-audio",
             microphone ? "--microphone" : "--no-microphone"
-        ])
+        ], "start")
     }
 
-    function togglePause() { return _run([helperPath, "toggle-pause"]) }
-    function finish() { return _run([helperPath, "stop"]) }
-    function stop() { return _run([helperPath, "stop"]) }
-    function stopAsMeeting() { return _run([helperPath, "stop", "--meeting"]) }
-    function cancel() { return _run([helperPath, "cancel"]) }
-    function dismiss() { return _run([helperPath, "dismiss"]) }
+    function togglePause() { return _run([helperPath, "toggle-pause"], "pause") }
+    function finish() { return _run([helperPath, "stop"], "finish") }
+    function stop() { return finish() }
+    function stopAsMeeting() { return _run([helperPath, "stop", "--meeting"], "meeting") }
+    function cancel() { return _run([helperPath, "cancel"], "cancel") }
+    function dismiss() { return _run([helperPath, "dismiss"], "dismiss") }
     function rename(requestedTitle) {
-        return String(requestedTitle || "").trim()
-            ? _run([helperPath, "rename", "--title", String(requestedTitle).trim()])
+        return phase === "completed" && String(requestedTitle || "").trim()
+            ? _run([helperPath, "rename", "--title", String(requestedTitle).trim()], "rename")
             : "invalid"
+    }
+
+    function copyOutputPath() {
+        if (!completed || !outputPath.startsWith("/") || outputPath.indexOf("\u0000") !== -1)
+            return "unavailable"
+        Quickshell.clipboardText = outputPath
+        copiedPath = outputPath
+        return "copied"
+    }
+
+    function openRecording() {
+        return _openPath(outputPath)
+    }
+
+    function openFolder() {
+        return _openPath(outputDirectory)
+    }
+
+    function _openPath(path) {
+        var value = String(path || "")
+        if (openHelperPath.charAt(0) !== "/" || !value.startsWith("/")
+                || value.indexOf("\u0000") !== -1 || actionRunning)
+            return "unavailable"
+        return _run([openHelperPath, value], "open")
     }
 
     FileView {
@@ -193,12 +238,16 @@ Scope {
 
     Process {
         id: action
-        stdout: StdioCollector { waitForEnd: true }
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: if (text.trim() !== "") root._apply(text)
+        }
         stderr: StdioCollector { waitForEnd: true }
         onExited: function(exitCode) {
             root.actionRunning = false
             if (exitCode !== 0)
                 root.errorMessage = "recording helper exited " + exitCode
+            root.actionKind = ""
             root.refresh()
         }
     }

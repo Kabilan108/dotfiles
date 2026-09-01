@@ -27,6 +27,7 @@ stdenvNoCC.mkDerivation {
         'MEETING_HELPER = Path("${lib.getExe meetingEnqueueHelper}")'
     makeWrapper "$out/libexec/stillsuit-recorder" "$out/bin/stillsuit-recorder" \
       --set PATH ${lib.escapeShellArg (lib.makeBinPath runtimeInputs)}
+    ln -s ${lib.getExe meetingEnqueueHelper} "$out/bin/meeting-minutes"
 
     runHook postInstall
   '';

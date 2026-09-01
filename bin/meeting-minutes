@@ -77,10 +77,27 @@ SCREENSHOT_OFFSETS_SECONDS = (-3.0, 0.0, 3.0)
 JOBS_DIR = STATE_DIR / "jobs"
 JOB_LOCKS_DIR = STATE_DIR / "job-locks"
 STATUS_PATH = STATE_DIR / "status.json"
+JOBS_SNAPSHOT_PATH = STATE_DIR / "jobs.json"
 LOCK_PATH = STATE_DIR / "worker.lock"
 INBOX_DIR = MEDIA_ROOT / ".inbox"
 WORK_DIR = MEDIA_ROOT / ".work"
 ASSETS_DIR = VAULT_ROOT / "assets"
+ACTIONABLE_PHASES = frozenset(
+    {
+        "staging",
+        "queued",
+        "preparing",
+        "chunking",
+        "transcribing",
+        "diarizing",
+        "aligning",
+        "generating",
+        "enriching",
+        "writing",
+        "error",
+    }
+)
+RECENT_COMPLETED_LIMIT = 20
 
 OUTPUT_SCHEMA: dict[str, Any] = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -280,6 +297,73 @@ def job_lock_path(job_id: str) -> Path:
 def save_job(job: dict[str, Any]) -> None:
     job["updated_at"] = now_epoch()
     atomic_write_json(job_path(str(job["job_id"])), job)
+    publish_jobs_snapshot()
+
+
+def job_summary(job: dict[str, Any]) -> dict[str, Any]:
+    phase = str(job.get("phase", ""))
+    title = str(job.get("title") or job.get("canonical_stem") or "")
+    if not title:
+        recording = Path(str(job.get("recording_path") or job.get("source_path") or ""))
+        title = recording.stem if recording.name else "Untitled meeting"
+    return {
+        "job_id": str(job.get("job_id", "")),
+        "phase": phase,
+        "title": title,
+        "label": str(job.get("label", "")),
+        "progress": max(0, int(job.get("progress", 0) or 0)),
+        "total": max(0, int(job.get("total", 0) or 0)),
+        "attempt": max(1, int(job.get("attempt", 1) or 1)),
+        "error": str(job.get("error", ""))[:2000],
+        "note_path": str(job.get("note_path", "")),
+        "recording_path": str(job.get("recording_path", "")),
+        "created_at": float(job.get("created_at", 0) or 0),
+        "updated_at": float(job.get("updated_at", 0) or 0),
+        "completed_at": float(job.get("completed_at", 0) or 0),
+    }
+
+
+def jobs_snapshot() -> dict[str, Any]:
+    actionable: list[dict[str, Any]] = []
+    completed: list[dict[str, Any]] = []
+    for path in sorted(JOBS_DIR.glob("*.json")):
+        try:
+            job = read_json(path)
+            summary = job_summary(job)
+        except (MeetingMinutesError, TypeError, ValueError):
+            continue
+        phase = summary["phase"]
+        if phase in ACTIONABLE_PHASES:
+            actionable.append(summary)
+        elif phase == "completed":
+            completed.append(summary)
+
+    actionable.sort(
+        key=lambda item: (float(item["updated_at"]), str(item["job_id"])),
+        reverse=True,
+    )
+    completed.sort(
+        key=lambda item: (
+            float(item["completed_at"] or item["updated_at"]),
+            str(item["job_id"]),
+        ),
+        reverse=True,
+    )
+    retained_completed = completed[:RECENT_COMPLETED_LIMIT]
+    return {
+        "schemaVersion": 1,
+        "generated_at": now_epoch(),
+        "actionable_count": len(actionable),
+        "completed_count": len(completed),
+        "completed_limit": RECENT_COMPLETED_LIMIT,
+        "jobs": [*actionable, *retained_completed],
+    }
+
+
+def publish_jobs_snapshot() -> dict[str, Any]:
+    snapshot = jobs_snapshot()
+    atomic_write_json(JOBS_SNAPSHOT_PATH, snapshot)
+    return snapshot
 
 
 def update_status(
@@ -290,6 +374,10 @@ def update_status(
     total: int = 0,
 ) -> None:
     phase = str(job.get("phase", "idle"))
+    job["label"] = label
+    job["progress"] = progress
+    job["total"] = total
+    save_job(job)
     payload: dict[str, Any] = {
         "schemaVersion": 1,
         "job_id": job.get("job_id", ""),
@@ -318,7 +406,6 @@ def set_phase(
 ) -> None:
     job["phase"] = phase
     job["error"] = ""
-    save_job(job)
     update_status(job, label=label, progress=progress, total=total)
 
 
@@ -361,6 +448,7 @@ def enqueue_recording(args: argparse.Namespace) -> dict[str, Any]:
         "recording_duration_seconds": int(args.duration_seconds or 0),
         "created_at": now_epoch(),
         "updated_at": now_epoch(),
+        "attempt": 1,
         "calendar_enrichment": {
             "status": "pending",
             "mode": "executor-agent-best-effort",
@@ -649,9 +737,13 @@ def poll_transcript_job(job: dict[str, Any], siren_job_id: str) -> None:
 
         phase = str(state.get("phase") or "")
         label = SIREN_PHASE_LABELS.get(phase, "")
+        progress_value = 0
+        progress_total = 0
         if label:
             progress = float(state.get("progress") or 0.0)
-            label = f"{label} ({progress * 100:.0f}%)"
+            progress_value = max(0, min(100, round(progress * 100)))
+            progress_total = 100
+            label = f"{label} ({progress_value}%)"
         elif status == "queued":
             phase = "preparing"
             label = f"Queued on siren (position {state.get('position', 1)})"
@@ -659,13 +751,23 @@ def poll_transcript_job(job: dict[str, Any], siren_job_id: str) -> None:
             phase = "preparing"
             label = "Waiting on siren"
 
-        # Progress moves far more often than the phase does, so only a real
-        # phase change rewrites the job file; label-only churn goes to
-        # status.json, which the desktop indicator reads.
+        # Progress belongs in both durable job state and the current-status
+        # projection so a shell reload does not erase the visible stage.
         if announced is None or announced[0] != phase:
-            set_phase(job, phase, label)
+            set_phase(
+                job,
+                phase,
+                label,
+                progress=progress_value,
+                total=progress_total,
+            )
         elif announced[1] != label:
-            update_status(job, label=label)
+            update_status(
+                job,
+                label=label,
+                progress=progress_value,
+                total=progress_total,
+            )
         announced = (phase, label)
 
         if now_epoch() > deadline:
@@ -1876,16 +1978,18 @@ def work_queue() -> int:
 
 
 def retry_job(job_id: str) -> dict[str, Any]:
-    job = read_json(job_path(job_id))
-    if job.get("phase") != "error":
-        raise MeetingMinutesError("Only failed jobs can be retried")
-    job["phase"] = "queued"
-    job["error"] = ""
-    job["notification_attempted"] = False
-    job.pop("notification_sent", None)
-    job.pop("notification_error", None)
-    save_job(job)
-    update_status(job, label="Minutes queued")
+    with job_lock_path(job_id).open("a+") as job_lock:
+        fcntl.flock(job_lock.fileno(), fcntl.LOCK_EX)
+        job = read_json(job_path(job_id))
+        if job.get("phase") != "error":
+            raise MeetingMinutesError("Only failed jobs can be retried")
+        job["phase"] = "queued"
+        job["attempt"] = max(1, int(job.get("attempt", 1) or 1)) + 1
+        job["error"] = ""
+        job["notification_attempted"] = False
+        job.pop("notification_sent", None)
+        job.pop("notification_error", None)
+        update_status(job, label="Minutes queued")
     kick_worker()
     return job
 
@@ -1900,6 +2004,7 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("work")
     retry = commands.add_parser("retry")
     retry.add_argument("job_id")
+    commands.add_parser("jobs")
     commands.add_parser("status")
     return root
 
@@ -1913,6 +2018,9 @@ def main() -> int:
             return work_queue()
         elif args.command == "retry":
             print(json.dumps(retry_job(args.job_id), separators=(",", ":")))
+        elif args.command == "jobs":
+            ensure_directories()
+            print(json.dumps(publish_jobs_snapshot(), separators=(",", ":")))
         elif args.command == "status":
             print(
                 STATUS_PATH.read_text().strip()

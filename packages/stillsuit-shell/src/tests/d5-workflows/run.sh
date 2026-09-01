@@ -30,6 +30,9 @@ export STILLSUIT_FIXTURE_HELPER="$fixture_dir/fake-recorder"
 export STILLSUIT_FIXTURE_HELPER_LOG="$tmp_dir/helper.log"
 export STILLSUIT_FIXTURE_RECORDING_STATE="$tmp_dir/recording.json"
 export STILLSUIT_FIXTURE_MEETING_STATE="$tmp_dir/meeting.json"
+export STILLSUIT_FIXTURE_MEETING_JOBS="$tmp_dir/jobs.json"
+export STILLSUIT_FIXTURE_MEETING_HELPER="$fixture_dir/fake-meeting-control"
+export STILLSUIT_FIXTURE_MEETING_CONTROL_LOG="$tmp_dir/meeting-control.log"
 export STILLSUIT_FIXTURE_OPEN_HELPER="$fixture_dir/fake-open"
 export STILLSUIT_FIXTURE_OPEN_LOG="$tmp_dir/open.log"
 export STILLSUIT_FIXTURE_SOCKET="$tmp_dir/dictator.sock"
@@ -47,6 +50,18 @@ done
 fixture_started_at=$(($(date +%s) - 4))
 printf '{"schemaVersion":1,"phase":"recording","pid":1,"monitor":"DP-1","started_at":%s,"paused_at":0,"paused_total":0,"elapsed_seconds":4}\n' "$fixture_started_at" > "$STILLSUIT_FIXTURE_RECORDING_STATE"
 printf '%s\n' '{"schemaVersion":1,"phase":"completed","label":"fixture","note_path":"/tmp/fixture-note.md","visible_until":4102444800}' > "$STILLSUIT_FIXTURE_MEETING_STATE"
+jq -n '{schemaVersion:1, jobs:[
+  {job_id:("a"*32),phase:"queued",title:"Queued newest",label:"Minutes queued",attempt:1,updated_at:700,created_at:700},
+  {job_id:("b"*32),phase:"transcribing",title:"Processing",label:"Transcribing meeting",progress:62,total:100,attempt:1,updated_at:600,created_at:600},
+  {job_id:("c"*32),phase:"error",title:"Failed C",label:"Meeting failed",error:"Siren failed\nfull diagnostic C",attempt:1,updated_at:500,created_at:500},
+  {job_id:("d"*32),phase:"error",title:"Failed D",label:"Meeting failed",error:"failure D",attempt:2,updated_at:400,created_at:400},
+  {job_id:("e"*32),phase:"error",title:"Failed E",label:"Meeting failed",error:"failure E",attempt:1,updated_at:300,created_at:300},
+  {job_id:("f"*32),phase:"error",title:"Failed F",label:"Meeting failed",error:"failure F",attempt:1,updated_at:200,created_at:200},
+  {job_id:("0"*32),phase:"error",title:"Failed G",label:"Meeting failed",error:"failure G",attempt:1,updated_at:100,created_at:100},
+  {job_id:("1"*32),phase:"completed",title:"Completed newest",label:"Meeting note ready",note_path:"/tmp/completed-1.md",attempt:1,updated_at:900,completed_at:900,created_at:50},
+  {job_id:("2"*32),phase:"completed",title:"Completed older",label:"Meeting note ready",note_path:"/tmp/completed-2.md",attempt:1,updated_at:800,completed_at:800,created_at:40},
+  {job_id:("3"*32),phase:"completed",title:"Completed oldest",label:"Meeting note ready",note_path:"/tmp/completed-3.md",attempt:1,updated_at:700,completed_at:700,created_at:30}
+]}' > "$STILLSUIT_FIXTURE_MEETING_JOBS"
 python3 "$fixture_dir/socket-server.py" "$STILLSUIT_FIXTURE_SOCKET" >"$tmp_dir/socket.log" 2>&1 &
 socket_pid=$!
 for _ in {1..100}; do [[ -S $STILLSUIT_FIXTURE_SOCKET ]] && break; sleep 0.02; done
@@ -58,6 +73,8 @@ cp "$fixture_dir/WorkflowFixture.qml" "$config_dir/shell.qml"
 cp -R "$package_dir/src/services/." "$config_dir/services/"
 cp -R "$package_dir/src/plugins/builtin/workflows" "$config_dir/plugins/builtin/workflows"
 cp -R "$package_dir/src/plugins/builtin/osd" "$config_dir/plugins/builtin/osd"
+cp -R "$package_dir/src/plugins/builtin/recording" "$config_dir/plugins/builtin/recording"
+cp -R "$package_dir/src/plugins/builtin/meeting" "$config_dir/plugins/builtin/meeting"
 
 ipc() { qs ipc --pid "$shell_pid" call stillsuit-d5-fixture "$@"; }
 wait_json() {
@@ -84,9 +101,32 @@ stop_shell() {
 }
 
 start_shell
-wait_json '.recording.status == "ready"' >/dev/null
+wait_json '.recording.status == "ready" and .meeting.jobsStatus == "ready"' >/dev/null
 state=$(ipc state)
 jq -e '.serviceObjects == 1 and .osdServiceObjects == 1 and .overlays == 2 and .overlaySharesAggregate and .overlaySharesOsdService and .dictator.levels == 23 and .dictator.state == "recording" and .meeting.visible and .meeting.completed and .meeting.label == "fixture"' >/dev/null <<<"$state"
+
+# The queue ranks all actionable phases before completed results and caps every
+# page at five rows. Ties remain deterministic through job identity.
+jq -e '.queue.page == 0 and .queue.pageCount == 2 and .queue.actionableCount == 7
+  and .queue.olderActionableCount == 2 and (.queue.jobs | length) == 5
+  and [.queue.jobs[].phase] == ["queued","transcribing","error","error","error"]' >/dev/null <<<"$state"
+[[ $(ipc nextPage) == ok ]]
+state=$(ipc state)
+jq -e '.queue.page == 1 and (.queue.jobs | length) == 5
+  and [.queue.jobs[].phase] == ["error","error","completed","completed","completed"]' >/dev/null <<<"$state"
+[[ $(ipc previousPage) == ok ]]
+
+# Completion closes after exactly five seconds of unpaused ticks. Pointer or
+# focus interaction uses the same model flag and preserves the remaining time.
+[[ $(ipc completionStart) == ok ]]
+[[ $(ipc completionTick 2000) == waiting ]]
+[[ $(ipc completionInteract true) == ok ]]
+[[ $(ipc completionTick 5000) == waiting ]]
+jq -e '.completion.remainingMs == 3000 and .completion.interactionActive and .completion.expirationCount == 0' >/dev/null <<<"$(ipc state)"
+[[ $(ipc completionInteract false) == ok ]]
+[[ $(ipc completionTick 2999) == waiting ]]
+[[ $(ipc completionTick 1) == expired ]]
+jq -e '.completion.remainingMs == 0 and (.completion.running | not) and .completion.expirationCount == 1' >/dev/null <<<"$(ipc state)"
 
 # The global service derives elapsed time once per second from the recorder's
 # timestamps. No helper rewrite is needed, and a current pause stays excluded.
@@ -147,9 +187,62 @@ for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 2 ]] && 
 [[ $(ipc d4Finish) == started ]]
 for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 3 ]] && break; sleep 0.02; done
 [[ $(sed -n '3p' "$STILLSUIT_FIXTURE_HELPER_LOG") == 'stop' ]]
-[[ $(ipc openResult) == started ]]
+
+# Every active transport action maps to one fixed argv and waits for the prior
+# dispatch to finish. No panel-local process owns the recorder.
+printf '{"schemaVersion":1,"phase":"recording","pid":1,"monitor":"DP-1","started_at":%s,"output":"/tmp/fixture-recordings/active.mp4"}\n' "$(date +%s)" > "$STILLSUIT_FIXTURE_RECORDING_STATE"
+[[ $(ipc refresh) == ok ]]
+wait_json '.recording.active' >/dev/null
+[[ $(ipc pause) == started ]]
+for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 4 ]] && break; sleep 0.02; done
+[[ $(sed -n '4p' "$STILLSUIT_FIXTURE_HELPER_LOG") == 'toggle-pause' ]]
+[[ $(ipc finishMeeting) == started ]]
+for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 5 ]] && break; sleep 0.02; done
+[[ $(sed -n '5p' "$STILLSUIT_FIXTURE_HELPER_LOG") == 'stop --meeting' ]]
+[[ $(ipc d4Finish) == started ]]
+for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 6 ]] && break; sleep 0.02; done
+[[ $(sed -n '6p' "$STILLSUIT_FIXTURE_HELPER_LOG") == 'stop' ]]
+[[ $(ipc cancel) == started ]]
+for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 7 ]] && break; sleep 0.02; done
+[[ $(sed -n '7p' "$STILLSUIT_FIXTURE_HELPER_LOG") == 'cancel' ]]
+
+# Rename output is applied from the helper response before copy/open actions.
+# The copied path therefore follows the successful rename.
+printf '%s\n' '{"schemaVersion":1,"phase":"completed","output":"/tmp/fixture-recordings/original.mp4","title":"original","elapsed_seconds":62,"size_bytes":2048}' > "$STILLSUIT_FIXTURE_RECORDING_STATE"
+[[ $(ipc refresh) == ok ]]
+wait_json '.recording.completed and .recording.outputFilename == "original.mp4"' >/dev/null
+[[ $(ipc rename 'renamed fixture') == started ]]
+wait_json '.recording.outputFilename == "renamed fixture.mp4" and (.recording.actionRunning | not)' >/dev/null
+[[ $(ipc copyPath) == copied ]]
+jq -e '.recording.copiedPath == "/tmp/fixture-recordings/renamed fixture.mp4"' >/dev/null <<<"$(ipc state)"
+[[ $(ipc openRecording) == started ]]
 for _ in {1..100}; do [[ -s $STILLSUIT_FIXTURE_OPEN_LOG ]] && break; sleep 0.02; done
-[[ $(<"$STILLSUIT_FIXTURE_OPEN_LOG") == '/tmp/fixture-note.md' ]]
+[[ $(sed -n '1p' "$STILLSUIT_FIXTURE_OPEN_LOG") == '/tmp/fixture-recordings/renamed fixture.mp4' ]]
+[[ $(ipc openFolder) == started ]]
+for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_OPEN_LOG") -eq 2 ]] && break; sleep 0.02; done
+[[ $(sed -n '2p' "$STILLSUIT_FIXTURE_OPEN_LOG") == '/tmp/fixture-recordings' ]]
+
+[[ $(ipc openResult) == started ]]
+for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_OPEN_LOG") -eq 3 ]] && break; sleep 0.02; done
+[[ $(sed -n '3p' "$STILLSUIT_FIXTURE_OPEN_LOG") == '/tmp/fixture-note.md' ]]
+
+# Retry is manual, reuses the same identity, increments attempt, and rejects a
+# second dispatch while the first is pending.
+retry_id=$(printf 'c%.0s' {1..32})
+[[ $(ipc doubleRetry "$retry_id") == '["started","unavailable"]' ]]
+wait_json ".meeting.jobs[] | select(.jobId == \"$retry_id\" and .phase == \"queued\" and .attempt == 2)" >/dev/null
+[[ $(grep -c "^retry $retry_id$" "$STILLSUIT_FIXTURE_MEETING_CONTROL_LOG") -eq 1 ]]
+
+# As older failures resolve, completed results move into the current five-row
+# page. One failure remains inspectable and is not retried by refresh/reload.
+temporary_jobs="$STILLSUIT_FIXTURE_MEETING_JOBS.tmp"
+jq '(.jobs[] | select(.job_id == ("d"*32) or .job_id == ("e"*32) or .job_id == ("f"*32))).phase = "completed"
+  | (.jobs[] | select(.phase == "completed" and .note_path == null)).note_path = "/tmp/resolved.md"' \
+  "$STILLSUIT_FIXTURE_MEETING_JOBS" > "$temporary_jobs"
+mv -- "$temporary_jobs" "$STILLSUIT_FIXTURE_MEETING_JOBS"
+wait_json '.queue.page == 0 and .queue.actionableCount == 4 and (.queue.jobs | length) == 5
+  and [.queue.jobs[].phase] == ["queued","queued","transcribing","error","completed"]' >/dev/null
+[[ $(grep -c "^retry " "$STILLSUIT_FIXTURE_MEETING_CONTROL_LOG") -eq 1 ]]
 
 printf '%s\n' '{"schemaVersion":1,"phase":"error","label":"fixture failed","error":"fixture error","visible_until":4102444800}' > "$STILLSUIT_FIXTURE_MEETING_STATE"
 [[ $(ipc refresh) == ok ]]
@@ -182,9 +275,10 @@ printf '{"schemaVersion":1,"phase":"recording","pid":%s,"monitor":"DP-1"}\n' "$f
 wait_json '.recording.active and .recording.status == "ready"' >/dev/null
 stop_shell
 kill -0 "$fake_recorder_pid"
+retry_count_before_reload=$(grep -c '^retry ' "$STILLSUIT_FIXTURE_MEETING_CONTROL_LOG")
 start_shell
 kill -0 "$fake_recorder_pid"
-[[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 3 ]]
+[[ $(grep -c '^retry ' "$STILLSUIT_FIXTURE_MEETING_CONTROL_LOG") -eq "$retry_count_before_reload" ]]
 
 # Presentational per-output files may not own workflow authority.
 if rg -n '(^|[^[:alnum:]_])(Timer|FileView|PwObjectTracker|Socket|Process|IpcHandler)[[:space:]]*\{' "$package_dir/src/plugins/builtin/osd/OsdOverlay.qml" "$package_dir/src/plugins/builtin/osd/DictationPill.qml"; then

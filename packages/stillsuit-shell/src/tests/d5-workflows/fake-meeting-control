@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$*" >> "$STILLSUIT_FIXTURE_MEETING_CONTROL_LOG"
+
+case ${1:-} in
+  jobs)
+    cat -- "$STILLSUIT_FIXTURE_MEETING_JOBS"
+    ;;
+  retry)
+    job_id=${2:?missing job id}
+    temporary="$STILLSUIT_FIXTURE_MEETING_JOBS.tmp"
+    jq --arg job_id "$job_id" '
+      .jobs |= map(if .job_id == $job_id and .phase == "error"
+        then .phase = "queued" | .attempt = ((.attempt // 1) + 1) | .error = "" | .label = "Minutes queued"
+        else . end)
+    ' "$STILLSUIT_FIXTURE_MEETING_JOBS" > "$temporary"
+    mv -- "$temporary" "$STILLSUIT_FIXTURE_MEETING_JOBS"
+    jq -c --arg job_id "$job_id" '.jobs[] | select(.job_id == $job_id)' \
+      "$STILLSUIT_FIXTURE_MEETING_JOBS"
+    ;;
+  *)
+    printf 'unsupported fake meeting command\n' >&2
+    exit 2
+    ;;
+esac
