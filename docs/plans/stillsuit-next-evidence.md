@@ -1172,6 +1172,62 @@ Review notes:
 - No rebuild, activation, service restart, production-shell reload, Niri
   mutation, legacy cleanup, or soak was performed.
 
+## Activated-shell feedback: bar and panel repair
+
+Status: source repair complete in reviewed commits `3e561da0` and `285f6e7c`,
+awaiting a human-run rebuild.
+
+Built:
+
+- Raised the locked Catppuccin surface opacity to 0.95 and kept the design-lab
+  preset in sync.
+- Restored the compact pre-theme-v2 inline workspace and Niri-column geometry,
+  added manifest-owned bar ordering, included seconds in the timestamp, and
+  changed the bar chrome to a bottom border only.
+- Made system resources a noninteractive memory display and removed its panel
+  contribution. The unused panel source remains present as legacy material.
+- Removed painted focus outlines from the shared buttons, toggles, rows,
+  sliders, bar clusters, and the remaining production text fields without
+  removing their keyboard activation behavior.
+- Changed panel input regions to exclude the bar strip, so a click on another
+  bar item reaches that item on the first click. Outside clicks below the bar
+  dismiss the active panel, and changing the focused output closes a loaded
+  panel owned by another output.
+- Reduced the battery panel to percentage, charging state and time, the charge
+  bar, and compact power-profile controls. UPower pending states now read
+  `Plugged in, not charging` instead of displaying a warning chip.
+- Removed the meeting-only plugin from the default catalog. The recording chip
+  remains visible only while capture is active, and the recording panel shows
+  at most five failed meeting jobs with manual Details and Retry actions. It
+  contains no recent-meeting viewer, completed rows, or pagination.
+
+Reference review:
+
+- Compared dismissal behavior against the pinned Omarchy Quattro v4.0.0
+  checkout at `f0020448ca87329199de7cb12f2015ebc4a3e5e7`. Its keyboard panel
+  combines one active-popout coordinator, an outside-click layer, a bar-strip
+  input exclusion, and per-output dismissal surfaces. The Stillsuit repair uses
+  the same relevant input-boundary and single-active-surface principles within
+  its existing router.
+- The orchestrator reviewed the full geometry/shared-control/router diff and
+  the full power/recording/meeting diff before staging either lane. A dormant
+  standalone meeting panel incompatibility found during review was corrected
+  without re-enabling that plugin.
+
+Verification:
+
+- Audio/media, bar v2, connectivity, D1 through D5, notifications,
+  power/resources, recording/meetings, schema/theme, and shared-UI fixtures all
+  exited 0. D5 was also rerun alone after a parallel headless-compositor run
+  produced a resource-contention failure with no diagnostic output.
+- The schema fixture asserts every requested bar section and order, the 0.95
+  production opacity, and all builtin manifest contracts.
+- `nix flake check --no-build`, scoped `nixfmt --check`, and
+  `git diff --check` exited 0.
+
+No rebuild, activation, service restart, production-shell reload, compositor
+mutation, legacy cleanup, or soak was performed.
+
 ## Panel implementation: power and resources
 
 Status: reviewed and merged from isolated lane commit
