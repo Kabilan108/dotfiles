@@ -982,3 +982,57 @@ production-shell reload, or panel conversion was performed.
   not been exercised.
 - Remove legacy Stillsuit and disabled Waybar material only after the soak and
   explicit cleanup approval.
+
+## Interactive panel decision worksheet
+
+The human's first-pass panel feedback was converted into a second, interactive
+review at `docs/reviews/stillsuit-panel-decisions.html`. The original inventory
+remains the read-only first pass. It could not host the requested picker and
+copy behavior because its PageBin artifact uses the immutable `strict` sandbox;
+the decision worksheet therefore has a separate `standard`-sandbox identity.
+
+The worksheet records the settled direction without turning it into backlog
+authorization: combined audio and media with legacy full-player parity,
+output-device switching only, no per-app streams, and a 100% volume ceiling;
+toast dismissal as archival, immediate hiding of visible banners under DND,
+and bounded notification history; an allowlisted MobergAnalytics VPN toggle,
+read-only visibility for other active VPNs, metadata-only Tailscale, and explicit
+Bluetooth states; CPU and memory as the resource scope; removal of the agent
+bar item while retaining `Mod+Grave` and persistent tmux; and restoration of
+capture setup, meeting finish, durable progress/results, retry, and the older
+recording indicator's visual intent.
+
+Fifteen remaining product choices are presented as radio pickers with concise
+tradeoffs: microphone controls; unread treatment; mark-read timing; expired
+notification actions; notification maximum age; Wi-Fi credential ownership;
+other-VPN visibility; Bluetooth audio routing; battery detail; battery-alert
+ownership; power-panel access; agent geometry; recording control layout;
+durable meeting access; and recording completion lifetime. Recommended defaults
+generate a natural-language continuation prompt, optional recording notes are
+included, and reset restores the recommendations.
+
+Source checks confirmed that legacy `NowPlaying.qml` was a full media player,
+not a summary. The pinned Omarchy Quattro v4 implementation supplies a native
+common Wi-Fi credential path with explicit joining/failure state, so adapting
+personal secured Wi-Fi plus a NetworkManager editor fallback is classified as a
+medium implementation lift; full native enterprise and hidden-network ownership
+remains a larger security and protocol surface. Current Stillsuit runtime inputs
+do not include NetworkManager CLI tools, so any future helper must be explicitly
+pinned and pass secrets over standard input.
+
+`html-validate` and standalone JavaScript parsing exited 0. The published page
+loaded with 15 selected defaults and a populated continuation prompt. Changing
+an unread picker and adding a recording note updated that prompt; Copy reported
+success; Reset restored the default and cleared the note. Desktop and 390 px
+browser captures were inspected: the cards use two columns on desktop and one
+on narrow screens, with no page-level horizontal overflow. Browser page errors
+and console output were both empty.
+
+The PageBin checkpoint is artifact `F19cQq1Q-H_n6T8u9dEbiw`, revision 1,
+`standard` sandbox. `pagebin publish --verify` reported identical local and
+remote SHA-256
+`e9802b190900c3579c86f39e0688cb01891157adf3c81ce53bfeb5b6cfca2108`.
+The capability URL remains in the protected local receipt and was not committed.
+
+No panel implementation, Nix rebuild, activation, service restart, production
+shell reload, or live desktop mutation was performed.
