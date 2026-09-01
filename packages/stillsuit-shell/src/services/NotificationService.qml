@@ -112,6 +112,14 @@ Scope {
         }, null, 2) + "\n")
     }
 
+    function flushStateSynchronously() {
+        stateFile.waitForJob()
+        var previousBlockWrites = stateFile.blockWrites
+        stateFile.blockWrites = true
+        flushState()
+        stateFile.blockWrites = previousBlockWrites
+    }
+
     function hydrate(raw) {
         hydrating = true
         var restored = NotificationModel.parseState(raw, policy.popupLimit, policy.historyLimit)
@@ -154,7 +162,9 @@ Scope {
     function archiveSnapshot(snapshot, reason) {
         if (!snapshot) return
         var archivedSnapshot = Object.assign({}, snapshot, { closeReason: reason, deadline: 0 })
-        history = NotificationModel.boundedHistory(history, archivedSnapshot, policy.historyLimit)
+        var previousHistory = history
+        history = NotificationModel.boundedHistory(previousHistory, archivedSnapshot, policy.historyLimit)
+        closeEvictedLive(NotificationModel.historyKeysRemoved(previousHistory, history))
         archived(snapshot.key, reason)
     }
 
@@ -175,6 +185,19 @@ Scope {
         } catch (error) {
         }
         return ref
+    }
+
+    function closeEvictedLive(keys) {
+        for (var index = 0; index < keys.length; index++) {
+            var key = keys[index]
+            if (indexByKey(popups, key) >= 0 || indexByKey(history, key) >= 0) continue
+            var ref = releaseLive(key)
+            try {
+                if (ref && typeof ref.dismiss === "function") ref.dismiss()
+            } catch (error) {
+                logWarning("live notification closed before history eviction completed")
+            }
+        }
     }
 
     function archiveAndClose(key, reason, expire) {
@@ -251,7 +274,8 @@ Scope {
         popups = []
         history = []
         revision += 1
-        persist()
+        persistTimer.stop()
+        flushStateSynchronously()
         restartDeadlineTimer()
         return "ok"
     }
@@ -425,7 +449,7 @@ Scope {
             NotificationServer {
                 actionsSupported: true
                 bodySupported: true
-                bodyMarkupSupported: true
+                bodyMarkupSupported: false
                 imageSupported: true
                 persistenceSupported: true
                 onNotification: notification => root.handleNotification(notification)

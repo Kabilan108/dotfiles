@@ -153,7 +153,7 @@ Rectangle {
                 color: root.theme.colors.text.secondary
                 font.family: root.theme.typography.family
                 font.pixelSize: root.theme.typography.baseSize * 0.9
-                textFormat: Text.StyledText
+                textFormat: Text.PlainText
                 wrapMode: Text.WordWrap
                 maximumLineCount: 3
                 elide: Text.ElideRight

@@ -111,7 +111,31 @@ stop_shell() {
   shell_pid=""
 }
 
+crash_shell() {
+  local pid=$shell_pid
+  [[ -n $pid ]]
+  kill -KILL "$pid"
+  wait "$pid" 2>/dev/null || true
+  shell_pid=""
+}
+
+wait_for_state_file() {
+  local expression=$1
+  local _
+  for _ in {1..120}; do
+    if [[ -f $state_dir/notifications-v1.json ]] \
+      && jq -e "$expression" "$state_dir/notifications-v1.json" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.05
+  done
+  echo "state file condition timed out: $expression" >&2
+  [[ ! -f $state_dir/notifications-v1.json ]] || cat "$state_dir/notifications-v1.json" >&2
+  return 1
+}
+
 node "$fixture_dir/model-policy.test.js"
+node "$fixture_dir/notification-card-source.test.js"
 start_shell
 
 # Requested timeout is milliseconds, and expiry archives before closing.
@@ -204,6 +228,32 @@ start_shell
 recovered_state=$(wait_for_json '.history | length == 1')
 jq -e '.history[0].summary == "forged-hint"' >/dev/null <<<"$recovered_state"
 [[ ! -e $marker ]]
+
+# Evicting a retained DND row releases its live notification reference.
+ipc dismissAll >/dev/null
+stop_shell
+export STILLSUIT_NOTIFICATION_HISTORY_LIMIT=2
+start_shell
+[[ $(ipc setDnd on) == on ]]
+for index in {1..3}; do
+  notify-send -a lane-e -t 60000 "retained-$index"
+done
+eviction_state=$(wait_for_json '(.history | length) == 2 and .liveRefCount == 2')
+jq -e '.history | map(.summary) == ["retained-3", "retained-2"]' >/dev/null <<<"$eviction_state"
+
+# Clear-all reaches disk before it returns, so a crash cannot restore old rows.
+wait_for_state_file '(.history | length) == 2'
+[[ $(ipc dismissAll) == ok ]]
+if ! jq -e '(.popups | length) == 0 and (.history | length) == 0' \
+  "$state_dir/notifications-v1.json" >/dev/null; then
+  echo "clear-all did not synchronously persist empty notification state" >&2
+  cat "$state_dir/notifications-v1.json" >&2
+  exit 1
+fi
+crash_shell
+start_shell
+wait_for_json '(.popups | length) == 0 and (.history | length) == 0' >/dev/null
+
 if grep -E ' ERROR| FATAL' "$tmp_dir/quickshell.log"; then
   echo "fixture shell logged a QML error" >&2
   exit 1

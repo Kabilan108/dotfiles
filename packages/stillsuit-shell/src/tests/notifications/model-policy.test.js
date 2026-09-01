@@ -65,6 +65,21 @@ assert.equal(history.length, 100, "history remains bounded during a burst")
 assert.equal(history[0].key, "149")
 assert.equal(history[99].key, "50")
 
+const previousHistory = [
+    { ...good, key: "newer", timestamp: 2 },
+    { ...good, key: "oldest", timestamp: 1 }
+]
+const nextHistory = Model.boundedHistory(
+    previousHistory,
+    { ...good, key: "newest", timestamp: 3 },
+    2
+)
+assert.deepEqual(
+    Model.historyKeysRemoved(previousHistory, nextHistory),
+    ["oldest"],
+    "bounded history reports the key whose final row was evicted"
+)
+
 const persisted = JSON.stringify({ dnd: false, popups: [], history: [first] })
 const restarted = Model.parseState(persisted, 5, 100)
 assert.equal(restarted.history[0].hints["omarchy-exec"], notification.hints["omarchy-exec"])

@@ -174,6 +174,26 @@ function boundedHistory(history, snapshot, limit) {
     return result
 }
 
+function historyKeysRemoved(previous, next) {
+    var retainedKeys = []
+    var nextRows = Array.isArray(next) ? next : []
+    for (var nextIndex = 0; nextIndex < nextRows.length; nextIndex++) {
+        var retainedKey = safeString((nextRows[nextIndex] || {}).key)
+        if (retainedKey && retainedKeys.indexOf(retainedKey) === -1)
+            retainedKeys.push(retainedKey)
+    }
+
+    var removedKeys = []
+    var previousRows = Array.isArray(previous) ? previous : []
+    for (var previousIndex = 0; previousIndex < previousRows.length; previousIndex++) {
+        var previousKey = safeString((previousRows[previousIndex] || {}).key)
+        if (previousKey && retainedKeys.indexOf(previousKey) === -1
+                && removedKeys.indexOf(previousKey) === -1)
+            removedKeys.push(previousKey)
+    }
+    return removedKeys
+}
+
 function centerRows(popups, history, limit) {
     var result = []
     var seen = {}
@@ -202,6 +222,7 @@ if (typeof module !== "undefined") {
         validSnapshot: validSnapshot,
         parseState: parseState,
         boundedHistory: boundedHistory,
+        historyKeysRemoved: historyKeysRemoved,
         centerRows: centerRows
     }
 }

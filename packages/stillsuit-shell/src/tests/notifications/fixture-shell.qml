@@ -6,6 +6,11 @@ import "services" as Services
 ShellRoot {
     id: fixture
 
+    readonly property int historyLimit: {
+        var configured = Number(Quickshell.env("STILLSUIT_NOTIFICATION_HISTORY_LIMIT"))
+        return isFinite(configured) && configured > 0 ? Math.round(configured) : 100
+    }
+
     QtObject {
         id: fixtureContext
 
@@ -14,7 +19,7 @@ ShellRoot {
                 claimNotificationBus: true,
                 notifications: {
                     popupLimit: 5,
-                    historyLimit: 100,
+                    historyLimit: fixture.historyLimit,
                     normalTimeoutMs: 5000,
                     lowTimeoutMs: 4000
                 }
@@ -52,7 +57,8 @@ ShellRoot {
                 dnd: notificationService.doNotDisturb,
                 popups: notificationService.popups,
                 history: notificationService.history,
-                trackedCount: notificationService.trackedCount
+                trackedCount: notificationService.trackedCount,
+                liveRefCount: Object.keys(notificationService.liveRefs).length
             })
         }
 
