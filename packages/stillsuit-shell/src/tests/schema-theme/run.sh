@@ -16,6 +16,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
+export HOME="$test_root/home"
 export XDG_CONFIG_HOME="$test_root/config"
 export XDG_DATA_HOME="$test_root/data"
 export XDG_STATE_HOME="$test_root/state"
@@ -24,7 +25,7 @@ export XDG_RUNTIME_DIR="$test_root/runtime"
 export QT_QPA_PLATFORM=offscreen
 unset DBUS_SESSION_BUS_ADDRESS
 
-mkdir -p "$XDG_CONFIG_HOME/quickshell" "$XDG_DATA_HOME" \
+mkdir -p "$HOME" "$XDG_CONFIG_HOME/quickshell" "$XDG_DATA_HOME" \
     "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
 
@@ -54,6 +55,7 @@ while (( SECONDS < cursor_deadline )); do
             stillsuit-schema-theme-contract run 2>/dev/null); then
         break
     fi
+    sleep 0.05
 done
 
 if ! jq -e '.ok == true and .checks == 15' >/dev/null <<< "$cursor_result"; then
@@ -116,6 +118,7 @@ run_theme_case() {
                 && jq -e '.catalogRevision >= 1' >/dev/null <<< "$host_status"; then
             break
         fi
+        sleep 0.05
     done
     if [[ -z "$host_status" ]] \
             || ! jq -e '.catalogRevision >= 1' >/dev/null <<< "$host_status"; then
