@@ -1,19 +1,446 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-PanelWindow { id: root; required property var context; required property var service; required property string outputId; visible: false; implicitWidth: 380; implicitHeight: 420; color: "transparent"; exclusiveZone: 0; anchors { top: true; right: true }
- Rectangle { anchors.fill: parent; radius: root.context.theme.geometry.radius; color: root.context.theme.colors.surface.panel; border.color: root.context.theme.colors.border.normal; ColumnLayout { anchors.fill: parent; anchors.margins: 16; spacing: 8
- Text { text: "Network"; color: root.context.theme.colors.text.primary; font.pixelSize: root.context.theme.typography.baseSize + 3 }
- Text { text: !service || !service.available ? "NetworkManager unavailable" : service.wiredConnected ? "Wired connected" : service.connectedNetwork ? "Connected to " + service.connectedNetwork.name : "Not connected"; color: root.context.theme.colors.text.secondary }
- Row { spacing: 8
- Repeater { model: ["Scan", service && service.wifiEnabled ? "Wi-Fi on" : "Wi-Fi off"]
- delegate: Rectangle { required property var modelData; width: 90; height: 28; radius: 4; color: btn.containsMouse ? root.context.theme.controls.hover.fill : root.context.theme.controls.normal.fill
- Text { anchors.centerIn: parent; text: modelData; color: root.context.theme.colors.text.primary }
- MouseArea { id: btn; anchors.fill: parent; hoverEnabled: true; onClicked: index === 0 ? service.scan() : service.setWifiEnabled(!service.wifiEnabled) }
- } } }
- ListView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; model: service ? service.networks : []
- delegate: Rectangle { required property var modelData; width: ListView.view.width; height: 38; color: rowMouse.containsMouse ? root.context.theme.controls.hover.fill : "transparent"
- Text { anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 8; text: modelData.name + (modelData.connected ? "  connected" : modelData.known ? "  saved" : ""); color: root.context.theme.colors.text.primary }
- MouseArea { id: rowMouse; anchors.fill: parent; hoverEnabled: true; onClicked: root.service.activate(modelData) }
- } }
- } } function open(payloadJson) { visible = true } function close() { visible = false } }
+import "../../../ui" as Ui
+
+PanelWindow {
+    id: root
+
+    required property var context
+    required property var service
+    required property string outputId
+    property var credentialNetwork: null
+
+    readonly property var connectedRows: service ? service.networks.filter(function(network) {
+        return network && network.connected
+    }) : []
+    readonly property var availableRows: service ? service.networks.filter(function(network) {
+        return network && !network.connected && !network.known
+    }) : []
+    readonly property var savedRows: service ? service.networks.filter(function(network) {
+        return network && !network.connected && network.known
+    }) : []
+    readonly property var allowlistedVpns: service ? service.vpns.filter(function(vpn) {
+        return vpn && vpn.name === "MobergAnalytics" && vpn.toggleAllowed !== false
+    }) : []
+    readonly property var activeReadOnlyVpns: service ? service.vpns.filter(function(vpn) {
+        return vpn && vpn.active && (vpn.name !== "MobergAnalytics" || vpn.readOnly === true)
+    }) : []
+
+    visible: false
+    implicitWidth: context.theme.metrics.panelWidth
+    implicitHeight: 620
+    color: "transparent"
+    exclusiveZone: 0
+    anchors {
+        top: true
+        right: true
+    }
+
+    Ui.ShellSurface {
+        anchors.fill: parent
+        theme: root.context.theme
+        kind: "panel"
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: root.context.theme.metrics.panelPadding
+            spacing: 10
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                Ui.ShellText {
+                    Layout.fillWidth: true
+                    theme: root.context.theme
+                    text: "Network"
+                    sizeRole: "heading"
+                }
+
+                Ui.ShellStatus {
+                    visible: root.service && root.service.wiredConnected
+                    theme: root.context.theme
+                    status: "success"
+                    iconName: "network"
+                    label: root.service && root.service.wiredName !== ""
+                        ? root.service.wiredName
+                        : "Wired"
+                    compact: true
+                }
+            }
+
+            Ui.ShellToggle {
+                Layout.fillWidth: true
+                theme: root.context.theme
+                label: "Wi-Fi"
+                description: root.service && root.service.wifiEnabled
+                    ? "NetworkManager radio is enabled"
+                    : "NetworkManager radio is disabled"
+                checked: Boolean(root.service && root.service.wifiEnabled)
+                busy: Boolean(root.service && root.service.wifiChanging)
+                interactive: Boolean(root.service && root.service.available)
+                onToggled: function(requested) { root.service.setWifiEnabled(requested) }
+            }
+
+            Ui.ShellStatus {
+                Layout.fillWidth: true
+                visible: root.service && root.service.lastError !== ""
+                theme: root.context.theme
+                status: "danger"
+                iconName: "danger"
+                label: root.service ? root.service.lastError : ""
+            }
+
+            Ui.ShellStateView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                visible: !root.service || !root.service.available
+                theme: root.context.theme
+                mode: "error"
+                title: "NetworkManager unavailable"
+                message: "The fixed Stillsuit network helper is not configured or running."
+                iconName: "wifi-off"
+            }
+
+            Flickable {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                visible: root.service && root.service.available
+                clip: true
+                contentWidth: width
+                contentHeight: panelBody.implicitHeight
+                boundsBehavior: Flickable.StopAtBounds
+
+                ColumnLayout {
+                    id: panelBody
+
+                    width: parent.width
+                    spacing: 6
+
+                    Ui.ShellSectionLabel {
+                        visible: root.connectedRows.length > 0
+                        Layout.fillWidth: true
+                        theme: root.context.theme
+                        text: "Connected"
+                    }
+
+                    Repeater {
+                        model: root.connectedRows
+
+                        delegate: NetworkRow {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            network: modelData
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: root.service && root.service.wifiEnabled
+
+                        Ui.ShellSectionLabel {
+                            Layout.fillWidth: true
+                            theme: root.context.theme
+                            text: "Available"
+                        }
+
+                        Ui.ShellButton {
+                            theme: root.context.theme
+                            label: "Scan"
+                            iconName: "refresh"
+                            compact: true
+                            ghost: true
+                            busy: Boolean(root.service && root.service.scanning)
+                            accessibleName: "Scan for Wi-Fi networks"
+                            onClicked: root.service.scan()
+                        }
+                    }
+
+                    Ui.ShellStateView {
+                        Layout.fillWidth: true
+                        visible: root.availableRows.length === 0
+                        theme: root.context.theme
+                        mode: root.service && root.service.scanning ? "loading" : "empty"
+                        title: root.service && root.service.scanning
+                            ? "Scanning"
+                            : "No available networks"
+                        message: root.service && root.service.scanning
+                            ? "NetworkManager is refreshing access points."
+                            : "Scan again or use the editor for a hidden network."
+                        iconName: "wifi"
+                    }
+
+                    Repeater {
+                        model: root.availableRows
+
+                        delegate: NetworkRow {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            network: modelData
+                        }
+                    }
+
+                    Ui.ShellButton {
+                        Layout.alignment: Qt.AlignRight
+                        theme: root.context.theme
+                        label: "Hidden network"
+                        iconName: "edit"
+                        compact: true
+                        ghost: true
+                        accessibleName: "Open NetworkManager editor for a hidden network"
+                        onClicked: root.service.openHiddenEditor()
+                    }
+
+                    Ui.ShellSectionLabel {
+                        visible: root.savedRows.length > 0
+                        Layout.fillWidth: true
+                        theme: root.context.theme
+                        text: "Saved"
+                    }
+
+                    Repeater {
+                        model: root.savedRows
+
+                        delegate: NetworkRow {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            network: modelData
+                        }
+                    }
+
+                    Ui.ShellSurface {
+                        visible: root.credentialNetwork !== null
+                        Layout.fillWidth: true
+                        implicitHeight: credentialColumn.implicitHeight + 20
+                        theme: root.context.theme
+                        kind: "raised"
+
+                        ColumnLayout {
+                            id: credentialColumn
+
+                            anchors {
+                                left: parent.left
+                                right: parent.right
+                                verticalCenter: parent.verticalCenter
+                                margins: 10
+                            }
+                            spacing: 7
+
+                            Ui.ShellText {
+                                Layout.fillWidth: true
+                                theme: root.context.theme
+                                text: "Password for " + (root.credentialNetwork
+                                    ? root.credentialNetwork.name || "network"
+                                    : "network")
+                                sizeRole: "label"
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                implicitHeight: 34
+                                radius: root.context.theme.metrics.radiusSmall
+                                color: root.context.theme.component.control.background
+                                border.width: passwordInput.activeFocus ? 2 : 1
+                                border.color: passwordInput.activeFocus
+                                    ? root.context.theme.component.control.focus
+                                    : root.context.theme.component.control.outline
+
+                                TextInput {
+                                    id: passwordInput
+
+                                    anchors.fill: parent
+                                    anchors.margins: 8
+                                    color: root.context.theme.semantic.content.primary
+                                    selectionColor: root.context.theme.semantic.accent.primary
+                                    selectedTextColor: root.context.theme.semantic.accent.onAccent
+                                    font.family: root.context.theme.typography.bodyFamily
+                                    font.pixelSize: root.context.theme.typography.baseSize
+                                    echoMode: TextInput.Password
+                                    passwordCharacter: "•"
+                                    clip: true
+                                    Keys.onReturnPressed: root.submitPassword()
+                                    Keys.onEnterPressed: root.submitPassword()
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.alignment: Qt.AlignRight
+
+                                Ui.ShellButton {
+                                    theme: root.context.theme
+                                    label: "Cancel"
+                                    compact: true
+                                    ghost: true
+                                    onClicked: {
+                                        passwordInput.text = ""
+                                        root.credentialNetwork = null
+                                    }
+                                }
+
+                                Ui.ShellButton {
+                                    theme: root.context.theme
+                                    label: "Connect"
+                                    iconName: "lock"
+                                    compact: true
+                                    active: true
+                                    interactive: passwordInput.text.length > 0
+                                    onClicked: root.submitPassword()
+                                }
+                            }
+                        }
+                    }
+
+                    Ui.ShellSectionLabel {
+                        visible: root.allowlistedVpns.length > 0
+                            || root.activeReadOnlyVpns.length > 0
+                        Layout.fillWidth: true
+                        theme: root.context.theme
+                        text: "VPN"
+                    }
+
+                    Repeater {
+                        model: root.allowlistedVpns
+
+                        delegate: Ui.ShellToggle {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            theme: root.context.theme
+                            label: modelData.name
+                            description: modelData.active ? "Connected" : "Disconnected"
+                            checked: Boolean(modelData.active)
+                            busy: root.service.operation === "vpn-toggle"
+                                && root.service.operationTarget === String(modelData.uuid || modelData.name)
+                            onToggled: root.service.toggleVpn(modelData)
+                        }
+                    }
+
+                    Repeater {
+                        model: root.activeReadOnlyVpns
+
+                        delegate: Ui.ShellRow {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            theme: root.context.theme
+                            label: modelData.name
+                            description: "Active " + String(modelData.type || "VPN")
+                                + ", managed outside Stillsuit"
+                            iconName: "vpn"
+                            trailingText: "read-only"
+                            selected: true
+                            interactive: false
+                        }
+                    }
+
+                    Ui.ShellSectionLabel {
+                        Layout.fillWidth: true
+                        theme: root.context.theme
+                        text: "Tailscale"
+                    }
+
+                    Ui.ShellSurface {
+                        Layout.fillWidth: true
+                        implicitHeight: tailscaleColumn.implicitHeight + 20
+                        theme: root.context.theme
+                        kind: "raised"
+
+                        ColumnLayout {
+                            id: tailscaleColumn
+
+                            anchors.fill: parent
+                            anchors.margins: 10
+                            spacing: 3
+
+                            Ui.ShellText {
+                                Layout.fillWidth: true
+                                theme: root.context.theme
+                                text: root.service && root.service.tailscale.available
+                                    ? String(root.service.tailscale.status || "unknown")
+                                    : "Unavailable"
+                                sizeRole: "label"
+                                role: root.service && root.service.tailscale.status === "running"
+                                    ? "success"
+                                    : "muted"
+                            }
+
+                            Ui.ShellText {
+                                Layout.fillWidth: true
+                                theme: root.context.theme
+                                text: root.service && root.service.tailscale.tailnet
+                                    ? "Tailnet  " + root.service.tailscale.tailnet
+                                    : "Tailnet unavailable"
+                                sizeRole: "caption"
+                                role: "muted"
+                            }
+
+                            Ui.ShellText {
+                                Layout.fillWidth: true
+                                theme: root.context.theme
+                                text: root.service && root.service.tailscale.ip
+                                    ? "IP  " + root.service.tailscale.ip
+                                    : "IP unavailable"
+                                sizeRole: "caption"
+                                role: "muted"
+                                monospace: true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    component NetworkRow: Ui.ShellRow {
+        id: row
+
+        required property var network
+        readonly property string kind: root.service.networkKind(network)
+        readonly property string status: root.service.statusFor(network)
+
+        theme: root.context.theme
+        label: String(network.name || "Unnamed network")
+        description: row.status === "joining" ? "Joining with NetworkManager"
+            : row.status === "disconnecting" ? "Disconnecting with NetworkManager"
+            : row.kind === "enterprise" ? "Enterprise Wi-Fi, opens NetworkManager editor"
+            : row.network.connected ? root.service.signalPercentage(network) + "% signal"
+            : row.network.known ? "Saved network"
+            : row.kind === "open" ? "Open network"
+            : "Personal secured network"
+        iconName: row.kind === "open" ? "wifi" : "lock"
+        trailingText: row.status
+        selected: Boolean(network.connected)
+        busy: row.status === "joining" || row.status === "disconnecting"
+        interactive: root.service.operation === "idle"
+        accessibleName: label + ", " + description
+        onClicked: {
+            if (row.kind === "personal" && !row.network.known && !row.network.connected) {
+                root.credentialNetwork = row.network
+                passwordInput.forceActiveFocus()
+            } else {
+                root.service.activate(row.network, "")
+            }
+        }
+    }
+
+    function submitPassword() {
+        if (!credentialNetwork || passwordInput.text.length === 0)
+            return
+        var password = passwordInput.text
+        passwordInput.text = ""
+        var network = credentialNetwork
+        credentialNetwork = null
+        service.activate(network, password)
+        password = ""
+    }
+
+    function open(payloadJson) {
+        visible = true
+        if (service)
+            service.refresh()
+    }
+
+    function close() {
+        passwordInput.text = ""
+        credentialNetwork = null
+        visible = false
+    }
+}

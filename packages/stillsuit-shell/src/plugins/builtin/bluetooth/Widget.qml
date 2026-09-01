@@ -1,14 +1,26 @@
 import QtQuick
+import "../../../ui" as Ui
 
-Rectangle {
+Ui.ShellBarCluster {
     id: root
+
     required property var context
     required property var service
     required property string outputId
-    implicitWidth: 54
-    implicitHeight: context.theme.geometry.barHeight
-    radius: context.theme.geometry.radius
-    color: mouse.containsMouse ? context.theme.controls.hover.fill : "transparent"
-    Text { anchors.centerIn: parent; text: !service || !service.available ? "BT --" : service.connected ? "BT on" : "BT off"; color: root.context.theme.colors.text.primary; font.family: root.context.theme.typography.monospaceFamily; font.pixelSize: root.context.theme.typography.baseSize }
-    MouseArea { id: mouse; anchors.fill: parent; hoverEnabled: true; onClicked: root.context.actions.surfaceToggle("stillsuit.bluetooth", "") }
+
+    theme: context.theme
+    iconName: "bluetooth"
+    label: service && service.connectedDevices.length > 1
+        ? String(service.connectedDevices.length)
+        : ""
+    active: Boolean(service && service.connected)
+    busy: Boolean(service && service.operation !== "idle")
+    accessibleName: !service || !service.available ? "Bluetooth unavailable"
+        : !service.enabled ? "Bluetooth disabled"
+        : service.connectedDevices.length === 1
+            ? "Bluetooth connected to " + service.deviceName(service.connectedDevices[0])
+            : service.connectedDevices.length > 1
+                ? service.connectedDevices.length + " Bluetooth devices connected"
+                : "Bluetooth enabled, no device connected"
+    onClicked: context.actions.surfaceToggle("stillsuit.bluetooth", "")
 }
