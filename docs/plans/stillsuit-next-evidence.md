@@ -785,8 +785,50 @@ After visual acceptance, the disposable `result` symlink and one-off
 `gate-2-switch.sh` were removed. The canonical command sheet remains in
 `docs/plans/stillsuit-next-human-gates.md`.
 
+## Agent-panel reopen optimization
+
+The human requested a focused agent-panel latency repair after the live visual
+gate. A blank-context worker owned only the helper, its focused fixtures, and
+the plugin README in clean worktree `/tmp/stillsuit-agent-panel-optimization`.
+The worker committed `cae606e3`; the orchestrator read the complete diff before
+merging it as `1415d0a8`. The merged tree matches the reviewed lane commit for
+all three owned files.
+
+The helper now keeps one class-specific Ghostty process alive after its final
+surface closes and asks that existing instance to create the next surface with
+`ghostty +new-window`. Hiding still closes the Niri surface, while the exact
+tmux target `=stillsuit-agent` remains attached by the persistent Ghostty
+process. The existing lock, class checks, single-window invariant, and bounded
+PID shutdown checks remain in force. The accepted tradeoff is one idle Ghostty
+process while the panel is hidden; Niri has no external hide/minimize primitive,
+so reopening still has to map a new surface.
+
+The orchestrator independently checked Ghostty 1.3.1's packaged primary
+documentation for class-scoped single-instance routing and
+`quit-after-last-window-closed=false`, and validated a temporary config with
+those exact options. Post-merge verification exited 0 for the focused
+agent-panel fixtures, Lane B (67 core and 24 repair checks), Bash syntax,
+ShellCheck, `nixfmt --check`, `nix flake check --no-build`, and the evaluated
+Jacurutu agent-panel helper package build. `git diff --check` also passed.
+
+No rebuild, generation switch, service restart, or live shell mutation was
+performed for this optimization. The active desktop therefore still uses the
+pre-optimization helper until the human chooses to rebuild. No live reopen
+latency claim is made yet.
+
 ## Remaining work
 
-- Decide whether to keep the agent panel's approximately 429 ms fresh-window
-  behavior or design a persistent-window hiding mechanism. Any change must
-  preserve the exact tmux session, single-window invariant, and PID checks.
+- Review and approve a visual design language before authorizing panel
+  overhauls. The existing `DESIGN.md` is an input, not an approved final
+  specification; the design backlog remains review-only.
+- After a future human-run rebuild, measure the optimized agent panel's live
+  reopen latency and confirm its surface, process, tmux, and termination
+  invariants.
+- Complete the planned 8-24 hour live soak, including output hotplug and restart
+  observation. The disposable reverse patch was proven, but live rollback has
+  not been exercised.
+- Inventory panel functionality with the human and decide which legacy
+  behaviors should be retained, redesigned, or intentionally dropped before
+  implementation work is queued.
+- Remove legacy Stillsuit and disabled Waybar material only after the soak and
+  explicit cleanup approval.
