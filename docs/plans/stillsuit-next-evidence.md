@@ -1123,3 +1123,51 @@ protected local receipt rather than the repository.
 
 No panel implementation, Nix rebuild, activation, service restart, production
 shell reload, live cutover, cleanup, or soak was performed.
+
+## Panel implementation: production theme v2
+
+Status: reviewed and merged from isolated lane commits
+`aafdd39aa863004d1a947ed2e147e18a83044331` and
+`103fe00bc7782f702e802e493ded35c68c85f434`. The implementation branch merge
+is source-only; the production host loader still rejects schema v2 until its
+separate integration pass.
+
+Built:
+
+- Promoted the design-lab v2 contract to `schemas/theme.v2.json` and removed
+  the obsolete v1 schema.
+- Migrated the canonical Catppuccin Mocha Nix record and Home Manager
+  validation to the locked three-level palette, semantic, and component model.
+- Locked Noto Sans, JetBrainsMono Nerd Font, Material Symbols Rounded, the
+  26-pixel anchored bar metrics, seven-pixel medium radius, 0.80 surface
+  opacity, approved color roles, and 66/99/143 ms out-cubic motion tiers.
+- Removed `component.osd.background`; OSD surfaces must consume
+  `semantic.surface.panel`.
+- Made every approved semantic group and role required and rejected all
+  unapproved roles.
+
+Verification:
+
+- The orchestrator read the complete cumulative lane diff and the canonical
+  theme record before merge.
+- `uv run --with jsonschema python
+  packages/stillsuit-shell/src/tests/schema-theme/manifest-schema.test.py`,
+  exit 0.
+- `uvx check-jsonschema --check-metaschema
+  packages/stillsuit-shell/schemas/theme.v2.json`, exit 0.
+- `git diff --check 7df91376..stillsuit-next-panel-theme`, exit 0.
+- The full schema-theme runtime wrapper remains expected-red because
+  `src/shell.qml` is still a schema-v1 loader. Its v2 migration is owned by the
+  integration pass and must be green before the panel lanes begin.
+
+Review notes:
+
+- The first lane version used generic color maps for the semantic groups. The
+  orchestrator rejected it because missing and surplus semantic roles would
+  have passed validation.
+- A fresh blank-context correction lane froze the exact background, surface,
+  content, outline, accent, status, and signal role sets and added negative
+  tests for missing and unexpected roles. Its follow-up diff and checks were
+  reviewed independently before merge.
+- No rebuild, activation, service restart, production-shell reload, Niri
+  mutation, legacy cleanup, or soak was performed.
