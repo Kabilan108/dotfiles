@@ -110,9 +110,12 @@ done
 
 systemctl --user is-active --quiet stillsuit-shell.service
 busctl --user status org.freedesktop.Notifications >/dev/null
-qs list -c stillsuit-next --json |
-  jq -e --argjson pid "$new_pid" 'length == 1 and .[0].pid == $pid' >/dev/null
-qs list -c stillsuit --json | jq -e 'length == 0' >/dev/null
+all_instances=$(qs list --all --json)
+jq -e --argjson pid "$new_pid" '
+  length == 1
+  and .[0].pid == $pid
+  and (.[0].config_path | endswith("/quickshell/stillsuit-next/shell.qml"))
+' <<<"$all_instances" >/dev/null
 qs ipc -c stillsuit-next call stillsuit status | jq -e '
   .ready == true
   and .bar.activeId == "stillsuit.bar"
@@ -120,6 +123,11 @@ qs ipc -c stillsuit-next call stillsuit status | jq -e '
   and ([.plugins | to_entries[] | select(.value.state == "error")] | length) == 0
 ' >/dev/null
 ```
+
+Use the all-instance query for the single-instance assertion. After activation,
+the legacy config is no longer installed, and Quickshell 0.3 prints a human
+"No running instances" message rather than JSON for
+`qs list -c stillsuit --json`.
 
 If Gate 2 fails after activation, stop only the supervised Next unit, wait for
 its exact PID and notification ownership to disappear, reverse the cutover

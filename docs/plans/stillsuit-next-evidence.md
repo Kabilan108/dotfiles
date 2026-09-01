@@ -2,15 +2,12 @@
 
 Branch: `stillsuit-next`
 
-Activation status: Gate 1 was completed by the human on 2026-08-31. The active
-system generation is
-`/nix/store/nh2bvm9a083s2d3qpalrg234j6nmxprq-nixos-system-jacurutu-26.11.20260822.2c423e0`;
-Waybar and the configured agent workspace are retired. Gate 2 has not been run.
-The legacy Stillsuit shell remains the sole notification owner, and Stillsuit
-Next remains inactive. The human approved Gate 2 on 2026-08-31, and its patch is
-staged, validated, and built but not activated. Only the exact disposable
-shadow-preview child PIDs and their private buses were torn down during
-agent-run tests.
+Activation status: Gates 1 and 2 were completed by the human on 2026-08-31. The
+active system generation is
+`/nix/store/6nlz1x4cq38q7r6zpp4pjcab815xz7iz-nixos-system-jacurutu-26.11.20260822.2c423e0`;
+Waybar and the configured agent workspace are retired. Stillsuit Next PID
+`1370585` is the sole Quickshell instance and notification owner. The legacy
+shell is absent.
 
 ## Inputs and contract freeze
 
@@ -754,9 +751,24 @@ config-scoped Next query was unavailable because the current generation does
 not install that config; the corrected all-instance query passed.
 
 The prepared bounded PID, D-Bus-name, systemd, IPC-readiness, and ownership
-checks now govern the single-owner switch.
+checks governed the single-owner switch. The human ran the prepared script. It
+stopped legacy PID `63916`, observed notification-name release, and activated
+the built generation. The new user unit started as PID `1370585` and returned
+`ok` from its IPC readiness endpoint.
+
+The original final legacy-absence assertion then exited on a `jq` parse error.
+This was a command-sheet defect, not a shell failure: after activation,
+Quickshell 0.3 prints a human "No running instances" message instead of JSON
+for a config-scoped query whose config is no longer installed. No rollback was
+performed. The corrected all-instance assertion found exactly one Quickshell
+process, confirmed that its PID matches systemd and its config path is
+`stillsuit-next`, and confirmed that the same PID owns
+`org.freedesktop.Notifications`. IPC reported `ready = true`, two screens, the
+real `stillsuit.bar` loaded without fallback, and zero plugin errors. Gate 2 is
+technically complete.
 
 ## Remaining work
 
-- Run the exact ordered single-owner handoff rather than an unbounded or
-  newest-instance selection.
+- Complete the human visual check of the live bar and the primary panel
+  bindings. Remove the local `result` symlink and one-off switch script only
+  after that acceptance.
