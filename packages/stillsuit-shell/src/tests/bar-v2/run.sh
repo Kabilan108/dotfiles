@@ -101,7 +101,8 @@ jq -e '
     and .secondaryColumns == 4 and .secondaryFocusedColumn == 2
     and .inline and .clockServiceInstances == 1
     and .osdViews == 2 and .osdOutputIds[0] != .osdOutputIds[1]
-    and .sharedOsdService and .osdPanelBackground and .osdMediumRadius
+    and .sharedOsdService and .compactOsdBar
+    and .osdPanelBackground and .osdMediumRadius
     and .osdBorder and .osdTrack and .osdFillAssignment and .osdText
     and .audioSignal and .brightnessSignal and .microphoneSignal
     and .dictationErrorSignal and .dictationSurface and .accessible

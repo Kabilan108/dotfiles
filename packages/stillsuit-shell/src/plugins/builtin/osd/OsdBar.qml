@@ -29,8 +29,8 @@ Item {
         ? context.theme.semantic.signal[signalRole]
         : configuredFillColor
 
-    implicitWidth: 300
-    implicitHeight: 48
+    implicitWidth: 268
+    implicitHeight: 44
 
     Ui.ShellSurface {
         id: surface
@@ -42,10 +42,10 @@ Item {
         RowLayout {
             anchors {
                 fill: parent
-                leftMargin: root.context.theme.metrics.spaceUnit * 4
-                rightMargin: root.context.theme.metrics.spaceUnit * 4
+                leftMargin: root.context.theme.metrics.spaceUnit * 3
+                rightMargin: root.context.theme.metrics.spaceUnit * 3
             }
-            spacing: root.context.theme.metrics.spaceUnit * 3
+            spacing: root.context.theme.metrics.spaceUnit * 2
 
             Ui.ShellIcon {
                 theme: root.context.theme
