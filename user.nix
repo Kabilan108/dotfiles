@@ -69,6 +69,8 @@ in
       owner = "kabilan";
       group = "users";
     };
+
+    # .config/moberg dir
     secrets."secrets/moberg/credentials.env.age" = {
       file = ./secrets/moberg/credentials.env.age;
       path = "${home}/.config/moberg/credentials.env";
@@ -79,6 +81,34 @@ in
     secrets."secrets/moberg/secrets.env.age" = {
       file = ./secrets/moberg/secrets.env.age;
       path = "${home}/.config/moberg/secrets.env";
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
+    secrets."secrets/moberg/vpn/ca.age" = {
+      file = ./secrets/moberg/vpn/ca.age;
+      path = "${home}/.config/moberg/vpn/ca.crt";
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
+    secrets."secrets/moberg/vpn/cert.age" = {
+      file = ./secrets/moberg/vpn/cert.age;
+      path = "${home}/.config/moberg/vpn/tony.crt";
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
+    secrets."secrets/moberg/vpn/key.age" = {
+      file = ./secrets/moberg/vpn/key.age;
+      path = "${home}/.config/moberg/vpn/tony.key";
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
+    secrets."secrets/moberg/vpn/ta.age" = {
+      file = ./secrets/moberg/vpn/ta.age;
+      path = "${home}/.config/moberg/vpn/ta.key";
       mode = "0600";
       owner = "kabilan";
       group = "users";
