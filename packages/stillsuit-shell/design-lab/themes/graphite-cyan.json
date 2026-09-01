@@ -97,6 +97,7 @@
       "section": "#1b2127",
       "rowHover": "#262e36",
       "rowSelected": "#173940",
+      "rowDanger": "#322126",
       "shadow": "#060708"
     },
     "control": {
@@ -122,7 +123,7 @@
       "muted": "#73808a"
     },
     "osd": {
-      "background": "#171c21",
+      "background": "#12161a",
       "border": "#35404a",
       "track": "#262e36",
       "fill": "#69c4d2",

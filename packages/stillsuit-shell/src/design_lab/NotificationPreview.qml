@@ -7,6 +7,7 @@ ColumnLayout {
 
     required property var theme
     property int stateIndex: 0
+    property bool dndEnabled: false
     readonly property var states: [
         {
             label: "Unread",
@@ -76,6 +77,23 @@ ColumnLayout {
 
     Ui.ShellText {
         theme: root.theme
+        text: "NOTIFICATION PANEL CONTROL"
+        sizeRole: "caption"
+        role: "muted"
+        monospace: true
+    }
+
+    Ui.ShellToggle {
+        Layout.fillWidth: true
+        theme: root.theme
+        label: "Do not disturb"
+        description: "Retain alerts without showing toasts"
+        checked: root.dndEnabled
+        onToggled: checked => root.dndEnabled = checked
+    }
+
+    Ui.ShellText {
+        theme: root.theme
         text: "NOTIFICATION STATE"
         sizeRole: "caption"
         role: "muted"
@@ -108,20 +126,6 @@ ColumnLayout {
         Layout.preferredHeight: contentColumn.implicitHeight + 28
         theme: root.theme
         kind: "notification"
-        border.width: root.stateData.colorRole === "danger" ? 2 : 1
-        border.color: root.stateData.colorRole === "danger"
-            ? root.stateColor
-            : root.theme.component.notification.border
-
-        Rectangle {
-            anchors {
-                left: parent.left
-                top: parent.top
-                bottom: parent.bottom
-            }
-            width: 3
-            color: root.stateColor
-        }
 
         ColumnLayout {
             id: contentColumn
@@ -134,10 +138,18 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
 
-                Ui.ShellIcon {
-                    theme: root.theme
-                    name: root.stateData.icon
-                    color: root.stateColor
+                Rectangle {
+                    Layout.preferredWidth: 30
+                    Layout.preferredHeight: 30
+                    radius: root.theme.metrics.radiusSmall
+                    color: root._withAlpha(root.stateColor, 0.16)
+
+                    Ui.ShellIcon {
+                        anchors.centerIn: parent
+                        theme: root.theme
+                        name: root.stateData.icon
+                        color: root.stateColor
+                    }
                 }
 
                 Ui.ShellText {
@@ -185,5 +197,10 @@ ColumnLayout {
                 }
             }
         }
+    }
+
+    function _withAlpha(value, alpha) {
+        var parsed = Qt.color(value)
+        return Qt.rgba(parsed.r, parsed.g, parsed.b, Math.max(0, Math.min(1, alpha)))
     }
 }

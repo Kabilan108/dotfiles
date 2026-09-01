@@ -10,7 +10,7 @@ The lab compares three draft themes and lets you tune:
 - body, telemetry, and icon fonts;
 - 26, 28, 30, and 32 px bar heights;
 - anchored and floating bar treatments, with inline workspaces fixed;
-- surface opacity, radius, core semantic colors, and a separate OSD color;
+- surface opacity, radius, and core semantic colors;
 - motion speed and reduced-motion behavior.
 
 The default review preset reproduces the accepted screenshot baseline:
@@ -20,9 +20,9 @@ Use `Your pick` to restore it after comparing theme defaults.
 
 The composition preview includes six notification states and five network
 states. The network header's borderless `Scan` action switches to the scanning
-state. OSDs have a dedicated component background and always use the selected
-medium radius; `surface.raised` remains the role for controls and panel
-sections.
+state. Do Not Disturb is owned by the notification preview. OSDs derive their
+background directly from `surface.panel` and always use the selected medium
+radius; `surface.raised` remains the role for controls and panel sections.
 
 The previews import the shared components in `../src/ui/`; they are not copies
 of production-looking controls. Candidate files live in `themes/` and validate

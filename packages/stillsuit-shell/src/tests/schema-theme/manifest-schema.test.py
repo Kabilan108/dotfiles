@@ -108,10 +108,22 @@ def _check_design_lab_theme_schema() -> None:
         raise AssertionError(f"expected three design-lab themes, found {len(themes)}")
     for theme in themes:
         validator.validate(theme)
+        if theme["component"]["osd"]["background"] != theme["semantic"]["surface"]["panel"]:
+            raise AssertionError(
+                f"{theme['identity']['id']} must derive component.osd.background from semantic.surface.panel"
+            )
 
     missing_osd_border = deepcopy(themes[0])
     del missing_osd_border["component"]["osd"]["border"]
     _assert_rejected(validator, missing_osd_border, "a design-lab theme without component.osd.border")
+
+    missing_panel_row_danger = deepcopy(themes[0])
+    del missing_panel_row_danger["component"]["panel"]["rowDanger"]
+    _assert_rejected(
+        validator,
+        missing_panel_row_danger,
+        "a design-lab theme without component.panel.rowDanger",
+    )
 
     missing_notification_warning = deepcopy(themes[0])
     del missing_notification_warning["component"]["notification"]["warning"]

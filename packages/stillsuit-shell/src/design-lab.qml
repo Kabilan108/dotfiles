@@ -31,7 +31,6 @@ ShellRoot {
         accent: "#89b4fa",
         panel: "#181825",
         raised: "#313244",
-        osd: "#1e1e2e",
         text: "#cdd6f4"
     })
 
@@ -52,7 +51,6 @@ ShellRoot {
     property string accentChoice: "#d98952"
     property string panelChoice: "#181c24"
     property string raisedChoice: "#242a36"
-    property string osdChoice: "#1b1f29"
     property string textChoice: "#e6ded0"
 
     FileView {
@@ -119,7 +117,8 @@ ShellRoot {
                 opacity: lab.opacityChoice,
                 radius: lab.radiusChoice,
                 motionScale: lab.motionScaleChoice,
-                osd: lab.osdChoice,
+                panelBackground: lab.theme.semantic.surface.panel,
+                osdBackground: lab.theme.component.osd.background,
                 windowSize: [window.width, window.height],
                 loaderSize: [contentLoader.width, contentLoader.height],
                 loaderStatus: contentLoader.status,
@@ -157,7 +156,6 @@ ShellRoot {
             accentChoice = parsed.semantic.accent.primary
             panelChoice = parsed.semantic.surface.panel
             raisedChoice = parsed.semantic.surface.raised
-            osdChoice = parsed.component.osd.background
             textChoice = parsed.semantic.content.primary
             errorText = ""
             rebuildTheme()
@@ -182,7 +180,6 @@ ShellRoot {
         accentChoice = reviewPreset.accent
         panelChoice = reviewPreset.panel
         raisedChoice = reviewPreset.raised
-        osdChoice = reviewPreset.osd
         textChoice = reviewPreset.text
         rebuildTheme()
     }
@@ -217,7 +214,7 @@ ShellRoot {
         next.semantic.surface.panel = panelChoice
         next.component.panel.background = panelChoice
         next.component.notification.background = panelChoice
-        next.component.osd.background = osdChoice
+        next.component.osd.background = panelChoice
 
         next.semantic.surface.raised = raisedChoice
         next.component.panel.section = raisedChoice
@@ -240,8 +237,6 @@ ShellRoot {
             panelChoice = value
         else if (kind === "raised")
             raisedChoice = value
-        else if (kind === "osd")
-            osdChoice = value
         else if (kind === "text")
             textChoice = value
         else
@@ -636,14 +631,6 @@ ShellRoot {
                                     label: "Control / section"
                                     value: lab.raisedChoice
                                     tokenKind: "raised"
-                                }
-
-                                ColorEditor {
-                                    Layout.fillWidth: true
-                                    theme: lab.theme
-                                    label: "OSD"
-                                    value: lab.osdChoice
-                                    tokenKind: "osd"
                                 }
 
                                 ColorEditor {

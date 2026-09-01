@@ -320,13 +320,14 @@
     "panelComponent": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["background", "border", "section", "rowHover", "rowSelected", "shadow"],
+      "required": ["background", "border", "section", "rowHover", "rowSelected", "rowDanger", "shadow"],
       "properties": {
         "background": { "$ref": "#/$defs/color" },
         "border": { "$ref": "#/$defs/color" },
         "section": { "$ref": "#/$defs/color" },
         "rowHover": { "$ref": "#/$defs/color" },
         "rowSelected": { "$ref": "#/$defs/color" },
+        "rowDanger": { "$ref": "#/$defs/color" },
         "shadow": { "$ref": "#/$defs/color" }
       }
     },

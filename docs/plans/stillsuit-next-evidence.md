@@ -860,18 +860,26 @@ bar, 0.85 panel opacity, 4 px medium radius, 0.55 motion scale, and the captured
 Catppuccin color overrides. The lab now opens with that exact review preset and
 offers `Your pick` controls to restore it after comparing theme defaults.
 
-The annotated review separated OSD styling from `surface.raised`. OSDs now read
-`component.osd.background` and `component.osd.border`, use the medium radius,
-and default to a Catppuccin base color close to `surface.panel` rather than the
-lighter control/section color. The draft schema now requires exact component
-token sets for bars, panels, controls, notifications, and OSDs. All three
-candidate themes provide the new OSD border and notification state roles.
+The annotated review separated OSD styling from `surface.raised`. OSDs still
+consume the component-specific `component.osd.background` and border roles,
+but the background is now derived exactly from `surface.panel`; they use the
+medium radius rather than the lighter control/section treatment. The draft
+schema now requires exact component token sets for bars, panels, controls,
+notifications, and OSDs. All three candidate themes provide the OSD border and
+notification state roles.
 
 The notification preview now switches among unread, info, success, warning,
 urgent, and quiet states. The network panel switches among connected, scanning,
 joining, Wi-Fi-off, and failure states, including state-specific rows and empty
 or error treatments. Its former outlined mystery icon is now a borderless,
 right-aligned `Scan` action that enters the scanning preview state.
+
+A second annotated pass moved the display-only Do Not Disturb control from the
+network mock to the notification preview, standardized network rows on a fixed
+icon column, centered the Wi-Fi-off empty state, and replaced the failure
+outline with a borderless `component.panel.rowDanger` fill. Notification state
+color is now contained in a small tinted icon tile instead of a detached
+full-height edge stripe.
 
 All eleven state selections were exercised through the lab IPC. Urgent/failure and
 quiet/Wi-Fi-off combinations were inspected as live window captures, and the
@@ -880,6 +888,14 @@ reported the saved preset values. Qt 6 `qmlformat`, `check-jsonschema`, `jq`,
 Ruff, Ty with the test dependency, `git diff --check`, the schema/theme suite,
 Lane B (67 core and 24 repair checks), `nix flake check --no-build`, and the
 evaluated Stillsuit package build all exited 0.
+
+After the second pass, scanning/warning, Wi-Fi-off, and failure states were
+captured again from the live lab. The IPC status reported both
+`panelBackground` and `osdBackground` as `#181825`; schema tests additionally
+assert that relationship for every candidate theme. JSON/schema validation,
+Qt 6 QML parsing, Ruff, Ty, `git diff --check`, the schema/theme suite, Lane B
+(67 core and 24 repair checks), `nix flake check --no-build`, and the evaluated
+Jacurutu Stillsuit package build all exited 0.
 
 No rebuild, service restart, production-shell reload, or panel conversion was
 performed. `DESIGN.md` and the old UI demo remain unchanged pending visual

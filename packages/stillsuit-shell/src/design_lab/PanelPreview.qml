@@ -6,7 +6,6 @@ Ui.ShellSurface {
     id: root
 
     property int previewStateIndex: 0
-    property bool dndEnabled: false
     property real volume: 0.45
     readonly property var previewStates: [
         { key: "connected", label: "Connected" },
@@ -91,15 +90,6 @@ Ui.ShellSurface {
             onToggled: checked => root.previewStateIndex = checked ? 0 : 3
         }
 
-        Ui.ShellToggle {
-            Layout.fillWidth: true
-            theme: root.theme
-            label: "Do not disturb"
-            description: "Retain alerts without showing toasts"
-            checked: root.dndEnabled
-            onToggled: checked => root.dndEnabled = checked
-        }
-
         Ui.ShellSlider {
             Layout.fillWidth: true
             theme: root.theme
@@ -148,33 +138,37 @@ Ui.ShellSurface {
             monospace: true
         }
 
-        ColumnLayout {
+        Item {
             visible: root.previewState.key === "off"
             Layout.fillWidth: true
             Layout.preferredHeight: visible ? 94 : 0
-            spacing: 4
 
-            Ui.ShellIcon {
-                Layout.alignment: Qt.AlignHCenter
-                theme: root.theme
-                name: "wifi-off"
-                sizeRole: "large"
-                role: "muted"
-            }
+            ColumnLayout {
+                anchors.centerIn: parent
+                spacing: 4
 
-            Ui.ShellText {
-                Layout.alignment: Qt.AlignHCenter
-                theme: root.theme
-                text: "Wi-Fi is off"
-                sizeRole: "label"
-            }
+                Ui.ShellIcon {
+                    Layout.alignment: Qt.AlignHCenter
+                    theme: root.theme
+                    name: "wifi-off"
+                    sizeRole: "large"
+                    role: "muted"
+                }
 
-            Ui.ShellText {
-                Layout.alignment: Qt.AlignHCenter
-                theme: root.theme
-                text: "Turn it on to scan for nearby networks."
-                sizeRole: "caption"
-                role: "muted"
+                Ui.ShellText {
+                    Layout.alignment: Qt.AlignHCenter
+                    theme: root.theme
+                    text: "Wi-Fi is off"
+                    sizeRole: "label"
+                }
+
+                Ui.ShellText {
+                    Layout.alignment: Qt.AlignHCenter
+                    theme: root.theme
+                    text: "Turn it on to scan for nearby networks."
+                    sizeRole: "caption"
+                    role: "muted"
+                }
             }
         }
 
@@ -187,9 +181,10 @@ Ui.ShellSurface {
                 Layout.fillWidth: true
                 Layout.preferredHeight: root.theme.metrics.rowHeight
                 radius: root.theme.metrics.radiusSmall
-                color: modelData.selected ? root.theme.component.panel.rowSelected : "transparent"
-                border.width: modelData.state === "error" ? 1 : 0
-                border.color: root.theme.semantic.status.danger
+                color: modelData.state === "error"
+                    ? root.theme.component.panel.rowDanger
+                    : modelData.selected ? root.theme.component.panel.rowSelected : "transparent"
+                border.width: 0
                 opacity: modelData.state === "scanning" ? 0.64 : 1
 
                 RowLayout {
@@ -201,6 +196,8 @@ Ui.ShellSurface {
                     spacing: 8
 
                     Ui.ShellIcon {
+                        Layout.preferredWidth: root.theme.metrics.iconMedium
+                        Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
                         theme: root.theme
                         name: modelData.icon || "wifi"
                         sizeRole: "small"
@@ -230,6 +227,8 @@ Ui.ShellSurface {
 
                     Ui.ShellIcon {
                         visible: modelData.trailing !== ""
+                        Layout.preferredWidth: root.theme.metrics.iconMedium
+                        Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
                         theme: root.theme
                         name: modelData.trailing
                         sizeRole: "small"
