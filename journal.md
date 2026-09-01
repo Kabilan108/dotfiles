@@ -1,1 +1,3 @@
 [workspaces] Replaced workspace dots with compact numbered cells in WorkspaceWidget.qml. Active uses the theme workspaceActive color as a translucent child background with a full-color numeral; urgent uses red text only. Workspace spacing is 2px and cell width is 16px. bar-v2 contracts and d4-widgets headless fixture passed; fixture wrappers can still exit nonzero during gvfs/document-portal cleanup.
+[battery] Battery panel tuning stays within the battery plugin and power-resources fixture; no shared UI edits are needed.
+[battery] Final panel pass adds a hatched charge bar, compact status layout, aligned full-width profile controls, and stable pending-state styling. Power-resources fixtures pass.
