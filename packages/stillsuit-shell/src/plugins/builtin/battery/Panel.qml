@@ -38,13 +38,19 @@ Scope {
         focusable: true
         color: "transparent"
         mask: Region {
-            y: root.context.theme.metrics.barHeight
-            width: batteryWindow.width
-            height: Math.max(0, batteryWindow.height - y)
+            item: dismissArea
         }
 
         MouseArea {
-            anchors.fill: parent
+            id: dismissArea
+            anchors {
+                top: parent.top
+                bottom: parent.bottom
+                left: parent.left
+                right: parent.right
+                topMargin: root.context.theme.metrics.barHeight
+            }
+            acceptedButtons: Qt.AllButtons
             onClicked: root.context.actions.surfaceClose("stillsuit.battery")
         }
 
@@ -53,8 +59,8 @@ Scope {
                 top: parent.top
                 right: parent.right
                 topMargin: root.context.theme.metrics.barHeight
-                    + root.context.theme.metrics.spaceUnit * 2
-                rightMargin: root.context.theme.metrics.spaceUnit * 2
+                    + root.context.theme.metrics.spaceUnit
+                rightMargin: root.context.theme.metrics.spaceUnit
             }
             width: root.context.theme.metrics.panelWidth
             height: content.implicitHeight

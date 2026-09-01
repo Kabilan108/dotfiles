@@ -12,6 +12,7 @@ ShellRoot {
     property int widgetViewCount: 0
     property var fixtureTheme: ({})
     property bool themeReady: false
+    property bool rowsSeeded: false
 
     FileView {
         path: Quickshell.env("STILLSUIT_NOTIFICATION_VIEW_THEME")
@@ -105,13 +106,60 @@ ShellRoot {
                 && fixture.centerViewCount === screenCount
                 && fixture.widgetViewCount === screenCount ? "ready" : "loading"
         }
+        function seedRows(): string {
+            var outputId = Quickshell.screens.length > 0 ? Quickshell.screens[0].name : ""
+            var now = Date.now()
+            notificationService.popups = [{
+                key: "toast-row",
+                originalId: 1,
+                appName: "Fixture",
+                summary: "Toast row",
+                body: "Visible toast body",
+                urgency: 1,
+                actions: [],
+                hints: ({}),
+                timestamp: now,
+                deadline: now + 60000,
+                outputId: outputId,
+                dndClass: "visible",
+                closeReason: "",
+                read: false,
+                readAt: 0
+            }]
+            notificationService.history = [{
+                key: "history-row",
+                originalId: 2,
+                appName: "Fixture",
+                summary: "History row",
+                body: "Visible history body",
+                urgency: 1,
+                actions: [],
+                hints: ({}),
+                timestamp: now - 1000,
+                deadline: 0,
+                outputId: outputId,
+                dndClass: "visible",
+                closeReason: "dismissed",
+                read: false,
+                readAt: 0
+            }]
+            notificationService.revision += 1
+            notificationService.openCenter(outputId)
+            fixture.rowsSeeded = true
+            return "ok"
+        }
         function topology(): string {
+            var outputId = Quickshell.screens.length > 0 ? Quickshell.screens[0].name : ""
             return JSON.stringify({
                 serviceInstances: 1,
                 outputs: Quickshell.screens.length,
                 toastViews: fixture.toastViewCount,
                 centerViews: fixture.centerViewCount,
-                widgetViews: fixture.widgetViewCount
+                widgetViews: fixture.widgetViewCount,
+                rowsSeeded: fixture.rowsSeeded,
+                centerRows: notificationService.centerRows().length,
+                toastRows: outputId === "" ? 0
+                    : notificationService.toastsForOutput(outputId).length
             })
         }
     }

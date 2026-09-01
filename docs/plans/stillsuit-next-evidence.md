@@ -1228,6 +1228,71 @@ Verification:
 No rebuild, activation, service restart, production-shell reload, compositor
 mutation, legacy cleanup, or soak was performed.
 
+### Rapid UI iteration 1: connectivity, resources, and panel gap
+
+Status: source verified and included in the initial UI pass batch. Independent
+review remains deferred until after the human locks the rapid-iteration pass.
+
+Changed:
+
+- Replaced the unsupported NetworkManager connection-list field with a
+  supported four-field query and a separate SSID lookup for each saved Wi-Fi
+  profile. NetworkManager no longer returns its allowed-field list as a panel
+  error.
+- Moved resources before Wi-Fi in the right bar group. The noninteractive
+  display now uses explicit `CPU:` and `MEM:` labels instead of small icons.
+- Reduced production panel top and right gaps from 8 pixels to 4 pixels. Each
+  panel now derives its input mask from an explicit all-button dismissal area
+  that starts at the bottom edge of the bar, so the gap belongs to dismissal.
+
+Verification:
+
+- The updated helper produced a successful read-only snapshot against the live
+  NetworkManager state with Wi-Fi enabled and four parsed networks.
+- Python compilation, focused helper tests, and Ruff exited 0.
+- Connectivity, audio/media, notifications, power/resources,
+  recording/meetings, D4 widgets, schema/theme, and Lane B fixtures exited 0.
+- The six production panels passed the explicit dismissal-area source check;
+  `git diff --check` exited 0.
+
+No rebuild, activation, service restart, production-shell reload, compositor
+mutation, legacy cleanup, or soak was performed.
+
+### Rapid UI iteration 2: bar density, notification rows, and battery state
+
+Status: source verified and included in the initial UI pass batch.
+
+Changed:
+
+- Stopped the accidentally launched legacy `quickshell -c stillsuit` process
+  after matching its complete argument list. The managed `stillsuit-next`
+  service remained active.
+- Raised the production bar and exclusion zone from 26 to 28 pixels. Added the
+  same seven-pixel horizontal padding used by interactive bar clusters around
+  the CPU and memory display. The clock slot is independently anchored to the
+  physical center of the output instead of being shifted by unequal side
+  clusters.
+- Restored legacy battery-level glyphs, the electrical-services charging
+  glyph, a critical alert glyph, and the unknown-battery glyph. The widget now
+  selects among them from live UPower state and percentage.
+- Fixed notification card construction by binding the inherited required
+  theme property. The prior service count was valid, but every history and
+  toast delegate failed before rendering.
+
+Verification:
+
+- The notification view fixture now seeds and renders one live toast plus one
+  history row and rejects delegate-construction or missing-theme warnings.
+- Notification, bar v2, connectivity, audio/media, recording/meetings,
+  schema/theme, power/resources, D4 widgets, shared UI, and Lane B fixtures
+  exited 0. The power fixture covers mid-level, charging, critical, and full
+  battery icons; the bar source contract covers physical clock centering.
+- `nix flake check --no-build`, scoped `nixfmt --check`, and
+  `git diff --check` exited 0.
+
+No rebuild, activation, managed-service restart, production-shell reload,
+compositor mutation, legacy cleanup, or soak was performed.
+
 ## Panel implementation: power and resources
 
 Status: reviewed and merged from isolated lane commit

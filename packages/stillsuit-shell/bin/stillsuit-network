@@ -86,6 +86,27 @@ def _security_kind(security: str) -> str:
     return "personal"
 
 
+def _connection_ssid(uuid: str) -> str:
+    result = _run(
+        [
+            "nmcli",
+            "--terse",
+            "--escape",
+            "yes",
+            "--get-values",
+            "802-11-wireless.ssid",
+            "connection",
+            "show",
+            "uuid",
+            uuid,
+        ]
+    )
+    if result.returncode != 0:
+        return ""
+    line = next((value for value in result.stdout.splitlines() if value != ""), "")
+    return _split_terse(line, 1)[0] if line else ""
+
+
 def _snapshot() -> dict[str, Any]:
     general = _nmcli_rows("WIFI", "general")
     wifi_enabled = bool(general and general[0][0].lower() == "enabled")
@@ -104,14 +125,14 @@ def _snapshot() -> dict[str, Any]:
         "",
     )
 
-    connection_rows = _nmcli_rows(
-        "UUID,NAME,TYPE,ACTIVE,802-11-wireless.ssid", "connection", "show"
-    )
-    saved_wifi = {
-        row[4]: {"uuid": row[0], "profileName": row[1]}
-        for row in connection_rows
-        if len(row) == 5 and row[2] in {"802-11-wireless", "wifi"} and row[4]
-    }
+    connection_rows = _nmcli_rows("UUID,NAME,TYPE,ACTIVE", "connection", "show")
+    saved_wifi: dict[str, dict[str, str]] = {}
+    for row in connection_rows:
+        if len(row) != 4 or row[2] not in {"802-11-wireless", "wifi"}:
+            continue
+        ssid = _connection_ssid(row[0]) or row[1]
+        if ssid:
+            saved_wifi[ssid] = {"uuid": row[0], "profileName": row[1]}
 
     networks_by_name: dict[str, dict[str, Any]] = {}
     if wifi_enabled:
@@ -157,7 +178,7 @@ def _snapshot() -> dict[str, Any]:
 
     vpns: list[dict[str, Any]] = []
     for row in connection_rows:
-        if len(row) != 5 or row[2] not in {"vpn", "wireguard"}:
+        if len(row) != 4 or row[2] not in {"vpn", "wireguard"}:
             continue
         active = row[3] == "yes"
         allowlisted = row[1] == VPN_NAME

@@ -8,5 +8,5 @@
   "kinds": ["service", "bar-widget"],
   "entryPoints": { "service": "ResourceService.qml", "barWidget": "ResourceWidget.qml" },
   "scope": { "service": "global", "barWidget": "per-output" },
-  "barWidget": { "defaultSection": "right", "allowMultiple": false, "order": 30 }
+  "barWidget": { "defaultSection": "right", "allowMultiple": false, "order": 5 }
 }

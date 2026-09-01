@@ -38,18 +38,12 @@ def main() -> None:
             return completed(command, "enabled\n")
         if command[-2:] == ["device", "status"]:
             return completed(command, "eth0:ethernet:connected:Fixture Ethernet\n")
+        if "--get-values" in command and "802-11-wireless.ssid" in command:
+            return completed(command, "Home\\:WiFi\n")
         if command[-2:] == ["connection", "show"]:
-            fields = command[command.index("--fields") + 1]
-            if "802-11-wireless.ssid" in fields:
-                return completed(
-                    command,
-                    "saved:Apartment Wi-Fi:802-11-wireless:no:Home\\:WiFi\n"
-                    "moberg:MobergAnalytics:vpn:no:\n"
-                    "other:Other VPN:vpn:yes:\n",
-                )
             return completed(
                 command,
-                "saved:Home:802-11-wireless:no\n"
+                "saved:Apartment Wi-Fi:802-11-wireless:no\n"
                 "moberg:MobergAnalytics:vpn:no\n"
                 "other:Other VPN:vpn:yes\n",
             )
@@ -99,6 +93,17 @@ def main() -> None:
         "ip": "100.64.0.9",
         "tailnet": "fixture.ts.net",
     }
+    list_call = next(
+        call
+        for call in calls
+        if call["command"][-2:] == ["connection", "show"]
+    )
+    assert "802-11-wireless.ssid" not in list_call["command"]
+    assert any(
+        "--get-values" in call["command"]
+        and "802-11-wireless.ssid" in call["command"]
+        for call in calls
+    )
 
     calls.clear()
     saved_join = helper._dispatch(

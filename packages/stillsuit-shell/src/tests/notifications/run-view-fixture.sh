@@ -81,11 +81,15 @@ shell_pid=$!
 for _ in {1..120}; do
   result=$(qs ipc --pid "$shell_pid" call stillsuit-notification-view-fixture ready 2>/dev/null || true)
   if [[ $result == ready ]]; then
+    [[ $(qs ipc --pid "$shell_pid" call stillsuit-notification-view-fixture seedRows) == ok ]]
+    sleep 0.1
     topology=$(qs ipc --pid "$shell_pid" call stillsuit-notification-view-fixture topology)
     jq -e '.serviceInstances == 1 and .outputs >= 1
       and .toastViews == .outputs and .centerViews == .outputs
-      and .widgetViews == .outputs' >/dev/null <<<"$topology"
-    if grep -E ' ERROR| FATAL' "$tmp_dir/quickshell.log"; then
+      and .widgetViews == .outputs and .rowsSeeded
+      and .centerRows == 2 and .toastRows == 1' >/dev/null <<<"$topology"
+    if grep -E ' ERROR| FATAL|Cannot create delegate|Required property theme' \
+        "$tmp_dir/quickshell.log"; then
       echo "view fixture logged a QML error" >&2
       exit 1
     fi

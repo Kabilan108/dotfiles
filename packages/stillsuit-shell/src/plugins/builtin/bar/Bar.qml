@@ -121,23 +121,6 @@ Scope {
                     Item { Layout.fillWidth: true }
 
                     RowLayout {
-                        id: centerSlot
-                        objectName: "stillsuit-bar-center"
-                        spacing: root.context.theme.metrics.spaceUnit
-                        Layout.alignment: Qt.AlignVCenter
-                        Repeater {
-                            model: root.recordsFor("center")
-                            WidgetSlot {
-                                required property var modelData
-                                registration: modelData.registration
-                                outputId: barWindow.outputId
-                            }
-                        }
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    RowLayout {
                         id: rightSlot
                         objectName: "stillsuit-bar-right"
                         spacing: root.context.theme.metrics.spaceUnit
@@ -153,9 +136,26 @@ Scope {
                     }
                 }
 
+                RowLayout {
+                    id: centerSlot
+                    objectName: "stillsuit-bar-center"
+                    anchors.centerIn: parent
+                    spacing: root.context.theme.metrics.spaceUnit
+                    z: 1
+
+                    Repeater {
+                        model: root.recordsFor("center")
+                        WidgetSlot {
+                            required property var modelData
+                            registration: modelData.registration
+                            outputId: barWindow.outputId
+                        }
+                    }
+                }
+
                 Ui.ShellText {
                     anchors.centerIn: parent
-                    visible: centerSlot.children.length === 0
+                    visible: root.recordsFor("center").length === 0
                     theme: root.context.theme
                     text: "Stillsuit"
                     role: "muted"

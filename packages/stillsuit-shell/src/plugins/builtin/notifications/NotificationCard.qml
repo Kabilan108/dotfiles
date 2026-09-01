@@ -11,7 +11,7 @@ Ui.ShellSurface {
     property bool inline: false
     property string timeText: ""
 
-    readonly property var theme: context.theme
+    theme: context.theme
     readonly property var actions: Array.isArray(snapshot.actions) ? snapshot.actions : []
     readonly property string actionState: service ? service.actionState(snapshot.key) : "expired"
     readonly property string stateRole: service ? service.viewState(snapshot) : "info"

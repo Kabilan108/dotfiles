@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Layouts
 import "../../../ui" as Ui
 
 Item {
@@ -11,29 +10,19 @@ Item {
 
     readonly property string accessibleName: "CPU " + _percent(service ? service.cpuPercent : null)
         + ", memory " + _percent(service ? service.memoryPercent : null)
-    implicitWidth: metrics.implicitWidth
-    implicitHeight: context.theme.metrics.barHeight
+    implicitWidth: Math.max(24, metrics.implicitWidth + 14)
+    implicitHeight: Math.max(22, context.theme.metrics.barHeight - 6)
 
-    RowLayout {
+    Ui.ShellText {
         id: metrics
 
         anchors.centerIn: parent
-        spacing: 5
-
-        Ui.ShellIcon {
-            theme: root.context.theme
-            name: "memory"
-            sizeRole: "small"
-            role: "secondary"
-        }
-
-        Ui.ShellText {
-            theme: root.context.theme
-            text: root._percent(root.service ? root.service.memoryPercent : null)
-            sizeRole: "caption"
-            monospace: true
-            role: "secondary"
-        }
+        theme: root.context.theme
+        text: "CPU: " + root._percent(root.service ? root.service.cpuPercent : null)
+            + "  MEM: " + root._percent(root.service ? root.service.memoryPercent : null)
+        sizeRole: "caption"
+        monospace: true
+        role: "secondary"
     }
 
     function _percent(value) {

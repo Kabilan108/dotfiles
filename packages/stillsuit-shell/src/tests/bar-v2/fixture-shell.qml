@@ -157,7 +157,7 @@ ShellRoot {
             },
             metrics: {
                 spaceUnit: 4, radiusSmall: 5, radiusMedium: 7, radiusLarge: 11,
-                barHeight: 26, barOuterGap: 0, barInnerGap: 7,
+                barHeight: 28, barOuterGap: 0, barInnerGap: 7,
                 iconSmall: 15, iconMedium: 18, iconLarge: 24,
                 panelWidth: 380, panelPadding: 16, rowHeight: 38
             },

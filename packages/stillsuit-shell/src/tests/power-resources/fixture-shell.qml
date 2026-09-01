@@ -2,12 +2,21 @@ import QtQuick
 import Quickshell
 import "plugins/builtin/resources" as Resources
 import "services" as Services
+import "tests/FixtureTheme.js" as FixtureTheme
 
 ShellRoot {
     id: root
 
     property int checks: 0
-    property var fakeContext: QtObject {}
+    property var fakeContext: QtObject {
+        property var theme: FixtureTheme.create()
+        property var panels: QtObject {
+            function isOpen(pluginId) { return false }
+        }
+        property var actions: QtObject {
+            function surfaceToggle(pluginId, payloadJson) { return "ok" }
+        }
+    }
 
     property var fakeBatteryDevice: QtObject {
         property bool isPresent: true
@@ -122,6 +131,31 @@ ShellRoot {
             verify(battery.chargeStartThreshold === 75, "start threshold")
             verify(battery.chargeEndThreshold === 80, "end threshold")
             verify(battery.chargeThresholdSupported, "threshold support")
+
+            var batteryWidgetComponent = Qt.createComponent(
+                "plugins/builtin/battery/Widget.qml", Component.PreferSynchronous)
+            var batteryWidget = batteryWidgetComponent.createObject(root, {
+                context: fakeContext,
+                service: battery,
+                outputId: "fixture-output"
+            })
+            verify(batteryWidget !== null, "battery widget construction")
+            verify(batteryWidget.displayIconName === "battery-level-4",
+                "mid-level discharge icon")
+            fakeBatteryModel.state = "charging"
+            verify(batteryWidget.displayIconName === "battery-charging",
+                "charging icon")
+            fakeBatteryModel.state = "discharging"
+            fakeBatteryDevice.percentage = 0.05
+            verify(batteryWidget.displayIconName === "battery-alert",
+                "critical battery icon")
+            fakeBatteryDevice.percentage = 0.98
+            fakeBatteryModel.state = "fully-charged"
+            verify(batteryWidget.displayIconName === "battery-level-full",
+                "full battery icon")
+            fakeBatteryDevice.percentage = 0.56
+            fakeBatteryModel.state = "discharging"
+            batteryWidget.destroy()
 
             var parsed = battery._normalizeDetails(battery._parseDetails(
                 "Device: /org/freedesktop/UPower/devices/line_power_AC\n"

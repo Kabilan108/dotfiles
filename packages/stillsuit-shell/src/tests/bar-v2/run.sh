@@ -93,7 +93,7 @@ fi
 
 contracts=$(ipc contracts)
 jq -e '
-    .barHeight == 26 and .outerGap == 0 and .exclusionZone == 26
+    .barHeight == 28 and .outerGap == 0 and .exclusionZone == 28
     and .constructionCount == 2
     and (.outputIds | length) == 2 and .outputIds[0] != .outputIds[1]
     and .primaryProductionWorkspaces == 1 and .secondaryProductionWorkspaces == 2

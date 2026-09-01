@@ -35,6 +35,8 @@ assert.match(bar, /top: true[\s\S]*left: true[\s\S]*right: true/);
 assert.match(bar, /exclusiveZone: root\.shadowMode \? 0 : root\.exclusionZone/);
 assert.match(bar, /Ui\.ShellSurface/);
 assert.match(bar, /kind: "bar"\s*\n\s*radius: 0/);
+assert.match(bar, /id: centerSlot[\s\S]*anchors\.centerIn: parent/);
+assert.match(bar, /visible: root\.recordsFor\("center"\)\.length === 0/);
 
 const workspaces = sources["plugins/builtin/workspaces/WorkspaceWidget.qml"];
 assert.match(workspaces, /id: contentRow[\s\S]*id: workspaceStrip[\s\S]*id: separator[\s\S]*id: columnStrip/);
@@ -72,7 +74,7 @@ assert.equal(osdManifest.scope.overlay, "per-output");
 
 const themeSource = readFileSync(
   join(sourceRoot, "../themes/catppuccin-mocha.nix"), "utf8");
-assert.match(themeSource, /barHeight = 26;/);
+assert.match(themeSource, /barHeight = 28;/);
 assert.match(themeSource, /barOuterGap = 0;/);
 
 console.log("bar v2 source contracts: ok");

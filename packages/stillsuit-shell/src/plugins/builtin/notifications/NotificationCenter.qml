@@ -49,13 +49,19 @@ Scope {
         focusable: true
         color: "transparent"
         mask: Region {
-            y: root.theme.metrics.barHeight
-            width: centerWindow.width
-            height: Math.max(0, centerWindow.height - y)
+            item: dismissArea
         }
 
         MouseArea {
-            anchors.fill: parent
+            id: dismissArea
+            anchors {
+                top: parent.top
+                bottom: parent.bottom
+                left: parent.left
+                right: parent.right
+                topMargin: root.theme.metrics.barHeight
+            }
+            acceptedButtons: Qt.AllButtons
             onClicked: root.service.closeCenter(root.outputId)
         }
 
@@ -65,12 +71,12 @@ Scope {
             anchors {
                 top: parent.top
                 right: parent.right
-                topMargin: root.theme.metrics.barHeight + root.theme.metrics.spaceUnit * 2
-                rightMargin: root.theme.metrics.spaceUnit * 2
+                topMargin: root.theme.metrics.barHeight + root.theme.metrics.spaceUnit
+                rightMargin: root.theme.metrics.spaceUnit
             }
             width: root.theme.metrics.panelWidth
             height: Math.min(panelLayout.implicitHeight + root.theme.metrics.panelPadding * 2,
-                parent.height - anchors.topMargin - root.theme.metrics.spaceUnit * 2)
+                parent.height - anchors.topMargin - root.theme.metrics.spaceUnit)
             theme: root.theme
             kind: "panel"
 

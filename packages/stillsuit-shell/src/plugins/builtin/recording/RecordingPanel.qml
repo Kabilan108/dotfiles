@@ -135,13 +135,19 @@ Scope {
         focusable: true
         color: "transparent"
         mask: Region {
-            y: root.context.theme.metrics.barHeight
-            width: recordingWindow.width
-            height: Math.max(0, recordingWindow.height - y)
+            item: dismissArea
         }
 
         MouseArea {
-            anchors.fill: parent
+            id: dismissArea
+            anchors {
+                top: parent.top
+                bottom: parent.bottom
+                left: parent.left
+                right: parent.right
+                topMargin: root.context.theme.metrics.barHeight
+            }
+            acceptedButtons: Qt.AllButtons
             onClicked: root.closeSurface()
         }
 
@@ -150,7 +156,8 @@ Scope {
             anchors {
                 top: parent.top
                 horizontalCenter: parent.horizontalCenter
-                topMargin: root.context.theme.metrics.barHeight + 8
+                topMargin: root.context.theme.metrics.barHeight
+                    + root.context.theme.metrics.spaceUnit
             }
             width: root.recording && root.recording.active
                 ? Math.max(activeContent.implicitWidth + 32, 480) : 480

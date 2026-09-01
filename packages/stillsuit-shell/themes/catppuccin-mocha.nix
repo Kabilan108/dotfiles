@@ -159,7 +159,7 @@
     radiusSmall = 5;
     radiusMedium = 7;
     radiusLarge = 11;
-    barHeight = 26;
+    barHeight = 28;
     barOuterGap = 0;
     barInnerGap = 7;
     iconSmall = 15;
