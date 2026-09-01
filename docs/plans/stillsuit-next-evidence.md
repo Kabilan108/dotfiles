@@ -1172,6 +1172,42 @@ Review notes:
 - No rebuild, activation, service restart, production-shell reload, Niri
   mutation, legacy cleanup, or soak was performed.
 
+## Panel implementation: power and resources
+
+Status: reviewed and merged from isolated lane commit
+`2c5c442b8d2dcb1ba969fa7448f1e39a954a5575`.
+
+Built:
+
+- Added percentage, state, time, profile, health, cycle count, live power draw,
+  capacity, and charge-threshold detail to the battery panel.
+- Power-profile changes expose pending state, reconcile against daemon truth,
+  and visibly return to the authoritative profile after failure.
+- Limited resource collection and display to aggregate CPU and physical-memory
+  use on a three-second cadence.
+- Added an independent one-shot battery watcher with durable deduplication and
+  hysteresis, driven by a one-minute user timer with five-second jitter.
+
+Verification:
+
+- The orchestrator reviewed every service, panel, widget, watcher, module, and
+  focused test file before merge.
+- `packages/stillsuit-shell/src/tests/power-resources/run-fixtures.sh`, exit 0.
+- The fixture covers battery parsing and missing data, pending UPower states,
+  external profile changes, success, failure rollback, asynchronous completion,
+  CPU and memory changes, malformed-sample retention, watcher thresholds,
+  deduplication, hysteresis, and the rendered service/timer contract.
+- `git diff 2c5c442b8d2dcb1ba969fa7448f1e39a954a5575^..2c5c442b8d2dcb1ba969fa7448f1e39a954a5575 --check`, exit 0.
+
+Review notes:
+
+- The module source is merged but not imported or enabled. Integration must add
+  the UPower runtime input and stage removal of legacy compositor-started
+  watchers so deployment cannot create duplicate alert owners.
+- Focused checks used fake notification and profile owners. No live alert,
+  profile mutation, rebuild, activation, service restart, production-shell
+  reload, soak, or legacy cleanup was performed.
+
 ## Panel implementation: audio and media
 
 Status: reviewed and merged from isolated lane commits
