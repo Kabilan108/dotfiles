@@ -22,6 +22,9 @@ let
   };
 in
 {
+  programs.stillsuitShell.enable = true;
+  programs.stillsuitShell.ownership.barOwners = [ "stillsuit.builtin-bar" ];
+  programs.stillsuitShell.ownership.notificationOwners = [ "stillsuit.notifications" ];
   home.packages = [ pkgs.quickshell ];
 
   programs.stillsuitShell.integrations.agentPanelHelperPackage =

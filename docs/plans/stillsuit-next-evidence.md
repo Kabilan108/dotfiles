@@ -7,8 +7,10 @@ system generation is
 `/nix/store/nh2bvm9a083s2d3qpalrg234j6nmxprq-nixos-system-jacurutu-26.11.20260822.2c423e0`;
 Waybar and the configured agent workspace are retired. Gate 2 has not been run.
 The legacy Stillsuit shell remains the sole notification owner, and Stillsuit
-Next remains inactive. Only the exact disposable shadow-preview child PIDs and
-their private buses were torn down during agent-run tests.
+Next remains inactive. The human approved Gate 2 on 2026-08-31, and its patch is
+staged and validated but not built or activated. Only the exact disposable
+shadow-preview child PIDs and their private buses were torn down during
+agent-run tests.
 
 ## Inputs and contract freeze
 
@@ -724,17 +726,27 @@ legacy `stillsuit` instance remains at PID `63916` and still owns
 `org.freedesktop.Notifications`, while `stillsuit-shell.service` is inactive.
 This is the intended boundary after Gate 1. Gate 1 is complete.
 
-Gate 2, Stillsuit Next process and notification cutover, has not been run and
-will not be run during this execution. The same command sheet contains its
-build-first sequence, asynchronous legacy kill followed by bounded PID and
-D-Bus-name release waits, generation switch, systemd PID and IPC-readiness
-barriers, single-instance/owner assertions, and rollback.
+The human approved Gate 2 on 2026-08-31. The canonical cutover patch applied
+cleanly to the main checkout. It enables the Stillsuit module below the Nix
+module's `in {`, assigns the built-in bar and notification owners, removes the
+legacy Niri startup declaration, adds the agent-panel window rule, and retargets
+the five shell bindings to `stillsuit-next`. `git diff --check`, `niri
+validate`, `nixfmt --check`, and `nix flake check --no-build` exited 0.
+The reverse patch check also exited 0. Direct evaluation of the staged Jacurutu
+configuration returned `enable = true`, bar owners
+`["stillsuit.builtin-bar"]`, and notification owners
+`["stillsuit.notifications"]`.
+
+No build, generation switch, service restart, process kill, or notification
+ownership change was performed while staging the gate. Legacy Stillsuit PID
+`63916` remains the only legacy instance and notification owner;
+`stillsuit-shell.service` remains inactive in the current generation. The next
+human action is the build-only command. After it succeeds, the prepared bounded
+PID, D-Bus-name, systemd, IPC-readiness, and ownership checks govern the switch.
 
 ## Remaining work
 
-- Gate 2 remains a separate, explicit human decision and must use the prepared
-  ordered handoff rather than an unbounded or newest-instance selection.
-- The Gate 2 patch has passed disposable application and forced-enabled build
-  verification but is not applied to the live checkout. A rebuild now would
-  remain at the Gate 1/default-off boundary until that gate is explicitly
-  approved and staged.
+- Run the Gate 2 build-only command from the prepared handoff. Do not use
+  `rebuild` or switch the generation yet.
+- After the build succeeds, run the exact ordered single-owner handoff rather
+  than an unbounded or newest-instance selection.

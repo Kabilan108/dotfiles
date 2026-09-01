@@ -9,7 +9,8 @@ Branch and reviewed range: `stillsuit-next`, `bb167a9..5f487bf3`
 Recovery activation status: none. The recovery itself did not switch a NixOS or
 Home Manager generation, restart a production service, claim the notification
 bus, or touch a live tmux session. Gate 1 was subsequently approved, rebuilt,
-and activated by the human. Gate 2 has not been applied or activated.
+and activated by the human. The human approved Gate 2 on 2026-08-31; its staged
+patch is now applied and validated, but it has not been built or activated.
 
 ## Recovery status
 
@@ -38,7 +39,7 @@ no sessions to import (`0 created`, `0 updated`, `0 skipped`, `0 errors`), so
 that resumed report is represented here from the human-supplied text rather
 than a newly recovered archive record.
 
-## Verdict
+## Verdict at recovery time
 
 Do not run Gate 2 yet.
 
@@ -282,6 +283,7 @@ The lane commits are `637791b0` (host runtime), `c7840e5c`
    independently. Gate 2 still requires explicit human approval and the
    prepared bounded cutover procedure.
 
-Status on 2026-08-31: steps 1 through 6 are complete, Gate 1 is complete, all
-secondary findings above are resolved, and Gate 2 remains unapplied pending an
-explicit human decision.
+Status on 2026-08-31: steps 1 through 6 are complete, Gate 1 is complete, and
+all secondary findings above are resolved. The human subsequently approved
+Gate 2. Its patch is staged and validated; the build and ordered handoff remain
+pending.
