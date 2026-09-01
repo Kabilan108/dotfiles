@@ -1,8 +1,13 @@
 # Agent panel
 
-This built-in plugin contributes one global service and one bar widget per
-output. The service forwards the five HostContext v1 agent-panel actions. It
-does not accept prompts, commands, paths, or launch settings.
+This built-in plugin contributes one global service and no bar item. The
+service forwards the five HostContext v1 agent-panel actions. It does not
+accept prompts, commands, paths, or launch settings. Niri's `Mod+Grave` binding
+still calls the fixed `stillsuit-agent-panel` `toggle` IPC method.
+
+The Niri geometry change from 72% to 60% of the output width and height is
+staged separately in `docs/plans/stillsuit-agent-geometry.patch`. Applying that
+patch and deploying this source both require a later human gate.
 
 `stillsuit-agent-panel` owns the `stillsuit-agent` tmux session and the exact
 Ghostty app ID `io.stillsuit.AgentPanel`. The first open starts a custom
@@ -20,6 +25,9 @@ Ghostty does not expose its quick-terminal toggle as an external command.
 Reopen must still create and map a new terminal surface. The helper waits up to
 five seconds for that surface to appear before releasing its lock, so concurrent
 opens cannot request duplicate windows.
+
+The warm-reopen optimization remains source-only until that later deployment.
+Removing the bar item does not activate it or change the running desktop.
 
 Hide waits up to five seconds for the exact Niri window IDs to disappear.
 Terminate and stale-session replacement also wait up to five seconds for the

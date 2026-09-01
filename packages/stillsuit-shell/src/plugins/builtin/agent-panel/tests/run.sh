@@ -5,6 +5,8 @@ TEST_DIR=$(mktemp -d)
 readonly TEST_DIR
 HELPER=${HELPER:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)/bin/stillsuit-agent-panel}
 readonly HELPER
+PLUGIN_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+readonly PLUGIN_ROOT
 readonly REAL_PATH=$PATH
 REAL_TMUX=$(command -v tmux)
 readonly REAL_TMUX
@@ -44,6 +46,16 @@ assert_eq() {
   local expected=$1 actual=$2 label=$3
   [[ $actual == "$expected" ]] || fail "$label: expected '$expected', got '$actual'"
 }
+
+jq -e '
+  .kinds == ["service"] and
+  .entryPoints == {"service": "AgentPanelService.qml"} and
+  .scope == {"service": "global"} and
+  (has("barWidget") | not)
+' "$PLUGIN_ROOT/manifest.json" >/dev/null ||
+  fail "agent-panel manifest is not service-only"
+[[ ! -e $PLUGIN_ROOT/AgentPanelWidget.qml ]] ||
+  fail "agent-panel bar widget source still exists"
 
 cat >"$TEST_DIR/bin/tmux" <<'EOF'
 #!/usr/bin/env bash
