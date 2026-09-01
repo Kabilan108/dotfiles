@@ -1172,6 +1172,42 @@ Review notes:
 - No rebuild, activation, service restart, production-shell reload, Niri
   mutation, legacy cleanup, or soak was performed.
 
+## Panel implementation: audio and media
+
+Status: reviewed and merged from isolated lane commits
+`43ddddb117dedec9b3ffca6959f4a23af1fb3af5` and
+`10965757c3f4318b607721eb9bb997b64fda81db`.
+
+Built:
+
+- Kept audio and media in one panel with output-device switching, speaker and
+  microphone level and mute controls, no input-device switching, no per-app
+  streams, and a hard 100-percent volume ceiling.
+- Restored the legacy full-player behavior: active-player preference, explicit
+  player selection, metadata and art fallbacks, transport, seek, shuffle, and
+  repeat with capability gating.
+- Migrated the panel and bar widget to theme v2 and the shared UI contracts.
+
+Verification:
+
+- The orchestrator reviewed the complete audio and media services, production
+  panel and widget, manifest, fixture, and follow-up screen correction.
+- `packages/stillsuit-shell/src/tests/audio-media/run-fixtures.sh`, exit 0 with
+  44 checks.
+- The headless Wayland fixture constructs the real panel with host properties
+  and proves that its `PanelWindow` receives the injected output screen.
+- `git diff 43ddddb117dedec9b3ffca6959f4a23af1fb3af5..10965757c3f4318b607721eb9bb997b64fda81db --check`, exit 0.
+
+Review notes:
+
+- The first implementation omitted the required per-output `screen` property
+  and binding. A blank-context correction added the host contract and real-panel
+  construction coverage before acceptance.
+- Production integration still needs the shared `ui/qmldir` and `pulseaudio`
+  runtime input. Those changes belong to the integration step.
+- No live PipeWire or MPRIS action, rebuild, activation, service restart,
+  production-shell reload, soak, or legacy cleanup was performed.
+
 ## Panel implementation: connectivity
 
 Status: reviewed and merged from isolated lane commits
