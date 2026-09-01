@@ -43,7 +43,8 @@ Text {
             "settings": "\ue8b8",
             "success": "\ue86c",
             "warning": "\uf083",
-            "wifi": "\ue63e"
+            "wifi": "\ue63e",
+            "wifi-off": "\ue648"
         }
         return icons[iconName] !== undefined ? icons[iconName] : "\ue061"
     }

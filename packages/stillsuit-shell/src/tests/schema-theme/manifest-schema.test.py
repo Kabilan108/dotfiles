@@ -9,8 +9,10 @@ TEST_DIR = Path(__file__).resolve().parent
 PACKAGE_ROOT = TEST_DIR.parents[2]
 MANIFEST_SCHEMA_PATH = PACKAGE_ROOT / "schemas" / "manifest.v1.json"
 THEME_SCHEMA_PATH = PACKAGE_ROOT / "schemas" / "theme.v1.json"
+DESIGN_LAB_THEME_SCHEMA_PATH = PACKAGE_ROOT / "schemas" / "theme.v2.draft.json"
 BUILTIN_ROOT = PACKAGE_ROOT / "src" / "plugins" / "builtin"
 THEME_FIXTURE_PATH = TEST_DIR.parent / "fixtures" / "theme.v1.json"
+DESIGN_LAB_THEME_ROOT = PACKAGE_ROOT / "design-lab" / "themes"
 
 CONTRIBUTIONS = {
     "bar": ("bar", "per-output"),
@@ -96,10 +98,38 @@ def _check_theme_schema() -> None:
     Draft202012Validator(schema).validate(_read_json(THEME_FIXTURE_PATH))
 
 
+def _check_design_lab_theme_schema() -> None:
+    schema = _read_json(DESIGN_LAB_THEME_SCHEMA_PATH)
+    Draft202012Validator.check_schema(schema)
+    validator = Draft202012Validator(schema)
+
+    themes = [_read_json(path) for path in sorted(DESIGN_LAB_THEME_ROOT.glob("*.json"))]
+    if len(themes) != 3:
+        raise AssertionError(f"expected three design-lab themes, found {len(themes)}")
+    for theme in themes:
+        validator.validate(theme)
+
+    missing_osd_border = deepcopy(themes[0])
+    del missing_osd_border["component"]["osd"]["border"]
+    _assert_rejected(validator, missing_osd_border, "a design-lab theme without component.osd.border")
+
+    missing_notification_warning = deepcopy(themes[0])
+    del missing_notification_warning["component"]["notification"]["warning"]
+    _assert_rejected(
+        validator,
+        missing_notification_warning,
+        "a design-lab theme without component.notification.warning",
+    )
+
+
 def main() -> None:
     _check_manifest_schema()
     _check_theme_schema()
-    print("schema contracts ok: builtin manifests, reverse contribution constraints, theme fixture")
+    _check_design_lab_theme_schema()
+    print(
+        "schema contracts ok: builtin manifests, reverse contribution constraints, "
+        "production theme fixture, design-lab themes"
+    )
 
 
 if __name__ == "__main__":

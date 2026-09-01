@@ -99,19 +99,19 @@
       "required": ["bar", "panel", "control", "notification", "osd"],
       "properties": {
         "bar": {
-          "$ref": "#/$defs/colorMap"
+          "$ref": "#/$defs/barComponent"
         },
         "panel": {
-          "$ref": "#/$defs/colorMap"
+          "$ref": "#/$defs/panelComponent"
         },
         "control": {
-          "$ref": "#/$defs/colorMap"
+          "$ref": "#/$defs/controlComponent"
         },
         "notification": {
-          "$ref": "#/$defs/colorMap"
+          "$ref": "#/$defs/notificationComponent"
         },
         "osd": {
-          "$ref": "#/$defs/colorMap"
+          "$ref": "#/$defs/osdComponent"
         }
       }
     },
@@ -289,6 +289,100 @@
       "minProperties": 1,
       "additionalProperties": {
         "$ref": "#/$defs/color"
+      }
+    },
+    "barComponent": {
+      "type": "object",
+      "required": [
+        "background",
+        "border",
+        "separator",
+        "workspaceIdle",
+        "workspaceActive",
+        "clusterHover",
+        "clusterActive",
+        "clusterText",
+        "clusterActiveText"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "background": { "$ref": "#/$defs/color" },
+        "border": { "$ref": "#/$defs/color" },
+        "separator": { "$ref": "#/$defs/color" },
+        "workspaceIdle": { "$ref": "#/$defs/color" },
+        "workspaceActive": { "$ref": "#/$defs/color" },
+        "clusterHover": { "$ref": "#/$defs/color" },
+        "clusterActive": { "$ref": "#/$defs/color" },
+        "clusterText": { "$ref": "#/$defs/color" },
+        "clusterActiveText": { "$ref": "#/$defs/color" }
+      }
+    },
+    "panelComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["background", "border", "section", "rowHover", "rowSelected", "shadow"],
+      "properties": {
+        "background": { "$ref": "#/$defs/color" },
+        "border": { "$ref": "#/$defs/color" },
+        "section": { "$ref": "#/$defs/color" },
+        "rowHover": { "$ref": "#/$defs/color" },
+        "rowSelected": { "$ref": "#/$defs/color" },
+        "shadow": { "$ref": "#/$defs/color" }
+      }
+    },
+    "controlComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "background",
+        "hover",
+        "pressed",
+        "active",
+        "disabled",
+        "outline",
+        "focus",
+        "text",
+        "textDisabled",
+        "onActive"
+      ],
+      "properties": {
+        "background": { "$ref": "#/$defs/color" },
+        "hover": { "$ref": "#/$defs/color" },
+        "pressed": { "$ref": "#/$defs/color" },
+        "active": { "$ref": "#/$defs/color" },
+        "disabled": { "$ref": "#/$defs/color" },
+        "outline": { "$ref": "#/$defs/color" },
+        "focus": { "$ref": "#/$defs/color" },
+        "text": { "$ref": "#/$defs/color" },
+        "textDisabled": { "$ref": "#/$defs/color" },
+        "onActive": { "$ref": "#/$defs/color" }
+      }
+    },
+    "notificationComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["background", "border", "unread", "info", "success", "warning", "danger", "muted"],
+      "properties": {
+        "background": { "$ref": "#/$defs/color" },
+        "border": { "$ref": "#/$defs/color" },
+        "unread": { "$ref": "#/$defs/color" },
+        "info": { "$ref": "#/$defs/color" },
+        "success": { "$ref": "#/$defs/color" },
+        "warning": { "$ref": "#/$defs/color" },
+        "danger": { "$ref": "#/$defs/color" },
+        "muted": { "$ref": "#/$defs/color" }
+      }
+    },
+    "osdComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["background", "border", "track", "fill", "text"],
+      "properties": {
+        "background": { "$ref": "#/$defs/color" },
+        "border": { "$ref": "#/$defs/color" },
+        "track": { "$ref": "#/$defs/color" },
+        "fill": { "$ref": "#/$defs/color" },
+        "text": { "$ref": "#/$defs/color" }
       }
     },
     "fontWeight": {

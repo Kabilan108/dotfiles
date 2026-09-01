@@ -115,10 +115,15 @@
       "background": "#12161a",
       "border": "#35404a",
       "unread": "#69c4d2",
-      "danger": "#df7d86"
+      "info": "#69c4d2",
+      "success": "#86c69b",
+      "warning": "#d6b86a",
+      "danger": "#df7d86",
+      "muted": "#73808a"
     },
     "osd": {
-      "background": "#12161a",
+      "background": "#171c21",
+      "border": "#35404a",
       "track": "#262e36",
       "fill": "#69c4d2",
       "text": "#eef1f3"

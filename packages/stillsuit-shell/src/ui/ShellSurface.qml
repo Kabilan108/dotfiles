@@ -7,14 +7,18 @@ Rectangle {
     default property alias content: contentItem.data
     property string kind: "panel"
     property bool selected: false
-    property real fillOpacity: kind === "raised" ? 1 : theme.effects.surfaceOpacity
+    property real fillOpacity: kind === "raised" || kind === "osd" ? 1 : theme.effects.surfaceOpacity
 
     color: _withAlpha(_fillColor(), fillOpacity)
     radius: kind === "bar"
         ? theme.metrics.radiusMedium
+        : kind === "osd" ? theme.metrics.radiusMedium
         : kind === "raised" ? theme.metrics.radiusSmall : theme.metrics.radiusLarge
     border.width: 1
-    border.color: kind === "bar" ? theme.component.bar.border : theme.component.panel.border
+    border.color: kind === "bar"
+        ? theme.component.bar.border
+        : kind === "osd" ? theme.component.osd.border
+        : kind === "notification" ? theme.component.notification.border : theme.component.panel.border
     clip: true
 
     Item {
@@ -27,6 +31,10 @@ Rectangle {
             return theme.semantic.surface.selected
         if (kind === "bar")
             return theme.component.bar.background
+        if (kind === "osd")
+            return theme.component.osd.background
+        if (kind === "notification")
+            return theme.component.notification.background
         if (kind === "raised")
             return theme.semantic.surface.raised
         return theme.component.panel.background

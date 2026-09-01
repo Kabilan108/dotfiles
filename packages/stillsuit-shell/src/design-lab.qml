@@ -19,6 +19,21 @@ ShellRoot {
     readonly property var monoFontChoices: ["JetBrainsMono Nerd Font", "FiraMono Nerd Font", "IBM Plex Mono"]
     readonly property var iconFontChoices: ["Material Symbols Rounded", "Material Symbols Outlined"]
     readonly property var barHeightChoices: [26, 28, 30, 32]
+    readonly property var reviewPreset: ({
+        bodyFont: "Noto Sans",
+        monoFont: "JetBrainsMono Nerd Font",
+        iconFont: "Material Symbols Rounded",
+        barHeight: 26,
+        anchored: true,
+        opacity: 0.85,
+        radius: 4,
+        motionScale: 0.55,
+        accent: "#89b4fa",
+        panel: "#181825",
+        raised: "#313244",
+        osd: "#1e1e2e",
+        text: "#cdd6f4"
+    })
 
     property bool ready: false
     property string errorText: ""
@@ -37,6 +52,7 @@ ShellRoot {
     property string accentChoice: "#d98952"
     property string panelChoice: "#181c24"
     property string raisedChoice: "#242a36"
+    property string osdChoice: "#1b1f29"
     property string textChoice: "#e6ded0"
 
     FileView {
@@ -71,6 +87,25 @@ ShellRoot {
             return lab.ready ? lab.theme.identity.id : lab.errorText
         }
 
+        function restoreReviewPreset(): string {
+            lab.chooseReviewPreset()
+            return lab.ready ? lab.theme.identity.id : lab.errorText
+        }
+
+        function selectNetworkState(index: int): string {
+            if (!contentLoader.item)
+                return "lab content is not ready"
+            contentLoader.item.networkStateIndex = index
+            return String(contentLoader.item.networkStateIndex)
+        }
+
+        function selectNotificationState(index: int): string {
+            if (!contentLoader.item)
+                return "lab content is not ready"
+            contentLoader.item.notificationStateIndex = index
+            return String(contentLoader.item.notificationStateIndex)
+        }
+
         function status(): string {
             return JSON.stringify({
                 ready: lab.ready,
@@ -81,6 +116,10 @@ ShellRoot {
                 iconFont: lab.iconFontChoice,
                 barHeight: lab.barHeightChoice,
                 anchored: lab.anchoredChoice,
+                opacity: lab.opacityChoice,
+                radius: lab.radiusChoice,
+                motionScale: lab.motionScaleChoice,
+                osd: lab.osdChoice,
                 windowSize: [window.width, window.height],
                 loaderSize: [contentLoader.width, contentLoader.height],
                 loaderStatus: contentLoader.status,
@@ -89,7 +128,7 @@ ShellRoot {
         }
     }
 
-    Component.onCompleted: chooseTheme(0)
+    Component.onCompleted: chooseReviewPreset()
 
     function _viewFor(index) {
         if (index === 1)
@@ -118,6 +157,7 @@ ShellRoot {
             accentChoice = parsed.semantic.accent.primary
             panelChoice = parsed.semantic.surface.panel
             raisedChoice = parsed.semantic.surface.raised
+            osdChoice = parsed.component.osd.background
             textChoice = parsed.semantic.content.primary
             errorText = ""
             rebuildTheme()
@@ -126,6 +166,25 @@ ShellRoot {
             errorText = String(error)
             ready = false
         }
+    }
+
+    function chooseReviewPreset() {
+        chooseTheme(1)
+        bodyFontChoice = reviewPreset.bodyFont
+        monoFontChoice = reviewPreset.monoFont
+        iconFontChoice = reviewPreset.iconFont
+        barHeightChoice = reviewPreset.barHeight
+        anchoredChoice = reviewPreset.anchored
+        opacityChoice = reviewPreset.opacity
+        radiusChoice = reviewPreset.radius
+        motionScaleChoice = reviewPreset.motionScale
+        reducedMotionChoice = false
+        accentChoice = reviewPreset.accent
+        panelChoice = reviewPreset.panel
+        raisedChoice = reviewPreset.raised
+        osdChoice = reviewPreset.osd
+        textChoice = reviewPreset.text
+        rebuildTheme()
     }
 
     function rebuildTheme() {
@@ -158,7 +217,7 @@ ShellRoot {
         next.semantic.surface.panel = panelChoice
         next.component.panel.background = panelChoice
         next.component.notification.background = panelChoice
-        next.component.osd.background = panelChoice
+        next.component.osd.background = osdChoice
 
         next.semantic.surface.raised = raisedChoice
         next.component.panel.section = raisedChoice
@@ -181,6 +240,8 @@ ShellRoot {
             panelChoice = value
         else if (kind === "raised")
             raisedChoice = value
+        else if (kind === "osd")
+            osdChoice = value
         else if (kind === "text")
             textChoice = value
         else
@@ -295,6 +356,9 @@ ShellRoot {
         id: labContent
 
         Rectangle {
+            property alias networkStateIndex: networkPreview.previewStateIndex
+            property alias notificationStateIndex: notificationPreview.stateIndex
+
             color: lab.theme.semantic.background.canvas
 
             RowLayout {
@@ -363,6 +427,14 @@ ShellRoot {
                                         onClicked: lab.chooseTheme(index)
                                     }
                                 }
+                            }
+
+                            Ui.ShellButton {
+                                theme: lab.theme
+                                label: "Restore your saved pick"
+                                iconName: "check"
+                                ghost: true
+                                onClicked: lab.chooseReviewPreset()
                             }
 
                             SectionHeading {
@@ -561,9 +633,17 @@ ShellRoot {
                                 ColorEditor {
                                     Layout.fillWidth: true
                                     theme: lab.theme
-                                    label: "Raised"
+                                    label: "Control / section"
                                     value: lab.raisedChoice
                                     tokenKind: "raised"
+                                }
+
+                                ColorEditor {
+                                    Layout.fillWidth: true
+                                    theme: lab.theme
+                                    label: "OSD"
+                                    value: lab.osdChoice
+                                    tokenKind: "osd"
                                 }
 
                                 ColorEditor {
@@ -608,11 +688,24 @@ ShellRoot {
                                 }
                             }
 
-                            Ui.ShellButton {
-                                theme: lab.theme
-                                label: "Reset selected theme"
-                                iconName: "refresh"
-                                onClicked: lab.chooseTheme(lab.selectedThemeIndex)
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                Ui.ShellButton {
+                                    theme: lab.theme
+                                    label: "Theme defaults"
+                                    iconName: "refresh"
+                                    onClicked: lab.chooseTheme(lab.selectedThemeIndex)
+                                }
+
+                                Ui.ShellButton {
+                                    theme: lab.theme
+                                    label: "Your pick"
+                                    iconName: "check"
+                                    active: true
+                                    onClicked: lab.chooseReviewPreset()
+                                }
                             }
 
                             Item {
@@ -787,12 +880,15 @@ ShellRoot {
                                     { name: "accent.primary", value: lab.theme.semantic.accent.primary },
                                     { name: "surface.panel", value: lab.theme.semantic.surface.panel },
                                     { name: "surface.raised", value: lab.theme.semantic.surface.raised },
+                                    { name: "osd.background", value: lab.theme.component.osd.background },
                                     { name: "content.primary", value: lab.theme.semantic.content.primary },
                                     { name: "content.secondary", value: lab.theme.semantic.content.secondary },
                                     { name: "outline.default", value: lab.theme.semantic.outline.default },
                                     { name: "status.success", value: lab.theme.semantic.status.success },
                                     { name: "status.warning", value: lab.theme.semantic.status.warning },
                                     { name: "status.danger", value: lab.theme.semantic.status.danger },
+                                    { name: "notification.unread", value: lab.theme.component.notification.unread },
+                                    { name: "notification.muted", value: lab.theme.component.notification.muted },
                                     { name: "signal.audio", value: lab.theme.semantic.signal.audio },
                                     { name: "signal.brightness", value: lab.theme.semantic.signal.brightness },
                                     { name: "signal.recording", value: lab.theme.semantic.signal.recording }
@@ -824,6 +920,8 @@ ShellRoot {
                             spacing: 18
 
                             Lab.PanelPreview {
+                                id: networkPreview
+
                                 theme: lab.theme
                             }
 
@@ -832,81 +930,18 @@ ShellRoot {
                                 Layout.alignment: Qt.AlignTop
                                 spacing: 14
 
-                                Ui.ShellSurface {
+                                Lab.NotificationPreview {
+                                    id: notificationPreview
+
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: notificationColumn.implicitHeight + 28
                                     theme: lab.theme
-                                    kind: "panel"
-
-                                    ColumnLayout {
-                                        id: notificationColumn
-                                        anchors {
-                                            fill: parent
-                                            margins: 14
-                                        }
-                                        spacing: 8
-
-                                        RowLayout {
-                                            Layout.fillWidth: true
-
-                                            Ui.ShellIcon {
-                                                theme: lab.theme
-                                                name: "notifications"
-                                                color: lab.theme.component.notification.unread
-                                            }
-
-                                            Ui.ShellText {
-                                                Layout.fillWidth: true
-                                                theme: lab.theme
-                                                text: "Meeting notes are ready"
-                                                sizeRole: "label"
-                                            }
-
-                                            Ui.ShellText {
-                                                theme: lab.theme
-                                                text: "now"
-                                                sizeRole: "caption"
-                                                role: "muted"
-                                                monospace: true
-                                            }
-                                        }
-
-                                        Ui.ShellText {
-                                            Layout.fillWidth: true
-                                            theme: lab.theme
-                                            text: "The transcript, summary, and task candidates passed validation."
-                                            role: "secondary"
-                                            wrapMode: Text.Wrap
-                                        }
-
-                                        RowLayout {
-                                            Layout.fillWidth: true
-
-                                            Item {
-                                                Layout.fillWidth: true
-                                            }
-
-                                            Ui.ShellButton {
-                                                theme: lab.theme
-                                                label: "Dismiss"
-                                                compact: true
-                                            }
-
-                                            Ui.ShellButton {
-                                                theme: lab.theme
-                                                label: "Open"
-                                                compact: true
-                                                active: true
-                                            }
-                                        }
-                                    }
                                 }
 
                                 Ui.ShellSurface {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 72
                                     theme: lab.theme
-                                    kind: "raised"
+                                    kind: "osd"
 
                                     RowLayout {
                                         anchors {

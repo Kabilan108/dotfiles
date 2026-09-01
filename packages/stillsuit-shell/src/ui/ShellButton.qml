@@ -10,6 +10,7 @@ Rectangle {
     property bool active: false
     property bool destructive: false
     property bool compact: false
+    property bool ghost: false
     property bool keyboardFocused: false
 
     signal clicked()
@@ -17,13 +18,17 @@ Rectangle {
     implicitWidth: contentRow.implicitWidth + (compact ? 18 : 24)
     implicitHeight: compact ? 30 : 36
     radius: theme.metrics.radiusSmall
-    color: !enabled
+    color: ghost
+        ? active ? theme.component.bar.clusterActive
+        : pointer.pressed ? theme.component.control.pressed
+        : pointer.containsMouse ? theme.component.control.hover : "transparent"
+        : !enabled
         ? theme.component.control.disabled
         : active ? theme.component.control.active
         : pointer.pressed ? theme.component.control.pressed
         : pointer.containsMouse ? theme.component.control.hover
         : theme.component.control.background
-    border.width: keyboardFocused ? 2 : 1
+    border.width: keyboardFocused ? 2 : ghost ? 0 : 1
     border.color: keyboardFocused
         ? theme.component.control.focus
         : destructive ? theme.semantic.status.danger : theme.component.control.outline
