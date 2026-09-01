@@ -78,6 +78,7 @@ ShellRoot {
         property bool loaded: true
         property var entries: ({
             "stillsuit.a-failing": fixture._surfaceEntry("stillsuit.a-failing"),
+            "stillsuit.global": fixture._globalSurfaceEntry("stillsuit.global"),
             "stillsuit.z-migrating": fixture._surfaceEntry("stillsuit.z-migrating")
         })
 
@@ -113,7 +114,7 @@ ShellRoot {
         }
 
         function topologicalOrder() {
-            return ["stillsuit.a-failing", "stillsuit.z-migrating"]
+            return ["stillsuit.a-failing", "stillsuit.global", "stillsuit.z-migrating"]
         }
     }
 
@@ -174,6 +175,46 @@ ShellRoot {
         function destroy() {}
     }
 
+    Component {
+        id: fakeGlobalSurface
+
+        QtObject {
+            required property var context
+
+            property var screen: null
+            property var output: null
+            property string outputId: ""
+            property bool opened: false
+            property var receivedPayloads: []
+
+            function open(payloadJson) {
+                var next = receivedPayloads.slice()
+                next.push(String(payloadJson))
+                receivedPayloads = next
+                opened = true
+            }
+
+            function close() {
+                opened = false
+            }
+        }
+    }
+
+    QtObject {
+        id: globalComponent
+        property int status: Component.Ready
+
+        function createObject(parent, properties) {
+            return fakeGlobalSurface.createObject(parent, properties)
+        }
+
+        function errorString() {
+            return ""
+        }
+
+        function destroy() {}
+    }
+
     SurfaceRouter {
         id: screenRouter
         catalog: screenCatalog
@@ -182,9 +223,12 @@ ShellRoot {
         compositor: fakeCompositor
         screens: [screenA, screenB]
         componentFactory: function(url, mode) {
-            return String(url).indexOf("stillsuit.a-failing") !== -1
-                ? failingComponent
-                : migratingComponent
+            var source = String(url)
+            if (source.indexOf("stillsuit.a-failing") !== -1)
+                return failingComponent
+            if (source.indexOf("stillsuit.global") !== -1)
+                return globalComponent
+            return migratingComponent
         }
     }
 
@@ -209,6 +253,11 @@ ShellRoot {
         } catch (error) {
             failures.push(String(error))
         }
+        try {
+            _checkGlobalSurfaceRehome()
+        } catch (error) {
+            failures.push(String(error))
+        }
         return JSON.stringify({
             ok: failures.length === 0,
             checks: checks,
@@ -222,29 +271,53 @@ ShellRoot {
         var document = {
             schemaVersion: 1,
             selectedBar: "stillsuit.loading-bar",
-            plugins: [{
-                packageRoot: packageRoot,
-                sourceMode: "local",
-                enabled: true,
-                settings: {},
-                manifest: {
-                    schemaVersion: 1,
-                    id: "stillsuit.loading-bar",
-                    name: "Loading bar fixture",
-                    version: "1.0.0",
-                    apiVersion: "1",
-                    kinds: ["bar"],
-                    entryPoints: { bar: "Bar.qml" },
-                    scope: { bar: "per-output" },
-                    dependencies: []
+            plugins: [
+                {
+                    packageRoot: packageRoot,
+                    sourceMode: "local",
+                    enabled: true,
+                    settings: {},
+                    manifest: {
+                        schemaVersion: 1,
+                        id: "stillsuit.loading-bar",
+                        name: "Loading bar fixture",
+                        version: "1.0.0",
+                        apiVersion: "1",
+                        kinds: ["bar"],
+                        entryPoints: { bar: "Bar.qml" },
+                        scope: { bar: "per-output" },
+                        dependencies: []
+                    }
+                },
+                {
+                    packageRoot: packageRoot,
+                    sourceMode: "local",
+                    enabled: true,
+                    settings: {},
+                    manifest: {
+                        schemaVersion: 1,
+                        id: "stillsuit.invalid-entry",
+                        name: "",
+                        version: "1.0.0",
+                        apiVersion: "1",
+                        kinds: ["panel"],
+                        entryPoints: { panel: "Panel.qml" },
+                        scope: { panel: "global" },
+                        dependencies: []
+                    }
                 }
-            }]
+            ]
         }
 
         _assert(barCatalog.applyDocument(document),
             "valid loading-bar catalog was rejected")
         _assert(barCatalog.barState === "loading" && barCatalog.pendingLoads === 1,
             "selected bar was not in flight before catalog failure")
+        var initialPluginFailure = barCatalog.failures["stillsuit.invalid-entry"]
+        _assert(Array.isArray(initialPluginFailure)
+                && initialPluginFailure.indexOf(
+                    "name must contain 1 to 80 characters") !== -1,
+            "fixture catalog did not record its per-plugin failure")
         var staleToken = barCatalog.barToken
 
         _assert(!barCatalog.applyDocument({ schemaVersion: 2, plugins: [] }),
@@ -255,6 +328,15 @@ ShellRoot {
             "catalog failure did not finish the in-flight visual load exactly once")
         _assert(barCatalog.fallbackActive && barCatalog.barState === "loaded",
             "catalog failure did not leave the fallback bar active")
+        var preservedPluginFailure = barCatalog.failures["stillsuit.invalid-entry"]
+        _assert(Array.isArray(preservedPluginFailure)
+                && preservedPluginFailure.indexOf(
+                    "name must contain 1 to 80 characters") !== -1,
+            "catalog document failure replaced an existing per-plugin failure")
+        _assert(barCatalog.failures.catalog.length === 1
+                && barCatalog.failures.catalog[0]
+                    === "catalog schemaVersion must be 1",
+            "catalog document failure did not add its own diagnostic")
     }
 
     function _checkScreenFailureContainment() {
@@ -298,6 +380,62 @@ ShellRoot {
             "later plugin lost coherent open placement after migration")
     }
 
+    function _checkGlobalSurfaceRehome() {
+        screenRouter.screens = [screenA, screenB]
+        screenRouter._reconcileScreens()
+        fakeCompositor.focusedOutputId = "output-a"
+        screenRouter.reload("stillsuit.global")
+
+        _assert(screenRouter.contributionState(
+                    "stillsuit.global", "panel") === "loaded",
+            "global fixture did not load")
+        _assert(screenRouter.open("stillsuit.global", "{\"global\":true}") === "ok",
+            "global fixture did not open")
+        var globalBefore = screenRouter.contributionInstances(
+            "stillsuit.global", "panel")[0]
+        _assert(screenRouter.placementOutputId("stillsuit.global") === "output-a"
+                && globalBefore.screen === screenA
+                && globalBefore.output === screenA
+                && globalBefore.outputId === "output-a",
+            "global fixture did not use its initial focused output")
+
+        var perOutputBefore = screenRouter.contributionInstances(
+            "stillsuit.z-migrating", "panel")
+        _assert(perOutputBefore.length === 2
+                && perOutputBefore[0].outputId === "output-a"
+                && perOutputBefore[1].outputId === "output-b",
+            "per-output fixture did not reset to the initial screens")
+        var retainedOutputB = perOutputBefore[1]
+
+        fakeCompositor.focusedOutputId = "output-c"
+        screenRouter.screens = [screenB, screenC]
+        screenRouter._reconcileScreens()
+
+        var globalAfter = screenRouter.contributionInstances(
+            "stillsuit.global", "panel")[0]
+        _assert(globalAfter === globalBefore
+                && screenRouter.isOpen("stillsuit.global")
+                && screenRouter.placementOutputId("stillsuit.global") === "output-c",
+            "global open surface was not rehomed to the available focused output")
+        _assert(globalAfter.screen === screenC
+                && globalAfter.output === screenC
+                && globalAfter.outputId === "output-c",
+            "global surface instance retained its removed output")
+        _assert(globalAfter.receivedPayloads.length === 1
+                && globalAfter.receivedPayloads[0] === "{\"global\":true}",
+            "global surface rehome replayed its open payload")
+
+        var perOutputAfter = screenRouter.contributionInstances(
+            "stillsuit.z-migrating", "panel")
+        _assert(perOutputAfter.length === 2
+                && perOutputAfter[0] === retainedOutputB
+                && perOutputAfter[0].outputId === "output-b"
+                && perOutputAfter[1].outputId === "output-c"
+                && !perOutputAfter[0].opened
+                && !perOutputAfter[1].opened,
+            "global surface rehome disturbed the per-output route")
+    }
+
     function _assert(condition, message) {
         if (!condition)
             throw new Error(message)
@@ -314,6 +452,22 @@ ShellRoot {
                 kinds: ["panel"],
                 entryPoints: { panel: "Panel.qml" },
                 scope: { panel: "per-output" },
+                dependencies: [],
+                keepLoaded: true
+            }
+        }
+    }
+
+    function _globalSurfaceEntry(pluginId) {
+        return {
+            packageRoot: "/fixture",
+            signature: "fixture:" + pluginId,
+            settings: {},
+            manifest: {
+                id: pluginId,
+                kinds: ["panel"],
+                entryPoints: { panel: "Panel.qml" },
+                scope: { panel: "global" },
                 dependencies: [],
                 keepLoaded: true
             }

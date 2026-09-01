@@ -588,16 +588,21 @@ QtObject {
                 continue
             var primaryKind = catalog.primarySurfaceKind(pluginId)
             var primaryScopeKey = ManifestValidator.entryPointKey(primaryKind)
-            var reopenOnReplacement = isOpen(pluginId)
-                && entry.manifest.scope[primaryScopeKey] === "per-output"
+            var primaryIsPerOutput = entry.manifest.scope[primaryScopeKey]
+                === "per-output"
+            var placementNeedsReplacement = isOpen(pluginId)
                 && _screenById(placementOutputId(pluginId)) === null
-            if (reopenOnReplacement) {
+            var reopenOnReplacement = false
+            if (placementNeedsReplacement) {
                 var replacementOutputId = _availableFocusedOutputId()
                 if (replacementOutputId === "") {
                     close(pluginId)
-                    reopenOnReplacement = false
                 } else {
                     _setPlacement(pluginId, replacementOutputId)
+                    if (primaryIsPerOutput)
+                        reopenOnReplacement = true
+                    else
+                        _applyPlacement(pluginId)
                 }
             }
             var kinds = _routedKinds(entry)

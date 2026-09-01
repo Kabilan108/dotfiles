@@ -534,7 +534,9 @@ QtObject {
     function _documentFailed(message) {
         loadError = message
         internalLoaded = true
-        internalFailures = { catalog: [message] }
+        var failuresNext = _copy(internalFailures)
+        failuresNext.catalog = [message]
+        internalFailures = failuresNext
         internalRevision++
         _invalidateBarLoad()
         _activateFallback(message)

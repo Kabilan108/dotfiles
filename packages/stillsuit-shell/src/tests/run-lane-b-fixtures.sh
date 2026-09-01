@@ -654,7 +654,7 @@ while (( SECONDS < repair_deadline )); do
     fi
 done
 
-if ! jq -e '.ok == true and .checks >= 13' >/dev/null <<< "$repair_result"; then
+if ! jq -e '.ok == true and .checks >= 24' >/dev/null <<< "$repair_result"; then
     printf 'host-core repair fixture failed: %s\n' "$repair_result" >&2
     sed -n '1,240p' "$repair_log" >&2
     exit 1
