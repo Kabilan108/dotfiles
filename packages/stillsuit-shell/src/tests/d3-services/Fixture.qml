@@ -96,6 +96,7 @@ ShellRoot {
 
             var widgetServices = [audio, network, battery, bluetooth]
             var viewCount = 0
+            var networkSignalPercentage = -1
             for (var viewIndex = 0; viewIndex < viewComponents.length; viewIndex++) {
                 if (viewComponents[viewIndex].status !== Component.Ready) {
                     console.error("D3 fixture view failed "
@@ -116,13 +117,30 @@ ShellRoot {
                         Qt.quit()
                         return
                     }
+                    if (viewIndex === 1)
+                        networkSignalPercentage = view.signalPercentage
                     viewCount++
                 }
             }
             if (audio.volume !== 0.42 || !network.connectedNetwork
                     || battery.percentage !== 56 || !bluetooth.connected
-                    || viewCount !== 8) {
+                    || networkSignalPercentage !== 80 || viewCount !== 8) {
                 console.error("D3 fixture state propagation failed")
+                Qt.quit()
+                return
+            }
+
+            // Quickshell 0.3 exposes UPower percentages on the same normalized
+            // 0.0-1.0 scale. A wire-level 1 percent therefore arrives as 0.01.
+            fakeBattery.device = ({ isPresent: true, percentage: 0.01, timeToEmpty: 7200 })
+            if (battery.percentage !== 1) {
+                console.error("D3 fixture normalized battery percentage failed")
+                Qt.quit()
+                return
+            }
+            fakeBattery.device = ({ isPresent: true, percentage: 1, timeToEmpty: 7200 })
+            if (battery.percentage !== 100) {
+                console.error("D3 fixture full battery percentage failed")
                 Qt.quit()
                 return
             }

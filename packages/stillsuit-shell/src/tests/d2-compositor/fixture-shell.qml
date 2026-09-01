@@ -9,7 +9,9 @@ ShellRoot {
     Services.NiriService {
         id: niri
         reconciliationIntervalMs: 150
+        reconciliationTimeoutMs: 350
         reconnectDelayMs: 50
+        reconnectMaxDelayMs: 200
     }
 
     IpcHandler {
@@ -39,7 +41,18 @@ ShellRoot {
             return JSON.stringify({
                 completedGeneration: niri.lastCompletedReconciliationGeneration,
                 acceptedGeneration: niri.lastAcceptedReconciliationGeneration,
+                timedOutGeneration: niri.lastTimedOutReconciliationGeneration,
                 running: niri.reconciliationRunning
+            })
+        }
+
+        function reconnect(): string {
+            return JSON.stringify({
+                attempts: niri.reconnectAttempts,
+                scheduledDelayMs: niri.scheduledReconnectDelayMs,
+                baseDelayMs: niri._reconnectDelay(0),
+                doubledDelayMs: niri._reconnectDelay(1),
+                cappedDelayMs: niri._reconnectDelay(20)
             })
         }
     }

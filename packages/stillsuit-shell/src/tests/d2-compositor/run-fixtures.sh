@@ -70,6 +70,22 @@ wait_for_reconciliation() {
   return 1
 }
 
+wait_for_reconnect() {
+  local expression reconnect
+  expression=$1
+  for _ in {1..160}; do
+    reconnect=$(ipc reconnect 2>/dev/null || true)
+    if [[ -n $reconnect ]] && jq -e "$expression" >/dev/null 2>&1 <<<"$reconnect"; then
+      printf '%s\n' "$reconnect"
+      return 0
+    fi
+    sleep 0.05
+  done
+  printf 'fixture reconnect timed out: %s\n' "$expression" >&2
+  ipc reconnect >&2 || true
+  return 1
+}
+
 qs --no-color -p "$config_dir" >"$tmp_dir/quickshell.log" 2>&1 &
 shell_pid=$!
 sleep 0.02
@@ -119,10 +135,21 @@ jq -e '
   and ([.windows[].title] == ["generation-1"])
 ' >/dev/null <<<"$after_malformed"
 
-# Release generation 4 after both rejected generations have been observed. Its
-# three valid members must then land together as the recovered snapshot.
+# Generation 4 never completes. The timeout must reject the whole generation,
+# terminate its collectors, and release the running flag for a later retry.
 : >"$STILLSUIT_D2_FIXTURE_STATE/allow-recovery"
-wait_for_reconciliation '.completedGeneration >= 4 and .acceptedGeneration >= 4' >/dev/null
+wait_for_reconciliation '.completedGeneration == 4 and .acceptedGeneration == 1 and .timedOutGeneration == 4' >/dev/null
+after_timeout=$(ipc state)
+jq -e '
+  ([.outputs[].name] == ["DP-2", "eDP-1"])
+  and ([.workspaces[].id] == [1])
+  and ([.windows[].id] == [10])
+  and ([.windows[].title] == ["generation-1"])
+' >/dev/null <<<"$after_timeout"
+
+# The next generation may then commit its three valid members together.
+: >"$STILLSUIT_D2_FIXTURE_STATE/allow-final-recovery"
+wait_for_reconciliation '.completedGeneration >= 5 and .acceptedGeneration >= 5 and .timedOutGeneration == 4' >/dev/null
 recovered=$(wait_for '
   ([.outputs[].name] == ["HDMI-A-1"])
   and ([.workspaces[].id] == [4])
@@ -132,18 +159,15 @@ recovered=$(wait_for '
 jq -e '
   (.outputs[0].id == "HDMI-A-1")
   and (.outputs[0].make == "Recovered")
-  and (.windows[0].title == "generation-4")
+  and (.windows[0].title == "generation-5")
 ' >/dev/null <<<"$recovered"
 
-# The fake stream exits and reconnects without relying on the live Niri socket.
-for _ in {1..80}; do
-  if [[ -f $STILLSUIT_D2_FIXTURE_STATE/stream-count ]] \
-    && [[ $(<"$STILLSUIT_D2_FIXTURE_STATE/stream-count") -ge 2 ]]; then
-    break
-  fi
-  sleep 0.05
-done
-[[ $(<"$STILLSUIT_D2_FIXTURE_STATE/stream-count") -ge 2 ]]
+# The fake stream exits repeatedly without the live Niri socket. After the
+# initial healthy event resets the counter, retries double from 50 to 100 ms
+# and stay capped at 200 ms.
+reconnect=$(wait_for_reconnect '.attempts >= 3 and .scheduledDelayMs == 200')
+jq -e '.baseDelayMs == 50 and .doubledDelayMs == 100 and .cappedDelayMs == 200' >/dev/null <<<"$reconnect"
+[[ $(<"$STILLSUIT_D2_FIXTURE_STATE/stream-count") -ge 4 ]]
 
 # Commands remain fixed literal Niri argv forms, and the fixture has one global
 # service and adapter instance.

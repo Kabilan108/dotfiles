@@ -49,8 +49,13 @@ case "$*" in
         wait_for_gate allow-malformed
         printf '%s\n' 'malformed-command-output'
         ;;
-      *)
+      4)
         wait_for_gate allow-recovery
+        sleep 2
+        printf '%s\n' '{"HDMI-A-1":{"make":"must-time-out"}}'
+        ;;
+      *)
+        wait_for_gate allow-final-recovery
         printf '%s\n' '{"HDMI-A-1":{"make":"Recovered"}}'
         ;;
     esac
@@ -64,8 +69,13 @@ case "$*" in
         wait_for_gate allow-malformed
         printf '%s\n' '[{"id":300,"idx":1,"output":"MALFORMED","is_active":true,"is_focused":true}]'
         ;;
-      *)
+      4)
         wait_for_gate allow-recovery
+        sleep 2
+        printf '%s\n' '[{"id":400,"idx":1,"output":"TIMEOUT","is_active":true,"is_focused":true}]'
+        ;;
+      *)
+        wait_for_gate allow-final-recovery
         printf '%s\n' '[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":true,"is_focused":true}]'
         ;;
     esac
@@ -79,9 +89,14 @@ case "$*" in
         wait_for_gate allow-malformed
         printf '%s\n' '[{"id":300,"workspace_id":300,"title":"must-not-commit","is_focused":true}]'
         ;;
-      *)
+      4)
         wait_for_gate allow-recovery
-        printf '%s\n' '[{"id":40,"workspace_id":4,"title":"generation-4","is_focused":true}]'
+        sleep 2
+        printf '%s\n' '[{"id":400,"workspace_id":400,"title":"must-time-out","is_focused":true}]'
+        ;;
+      *)
+        wait_for_gate allow-final-recovery
+        printf '%s\n' '[{"id":40,"workspace_id":4,"title":"generation-5","is_focused":true}]'
         ;;
     esac
     ;;

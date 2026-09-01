@@ -176,6 +176,8 @@ Scope {
     FileView {
         id: stateFile
         path: root.statePath
+        // Quickshell 0.3 watches the target's parent directory as part of
+        // watchChanges, including while the target itself does not exist.
         watchChanges: true
         onFileChanged: reload()
         onLoaded: root._apply(text())

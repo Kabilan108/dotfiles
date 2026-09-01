@@ -12,18 +12,25 @@ Scope {
 
     property bool enabled: true
     property int reconciliationIntervalMs: 2500
+    property int reconciliationTimeoutMs: 5000
     property int reconnectDelayMs: 1000
+    property int reconnectMaxDelayMs: 30000
     readonly property bool eventStreamRunning: eventStream.running
     readonly property int instanceCount: 1
     readonly property QtObject adapter: compositorAdapter
     readonly property int lastCompletedReconciliationGeneration: root._lastCompletedGeneration
     readonly property int lastAcceptedReconciliationGeneration: root._lastAcceptedGeneration
+    readonly property int lastTimedOutReconciliationGeneration: root._lastTimedOutGeneration
     readonly property bool reconciliationRunning: root._reconciliationRunning
+    readonly property int reconnectAttempts: root._reconnectAttempts
+    readonly property int scheduledReconnectDelayMs: reconnectTimer.interval
 
     property int _reconciliationGeneration: 0
     property int _lastCompletedGeneration: 0
     property int _lastAcceptedGeneration: 0
+    property int _lastTimedOutGeneration: 0
     property bool _reconciliationRunning: false
+    property int _reconnectAttempts: 0
 
     CompositorAdapter { id: compositorAdapter }
 
@@ -67,6 +74,7 @@ Scope {
             }
             if (!changed) return false
             compositorAdapter.replace(nextOutputs, nextFocused, nextWorkspaces, nextWindows)
+            _reconnectAttempts = 0
             return true
         } catch (error) {
             console.warn("stillsuit niri: ignored malformed event: " + error)
@@ -88,7 +96,8 @@ Scope {
     }
 
     function refresh() {
-        if (!enabled || _reconciliationRunning) return
+        if (!enabled || _reconciliationRunning || outputsProcess.running
+                || workspacesProcess.running || windowsProcess.running) return
         _reconciliationGeneration += 1
         _reconciliationRunning = true
         _prepareResult(outputsResult, _reconciliationGeneration)
@@ -100,6 +109,7 @@ Scope {
         outputsProcess.running = true
         workspacesProcess.running = true
         windowsProcess.running = true
+        reconciliationTimeout.restart()
     }
 
     function _prepareResult(result, generation) {
@@ -146,6 +156,42 @@ Scope {
         _lastCompletedGeneration = generation
         if (successful) _lastAcceptedGeneration = generation
         _reconciliationRunning = false
+        reconciliationTimeout.stop()
+    }
+
+    function _reconciliationTimedOut(generation) {
+        if (!_reconciliationRunning || generation !== _reconciliationGeneration) return
+        console.warn("stillsuit niri: reconciliation generation " + generation + " timed out")
+        _lastCompletedGeneration = generation
+        _lastTimedOutGeneration = generation
+        _reconciliationRunning = false
+        outputsProcess.running = false
+        workspacesProcess.running = false
+        windowsProcess.running = false
+    }
+
+    function _reconnectDelay(attempt) {
+        var base = Math.max(1, reconnectDelayMs)
+        var maximum = Math.max(base, reconnectMaxDelayMs)
+        return Math.min(maximum, base * Math.pow(2, Math.min(30, Math.max(0, attempt))))
+    }
+
+    function _scheduleReconnect() {
+        if (!enabled || reconnectTimer.running) return
+        eventStream.running = false
+        reconnectTimer.interval = _reconnectDelay(_reconnectAttempts)
+        _reconnectAttempts += 1
+        reconnectTimer.restart()
+    }
+
+    function _setEnabled(nextEnabled) {
+        reconnectTimer.stop()
+        if (nextEnabled) {
+            _reconnectAttempts = 0
+            if (!eventStream.running) eventStream.running = true
+        } else {
+            eventStream.running = false
+        }
     }
 
     function _parseOutputs(raw) {
@@ -270,9 +316,8 @@ Scope {
     Process {
         id: eventStream
         command: ["niri", "msg", "--json", "event-stream"]
-        running: root.enabled
         stdout: SplitParser { splitMarker: "\n"; onRead: function(line) { root.parseEvent(line) } }
-        onExited: function() { if (root.enabled) reconnectTimer.restart() }
+        onRunningChanged: if (!running) root._scheduleReconnect()
     }
 
     component ReconciliationResult: QtObject {
@@ -318,6 +363,15 @@ Scope {
         }
         onExited: function(exitCode, exitStatus) { root._processExited(windowsResult, windowsProcess.requestGeneration, exitCode, exitStatus) }
     }
-    Timer { id: reconnectTimer; interval: root.reconnectDelayMs; repeat: false; onTriggered: if (root.enabled) eventStream.running = true }
+    Timer { id: reconnectTimer; repeat: false; onTriggered: if (root.enabled) eventStream.running = true }
+    Timer {
+        id: reconciliationTimeout
+        interval: Math.max(1, root.reconciliationTimeoutMs)
+        repeat: false
+        onTriggered: root._reconciliationTimedOut(root._reconciliationGeneration)
+    }
     Timer { interval: root.reconciliationIntervalMs; running: root.enabled; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
+
+    onEnabledChanged: root._setEnabled(enabled)
+    Component.onCompleted: root._setEnabled(enabled)
 }

@@ -45,6 +45,10 @@ jq -e '(.schemaVersion == 1) and (.apiVersion == "1") and (.scope.service == "gl
 rg -n 'bash -lc|command:.*\+|command:.*\$\{' "$source_root/services" "$source_root/plugins/builtin/audio" "$source_root/plugins/builtin/network" "$source_root/plugins/builtin/power" "$source_root/plugins/builtin/battery" "$source_root/plugins/builtin/bluetooth" >/dev/null && exit 1 || true
 rg -F 'readonly property var helperArgv: ["powerprofilesctl", "get"]' "$source_root/services/PowerService.qml" >/dev/null
 rg -F 'setProfileProcess.command = ["powerprofilesctl", "set", next]' "$source_root/services/PowerService.qml" >/dev/null
+if rg -F '<= 1 ? 100' "$source_root/services/BatteryService.qml"; then
+    echo "battery percentage retains the ambiguous scale heuristic" >&2
+    exit 1
+fi
 
 quickshell --config "$STILLSUIT_CONFIG_ID" --no-color >"$fixture_root/quickshell.log" 2>&1
 if rg -n 'ERROR qml| ERROR:' "$fixture_root/quickshell.log"; then

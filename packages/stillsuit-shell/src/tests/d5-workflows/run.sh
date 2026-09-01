@@ -74,7 +74,7 @@ wait_json() {
 start_shell() {
   qs --no-color -p "$config_dir" >"$tmp_dir/quickshell.log" 2>&1 &
   shell_pid=$!
-  wait_json '.aggregateApiVersion == "1" and .recording.status == "ready" and .dictator.socketConnections == 1' >/dev/null
+  wait_json '.aggregateApiVersion == "1" and .dictator.socketConnections == 1' >/dev/null
 }
 stop_shell() {
   local pid=$shell_pid
@@ -84,6 +84,7 @@ stop_shell() {
 }
 
 start_shell
+wait_json '.recording.status == "ready"' >/dev/null
 state=$(ipc state)
 jq -e '.serviceObjects == 1 and .osdServiceObjects == 1 and .overlays == 2 and .overlaySharesAggregate and .overlaySharesOsdService and .dictator.levels == 23 and .dictator.state == "recording" and .meeting.visible and .meeting.completed and .meeting.label == "fixture"' >/dev/null <<<"$state"
 
@@ -104,6 +105,16 @@ paused_elapsed=$(jq -r '.recording.elapsedSeconds' <<<"$paused_state")
 [[ $paused_elapsed == 12 ]]
 sleep 1.2
 [[ $(jq -r '.recording.elapsedSeconds' <<<"$(ipc state)") == "$paused_elapsed" ]]
+
+# Quickshell 0.3 FileView watches the target's parent directory even when the
+# target was missing at startup. External creation must load without an IPC
+# refresh or a helper action.
+stop_shell
+rm -- "$STILLSUIT_FIXTURE_RECORDING_STATE"
+start_shell
+wait_json '.recording.status == "missing" and .recording.phase == "idle"' >/dev/null
+printf '{"schemaVersion":1,"phase":"recording","pid":1,"monitor":"DP-1","started_at":%s}\n' "$(date +%s)" > "$STILLSUIT_FIXTURE_RECORDING_STATE"
+wait_json '.recording.status == "ready" and .recording.phase == "recording"' >/dev/null
 
 # Drive the real recorder helper through start and stop --meeting using only
 # temporary fake process and enqueue executables. Feed its emitted version-1
@@ -143,6 +154,16 @@ for _ in {1..100}; do [[ -s $STILLSUIT_FIXTURE_OPEN_LOG ]] && break; sleep 0.02;
 printf '%s\n' '{"schemaVersion":1,"phase":"error","label":"fixture failed","error":"fixture error","visible_until":4102444800}' > "$STILLSUIT_FIXTURE_MEETING_STATE"
 [[ $(ipc refresh) == ok ]]
 wait_json '.meeting.failed and .meeting.visible and .meeting.label == "fixture failed" and .meeting.errorMessage == "fixture error"' >/dev/null
+
+# The previous meeting-minutes writer emitted this exact field family without
+# schemaVersion. The read-only service migrates it in memory until the producer
+# replaces the durable file on its next update.
+printf '%s\n' '{"job_id":"legacy-job","phase":"completed","label":"legacy fixture","progress":1,"total":1,"note_path":"/tmp/legacy-note.md","error":"","updated_at":1788134400,"visible_until":4102444800}' > "$STILLSUIT_FIXTURE_MEETING_STATE"
+[[ $(ipc refresh) == ok ]]
+wait_json '.meeting.status == "migrated" and .meeting.completed and .meeting.label == "legacy fixture" and .meeting.snapshotSchemaVersion == 1' >/dev/null
+printf '%s\n' '{"phase":"completed"}' > "$STILLSUIT_FIXTURE_MEETING_STATE"
+[[ $(ipc refresh) == ok ]]
+wait_json '.meeting.status == "unsupported" and .meeting.phase == "idle"' >/dev/null
 
 # Corrupt and future-version durable state are contained without commanding the helper.
 printf '%s\n' '{broken' > "$STILLSUIT_FIXTURE_RECORDING_STATE"

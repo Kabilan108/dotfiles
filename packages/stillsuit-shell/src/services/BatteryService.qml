@@ -11,13 +11,19 @@ QtObject {
     readonly property var device: model ? model.device || null : UPower.displayDevice
     readonly property bool present: device !== null && Boolean(device.isPresent !== undefined ? device.isPresent : true)
     readonly property bool available: !forceUnavailable && present
-    readonly property int percentage: present ? Math.round(Number(device.percentage || 0) * (Number(device.percentage || 0) <= 1 ? 100 : 1)) : 0
+    // Quickshell 0.3 converts UPower's 0-100 D-Bus value to a 0.0-1.0 value.
+    readonly property int percentage: present ? _percentage(device.percentage) : 0
     readonly property string state: model ? String(model.state || "unknown") : _stateName(device ? device.state : null)
     readonly property bool charging: state === "charging"
     readonly property bool discharging: state === "discharging"
     readonly property bool low: present && discharging && percentage <= 20
     readonly property string timeText: _timeText()
     readonly property int revision: model && model.revision !== undefined ? Number(model.revision) : 0
+    function _percentage(value) {
+        var normalized = Number(value)
+        if (!isFinite(normalized)) return 0
+        return Math.round(Math.max(0, Math.min(1, normalized)) * 100)
+    }
     function _stateName(value) {
         if (value === UPowerDeviceState.Charging) return "charging"
         if (value === UPowerDeviceState.Discharging) return "discharging"
