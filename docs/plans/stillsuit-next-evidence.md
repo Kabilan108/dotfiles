@@ -931,11 +931,47 @@ the evaluated Jacurutu Stillsuit package build all exited 0. The production
 shell remained PID `1370585`; no rebuild, restart, reload, or panel conversion
 was performed.
 
+## Panel inventory review
+
+The human authorized a parallel, read-only inventory before any panel work was
+turned into a backlog. Six blank-context lanes independently covered audio and
+media, notifications and DND, network and Bluetooth, battery/power/resources,
+the agent panel, and recording/meeting workflows. None of the lanes edited the
+checkout, rebuilt the system, changed PageBin, or touched the live shell.
+
+The orchestrator reviewed every report, checked the high-impact claims against
+the production QML, service facades, Niri bindings, and helper status, and
+combined the results into a compact HTML review at
+`docs/reviews/stillsuit-panel-review.html`. The page separates working
+capabilities, misleading or missing behavior, product choices, retained
+contracts, and test limits. Its decision queue is explicitly conversational;
+it does not authorize or imply backlog work.
+
+The live Stillsuit IPC status was ready with the real bar, 15 enabled plugins,
+11 global service objects, three currently instantiated surface objects, and
+no reported plugin errors. The source review confirmed the highest-impact
+gaps: the audio panel is not a mixer and has no current media UI; notification
+history has no unread model; production Wi-Fi scan and radio controls return
+`unavailable`; the battery widget reads a retired danger-token name; the
+agent-panel optimization is built but not active; and recording/meeting
+service actions are not exposed by the current panel.
+
+The initial PageBin checkpoint was published before lane work at stable viewer
+ID `aUkcMf4Y4DjI7DJ5QQKkcA`. Revision 2 contains the completed review at the
+same stable viewer URL. `pagebin verify` reported identical local and remote
+SHA-256 `247ce6dee8b1eb6dca2b158a85d0d12b79a35d3c8f507e464dc4cdfad9ce2eb4`.
+The published raw page was rendered and inspected at desktop and 390 px widths:
+it had no page-level horizontal overflow, clipped content, browser errors, or
+console errors; its navigation anchor and collapsed evidence disclosure were
+also exercised. No lazy production panel was opened, no real
+recording-to-minutes job was run, and no rebuild, service restart,
+production-shell reload, or panel conversion was performed.
+
 ## Remaining work
 
-- Review panel functionality and ownership with the human. The old HTML demo is
-  not a source of requirements, and no consolidated media/quick-settings panel
-  is assumed.
+- Review the panel inventory with the human, beginning with the audio/media
+  boundary. The old HTML demo is not a source of requirements, and no
+  consolidated media/quick-settings panel is assumed.
 - Promote the approved v2 theme and freeze shared component contracts before
   rebuilding the first approved panel.
 - After a future human-run rebuild, measure the optimized agent panel's live
