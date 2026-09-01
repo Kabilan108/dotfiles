@@ -164,7 +164,7 @@
     "easing": "out-cubic"
   },
   "effects": {
-    "surfaceOpacity": 0.94,
+    "surfaceOpacity": 0.95,
     "blurEnabled": true,
     "blurRadius": 24,
     "shadowOpacity": 0.5

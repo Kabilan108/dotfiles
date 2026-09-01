@@ -15,7 +15,7 @@ Scope {
 
     // The host owns component loading and supplies only ready registrations.
     // Each immutable record has component, context, manifest, defaultSection,
-    // allowMultiple, optional service, and an optional release(message)
+    // allowMultiple, order, optional service, and an optional release(message)
     // callback. The bar must not receive a catalog or composition root.
     property var widgetRegistrations: []
 
@@ -46,11 +46,16 @@ Scope {
             if (record.allowMultiple !== true && seenSingle[pluginId] === true)
                 continue
             seenSingle[pluginId] = true
-            records.push({ registration: record, sequence: index, pluginId: pluginId })
+            records.push({
+                registration: record,
+                sequence: index,
+                pluginId: pluginId,
+                order: Number(record.order || 0)
+            })
         }
         records.sort(function(left, right) {
-            if (left.pluginId !== right.pluginId)
-                return left.pluginId < right.pluginId ? -1 : 1
+            if (left.order !== right.order)
+                return left.order - right.order
             return left.sequence - right.sequence
         })
         return records
@@ -90,6 +95,7 @@ Scope {
                 theme: root.context.theme
                 kind: "bar"
                 radius: 0
+                bordered: false
 
                 RowLayout {
                     anchors.fill: parent
@@ -154,6 +160,16 @@ Scope {
                     text: "Stillsuit"
                     role: "muted"
                     sizeRole: "caption"
+                }
+
+                Rectangle {
+                    anchors {
+                        left: parent.left
+                        right: parent.right
+                        bottom: parent.bottom
+                    }
+                    height: 1
+                    color: root.context.theme.component.bar.border
                 }
             }
         }

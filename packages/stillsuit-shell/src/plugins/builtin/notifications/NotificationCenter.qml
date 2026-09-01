@@ -35,6 +35,8 @@ Scope {
     }
 
     PanelWindow {
+        id: centerWindow
+
         screen: root.screen
         visible: root.service && root.service.centerOutputId === root.outputId
         anchors {
@@ -46,6 +48,11 @@ Scope {
         exclusiveZone: 0
         focusable: true
         color: "transparent"
+        mask: Region {
+            y: root.theme.metrics.barHeight
+            width: centerWindow.width
+            height: Math.max(0, centerWindow.height - y)
+        }
 
         MouseArea {
             anchors.fill: parent

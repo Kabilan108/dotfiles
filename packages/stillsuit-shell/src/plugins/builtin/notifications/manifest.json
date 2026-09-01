@@ -19,7 +19,7 @@
     "overlay": "per-output"
   },
   "capabilities": ["notification-server", "persistent-state"],
-  "barWidget": { "defaultSection": "right", "allowMultiple": false },
+  "barWidget": { "defaultSection": "right", "allowMultiple": false, "order": 40 },
   "keepLoaded": true,
   "stateSchemaVersion": 1
 }

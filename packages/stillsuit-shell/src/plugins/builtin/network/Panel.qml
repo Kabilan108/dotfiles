@@ -33,19 +33,43 @@ Scope {
 
         screen: root.screen
         visible: false
-        implicitWidth: root.context.theme.metrics.panelWidth
-        implicitHeight: 620
         color: "transparent"
         exclusiveZone: 0
         anchors {
             top: true
+            bottom: true
+            left: true
             right: true
+        }
+        mask: Region {
+            y: root.context.theme.metrics.barHeight
+            width: panel.width
+            height: Math.max(0, panel.height - y)
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: root.context.actions.surfaceClose("stillsuit.network")
         }
 
     Ui.ShellSurface {
-        anchors.fill: parent
+        anchors {
+            top: parent.top
+            right: parent.right
+            topMargin: root.context.theme.metrics.barHeight
+                + root.context.theme.metrics.spaceUnit * 2
+            rightMargin: root.context.theme.metrics.spaceUnit * 2
+        }
+        width: root.context.theme.metrics.panelWidth
+        height: Math.min(620, parent.height - anchors.topMargin
+            - root.context.theme.metrics.spaceUnit * 2)
         theme: root.context.theme
         kind: "panel"
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: function(mouse) { mouse.accepted = true }
+        }
 
         ColumnLayout {
             anchors.fill: parent
@@ -245,10 +269,8 @@ Scope {
                                 implicitHeight: 34
                                 radius: root.context.theme.metrics.radiusSmall
                                 color: root.context.theme.component.control.background
-                                border.width: passwordInput.activeFocus ? 2 : 1
-                                border.color: passwordInput.activeFocus
-                                    ? root.context.theme.component.control.focus
-                                    : root.context.theme.component.control.outline
+                                border.width: 1
+                                border.color: root.context.theme.component.control.outline
 
                                 TextInput {
                                     id: passwordInput

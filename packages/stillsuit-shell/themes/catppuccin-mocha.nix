@@ -180,7 +180,7 @@
   };
 
   effects = {
-    surfaceOpacity = 0.8;
+    surfaceOpacity = 0.95;
     blurEnabled = true;
     blurRadius = 24;
     shadowOpacity = 0.5;

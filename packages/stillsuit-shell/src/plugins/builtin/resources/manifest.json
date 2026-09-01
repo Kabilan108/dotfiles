@@ -5,8 +5,8 @@
   "description": "Shared CPU and memory collector with per-output views.",
   "version": "1.0.0",
   "apiVersion": "1",
-  "kinds": ["service", "bar-widget", "panel"],
-  "entryPoints": { "service": "ResourceService.qml", "barWidget": "ResourceWidget.qml", "panel": "ResourcePanel.qml" },
-  "scope": { "service": "global", "barWidget": "per-output", "panel": "per-output" },
-  "barWidget": { "defaultSection": "right", "allowMultiple": false }
+  "kinds": ["service", "bar-widget"],
+  "entryPoints": { "service": "ResourceService.qml", "barWidget": "ResourceWidget.qml" },
+  "scope": { "service": "global", "barWidget": "per-output" },
+  "barWidget": { "defaultSection": "right", "allowMultiple": false, "order": 30 }
 }

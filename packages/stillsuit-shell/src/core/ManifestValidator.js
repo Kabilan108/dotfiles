@@ -207,7 +207,7 @@ function validateOptionalFields(manifest, errors) {
 
     if (manifest.barWidget !== undefined) {
         if (!isPlainObject(manifest.barWidget)
-                || !hasOnlyKeys(manifest.barWidget, ["defaultSection", "allowMultiple"])) {
+                || !hasOnlyKeys(manifest.barWidget, ["defaultSection", "allowMultiple", "order"])) {
             errors.push("barWidget metadata contains an unknown field")
         } else {
             if (!Array.isArray(manifest.kinds) || manifest.kinds.indexOf("bar-widget") === -1)
@@ -218,6 +218,9 @@ function validateOptionalFields(manifest, errors) {
             if (manifest.barWidget.allowMultiple !== undefined
                     && typeof manifest.barWidget.allowMultiple !== "boolean")
                 errors.push("barWidget.allowMultiple must be boolean")
+            if (manifest.barWidget.order !== undefined
+                    && (!Number.isInteger(manifest.barWidget.order) || manifest.barWidget.order < 0))
+                errors.push("barWidget.order must be a non-negative integer")
         }
     }
 

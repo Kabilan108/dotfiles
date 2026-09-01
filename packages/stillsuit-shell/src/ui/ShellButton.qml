@@ -49,10 +49,8 @@ ShellAction {
                         : root.hovered
                             ? root.theme.component.control.hover
                             : root.theme.component.control.background
-        border.width: root.focusVisible ? 2 : root.ghost ? 0 : 1
-        border.color: root.focusVisible
-            ? root.theme.component.control.focus
-            : root.destructive
+        border.width: root.ghost ? 0 : 1
+        border.color: root.destructive
                 ? root.theme.semantic.status.danger
                 : root.theme.component.control.outline
         opacity: !root.enabled ? 0.74 : root.busy ? 0.82 : 1

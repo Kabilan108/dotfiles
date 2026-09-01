@@ -70,6 +70,28 @@ def _check_manifest_schema() -> None:
         if errors:
             raise AssertionError(f"{manifest_path}: {errors[0].message}")
 
+    expected_bar_layout = {
+        "workspaces": ("left", 10),
+        "recording": ("left", 20),
+        "clock": ("center", 10),
+        "network": ("right", 10),
+        "bluetooth": ("right", 20),
+        "resources": ("right", 30),
+        "notifications": ("right", 40),
+        "audio": ("right", 50),
+        "battery": ("right", 60),
+    }
+    for plugin, expected in expected_bar_layout.items():
+        manifest = _read_json(BUILTIN_ROOT / plugin / "manifest.json")
+        actual = (
+            manifest["barWidget"]["defaultSection"],
+            manifest["barWidget"]["order"],
+        )
+        if actual != expected:
+            raise AssertionError(
+                f"{plugin} bar placement is {actual}, expected {expected}"
+            )
+
     for key, (kind, scope) in CONTRIBUTIONS.items():
         if kind == "panel":
             manifest = _base_manifest()
@@ -149,7 +171,7 @@ def _check_theme_schema() -> None:
         "barHeight": 26,
         "barOuterGap": 0,
         "radiusMedium": 7,
-        "surfaceOpacity": 0.8,
+        "surfaceOpacity": 0.95,
         "accent": "#89b4fa",
         "panel": "#181825",
         "raised": "#313244",

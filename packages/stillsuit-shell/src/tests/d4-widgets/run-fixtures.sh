@@ -86,7 +86,8 @@ for manifest in "$source_root"/plugins/builtin/*/manifest.json; do
 done
 jq -e '.kinds == ["service", "bar-widget"] and .scope.service == "global"' \
     "$source_root/plugins/builtin/clock/manifest.json" >/dev/null
-jq -e '.kinds == ["service", "bar-widget", "panel"] and .scope.service == "global"' \
+jq -e '.kinds == ["service", "bar-widget"] and .scope.service == "global"
+  and (.entryPoints | has("panel") | not)' \
     "$source_root/plugins/builtin/resources/manifest.json" >/dev/null
 jq -e '.dependencies == ["stillsuit.workflows"]' "$source_root/plugins/builtin/meeting/manifest.json" >/dev/null
 jq -e '.dependencies == ["stillsuit.workflows"]' "$source_root/plugins/builtin/recording/manifest.json" >/dev/null
@@ -121,7 +122,7 @@ printf '%s\n' 'MemTotal: 1000 kB' 'MemAvailable: 250 kB' > "$STILLSUIT_FIXTURE_M
 second_resources=$(ipc resourceSnapshot)
 jq -e '.cpuPercent == 50 and .memoryPercent == 75' >/dev/null <<<"$second_resources"
 routes=$(ipc routeActions)
-jq -e '. == ["stillsuit.recording", "stillsuit.recording", "stillsuit.resources"]' >/dev/null <<<"$routes"
+jq -e '. == ["stillsuit.recording", "stillsuit.recording"]' >/dev/null <<<"$routes"
 workflow=$(ipc workflowState)
 jq -e '.recordingText == "01:07" and .meetingText == "Minutes ready" and .meetingCompleted' >/dev/null <<<"$workflow"
 

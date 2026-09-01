@@ -208,7 +208,6 @@ ShellRoot {
         function routeActions(): string {
             meetingPrimary.trigger()
             recordingPrimary.trigger()
-            resourcesPrimary.trigger()
             return JSON.stringify(fixture.actionCalls)
         }
         function workflowState(): string {

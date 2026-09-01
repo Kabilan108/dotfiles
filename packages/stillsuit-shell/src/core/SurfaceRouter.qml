@@ -83,6 +83,22 @@ QtObject {
         }
     }
 
+    property Connections compositorConnections: Connections {
+        target: root.compositor
+        ignoreUnknownSignals: true
+
+        function onFocusedOutputIdChanged() {
+            var active = root.internalActiveId
+            var kind = active !== "" && root.catalog
+                ? root.catalog.primarySurfaceKind(active)
+                : ""
+            if (active !== "" && kind !== ""
+                    && root.contributionState(active, kind) === "loaded"
+                    && root.placementOutputId(active) !== root._currentFocusedOutputId())
+                root.close(active)
+        }
+    }
+
     function state(pluginId) {
         var kinds = _routedKindsForPlugin(String(pluginId))
         var hasLoaded = false

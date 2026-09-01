@@ -66,10 +66,8 @@ ShellAction {
             : root.checked
                 ? root.theme.component.control.active
                 : root.theme.component.control.background
-        border.width: root.focusVisible ? 2 : 1
-        border.color: root.focusVisible
-            ? root.theme.component.control.focus
-            : root.checked
+        border.width: 1
+        border.color: root.checked
                 ? root.theme.component.control.active
                 : root.theme.component.control.outline
         opacity: root.busy ? 0.82 : 1

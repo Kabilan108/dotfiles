@@ -8,7 +8,7 @@ Item {
     required property var service
     required property string outputId
 
-    readonly property string displayText: Qt.formatDateTime(service.now, "MM-dd-yyyy  HH:mm")
+    readonly property string displayText: Qt.formatDateTime(service.now, "MM-dd-yyyy  HH:mm:ss")
     readonly property string accessibleName: "Clock on " + outputId + ": " + displayText
 
     implicitWidth: label.implicitWidth + context.theme.metrics.spaceUnit * 4

@@ -19,20 +19,44 @@ Scope {
 
         screen: root.screen
         visible: root.opened
-        implicitWidth: root.context.theme.metrics.panelWidth
-        implicitHeight: 680
         color: "transparent"
         exclusiveZone: 0
         focusable: true
         anchors {
             top: true
+            bottom: true
+            left: true
             right: true
+        }
+        mask: Region {
+            y: root.context.theme.metrics.barHeight
+            width: window.width
+            height: Math.max(0, window.height - y)
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: root.context.actions.surfaceClose("stillsuit.audio")
         }
 
         Ui.ShellSurface {
-            anchors.fill: parent
+            anchors {
+                top: parent.top
+                right: parent.right
+                topMargin: root.context.theme.metrics.barHeight
+                    + root.context.theme.metrics.spaceUnit * 2
+                rightMargin: root.context.theme.metrics.spaceUnit * 2
+            }
+            width: root.context.theme.metrics.panelWidth
+            height: Math.min(680, parent.height - anchors.topMargin
+                - root.context.theme.metrics.spaceUnit * 2)
             theme: root.context.theme
             kind: "panel"
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: function(mouse) { mouse.accepted = true }
+            }
 
             Flickable {
                 anchors {

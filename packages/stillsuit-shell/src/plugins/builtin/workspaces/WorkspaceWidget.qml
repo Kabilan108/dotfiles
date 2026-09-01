@@ -30,54 +30,35 @@ Item {
         id: contentRow
 
         anchors.centerIn: parent
-        spacing: root.context.theme.metrics.spaceUnit
+        spacing: 8
 
         Row {
             id: workspaceStrip
 
-            spacing: root.context.theme.metrics.spaceUnit
+            spacing: 5
 
             Repeater {
                 model: root.workspaces
 
-                Item {
+                Rectangle {
                     required property var modelData
                     readonly property bool active: modelData && modelData.is_active
                     readonly property bool urgent: modelData && modelData.is_urgent
 
-                    width: 14
-                    height: 8
+                    width: active || urgent ? 18 : 6
+                    height: 6
+                    radius: height / 2
+                    color: urgent
+                        ? root.context.theme.semantic.status.danger
+                        : active
+                            ? root.context.theme.component.bar.workspaceActive
+                            : root.context.theme.component.bar.workspaceIdle
+                    opacity: active || urgent ? 1 : 0.55
 
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: parent.width
-                        height: 6
-                        radius: height / 2
-                        scale: parent.active || parent.urgent ? 1 : 0.45
-                        color: parent.urgent
-                            ? root.context.theme.semantic.status.danger
-                            : parent.active
-                                ? root.context.theme.component.bar.workspaceActive
-                                : root.context.theme.component.bar.workspaceIdle
-                        opacity: parent.active || parent.urgent ? 1 : 0.72
-
-                        Behavior on scale {
-                            NumberAnimation {
-                                duration: root.motionDuration
-                                easing.type: Easing.OutCubic
-                            }
-                        }
-                        Behavior on color {
-                            ColorAnimation {
-                                duration: root.motionDuration
-                                easing.type: Easing.OutCubic
-                            }
-                        }
-                        Behavior on opacity {
-                            NumberAnimation {
-                                duration: root.motionDuration
-                                easing.type: Easing.OutCubic
-                            }
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: root.motionDuration
+                            easing.type: Easing.OutCubic
                         }
                     }
                 }
@@ -89,55 +70,30 @@ Item {
 
             visible: root.workspaces.length > 0
             Layout.preferredWidth: 1
-            Layout.preferredHeight: Math.max(12, root.context.theme.metrics.barHeight - 10)
+            Layout.preferredHeight: 18
             color: root.context.theme.component.bar.separator
         }
 
         Row {
             id: columnStrip
 
-            spacing: root.context.theme.metrics.spaceUnit
+            spacing: 4
 
             Repeater {
                 model: root.columns
 
-                Item {
+                Rectangle {
                     required property int index
                     readonly property bool focused: index + 1 === root.focusedColumn
 
-                    width: 12
-                    height: 12
+                    width: focused ? 15 : 6
+                    height: 10
+                    radius: 2
+                    color: focused
+                        ? root.context.theme.component.bar.workspaceActive
+                        : root.context.theme.component.bar.workspaceIdle
+                    opacity: focused ? 1 : 0.6
 
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: 10
-                        height: 10
-                        radius: root.context.theme.metrics.radiusSmall / 2
-                        scale: parent.focused ? 1 : 0.58
-                        color: parent.focused
-                            ? root.context.theme.component.bar.workspaceActive
-                            : root.context.theme.component.bar.workspaceIdle
-                        opacity: parent.focused ? 1 : 0.72
-
-                        Behavior on scale {
-                            NumberAnimation {
-                                duration: root.motionDuration
-                                easing.type: Easing.OutCubic
-                            }
-                        }
-                        Behavior on color {
-                            ColorAnimation {
-                                duration: root.motionDuration
-                                easing.type: Easing.OutCubic
-                            }
-                        }
-                        Behavior on opacity {
-                            NumberAnimation {
-                                duration: root.motionDuration
-                                easing.type: Easing.OutCubic
-                            }
-                        }
-                    }
                 }
             }
         }

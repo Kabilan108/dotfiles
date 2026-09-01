@@ -31,8 +31,7 @@ ShellAction {
                 : root.hovered
                     ? root.theme.component.bar.clusterHover
                     : "transparent"
-        border.width: root.focusVisible ? 2 : 0
-        border.color: root.theme.component.control.focus
+        border.width: 0
         opacity: !root.enabled ? 0.74 : root.busy ? 0.82 : 1
 
         Behavior on color {

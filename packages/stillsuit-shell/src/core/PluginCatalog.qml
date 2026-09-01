@@ -189,6 +189,9 @@ QtObject {
             allowMultiple: entry.manifest.barWidget
                 ? entry.manifest.barWidget.allowMultiple === true
                 : false,
+            order: entry.manifest.barWidget
+                ? Number(entry.manifest.barWidget.order || 0)
+                : 0,
             release: function(message) {
                 root._releaseConstructedWidget(key, component, message)
             }

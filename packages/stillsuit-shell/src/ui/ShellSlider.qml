@@ -117,18 +117,6 @@ Item {
             border.color: root.theme.component.osd.fill
         }
 
-        Rectangle {
-            visible: root.focusVisible
-            anchors {
-                fill: parent
-                margins: -5
-            }
-            radius: root.theme.metrics.radiusSmall
-            color: "transparent"
-            border.width: 2
-            border.color: root.theme.component.control.focus
-        }
-
         MouseArea {
             id: pointer
 

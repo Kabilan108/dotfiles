@@ -9,5 +9,5 @@
   "entryPoints": { "barWidget": "RecordingWidget.qml", "panel": "RecordingPanel.qml" },
   "scope": { "barWidget": "per-output", "panel": "per-output" },
   "dependencies": ["stillsuit.workflows"],
-  "barWidget": { "defaultSection": "left", "allowMultiple": false }
+  "barWidget": { "defaultSection": "left", "allowMultiple": false, "order": 20 }
 }

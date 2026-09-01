@@ -42,8 +42,7 @@ ShellAction {
                     : root.hovered && root.interactive
                         ? root.theme.component.panel.rowHover
                         : "transparent"
-        border.width: root.focusVisible ? 2 : 0
-        border.color: root.theme.component.control.focus
+        border.width: 0
         opacity: !root.enabled ? 0.64 : root.busy ? 0.76 : 1
 
         Behavior on color {

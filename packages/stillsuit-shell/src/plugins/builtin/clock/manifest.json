@@ -8,5 +8,5 @@
   "kinds": ["service", "bar-widget"],
   "entryPoints": { "service": "ClockService.qml", "barWidget": "ClockWidget.qml" },
   "scope": { "service": "global", "barWidget": "per-output" },
-  "barWidget": { "defaultSection": "center", "allowMultiple": false }
+  "barWidget": { "defaultSection": "center", "allowMultiple": false, "order": 10 }
 }

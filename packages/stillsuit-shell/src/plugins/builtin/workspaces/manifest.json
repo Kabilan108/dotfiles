@@ -9,5 +9,5 @@
   "entryPoints": { "barWidget": "WorkspaceWidget.qml" },
   "scope": { "barWidget": "per-output" },
   "capabilities": ["compositor-read"],
-  "barWidget": { "defaultSection": "left", "allowMultiple": false }
+  "barWidget": { "defaultSection": "left", "allowMultiple": false, "order": 10 }
 }
