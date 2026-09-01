@@ -1,10 +1,11 @@
 {
-  schemaVersion = 1;
+  schemaVersion = 2;
 
   identity = {
     id = "stillsuit.catppuccin-mocha";
     name = "Catppuccin Mocha";
     mode = "dark";
+    description = "The canonical Catppuccin Mocha theme for the Stillsuit production shell.";
   };
 
   palette = {
@@ -40,23 +41,40 @@
     };
   };
 
-  colors = {
+  semantic = {
+    background = {
+      canvas = "#11111b";
+      desktop = "#1e1e2e";
+      scrim = "#0b0b12";
+    };
     surface = {
-      canvas = "#1e1e2e";
+      bar = "#181825";
       panel = "#181825";
       raised = "#313244";
+      overlay = "#1e1e2e";
       hover = "#45475a";
+      pressed = "#585b70";
+      selected = "#2b3a57";
     };
-    text = {
+    content = {
       primary = "#cdd6f4";
       secondary = "#bac2de";
-      tertiary = "#a6adc8";
-      onAccent = "#11111b";
+      muted = "#7f849c";
+      disabled = "#6c7086";
+      inverse = "#11111b";
     };
-    border = {
+    outline = {
       subtle = "#313244";
-      normal = "#45475a";
+      default = "#45475a";
+      strong = "#6c7086";
       focus = "#89b4fa";
+    };
+    accent = {
+      primary = "#89b4fa";
+      hover = "#a9c9fb";
+      pressed = "#6d9ee8";
+      subtle = "#2b3a57";
+      onAccent = "#11111b";
     };
     status = {
       info = "#89dceb";
@@ -64,56 +82,107 @@
       warning = "#f9e2af";
       danger = "#f38ba8";
     };
+    signal = {
+      audio = "#a6e3a1";
+      microphone = "#f38ba8";
+      brightness = "#f9e2af";
+      charging = "#fab387";
+      recording = "#f38ba8";
+    };
   };
 
-  controls = {
-    normal = {
-      fill = "#313244";
-      text = "#cdd6f4";
-      border = "#45475a";
-    };
-    hover = {
-      fill = "#45475a";
-      text = "#cdd6f4";
-      border = "#585b70";
-    };
-    active = {
-      fill = "#89b4fa";
-      text = "#11111b";
-      border = "#89b4fa";
-    };
-    focus = {
-      fill = "#313244";
-      text = "#cdd6f4";
-      border = "#89b4fa";
-    };
-    disabled = {
-      fill = "#181825";
-      text = "#6c7086";
+  component = {
+    bar = {
+      background = "#181825";
       border = "#313244";
+      separator = "#45475a";
+      workspaceIdle = "#6c7086";
+      workspaceActive = "#89b4fa";
+      clusterHover = "#45475a";
+      clusterActive = "#2b3a57";
+      clusterText = "#bac2de";
+      clusterActiveText = "#cdd6f4";
+    };
+    panel = {
+      background = "#181825";
+      border = "#45475a";
+      section = "#313244";
+      rowHover = "#45475a";
+      rowSelected = "#2b3a57";
+      rowDanger = "#3b222b";
+      shadow = "#11111b";
+    };
+    control = {
+      background = "#313244";
+      hover = "#45475a";
+      pressed = "#585b70";
+      active = "#89b4fa";
+      disabled = "#181825";
+      outline = "#45475a";
+      focus = "#89b4fa";
+      text = "#cdd6f4";
+      textDisabled = "#6c7086";
+      onActive = "#11111b";
+    };
+    notification = {
+      background = "#181825";
+      border = "#45475a";
+      unread = "#89b4fa";
+      info = "#89b4fa";
+      success = "#a6e3a1";
+      warning = "#f9e2af";
+      danger = "#f38ba8";
+      muted = "#6c7086";
+    };
+    osd = {
+      border = "#45475a";
+      track = "#45475a";
+      fill = "#89b4fa";
+      text = "#cdd6f4";
     };
   };
 
   typography = {
-    family = "Noto Sans";
-    monospaceFamily = "FiraMono Nerd Font";
+    bodyFamily = "Noto Sans";
+    monoFamily = "JetBrainsMono Nerd Font";
+    iconFamily = "Material Symbols Rounded";
     baseSize = 13;
-    scale = 1.0;
-    weightNormal = 400;
+    captionSize = 11;
+    headingSize = 17;
+    weightRegular = 400;
     weightMedium = 500;
     weightBold = 700;
   };
 
-  geometry = {
-    radius = 5;
-    density = 1.0;
-    barHeight = 38;
-    panelGap = 8;
+  metrics = {
+    spaceUnit = 4;
+    radiusSmall = 5;
+    radiusMedium = 7;
+    radiusLarge = 11;
+    barHeight = 26;
+    barOuterGap = 0;
+    barInnerGap = 7;
+    iconSmall = 15;
+    iconMedium = 18;
+    iconLarge = 24;
+    panelWidth = 380;
+    panelPadding = 16;
+    rowHeight = 38;
   };
 
   motion = {
-    fast = 120;
-    medium = 180;
-    slow = 260;
+    fast = 66;
+    normal = 99;
+    slow = 143;
+    distanceSmall = 4;
+    distanceMedium = 10;
+    easing = "out-cubic";
+  };
+
+  effects = {
+    surfaceOpacity = 0.8;
+    blurEnabled = true;
+    blurRadius = 24;
+    shadowOpacity = 0.5;
   };
 }

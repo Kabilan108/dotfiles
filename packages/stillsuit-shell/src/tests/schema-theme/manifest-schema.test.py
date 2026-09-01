@@ -1,6 +1,7 @@
 from copy import deepcopy
 from json import loads
 from pathlib import Path
+from subprocess import run
 from typing import Any
 
 from jsonschema import Draft202012Validator
@@ -8,10 +9,9 @@ from jsonschema import Draft202012Validator
 TEST_DIR = Path(__file__).resolve().parent
 PACKAGE_ROOT = TEST_DIR.parents[2]
 MANIFEST_SCHEMA_PATH = PACKAGE_ROOT / "schemas" / "manifest.v1.json"
-THEME_SCHEMA_PATH = PACKAGE_ROOT / "schemas" / "theme.v1.json"
-DESIGN_LAB_THEME_SCHEMA_PATH = PACKAGE_ROOT / "schemas" / "theme.v2.draft.json"
+THEME_SCHEMA_PATH = PACKAGE_ROOT / "schemas" / "theme.v2.json"
 BUILTIN_ROOT = PACKAGE_ROOT / "src" / "plugins" / "builtin"
-THEME_FIXTURE_PATH = TEST_DIR.parent / "fixtures" / "theme.v1.json"
+CANONICAL_THEME_PATH = PACKAGE_ROOT / "themes" / "catppuccin-mocha.nix"
 DESIGN_LAB_THEME_ROOT = PACKAGE_ROOT / "design-lab" / "themes"
 
 CONTRIBUTIONS = {
@@ -26,6 +26,16 @@ CONTRIBUTIONS = {
 
 def _read_json(path: Path) -> Any:
     return loads(path.read_text())
+
+
+def _read_canonical_theme() -> dict[str, Any]:
+    result = run(
+        ["nix", "eval", "--json", "--file", str(CANONICAL_THEME_PATH)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return loads(result.stdout)
 
 
 def _base_manifest() -> dict[str, Any]:
@@ -95,11 +105,102 @@ def _check_manifest_schema() -> None:
 def _check_theme_schema() -> None:
     schema = _read_json(THEME_SCHEMA_PATH)
     Draft202012Validator.check_schema(schema)
-    Draft202012Validator(schema).validate(_read_json(THEME_FIXTURE_PATH))
+    validator = Draft202012Validator(schema)
+    theme = _read_canonical_theme()
+    validator.validate(theme)
+
+    expected_top_level = {
+        "schemaVersion",
+        "identity",
+        "palette",
+        "semantic",
+        "component",
+        "typography",
+        "metrics",
+        "motion",
+        "effects",
+    }
+    if set(theme) != expected_top_level:
+        raise AssertionError(f"unexpected production theme levels: {sorted(theme)}")
+
+    locked_values = {
+        "schemaVersion": theme["schemaVersion"],
+        "bodyFamily": theme["typography"]["bodyFamily"],
+        "monoFamily": theme["typography"]["monoFamily"],
+        "iconFamily": theme["typography"]["iconFamily"],
+        "barHeight": theme["metrics"]["barHeight"],
+        "barOuterGap": theme["metrics"]["barOuterGap"],
+        "radiusMedium": theme["metrics"]["radiusMedium"],
+        "surfaceOpacity": theme["effects"]["surfaceOpacity"],
+        "accent": theme["semantic"]["accent"]["primary"],
+        "panel": theme["semantic"]["surface"]["panel"],
+        "raised": theme["semantic"]["surface"]["raised"],
+        "primaryText": theme["semantic"]["content"]["primary"],
+        "motionFast": theme["motion"]["fast"],
+        "motionNormal": theme["motion"]["normal"],
+        "motionSlow": theme["motion"]["slow"],
+        "motionEasing": theme["motion"]["easing"],
+    }
+    expected_locked_values = {
+        "schemaVersion": 2,
+        "bodyFamily": "Noto Sans",
+        "monoFamily": "JetBrainsMono Nerd Font",
+        "iconFamily": "Material Symbols Rounded",
+        "barHeight": 26,
+        "barOuterGap": 0,
+        "radiusMedium": 7,
+        "surfaceOpacity": 0.8,
+        "accent": "#89b4fa",
+        "panel": "#181825",
+        "raised": "#313244",
+        "primaryText": "#cdd6f4",
+        "motionFast": 66,
+        "motionNormal": 99,
+        "motionSlow": 143,
+        "motionEasing": "out-cubic",
+    }
+    if locked_values != expected_locked_values:
+        raise AssertionError(
+            f"production theme differs from the locked baseline: {locked_values}"
+        )
+
+    motion = theme["motion"]
+    if not motion["fast"] < motion["normal"] < motion["slow"]:
+        raise AssertionError(f"motion tiers are not strictly ordered: {motion}")
+
+    palette = theme["palette"]
+    semantic = theme["semantic"]
+    component = theme["component"]
+    if semantic["accent"]["primary"] != palette["chromatic"]["blue"]:
+        raise AssertionError(
+            "semantic accent does not derive from palette.chromatic.blue"
+        )
+    if semantic["surface"]["panel"] != palette["neutral"]["mantle"]:
+        raise AssertionError(
+            "semantic panel does not derive from palette.neutral.mantle"
+        )
+    if semantic["surface"]["raised"] != palette["neutral"]["surface0"]:
+        raise AssertionError(
+            "semantic raised does not derive from palette.neutral.surface0"
+        )
+    if semantic["content"]["primary"] != palette["neutral"]["text"]:
+        raise AssertionError(
+            "semantic primary text does not derive from palette.neutral.text"
+        )
+    if component["osd"].get("background") is not None:
+        raise AssertionError("production theme defines component.osd.background")
+
+    unexpected_osd_background = deepcopy(theme)
+    unexpected_osd_background["component"]["osd"]["background"] = "#181825"
+    _assert_rejected(
+        validator,
+        unexpected_osd_background,
+        "a production theme with component.osd.background",
+    )
 
 
 def _check_design_lab_theme_schema() -> None:
-    schema = _read_json(DESIGN_LAB_THEME_SCHEMA_PATH)
+    schema = _read_json(THEME_SCHEMA_PATH)
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
 
@@ -119,7 +220,9 @@ def _check_design_lab_theme_schema() -> None:
 
     missing_osd_border = deepcopy(themes[0])
     del missing_osd_border["component"]["osd"]["border"]
-    _assert_rejected(validator, missing_osd_border, "a design-lab theme without component.osd.border")
+    _assert_rejected(
+        validator, missing_osd_border, "a design-lab theme without component.osd.border"
+    )
 
     missing_panel_row_danger = deepcopy(themes[0])
     del missing_panel_row_danger["component"]["panel"]["rowDanger"]
@@ -144,7 +247,7 @@ def main() -> None:
     _check_design_lab_theme_schema()
     print(
         "schema contracts ok: builtin manifests, reverse contribution constraints, "
-        "production theme fixture, design-lab themes"
+        "production theme v2 locked baseline, design-lab themes"
     )
 
 

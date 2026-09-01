@@ -9,15 +9,15 @@ let
   canonical = import ../../../packages/stillsuit-shell/themes/catppuccin-mocha.nix;
   neutral = canonical.palette.neutral;
   chromatic = canonical.palette.chromatic;
-  themeSource = pkgs.writeText "stillsuit-theme-v1.json" (builtins.toJSON canonical);
+  themeSource = pkgs.writeText "stillsuit-theme-v2.json" (builtins.toJSON canonical);
   validatedTheme =
-    pkgs.runCommand "stillsuit-theme-v1-validated.json"
+    pkgs.runCommand "stillsuit-theme-v2-validated.json"
       {
         nativeBuildInputs = [ pkgs.check-jsonschema ];
       }
       ''
         check-jsonschema \
-          --schemafile ${../../../packages/stillsuit-shell/schemas/theme.v1.json} \
+          --schemafile ${../../../packages/stillsuit-shell/schemas/theme.v2.json} \
           ${themeSource}
         cp ${themeSource} "$out"
       '';
@@ -58,9 +58,8 @@ in
       assertions = [
         {
           assertion =
-            canonical.motion.fast <= canonical.motion.medium
-            && canonical.motion.medium <= canonical.motion.slow;
-          message = "programs.stillsuitShell canonical theme motion must satisfy fast <= medium <= slow";
+            canonical.motion.fast < canonical.motion.normal && canonical.motion.normal < canonical.motion.slow;
+          message = "programs.stillsuitShell canonical theme motion must satisfy fast < normal < slow";
         }
       ];
 

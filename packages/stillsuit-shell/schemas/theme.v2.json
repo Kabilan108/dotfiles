@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://stillsuit.local/schemas/theme.v2.draft.json",
-  "title": "Stillsuit theme v2 draft",
-  "description": "Approved design contract staged beside production v1. Palette tokens feed semantic roles; shared components consume semantic and component assignments, never raw palette values.",
+  "$id": "https://stillsuit.local/schemas/theme.v2.json",
+  "title": "Stillsuit theme v2",
+  "description": "Production theme contract. Palette tokens feed semantic roles; shared components consume semantic and component assignments, never raw palette values.",
   "type": "object",
   "additionalProperties": false,
   "required": [
