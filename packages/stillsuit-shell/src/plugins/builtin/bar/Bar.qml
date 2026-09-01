@@ -89,6 +89,7 @@ Scope {
                 anchors.fill: parent
                 theme: root.context.theme
                 kind: "bar"
+                radius: 0
 
                 RowLayout {
                     anchors.fill: parent

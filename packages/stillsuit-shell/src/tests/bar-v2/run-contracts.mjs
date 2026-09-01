@@ -34,6 +34,7 @@ assert.match(bar, /context\.theme\.metrics\.barOuterGap/);
 assert.match(bar, /top: true[\s\S]*left: true[\s\S]*right: true/);
 assert.match(bar, /exclusiveZone: root\.shadowMode \? 0 : root\.exclusionZone/);
 assert.match(bar, /Ui\.ShellSurface/);
+assert.match(bar, /kind: "bar"\s*\n\s*radius: 0/);
 
 const workspaces = sources["plugins/builtin/workspaces/WorkspaceWidget.qml"];
 assert.match(workspaces, /id: contentRow[\s\S]*id: workspaceStrip[\s\S]*id: separator[\s\S]*id: columnStrip/);
