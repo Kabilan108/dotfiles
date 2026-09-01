@@ -104,11 +104,13 @@ def _snapshot() -> dict[str, Any]:
         "",
     )
 
-    connection_rows = _nmcli_rows("UUID,NAME,TYPE,ACTIVE", "connection", "show")
+    connection_rows = _nmcli_rows(
+        "UUID,NAME,TYPE,ACTIVE,802-11-wireless.ssid", "connection", "show"
+    )
     saved_wifi = {
-        row[1]: row[0]
+        row[4]: {"uuid": row[0], "profileName": row[1]}
         for row in connection_rows
-        if len(row) == 4 and row[2] in {"802-11-wireless", "wifi"}
+        if len(row) == 5 and row[2] in {"802-11-wireless", "wifi"} and row[4]
     }
 
     networks_by_name: dict[str, dict[str, Any]] = {}
@@ -122,12 +124,14 @@ def _snapshot() -> dict[str, Any]:
                 signal = max(0, min(100, int(row[3])))
             except ValueError:
                 signal = 0
+            saved_profile = saved_wifi.get(row[1])
             candidate = {
-                "id": saved_wifi.get(row[1], row[1]),
+                "id": saved_profile["uuid"] if saved_profile else row[1],
                 "name": row[1],
-                "uuid": saved_wifi.get(row[1], ""),
+                "uuid": saved_profile["uuid"] if saved_profile else "",
+                "profileName": saved_profile["profileName"] if saved_profile else "",
                 "connected": row[0] == "*",
-                "known": row[1] in saved_wifi,
+                "known": saved_profile is not None,
                 "kind": _security_kind(row[2]),
                 "security": row[2],
                 "signal": signal,
@@ -153,7 +157,7 @@ def _snapshot() -> dict[str, Any]:
 
     vpns: list[dict[str, Any]] = []
     for row in connection_rows:
-        if len(row) != 4 or row[2] not in {"vpn", "wireguard"}:
+        if len(row) != 5 or row[2] not in {"vpn", "wireguard"}:
             continue
         active = row[3] == "yes"
         allowlisted = row[1] == VPN_NAME

@@ -3,22 +3,27 @@ import QtQuick.Layouts
 import Quickshell
 import "../../../ui" as Ui
 
-PanelWindow {
+Scope {
     id: root
 
     required property var context
     required property var service
+    required property var screen
     required property string outputId
 
-    visible: false
-    implicitWidth: context.theme.metrics.panelWidth
-    implicitHeight: 540
-    color: "transparent"
-    exclusiveZone: 0
-    anchors {
-        top: true
-        right: true
-    }
+    PanelWindow {
+        id: panel
+
+        screen: root.screen
+        visible: false
+        implicitWidth: root.context.theme.metrics.panelWidth
+        implicitHeight: 540
+        color: "transparent"
+        exclusiveZone: 0
+        anchors {
+            top: true
+            right: true
+        }
 
     Ui.ShellSurface {
         anchors.fill: parent
@@ -185,6 +190,7 @@ PanelWindow {
             }
         }
     }
+    }
 
     component DeviceRow: Ui.ShellRow {
         id: row
@@ -226,12 +232,12 @@ PanelWindow {
     }
 
     function open(payloadJson) {
-        visible = true
+        panel.visible = true
     }
 
     function close() {
         if (service)
             service.stopScan()
-        visible = false
+        panel.visible = false
     }
 }

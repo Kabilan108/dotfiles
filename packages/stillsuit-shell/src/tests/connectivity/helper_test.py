@@ -39,6 +39,14 @@ def main() -> None:
         if command[-2:] == ["device", "status"]:
             return completed(command, "eth0:ethernet:connected:Fixture Ethernet\n")
         if command[-2:] == ["connection", "show"]:
+            fields = command[command.index("--fields") + 1]
+            if "802-11-wireless.ssid" in fields:
+                return completed(
+                    command,
+                    "saved:Apartment Wi-Fi:802-11-wireless:no:Home\\:WiFi\n"
+                    "moberg:MobergAnalytics:vpn:no:\n"
+                    "other:Other VPN:vpn:yes:\n",
+                )
             return completed(
                 command,
                 "saved:Home:802-11-wireless:no\n"
@@ -48,7 +56,7 @@ def main() -> None:
         if "wifi" in command and "list" in command:
             return completed(
                 command,
-                "*:Home:WPA2:88\n:Open\\:Cafe:--:63\n:Enterprise:WPA2 802.1X:74\n",
+                "*:Home\\:WiFi:WPA2:88\n:Open\\:Cafe:--:63\n:Enterprise:WPA2 802.1X:74\n",
             )
         if command[:2] == ["tailscale", "status"]:
             return completed(
@@ -74,7 +82,10 @@ def main() -> None:
     assert join_call["input"] == secret + "\n"
     assert secret not in str(response)
     assert response["ok"] is True
-    assert response["snapshot"]["networks"][0]["name"] == "Home"
+    assert response["snapshot"]["networks"][0]["name"] == "Home:WiFi"
+    assert response["snapshot"]["networks"][0]["known"] is True
+    assert response["snapshot"]["networks"][0]["uuid"] == "saved"
+    assert response["snapshot"]["networks"][0]["profileName"] == "Apartment Wi-Fi"
     assert response["snapshot"]["networks"][1]["name"] == "Enterprise"
     assert response["snapshot"]["networks"][1]["kind"] == "enterprise"
     assert response["snapshot"]["networks"][2]["name"] == "Open:Cafe"
@@ -88,6 +99,18 @@ def main() -> None:
         "ip": "100.64.0.9",
         "tailnet": "fixture.ts.net",
     }
+
+    calls.clear()
+    saved_join = helper._dispatch(
+        {"operation": "join", "kind": "saved", "uuid": "saved"}
+    )
+    assert saved_join["ok"] is True
+    assert any(
+        call["command"] == [
+            "nmcli", "--wait", "25", "connection", "up", "uuid", "saved"
+        ]
+        for call in calls
+    )
 
     def failing_run(
         command: list[str],

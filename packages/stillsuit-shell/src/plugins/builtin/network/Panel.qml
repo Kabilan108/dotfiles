@@ -3,11 +3,12 @@ import QtQuick.Layouts
 import Quickshell
 import "../../../ui" as Ui
 
-PanelWindow {
+Scope {
     id: root
 
     required property var context
     required property var service
+    required property var screen
     required property string outputId
     property var credentialNetwork: null
 
@@ -27,15 +28,19 @@ PanelWindow {
         return vpn && vpn.active && (vpn.name !== "MobergAnalytics" || vpn.readOnly === true)
     }) : []
 
-    visible: false
-    implicitWidth: context.theme.metrics.panelWidth
-    implicitHeight: 620
-    color: "transparent"
-    exclusiveZone: 0
-    anchors {
-        top: true
-        right: true
-    }
+    PanelWindow {
+        id: panel
+
+        screen: root.screen
+        visible: false
+        implicitWidth: root.context.theme.metrics.panelWidth
+        implicitHeight: 620
+        color: "transparent"
+        exclusiveZone: 0
+        anchors {
+            top: true
+            right: true
+        }
 
     Ui.ShellSurface {
         anchors.fill: parent
@@ -388,6 +393,7 @@ PanelWindow {
             }
         }
     }
+    }
 
     component NetworkRow: Ui.ShellRow {
         id: row
@@ -433,7 +439,7 @@ PanelWindow {
     }
 
     function open(payloadJson) {
-        visible = true
+        panel.visible = true
         if (service)
             service.refresh()
     }
@@ -441,6 +447,6 @@ PanelWindow {
     function close() {
         passwordInput.text = ""
         credentialNetwork = null
-        visible = false
+        panel.visible = false
     }
 }

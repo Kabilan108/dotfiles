@@ -55,6 +55,12 @@ rg -F 'read-only' "$source_root/plugins/builtin/network/Panel.qml" >/dev/null
 rg -F 'preferredDefaultAudioSink = node' "$source_root/services/BluetoothService.qml" >/dev/null
 rg -F 'onClicked: root.service.forgetDevice(row.device)' "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
 
+for panel in network bluetooth; do
+    panel_path="$source_root/plugins/builtin/$panel/Panel.qml"
+    rg -F 'required property var screen' "$panel_path" >/dev/null
+    rg -F 'screen: root.screen' "$panel_path" >/dev/null
+done
+
 if ! timeout 20s quickshell --config "$STILLSUIT_CONFIG_ID" --no-color \
         >"$fixture_root/quickshell.log" 2>&1; then
     sed -n '1,260p' "$fixture_root/quickshell.log" >&2
