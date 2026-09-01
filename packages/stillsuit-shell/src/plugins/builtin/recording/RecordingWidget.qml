@@ -35,8 +35,7 @@ Ui.ShellAction {
         color: root.pressed
             ? root.context.theme.semantic.surface.pressed
             : root.hovered ? root.context.theme.component.bar.clusterHover : "transparent"
-        border.width: root.focusVisible ? 2 : 0
-        border.color: root.context.theme.component.control.focus
+        border.width: 0
     }
 
     RowLayout {

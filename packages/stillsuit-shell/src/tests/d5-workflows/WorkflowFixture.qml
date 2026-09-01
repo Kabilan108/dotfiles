@@ -39,18 +39,6 @@ ShellRoot {
         id: meetingQueue
         jobs: workflows.meeting.jobs
     }
-    Meeting.MeetingQueueModel {
-        id: completedOnlyQueue
-        jobs: [
-            { jobId: "completed-6", phase: "completed", completedAt: 6 },
-            { jobId: "completed-5", phase: "completed", completedAt: 5 },
-            { jobId: "completed-4", phase: "completed", completedAt: 4 },
-            { jobId: "completed-3", phase: "completed", completedAt: 3 },
-            { jobId: "completed-2", phase: "completed", completedAt: 2 },
-            { jobId: "completed-1", phase: "completed", completedAt: 1 }
-        ]
-    }
-
     // Two output views consume one global aggregate. Production OsdOverlay
     // instances use context.services.get() with the same identity.
     property var overlayViews: [
@@ -70,8 +58,7 @@ ShellRoot {
                 overlaySharesOsdService: overlayViews[0].service === overlayViews[1].service,
                 recording: { apiVersion: workflows.recording.apiVersion, phase: workflows.recording.phase, status: workflows.recording.stateStatus, active: workflows.recording.active, paused: workflows.recording.paused, elapsedSeconds: workflows.recording.elapsedSeconds, elapsedText: workflows.recording.elapsedText, completed: workflows.recording.completed, outputPath: workflows.recording.outputPath, outputFilename: workflows.recording.outputFilename, copiedPath: workflows.recording.copiedPath, errorMessage: workflows.recording.errorMessage, actionRunning: workflows.recording.actionRunning, command: workflows.recording.lastCommandJson },
                 meeting: { apiVersion: workflows.meeting.apiVersion, phase: workflows.meeting.phase, status: workflows.meeting.stateStatus, jobsStatus: workflows.meeting.jobsStateStatus, visible: workflows.meeting.visible, failed: workflows.meeting.failed, completed: workflows.meeting.completed, label: workflows.meeting.label, errorMessage: workflows.meeting.errorMessage, snapshotSchemaVersion: workflows.meeting.snapshot.schemaVersion, command: workflows.meeting.lastCommandJson, retryingJobId: workflows.meeting.retryingJobId, jobs: workflows.meeting.jobs },
-                queue: { page: meetingQueue.page, pageCount: meetingQueue.pageCount, actionableCount: meetingQueue.actionableCount, olderActionableCount: meetingQueue.olderActionableCount, jobs: meetingQueue.pageJobs },
-                completedOnlyQueue: { page: completedOnlyQueue.page, pageCount: completedOnlyQueue.pageCount, actionableCount: completedOnlyQueue.actionableCount, hasNextPage: completedOnlyQueue.hasNextPage, jobs: completedOnlyQueue.pageJobs },
+                queue: { failedCount: meetingQueue.failedCount, rowLimit: meetingQueue.rowLimit, jobs: meetingQueue.failedJobs },
                 completion: { remainingMs: completionCountdown.remainingMs, remainingSeconds: completionCountdown.remainingSeconds, running: completionCountdown.running, interactionActive: completionCountdown.interactionActive, expirationCount: completionCountdown.expirationCount },
                 dictator: { apiVersion: workflows.dictator.apiVersion, state: workflows.dictator.visualizerState, socketConnections: workflows.dictator.socketConnections, levels: workflows.dictator.levels.length }
             })
@@ -91,8 +78,6 @@ ShellRoot {
         function openJob(jobId: string): string { return workflows.meeting.openResult(jobId) }
         function retry(jobId: string): string { return workflows.meeting.retry(jobId) }
         function doubleRetry(jobId: string): string { return JSON.stringify([workflows.meeting.retry(jobId), workflows.meeting.retry(jobId)]) }
-        function nextPage(): string { return meetingQueue.nextPage() ? "ok" : "end" }
-        function previousPage(): string { return meetingQueue.previousPage() ? "ok" : "start" }
         function completionStart(): string { completionCountdown.start(); return "ok" }
         function completionInteract(active: bool): string { completionCountdown.interactionActive = active; return "ok" }
         function completionTick(milliseconds: int): string { return completionCountdown.tick(milliseconds) ? "expired" : "waiting" }

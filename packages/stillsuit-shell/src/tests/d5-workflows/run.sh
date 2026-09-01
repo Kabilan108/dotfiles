@@ -105,23 +105,12 @@ wait_json '.recording.status == "ready" and .meeting.jobsStatus == "ready"' >/de
 state=$(ipc state)
 jq -e '.serviceObjects == 1 and .osdServiceObjects == 1 and .overlays == 2 and .overlaySharesAggregate and .overlaySharesOsdService and .dictator.levels == 23 and .dictator.state == "recording" and .meeting.visible and .meeting.completed and .meeting.label == "fixture"' >/dev/null <<<"$state"
 
-# The queue ranks all actionable phases before completed results and caps every
-# page at five rows. Ties remain deterministic through job identity.
-jq -e '.queue.page == 0 and .queue.pageCount == 2 and .queue.actionableCount == 7
-  and .queue.olderActionableCount == 2 and (.queue.jobs | length) == 5
-  and [.queue.jobs[].phase] == ["queued","transcribing","error","error","error"]' >/dev/null <<<"$state"
-[[ $(ipc nextPage) == ok ]]
-state=$(ipc state)
-jq -e '.queue.page == 1 and (.queue.jobs | length) == 5
-  and [.queue.jobs[].phase] == ["error","error","completed","completed","completed"]' >/dev/null <<<"$state"
-[[ $(ipc previousPage) == ok ]]
-
-# Completed history fills spare actionable slots but never creates a history-
-# only overflow page; with no actionable jobs it is a newest-first five-row view.
-jq -e '.completedOnlyQueue.page == 0 and .completedOnlyQueue.pageCount == 1
-  and .completedOnlyQueue.actionableCount == 0 and (.completedOnlyQueue.hasNextPage | not)
-  and [.completedOnlyQueue.jobs[].jobId] == ["completed-6","completed-5","completed-4","completed-3","completed-2"]' \
-  >/dev/null <<<"$state"
+# The shell shows only failed jobs, newest first, capped at five. Queued,
+# processing, and completed meetings remain durable but do not become history UI.
+jq -e '.queue.failedCount == 5 and .queue.rowLimit == 5
+  and (.queue.jobs | length) == 5
+  and [.queue.jobs[].title] == ["Failed C","Failed D","Failed E","Failed F","Failed G"]
+  and ([.queue.jobs[].phase] | all(. == "error"))' >/dev/null <<<"$state"
 
 # Completion closes after exactly five seconds of unpaused ticks. Pointer or
 # focus interaction uses the same model flag and preserves the remaining time.
@@ -240,15 +229,15 @@ retry_id=$(printf 'c%.0s' {1..32})
 wait_json ".meeting.jobs[] | select(.jobId == \"$retry_id\" and .phase == \"queued\" and .attempt == 2)" >/dev/null
 [[ $(grep -c "^retry $retry_id$" "$STILLSUIT_FIXTURE_MEETING_CONTROL_LOG") -eq 1 ]]
 
-# As older failures resolve, completed results move into the current five-row
-# page. One failure remains inspectable and is not retried by refresh/reload.
+# As failures resolve, the recovery list shrinks. Completed results never fill
+# the freed slots, and refresh does not trigger another retry.
 temporary_jobs="$STILLSUIT_FIXTURE_MEETING_JOBS.tmp"
 jq '(.jobs[] | select(.job_id == ("d"*32) or .job_id == ("e"*32) or .job_id == ("f"*32))).phase = "completed"
   | (.jobs[] | select(.phase == "completed" and .note_path == null)).note_path = "/tmp/resolved.md"' \
   "$STILLSUIT_FIXTURE_MEETING_JOBS" > "$temporary_jobs"
 mv -- "$temporary_jobs" "$STILLSUIT_FIXTURE_MEETING_JOBS"
-wait_json '.queue.page == 0 and .queue.actionableCount == 4 and (.queue.jobs | length) == 5
-  and [.queue.jobs[].phase] == ["queued","queued","transcribing","error","completed"]' >/dev/null
+wait_json '.queue.failedCount == 1 and (.queue.jobs | length) == 1
+  and .queue.jobs[0].title == "Failed G" and .queue.jobs[0].phase == "error"' >/dev/null
 [[ $(grep -c "^retry " "$STILLSUIT_FIXTURE_MEETING_CONTROL_LOG") -eq 1 ]]
 
 printf '%s\n' '{"schemaVersion":1,"phase":"error","label":"fixture failed","error":"fixture error","visible_until":4102444800}' > "$STILLSUIT_FIXTURE_MEETING_STATE"

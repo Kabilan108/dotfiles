@@ -17,8 +17,6 @@ Scope {
         opened = true
         if (power)
             power.refresh()
-        if (service)
-            service.refreshDetails()
     }
 
     function close() {
@@ -26,6 +24,8 @@ Scope {
     }
 
     PanelWindow {
+        id: batteryWindow
+
         screen: root.screen
         visible: root.opened
         anchors {
@@ -37,6 +37,11 @@ Scope {
         exclusiveZone: 0
         focusable: true
         color: "transparent"
+        mask: Region {
+            y: root.context.theme.metrics.barHeight
+            width: batteryWindow.width
+            height: Math.max(0, batteryWindow.height - y)
+        }
 
         MouseArea {
             anchors.fill: parent
@@ -107,13 +112,6 @@ Scope {
                         }
                     }
 
-                    Ui.ShellStatus {
-                        visible: root.service && root.service.pending
-                        theme: root.context.theme
-                        status: "warning"
-                        label: "Pending"
-                        compact: true
-                    }
                 }
 
                 Rectangle {
@@ -140,75 +138,12 @@ Scope {
                 Ui.ShellSectionLabel {
                     Layout.fillWidth: true
                     theme: root.context.theme
-                    text: "Battery details"
-                }
-
-                Ui.ShellSurface {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: details.implicitHeight + 8
-                    theme: root.context.theme
-                    kind: "raised"
-
-                    ColumnLayout {
-                        id: details
-
-                        anchors {
-                            fill: parent
-                            margins: 4
-                        }
-                        spacing: 0
-
-                        Ui.ShellRow {
-                            Layout.fillWidth: true
-                            theme: root.context.theme
-                            interactive: false
-                            iconName: "battery"
-                            label: "Health"
-                            description: root._capacityDescription()
-                            trailingText: root._percentOrUnavailable(
-                                root.service ? root.service.healthPercent : null)
-                        }
-
-                        Ui.ShellRow {
-                            Layout.fillWidth: true
-                            theme: root.context.theme
-                            interactive: false
-                            iconName: "repeat"
-                            label: "Charge cycles"
-                            trailingText: root._numberOrUnavailable(
-                                root.service ? root.service.cycleCount : null)
-                        }
-
-                        Ui.ShellRow {
-                            Layout.fillWidth: true
-                            theme: root.context.theme
-                            interactive: false
-                            iconName: "power"
-                            label: "Live power draw"
-                            trailingText: root._wattsOrUnavailable(
-                                root.service ? root.service.powerDrawWatts : null)
-                        }
-
-                        Ui.ShellRow {
-                            Layout.fillWidth: true
-                            theme: root.context.theme
-                            interactive: false
-                            iconName: "settings"
-                            label: "Charge thresholds"
-                            trailingText: root._thresholds()
-                        }
-                    }
-                }
-
-                Ui.ShellSectionLabel {
-                    Layout.fillWidth: true
-                    theme: root.context.theme
                     text: "Power profile"
                 }
 
                 RowLayout {
-                    Layout.fillWidth: true
-                    spacing: root.context.theme.metrics.spaceUnit
+                    Layout.alignment: Qt.AlignHCenter
+                    spacing: root.context.theme.metrics.spaceUnit * 2
 
                     Repeater {
                         model: root.power ? root.power.profiles : []
@@ -216,7 +151,6 @@ Scope {
                         Ui.ShellButton {
                             required property string modelData
 
-                            Layout.fillWidth: true
                             theme: root.context.theme
                             label: root._profileLabel(modelData)
                             iconName: root._profileIcon(modelData)
@@ -263,8 +197,6 @@ Scope {
             return "danger"
         if (service.charging)
             return "charging"
-        if (service.pending)
-            return "warning"
         return "accent"
     }
 
@@ -273,57 +205,18 @@ Scope {
             return context.theme.semantic.status.danger
         if (service && service.charging)
             return context.theme.semantic.signal.charging
-        if (service && service.pending)
-            return context.theme.semantic.status.warning
         return context.theme.semantic.accent.primary
     }
 
     function _stateSummary() {
         if (!service || !service.available)
             return "UPower has no battery data"
+        if (service.pending)
+            return "Plugged in, not charging"
         if (service.timeText === "")
             return service.stateLabel
         return service.stateLabel + ", " + service.timeText
             + (service.discharging ? " remaining" : " to full")
-    }
-
-    function _capacityDescription() {
-        if (!service || service.capacityWh === null)
-            return "Full capacity unavailable"
-        if (service.designCapacityWh === null)
-            return service.capacityWh.toFixed(1) + " Wh full capacity"
-        return service.capacityWh.toFixed(1) + " of "
-            + service.designCapacityWh.toFixed(1) + " Wh"
-    }
-
-    function _percentOrUnavailable(value) {
-        return value === null || value === undefined
-            ? "Unavailable"
-            : Math.round(Number(value)) + "%"
-    }
-
-    function _numberOrUnavailable(value) {
-        return value === null || value === undefined
-            ? "Unavailable"
-            : String(Math.round(Number(value)))
-    }
-
-    function _wattsOrUnavailable(value) {
-        return value === null || value === undefined
-            ? "Unavailable"
-            : Number(value).toFixed(1) + " W"
-    }
-
-    function _thresholds() {
-        if (!service || !service.chargeThresholdSupported)
-            return "Unavailable"
-        var start = service.chargeStartThreshold
-        var end = service.chargeEndThreshold
-        if (start !== null && end !== null)
-            return Math.round(start) + "% / " + Math.round(end) + "%"
-        if (end !== null)
-            return "Stop at " + Math.round(end) + "%"
-        return "Supported"
     }
 
     function _profileLabel(profile) {

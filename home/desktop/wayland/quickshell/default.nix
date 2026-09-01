@@ -52,7 +52,6 @@ in
     (builtinPlugin "battery")
     (builtinPlugin "bluetooth")
     (builtinPlugin "clock")
-    (builtinPlugin "meeting")
     (
       (builtinPlugin "network")
       // {

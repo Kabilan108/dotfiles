@@ -60,10 +60,7 @@ for _ in {1..120}; do [[ $(ipc ready 2>/dev/null || true) == ready ]] && break; 
 [[ $(ipc openRecording idle) == open ]]
 [[ $(ipc openRecording recording) == open ]]
 [[ $(ipc openRecording completed) == open ]]
-[[ $(ipc openMeetings) == ok ]]
-jq -e '.recordingOpen and .selectedView == "meetings" and .recordingMeetingRows == 2
-  and (.meetingOpen | not) and .meetingRows == 2
-  and .meetingRoute == {pluginId:"stillsuit.recording",payload:"{\"view\":\"meetings\"}"}' \
+jq -e '.recordingOpen and .recordingMeetingRows == 1 and .meetingRows == 2' \
   <<< "$(ipc state)" >/dev/null
 
 # Both real recording indicators retain their static dot but expose no running
@@ -80,7 +77,16 @@ if rg -n 'ERROR:|Failed to load configuration|Type .* unavailable|Cannot assign 
   exit 1
 fi
 
-rg -n 'Recent meetings|MeetingQueueView|Finish as meeting|Pause|Resume|Finish|Cancel|Copy path' "$source_root/plugins/builtin/recording/RecordingPanel.qml" >/dev/null
-rg -n 'surfaceOpen\("stillsuit\.recording", "\{\\"view\\":\\"meetings\\"\}"\)' "$source_root/plugins/builtin/meeting/MeetingWidget.qml" >/dev/null
-rg -n 'Details|Retry|Open in Obsidian' "$source_root/plugins/builtin/meeting/MeetingQueueView.qml" >/dev/null
+rg -n 'MeetingQueueView|Finish as meeting|Pause|Resume|Finish|Cancel|Copy path' "$source_root/plugins/builtin/recording/RecordingPanel.qml" >/dev/null
+if rg -n 'Recent meetings|Open in Obsidian|Previous|Next' \
+  "$source_root/plugins/builtin/recording/RecordingPanel.qml" \
+  "$source_root/plugins/builtin/meeting/MeetingQueueView.qml"; then
+  echo "recording panel exposes meeting history instead of failed-job recovery" >&2
+  exit 1
+fi
+rg -n 'Failed meeting jobs|Details|Retry' "$source_root/plugins/builtin/meeting/MeetingQueueView.qml" >/dev/null
+if rg -n 'builtinPlugin "meeting"' "$source_root/../../../home/desktop/wayland/quickshell/default.nix"; then
+  echo "meeting-only bar plugin remains enabled by default" >&2
+  exit 1
+fi
 echo "recording-meetings panels: ok"

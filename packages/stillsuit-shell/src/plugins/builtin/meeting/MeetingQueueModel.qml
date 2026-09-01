@@ -3,21 +3,31 @@ import QtQuick
 QtObject {
     id: root
 
-    readonly property int pageSize: 5
+    readonly property int rowLimit: 5
     property var jobs: []
+    readonly property var failedJobs: _failed(jobs).slice(0, rowLimit)
+    readonly property int failedCount: _failed(jobs).length
+
+    // The standalone meeting plugin is not enabled by default. Keep its old
+    // paging contract intact while the recording panel consumes only the
+    // failed-job projection above.
+    readonly property int pageSize: rowLimit
     property int page: 0
     readonly property var rankedJobs: _rank(jobs)
-    readonly property var actionableJobs: rankedJobs.filter(function(job) { return _actionable(job.phase) })
-    readonly property var completedJobs: rankedJobs.filter(function(job) { return String(job.phase || "") === "completed" })
+    readonly property var actionableJobs: rankedJobs.filter(function(job) {
+        return _actionable(job.phase)
+    })
+    readonly property var completedJobs: rankedJobs.filter(function(job) {
+        return String(job.phase || "") === "completed"
+    })
     readonly property int actionableCount: actionableJobs.length
-    // Pages exist to make actionable work reachable. Completed rows only fill
-    // the spare slots on an actionable page, never create their own overflow.
     readonly property int pageCount: Math.max(1, Math.ceil(actionableCount / pageSize))
     readonly property var pageJobs: {
         var actionable = actionableJobs.slice(page * pageSize, (page + 1) * pageSize)
         return actionable.concat(completedJobs.slice(0, Math.max(0, pageSize - actionable.length)))
     }
-    readonly property int olderActionableCount: Math.max(0, actionableCount - (page + 1) * pageSize)
+    readonly property int olderActionableCount: Math.max(0,
+        actionableCount - (page + 1) * pageSize)
     readonly property bool hasPreviousPage: page > 0
     readonly property bool hasNextPage: page + 1 < pageCount
 
@@ -42,6 +52,20 @@ QtObject {
         return true
     }
 
+    function _failed(value) {
+        var rows = (Array.isArray(value) ? value : []).filter(function(job) {
+            return job && String(job.phase || "") === "error"
+        })
+        rows.sort(function(left, right) {
+            var timeDifference = Number(right.updatedAt || right.createdAt || 0)
+                - Number(left.updatedAt || left.createdAt || 0)
+            if (timeDifference !== 0)
+                return timeDifference
+            return String(left.jobId || "").localeCompare(String(right.jobId || ""))
+        })
+        return rows
+    }
+
     function _processing(phase) {
         return ["preparing", "chunking", "transcribing", "diarizing", "aligning",
             "generating", "enriching", "writing"].indexOf(String(phase || "")) !== -1
@@ -49,7 +73,8 @@ QtObject {
 
     function _actionable(phase) {
         var value = String(phase || "")
-        return value === "staging" || value === "queued" || value === "error" || _processing(value)
+        return value === "staging" || value === "queued" || value === "error"
+            || _processing(value)
     }
 
     function _phaseRank(phase) {

@@ -8,33 +8,12 @@ ColumnLayout {
     required property var context
     required property var meeting
     property string detailsJobId: ""
-    readonly property int rowCount: queue.pageJobs.length
+    readonly property int rowCount: queue.failedJobs.length
     spacing: 10
-
-    function phaseLabel(job) {
-        if (!job)
-            return "Unknown"
-        if (job.phase === "error") return "Failed"
-        if (job.phase === "completed") return "Completed"
-        if (job.phase === "queued" || job.phase === "staging")
-            return job.phase === "staging" ? "Staging" : "Queued"
-        return job.label || job.phase
-    }
-
-    function phaseStatus(job) {
-        if (job.phase === "error") return "danger"
-        if (job.phase === "completed") return "success"
-        if (job.phase === "queued" || job.phase === "staging") return "muted"
-        return "info"
-    }
 
     function conciseError(value) {
         var firstLine = String(value || "Meeting processing failed").split("\n")[0].trim()
         return firstLine.length > 110 ? firstLine.slice(0, 107) + "..." : firstLine
-    }
-
-    function progressText(job) {
-        return job.total > 0 ? job.progress + "/" + job.total : ""
     }
 
     MeetingQueueModel {
@@ -45,46 +24,22 @@ ColumnLayout {
     Ui.ShellText {
         Layout.fillWidth: true
         theme: root.context.theme
-        text: queue.actionableCount > 0
-            ? "Operational queue · " + queue.actionableCount + " actionable"
-            : "Operational queue"
-        sizeRole: "caption"
-        role: "muted"
-    }
-
-    Ui.ShellText {
-        Layout.fillWidth: true
-        theme: root.context.theme
-        text: "Completed minutes remain in Obsidian."
-        sizeRole: "caption"
-        role: "muted"
-        wrapMode: Text.Wrap
-    }
-
-    Ui.ShellStateView {
-        visible: !root.meeting || root.meeting.jobsStateStatus === "corrupt"
-            || root.meeting.jobsStateStatus === "unsupported" || queue.rankedJobs.length === 0
-        Layout.fillWidth: true
-        Layout.preferredHeight: 130
-        theme: root.context.theme
-        mode: !root.meeting || root.meeting.jobsStateStatus === "corrupt"
-            || root.meeting.jobsStateStatus === "unsupported" ? "error" : "empty"
-        title: !root.meeting ? "Meeting workflow unavailable"
-            : root.meeting.jobsStateStatus === "corrupt" || root.meeting.jobsStateStatus === "unsupported"
-                ? "Meeting queue could not be read" : "No recent meetings"
-        message: queue.rankedJobs.length === 0
-            ? "Finish a recording as a meeting to add it here." : ""
+        text: queue.failedCount > queue.rowLimit
+            ? "Failed meeting jobs · showing " + queue.rowLimit + " of " + queue.failedCount
+            : "Failed meeting jobs"
+        sizeRole: "section"
+        role: "danger"
     }
 
     Repeater {
-        model: queue.pageJobs
+        model: queue.failedJobs
         Ui.ShellSurface {
             required property var modelData
             Layout.fillWidth: true
             implicitHeight: jobContent.implicitHeight + 16
             theme: root.context.theme
             kind: "raised"
-            danger: modelData.phase === "error"
+            danger: true
 
             ColumnLayout {
                 id: jobContent
@@ -106,31 +61,20 @@ ColumnLayout {
                         Ui.ShellText {
                             Layout.fillWidth: true
                             theme: root.context.theme
-                            text: modelData.phase === "error"
-                                ? root.conciseError(modelData.error)
-                                : modelData.label || root.phaseLabel(modelData)
+                            text: root.conciseError(modelData.error)
                             sizeRole: "caption"
-                            role: modelData.phase === "error" ? "danger" : "muted"
+                            role: "danger"
                             elide: Text.ElideRight
                         }
                     }
                     Ui.ShellStatus {
                         theme: root.context.theme
-                        status: root.phaseStatus(modelData)
-                        label: root.phaseLabel(modelData)
-                    }
-                    Ui.ShellText {
-                        visible: root.progressText(modelData) !== ""
-                        theme: root.context.theme
-                        text: root.progressText(modelData)
-                        sizeRole: "caption"
-                        monospace: true
-                        role: "secondary"
+                        status: "danger"
+                        label: "Failed"
                     }
                 }
 
                 RowLayout {
-                    visible: modelData.phase === "error" || modelData.phase === "completed"
                     Layout.fillWidth: true
                     Ui.ShellText {
                         Layout.fillWidth: true
@@ -140,7 +84,6 @@ ColumnLayout {
                         role: "muted"
                     }
                     Ui.ShellButton {
-                        visible: modelData.phase === "error"
                         theme: root.context.theme
                         label: root.detailsJobId === modelData.jobId ? "Hide details" : "Details"
                         iconName: "info"
@@ -149,7 +92,6 @@ ColumnLayout {
                         onClicked: root.detailsJobId = root.detailsJobId === modelData.jobId ? "" : modelData.jobId
                     }
                     Ui.ShellButton {
-                        visible: modelData.phase === "error"
                         theme: root.context.theme
                         label: "Retry"
                         iconName: "refresh"
@@ -158,20 +100,10 @@ ColumnLayout {
                         enabled: root.meeting && root.meeting.retryConfigured && !root.meeting.actionRunning
                         onClicked: root.meeting.retry(modelData.jobId)
                     }
-                    Ui.ShellButton {
-                        visible: modelData.phase === "completed"
-                        theme: root.context.theme
-                        label: "Open in Obsidian"
-                        iconName: "folder"
-                        compact: true
-                        busy: root.meeting && root.meeting.actionRunning
-                        enabled: modelData.notePath.startsWith("/")
-                        onClicked: root.meeting.openResult(modelData.jobId)
-                    }
                 }
 
                 Ui.ShellText {
-                    visible: modelData.phase === "error" && root.detailsJobId === modelData.jobId
+                    visible: root.detailsJobId === modelData.jobId
                     Layout.fillWidth: true
                     theme: root.context.theme
                     text: modelData.error || "No error details were recorded."
@@ -186,34 +118,4 @@ ColumnLayout {
         }
     }
 
-    RowLayout {
-        visible: queue.pageCount > 1
-        Layout.fillWidth: true
-        Ui.ShellButton {
-            theme: root.context.theme
-            label: "Previous"
-            iconName: "chevron-left"
-            compact: true
-            enabled: queue.hasPreviousPage
-            onClicked: queue.previousPage()
-        }
-        Ui.ShellText {
-            Layout.fillWidth: true
-            theme: root.context.theme
-            text: queue.olderActionableCount > 0
-                ? queue.olderActionableCount + " older actionable · page " + (queue.page + 1) + " of " + queue.pageCount
-                : "Page " + (queue.page + 1) + " of " + queue.pageCount
-            sizeRole: "caption"
-            role: "muted"
-            horizontalAlignment: Text.AlignHCenter
-        }
-        Ui.ShellButton {
-            theme: root.context.theme
-            label: "Next"
-            iconName: "chevron-right"
-            compact: true
-            enabled: queue.hasNextPage
-            onClicked: queue.nextPage()
-        }
-    }
 }

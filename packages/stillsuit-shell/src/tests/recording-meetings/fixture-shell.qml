@@ -136,17 +136,6 @@ ShellRoot {
         screen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
         outputId: fixture.outputId
     }
-    Meeting.MeetingPanel {
-        id: meetingPanel
-        context: context
-        screen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
-        outputId: fixture.outputId
-    }
-    Meeting.MeetingWidget {
-        id: meetingWidget
-        context: context
-        outputId: fixture.outputId
-    }
     Recording.RecordingWidget {
         id: recordingWidget
         context: context
@@ -157,7 +146,6 @@ ShellRoot {
         target: "stillsuit-recording-meetings-fixture"
         function ready(): string { return Quickshell.screens.length > 0 ? "ready" : "loading" }
         function openRecording(phase: string): string { recordingModel.phase = phase; recordingPanel.open(""); return recordingPanel.opened ? "open" : "closed" }
-        function openMeetings(): string { return meetingWidget.openMeetings() }
         function setReducedMotion(value: bool): string {
             settings.values = { reducedMotion: value }
             recordingModel.phase = "recording"
@@ -166,11 +154,8 @@ ShellRoot {
         function state(): string {
             return JSON.stringify({
                 recordingOpen: recordingPanel.opened,
-                selectedView: recordingPanel.selectedView,
                 recordingMeetingRows: recordingPanel.meetingQueueRowCount,
-                meetingOpen: meetingPanel.opened,
                 meetingRows: meetingModel.jobs.length,
-                meetingRoute: { pluginId: actions.lastOpenPlugin, payload: actions.lastOpenPayload },
                 pulses: {
                     widget: recordingWidget.pulseRunning,
                     panel: recordingPanel.pulseRunning,
