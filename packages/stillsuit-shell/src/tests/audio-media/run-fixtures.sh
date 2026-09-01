@@ -5,8 +5,13 @@ set -euo pipefail
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source_root=$(cd -- "$script_dir/../.." && pwd)
 fixture_root=$(mktemp -d)
+sway_pid=""
 
 cleanup() {
+    if [[ -n $sway_pid ]] && kill -0 "$sway_pid" 2>/dev/null; then
+        kill -TERM "$sway_pid"
+        wait "$sway_pid" || true
+    fi
     rm -rf -- "$fixture_root"
 }
 trap cleanup EXIT
@@ -17,13 +22,43 @@ export XDG_DATA_HOME="$fixture_root/data"
 export XDG_STATE_HOME="$fixture_root/state"
 export XDG_CACHE_HOME="$fixture_root/cache"
 export XDG_RUNTIME_DIR="$fixture_root/runtime"
-export QT_QPA_PLATFORM=offscreen
+export QT_QPA_PLATFORM=wayland
 export STILLSUIT_CONFIG_ID=stillsuit-audio-media-fixture
 unset DBUS_SESSION_BUS_ADDRESS
 
 mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" \
     "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
+
+sway_bin=$(command -v sway || true)
+if [[ -z $sway_bin ]]; then
+    sway_store=$(nix build --no-link --print-out-paths nixpkgs#sway)
+    sway_bin="$sway_store/bin/sway"
+fi
+printf '%s\n' 'output * resolution 1280x720' > "$fixture_root/sway.conf"
+DBUS_SESSION_BUS_ADDRESS="unix:path=$fixture_root/no-session-bus" \
+    WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_LIBINPUT_NO_DEVICES=1 \
+    WLR_RENDERER=pixman "$sway_bin" -c "$fixture_root/sway.conf" \
+    >"$fixture_root/sway.log" 2>&1 &
+sway_pid=$!
+
+wayland_socket=""
+for _ in {1..100}; do
+    for candidate in "$XDG_RUNTIME_DIR"/wayland-*; do
+        if [[ -S $candidate ]]; then
+            wayland_socket=$candidate
+            break
+        fi
+    done
+    [[ -n $wayland_socket ]] && break
+    sleep 0.02
+done
+if [[ -z $wayland_socket ]]; then
+    sed -n '1,260p' "$fixture_root/sway.log" >&2
+    printf 'Headless fixture compositor did not start\n' >&2
+    exit 1
+fi
+export WAYLAND_DISPLAY=${wayland_socket##*/}
 
 fixture_config="$XDG_CONFIG_HOME/quickshell/$STILLSUIT_CONFIG_ID"
 mkdir -p "$(dirname -- "$fixture_config")"

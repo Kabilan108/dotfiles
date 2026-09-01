@@ -8,13 +8,16 @@ Scope {
 
     required property var context
     required property var service
+    required property var screen
     required property string outputId
     readonly property var media: service ? service.media : null
+    readonly property var panelWindow: window
     property bool opened: false
 
     PanelWindow {
         id: window
 
+        screen: root.screen
         visible: root.opened
         implicitWidth: root.context.theme.metrics.panelWidth
         implicitHeight: 680

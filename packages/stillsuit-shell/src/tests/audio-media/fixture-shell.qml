@@ -6,7 +6,115 @@ ShellRoot {
     id: root
 
     property int checks: 0
-    property var fakeContext: QtObject {}
+    property var fixtureTheme: ({
+        semantic: {
+            surface: {
+                panel: "#101010",
+                pressed: "#202020"
+            },
+            content: {
+                primary: "#f0f0f0",
+                secondary: "#d0d0d0",
+                muted: "#a0a0a0",
+                disabled: "#707070"
+            },
+            outline: {
+                subtle: "#303030",
+                default: "#404040",
+                focus: "#5050ff"
+            },
+            accent: {
+                primary: "#6060ff",
+                onAccent: "#080808"
+            },
+            status: {
+                info: "#50a0ff",
+                success: "#50d080",
+                warning: "#e0c050",
+                danger: "#f05060"
+            },
+            signal: {
+                audio: "#50d080",
+                microphone: "#f05060",
+                brightness: "#e0c050"
+            }
+        },
+        component: {
+            bar: {
+                background: "#101010",
+                border: "#303030",
+                clusterHover: "#202020",
+                clusterActive: "#252545",
+                clusterText: "#d0d0d0",
+                clusterActiveText: "#f0f0f0"
+            },
+            panel: {
+                background: "#101010",
+                border: "#404040",
+                section: "#202020",
+                rowHover: "#252525",
+                rowSelected: "#252545",
+                rowDanger: "#402028"
+            },
+            control: {
+                background: "#202020",
+                hover: "#303030",
+                pressed: "#404040",
+                active: "#6060ff",
+                disabled: "#181818",
+                outline: "#404040",
+                focus: "#5050ff",
+                text: "#f0f0f0",
+                textDisabled: "#707070",
+                onActive: "#080808"
+            },
+            notification: {
+                background: "#101010",
+                border: "#404040"
+            },
+            osd: {
+                border: "#404040",
+                track: "#404040",
+                fill: "#6060ff",
+                text: "#f0f0f0"
+            }
+        },
+        typography: {
+            bodyFamily: "sans-serif",
+            monoFamily: "monospace",
+            iconFamily: "Material Symbols Rounded",
+            baseSize: 13,
+            captionSize: 11,
+            headingSize: 17,
+            weightRegular: 400,
+            weightMedium: 500,
+            weightBold: 700
+        },
+        metrics: {
+            spaceUnit: 4,
+            radiusSmall: 5,
+            radiusMedium: 7,
+            radiusLarge: 11,
+            barHeight: 26,
+            iconSmall: 15,
+            iconMedium: 18,
+            iconLarge: 24,
+            panelWidth: 380,
+            panelPadding: 16,
+            rowHeight: 38
+        },
+        motion: {
+            fast: 66,
+            normal: 99,
+            slow: 143
+        },
+        effects: {
+            surfaceOpacity: 0.8
+        }
+    })
+    property var fakeContext: QtObject {
+        property var theme: root.fixtureTheme
+    }
     property real lastOutputVolume: -1
     property real lastInputVolume: -1
     property string selectedOutput: ""
@@ -203,7 +311,8 @@ ShellRoot {
 
     Component.onCompleted: {
         viewComponents = [
-            Qt.createComponent("plugins/builtin/audio/Widget.qml")
+            Qt.createComponent("plugins/builtin/audio/Widget.qml"),
+            Qt.createComponent("plugins/builtin/audio/Panel.qml")
         ]
     }
 
@@ -236,6 +345,28 @@ ShellRoot {
     function runContracts() {
         _assert(viewComponents[0].status === Component.Ready,
             "bar widget compiles: " + viewComponents[0].errorString())
+        _assert(viewComponents[1].status === Component.Ready,
+            "audio panel compiles: " + viewComponents[1].errorString())
+        _assert(Quickshell.screens.length > 0, "fixture screen available")
+        var outputScreen = Quickshell.screens[0]
+        var outputId = String(outputScreen.name || "fixture-output")
+        var panel = viewComponents[1].createObject(root, {
+            context: fakeContext,
+            service: audio,
+            screen: outputScreen,
+            outputId: outputId
+        })
+        _assert(panel !== null,
+            "audio panel accepts host construction properties: "
+                + viewComponents[1].errorString())
+        _assert(panel.context === fakeContext && panel.service === audio
+            && panel.screen === outputScreen && panel.outputId === outputId,
+            "audio panel retains host construction properties")
+        _assert(panel.panelWindow !== null,
+            "audio panel exposes one panel window")
+        _assert(panel.panelWindow.screen === outputScreen,
+            "panel window binds the injected screen")
+        panel.destroy()
         _assert(audio.apiVersion === "1", "audio API version")
         _assert(audio.volume === 1, "read volume clamp")
         _assert(audio.inputVolume === 0.3, "microphone level")
