@@ -1,54 +1,26 @@
 import QtQuick
-import QtQuick.Layouts
+import "../../../ui" as Ui
 
-Rectangle {
+Ui.ShellBarCluster {
     id: root
 
     required property var context
     required property var service
     required property string outputId
-    readonly property var metrics: service
 
-    implicitWidth: row.implicitWidth + 14
-    implicitHeight: context.theme.geometry.barHeight
-    radius: context.theme.geometry.radius
-    color: pointer.containsMouse ? context.theme.controls.hover.fill : "transparent"
+    theme: context.theme
+    iconName: "cpu"
+    label: _percent(service ? service.cpuPercent : null)
+        + "  " + _percent(service ? service.memoryPercent : null)
+    accessibleName: "CPU " + _percent(service ? service.cpuPercent : null)
+        + ", memory " + _percent(service ? service.memoryPercent : null)
+    active: context.panels && context.panels.isOpen("stillsuit.resources")
+    enabled: service !== null
+    onClicked: context.actions.surfaceToggle("stillsuit.resources", "")
 
-    RowLayout {
-        id: row
-        anchors.centerIn: parent
-        spacing: 7
-
-        Text {
-            text: "MEM " + root.percent(root.metrics ? root.metrics.memoryPercent : null)
-            color: root.context.theme.colors.text.secondary
-            font.family: root.context.theme.typography.monospaceFamily
-            font.pixelSize: root.context.theme.typography.baseSize * 0.86
-        }
-        Text {
-            text: "CPU " + root.percent(root.metrics ? root.metrics.cpuPercent : null)
-            color: root.context.theme.colors.text.secondary
-            font.family: root.context.theme.typography.monospaceFamily
-            font.pixelSize: root.context.theme.typography.baseSize * 0.86
-        }
-    }
-
-    MouseArea {
-        id: pointer
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.togglePanel()
-    }
-
-    function percent(value) {
+    function _percent(value) {
         if (value === undefined || value === null || value === "")
             return "--"
-        var text = String(value)
-        return text.indexOf("%") === -1 ? text + "%" : text
-    }
-
-    function togglePanel() {
-        return context.actions.surfaceToggle("stillsuit.resources", "")
+        return Math.round(Number(value)) + "%"
     }
 }

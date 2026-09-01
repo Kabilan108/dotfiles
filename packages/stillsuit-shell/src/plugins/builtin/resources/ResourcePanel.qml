@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import "../../../ui" as Ui
 
 Scope {
     id: root
@@ -9,58 +10,141 @@ Scope {
     required property var screen
     required property string outputId
     required property var service
-    readonly property var metrics: service
     property bool opened: false
 
-    function open(payloadJson) { opened = true }
-    function close() { opened = false }
+    function open(payloadJson) {
+        opened = true
+    }
+
+    function close() {
+        opened = false
+    }
 
     PanelWindow {
         screen: root.screen
         visible: root.opened
-        anchors { top: true; left: true; right: true; bottom: true }
+        anchors {
+            top: true
+            left: true
+            right: true
+            bottom: true
+        }
         exclusiveZone: 0
         focusable: true
         color: "transparent"
 
-        MouseArea { anchors.fill: parent; onClicked: root.context.actions.surfaceClose("stillsuit.resources") }
+        MouseArea {
+            anchors.fill: parent
+            onClicked: root.context.actions.surfaceClose("stillsuit.resources")
+        }
 
-        Rectangle {
-            anchors { top: parent.top; right: parent.right; topMargin: root.context.theme.geometry.barHeight + root.context.theme.geometry.panelGap; rightMargin: root.context.theme.geometry.panelGap }
-            width: 300
-            height: content.implicitHeight + 28
-            radius: root.context.theme.geometry.radius
-            color: root.context.theme.colors.surface.panel
-            border.width: 1
-            border.color: root.context.theme.colors.border.normal
+        Ui.ShellSurface {
+            anchors {
+                top: parent.top
+                right: parent.right
+                topMargin: root.context.theme.metrics.barHeight
+                    + root.context.theme.metrics.spaceUnit * 2
+                rightMargin: root.context.theme.metrics.spaceUnit * 2
+            }
+            width: root.context.theme.metrics.panelWidth
+            height: content.implicitHeight
+                + root.context.theme.metrics.panelPadding * 2
+            theme: root.context.theme
 
-            MouseArea { anchors.fill: parent; onClicked: mouse => mouse.accepted = true }
+            MouseArea {
+                anchors.fill: parent
+                onClicked: function(mouse) {
+                    mouse.accepted = true
+                }
+            }
+
             ColumnLayout {
                 id: content
-                anchors { fill: parent; margins: 14 }
-                spacing: 10
-                Text { text: "System resources"; color: root.context.theme.colors.text.primary; font.family: root.context.theme.typography.family; font.pixelSize: root.context.theme.typography.baseSize * 1.15; font.weight: root.context.theme.typography.weightBold }
-                Repeater {
-                    model: [
-                        { label: "CPU", value: root.percent(root.metrics ? root.metrics.cpuPercent : null) },
-                        { label: "Memory", value: root.percent(root.metrics ? root.metrics.memoryPercent : null) }
-                    ]
-                    RowLayout {
-                        required property var modelData
+
+                anchors {
+                    fill: parent
+                    margins: root.context.theme.metrics.panelPadding
+                }
+                spacing: root.context.theme.metrics.spaceUnit * 2
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: root.context.theme.metrics.spaceUnit * 2
+
+                    Ui.ShellIcon {
+                        theme: root.context.theme
+                        name: "cpu"
+                        sizeRole: "large"
+                        role: "accent"
+                    }
+
+                    Ui.ShellText {
                         Layout.fillWidth: true
-                        Text { text: modelData.label; color: root.context.theme.colors.text.secondary; font.family: root.context.theme.typography.family; font.pixelSize: root.context.theme.typography.baseSize }
-                        Item { Layout.fillWidth: true }
-                        Text { text: modelData.value; color: root.context.theme.colors.text.primary; font.family: root.context.theme.typography.monospaceFamily; font.pixelSize: root.context.theme.typography.baseSize }
+                        theme: root.context.theme
+                        text: "System resources"
+                        sizeRole: "heading"
                     }
                 }
-                Text { visible: !root.metrics; text: "Shared metrics service is not loaded."; color: root.context.theme.colors.text.tertiary; font.family: root.context.theme.typography.family; font.pixelSize: root.context.theme.typography.baseSize * 0.85 }
+
+                Ui.ShellSectionLabel {
+                    Layout.fillWidth: true
+                    theme: root.context.theme
+                    text: "Current usage"
+                }
+
+                Ui.ShellSurface {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: metricsRows.implicitHeight + 8
+                    theme: root.context.theme
+                    kind: "raised"
+
+                    ColumnLayout {
+                        id: metricsRows
+
+                        anchors {
+                            fill: parent
+                            margins: 4
+                        }
+                        spacing: 0
+
+                        Ui.ShellRow {
+                            Layout.fillWidth: true
+                            theme: root.context.theme
+                            interactive: false
+                            iconName: "cpu"
+                            label: "CPU"
+                            description: "Aggregate utilization"
+                            trailingText: root._percent(
+                                root.service ? root.service.cpuPercent : null)
+                        }
+
+                        Ui.ShellRow {
+                            Layout.fillWidth: true
+                            theme: root.context.theme
+                            interactive: false
+                            iconName: "memory"
+                            label: "Memory"
+                            description: "Used physical memory"
+                            trailingText: root._percent(
+                                root.service ? root.service.memoryPercent : null)
+                        }
+                    }
+                }
+
+                Ui.ShellText {
+                    Layout.fillWidth: true
+                    theme: root.context.theme
+                    text: "Updated every 3 seconds"
+                    sizeRole: "caption"
+                    role: "muted"
+                }
             }
         }
     }
 
-    function percent(value) {
-        if (value === undefined || value === null || value === "") return "--"
-        var text = String(value)
-        return text.indexOf("%") === -1 ? text + "%" : text
+    function _percent(value) {
+        if (value === undefined || value === null || value === "")
+            return "--"
+        return Math.round(Number(value)) + "%"
     }
 }
