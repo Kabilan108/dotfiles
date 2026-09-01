@@ -1172,6 +1172,44 @@ Review notes:
 - No rebuild, activation, service restart, production-shell reload, Niri
   mutation, legacy cleanup, or soak was performed.
 
+## Panel implementation: notifications
+
+Status: reviewed and merged from isolated lane commits
+`735b11445ac4282c270e660e046958c3cd0f9c80` and
+`3a6a2ea4e4821f0d6869a1e26b348ff88be84abd`.
+
+Built:
+
+- Added the bounded `9+` unread badge and read-on-open snapshot behavior, so
+  notifications present when the center opens become read while later arrivals
+  remain unread.
+- DND immediately retracts visible banners. Toast dismiss archives, center-row
+  removal deletes history, and expired actions become an `Actions expired` note.
+- History and persistent popups are both bounded to 24 hours and 100 total
+  records. Retention cleanup releases live notification references before
+  dismissing the sender object.
+- Migrated the notification center, cards, toasts, and bar widget to theme v2
+  and the shared UI contracts.
+
+Verification:
+
+- The orchestrator reviewed the full notification model, policy, service,
+  views, tests, and the follow-up retention correction before merge.
+- `packages/stillsuit-shell/src/tests/notifications/run-fixtures.sh`, exit 0.
+- `packages/stillsuit-shell/src/tests/notifications/run-view-fixture.sh`, exit 0.
+- `packages/stillsuit-shell/src/tests/notifications/run-shadow-fixture.sh`, exit 0.
+- `git diff --check 735b11445ac4282c270e660e046958c3cd0f9c80..3a6a2ea4e4821f0d6869a1e26b348ff88be84abd`, exit 0.
+
+Review notes:
+
+- The first reviewed implementation applied the 24-hour bound only to archived
+  history, allowing deadline-zero popups to survive indefinitely. A fresh
+  blank-context correction added restart and runtime popup pruning plus live-ref
+  cleanup tests before the lane was accepted.
+- No live notification was sent outside the fixture's private D-Bus. No rebuild,
+  activation, service restart, production-shell reload, soak, or legacy cleanup
+  was performed.
+
 ## Panel implementation: theme-v2 host integration
 
 Status: integrated by the orchestrator in commit
