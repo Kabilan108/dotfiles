@@ -1172,6 +1172,46 @@ Review notes:
 - No rebuild, activation, service restart, production-shell reload, Niri
   mutation, legacy cleanup, or soak was performed.
 
+## Panel implementation: connectivity
+
+Status: reviewed and merged from isolated lane commits
+`5738b9a603cd0bf3bc2ec89fbc76ad2382ef58c9` and
+`9e83ffcd63412f5ac9937e91d0df1431ba1e005e`.
+
+Built:
+
+- Added a fixed, stdin-driven NetworkManager helper for open, saved, and
+  personal secured Wi-Fi. Enterprise and hidden networks hand off to the
+  NetworkManager editor.
+- MobergAnalytics is the only writable VPN row. Other VPNs appear read-only
+  only while active, and Tailscale exposes metadata only.
+- Added explicit Bluetooth connected, paired, available, transition, failure,
+  battery, and Forget states. A connected Bluetooth audio device is selected
+  as the default PipeWire sink after BlueZ reports success.
+- Migrated both panels and bar widgets to theme v2 and the shared UI controls.
+
+Verification:
+
+- The orchestrator reviewed the complete helper, Nix wrapper, services, panel
+  and widget sources, tests, and the follow-up correction before merge.
+- `packages/stillsuit-shell/src/tests/connectivity/run.sh`, exit 0.
+- `uvx ruff check` on the helper and helper test, exit 0.
+- Both corrected panel files parsed through `qmlformat`, exit 0.
+- `git diff 5738b9a603cd0bf3bc2ec89fbc76ad2382ef58c9..9e83ffcd63412f5ac9937e91d0df1431ba1e005e --check`, exit 0.
+
+Review notes:
+
+- The first implementation omitted the required per-output `screen` property
+  and binding from both real panels. It also treated a NetworkManager profile
+  name as the Wi-Fi SSID, which could misclassify renamed saved profiles. A
+  blank-context correction bound both panels and keyed saved profiles by their
+  actual `802-11-wireless.ssid`, retaining the UUID and profile name.
+- Credentials remain absent from argv and observable service summaries. The
+  focused tests used fake owners and commands; no live network, VPN, Bluetooth,
+  or audio state changed.
+- No rebuild, activation, service restart, production-shell reload, soak, or
+  legacy cleanup was performed.
+
 ## Panel implementation: notifications
 
 Status: reviewed and merged from isolated lane commits
