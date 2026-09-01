@@ -1358,6 +1358,56 @@ Verification:
 No rebuild, activation, service restart, production-shell reload, compositor
 mutation, soak, or legacy cleanup was performed.
 
+## Panel implementation: shared integration
+
+Status: integrated by the orchestrator in commit
+`92d25e973fb185fcabf5c9d3a35de6c23fe55bab` after all accepted panel lanes.
+
+Built:
+
+- Added the production shared-UI directory descriptor and repaired D1, D3,
+  and D4 to preserve the real plugin directory layout and consume theme v2.
+- Added the fixed NetworkManager helper, PulseAudio client, and UPower closures;
+  injected the network and meeting helper paths plus the durable meeting jobs
+  path into their owning plugin contexts.
+- Imported and enabled the independent battery-alert timer in source. The three
+  legacy startup owners remain untouched; their removal is staged in
+  `docs/plans/stillsuit-battery-watcher-legacy.patch` and requires
+  `git apply --unidiff-zero` after separate human approval.
+- Made Stillsuit's user service explicitly write stdout and stderr to the
+  persistent journal under `stillsuit-shell`. The host journal already retains
+  records for 14 days.
+- Corrected `ShellSlider` to retain owner bindings after interaction and kept
+  the meeting work-queue bar action available while a job is processing.
+
+Verification:
+
+- The 17-run fixture ladder passed: shared UI, Lane B, schema/theme, D1 through
+  D5, bar v2, audio/media, all three notification fixtures, connectivity,
+  power/resources, recording/meetings, and agent-panel contracts.
+- The shared UI fixture now passes 52 checks, including an owner-state update
+  after slider interaction; D4 invokes the real guarded meeting action while
+  processing.
+- Scoped `nixfmt --check`, ShellCheck, Ruff, Bash parsing, and `qmlformat`
+  parsing of every non-intentionally-broken QML file exited 0.
+- Both staged Niri patches applied to a disposable copy and `niri validate`
+  exited 0. The legacy-removal patch also passes `git apply --unidiff-zero
+  --check` against the current source.
+- Production evaluation exposed the intended fixed store paths, timer jitter,
+  and journal fields. `nix flake check --no-build`, Jacurutu toplevel `drvPath`
+  evaluation, and the package-only `nix build --no-link` exited 0. The built
+  package contains the production `ui/qmldir` and network helper closure.
+
+Review notes:
+
+- A whole-repository formatting probe still reports three pre-existing,
+  unrelated Nix files, and full Ruff reports four pre-existing findings in the
+  older meeting-minutes rendering code. All changed or lane-owned Nix, shell,
+  Python, JavaScript, QML, and patch sources pass their scoped checks.
+- No rebuild, activation, service restart, production-shell reload, live
+  network/audio/power/notification action, compositor mutation, legacy cleanup,
+  or soak was performed.
+
 ## Panel implementation: theme-v2 host integration
 
 Status: integrated by the orchestrator in commit
