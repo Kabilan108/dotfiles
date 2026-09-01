@@ -1080,3 +1080,46 @@ The capability URL remains in the protected local receipt and was not committed.
 
 No panel implementation, Nix rebuild, activation, service restart, production
 shell reload, or live desktop mutation was performed.
+
+## Panel design review completion
+
+The human locked the final recording-history choices: the Recent meetings
+work queue shows at most five rows per page; its overflow count opens capped
+pages of older actionable jobs; and the recording completion view closes after
+five seconds. The completion view also exposes a Copy path action for the
+resolved recording path. The short close timer pauses while the pointer or
+keyboard focus is inside the completion view so the path and actions remain
+usable.
+
+These choices complete the panel design review. The interactive worksheet now
+contains zero decision pickers and presents the complete locked contracts for
+audio/media, notifications, network/Bluetooth, power/resources, the agent
+surface, and recording/meeting workflows. The recording contract preserves
+manual retry with the same job identity and incremented attempt, prioritizes
+queued, processing, and failed jobs over completed jobs, and treats Obsidian as
+the long-term meeting record.
+
+The worksheet now includes an approval-ready implementation outline with eight
+bounded lanes: shared controls; audio/media; notifications; network/Bluetooth;
+power/resources; agent; recording/meeting; and integration. Each lane states
+its work and acceptance boundary. The proposed sequence freezes shared
+contracts first, implements and reviews isolated panel lanes, performs full
+integration and independent review, and then stops at the deployment gate.
+The generated approval prompt authorizes source changes and tests only; it does
+not authorize a rebuild, activation, restart, shell reload, live cutover,
+legacy cleanup, or soak.
+
+The worksheet's Copy path, Copy approval prompt, and Select text interactions
+were exercised successfully. Desktop and 498 px layouts had no page-level
+horizontal overflow; the responsive grids collapsed to one column at the
+narrow width. `html-validate`, standalone JavaScript parsing, and
+`git diff --check` exited 0.
+
+PageBin artifact `F19cQq1Q-H_n6T8u9dEbiw` is revision 3 in the same `standard`
+sandbox. `pagebin verify` reported identical local and remote SHA-256
+`08e97823d41d849c29537e7d583386176c3f0d9fe7ba8e0022305a0e62518661`.
+The stable viewer URL is unchanged, and the capability URL remains in the
+protected local receipt rather than the repository.
+
+No panel implementation, Nix rebuild, activation, service restart, production
+shell reload, live cutover, cleanup, or soak was performed.

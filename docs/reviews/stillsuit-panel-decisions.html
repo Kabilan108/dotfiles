@@ -74,6 +74,16 @@
     .job-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; background: var(--raised); }
     .job-row small { display: block; color: var(--muted); }
     .job-action { color: var(--accent); font-size: 12px; }
+    .completion { display: grid; gap: 12px; border: 1px solid var(--accent); border-radius: 11px; padding: 14px; background: var(--panel); }
+    .completion-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .path-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--bg); }
+    .path-row code { overflow: hidden; color: var(--secondary); text-overflow: ellipsis; white-space: nowrap; }
+    .phase-list { display: grid; gap: 9px; }
+    .phase-card { margin-top: 14px; }
+    .phase { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; border-left: 3px solid var(--line); padding-left: 12px; }
+    .phase strong { color: var(--text); }
+    .phase p { color: var(--secondary); }
+    .approval { border-color: var(--warning); }
     fieldset { min-width: 0; margin: 0; border: 0; padding: 0; }
     fieldset + fieldset { border-top: 1px solid var(--line); padding-top: 17px; }
     legend { width: 100%; margin-bottom: 8px; }
@@ -96,12 +106,14 @@
     .button { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; background: var(--raised); cursor: pointer; }
     .button:hover, .button:focus-visible { border-color: var(--accent); outline: none; }
     .button.primary { border-color: var(--accent); color: var(--accent-ink); background: var(--accent); }
+    .button:disabled { cursor: default; opacity: .72; }
     #copyStatus { align-self: center; min-height: 1.5em; color: var(--success); }
     footer { margin-top: 38px; color: var(--muted); }
     @media (max-width: 820px) {
       main { padding: 24px 14px 72px; }
       .grid, .model, .choices, .choices.two { grid-template-columns: 1fr; }
       .flow { grid-template-columns: 1fr; }
+      .path-row, .phase { grid-template-columns: 1fr; }
       .flow-step { min-height: auto; }
       .flow-step:not(:last-child)::after { content: "↓"; right: 50%; top: auto; bottom: -12px; }
       .section-head { align-items: flex-start; flex-direction: column; }
@@ -117,13 +129,13 @@
 <body>
 <main>
   <header>
-    <p class="eyebrow">Stillsuit · panel review · third pass</p>
-    <h1>Panel contracts are nearly settled</h1>
-    <p class="lead">Your selections are now part of the fixed design. The worksheet has three questions left, all in the recording history model. Nothing here authorizes implementation.</p>
-    <div class="status"><span class="pill good">15 choices locked</span><span class="pill open">3 choices remain</span><span class="pill">No implementation authorized</span><span class="pill">No activation</span></div>
+    <p class="eyebrow">Stillsuit · panel review · final</p>
+    <h1>Panel design review complete</h1>
+    <p class="lead">Every panel behavior and recording-history choice is settled. This page is now the design contract and the proposed implementation boundary. Source work still requires explicit approval.</p>
+    <div class="status"><span class="pill good">18 choices locked</span><span class="pill good">0 questions remain</span><span class="pill open">Awaiting implementation approval</span><span class="pill">No activation</span></div>
   </header>
 
-  <nav aria-label="On this page"><a href="#locked">Locked contracts</a><a href="#clarifications">Plain-language notes</a><a href="#recording-history">Recording history</a><a href="#prompt">Copy prompt</a></nav>
+  <nav aria-label="On this page"><a href="#locked">Locked contracts</a><a href="#clarifications">Behavior notes</a><a href="#recording-history">Recording model</a><a href="#implementation">Implementation outline</a><a href="#approval">Approval boundary</a></nav>
 
   <section id="locked">
     <div class="section-head"><h2>Locked panel contracts</h2><p class="muted">These will not return as design questions.</p></div>
@@ -135,7 +147,7 @@
         <tr><td>Network + Bluetooth</td><td>Native open, saved, and personal secured Wi-Fi. NetworkManager editor handles enterprise and hidden networks. MobergAnalytics gets a toggle. Other active VPNs are read-only. Tailscale is metadata-only.</td><td>Bluetooth audio becomes the default output on connect. Pairing auto-trusts; Forget removes the bond.</td></tr>
         <tr><td>Power + resources</td><td>CPU and memory only. Practical battery detail includes health, cycles, live draw, and charge thresholds. Profiles reconcile with daemon truth.</td><td>Bar access only. An independent user service owns deduplicated battery alerts.</td></tr>
         <tr><td>Agent</td><td><span class="mono">Mod+`</span> opens a 60% × 60% Ghostty window backed by the persistent tmux session.</td><td>No bar item or secondary click actions. Warm reopen waits for a future approved deployment.</td></tr>
-        <tr><td>Recording + meeting</td><td>Old-indicator visual intent, compact active transport, capture setup, finish as meeting, cancel, progress, durable results, and manual retry.</td><td>Recent meetings live inside the recording panel. Completion auto-closes after a short delay.</td></tr>
+        <tr><td>Recording + meeting</td><td>Old-indicator visual intent, compact active transport, capture setup, finish as meeting, cancel, progress, durable results, and manual retry.</td><td>Five recent rows per page. Browseable capped overflow. Completion closes after five seconds and exposes Copy path.</td></tr>
       </tbody>
     </table></div>
   </section>
@@ -151,7 +163,7 @@
   </section>
 
   <section id="recording-history">
-    <div class="section-head"><h2>Recording and meeting history</h2><p class="muted">Operational recovery in Stillsuit. Long-term access in Obsidian.</p></div>
+    <div class="section-head"><h2>Final recording and meeting model</h2><p class="muted">Operational recovery in Stillsuit. Long-term access in Obsidian.</p></div>
     <div class="flow" role="group" aria-label="Meeting workflow">
       <div class="flow-step"><b>Capture</b><span>Choose output, title, desktop audio, and microphone.</span></div>
       <div class="flow-step"><b>Record</b><span>Compact timer with pause, finish as meeting, finish, and cancel.</span></div>
@@ -160,13 +172,12 @@
       <div class="flow-step"><b>Archive</b><span>Completed minutes open in Obsidian, the long-term record.</span></div>
     </div>
 
-    <form id="decisionForm">
-      <div class="card recording-card recording-card-wrap">
+    <div class="card recording-card recording-card-wrap">
         <div class="model">
           <div class="model-copy">
             <h3>The recent list is a work queue, not an archive</h3>
-            <p class="muted">The panel shows no more than the chosen row cap. Queued, processing, and failed meetings rank ahead of completed ones. Completed meetings fill any remaining slots, with the newest first.</p>
-            <p class="muted">If unfinished work exceeds the cap, the visible list shows the newest actionable rows and an overflow count. Older actionable rows move into the first page as shown jobs complete. Obsidian remains the durable destination for completed minutes.</p>
+            <p class="muted">Each page shows at most five meeting rows. Queued, processing, and failed meetings rank ahead of completed ones. Completed meetings fill any remaining slots, with the newest first.</p>
+            <p class="muted">If unfinished work exceeds five rows, the overflow count opens capped pages of older actionable jobs. Older work also moves into the first page as shown jobs complete. Obsidian remains the durable destination for completed minutes.</p>
             <p class="muted">Retry is always manual. A click disables the button while dispatch is pending, increments the attempt on the same job, and moves that row back to queued. The shell never retries a failed meeting on its own.</p>
           </div>
           <div class="example-list" role="group" aria-label="Example recent meeting rows">
@@ -178,117 +189,94 @@
         </div>
         <div class="states" role="group" aria-label="Meeting job states"><span class="pill">Queued</span><span class="pill open">Processing</span><span class="pill failed">Failed</span><span class="pill good">Completed</span></div>
 
-        <fieldset data-key="recent_cap" data-label="Recent meeting row cap">
-          <legend>Maximum visible meeting rows</legend>
-          <p class="picker-help">The overflow control is not a meeting row, so it can remain visible without consuming one of these slots.</p>
-          <div class="choices">
-            <label class="choice"><input type="radio" name="recent_cap" value="Show at most 5 meeting rows in the recent list."><span class="choice-body"><span class="choice-dot"></span><span class="choice-copy"><strong>5 rows</strong><small>The shortest panel, with more frequent overflow.</small></span></span></label>
-            <label class="choice"><input type="radio" name="recent_cap" value="Show at most 8 meeting rows in the recent list." checked><span class="choice-body"><span class="choice-dot"></span><span class="choice-copy"><strong>8 rows <span class="recommended">Recommended</span></strong><small>Enough operational history without turning the panel into a job dashboard.</small></span></span></label>
-            <label class="choice"><input type="radio" name="recent_cap" value="Show at most 10 meeting rows in the recent list."><span class="choice-body"><span class="choice-dot"></span><span class="choice-copy"><strong>10 rows</strong><small>More context, with a taller panel on the laptop display.</small></span></span></label>
-          </div>
-        </fieldset>
-
-        <fieldset data-key="meeting_overflow" data-label="Meeting overflow access">
-          <legend>When actionable meetings exceed the cap</legend>
-          <p class="picker-help">Both options keep the visible meeting-row count fixed and let older jobs roll forward as shown jobs complete.</p>
-          <div class="choices two">
-            <label class="choice"><input type="radio" name="meeting_overflow" value="Make the overflow count open capped pages of older actionable jobs; each page never exceeds the selected row cap." checked><span class="choice-body"><span class="choice-dot"></span><span class="choice-copy"><strong>Browse capped pages <span class="recommended">Recommended</span></strong><small>No failure is hidden until another job happens to complete.</small></span></span></label>
-            <label class="choice"><input type="radio" name="meeting_overflow" value="Show an informational overflow count only; older actionable jobs enter the visible list as newer jobs complete."><span class="choice-body"><span class="choice-dot"></span><span class="choice-copy"><strong>Roll forward only</strong><small>Simpler UI, but an older failure cannot be inspected immediately.</small></span></span></label>
-          </div>
-        </fieldset>
-
-        <fieldset data-key="completion_delay" data-label="Recording completion auto-close delay">
-          <legend>Completion auto-close delay</legend>
-          <p class="picker-help">Open recording, Open folder, Rename, and Dismiss remain available during this interval. Durable recent history remains afterward.</p>
-          <div class="choices">
-            <label class="choice"><input type="radio" name="completion_delay" value="Auto-close the recording completion view after 5 seconds."><span class="choice-body"><span class="choice-dot"></span><span class="choice-copy"><strong>5 seconds</strong><small>Fastest cleanup, with little reading time.</small></span></span></label>
-            <label class="choice"><input type="radio" name="completion_delay" value="Auto-close the recording completion view after 8 seconds." checked><span class="choice-body"><span class="choice-dot"></span><span class="choice-copy"><strong>8 seconds <span class="recommended">Recommended</span></strong><small>Enough time to notice the result and choose an action.</small></span></span></label>
-            <label class="choice"><input type="radio" name="completion_delay" value="Auto-close the recording completion view after 12 seconds."><span class="choice-body"><span class="choice-dot"></span><span class="choice-copy"><strong>12 seconds</strong><small>More time for actions, with a longer-lived panel.</small></span></span></label>
-          </div>
-        </fieldset>
-
-        <label><span class="kicker">Anything still missing?</span><textarea class="panel-note" name="recording_note" placeholder="Add a final recording or meeting-history note."></textarea></label>
-      </div>
-
-      <section id="prompt">
-        <div class="section-head"><h2>Continue the review</h2><p class="muted">The prompt updates as you choose.</p></div>
-        <div class="card prompt-card">
-          <textarea id="promptOutput" readonly aria-label="Generated continuation prompt"></textarea>
-          <div class="actions"><button id="copyPrompt" class="button primary" type="submit">Copy prompt</button><button id="selectPrompt" class="button" type="button">Select text</button><button id="resetChoices" class="button" type="button">Reset recommendations</button><span id="copyStatus" role="status" aria-live="polite"></span></div>
-          <noscript><p class="muted">JavaScript is unavailable. The decisions remain readable; copy your selected labels manually.</p></noscript>
+        <div class="completion" role="group" aria-labelledby="completion-title">
+          <div class="completion-head"><div><h3 id="completion-title">Recording saved</h3><p class="muted">1 h 02 min · 1.8 GB</p></div><span class="pill open">5 s · paused while focused</span></div>
+          <div class="path-row"><code id="demoPath">/vault/userdata/media/recordings/example-recording.mkv</code><button id="copyPathDemo" class="button" type="button">Copy path</button></div>
+          <div class="actions"><button class="button primary" type="button" disabled>Open recording</button><button class="button" type="button" disabled>Open folder</button><button class="button" type="button" disabled>Rename</button><button class="button" type="button" disabled>Dismiss</button><span id="pathCopyStatus" role="status" aria-live="polite"></span></div>
+          <p class="muted">The path always reflects the current filename. Renaming updates it before the completion display closes. The five-second countdown pauses while pointer hover or keyboard focus is inside this display.</p>
         </div>
-      </section>
-    </form>
+    </div>
   </section>
 
-  <footer><p>This worksheet records product direction only. It does not authorize panel implementation, rebuilds, activation, service restarts, or shell reloads.</p></footer>
+  <section id="implementation">
+    <div class="section-head"><h2>Proposed implementation outline</h2><p class="muted">Source work and tests only. Deployment remains separate.</p></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Lane</th><th>Work</th><th>Acceptance boundary</th></tr></thead>
+      <tbody>
+        <tr><td>Shared controls</td><td>Freeze themed buttons, rows, toggles, sliders, status treatments, panel loading, and error presentation before panel rewrites.</td><td>All panels consume shared roles and components. No private palette or one-off interaction pattern.</td></tr>
+        <tr><td>Audio + media</td><td>Restore full MPRIS player behavior, output-device selection, microphone level and mute, and the 100% ceiling.</td><td>Multiple-player selection, output switching, media transport, seek, shuffle, repeat, and no per-app or overamplification path.</td></tr>
+        <tr><td>Notifications</td><td>Add unread state, retract visible banners under DND, separate archive from delete, prune at 24 hours and 100 items, and retire dead actions.</td><td>Restart-safe history, correct new-arrival behavior while open, multi-output routing, and no callable-looking expired button.</td></tr>
+        <tr><td>Network + Bluetooth</td><td>Build the native personal Wi-Fi path, NetworkManager editor fallback, VPN and Tailscale status, explicit Bluetooth groups, battery, Forget, and output switching.</td><td>Secrets never enter argv. Restricted-runtime closure is complete. Busy, wrong-password, transition, and failure states are tested.</td></tr>
+        <tr><td>Power + resources</td><td>Add practical battery details, reactive profiles, CPU and memory, plus an independent battery-alert user service.</td><td>External profile changes appear, failed writes restore daemon truth, and alert dedupe and hysteresis survive shell reloads.</td></tr>
+        <tr><td>Agent</td><td>Remove the bar item and secondary actions. Set 60% geometry. Keep <span class="mono">Mod+`</span>, persistent tmux, and the already-tested warm reopen source.</td><td>One window, one tmux session, stable focus and placement, no bar residue. Activation waits for its own gate.</td></tr>
+        <tr><td>Recording + meeting</td><td>Restore the custom indicator, setup and active controls, five-row paged history, manual retry, Obsidian access, five-second completion, and Copy path.</td><td>Durable jobs survive reload, retry cannot double-dispatch, failures remain inspectable, renamed paths update, and countdown pauses for interaction.</td></tr>
+        <tr><td>Integration</td><td>Run panel fixtures, schema and closure checks, Quickshell parsing, Niri validation when touched, and a final diff review. Prepare logging and a human rebuild handoff.</td><td>No activation. No service restart. No shell reload. The user receives exact rebuild and rollback instructions after source review.</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="card phase-list phase-card">
+      <div class="phase"><strong>Phase A</strong><p>Freeze shared controls and service contracts. Panel lanes do not start until these compile and their fixtures pass.</p></div>
+      <div class="phase"><strong>Phase B</strong><p>Implement isolated panel lanes with file ownership and lane-specific tests. Review every lane diff before integration.</p></div>
+      <div class="phase"><strong>Phase C</strong><p>Integrate the panels, run the full verification matrix, and complete a fresh independent review.</p></div>
+      <div class="phase"><strong>Phase D</strong><p>Stop at the deployment gate. A later human-run rebuild, visual check, logging period, and soak remain separate approvals.</p></div>
+    </div>
+  </section>
+
+  <section id="approval">
+    <div class="section-head"><h2>Approval boundary</h2><p class="muted">The design review is complete. Implementation has not started.</p></div>
+    <div class="card prompt-card approval">
+      <p><strong>Approving this outline would authorize source changes and verification only.</strong></p>
+      <p class="muted">It would not authorize a NixOS or Home Manager rebuild, activation, service restart, production-shell reload, live cutover, legacy cleanup, or the soak. Those remain explicit human gates.</p>
+      <textarea id="approvalPrompt" readonly aria-label="Implementation approval prompt">Approve the final Stillsuit panel implementation outline. Implement the locked contracts in isolated lanes, review every lane diff before integration, keep the evidence ledger current, and stop after source verification. Do not rebuild, activate, restart services, reload the production shell, begin the soak, or remove legacy material without a separate explicit approval.</textarea>
+      <div class="actions"><button id="copyApproval" class="button primary" type="button">Copy approval prompt</button><button id="selectApproval" class="button" type="button">Select text</button><span id="approvalCopyStatus" role="status" aria-live="polite"></span></div>
+    </div>
+  </section>
+
+  <footer><p>Final design record for <span class="mono">stillsuit-next</span>. The next action is explicit implementation approval or requested edits to this outline.</p></footer>
 </main>
 
 <script>
 (() => {
-  const form = document.querySelector("#decisionForm");
-  const output = document.querySelector("#promptOutput");
-  const status = document.querySelector("#copyStatus");
-  const state = { choices: {}, note: "" };
-  const locked = [
-    "Audio and media share one panel with full legacy-player parity, output-device switching, microphone level and mute, no input-device switching, no per-app streams, and a 100% volume ceiling.",
-    "Notifications use a bounded unread count. Opening the center marks existing rows read while new arrivals remain unread. DND hides visible banners. Toast dismiss archives, center removal deletes, expired actions become a note, and history is capped at 24 hours and 100 items.",
-    "Stillsuit owns everyday personal Wi-Fi credentials. NetworkManager's editor handles enterprise and hidden networks. MobergAnalytics gets a toggle, other active VPNs are read-only, Tailscale is metadata-only, and Bluetooth audio becomes the default output on connect.",
-    "Power shows practical battery detail plus CPU and memory. Profiles reconcile with daemon truth. An independent user service owns battery alerts, and the panel opens from the bar only.",
-    "The agent leaves the bar. Mod+` opens a 60% by 60% Ghostty window backed by persistent tmux. Warm reopen waits for a future approved deployment.",
-    "Recording uses the older custom indicator's visual intent, compact controls, capture setup, finish as meeting, durable progress and results, manual retry, and a Recent meetings section. Obsidian is the long-term record."
-  ];
-  const meetingModel = [
-    "The Recent meetings list is an operational work queue, not the long-term archive.",
-    "Queued, processing, and failed jobs rank ahead of completed jobs. Completed jobs fill remaining slots, newest first.",
-    "Retry is manual only. It reuses the same job identity, increments its attempt, disables duplicate dispatch, and returns the row to queued.",
-    "Failed rows show a concise error plus separate Details and Retry actions. The shell never retries automatically."
-  ];
-
-  function readState() {
-    state.choices = {};
-    document.querySelectorAll("fieldset[data-key]").forEach((field) => {
-      const selected = field.querySelector("input:checked");
-      if (selected) state.choices[field.dataset.label] = selected.value;
-    });
-    state.note = form.querySelector("textarea[name=recording_note]").value.trim();
-  }
-
-  function renderPrompt() {
-    readState();
-    const lines = [
-      "Continue the Stillsuit panel design review using the locked contracts and final recording-history selections below. Do not implement anything yet. Update the interactive decision worksheet. If no genuine UI questions remain, say that the panel design review is complete and prepare a concise implementation-spec outline for my approval.",
-      "",
-      "Locked contracts:"
-    ];
-    locked.forEach((item) => lines.push(`- ${item}`));
-    lines.push("", "Locked recording-history behavior:");
-    meetingModel.forEach((item) => lines.push(`- ${item}`));
-    lines.push("", "My final selections:");
-    Object.entries(state.choices).forEach(([label, value]) => lines.push(`- ${label}: ${value}`));
-    if (state.note) lines.push("", "Additional note:", `- ${state.note}`);
-    output.value = lines.join("\n");
-  }
-
-  async function copyPrompt() {
-    renderPrompt();
+  async function copyText(value, output, status, success) {
     try {
-      await navigator.clipboard.writeText(output.value);
-      status.textContent = "Prompt copied.";
+      await navigator.clipboard.writeText(value);
+      status.textContent = success;
     } catch (_) {
-      output.focus();
-      output.select();
+      let temporary = null;
+      if (output) {
+        output.focus();
+        output.select();
+      } else {
+        temporary = document.createElement("textarea");
+        temporary.value = value;
+        temporary.setAttribute("readonly", "");
+        temporary.style.position = "fixed";
+        temporary.style.opacity = "0";
+        document.body.appendChild(temporary);
+        temporary.select();
+      }
       const copied = document.execCommand("copy");
-      status.textContent = copied ? "Prompt copied." : "Text selected. Copy it with Ctrl+C.";
+      if (temporary) temporary.remove();
+      status.textContent = copied ? success : "Text selected. Copy it with Ctrl+C.";
     }
   }
 
-  form.addEventListener("change", renderPrompt);
-  form.addEventListener("input", renderPrompt);
-  form.addEventListener("submit", (event) => { event.preventDefault(); copyPrompt(); });
-  document.querySelector("#selectPrompt").addEventListener("click", () => { renderPrompt(); output.focus(); output.select(); status.textContent = "Prompt selected."; });
-  document.querySelector("#resetChoices").addEventListener("click", () => { form.reset(); status.textContent = "Recommendations restored."; renderPrompt(); });
-  renderPrompt();
+  const demoPath = document.querySelector("#demoPath");
+  const pathStatus = document.querySelector("#pathCopyStatus");
+  document.querySelector("#copyPathDemo").addEventListener("click", () => {
+    copyText(demoPath.textContent, null, pathStatus, "Path copied.");
+  });
+
+  const approval = document.querySelector("#approvalPrompt");
+  const approvalStatus = document.querySelector("#approvalCopyStatus");
+  document.querySelector("#copyApproval").addEventListener("click", () => {
+    copyText(approval.value, approval, approvalStatus, "Approval prompt copied.");
+  });
+  document.querySelector("#selectApproval").addEventListener("click", () => {
+    approval.focus();
+    approval.select();
+    approvalStatus.textContent = "Approval prompt selected.";
+  });
 })();
 </script>
 </body>
