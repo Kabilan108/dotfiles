@@ -31,12 +31,18 @@ Rectangle {
     property bool current: false
     property bool outline: false
     property bool bordered: false
-    property color foreground: _themeColor("colors", "text", "primary", "#cdd6f4")
-    property color accent: _themeColor("colors", "border", "focus", foreground)
-    property color fill: _controlColor("hover", "fill", "#313244")
-    property color currentFill: _controlColor("active", "fill", "#45475a")
+    property bool reducedMotion: false
+    property color foreground: _v2Color("semantic", "content", "primary",
+        _themeColor("colors", "text", "primary", "transparent"))
+    property color accent: _v2Color("component", "control", "focus",
+        _themeColor("colors", "border", "focus", foreground))
+    property color fill: _v2Color("component", "control", "hover",
+        _controlColor("hover", "fill", "transparent"))
+    property color currentFill: _v2Color("component", "control", "active",
+        _controlColor("active", "fill", "transparent"))
 
-    radius: _themeValue("geometry", "radius", 6)
+    radius: _v2Value("metrics", "radiusSmall",
+        _themeValue("geometry", "radius", 0))
     color: hasCursor
         ? fill
         : current
@@ -44,15 +50,35 @@ Rectangle {
             : "transparent"
     border.width: hasCursor || current || bordered ? 1 : 0
     border.color: hasCursor
-        ? _controlColor("hover", "border", "#585b70")
+        ? _v2Color("component", "control", "outline",
+            _controlColor("hover", "border", "transparent"))
         : current
-            ? _controlColor("active", "border", "#89b4fa")
-            : _themeColor("colors", "border", "subtle", "#313244")
+            ? accent
+            : _v2Color("semantic", "outline", "subtle",
+                _themeColor("colors", "border", "subtle", "transparent"))
 
     Behavior on color {
         ColorAnimation {
-            duration: root._themeValue("motion", "fast", 120)
+            duration: root.reducedMotion
+                ? 0
+                : root._themeValue("motion", "fast", 0)
+            easing.type: Easing.OutCubic
         }
+    }
+
+    function _v2Value(group, key, fallback) {
+        var theme = context ? context.theme : null
+        return theme && theme[group] && theme[group][key] !== undefined
+            ? theme[group][key]
+            : fallback
+    }
+
+    function _v2Color(group, subgroup, key, fallback) {
+        var theme = context ? context.theme : null
+        return theme && theme[group] && theme[group][subgroup]
+                && theme[group][subgroup][key] !== undefined
+            ? theme[group][subgroup][key]
+            : fallback
     }
 
     function _themeValue(group, key, fallback) {

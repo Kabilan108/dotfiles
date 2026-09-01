@@ -1,39 +1,72 @@
+// SPDX-License-Identifier: MIT
+
 import QtQuick
 import QtQuick.Layouts
 
-Rectangle {
+ShellAction {
     id: root
 
     required property var theme
     property string iconName: "settings"
     property string label: ""
     property bool active: false
+    property bool reducedMotion: false
+
+    readonly property int motionDuration: reducedMotion ? 0 : theme.motion.fast
 
     signal clicked()
 
-    implicitWidth: clusterRow.implicitWidth + 14
+    accessibleFallback: label !== "" ? label : iconName.replace(/-/g, " ")
+    implicitWidth: Math.max(24, clusterRow.implicitWidth + 14)
     implicitHeight: Math.max(22, theme.metrics.barHeight - 6)
-    radius: theme.metrics.radiusSmall
-    color: active
-        ? theme.component.bar.clusterActive
-        : pointer.containsMouse ? theme.component.bar.clusterHover : "transparent"
+    onActivated: clicked()
 
-    Behavior on color {
-        ColorAnimation {
-            duration: root.theme.motion.fast
+    Rectangle {
+        anchors.fill: parent
+        radius: root.theme.metrics.radiusSmall
+        color: root.active
+            ? root.theme.component.bar.clusterActive
+            : root.pressed
+                ? root.theme.semantic.surface.pressed
+                : root.hovered
+                    ? root.theme.component.bar.clusterHover
+                    : "transparent"
+        border.width: root.focusVisible ? 2 : 0
+        border.color: root.theme.component.control.focus
+        opacity: !root.enabled ? 0.74 : root.busy ? 0.82 : 1
+
+        Behavior on color {
+            ColorAnimation {
+                duration: root.motionDuration
+                easing.type: Easing.OutCubic
+            }
         }
     }
 
     RowLayout {
         id: clusterRow
+
         anchors.centerIn: parent
         spacing: 5
 
+        ShellBusyIndicator {
+            visible: root.busy
+            theme: root.theme
+            reducedMotion: root.reducedMotion
+            sizeRole: "small"
+            color: root.active
+                ? root.theme.component.bar.clusterActiveText
+                : root.theme.component.bar.clusterText
+        }
+
         ShellIcon {
+            visible: !root.busy
             theme: root.theme
             name: root.iconName
             sizeRole: "small"
-            color: root.active ? root.theme.component.bar.clusterActiveText : root.theme.component.bar.clusterText
+            color: root.active
+                ? root.theme.component.bar.clusterActiveText
+                : root.theme.component.bar.clusterText
         }
 
         ShellText {
@@ -42,15 +75,9 @@ Rectangle {
             text: root.label
             sizeRole: "caption"
             monospace: true
-            color: root.active ? root.theme.component.bar.clusterActiveText : root.theme.component.bar.clusterText
+            color: root.active
+                ? root.theme.component.bar.clusterActiveText
+                : root.theme.component.bar.clusterText
         }
-    }
-
-    MouseArea {
-        id: pointer
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.clicked()
     }
 }

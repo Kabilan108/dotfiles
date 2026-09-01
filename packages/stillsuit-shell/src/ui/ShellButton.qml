@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: MIT
+
 import QtQuick
 import QtQuick.Layouts
 
-Rectangle {
+ShellAction {
     id: root
 
     required property var theme
@@ -11,49 +13,78 @@ Rectangle {
     property bool destructive: false
     property bool compact: false
     property bool ghost: false
-    property bool keyboardFocused: false
+    property bool reducedMotion: false
+
+    readonly property int motionDuration: reducedMotion ? 0 : theme.motion.fast
 
     signal clicked()
 
-    implicitWidth: contentRow.implicitWidth + (compact ? 18 : 24)
+    accessibleFallback: label !== ""
+        ? label
+        : iconName !== ""
+            ? iconName.replace(/-/g, " ")
+            : "button"
+    implicitWidth: Math.max(compact ? 30 : 36,
+        contentRow.implicitWidth + (compact ? 18 : 24))
     implicitHeight: compact ? 30 : 36
-    radius: theme.metrics.radiusSmall
-    color: ghost
-        ? active ? theme.component.bar.clusterActive
-        : pointer.pressed ? theme.component.control.pressed
-        : pointer.containsMouse ? theme.component.control.hover : "transparent"
-        : !enabled
-        ? theme.component.control.disabled
-        : active ? theme.component.control.active
-        : pointer.pressed ? theme.component.control.pressed
-        : pointer.containsMouse ? theme.component.control.hover
-        : theme.component.control.background
-    border.width: keyboardFocused ? 2 : ghost ? 0 : 1
-    border.color: keyboardFocused
-        ? theme.component.control.focus
-        : destructive ? theme.semantic.status.danger : theme.component.control.outline
-    opacity: enabled ? 1 : 0.74
+    onActivated: clicked()
 
-    Behavior on color {
-        ColorAnimation {
-            duration: root.theme.motion.fast
+    Rectangle {
+        anchors.fill: parent
+        radius: root.theme.metrics.radiusSmall
+        color: !root.enabled
+            ? root.theme.component.control.disabled
+            : root.ghost
+                ? root.active
+                    ? root.theme.component.bar.clusterActive
+                    : root.pressed
+                        ? root.theme.component.control.pressed
+                        : root.hovered
+                            ? root.theme.component.control.hover
+                            : "transparent"
+                : root.active
+                    ? root.theme.component.control.active
+                    : root.pressed
+                        ? root.theme.component.control.pressed
+                        : root.hovered
+                            ? root.theme.component.control.hover
+                            : root.theme.component.control.background
+        border.width: root.focusVisible ? 2 : root.ghost ? 0 : 1
+        border.color: root.focusVisible
+            ? root.theme.component.control.focus
+            : root.destructive
+                ? root.theme.semantic.status.danger
+                : root.theme.component.control.outline
+        opacity: !root.enabled ? 0.74 : root.busy ? 0.82 : 1
+
+        Behavior on color {
+            ColorAnimation {
+                duration: root.motionDuration
+                easing.type: Easing.OutCubic
+            }
         }
     }
 
     RowLayout {
         id: contentRow
+
         anchors.centerIn: parent
         spacing: 6
 
+        ShellBusyIndicator {
+            visible: root.busy
+            theme: root.theme
+            reducedMotion: root.reducedMotion
+            sizeRole: "small"
+            color: root._foregroundColor()
+        }
+
         ShellIcon {
-            visible: root.iconName !== ""
+            visible: !root.busy && root.iconName !== ""
             theme: root.theme
             name: root.iconName
             sizeRole: "small"
-            color: root.destructive
-                ? root.theme.semantic.status.danger
-                : root.active ? root.theme.component.control.onActive
-                : root.enabled ? root.theme.component.control.text : root.theme.component.control.textDisabled
+            color: root._foregroundColor()
         }
 
         ShellText {
@@ -61,19 +92,17 @@ Rectangle {
             theme: root.theme
             text: root.label
             sizeRole: "label"
-            color: root.destructive
-                ? root.theme.semantic.status.danger
-                : root.active ? root.theme.component.control.onActive
-                : root.enabled ? root.theme.component.control.text : root.theme.component.control.textDisabled
+            color: root._foregroundColor()
         }
     }
 
-    MouseArea {
-        id: pointer
-        anchors.fill: parent
-        enabled: root.enabled
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.clicked()
+    function _foregroundColor() {
+        if (destructive)
+            return theme.semantic.status.danger
+        if (active)
+            return theme.component.control.onActive
+        return enabled
+            ? theme.component.control.text
+            : theme.component.control.textDisabled
     }
 }

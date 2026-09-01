@@ -28,35 +28,44 @@ Rectangle {
 
     default property alias content: body.data
     property var context: null
-    property QtObject bar: null
+    property var bar: null
     property string moduleName: ""
     property var settings: ({})
     property string outputId: ""
     property bool opened: false
     property bool popoutSwitching: false
     property bool popoutSwitchClosing: false
+    property bool reducedMotion: false
     property string lastPayloadJson: ""
-    property int padding: Math.round(14 * _density())
+    property int padding: Math.round(_v2Value("metrics", "panelPadding",
+        14 * _density()))
     readonly property QtObject controller: panelController
     readonly property color barForeground: bar && bar.barForeground !== undefined
         ? bar.barForeground
-        : _themeColor("colors", "text", "primary", "#cdd6f4")
+        : _v2Color("semantic", "content", "primary",
+            _themeColor("colors", "text", "primary", "transparent"))
 
     signal openedWithPayload(string payloadJson)
     signal closed()
 
     visible: opened
-    implicitWidth: 380
+    implicitWidth: _v2Value("metrics", "panelWidth", 380)
     implicitHeight: body.childrenRect.height + padding * 2
-    radius: _themeValue("geometry", "radius", 6)
-    color: _themeColor("colors", "surface", "panel", "#181825")
+    radius: _v2Value("metrics", "radiusLarge",
+        _themeValue("geometry", "radius", 0))
+    color: _v2Color("component", "panel", "background",
+        _themeColor("colors", "surface", "panel", "transparent"))
     border.width: 1
-    border.color: _themeColor("colors", "border", "normal", "#45475a")
+    border.color: _v2Color("component", "panel", "border",
+        _themeColor("colors", "border", "normal", "transparent"))
     clip: true
 
     Behavior on opacity {
         NumberAnimation {
-            duration: root._themeValue("motion", "fast", 120)
+            duration: root.reducedMotion
+                ? 0
+                : root._themeValue("motion", "fast", 0)
+            easing.type: Easing.OutCubic
         }
     }
 
@@ -121,6 +130,21 @@ Rectangle {
 
     function _density() {
         return _themeValue("geometry", "density", 1)
+    }
+
+    function _v2Value(group, key, fallback) {
+        var theme = context ? context.theme : null
+        return theme && theme[group] && theme[group][key] !== undefined
+            ? theme[group][key]
+            : fallback
+    }
+
+    function _v2Color(group, subgroup, key, fallback) {
+        var theme = context ? context.theme : null
+        return theme && theme[group] && theme[group][subgroup]
+                && theme[group][subgroup][key] !== undefined
+            ? theme[group][subgroup][key]
+            : fallback
     }
 
     function _themeValue(group, key, fallback) {

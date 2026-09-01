@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 import QtQuick
 
 Text {
@@ -7,9 +9,10 @@ Text {
     property string name: "circle"
     property string role: "primary"
     property string sizeRole: "medium"
+    property string accessibleName: ""
 
     text: _glyph(name)
-    color: _contentColor(role)
+    color: _roleColor(role)
     font.family: theme.typography.iconFamily
     font.pixelSize: _iconSize(sizeRole)
     font.weight: theme.typography.weightRegular
@@ -19,19 +22,29 @@ Text {
 
     function _glyph(iconName) {
         var icons = {
+            "add": "\ue145",
             "agent": "\uf10d",
             "audio": "\ue050",
             "battery": "\ue1a4",
             "bluetooth": "\ue1a7",
             "brightness": "\ue1ac",
             "check": "\ue5ca",
+            "chevron-left": "\ue5cb",
             "chevron-right": "\ue5cc",
+            "circle": "\ue061",
             "close": "\ue5cd",
+            "copy": "\ue14d",
             "cpu": "\ue322",
             "danger": "\ue002",
+            "delete": "\ue872",
+            "edit": "\ue3c9",
+            "folder": "\ue2c7",
+            "headphones": "\uf01f",
             "info": "\ue88e",
+            "lock": "\ue897",
             "memory": "\ue322",
             "microphone": "\ue029",
+            "more": "\ue5d4",
             "network": "\ue63e",
             "notifications": "\ue7f4",
             "pause": "\ue034",
@@ -39,24 +52,40 @@ Text {
             "power": "\ue8ac",
             "record": "\uf679",
             "refresh": "\ue5d5",
+            "repeat": "\ue040",
             "search": "\ue8b6",
             "settings": "\ue8b8",
+            "shuffle": "\ue043",
+            "skip-next": "\ue044",
+            "skip-previous": "\ue045",
             "success": "\ue86c",
+            "unlock": "\ue898",
+            "volume-down": "\ue04d",
+            "volume-mute": "\ue04f",
+            "volume-up": "\ue050",
+            "vpn": "\ue0da",
             "warning": "\uf083",
             "wifi": "\ue63e",
             "wifi-off": "\ue648"
         }
-        return icons[iconName] !== undefined ? icons[iconName] : "\ue061"
+        return icons[iconName] !== undefined ? icons[iconName] : icons.circle
     }
 
-    function _contentColor(name) {
-        var content = theme && theme.semantic ? theme.semantic.content : null
-        return content && content[name] !== undefined ? content[name] : "#ffffff"
+    function _roleColor(name) {
+        if (theme.semantic.content[name] !== undefined)
+            return theme.semantic.content[name]
+        if (theme.semantic.status[name] !== undefined)
+            return theme.semantic.status[name]
+        if (theme.semantic.signal[name] !== undefined)
+            return theme.semantic.signal[name]
+        if (name === "accent")
+            return theme.semantic.accent.primary
+        if (name === "on-accent")
+            return theme.semantic.accent.onAccent
+        return theme.semantic.content.primary
     }
 
     function _iconSize(name) {
-        if (!theme || !theme.metrics)
-            return 18
         if (name === "small")
             return theme.metrics.iconSmall
         if (name === "large")
