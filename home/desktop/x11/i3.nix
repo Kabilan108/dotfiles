@@ -147,10 +147,6 @@ in
           notification = false;
           always = true;
         }
-        {
-          command = "${../../../bin/battery-watcher}";
-          notification = false;
-        }
       ];
 
       colors = {

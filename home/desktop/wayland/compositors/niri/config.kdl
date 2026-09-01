@@ -306,7 +306,6 @@ spawn-at-startup "nm-applet" "--indicator"
 spawn-at-startup "blueman-applet"
 spawn-at-startup "obsidian"
 spawn-sh-at-startup "swaybg -i $HOME/dotfiles/wallpapers/shoggoth-001.png -m fill"
-spawn-sh-at-startup "$HOME/dotfiles/bin/battery-watcher"
 
 hotkey-overlay {
     // Uncomment this line to disable the "Important Hotkeys" pop-up at startup.
@@ -346,8 +345,8 @@ animations {
 window-rule {
     match app-id=r#"^io\.stillsuit\.AgentPanel$"#
     open-floating true
-    default-column-width { proportion 0.72; }
-    default-window-height { proportion 0.72; }
+    default-column-width { proportion 0.6; }
+    default-window-height { proportion 0.6; }
 }
 
 // Hide windows from screen capture
