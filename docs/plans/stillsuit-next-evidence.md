@@ -1171,3 +1171,42 @@ Review notes:
   reviewed independently before merge.
 - No rebuild, activation, service restart, production-shell reload, Niri
   mutation, legacy cleanup, or soak was performed.
+
+## Panel implementation: shared UI contracts
+
+Status: reviewed and merged from isolated lane commit
+`b920a771f4460a59e9ee8be735594f7c09cf2795`.
+
+Built:
+
+- Added one guarded activation primitive shared by buttons, owner-controlled
+  toggles, rows, and bar clusters. Pointer, Enter, Return, and Space use the
+  same path; disabled and busy controls do not dispatch.
+- Added reusable row, section-label, status, centered state, and busy-indicator
+  components and migrated the existing text, icon, surface, slider, button,
+  toggle, bar-cluster, panel, and cursor primitives to the approved v2 roles.
+- Kept selected and danger surfaces borderless, fixed row icon-column
+  alignment, bounded sliders to their declared range, and made reduced motion
+  resolve transitions immediately without animating layout measurements.
+- Documented the public component APIs and the owner-controlled toggle model.
+
+Verification:
+
+- The orchestrator read all component implementations, the complete fixture,
+  the runner, and the cumulative lane diff before merge.
+- `bash packages/stillsuit-shell/src/tests/ui/run-fixtures.sh`, exit 0 with 49
+  checks.
+- The lane's `run-lane-b-fixtures.sh`, exit 0 with 67 core and 24 repair
+  checks.
+- `git diff --check 7df91376..stillsuit-next-panel-shared`, exit 0.
+
+Review notes:
+
+- Quickshell 0.3 lacks the newer full accessibility attached API. The shared
+  controls expose a stable `accessibleName` contract and readable labeled or
+  icon-derived fallbacks; panel callers must supply a more specific name when
+  an icon alone is ambiguous.
+- Panel lanes remain responsible for passing reduced-motion state and for
+  using specific accessible names at each call site.
+- No rebuild, activation, service restart, production-shell reload, Niri
+  mutation, legacy cleanup, or soak was performed.
