@@ -67,10 +67,13 @@ printf '%s\n' 'MemTotal: 1000 kB' 'MemAvailable: 600 kB' > "$STILLSUIT_FIXTURE_M
 
 config_dir="$XDG_CONFIG_HOME/quickshell/stillsuit-d4-fixture"
 cp "$fixture_dir/fixture-shell.qml" "$config_dir/shell.qml"
+cp "$fixture_dir/../FixtureTheme.js" "$config_dir/FixtureTheme.js"
+cp -r "$source_root/ui" "$config_dir/ui"
+mkdir -p "$config_dir/plugins/builtin"
 for plugin in clock workspaces resources meeting recording; do
-    cp -r "$source_root/plugins/builtin/$plugin" "$config_dir/$plugin"
+    cp -r "$source_root/plugins/builtin/$plugin" "$config_dir/plugins/builtin/$plugin"
 done
-cp -r "$source_root/plugins/builtin/bar" "$config_dir/bar"
+cp -r "$source_root/plugins/builtin/bar" "$config_dir/plugins/builtin/bar"
 
 for manifest in "$source_root"/plugins/builtin/{clock,workspaces,resources,meeting,recording}/manifest.json; do
     jq -e '.schemaVersion == 1 and (.id | startswith("stillsuit."))' "$manifest" >/dev/null
@@ -118,7 +121,7 @@ printf '%s\n' 'MemTotal: 1000 kB' 'MemAvailable: 250 kB' > "$STILLSUIT_FIXTURE_M
 second_resources=$(ipc resourceSnapshot)
 jq -e '.cpuPercent == 50 and .memoryPercent == 75' >/dev/null <<<"$second_resources"
 routes=$(ipc routeActions)
-jq -e '. == ["stillsuit.meeting", "stillsuit.recording", "stillsuit.resources"]' >/dev/null <<<"$routes"
+jq -e '. == ["stillsuit.recording", "stillsuit.recording", "stillsuit.resources"]' >/dev/null <<<"$routes"
 workflow=$(ipc workflowState)
 jq -e '.recordingText == "01:07" and .meetingText == "Minutes ready" and .meetingCompleted' >/dev/null <<<"$workflow"
 

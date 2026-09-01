@@ -16,7 +16,6 @@ Ui.ShellBarCluster {
     iconName: failed ? "danger" : processing ? "refresh" : "success"
     label: processing ? meeting.label : failed ? "Meeting failed" : "Meetings"
     active: processing || failed
-    busy: processing
     accessibleName: processing ? "Meeting processing, " + meeting.label
         : failed ? "Meeting failed, open recent meetings" : "Open recent meetings"
 

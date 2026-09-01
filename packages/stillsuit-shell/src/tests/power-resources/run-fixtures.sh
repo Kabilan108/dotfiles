@@ -73,8 +73,7 @@ fi
 module_json="$fixture_root/module.json"
 nix eval --impure --json --expr '
   let
-    flake = builtins.getFlake (toString '"$repo_root"');
-    pkgs = flake.inputs.nixpkgs.legacyPackages.x86_64-linux;
+    pkgs = import <nixpkgs> { system = builtins.currentSystem; };
     module = import '"$repo_root/home/services/battery-watcher.nix"' {
       config.dotfiles.services.battery-watcher.enable = true;
       inherit (pkgs) lib;

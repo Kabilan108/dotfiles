@@ -50,6 +50,9 @@ in
             ExecStart = lib.escapeShellArgs ([ executable ] ++ arguments);
             Restart = "on-failure";
             RestartSec = 2;
+            StandardOutput = "journal";
+            StandardError = "journal";
+            SyslogIdentifier = "stillsuit-shell";
             TimeoutStopSec = 10;
             RuntimeDirectory = "stillsuit";
             StateDirectory = "stillsuit";

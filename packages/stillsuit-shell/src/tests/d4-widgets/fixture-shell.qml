@@ -1,12 +1,13 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "bar" as Bar
-import "clock" as Clock
-import "meeting" as Meeting
-import "recording" as Recording
-import "resources" as Resources
-import "workspaces" as Workspaces
+import "FixtureTheme.js" as FixtureTheme
+import "plugins/builtin/bar" as Bar
+import "plugins/builtin/clock" as Clock
+import "plugins/builtin/meeting" as Meeting
+import "plugins/builtin/recording" as Recording
+import "plugins/builtin/resources" as Resources
+import "plugins/builtin/workspaces" as Workspaces
 
 ShellRoot {
     id: fixture
@@ -49,8 +50,10 @@ ShellRoot {
         property bool visible: true
         property bool failed: false
         property bool completed: false
+        property bool active: true
         property string label: "Making minutes"
         property string errorMessage: ""
+        property var jobs: []
         property int openResultCalls: 0
         function openResult() { openResultCalls += 1 }
     }
@@ -70,6 +73,10 @@ ShellRoot {
     QtObject {
         id: actions
         function surfaceToggle(pluginId, payloadJson) {
+            fixture.actionCalls = fixture.actionCalls.concat([String(pluginId)])
+            return "ok"
+        }
+        function surfaceOpen(pluginId, payloadJson) {
             fixture.actionCalls = fixture.actionCalls.concat([String(pluginId)])
             return "ok"
         }
@@ -101,14 +108,7 @@ ShellRoot {
                 { id: 23, workspace_id: 2, layout: { pos_in_scrolling_layout: [4] } }
             ]
         })
-        property var theme: ({
-            colors: {
-                surface: { panel: "#181825" }, text: { primary: "#cdd6f4", secondary: "#bac2de", tertiary: "#a6adc8" },
-                border: { subtle: "#313244", normal: "#45475a" }, status: { info: "#89b4fa", success: "#a6e3a1", warning: "#f9e2af", danger: "#f38ba8" }
-            }, controls: { normal: { fill: "#313244", text: "#cdd6f4", border: "#45475a" }, hover: { fill: "#45475a" } },
-            typography: { family: "sans-serif", monospaceFamily: "monospace", baseSize: 13, weightMedium: 500, weightBold: 700 },
-            geometry: { radius: 8, barHeight: 30, panelGap: 8 }, motion: { fast: 0 }
-        })
+        property var theme: FixtureTheme.create()
     }
 
     Resources.ResourceService {
@@ -206,9 +206,9 @@ ShellRoot {
             })
         }
         function routeActions(): string {
-            meetingPrimary.togglePanel()
-            recordingPrimary.togglePanel()
-            resourcesPrimary.togglePanel()
+            meetingPrimary.trigger()
+            recordingPrimary.trigger()
+            resourcesPrimary.trigger()
             return JSON.stringify(fixture.actionCalls)
         }
         function workflowState(): string {
@@ -218,7 +218,7 @@ ShellRoot {
             return JSON.stringify({
                 recordingText: recordingPrimary.recording.elapsedText,
                 meetingText: meetingPrimary.meeting.label,
-                meetingCompleted: meetingPrimary.completed
+                meetingCompleted: meetingPrimary.meeting.completed
             })
         }
     }

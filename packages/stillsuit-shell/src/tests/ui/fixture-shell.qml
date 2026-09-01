@@ -11,6 +11,7 @@ ShellRoot {
     id: fixture
 
     property int checks: 0
+    property real sliderOwnerValue: 50
     property var theme: ({
         schemaVersion: 2,
         semantic: {
@@ -157,6 +158,19 @@ ShellRoot {
             to: 100
             stepSize: 5
             value: 50
+        }
+    }
+
+    Component {
+        id: boundSliderComponent
+
+        Ui.ShellSlider {
+            theme: fixture.theme
+            label: "Owner volume"
+            from: 0
+            to: 100
+            stepSize: 5
+            value: fixture.sliderOwnerValue
         }
     }
 
@@ -310,17 +324,31 @@ ShellRoot {
             slider.moved.connect(function(next) { movedValue = next })
             _assert(slider.handleKey(Qt.Key_Right, 0, false),
                 "Right did not adjust the slider")
-            _assert(slider.value === 5 && movedValue === 5,
-                "keyboard slider step was wrong")
-            _assert(slider.handleKey(Qt.Key_End, 0, false) && slider.value === 100,
-                "End did not move slider to maximum")
+            _assert(slider.value === 0 && movedValue === 5,
+                "slider mutated owner state or proposed the wrong keyboard step")
+            _assert(slider.handleKey(Qt.Key_End, 0, false) && slider.value === 0
+                    && movedValue === 100,
+                "End did not propose the maximum without mutating owner state")
             slider.busy = true
-            _assert(!slider.moveTo(50) && slider.value === 100,
+            _assert(!slider.moveTo(50) && slider.value === 0,
                 "busy slider moved")
             slider.busy = false
             slider.enabled = false
-            _assert(!slider.adjustBySteps(-1) && slider.value === 100,
+            _assert(!slider.adjustBySteps(-1) && slider.value === 0,
                 "disabled slider moved")
+
+            var boundSlider = _create(boundSliderComponent, objects)
+            var ownerRequest = -1
+            boundSlider.moved.connect(function(next) {
+                ownerRequest = next
+                fixture.sliderOwnerValue = next
+            })
+            _assert(boundSlider.moveTo(55) && ownerRequest === 55
+                    && boundSlider.value === 55,
+                "owner-controlled slider did not accept published state")
+            fixture.sliderOwnerValue = 70
+            _assert(boundSlider.value === 70,
+                "slider interaction severed its binding to owner state")
 
             var cluster = _create(clusterComponent, objects)
             _assert(cluster.effectiveAccessibleName === "network",

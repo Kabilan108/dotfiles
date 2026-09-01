@@ -29,6 +29,7 @@ fixture_config="$XDG_CONFIG_HOME/quickshell/$STILLSUIT_CONFIG_ID"
 mkdir -p "$(dirname -- "$fixture_config")"
 cp -R -- "$source_root" "$fixture_config"
 cp -- "$script_dir/Fixture.qml" "$fixture_config/shell.qml"
+cp -- "$script_dir/../FixtureTheme.js" "$fixture_config/FixtureTheme.js"
 
 manifest_paths=(
     "$source_root/plugins/builtin/audio/manifest.json"

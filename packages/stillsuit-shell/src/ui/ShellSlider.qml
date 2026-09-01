@@ -180,7 +180,6 @@ Item {
         var next = _clamp(Number(nextValue))
         if (Math.abs(next - value) <= 0.0000001)
             return true
-        value = next
         moved(next)
         return true
     }

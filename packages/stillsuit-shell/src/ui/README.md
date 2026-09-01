@@ -19,10 +19,13 @@ never writes `checked`. The owner performs the operation and publishes the
 accepted state back to the control. This prevents a failed service write from
 briefly showing a state that never became true.
 
-`ShellSlider` owns its displayed numeric value. It clamps external writes to
-the inclusive `from` and `to` range, emits `moved(value)` for accepted pointer
-or keyboard changes, and supports arrows, Page Up, Page Down, Home, and End.
-Set `stepSize` when the default one-percent step is not appropriate.
+`ShellSlider` is owner-controlled. It clamps the owner's displayed value to the
+inclusive `from` and `to` range and emits `moved(value)` for accepted pointer or
+keyboard changes without writing `value` itself. The owner performs the
+operation and publishes authoritative state back to the control, preserving
+bindings across failures and external changes. It supports arrows, Page Up,
+Page Down, Home, and End. Set `stepSize` when the default one-percent step is
+not appropriate.
 
 `ShellRow` reserves a fixed icon column by default so rows align across mixed
 states. Selected and danger rows use borderless theme fills. `ShellSectionLabel`

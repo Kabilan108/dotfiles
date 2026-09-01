@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import "FixtureTheme.js" as FixtureTheme
 import "services" as Services
 
 ShellRoot {
@@ -51,7 +52,7 @@ ShellRoot {
     }
     QtObject {
         id: fakeWidgetContext
-        property var theme: ({ geometry: { barHeight: 30, radius: 5 }, controls: { hover: { fill: "#313244" } }, colors: { text: { primary: "#cdd6f4" }, status: { error: "#f38ba8" } }, typography: { monospaceFamily: "sans", baseSize: 12 } })
+        property var theme: FixtureTheme.create()
         property var services: fakeRegistry
         property var actions: QtObject { function surfaceToggle(id, payload) { return "ok" } }
     }

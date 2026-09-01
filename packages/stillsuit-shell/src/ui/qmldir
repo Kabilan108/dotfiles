@@ -1,0 +1,17 @@
+CursorSurface 1.0 CursorSurface.qml
+Panel 1.0 Panel.qml
+PanelKeyCatcher 1.0 PanelKeyCatcher.qml
+PointerMoveGate 1.0 PointerMoveGate.qml
+ShellAction 1.0 ShellAction.qml
+ShellBarCluster 1.0 ShellBarCluster.qml
+ShellBusyIndicator 1.0 ShellBusyIndicator.qml
+ShellButton 1.0 ShellButton.qml
+ShellIcon 1.0 ShellIcon.qml
+ShellRow 1.0 ShellRow.qml
+ShellSectionLabel 1.0 ShellSectionLabel.qml
+ShellSlider 1.0 ShellSlider.qml
+ShellStateView 1.0 ShellStateView.qml
+ShellStatus 1.0 ShellStatus.qml
+ShellSurface 1.0 ShellSurface.qml
+ShellText 1.0 ShellText.qml
+ShellToggle 1.0 ShellToggle.qml

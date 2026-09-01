@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
-import "bar"
+import "FixtureTheme.js" as FixtureTheme
+import "plugins/builtin/bar" as Bar
 
 ShellRoot {
     id: fixture
@@ -96,15 +97,7 @@ ShellRoot {
         id: fixtureContext
 
         readonly property string instanceId: "d1-bar-fixture"
-        readonly property var theme: ({
-            colors: {
-                surface: { panel: "#1e1e2e" },
-                border: { normal: "#45475a", focus: "#89b4fa" },
-                text: { primary: "#cdd6f4", secondary: "#a6adc8" }
-            },
-            typography: { family: "sans-serif", baseSize: 13 },
-            geometry: { barHeight: 34, panelGap: 6, radius: 8 }
-        })
+        readonly property var theme: FixtureTheme.create()
         readonly property QtObject compositor: QtObject {
             readonly property string focusedOutputId: ""
         }
@@ -128,7 +121,7 @@ ShellRoot {
         RequiredWidget {}
     }
 
-    Bar {
+    Bar.Bar {
         id: fixtureBar
         objectName: "d1-fixture-bar"
         context: fixtureContext
@@ -136,7 +129,7 @@ ShellRoot {
         outputScreens: []
     }
 
-    WidgetSlot {
+    Bar.WidgetSlot {
         id: testedSlot
         outputId: "fixture-output"
         registration: fixture.goodRegistration

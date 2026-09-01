@@ -64,9 +64,11 @@ fixture_config="$XDG_CONFIG_HOME/quickshell/$STILLSUIT_CONFIG_ID"
 mkdir -p "$(dirname -- "$fixture_config")"
 cp -R -- "$source_root" "$fixture_config"
 cp -- "$script_dir/fixture-shell.qml" "$fixture_config/shell.qml"
-# Shared-lane integration must add this descriptor to src/ui. The isolated
-# fixture installs it only in its disposable config so plugin imports compile.
-cp -- "$script_dir/ui.qmldir" "$fixture_config/ui/qmldir"
+# The fixture must exercise the production directory descriptor. Every shared
+# type used by this lane remains part of that public UI surface.
+while IFS= read -r descriptor; do
+    rg -Fx -- "$descriptor" "$source_root/ui/qmldir" >/dev/null
+done < "$script_dir/ui.qmldir"
 
 audio_service="$source_root/services/AudioService.qml"
 media_service="$source_root/services/MediaService.qml"

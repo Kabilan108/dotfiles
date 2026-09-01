@@ -25,7 +25,7 @@ function recordsFor(section) {
 function surfacePlan(shadowMode) {
   return fixture.outputs.map((outputId) => ({
     outputId,
-    exclusionZone: shadowMode ? 0 : 40,
+    exclusionZone: shadowMode ? 0 : 26,
     owner: "stillsuit.bar",
   }));
 }
@@ -45,7 +45,7 @@ assert.deepEqual(manifest, {
 const production = surfacePlan(false);
 assert.equal(production.length, 2, "one bar view per actual output");
 assert.deepEqual(production.map((surface) => surface.owner), ["stillsuit.bar", "stillsuit.bar"]);
-assert.deepEqual(production.map((surface) => surface.exclusionZone), [40, 40]);
+assert.deepEqual(production.map((surface) => surface.exclusionZone), [26, 26]);
 assert.equal(new Set(production.map((surface) => surface.outputId)).size, 2);
 
 const shadow = surfacePlan(true);

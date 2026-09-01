@@ -20,6 +20,7 @@ let
   recorderHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/recorder-helper.nix {
     inherit meetingEnqueueHelper;
   };
+  networkHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/network-helper.nix { };
 in
 {
   programs.stillsuitShell.enable = true;
@@ -33,7 +34,10 @@ in
 
   programs.stillsuitShell.runtimeInputs = [
     pkgs.niri
+    pkgs.pulseaudio
     pkgs.power-profiles-daemon
+    pkgs.upower
+    networkHelper
   ];
 
   programs.stillsuitShell.plugins = [
@@ -49,7 +53,12 @@ in
     (builtinPlugin "bluetooth")
     (builtinPlugin "clock")
     (builtinPlugin "meeting")
-    (builtinPlugin "network")
+    (
+      (builtinPlugin "network")
+      // {
+        settings.networkHelperPath = lib.getExe networkHelper;
+      }
+    )
     (
       (builtinPlugin "notifications")
       // {
@@ -91,6 +100,8 @@ in
           desktopAudioDefault = true;
           microphoneDefault = false;
           meetingStatusPath = "${homeDir}/.local/state/meeting-minutes/status.json";
+          meetingJobsPath = "${homeDir}/.local/state/meeting-minutes/jobs.json";
+          meetingHelperPath = lib.getExe meetingEnqueueHelper;
           openHelperPath = lib.getExe' pkgs.xdg-utils "xdg-open";
           dictatorSocketPath = "/run/user/1000/dictator/osd.sock";
         };

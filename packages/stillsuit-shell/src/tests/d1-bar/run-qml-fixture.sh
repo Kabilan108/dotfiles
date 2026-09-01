@@ -26,11 +26,12 @@ fi
 mkdir -p "$HOME" "$XDG_CONFIG_HOME/quickshell" "$XDG_DATA_HOME" \
     "$XDG_CACHE_HOME" "$XDG_STATE_HOME" "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
-mkdir -p "$fixture_tmp/config-id/bar"
+mkdir -p "$fixture_tmp/config-id/plugins/builtin"
 cp "$script_dir/fixture-shell.qml" "$fixture_tmp/config-id/shell.qml"
 cp "$script_dir/RequiredWidget.qml" "$fixture_tmp/config-id/RequiredWidget.qml"
-cp "$script_dir/../../plugins/builtin/bar/Bar.qml" "$fixture_tmp/config-id/bar/Bar.qml"
-cp "$script_dir/../../plugins/builtin/bar/WidgetSlot.qml" "$fixture_tmp/config-id/bar/WidgetSlot.qml"
+cp "$script_dir/../FixtureTheme.js" "$fixture_tmp/config-id/FixtureTheme.js"
+cp -R "$script_dir/../../ui" "$fixture_tmp/config-id/ui"
+cp -R "$script_dir/../../plugins/builtin/bar" "$fixture_tmp/config-id/plugins/builtin/bar"
 
 timeout --signal=TERM --kill-after=2s 10s \
     qs --no-color -p "$fixture_tmp/config-id"
