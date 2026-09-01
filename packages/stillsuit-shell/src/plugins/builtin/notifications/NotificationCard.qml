@@ -1,8 +1,8 @@
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
+import "../../../ui" as Ui
 
-Rectangle {
+Ui.ShellSurface {
     id: root
 
     required property var context
@@ -12,190 +12,163 @@ Rectangle {
     property string timeText: ""
 
     readonly property var theme: context.theme
-    readonly property bool critical: Number(snapshot.urgency) === 2
-    readonly property bool low: Number(snapshot.urgency) === 0
-    readonly property color accent: critical ? theme.colors.status.danger
-        : low ? theme.colors.text.secondary : theme.colors.status.info
     readonly property var actions: Array.isArray(snapshot.actions) ? snapshot.actions : []
-    readonly property string iconSource: {
-        var value = String(snapshot.image || snapshot.appIcon || "")
-        if (!value) return ""
-        if (value.indexOf("file://") === 0 || value.indexOf("image://") === 0) return value
-        if (value.charAt(0) === "/") return "file://" + value
-        return Quickshell.iconPath(value, true)
-    }
+    readonly property string actionState: service ? service.actionState(snapshot.key) : "expired"
+    readonly property string stateRole: service ? service.viewState(snapshot) : "info"
+    readonly property color stateColor: theme.component.notification[stateRole]
+
+    kind: "notification"
+    implicitWidth: theme.metrics.panelWidth - theme.metrics.panelPadding * 2
+    implicitHeight: contentColumn.implicitHeight + 24
 
     function cleanBody(value) {
         return String(value || "").replace(/<img[^>]*>/gi, "").trim()
     }
 
-    implicitWidth: inline ? 368 : 360
-    implicitHeight: content.implicitHeight + 20
-    radius: theme.geometry.radius
-    color: inline ? "transparent" : theme.colors.surface.raised
-    border.width: inline ? 0 : 1
-    border.color: critical ? theme.colors.status.danger : theme.colors.border.normal
-    clip: true
-
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.LeftButton
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.service.invokeAction(root.snapshot.key, "default")
+    function iconForState(state) {
+        if (state === "success") return "success"
+        if (state === "warning") return "warning"
+        if (state === "danger") return "danger"
+        if (state === "info") return "info"
+        return "notifications"
     }
 
-    RowLayout {
-        id: content
+    function withAlpha(value, alpha) {
+        var parsed = Qt.color(value)
+        return Qt.rgba(parsed.r, parsed.g, parsed.b, Math.max(0, Math.min(1, alpha)))
+    }
+
+    ColumnLayout {
+        id: contentColumn
+
         anchors {
-            left: parent.left
-            right: parent.right
-            top: parent.top
-            margins: 10
+            fill: parent
+            margins: 12
         }
-        spacing: 10
+        spacing: 8
 
-        Item {
-            Layout.preferredWidth: 28
-            Layout.preferredHeight: 28
-            Layout.alignment: Qt.AlignTop
-
-            Image {
-                id: icon
-                anchors.fill: parent
-                source: root.iconSource
-                sourceSize.width: width * Screen.devicePixelRatio
-                sourceSize.height: height * Screen.devicePixelRatio
-                fillMode: Image.PreserveAspectFit
-                asynchronous: true
-                visible: status === Image.Ready
-            }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 10
 
             Rectangle {
-                anchors.fill: parent
-                radius: width / 2
-                visible: icon.status !== Image.Ready
-                color: root.accent
+                Layout.preferredWidth: 30
+                Layout.preferredHeight: 30
+                Layout.alignment: Qt.AlignTop
+                radius: root.theme.metrics.radiusSmall
+                color: root.withAlpha(root.stateColor, 0.16)
 
-                Text {
+                Ui.ShellIcon {
                     anchors.centerIn: parent
-                    text: root.critical ? "!" : "i"
-                    color: root.theme.colors.text.onAccent
-                    font.family: root.theme.typography.family
-                    font.pixelSize: root.theme.typography.baseSize
-                    font.bold: true
+                    theme: root.theme
+                    name: root.iconForState(root.stateRole)
+                    color: root.stateColor
+                    accessibleName: root.stateRole + " notification"
                 }
             }
-        }
 
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 3
-
-            RowLayout {
+            ColumnLayout {
                 Layout.fillWidth: true
+                spacing: 2
 
-                Text {
+                Ui.ShellText {
                     Layout.fillWidth: true
-                    text: root.snapshot.appName || "notification"
-                    color: root.accent
-                    font.family: root.theme.typography.family
-                    font.pixelSize: root.theme.typography.baseSize * 0.8
+                    theme: root.theme
+                    text: root.snapshot.appName || "Notification"
+                    sizeRole: "caption"
+                    color: root.stateColor
                     elide: Text.ElideRight
                 }
 
-                Text {
-                    text: root.timeText
-                    visible: text !== ""
-                    color: root.theme.colors.text.tertiary
-                    font.family: root.theme.typography.monospaceFamily
-                    font.pixelSize: root.theme.typography.baseSize * 0.75
-                }
-
-                Rectangle {
-                    Layout.preferredWidth: 20
-                    Layout.preferredHeight: 20
-                    radius: root.theme.geometry.radius * 0.5
-                    color: closeMouse.containsMouse ? root.theme.controls.hover.fill : "transparent"
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "×"
-                        color: root.theme.colors.text.secondary
-                        font.pixelSize: root.theme.typography.baseSize
-                    }
-
-                    MouseArea {
-                        id: closeMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.service.dismiss(root.snapshot.key)
-                    }
+                Ui.ShellText {
+                    Layout.fillWidth: true
+                    theme: root.theme
+                    text: root.snapshot.summary || "Notification"
+                    sizeRole: "label"
+                    wrapMode: Text.Wrap
+                    maximumLineCount: 2
+                    elide: Text.ElideRight
                 }
             }
 
-            Text {
-                Layout.fillWidth: true
-                text: root.snapshot.summary || "Notification"
-                color: root.theme.colors.text.primary
-                font.family: root.theme.typography.family
-                font.pixelSize: root.theme.typography.baseSize
-                font.bold: true
-                wrapMode: Text.WordWrap
-                maximumLineCount: 2
-                elide: Text.ElideRight
+            Ui.ShellText {
+                visible: root.timeText !== ""
+                theme: root.theme
+                text: root.timeText
+                sizeRole: "caption"
+                role: "muted"
+                monospace: true
             }
 
-            Text {
-                Layout.fillWidth: true
-                text: root.cleanBody(root.snapshot.body)
-                visible: text !== ""
-                color: root.theme.colors.text.secondary
-                font.family: root.theme.typography.family
-                font.pixelSize: root.theme.typography.baseSize * 0.9
-                textFormat: Text.PlainText
-                wrapMode: Text.WordWrap
-                maximumLineCount: 3
-                elide: Text.ElideRight
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.topMargin: 4
-                spacing: 6
-                visible: root.actions.length > 0
-
-                Repeater {
-                    model: root.actions
-
-                    Rectangle {
-                        required property var modelData
-                        Layout.preferredWidth: actionText.implicitWidth + 18
-                        Layout.preferredHeight: actionText.implicitHeight + 10
-                        radius: root.theme.geometry.radius * 0.6
-                        color: actionMouse.containsMouse
-                            ? root.theme.controls.hover.fill : root.theme.controls.normal.fill
-                        border.width: 1
-                        border.color: root.theme.controls.normal.border
-
-                        Text {
-                            id: actionText
-                            anchors.centerIn: parent
-                            text: modelData.text || modelData.identifier
-                            color: root.theme.controls.normal.text
-                            font.family: root.theme.typography.family
-                            font.pixelSize: root.theme.typography.baseSize * 0.85
-                        }
-
-                        MouseArea {
-                            id: actionMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.service.invokeAction(root.snapshot.key, modelData.identifier)
-                        }
-                    }
+            Ui.ShellButton {
+                theme: root.theme
+                label: ""
+                iconName: root.inline ? "delete" : "close"
+                compact: true
+                ghost: true
+                destructive: root.inline
+                accessibleName: root.inline ? "Delete notification" : "Dismiss notification"
+                onClicked: {
+                    if (root.inline)
+                        root.service.deleteHistory(root.snapshot.key)
+                    else
+                        root.service.dismiss(root.snapshot.key)
                 }
+            }
+        }
+
+        Ui.ShellText {
+            Layout.fillWidth: true
+            theme: root.theme
+            text: root.cleanBody(root.snapshot.body)
+            visible: text !== ""
+            role: "secondary"
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            maximumLineCount: root.inline ? 5 : 3
+            elide: Text.ElideRight
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 6
+            visible: root.actions.length > 0 && root.actionState === "available"
+
+            Item { Layout.fillWidth: true }
+
+            Repeater {
+                model: root.actions
+
+                Ui.ShellButton {
+                    required property var modelData
+
+                    theme: root.theme
+                    label: modelData.text || modelData.identifier
+                    accessibleName: label
+                    compact: true
+                    active: modelData.identifier === "default"
+                    onClicked: root.service.invokeAction(root.snapshot.key, modelData.identifier)
+                }
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 6
+            visible: root.actions.length > 0 && root.actionState === "expired"
+
+            Ui.ShellIcon {
+                theme: root.theme
+                name: "info"
+                sizeRole: "small"
+                role: "muted"
+            }
+
+            Ui.ShellText {
+                theme: root.theme
+                text: "Actions expired"
+                sizeRole: "caption"
+                role: "muted"
             }
         }
     }

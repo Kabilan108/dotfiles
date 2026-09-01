@@ -1,16 +1,18 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import "../../../ui" as Ui
 
 Scope {
     id: root
 
     required property var context
     required property var screen
+    required property var service
 
-    property var service: context.services.get("stillsuit.notifications")
     property string outputId: String(screen.name || "")
     readonly property var rows: service ? service.centerRows() : []
+    readonly property var theme: context.theme
 
     function open(payloadJson) {
         return service ? service.openCenter(outputId) : "error"
@@ -50,20 +52,20 @@ Scope {
             onClicked: root.service.closeCenter(root.outputId)
         }
 
-        Rectangle {
+        Ui.ShellSurface {
             id: panel
+
             anchors {
                 top: parent.top
                 right: parent.right
-                topMargin: root.context.theme.geometry.barHeight + root.context.theme.geometry.panelGap
-                rightMargin: root.context.theme.geometry.panelGap
+                topMargin: root.theme.metrics.barHeight + root.theme.metrics.spaceUnit * 2
+                rightMargin: root.theme.metrics.spaceUnit * 2
             }
-            width: 400
-            implicitHeight: Math.min(panelLayout.implicitHeight + 28, parent.height - anchors.topMargin - root.context.theme.geometry.panelGap)
-            radius: root.context.theme.geometry.radius
-            color: root.context.theme.colors.surface.panel
-            border.width: 1
-            border.color: root.context.theme.colors.border.normal
+            width: root.theme.metrics.panelWidth
+            height: Math.min(panelLayout.implicitHeight + root.theme.metrics.panelPadding * 2,
+                parent.height - anchors.topMargin - root.theme.metrics.spaceUnit * 2)
+            theme: root.theme
+            kind: "panel"
 
             MouseArea {
                 anchors.fill: parent
@@ -72,99 +74,64 @@ Scope {
 
             ColumnLayout {
                 id: panelLayout
+
                 anchors {
                     left: parent.left
                     right: parent.right
                     top: parent.top
-                    margins: 14
+                    margins: root.theme.metrics.panelPadding
                 }
-                spacing: 10
+                spacing: root.theme.metrics.spaceUnit * 2
 
                 RowLayout {
                     Layout.fillWidth: true
 
-                    Text {
+                    Ui.ShellText {
+                        theme: root.theme
                         text: "Notifications"
-                        color: root.context.theme.colors.text.primary
-                        font.family: root.context.theme.typography.family
-                        font.pixelSize: root.context.theme.typography.baseSize * 1.15
-                        font.bold: true
+                        sizeRole: "heading"
                     }
 
-                    Text {
+                    Ui.ShellText {
+                        theme: root.theme
                         text: String(root.rows.length) + " recent"
-                        color: root.context.theme.colors.text.secondary
-                        font.family: root.context.theme.typography.monospaceFamily
-                        font.pixelSize: root.context.theme.typography.baseSize * 0.8
+                        sizeRole: "caption"
+                        role: "muted"
+                        monospace: true
                     }
 
                     Item { Layout.fillWidth: true }
 
-                    Rectangle {
-                        Layout.preferredWidth: dndLabel.implicitWidth + 18
-                        Layout.preferredHeight: dndLabel.implicitHeight + 10
-                        radius: root.context.theme.geometry.radius * 0.6
-                        color: root.service && root.service.doNotDisturb
-                            ? root.context.theme.controls.active.fill : root.context.theme.controls.normal.fill
-                        border.width: 1
-                        border.color: root.context.theme.controls.normal.border
-
-                        Text {
-                            id: dndLabel
-                            anchors.centerIn: parent
-                            text: "DND"
-                            color: root.context.theme.controls.normal.text
-                            font.family: root.context.theme.typography.family
-                            font.pixelSize: root.context.theme.typography.baseSize * 0.8
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.service.toggleDnd()
-                        }
-                    }
-
-                    Rectangle {
-                        Layout.preferredWidth: clearLabel.implicitWidth + 18
-                        Layout.preferredHeight: clearLabel.implicitHeight + 10
-                        radius: root.context.theme.geometry.radius * 0.6
-                        color: root.context.theme.controls.normal.fill
-                        border.width: 1
-                        border.color: root.context.theme.colors.status.danger
+                    Ui.ShellButton {
                         visible: root.rows.length > 0
-
-                        Text {
-                            id: clearLabel
-                            anchors.centerIn: parent
-                            text: "clear all"
-                            color: root.context.theme.colors.status.danger
-                            font.family: root.context.theme.typography.family
-                            font.pixelSize: root.context.theme.typography.baseSize * 0.8
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.service.dismissAll()
-                        }
+                        theme: root.theme
+                        label: "Clear all"
+                        iconName: "delete"
+                        compact: true
+                        ghost: true
+                        destructive: true
+                        accessibleName: "Delete all notification history"
+                        onClicked: root.service.clearHistory()
                     }
                 }
 
-                Rectangle {
+                Ui.ShellToggle {
                     Layout.fillWidth: true
-                    implicitHeight: 38
-                    radius: root.context.theme.geometry.radius * 0.6
-                    color: root.context.theme.controls.active.fill
-                    visible: root.service && root.service.doNotDisturb
+                    theme: root.theme
+                    label: "Do not disturb"
+                    description: "Hide banners and retain notifications in history"
+                    checked: root.service ? root.service.doNotDisturb : false
+                    onToggled: requestedChecked => root.service.setDnd(requestedChecked)
+                }
 
-                    Text {
-                        anchors.centerIn: parent
-                        text: "notifications silenced; retained alerts remain in this center"
-                        color: root.context.theme.colors.text.secondary
-                        font.family: root.context.theme.typography.family
-                        font.pixelSize: root.context.theme.typography.baseSize * 0.85
-                    }
+                Ui.ShellStatus {
+                    visible: root.service && root.service.doNotDisturb
+                    Layout.fillWidth: true
+                    theme: root.theme
+                    status: "muted"
+                    iconName: "notifications"
+                    label: "Banners hidden; history is still retained"
+                    accessibleName: label
                 }
 
                 Flickable {
@@ -173,17 +140,20 @@ Scope {
                     contentHeight: centerColumn.implicitHeight
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
+                    interactive: contentHeight > height
 
                     ColumnLayout {
                         id: centerColumn
+
                         width: parent.width
-                        spacing: 2
+                        spacing: root.theme.metrics.spaceUnit * 2
 
                         Repeater {
                             model: root.rows
 
                             NotificationCard {
                                 required property var modelData
+
                                 context: root.context
                                 service: root.service
                                 snapshot: modelData
@@ -193,15 +163,14 @@ Scope {
                             }
                         }
 
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            Layout.topMargin: 24
-                            Layout.bottomMargin: 24
-                            text: "No notifications"
+                        Ui.ShellStateView {
                             visible: root.rows.length === 0
-                            color: root.context.theme.colors.text.tertiary
-                            font.family: root.context.theme.typography.family
-                            font.pixelSize: root.context.theme.typography.baseSize
+                            Layout.fillWidth: true
+                            theme: root.theme
+                            mode: "empty"
+                            iconName: "notifications"
+                            title: "No notifications"
+                            message: "New alerts will appear here."
                         }
                     }
                 }

@@ -7,8 +7,8 @@ Scope {
 
     required property var context
     required property var screen
+    required property var service
 
-    property var service: context.services.get("stillsuit.notifications")
     property string outputId: String(screen.name || "")
 
     PanelWindow {
@@ -19,8 +19,8 @@ Scope {
             right: true
         }
         margins {
-            top: root.context.theme.geometry.panelGap
-            right: root.context.theme.geometry.panelGap
+            top: root.context.theme.metrics.barHeight + root.context.theme.metrics.spaceUnit * 2
+            right: root.context.theme.metrics.spaceUnit * 2
         }
         exclusiveZone: 0
         focusable: false
@@ -30,7 +30,7 @@ Scope {
 
         ColumnLayout {
             id: toastColumn
-            spacing: root.context.theme.geometry.panelGap
+            spacing: root.context.theme.metrics.spaceUnit * 2
 
             Repeater {
                 model: root.service ? root.service.toastsForOutput(root.outputId) : []

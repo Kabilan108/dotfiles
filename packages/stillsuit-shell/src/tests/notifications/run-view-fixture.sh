@@ -32,15 +32,24 @@ if [[ -n $wayland_display && $wayland_display != /* ]]; then
   export WAYLAND_DISPLAY="$wayland_runtime_dir/$wayland_display"
 fi
 mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" \
-  "$XDG_STATE_HOME" "$XDG_RUNTIME_DIR" "$config_dir/services" "$config_dir/notifications"
+  "$XDG_STATE_HOME" "$XDG_RUNTIME_DIR" "$config_dir/src/services" \
+  "$config_dir/src/ui" "$config_dir/src/plugins/builtin/notifications"
 chmod 700 "$runtime_dir"
 cp "$fixture_dir/view-fixture-shell.qml" "$config_dir/shell.qml"
-cp "$fixture_dir/../../services/NotificationModel.js" "$config_dir/services/NotificationModel.js"
-cp "$fixture_dir/../../services/NotificationPolicy.js" "$config_dir/services/NotificationPolicy.js"
-cp "$fixture_dir/../../services/NotificationService.qml" "$config_dir/services/NotificationService.qml"
-cp "$fixture_dir/../../plugins/builtin/notifications/NotificationCard.qml" "$config_dir/notifications/NotificationCard.qml"
-cp "$fixture_dir/../../plugins/builtin/notifications/NotificationCenter.qml" "$config_dir/notifications/NotificationCenter.qml"
-cp "$fixture_dir/../../plugins/builtin/notifications/NotificationToasts.qml" "$config_dir/notifications/NotificationToasts.qml"
+cp "$fixture_dir/../../services/NotificationModel.js" "$config_dir/src/services/NotificationModel.js"
+cp "$fixture_dir/../../services/NotificationPolicy.js" "$config_dir/src/services/NotificationPolicy.js"
+cp "$fixture_dir/../../services/NotificationService.qml" "$config_dir/src/services/NotificationService.qml"
+cp "$fixture_dir/../../ui/"*.qml "$config_dir/src/ui/"
+cp "$fixture_dir/../../plugins/builtin/notifications/NotificationCard.qml" \
+  "$config_dir/src/plugins/builtin/notifications/NotificationCard.qml"
+cp "$fixture_dir/../../plugins/builtin/notifications/NotificationCenter.qml" \
+  "$config_dir/src/plugins/builtin/notifications/NotificationCenter.qml"
+cp "$fixture_dir/../../plugins/builtin/notifications/NotificationToasts.qml" \
+  "$config_dir/src/plugins/builtin/notifications/NotificationToasts.qml"
+cp "$fixture_dir/../../plugins/builtin/notifications/Widget.qml" \
+  "$config_dir/src/plugins/builtin/notifications/Widget.qml"
+cp "$fixture_dir/../../../design-lab/themes/catppuccin-mocha.json" "$config_dir/theme.json"
+export STILLSUIT_NOTIFICATION_VIEW_THEME="$config_dir/theme.json"
 shell_pid=""
 
 assert_private_environment() {
@@ -74,7 +83,8 @@ for _ in {1..120}; do
   if [[ $result == ready ]]; then
     topology=$(qs ipc --pid "$shell_pid" call stillsuit-notification-view-fixture topology)
     jq -e '.serviceInstances == 1 and .outputs >= 1
-      and .toastViews == .outputs and .centerViews == .outputs' >/dev/null <<<"$topology"
+      and .toastViews == .outputs and .centerViews == .outputs
+      and .widgetViews == .outputs' >/dev/null <<<"$topology"
     if grep -E ' ERROR| FATAL' "$tmp_dir/quickshell.log"; then
       echo "view fixture logged a QML error" >&2
       exit 1

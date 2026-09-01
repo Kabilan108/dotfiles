@@ -2,14 +2,21 @@ function stringValue(value) {
     return value === undefined || value === null ? "" : String(value)
 }
 
+function boundedNumber(value, fallback, minimum, maximum) {
+    var number = Number(value)
+    if (!isFinite(number)) number = fallback
+    return Math.max(minimum, Math.min(maximum, number))
+}
+
 function notificationsPolicy(settings) {
     var values = settings && settings.notifications ? settings.notifications : {}
     var bypass = values.dndBypass || {}
     return {
-        popupLimit: Math.max(1, Math.min(20, Number(values.popupLimit || 5))),
-        historyLimit: Math.max(1, Math.min(500, Number(values.historyLimit || 100))),
-        normalTimeoutMs: Math.max(1, Number(values.normalTimeoutMs || 5000)),
-        lowTimeoutMs: Math.max(1, Number(values.lowTimeoutMs || 4000)),
+        popupLimit: Math.round(boundedNumber(values.popupLimit, 5, 1, 20)),
+        historyLimit: Math.round(boundedNumber(values.historyLimit, 100, 1, 100)),
+        historyMaxAgeMs: 24 * 60 * 60 * 1000,
+        normalTimeoutMs: boundedNumber(values.normalTimeoutMs, 5000, 1, 24 * 60 * 60 * 1000),
+        lowTimeoutMs: boundedNumber(values.lowTimeoutMs, 4000, 1, 24 * 60 * 60 * 1000),
         dndBypass: {
             critical: bypass.critical === undefined ? true : !!bypass.critical,
             appNames: Array.isArray(bypass.appNames) ? bypass.appNames : ["battery", "Battery"],
@@ -19,6 +26,19 @@ function notificationsPolicy(settings) {
             summaryPatterns: Array.isArray(bypass.summaryPatterns) ? bypass.summaryPatterns : []
         }
     }
+}
+
+function viewState(snapshot) {
+    var row = snapshot || {}
+    if (row.read !== true) return "unread"
+
+    var hinted = stringValue((row.hints || {})["x-stillsuit-state"]).toLowerCase()
+    if (["info", "success", "warning", "danger", "muted"].indexOf(hinted) !== -1)
+        return hinted
+    if (Number(row.urgency) === 2) return "danger"
+    if (Number(row.urgency) === 0 || stringValue(row.dndClass).indexOf("silenced-") === 0)
+        return "muted"
+    return "info"
 }
 
 function urgencyName(urgency) {
@@ -96,6 +116,7 @@ if (typeof module !== "undefined") {
         shouldBypassDnd: shouldBypassDnd,
         isTransient: isTransient,
         dndClass: dndClass,
+        viewState: viewState,
         presentationOutput: presentationOutput,
         shouldPresentOn: shouldPresentOn
     }

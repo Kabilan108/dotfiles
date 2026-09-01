@@ -7,6 +7,9 @@ var SNAPSHOT_ROLES = [
     "expireTimeout", "actions", "hints"
 ]
 
+var DEFAULT_HISTORY_LIMIT = 100
+var DEFAULT_HISTORY_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
 function safeString(value) {
     if (value === undefined || value === null) return ""
     try {
@@ -90,7 +93,9 @@ function snapshotOf(notification, identity) {
         deadline: finiteNumber(meta.deadline, 0),
         outputId: safeString(meta.outputId),
         dndClass: safeString(meta.dndClass || "visible"),
-        closeReason: safeString(meta.closeReason)
+        closeReason: safeString(meta.closeReason),
+        read: meta.read === true,
+        readAt: Math.max(0, finiteNumber(meta.readAt, 0))
     }
 }
 
@@ -102,7 +107,9 @@ function replacementSnapshot(notification, previous) {
         outputId: old.outputId,
         deadline: old.deadline,
         dndClass: old.dndClass,
-        closeReason: old.closeReason
+        closeReason: old.closeReason,
+        read: old.read,
+        readAt: old.readAt
     })
 }
 
@@ -126,7 +133,9 @@ function validSnapshot(value) {
         outputId: value.outputId,
         deadline: value.deadline,
         dndClass: value.dndClass,
-        closeReason: value.closeReason
+        closeReason: value.closeReason,
+        read: value.read,
+        readAt: value.readAt
     })
 }
 
@@ -140,7 +149,7 @@ function isolateRecords(values, limit) {
     return result
 }
 
-function parseState(raw, popupLimit, historyLimit) {
+function parseState(raw, popupLimit, historyLimit, now, historyMaxAgeMs) {
     var result = { dnd: false, popups: [], history: [], corrupt: false }
     var text = safeString(raw).trim()
     if (!text) return result
@@ -153,9 +162,10 @@ function parseState(raw, popupLimit, historyLimit) {
         }
         result.dnd = typeof parsed.dnd === "boolean" ? parsed.dnd : false
         result.popups = isolateRecords(parsed.popups, popupLimit)
-        result.history = isolateRecords(parsed.history, historyLimit)
+        var isolatedHistory = isolateRecords(parsed.history, historyLimit)
+        result.history = pruneHistory(isolatedHistory, now, historyMaxAgeMs, historyLimit)
         result.corrupt = result.popups.length !== (Array.isArray(parsed.popups) ? Math.min(parsed.popups.length, popupLimit) : 0)
-            || result.history.length !== (Array.isArray(parsed.history) ? Math.min(parsed.history.length, historyLimit) : 0)
+            || isolatedHistory.length !== (Array.isArray(parsed.history) ? Math.min(parsed.history.length, historyLimit) : 0)
         return result
     } catch (error) {
         result.corrupt = true
@@ -172,6 +182,72 @@ function boundedHistory(history, snapshot, limit) {
         if (safeString(rows[index].key) !== key) result.push(rows[index])
     }
     return result
+}
+
+function pruneHistory(history, now, maxAgeMs, limit) {
+    var rows = Array.isArray(history) ? history : []
+    var referenceTime = finiteNumber(now, Date.now())
+    var ageLimit = Math.max(1, finiteNumber(maxAgeMs, DEFAULT_HISTORY_MAX_AGE_MS))
+    var rowLimit = Math.max(1, Math.min(DEFAULT_HISTORY_LIMIT,
+        Math.round(finiteNumber(limit, DEFAULT_HISTORY_LIMIT))))
+    var oldestTimestamp = referenceTime - ageLimit
+    var result = []
+    var seen = {}
+
+    for (var index = 0; index < rows.length && result.length < rowLimit; index++) {
+        var row = rows[index]
+        if (!row || Number(row.timestamp || 0) < oldestTimestamp) continue
+        var key = safeString(row.key)
+        if (!key || seen[key]) continue
+        seen[key] = true
+        result.push(row)
+    }
+    return result
+}
+
+function retainedHistory(popups, history, limit, now, maxAgeMs) {
+    var popupRows = Array.isArray(popups) ? popups : []
+    var popupKeys = {}
+    var popupCount = 0
+    for (var popupIndex = 0; popupIndex < popupRows.length; popupIndex++) {
+        var popupKey = safeString((popupRows[popupIndex] || {}).key)
+        if (!popupKey || popupKeys[popupKey]) continue
+        popupKeys[popupKey] = true
+        popupCount += 1
+    }
+
+    var totalLimit = Math.max(1, Math.min(DEFAULT_HISTORY_LIMIT,
+        Math.round(finiteNumber(limit, DEFAULT_HISTORY_LIMIT))))
+    var available = Math.max(0, totalLimit - popupCount)
+    var pruned = pruneHistory(history, now, maxAgeMs, totalLimit)
+    var result = []
+    for (var index = 0; index < pruned.length && result.length < available; index++) {
+        if (!popupKeys[safeString(pruned[index].key)]) result.push(pruned[index])
+    }
+    return result
+}
+
+function markRead(rows, keys, timestamp) {
+    var source = Array.isArray(rows) ? rows : []
+    var selected = {}
+    var keyRows = Array.isArray(keys) ? keys : []
+    for (var keyIndex = 0; keyIndex < keyRows.length; keyIndex++)
+        selected[safeString(keyRows[keyIndex])] = true
+
+    var readAt = finiteNumber(timestamp, Date.now())
+    var changed = false
+    var result = source.map(function(row) {
+        if (!row || row.read === true || !selected[safeString(row.key)]) return row
+        changed = true
+        return Object.assign({}, row, { read: true, readAt: readAt })
+    })
+    return changed ? result : source
+}
+
+function unreadCount(popups, history, limit) {
+    return centerRows(popups, history, limit).filter(function(row) {
+        return row && row.read !== true
+    }).length
 }
 
 function historyKeysRemoved(previous, next) {
@@ -222,7 +298,13 @@ if (typeof module !== "undefined") {
         validSnapshot: validSnapshot,
         parseState: parseState,
         boundedHistory: boundedHistory,
+        pruneHistory: pruneHistory,
+        retainedHistory: retainedHistory,
+        markRead: markRead,
+        unreadCount: unreadCount,
         historyKeysRemoved: historyKeysRemoved,
-        centerRows: centerRows
+        centerRows: centerRows,
+        DEFAULT_HISTORY_LIMIT: DEFAULT_HISTORY_LIMIT,
+        DEFAULT_HISTORY_MAX_AGE_MS: DEFAULT_HISTORY_MAX_AGE_MS
     }
 }

@@ -138,6 +138,22 @@ node "$fixture_dir/model-policy.test.js"
 node "$fixture_dir/notification-card-source.test.js"
 start_shell
 
+# Opening the center marks only the rows present at that instant as read.
+notify-send -a lane-e -t 5000 "before-center-open"
+wait_for_json '.unreadCount == 1' >/dev/null
+[[ $(ipc openCenter) == open ]]
+wait_for_json '.unreadCount == 0' >/dev/null
+notify-send -a lane-e -t 5000 "after-center-open"
+wait_for_json '.unreadCount == 1 and (.popups | length) == 2' >/dev/null
+
+# Toast dismissal archives a row; center deletion removes its history.
+[[ $(ipc dismissFirst) == ok ]]
+archive_state=$(wait_for_json '(.history | length) == 1 and (.popups | length) == 1')
+jq -e '.history[0].closeReason == "dismissed"' >/dev/null <<<"$archive_state"
+[[ $(ipc deleteFirst) == ok ]]
+wait_for_json '.trackedCount == 1' >/dev/null
+ipc dismissAll >/dev/null
+
 # Requested timeout is milliseconds, and expiry archives before closing.
 notify-send -a lane-e -t 350 "requested-timeout"
 wait_for_json '.popups | length == 1' >/dev/null
@@ -173,7 +189,12 @@ wait "$default_pid"
 
 # DND has visible, bypass, retained, and transient classes.
 ipc dismissAll >/dev/null
+notify-send -a chat-app -t 5000 "visible-before-dnd"
+wait_for_json '(.popups | length) == 1' >/dev/null
 [[ $(ipc setDnd on) == on ]]
+cleared_state=$(wait_for_json '(.popups | length) == 0 and (.history | length) == 1')
+jq -e '.history[0].closeReason == "dnd-enabled" and .liveRefCount == 1' >/dev/null <<<"$cleared_state"
+ipc dismissAll >/dev/null
 notify-send -a chat-app -t 5000 "retained-dnd"
 wait_for_json '.history[0].dndClass == "silenced-retained"' >/dev/null
 notify-send -u critical -a any-app -t 5000 "critical-bypass"
@@ -188,23 +209,37 @@ sleep 0.15
 presentation=$(ipc presentationProof)
 jq -e '.serviceInstances == 1 and .outputA == 1 and .outputB == 0 and .overlap == 0' >/dev/null <<<"$presentation"
 
-# A 100-notification burst keeps five live toasts and 95 bounded history rows.
+# A burst over the limit keeps five live toasts and 95 history rows.
 ipc dismissAll >/dev/null
-for index in {1..100}; do
+for index in {1..105}; do
   notify-send -a lane-e -t 60000 "burst-$index"
 done
 burst_state=$(wait_for_json '.trackedCount == 100')
 jq -e '.popups | length == 5' >/dev/null <<<"$burst_state"
 jq -e '.history | length == 95' >/dev/null <<<"$burst_state"
+jq -e '.unreadCount == 100 and .unreadBadgeText == "9+"' >/dev/null <<<"$burst_state"
+
+# Expired sender actions remain visible only as inert history metadata.
+ipc dismissAll >/dev/null
+notify-send -a lane-e -t 300 -A default=Open "expired-action" >"$tmp_dir/expired.out" &
+expired_pid=$!
+wait_for_json '.popups[0].actions[0].identifier == "default"' >/dev/null
+expired_state=$(wait_for_json '(.popups | length) == 0 and .history[0].summary == "expired-action"')
+jq -e '.history[0].actions[0].identifier == "default"' >/dev/null <<<"$expired_state"
+[[ $(ipc firstActionState) == expired ]]
+wait "$expired_pid" 2>/dev/null || true
 
 # A persisted popup keeps its absolute engine deadline across a restart.
 ipc dismissAll >/dev/null
 notify-send -a lane-e -t 1200 "restart-deadline"
 wait_for_json '.popups[0].summary == "restart-deadline"' >/dev/null
+[[ $(ipc openCenter) == open ]]
+wait_for_json '.unreadCount == 0' >/dev/null
 sleep 0.25
 stop_shell
 start_shell
-wait_for_json '.popups[0].summary == "restart-deadline"' >/dev/null
+wait_for_json '.popups[0].summary == "restart-deadline" and .unreadCount == 0' >/dev/null
+[[ $(ipc firstActionState) == none ]]
 wait_for_json '(.popups | length) == 0 and .history[0].summary == "restart-deadline"' >/dev/null
 
 # Executable-looking hints remain data before and after a process restart.

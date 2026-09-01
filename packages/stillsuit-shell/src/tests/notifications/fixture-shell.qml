@@ -58,6 +58,8 @@ ShellRoot {
                 popups: notificationService.popups,
                 history: notificationService.history,
                 trackedCount: notificationService.trackedCount,
+                unreadCount: notificationService.unreadCount,
+                unreadBadgeText: notificationService.unreadBadgeText,
                 liveRefCount: Object.keys(notificationService.liveRefs).length
             })
         }
@@ -70,6 +72,25 @@ ShellRoot {
         function invokeFirst(identifier: string): string {
             var key = firstKey()
             return key ? notificationService.invokeAction(key, identifier) : "unknown"
+        }
+
+        function firstActionState(): string {
+            var key = firstKey()
+            return key ? notificationService.actionState(key) : "none"
+        }
+
+        function dismissFirst(): string {
+            var key = firstKey()
+            return key ? notificationService.dismiss(key) : "unknown"
+        }
+
+        function deleteFirst(): string {
+            var key = firstKey()
+            return key ? notificationService.deleteHistory(key) : "unknown"
+        }
+
+        function openCenter(): string {
+            return notificationService.openCenter("output-a")
         }
 
         function dismissAll(): string {

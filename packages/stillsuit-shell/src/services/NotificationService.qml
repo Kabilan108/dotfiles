@@ -22,6 +22,8 @@ Scope {
     readonly property string statePath: context.settings.paths.stateRoot + "/notifications-v1.json"
     readonly property bool serverActive: serverLoader.item !== null
     readonly property int trackedCount: NotificationModel.centerRows(popups, history, policy.historyLimit).length
+    readonly property int unreadCount: NotificationModel.unreadCount(popups, history, policy.historyLimit)
+    readonly property string unreadBadgeText: unreadCount > 9 ? "9+" : unreadCount > 0 ? String(unreadCount) : ""
 
     property bool ready: false
     property bool doNotDisturb: false
@@ -83,6 +85,18 @@ Scope {
         return NotificationModel.centerRows(popups, history, policy.historyLimit)
     }
 
+    function actionState(key) {
+        void(revision)
+        var snapshot = snapshotByKey(key)
+        if (!snapshot || !Array.isArray(snapshot.actions) || snapshot.actions.length === 0)
+            return "none"
+        return liveRefs[key] ? "available" : "expired"
+    }
+
+    function viewState(snapshot) {
+        return NotificationPolicy.viewState(snapshot)
+    }
+
     function toastsForOutput(outputId) {
         void(revision)
         if (!popupsVisible) return []
@@ -122,28 +136,35 @@ Scope {
 
     function hydrate(raw) {
         hydrating = true
-        var restored = NotificationModel.parseState(raw, policy.popupLimit, policy.historyLimit)
+        var now = Date.now()
+        var restored = NotificationModel.parseState(raw, policy.popupLimit,
+            policy.historyLimit, now, policy.historyMaxAgeMs)
         doNotDisturb = restored.dnd
         history = restored.history
         popups = []
-        var now = Date.now()
         for (var index = restored.popups.length - 1; index >= 0; index--) {
             var snapshot = restored.popups[index]
             if (snapshot.deadline > 0 && snapshot.deadline <= now) {
                 snapshot.closeReason = "expired-during-restart"
                 history = NotificationModel.boundedHistory(history, snapshot, policy.historyLimit)
+            } else if (doNotDisturb) {
+                snapshot.dndClass = "silenced-retained"
+                snapshot.closeReason = "dnd-during-restart"
+                snapshot.deadline = 0
+                history = NotificationModel.boundedHistory(history, snapshot, policy.historyLimit)
             } else {
                 popups.unshift(snapshot)
             }
         }
+        enforceRetention(now)
         hydrating = false
         ready = true
         revision += 1
         restartDeadlineTimer()
         if (restored.corrupt) {
             logWarning("recovered notification state while isolating malformed records")
-            persist()
         }
+        persist()
     }
 
     function insertPopup(snapshot) {
@@ -154,6 +175,7 @@ Scope {
             var overflow = popups[popups.length - 1]
             archiveAndClose(overflow.key, "overflow", true)
         }
+        enforceRetention(Date.now())
         revision += 1
         persist()
         restartDeadlineTimer()
@@ -166,6 +188,24 @@ Scope {
         history = NotificationModel.boundedHistory(previousHistory, archivedSnapshot, policy.historyLimit)
         closeEvictedLive(NotificationModel.historyKeysRemoved(previousHistory, history))
         archived(snapshot.key, reason)
+    }
+
+    function enforceRetention(now) {
+        var previousHistory = history
+        history = NotificationModel.retainedHistory(popups, previousHistory,
+            policy.historyLimit, now, policy.historyMaxAgeMs)
+        var removedKeys = NotificationModel.historyKeysRemoved(previousHistory, history)
+        closeEvictedLive(removedKeys)
+        return removedKeys.length
+    }
+
+    function pruneHistoryAt(now) {
+        var removedCount = enforceRetention(Number(now))
+        if (removedCount > 0) {
+            revision += 1
+            persist()
+        }
+        return removedCount
     }
 
     function removePopupSnapshot(key) {
@@ -208,6 +248,7 @@ Scope {
         // destroy its live QObject or sender-scoped image references.
         archiveSnapshot(snapshot, reason)
         removePopupSnapshot(key)
+        enforceRetention(Date.now())
         revision += 1
         flushState()
 
@@ -226,6 +267,25 @@ Scope {
 
     function dismiss(key) {
         return archiveAndClose(key, "dismissed", false)
+    }
+
+    function deleteHistory(key) {
+        if (!snapshotByKey(key)) return "unknown"
+
+        removePopupSnapshot(key)
+        history = history.filter(function(row) { return row.key !== key })
+        revision += 1
+        persistTimer.stop()
+        flushStateSynchronously()
+
+        var ref = releaseLive(key)
+        try {
+            if (ref && typeof ref.dismiss === "function") ref.dismiss()
+        } catch (error) {
+            logWarning("live notification closed after history deletion")
+        }
+        restartDeadlineTimer()
+        return "ok"
     }
 
     function invokeAction(key, identifier) {
@@ -248,6 +308,7 @@ Scope {
         var snapshot = snapshotByKey(key)
         archiveSnapshot(snapshot, "action:" + selected)
         removePopupSnapshot(key)
+        enforceRetention(Date.now())
         revision += 1
         flushState()
         try {
@@ -266,10 +327,15 @@ Scope {
         return "ok"
     }
 
-    function dismissAll() {
+    function clearHistory() {
         var rows = centerRows().slice()
         for (var index = 0; index < rows.length; index++) {
-            if (liveRefs[rows[index].key]) archiveAndClose(rows[index].key, "dismissed", false)
+            var ref = releaseLive(rows[index].key)
+            try {
+                if (ref && typeof ref.dismiss === "function") ref.dismiss()
+            } catch (error) {
+                logWarning("live notification closed after history clear")
+            }
         }
         popups = []
         history = []
@@ -280,8 +346,26 @@ Scope {
         return "ok"
     }
 
+    function dismissAll() {
+        return clearHistory()
+    }
+
+    function markRowsRead(keys, timestamp) {
+        var nextPopups = NotificationModel.markRead(popups, keys, timestamp)
+        var nextHistory = NotificationModel.markRead(history, keys, timestamp)
+        if (nextPopups === popups && nextHistory === history) return false
+        popups = nextPopups
+        history = nextHistory
+        revision += 1
+        persist()
+        return true
+    }
+
     function openCenter(outputId) {
+        pruneHistoryAt(Date.now())
+        var presentKeys = centerRows().map(function(row) { return row.key })
         centerOutputId = String(outputId || focusedOutputId())
+        markRowsRead(presentKeys, Date.now())
         return "open"
     }
 
@@ -297,13 +381,31 @@ Scope {
     }
 
     function toggleDnd() {
-        doNotDisturb = !doNotDisturb
-        return doNotDisturb ? "on" : "off"
+        return setDnd(!doNotDisturb)
     }
 
     function setDnd(value) {
-        doNotDisturb = !!value
+        var enabled = !!value
+        if (enabled && !doNotDisturb) hideVisibleBanners("dnd-enabled")
+        doNotDisturb = enabled
         return doNotDisturb ? "on" : "off"
+    }
+
+    function hideVisibleBanners(reason) {
+        if (popups.length === 0) return 0
+        var visibleRows = popups.slice()
+        for (var index = 0; index < visibleRows.length; index++) {
+            var snapshot = Object.assign({}, visibleRows[index], {
+                dndClass: "silenced-retained"
+            })
+            archiveSnapshot(snapshot, reason)
+        }
+        popups = []
+        enforceRetention(Date.now())
+        revision += 1
+        persist()
+        restartDeadlineTimer()
+        return visibleRows.length
     }
 
     function connectUpdates(notification, key) {
@@ -358,6 +460,7 @@ Scope {
         if (snapshot && indexByKey(popups, key) >= 0) archiveSnapshot(snapshot, "sender")
         removePopupSnapshot(key)
         releaseLive(key)
+        enforceRetention(Date.now())
         revision += 1
         persist()
         restartDeadlineTimer()
@@ -386,6 +489,7 @@ Scope {
         }
         if (snapshot.dndClass === "silenced-retained") {
             archiveSnapshot(snapshot, "dnd")
+            enforceRetention(now)
             revision += 1
             persist()
             return
@@ -440,6 +544,13 @@ Scope {
         id: deadlineTimer
         repeat: false
         onTriggered: root.expireDue()
+    }
+
+    Timer {
+        interval: 15 * 60 * 1000
+        repeat: true
+        running: root.ready
+        onTriggered: root.pruneHistoryAt(Date.now())
     }
 
     Loader {
