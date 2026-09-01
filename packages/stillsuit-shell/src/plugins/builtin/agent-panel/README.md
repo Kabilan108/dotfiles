@@ -5,16 +5,27 @@ output. The service forwards the five HostContext v1 agent-panel actions. It
 does not accept prompts, commands, paths, or launch settings.
 
 `stillsuit-agent-panel` owns the `stillsuit-agent` tmux session and the exact
-Ghostty app ID `io.stillsuit.AgentPanel`. Closing the window leaves tmux and
-Codex running. Only `terminate` ends the session. New sessions start in
-`$HOME`; neither IPC nor helper arguments can choose a working directory.
-Tmux lookups and mutations use the exact target `=stillsuit-agent`, so a session
-such as `stillsuit-agent-extra` is never treated as the panel session.
+Ghostty app ID `io.stillsuit.AgentPanel`. The first open starts a custom
+single-instance Ghostty process whose direct default command attaches to the
+exact tmux target `=stillsuit-agent`. Hide closes the terminal surface but
+leaves both Ghostty and tmux running. Reopen asks that exact Ghostty instance
+for a new window, avoiding another process and GTK startup. Hide never ends
+either process. `terminate` ends both, while stale-session recovery replaces
+them as needed. New sessions start in `$HOME`; neither IPC nor helper arguments
+can choose a working directory. A session such as `stillsuit-agent-extra` is
+never treated as the panel session.
 
-Hide and replacement actions wait up to five seconds for the exact Niri window
-IDs and recorded Ghostty PID to disappear. The helper sends TERM to that PID
-only while its argv contains `--class=io.stillsuit.AgentPanel`. A timeout fails
-the action with exit 75 and does not launch another Ghostty over the old one.
+Niri does not provide a hidden-window or scratchpad action, and the packaged
+Ghostty does not expose its quick-terminal toggle as an external command.
+Reopen must still create and map a new terminal surface. The helper waits up to
+five seconds for that surface to appear before releasing its lock, so concurrent
+opens cannot request duplicate windows.
+
+Hide waits up to five seconds for the exact Niri window IDs to disappear.
+Terminate and stale-session replacement also wait up to five seconds for the
+recorded Ghostty PID to exit. The helper sends TERM only while that PID's argv
+contains `--class=io.stillsuit.AgentPanel`. A timeout fails the action with exit
+75 and does not launch another Ghostty over the old one.
 
 The helper reads `$XDG_CONFIG_HOME/stillsuit/agent-panel.json` when it needs to
 start Codex. If `XDG_CONFIG_HOME` is unset, it reads
@@ -42,7 +53,8 @@ as `bin/stillsuit-agent-panel`, include this plugin root in the store-backed
 registry, and configure the host's five agent-panel actions to execute the
 helper with exactly one corresponding literal action.
 
-The fixture suite uses delayed fake Niri and Ghostty exits to check the wait
-barriers. It also starts real tmux sessions on a temporary socket and confirms
-that a lone `stillsuit-agent-extra` session is ignored and survives panel
-termination.
+The fixture suite uses delayed fake Niri maps and delayed Niri and Ghostty exits
+to check the wait barriers. It verifies that hide and concurrent reopen reuse
+one Ghostty process without duplicate window requests. It also starts real tmux
+sessions on a temporary socket and confirms that a lone
+`stillsuit-agent-extra` session is ignored and survives panel termination.

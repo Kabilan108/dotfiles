@@ -9,6 +9,9 @@ readonly DEFAULT_EFFORT="low"
 readonly DEFAULT_TIER="fast"
 readonly SHUTDOWN_POLL_INTERVAL="0.05"
 readonly SHUTDOWN_POLL_ATTEMPTS=100
+readonly WINDOW_OPEN_POLL_INTERVAL="0.05"
+readonly WINDOW_OPEN_POLL_ATTEMPTS=100
+readonly GHOSTTY_COMMAND="direct:tmux attach-session -t $SESSION_TARGET"
 
 usage() {
   printf 'usage: %s {open|hide|toggle|status|terminate}\n' "${0##*/}" >&2
@@ -162,6 +165,27 @@ wait_for_windows_closed() {
   return 75
 }
 
+wait_for_window_open() {
+  local attempt output
+  for ((attempt = 0; attempt < WINDOW_OPEN_POLL_ATTEMPTS; attempt++)); do
+    if ! output=$(query_window_ids); then
+      printf 'failed to query Niri while waiting for the agent panel window to open\n' >&2
+      return 75
+    fi
+    if [[ -n $output ]]; then
+      return
+    fi
+    if ! pending_pid >/dev/null; then
+      printf 'agent panel Ghostty exited before its window opened\n' >&2
+      return 75
+    fi
+    ((attempt + 1 == WINDOW_OPEN_POLL_ATTEMPTS)) || sleep "$WINDOW_OPEN_POLL_INTERVAL"
+  done
+
+  printf 'timed out waiting for the agent panel window to open\n' >&2
+  return 75
+}
+
 close_window_ids() {
   local id
   local -a ids=("$@")
@@ -237,12 +261,31 @@ ensure_session() {
 launch_window() {
   local pid
   if pending_pid >/dev/null; then
-    return
+    if ! ghostty +new-window --class="$APP_ID" --title="Stillsuit Agent" \
+      >/dev/null 2>&1; then
+      printf 'failed to request a window from the persistent agent panel Ghostty\n' >&2
+      return 75
+    fi
+  else
+    ghostty --class="$APP_ID" --title="Stillsuit Agent" \
+      --gtk-single-instance=true \
+      --quit-after-last-window-closed=false \
+      --command="$GHOSTTY_COMMAND" >/dev/null 2>&1 9>&- &
+    pid=$!
+    printf '%s\n' "$pid" >"$GHOSTTY_PID_FILE"
   fi
-  ghostty --class="$APP_ID" --title="Stillsuit Agent" \
-    -e tmux attach-session -t "$SESSION_TARGET" >/dev/null 2>&1 9>&- &
-  pid=$!
-  printf '%s\n' "$pid" >"$GHOSTTY_PID_FILE"
+
+  if ! wait_for_window_open; then
+    stop_pending_window
+    return 75
+  fi
+}
+
+focus_single_window() {
+  local -a ids=("$@")
+  ((${#ids[@]} > 0)) || return 75
+  niri msg action focus-window --id "${ids[0]}" >/dev/null
+  close_window_ids "${ids[@]:1}"
 }
 
 open_panel() {
@@ -257,17 +300,18 @@ open_panel() {
 
   load_window_ids ids
   if ((${#ids[@]} > 0)); then
-    niri msg action focus-window --id "${ids[0]}" >/dev/null
-    close_window_ids "${ids[@]:1}"
+    focus_single_window "${ids[@]}"
   else
     launch_window
+    load_window_ids ids
+    focus_single_window "${ids[@]}"
   fi
 }
 
 toggle_panel() {
   local -a ids=()
   load_window_ids ids
-  if ((${#ids[@]} > 0)) || pending_pid >/dev/null; then
+  if ((${#ids[@]} > 0)); then
     hide_panel
   else
     open_panel
@@ -276,29 +320,23 @@ toggle_panel() {
 
 hide_panel() {
   close_windows
-  stop_pending_window
 }
 
 terminate_panel() {
   hide_panel
+  stop_pending_window
   if tmux has-session -t "$SESSION_TARGET" 2>/dev/null; then
     tmux kill-session -t "$SESSION_TARGET"
   fi
 }
 
 print_status() {
-  local session windows pending window_state
+  local session windows window_state
   session=$(session_state)
   windows=$(window_ids | wc -l)
   windows=${windows//[[:space:]]/}
-  pending=false
-  if pending_pid >/dev/null; then
-    pending=true
-  fi
   if ((windows > 0)); then
     window_state=visible
-  elif [[ $pending == true ]]; then
-    window_state=opening
   else
     window_state=absent
   fi
@@ -306,8 +344,7 @@ print_status() {
     --arg session "$session" \
     --arg window "$window_state" \
     --argjson windowCount "$windows" \
-    --argjson pending "$pending" \
-    '{session: $session, window: $window, windowCount: $windowCount, launchPending: $pending}'
+    '{session: $session, window: $window, windowCount: $windowCount, launchPending: false}'
 }
 
 case "$ACTION" in
