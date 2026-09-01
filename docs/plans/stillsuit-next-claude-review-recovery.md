@@ -10,7 +10,7 @@ Recovery activation status: none. The recovery itself did not switch a NixOS or
 Home Manager generation, restart a production service, claim the notification
 bus, or touch a live tmux session. Gate 1 was subsequently approved, rebuilt,
 and activated by the human. The human approved Gate 2 on 2026-08-31; its staged
-patch is now applied and validated, but it has not been built or activated.
+patch is now applied, validated, and built, but it has not been activated.
 
 ## Recovery status
 
@@ -285,5 +285,5 @@ The lane commits are `637791b0` (host runtime), `c7840e5c`
 
 Status on 2026-08-31: steps 1 through 6 are complete, Gate 1 is complete, and
 all secondary findings above are resolved. The human subsequently approved
-Gate 2. Its patch is staged and validated; the build and ordered handoff remain
+Gate 2. Its patch is staged, validated, and built; the ordered handoff remains
 pending.

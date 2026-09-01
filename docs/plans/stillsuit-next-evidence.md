@@ -8,7 +8,7 @@ system generation is
 Waybar and the configured agent workspace are retired. Gate 2 has not been run.
 The legacy Stillsuit shell remains the sole notification owner, and Stillsuit
 Next remains inactive. The human approved Gate 2 on 2026-08-31, and its patch is
-staged and validated but not built or activated. Only the exact disposable
+staged, validated, and built but not activated. Only the exact disposable
 shadow-preview child PIDs and their private buses were torn down during
 agent-run tests.
 
@@ -740,13 +740,23 @@ configuration returned `enable = true`, bar owners
 No build, generation switch, service restart, process kill, or notification
 ownership change was performed while staging the gate. Legacy Stillsuit PID
 `63916` remains the only legacy instance and notification owner;
-`stillsuit-shell.service` remains inactive in the current generation. The next
-human action is the build-only command. After it succeeds, the prepared bounded
-PID, D-Bus-name, systemd, IPC-readiness, and ownership checks govern the switch.
+`stillsuit-shell.service` remains inactive in the current generation.
+
+The human then ran `sudo nixos-rebuild build --flake .#jacurutu`; it exited 0
+and produced
+`/nix/store/6nlz1x4cq38q7r6zpp4pjcab815xz7iz-nixos-system-jacurutu-26.11.20260822.2c423e0`,
+the same closure as the disposable forced-enabled proof. The `result` symlink
+resolves to that exact output. The immediate pre-handoff check found exactly
+legacy PID `63916`, confirmed that it owns
+`org.freedesktop.Notifications`, found no other Quickshell instance, and found
+the Next unit inactive and absent from the active generation. A direct
+config-scoped Next query was unavailable because the current generation does
+not install that config; the corrected all-instance query passed.
+
+The prepared bounded PID, D-Bus-name, systemd, IPC-readiness, and ownership
+checks now govern the single-owner switch.
 
 ## Remaining work
 
-- Run the Gate 2 build-only command from the prepared handoff. Do not use
-  `rebuild` or switch the generation yet.
-- After the build succeeds, run the exact ordered single-owner handoff rather
-  than an unbounded or newest-instance selection.
+- Run the exact ordered single-owner handoff rather than an unbounded or
+  newest-instance selection.
