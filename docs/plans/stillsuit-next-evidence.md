@@ -1036,3 +1036,47 @@ The capability URL remains in the protected local receipt and was not committed.
 
 No panel implementation, Nix rebuild, activation, service restart, production
 shell reload, or live desktop mutation was performed.
+
+## Panel selections and recording-history pass
+
+The human accepted all fifteen first-pass picker decisions. Audio retains
+microphone level and mute without input-device switching. Notifications use a
+bounded unread count, read-on-open semantics, a visible expired-action note,
+and a 24-hour plus 100-item history limit. Personal Wi-Fi uses the native
+Stillsuit path with NetworkManager editor fallback for enterprise and hidden
+networks; other VPNs appear only while active; Bluetooth audio becomes the
+default output on connect. Power uses the practical battery detail set, an
+independent alert service, and bar-only access. The agent window moves to 60%
+by 60%. Recording uses compact active controls, a Recent meetings section, and
+an auto-closing completion view backed by durable history.
+
+The follow-up recording note makes Obsidian the long-term meeting record and
+the Stillsuit list an operational work queue. Retry is manual only. A failed row
+shows an error summary plus separate Details and Retry actions. Retry reuses the
+same durable job identity, increments its attempt, disables duplicate dispatch,
+and returns the row to queued; the shell never starts an automatic retry.
+
+The revised worksheet ranks queued, processing, and failed jobs ahead of
+completed jobs. Completed jobs fill remaining slots, newest first. The visible
+meeting list always honors a fixed row cap. When actionable jobs exceed that
+cap, the newest jobs remain visible, an overflow count represents the older
+jobs, and older work rolls forward as shown jobs complete. Three genuine choices
+remain: the cap value, whether overflow opens capped pages or only reports a
+count, and the exact completion auto-close delay.
+
+The interactive artifact was reduced from fifteen pickers to those three
+choices. Its generated prompt includes the accepted panel contracts, the fixed
+manual-retry model, the three final selections, and an optional note. Changing
+the row cap and entering a note updated the prompt; Copy reported success; Reset
+restored the recommended eight-row cap and cleared the note. The page rendered
+as a single-column layout at the narrow breakpoint without page-level horizontal
+overflow. `html-validate` and standalone JavaScript parsing exited 0.
+
+PageBin artifact `F19cQq1Q-H_n6T8u9dEbiw` is now revision 2 in the same
+`standard` sandbox. `pagebin verify` reported identical local and remote
+SHA-256
+`389b89e6420bc28ebf834518f7d9308b73a57c257271f83a359b3cc1946cd5b0`.
+The capability URL remains in the protected local receipt and was not committed.
+
+No panel implementation, Nix rebuild, activation, service restart, production
+shell reload, or live desktop mutation was performed.
