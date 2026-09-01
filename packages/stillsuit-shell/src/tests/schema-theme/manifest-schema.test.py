@@ -190,6 +190,30 @@ def _check_theme_schema() -> None:
     if component["osd"].get("background") is not None:
         raise AssertionError("production theme defines component.osd.background")
 
+    missing_surface_panel = deepcopy(theme)
+    del missing_surface_panel["semantic"]["surface"]["panel"]
+    _assert_rejected(
+        validator,
+        missing_surface_panel,
+        "a production theme without semantic.surface.panel",
+    )
+
+    missing_content_primary = deepcopy(theme)
+    del missing_content_primary["semantic"]["content"]["primary"]
+    _assert_rejected(
+        validator,
+        missing_content_primary,
+        "a production theme without semantic.content.primary",
+    )
+
+    unexpected_semantic_role = deepcopy(theme)
+    unexpected_semantic_role["semantic"]["surface"]["tooltip"] = "#181825"
+    _assert_rejected(
+        validator,
+        unexpected_semantic_role,
+        "a production theme with unexpected semantic.surface.tooltip",
+    )
+
     unexpected_osd_background = deepcopy(theme)
     unexpected_osd_background["component"]["osd"]["background"] = "#181825"
     _assert_rejected(

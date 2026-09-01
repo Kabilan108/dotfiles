@@ -71,25 +71,25 @@
       "required": ["background", "surface", "content", "outline", "accent", "status", "signal"],
       "properties": {
         "background": {
-          "$ref": "#/$defs/colorMap"
+          "$ref": "#/$defs/backgroundSemantic"
         },
         "surface": {
-          "$ref": "#/$defs/colorMap"
+          "$ref": "#/$defs/surfaceSemantic"
         },
         "content": {
-          "$ref": "#/$defs/colorMap"
+          "$ref": "#/$defs/contentSemantic"
         },
         "outline": {
-          "$ref": "#/$defs/colorMap"
+          "$ref": "#/$defs/outlineSemantic"
         },
         "accent": {
-          "$ref": "#/$defs/colorMap"
+          "$ref": "#/$defs/accentSemantic"
         },
         "status": {
-          "$ref": "#/$defs/colorMap"
+          "$ref": "#/$defs/statusSemantic"
         },
         "signal": {
-          "$ref": "#/$defs/colorMap"
+          "$ref": "#/$defs/signalSemantic"
         }
       }
     },
@@ -284,11 +284,86 @@
       "type": "string",
       "pattern": "^#[0-9a-fA-F]{6}$"
     },
-    "colorMap": {
+    "backgroundSemantic": {
       "type": "object",
-      "minProperties": 1,
-      "additionalProperties": {
-        "$ref": "#/$defs/color"
+      "additionalProperties": false,
+      "required": ["canvas", "desktop", "scrim"],
+      "properties": {
+        "canvas": { "$ref": "#/$defs/color" },
+        "desktop": { "$ref": "#/$defs/color" },
+        "scrim": { "$ref": "#/$defs/color" }
+      }
+    },
+    "surfaceSemantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bar", "panel", "raised", "overlay", "hover", "pressed", "selected"],
+      "properties": {
+        "bar": { "$ref": "#/$defs/color" },
+        "panel": { "$ref": "#/$defs/color" },
+        "raised": { "$ref": "#/$defs/color" },
+        "overlay": { "$ref": "#/$defs/color" },
+        "hover": { "$ref": "#/$defs/color" },
+        "pressed": { "$ref": "#/$defs/color" },
+        "selected": { "$ref": "#/$defs/color" }
+      }
+    },
+    "contentSemantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "secondary", "muted", "disabled", "inverse"],
+      "properties": {
+        "primary": { "$ref": "#/$defs/color" },
+        "secondary": { "$ref": "#/$defs/color" },
+        "muted": { "$ref": "#/$defs/color" },
+        "disabled": { "$ref": "#/$defs/color" },
+        "inverse": { "$ref": "#/$defs/color" }
+      }
+    },
+    "outlineSemantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subtle", "default", "strong", "focus"],
+      "properties": {
+        "subtle": { "$ref": "#/$defs/color" },
+        "default": { "$ref": "#/$defs/color" },
+        "strong": { "$ref": "#/$defs/color" },
+        "focus": { "$ref": "#/$defs/color" }
+      }
+    },
+    "accentSemantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "hover", "pressed", "subtle", "onAccent"],
+      "properties": {
+        "primary": { "$ref": "#/$defs/color" },
+        "hover": { "$ref": "#/$defs/color" },
+        "pressed": { "$ref": "#/$defs/color" },
+        "subtle": { "$ref": "#/$defs/color" },
+        "onAccent": { "$ref": "#/$defs/color" }
+      }
+    },
+    "statusSemantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["info", "success", "warning", "danger"],
+      "properties": {
+        "info": { "$ref": "#/$defs/color" },
+        "success": { "$ref": "#/$defs/color" },
+        "warning": { "$ref": "#/$defs/color" },
+        "danger": { "$ref": "#/$defs/color" }
+      }
+    },
+    "signalSemantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["audio", "microphone", "brightness", "charging", "recording"],
+      "properties": {
+        "audio": { "$ref": "#/$defs/color" },
+        "microphone": { "$ref": "#/$defs/color" },
+        "brightness": { "$ref": "#/$defs/color" },
+        "charging": { "$ref": "#/$defs/color" },
+        "recording": { "$ref": "#/$defs/color" }
       }
     },
     "barComponent": {
