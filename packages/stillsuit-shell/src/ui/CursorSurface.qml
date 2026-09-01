@@ -32,7 +32,7 @@ Rectangle {
     property bool outline: false
     property bool bordered: false
     property color foreground: _themeColor("colors", "text", "primary", "#cdd6f4")
-    property color accent: _themeColor("colors", "accent", "primary", "#89b4fa")
+    property color accent: _themeColor("colors", "border", "focus", foreground)
     property color fill: _controlColor("hover", "fill", "#313244")
     property color currentFill: _controlColor("active", "fill", "#45475a")
 

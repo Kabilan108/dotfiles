@@ -125,6 +125,8 @@ ShellRoot {
         try {
             var parsed = JSON.parse(text)
             if (!parsed || parsed.schemaVersion !== 1
+                    || !_isRecord(parsed.identity)
+                    || !_isRecord(parsed.palette)
                     || !parsed.colors
                     || !parsed.controls
                     || !parsed.typography
@@ -138,5 +140,9 @@ ShellRoot {
             themeError = "theme is invalid: " + error
         }
         themeLoaded = true
+    }
+
+    function _isRecord(value) {
+        return value !== null && typeof value === "object" && !Array.isArray(value)
     }
 }

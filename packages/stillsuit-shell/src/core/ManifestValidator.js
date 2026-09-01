@@ -124,6 +124,13 @@ function validate(manifest) {
         errors.push("scope must not be empty")
     }
 
+    validateContributions(manifest, errors)
+    validateScopes(manifest, errors)
+    validateOptionalFields(manifest, errors)
+    return errors
+}
+
+function validateContributions(manifest, errors) {
     if (Array.isArray(manifest.kinds) && isPlainObject(manifest.entryPoints)
             && isPlainObject(manifest.scope)) {
         for (var declaredIndex = 0; declaredIndex < manifest.kinds.length; declaredIndex++) {
@@ -136,22 +143,22 @@ function validate(manifest) {
             if (manifest.scope[contributionKey] === undefined)
                 errors.push("missing scope for " + declaredKind)
         }
+    }
 
+    if (Array.isArray(manifest.kinds) && isPlainObject(manifest.entryPoints)) {
         for (var suppliedEntryPoint in manifest.entryPoints) {
             var suppliedKind = kindForEntryPoint(suppliedEntryPoint)
             if (manifest.kinds.indexOf(suppliedKind) === -1)
                 errors.push("entry point does not match a declared kind: " + suppliedEntryPoint)
         }
+    }
+    if (Array.isArray(manifest.kinds) && isPlainObject(manifest.scope)) {
         for (var suppliedScope in manifest.scope) {
             var scopeKind = kindForEntryPoint(suppliedScope)
             if (manifest.kinds.indexOf(scopeKind) === -1)
                 errors.push("scope does not match a declared kind: " + suppliedScope)
         }
     }
-
-    validateScopes(manifest, errors)
-    validateOptionalFields(manifest, errors)
-    return errors
 }
 
 function validateScopes(manifest, errors) {

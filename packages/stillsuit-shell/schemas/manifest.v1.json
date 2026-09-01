@@ -111,6 +111,60 @@
       "then": { "properties": { "entryPoints": { "required": ["menu"] }, "scope": { "required": ["menu"] } } }
     },
     {
+      "if": {
+        "anyOf": [
+          { "properties": { "entryPoints": { "required": ["bar"] } }, "required": ["entryPoints"] },
+          { "properties": { "scope": { "required": ["bar"] } }, "required": ["scope"] }
+        ]
+      },
+      "then": { "properties": { "kinds": { "contains": { "const": "bar" } } } }
+    },
+    {
+      "if": {
+        "anyOf": [
+          { "properties": { "entryPoints": { "required": ["barWidget"] } }, "required": ["entryPoints"] },
+          { "properties": { "scope": { "required": ["barWidget"] } }, "required": ["scope"] }
+        ]
+      },
+      "then": { "properties": { "kinds": { "contains": { "const": "bar-widget" } } } }
+    },
+    {
+      "if": {
+        "anyOf": [
+          { "properties": { "entryPoints": { "required": ["service"] } }, "required": ["entryPoints"] },
+          { "properties": { "scope": { "required": ["service"] } }, "required": ["scope"] }
+        ]
+      },
+      "then": { "properties": { "kinds": { "contains": { "const": "service" } } } }
+    },
+    {
+      "if": {
+        "anyOf": [
+          { "properties": { "entryPoints": { "required": ["panel"] } }, "required": ["entryPoints"] },
+          { "properties": { "scope": { "required": ["panel"] } }, "required": ["scope"] }
+        ]
+      },
+      "then": { "properties": { "kinds": { "contains": { "const": "panel" } } } }
+    },
+    {
+      "if": {
+        "anyOf": [
+          { "properties": { "entryPoints": { "required": ["overlay"] } }, "required": ["entryPoints"] },
+          { "properties": { "scope": { "required": ["overlay"] } }, "required": ["scope"] }
+        ]
+      },
+      "then": { "properties": { "kinds": { "contains": { "const": "overlay" } } } }
+    },
+    {
+      "if": {
+        "anyOf": [
+          { "properties": { "entryPoints": { "required": ["menu"] } }, "required": ["entryPoints"] },
+          { "properties": { "scope": { "required": ["menu"] } }, "required": ["scope"] }
+        ]
+      },
+      "then": { "properties": { "kinds": { "contains": { "const": "menu" } } } }
+    },
+    {
       "if": { "required": ["barWidget"] },
       "then": { "properties": { "kinds": { "contains": { "const": "bar-widget" } } } }
     },
