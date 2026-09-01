@@ -244,7 +244,7 @@ QtObject {
         var settings = settingsOwner.facade
         var actions = actionsComponent.createObject(root)
         var contextOwner = contextOwnerComponent.createObject(root, {
-            _theme: _clone(theme || {}),
+            _theme: _publicTheme(theme),
             _compositor: compositor,
             _services: services,
             _panels: panels,
@@ -301,6 +301,21 @@ QtObject {
 
     function _clone(value) {
         return JSON.parse(JSON.stringify(value))
+    }
+
+    function _publicTheme(value) {
+        if (!value || value.schemaVersion !== 2)
+            return {}
+        return _clone({
+            schemaVersion: value.schemaVersion,
+            identity: value.identity,
+            semantic: value.semantic,
+            component: value.component,
+            typography: value.typography,
+            metrics: value.metrics,
+            motion: value.motion,
+            effects: value.effects
+        })
     }
 
     function _copy(value) {

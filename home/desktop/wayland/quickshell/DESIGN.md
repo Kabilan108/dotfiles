@@ -5,10 +5,10 @@ native design lab in `packages/stillsuit-shell` is the visual reference. The
 old HTML prototype is retired and must not be used to infer shell behavior or
 panel composition.
 
-The production shell still uses theme v1 while the UI migration is in
-progress. The approved v2 contract is staged in
-`packages/stillsuit-shell/schemas/theme.v2.draft.json`. The filename remains
-marked as a draft until production switches to it.
+The production source uses the approved v2 contract in
+`packages/stillsuit-shell/schemas/theme.v2.json`. Deployment remains a separate
+human gate; this document describes the source contract whether or not the
+current desktop generation has been rebuilt.
 
 ## Approved baseline
 

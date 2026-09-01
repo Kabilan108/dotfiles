@@ -27,6 +27,7 @@ ShellRoot {
     property bool themeLoaded: false
     property string themeError: ""
     property var effectiveTheme: ({})
+    readonly property var publicTheme: _publicTheme(effectiveTheme)
 
     FileView {
         id: themeFile
@@ -43,7 +44,7 @@ ShellRoot {
 
     HostContext {
         id: hostContext
-        theme: shell.effectiveTheme
+        theme: shell.publicTheme
         compositor: niriService.adapter
         serviceRegistry: serviceRegistry
         surfaceRouter: surfaceRouter
@@ -96,7 +97,7 @@ ShellRoot {
         catalog: pluginCatalog
         serviceRegistry: serviceRegistry
         surfaceRouter: surfaceRouter
-        theme: shell.effectiveTheme
+        theme: shell.publicTheme
         fallbackContext: pluginCatalog.fallbackContext
         configId: shell.configId
         instanceId: shell.processInstanceId
@@ -124,15 +125,23 @@ ShellRoot {
     function _loadTheme(text) {
         try {
             var parsed = JSON.parse(text)
-            if (!parsed || parsed.schemaVersion !== 1
+            if (!parsed || parsed.schemaVersion !== 2
                     || !_isRecord(parsed.identity)
                     || !_isRecord(parsed.palette)
-                    || !parsed.colors
-                    || !parsed.controls
-                    || !parsed.typography
-                    || !parsed.geometry
-                    || !parsed.motion)
-                throw new Error("theme does not satisfy theme.v1")
+                    || !_isRecord(parsed.semantic)
+                    || !_isRecord(parsed.component)
+                    || !_isRecord(parsed.typography)
+                    || !_isRecord(parsed.metrics)
+                    || !_isRecord(parsed.motion)
+                    || !_isRecord(parsed.effects)
+                    || !_hasRecords(parsed.semantic, [
+                        "background", "surface", "content", "outline",
+                        "accent", "status", "signal"
+                    ])
+                    || !_hasRecords(parsed.component, [
+                        "bar", "panel", "control", "notification", "osd"
+                    ]))
+                throw new Error("theme does not satisfy theme.v2")
             effectiveTheme = parsed
             themeError = ""
         } catch (error) {
@@ -144,5 +153,28 @@ ShellRoot {
 
     function _isRecord(value) {
         return value !== null && typeof value === "object" && !Array.isArray(value)
+    }
+
+    function _hasRecords(value, keys) {
+        for (var index = 0; index < keys.length; index++) {
+            if (!_isRecord(value[keys[index]]))
+                return false
+        }
+        return true
+    }
+
+    function _publicTheme(value) {
+        if (!_isRecord(value) || value.schemaVersion !== 2)
+            return {}
+        return {
+            schemaVersion: value.schemaVersion,
+            identity: value.identity,
+            semantic: value.semantic,
+            component: value.component,
+            typography: value.typography,
+            metrics: value.metrics,
+            motion: value.motion,
+            effects: value.effects
+        }
     }
 }

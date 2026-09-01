@@ -35,7 +35,8 @@ host_config_dir="$XDG_CONFIG_HOME/quickshell/$host_config_id"
 ln -s "$source_root" "$host_config_dir"
 
 catalog_path="$fixture_tmp/catalog.json"
-theme_path="$script_dir/fixtures/theme.v1.json"
+theme_path="$fixture_tmp/theme.v2.json"
+nix eval --json --file "$source_root/../themes/catppuccin-mocha.nix" > "$theme_path"
 
 jq -n --arg valid "$fixture_root/valid" \
     --arg multi "$fixture_root/multi" \
@@ -421,6 +422,14 @@ stop_fixture() {
 
 wait_for_ping "$host_pid"
 host_status=$(quickshell ipc --pid "$host_pid" call stillsuit status)
+public_theme=$(quickshell ipc --pid "$host_pid" call stillsuit theme)
+jq -e '
+    .schemaVersion == 2
+    and has("palette") == false
+    and (.semantic | type) == "object"
+    and (.component | type) == "object"
+    and .component.osd.background == null
+' >/dev/null <<< "$public_theme"
 jq -e '
     .configId == "stillsuit-lane-b-host"
     and .ready == true

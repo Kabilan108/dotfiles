@@ -60,10 +60,12 @@ objects, or an unrestricted command runner.
 
 ### `theme`
 
-`theme` is the read-only effective `theme.v1.json` record. Its public grouped
-roles are `colors`, `controls`, `typography`, `geometry`, and `motion`. Flat
-legacy aliases may exist during the port, but they are not part of this
-contract. Theme selection is rebuild-time in v1.
+`theme` is the read-only public view of the effective `theme.v2.json` record.
+Its groups are `semantic`, `component`, `typography`, `metrics`, `motion`, and
+`effects`, plus `schemaVersion` and `identity`. The raw `palette` is resolver
+input and is deliberately absent from plugin contexts and the public theme
+query. Plugins use component assignments or documented semantic roles. Theme
+selection remains rebuild-time.
 
 ### `compositor`
 
@@ -215,7 +217,7 @@ or whole-shell kill endpoint.
 |---|---|---|---|
 | `stillsuit` | `ping` | none | literal `ok` when the registry is ready |
 | `stillsuit` | `status` | none | JSON with config ID, `instanceId`, readiness, catalog revision, and plugin states |
-| `stillsuit` | `theme` | none | effective theme JSON |
+| `stillsuit` | `theme` | none | public effective theme JSON without the raw palette |
 | `stillsuit-surface` | `open` | plugin ID, payload JSON | `ok`, `unknown`, `disabled`, or `error` |
 | `stillsuit-surface` | `close` | plugin ID | `ok`, `unknown`, or `error` |
 | `stillsuit-surface` | `toggle` | plugin ID, payload JSON | `ok`, `unknown`, `disabled`, or `error` |

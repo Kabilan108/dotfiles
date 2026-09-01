@@ -131,8 +131,10 @@ run_theme_case() {
 
     theme_result=$(quickshell ipc --pid "$host_pid" call stillsuit theme)
     if [[ "$expected" == "accept" ]]; then
-        jq -e --slurpfile expectedTheme "$theme_path" \
-            '. == $expectedTheme[0]' >/dev/null <<< "$theme_result"
+        jq -e --slurpfile expectedTheme "$theme_path" '
+            . == ($expectedTheme[0] | del(.palette))
+            and has("palette") == false
+        ' >/dev/null <<< "$theme_result"
         jq -e '.ready == true' >/dev/null <<< "$host_status"
     else
         jq -e '. == {}' >/dev/null <<< "$theme_result"

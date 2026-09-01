@@ -27,7 +27,7 @@ for controls and panel sections.
 
 The previews import the shared components in `../src/ui/`; they are not copies
 of production-looking controls. Candidate files live in `themes/` and validate
-against `../schemas/theme.v2.draft.json`.
+against the production contract in `../schemas/theme.v2.json`.
 
 After the declarative fonts have been activated, launch the lab from the
 repository root with:
@@ -38,6 +38,6 @@ STILLSUIT_LAB_ROOT="$PWD/packages/stillsuit-shell/design-lab" \
   --path "$PWD/packages/stillsuit-shell/src/design-lab.qml"
 ```
 
-The current production theme schema remains v1. The v2 filename remains marked
-as a draft until the production migration, but its design decisions are now
-approved and recorded in `DESIGN.md`.
+The production source and the lab now share the same v2 schema. The design
+decisions are approved and recorded in `DESIGN.md`; deploying them remains a
+separate human gate.

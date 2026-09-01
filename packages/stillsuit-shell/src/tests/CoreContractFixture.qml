@@ -208,6 +208,17 @@ ShellRoot {
 
     HostContext {
         id: builtinHostContext
+        theme: ({
+            schemaVersion: 2,
+            identity: { id: "stillsuit.fixture" },
+            palette: { neutral: { base: "#000000" } },
+            semantic: { surface: { panel: "#111111" } },
+            component: { panel: { background: "#111111" } },
+            typography: { bodyFamily: "Fixture Sans" },
+            metrics: { barHeight: 26 },
+            motion: { fast: 66 },
+            effects: { surfaceOpacity: 0.8 }
+        })
         compositor: fakeCompositor
         serviceRegistry: fakeServices
         surfaceRouter: router
@@ -290,6 +301,10 @@ ShellRoot {
                 "builtin shadow mode did not default false")
             _assert(shadowBuiltin.settings.values.shadowMode === true,
                 "builtin shadow mode was not injected")
+            _assert(defaultBuiltin.theme.palette === undefined,
+                "plugin theme exposed the raw palette")
+            _assert(defaultBuiltin.theme.semantic.surface.panel === "#111111",
+                "plugin theme lost its semantic roles")
 
             var panel = panelPrimitive.createObject(null)
             _assert(panel !== null && panel.setting("fixture", 0) === 42,
