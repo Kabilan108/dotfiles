@@ -35,32 +35,50 @@ Item {
         Row {
             id: workspaceStrip
 
-            spacing: 5
+            spacing: 2
 
             Repeater {
                 model: root.workspaces
 
-                Rectangle {
+                Item {
                     required property var modelData
                     readonly property bool active: modelData && modelData.is_active
                     readonly property bool urgent: modelData && modelData.is_urgent
+                    readonly property int workspaceNumber: Number(modelData && modelData.idx || 0)
 
-                    width: active || urgent ? 18 : 6
-                    height: 6
-                    radius: height / 2
-                    color: urgent
-                        ? root.context.theme.semantic.status.danger
-                        : active
-                            ? root.context.theme.component.bar.workspaceActive
-                            : root.context.theme.component.bar.workspaceIdle
-                    opacity: active || urgent ? 1 : 0.55
+                    width: 16
+                    height: 18
 
-                    Behavior on color {
-                        ColorAnimation {
-                            duration: root.motionDuration
-                            easing.type: Easing.OutCubic
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: root.context.theme.metrics.radiusSmall
+                        color: root.context.theme.component.bar.workspaceActive
+                        opacity: parent.active ? 0.30 : 0
+
+                        Behavior on opacity {
+                            NumberAnimation {
+                                duration: root.motionDuration
+                                easing.type: Easing.OutCubic
+                            }
                         }
                     }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: parent.workspaceNumber > 0 ? String(parent.workspaceNumber) : "?"
+                        color: parent.active
+                            ? root.context.theme.component.bar.workspaceActive
+                            : parent.urgent
+                                ? root.context.theme.semantic.status.danger
+                                : root.context.theme.component.bar.workspaceIdle
+                        font.family: root.context.theme.typography.monoFamily
+                        font.pixelSize: root.context.theme.typography.captionSize
+                        font.weight: parent.active || parent.urgent
+                            ? root.context.theme.typography.weightBold
+                            : root.context.theme.typography.weightMedium
+                        renderType: Text.NativeRendering
+                    }
+
                 }
             }
         }
