@@ -1172,6 +1172,37 @@ Review notes:
 - No rebuild, activation, service restart, production-shell reload, Niri
   mutation, legacy cleanup, or soak was performed.
 
+## Panel implementation: theme-v2 host integration
+
+Status: integrated by the orchestrator in commit
+`2f3d46c9a2dad295b53c63dfb6f633a29619bbec` after both Phase A lane merges.
+
+Built:
+
+- Migrated the host loader from the v1 groups to the v2 semantic, component,
+  typography, metrics, motion, and effects groups.
+- Added a palette-free public theme view. Both plugin contexts and the public
+  theme IPC omit the raw palette while retaining the approved resolver output.
+- Removed the obsolete v1 runtime fixture and generated the canonical v2
+  fixture from the Nix theme record.
+- Updated the host contract, design language, and design-lab documentation to
+  point at the production v2 schema without implying deployment.
+
+Verification:
+
+- `bash packages/stillsuit-shell/src/tests/ui/run-fixtures.sh`, exit 0 with 49
+  checks.
+- `bash packages/stillsuit-shell/src/tests/schema-theme/run.sh`, exit 0,
+  including accepted and rejected runtime theme cases.
+- `bash packages/stillsuit-shell/src/tests/run-lane-b-fixtures.sh`, exit 0 with
+  69 core and 24 repair checks.
+- `bash -n` on all three runners and `git diff --check`, exit 0.
+- The host fixtures assert that `stillsuit theme` and an independently created
+  plugin context omit `palette` while retaining semantic and component roles.
+
+No panel workflow was changed. No rebuild, activation, service restart,
+production-shell reload, Niri mutation, legacy cleanup, or soak was performed.
+
 ## Panel implementation: shared UI contracts
 
 Status: reviewed and merged from isolated lane commit
