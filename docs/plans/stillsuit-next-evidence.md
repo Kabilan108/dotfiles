@@ -702,6 +702,15 @@ finished with zero created, updated, skipped, or errored records. The supplied
 report is therefore recorded as human-provided evidence rather than claimed as
 a newly recovered transcript.
 
+All four secondary worktrees were clean before removal. Their merged temporary
+branches and the disposable build/audit files were deleted; the pre-existing
+`skill-audit` worktree and the unrelated main-checkout changes remained
+untouched. A final main-checkout check proved the canonical staged cutover patch
+still applies cleanly and the aggregate Gate 1-to-current diff has no whitespace
+errors. The live boundary remained unchanged: only legacy Stillsuit PID `63916`
+was running and owned `org.freedesktop.Notifications`; Waybar and the Next unit
+were inactive and absent from the active generation.
+
 ## Human-owned gates
 
 Gate 1 was approved by the human on 2026-08-31. Its workspace-removal and
