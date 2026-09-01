@@ -1435,6 +1435,34 @@ Residual boundary:
 - No rebuild, activation, service restart, production-shell reload, compositor
   mutation, legacy cleanup, or soak was performed.
 
+## Panel deployment preparation: staged cleanup applied
+
+Status: explicitly approved by the human and committed as
+`57a714707f07d11ac5f0f69bd54bab640699178f`.
+
+Applied:
+
+- Changed the AgentPanel Niri rule from 72% to the locked 60% output width and
+  height.
+- Removed the legacy battery-watcher startup hooks from Niri, Hyprland, and i3.
+  The independent user systemd timer is now the only configured recurring
+  battery-alert owner.
+- Retained both patch files as rollback artifacts. Their reverse-apply checks
+  pass against the committed source.
+
+Verification:
+
+- The orchestrator read the complete three-file diff before committing it.
+- `niri validate --config home/desktop/wayland/compositors/niri/config.kdl`,
+  exit 0.
+- Scoped `nixfmt --check`, agent-panel fixtures, power/resources fixtures,
+  reverse patch checks, and `git diff --check`, exit 0.
+- `nix flake check --no-build` and Jacurutu toplevel `drvPath` evaluation,
+  exit 0.
+
+No rebuild, activation, service restart, production-shell reload, or soak was
+performed.
+
 ## Panel implementation: theme-v2 host integration
 
 Status: integrated by the orchestrator in commit
