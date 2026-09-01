@@ -4,68 +4,141 @@
 import QtQuick
 import QtQuick.Layouts
 
-RowLayout {
+Item {
     id: root
 
     required property var context
     required property string outputId
-    spacing: 8
 
     readonly property var workspaces: workspacesForOutput(context.compositor.workspaces || [], outputId)
     readonly property var activeWorkspace: activeWorkspaceForOutput(workspaces)
     readonly property int columns: columnCount(context.compositor.windows || [], activeWorkspace)
     readonly property int focusedColumn: focusedColumnForWorkspace(context.compositor.windows || [], activeWorkspace)
+    readonly property bool reducedMotion: context.settings
+        && context.settings.values
+        && context.settings.values.reducedMotion === true
+    readonly property int motionDuration: reducedMotion ? 0 : context.theme.motion.fast
+    readonly property string accessibleName: "Workspaces and Niri columns on " + outputId
+    readonly property bool inlineLayout: workspaceStrip.parent === contentRow
+        && separator.parent === contentRow
+        && columnStrip.parent === contentRow
 
-    Row {
-        spacing: 5
+    implicitWidth: contentRow.implicitWidth
+    implicitHeight: context.theme.metrics.barHeight
 
-        Repeater {
-            model: root.workspaces
+    RowLayout {
+        id: contentRow
 
-            Rectangle {
-                required property var modelData
-                readonly property bool active: modelData && modelData.is_active
-                readonly property bool urgent: modelData && modelData.is_urgent
+        anchors.centerIn: parent
+        spacing: root.context.theme.metrics.spaceUnit
 
-                width: active ? 18 : 6
-                height: 6
-                radius: height / 2
-                color: urgent ? root.context.theme.colors.status.danger
-                    : active ? root.context.theme.colors.status.info
-                    : root.context.theme.colors.text.tertiary
-                opacity: active || urgent ? 1 : 0.55
+        Row {
+            id: workspaceStrip
 
-                Behavior on width { NumberAnimation { duration: root.context.theme.motion.fast } }
-                Behavior on color { ColorAnimation { duration: root.context.theme.motion.fast } }
+            spacing: root.context.theme.metrics.spaceUnit
+
+            Repeater {
+                model: root.workspaces
+
+                Item {
+                    required property var modelData
+                    readonly property bool active: modelData && modelData.is_active
+                    readonly property bool urgent: modelData && modelData.is_urgent
+
+                    width: 14
+                    height: 8
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: parent.width
+                        height: 6
+                        radius: height / 2
+                        scale: parent.active || parent.urgent ? 1 : 0.45
+                        color: parent.urgent
+                            ? root.context.theme.semantic.status.danger
+                            : parent.active
+                                ? root.context.theme.component.bar.workspaceActive
+                                : root.context.theme.component.bar.workspaceIdle
+                        opacity: parent.active || parent.urgent ? 1 : 0.72
+
+                        Behavior on scale {
+                            NumberAnimation {
+                                duration: root.motionDuration
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: root.motionDuration
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                        Behavior on opacity {
+                            NumberAnimation {
+                                duration: root.motionDuration
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                    }
+                }
             }
         }
-    }
 
-    Rectangle {
-        visible: root.workspaces.length > 0
-        Layout.preferredWidth: 1
-        Layout.preferredHeight: 18
-        color: root.context.theme.colors.border.subtle
-    }
+        Rectangle {
+            id: separator
 
-    Row {
-        spacing: 4
+            visible: root.workspaces.length > 0
+            Layout.preferredWidth: 1
+            Layout.preferredHeight: Math.max(12, root.context.theme.metrics.barHeight - 10)
+            color: root.context.theme.component.bar.separator
+        }
 
-        Repeater {
-            model: root.columns
+        Row {
+            id: columnStrip
 
-            Rectangle {
-                required property int index
-                readonly property bool focused: index + 1 === root.focusedColumn
+            spacing: root.context.theme.metrics.spaceUnit
 
-                width: focused ? 15 : 6
-                height: 10
-                radius: 2
-                color: focused ? root.context.theme.colors.status.info
-                    : root.context.theme.colors.text.tertiary
-                opacity: focused ? 1 : 0.6
+            Repeater {
+                model: root.columns
 
-                Behavior on width { NumberAnimation { duration: root.context.theme.motion.fast } }
+                Item {
+                    required property int index
+                    readonly property bool focused: index + 1 === root.focusedColumn
+
+                    width: 12
+                    height: 12
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 10
+                        height: 10
+                        radius: root.context.theme.metrics.radiusSmall / 2
+                        scale: parent.focused ? 1 : 0.58
+                        color: parent.focused
+                            ? root.context.theme.component.bar.workspaceActive
+                            : root.context.theme.component.bar.workspaceIdle
+                        opacity: parent.focused ? 1 : 0.72
+
+                        Behavior on scale {
+                            NumberAnimation {
+                                duration: root.motionDuration
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: root.motionDuration
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                        Behavior on opacity {
+                            NumberAnimation {
+                                duration: root.motionDuration
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                    }
+                }
             }
         }
     }

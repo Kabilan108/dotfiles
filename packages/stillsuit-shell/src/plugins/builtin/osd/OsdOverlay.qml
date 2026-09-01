@@ -34,22 +34,24 @@ Scope {
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         ColumnLayout {
             id: column
-            spacing: root.context.theme.geometry.panelGap
+            spacing: root.context.theme.metrics.spaceUnit * 2
             OsdBar {
                 visible: root.service.volumeVisible
                 context: root.context
-                icon: root.service.muted ? "󰝟" : "󰕾"
+                iconName: root.service.muted ? "volume-mute" : "volume-up"
                 value: root.service.volume
-                accentColor: root.service.muted ? root.context.theme.colors.status.danger : root.context.theme.colors.status.info
+                signalRole: "audio"
                 label: root.service.muted ? "Mute" : Math.round(root.service.volume * 100) + "%"
+                accessibleName: root.service.muted ? "Audio muted" : "Audio volume " + label
             }
             OsdBar {
                 visible: root.service.brightnessVisible
                 context: root.context
-                icon: "󰃠"
+                iconName: "brightness"
                 value: root.service.brightness
-                accentColor: root.context.theme.colors.status.warning
+                signalRole: "brightness"
                 label: Math.round(Math.max(0, root.service.brightness) * 100) + "%"
+                accessibleName: "Display brightness " + label
             }
             DictationPill {
                 visible: root.dictatorVisible

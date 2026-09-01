@@ -1,25 +1,27 @@
 import QtQuick
+import "../../../ui" as Ui
 
-Rectangle {
+Item {
     id: root
 
     required property var context
     required property var service
     required property string outputId
 
-    implicitWidth: label.implicitWidth + 20
-    implicitHeight: context.theme.geometry.barHeight
-    radius: context.theme.geometry.radius
-    color: "transparent"
+    readonly property string displayText: Qt.formatDateTime(service.now, "MM-dd-yyyy  HH:mm")
+    readonly property string accessibleName: "Clock on " + outputId + ": " + displayText
 
-    Text {
+    implicitWidth: label.implicitWidth + context.theme.metrics.spaceUnit * 4
+    implicitHeight: context.theme.metrics.barHeight
+
+    Ui.ShellText {
         id: label
-        anchors.centerIn: parent
-        text: Qt.formatDateTime(root.service.now, "MM-dd-yyyy  HH:mm")
-        color: root.context.theme.colors.text.secondary
-        font.family: root.context.theme.typography.monospaceFamily
-        font.pixelSize: root.context.theme.typography.baseSize
-        font.weight: root.context.theme.typography.weightMedium
-    }
 
+        anchors.centerIn: parent
+        theme: root.context.theme
+        text: root.displayText
+        role: "secondary"
+        sizeRole: "label"
+        monospace: true
+    }
 }

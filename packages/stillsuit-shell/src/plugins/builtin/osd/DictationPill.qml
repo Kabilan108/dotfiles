@@ -1,7 +1,8 @@
 import QtQuick
 import QtQuick.Layouts
+import "../../../ui" as Ui
 
-Rectangle {
+Item {
     id: root
 
     required property var context
@@ -13,15 +14,22 @@ Rectangle {
     readonly property real barMinHeight: 3
     readonly property real barMaxHeight: 16
     readonly property real waveformWidth: barCount * barWidth + (barCount - 1) * barGap
+    readonly property bool reducedMotion: context.settings
+        && context.settings.values
+        && context.settings.values.reducedMotion === true
+    readonly property color backgroundColor: context.theme.semantic.surface.panel
+    readonly property color borderColor: context.theme.component.osd.border
+    readonly property color textColor: context.theme.component.osd.text
+    readonly property real surfaceRadius: context.theme.metrics.radiusMedium
     readonly property color activeColor: dictator.visualizerState === "error"
-        ? context.theme.colors.status.danger : context.theme.colors.status.info
+        ? context.theme.semantic.status.danger
+        : context.theme.semantic.signal.microphone
+    readonly property string accessibleName: dictator.visualizerState === "error"
+        ? "Dictation error"
+        : "Dictation " + dictator.visualizerState
 
     implicitWidth: content.implicitWidth + 36
     implicitHeight: barMaxHeight + 22
-    radius: height / 2
-    color: context.theme.colors.surface.raised
-    border.width: 1
-    border.color: context.theme.colors.border.normal
 
     function clamp(value, minimum, maximum) { return Math.min(Math.max(value, minimum), maximum) }
     function levelAt(index) {
@@ -50,43 +58,53 @@ Rectangle {
         function onVisualizerStateChanged() { root.repaint() }
         function onScanPosChanged() { root.repaint() }
     }
-    RowLayout {
-        id: content
-        anchors.centerIn: parent
-        spacing: 11
-        Canvas {
-            id: waveform
-            Layout.preferredWidth: root.waveformWidth
-            Layout.preferredHeight: root.barMaxHeight
-            antialiasing: true
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.clearRect(0, 0, width, height)
-                ctx.fillStyle = root.activeColor
-                for (var index = 0; index < root.barCount; index++) {
-                    var level = Math.pow(root.clamp((root.levelAt(index) - 0.2) / 0.8, 0, 1), 1.35)
-                    var barHeight = root.barMinHeight + level * (root.barMaxHeight - root.barMinHeight)
-                    if (root.dictator.visualizerState === "error") barHeight = root.barMinHeight
-                    if (root.dictator.visualizerState === "transcribing") {
-                        var pulse = root.clamp(1 - Math.abs(index - root.dictator.scanPos) / 4, 0, 1)
-                        barHeight = Math.max(barHeight * 0.34, root.barMinHeight + Math.pow(pulse, 0.8) * (root.barMaxHeight - root.barMinHeight))
+    Ui.ShellSurface {
+        anchors.fill: parent
+        theme: root.context.theme
+        kind: "osd"
+
+        RowLayout {
+            id: content
+
+            anchors.centerIn: parent
+            spacing: root.context.theme.metrics.spaceUnit * 3
+
+            Canvas {
+                id: waveform
+
+                Layout.preferredWidth: root.waveformWidth
+                Layout.preferredHeight: root.barMaxHeight
+                antialiasing: true
+                onPaint: {
+                    var ctx = getContext("2d")
+                    ctx.clearRect(0, 0, width, height)
+                    ctx.fillStyle = root.activeColor
+                    for (var index = 0; index < root.barCount; index++) {
+                        var level = Math.pow(root.clamp((root.levelAt(index) - 0.2) / 0.8, 0, 1), 1.35)
+                        var barHeight = root.barMinHeight + level * (root.barMaxHeight - root.barMinHeight)
+                        if (root.dictator.visualizerState === "error") barHeight = root.barMinHeight
+                        if (root.dictator.visualizerState === "transcribing" && !root.reducedMotion) {
+                            var pulse = root.clamp(1 - Math.abs(index - root.dictator.scanPos) / 4, 0, 1)
+                            barHeight = Math.max(barHeight * 0.34, root.barMinHeight + Math.pow(pulse, 0.8) * (root.barMaxHeight - root.barMinHeight))
+                        }
+                        root.drawBar(ctx, index, barHeight, root.dictator.visualizerState === "typing" ? 0.45 : 0.9)
                     }
-                    root.drawBar(ctx, index, barHeight, root.dictator.visualizerState === "typing" ? 0.45 : 0.9)
+                    ctx.globalAlpha = 1
                 }
-                ctx.globalAlpha = 1
             }
-        }
-        Rectangle {
-            visible: root.dictator.durationText !== ""
-            Layout.preferredWidth: 1; Layout.preferredHeight: 18
-            color: root.context.theme.colors.border.normal
-        }
-        Text {
-            visible: root.dictator.durationText !== ""
-            text: root.dictator.durationText
-            color: root.context.theme.colors.text.secondary
-            font.family: root.context.theme.typography.monospaceFamily
-            font.pixelSize: root.context.theme.typography.baseSize
+            Rectangle {
+                visible: root.dictator.durationText !== ""
+                Layout.preferredWidth: 1
+                Layout.preferredHeight: 18
+                color: root.context.theme.component.osd.track
+            }
+            Ui.ShellText {
+                visible: root.dictator.durationText !== ""
+                theme: root.context.theme
+                text: root.dictator.durationText
+                color: root.context.theme.component.osd.text
+                monospace: true
+            }
         }
     }
 }

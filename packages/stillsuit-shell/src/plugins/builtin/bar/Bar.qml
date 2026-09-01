@@ -6,6 +6,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
+import "../../../ui" as Ui
 
 Scope {
     id: root
@@ -26,35 +27,9 @@ Scope {
         && context.settings
         && context.settings.values
         && context.settings.values.shadowMode === true
-    readonly property real barHeight: _number(_theme("geometry.barHeight"), 34)
-    readonly property real screenMargin: _number(_theme("geometry.panelGap"), 6)
-    readonly property real exclusionZone: barHeight + screenMargin
-    readonly property color panelColor: _color("colors.surface.panel", "#1e1e2e")
-    readonly property color borderColor: _color("colors.border.normal", "#45475a")
-    readonly property color focusColor: _color("colors.border.focus", "#89b4fa")
-    readonly property color textColor: _color("colors.text.primary", "#cdd6f4")
-    readonly property color mutedTextColor: _color("colors.text.secondary", "#a6adc8")
-    readonly property real radius: _number(_theme("geometry.radius"), 8)
-
-    function _theme(path) {
-        var value = context && context.theme ? context.theme : {}
-        var parts = path.split(".")
-        for (var index = 0; index < parts.length; index++) {
-            if (value === undefined || value === null)
-                return undefined
-            value = value[parts[index]]
-        }
-        return value
-    }
-
-    function _number(value, fallback) {
-        return typeof value === "number" && isFinite(value) ? value : fallback
-    }
-
-    function _color(path, fallback) {
-        var value = _theme(path)
-        return typeof value === "string" ? value : fallback
-    }
+    readonly property real barHeight: context.theme.metrics.barHeight
+    readonly property real outerGap: context.theme.metrics.barOuterGap
+    readonly property real exclusionZone: barHeight + outerGap
 
     function recordsFor(section) {
         var records = []
@@ -90,9 +65,6 @@ Scope {
             readonly property string outputId: modelData && modelData.name
                 ? String(modelData.name)
                 : ""
-            readonly property bool focused: root.context
-                && root.context.compositor
-                && root.context.compositor.focusedOutputId === outputId
 
             screen: modelData
             visible: true
@@ -102,9 +74,9 @@ Scope {
                 right: true
             }
             margins {
-                top: root.screenMargin
-                left: root.screenMargin
-                right: root.screenMargin
+                top: root.outerGap
+                left: root.outerGap
+                right: root.outerGap
             }
             implicitHeight: root.barHeight
             exclusiveZone: root.shadowMode ? 0 : root.exclusionZone
@@ -113,24 +85,21 @@ Scope {
             WlrLayershell.layer: WlrLayer.Top
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-            Rectangle {
+            Ui.ShellSurface {
                 anchors.fill: parent
-                radius: root.radius
-                color: root.panelColor
-                border.width: 1
-                border.color: barWindow.focused ? root.focusColor : root.borderColor
-                clip: true
+                theme: root.context.theme
+                kind: "bar"
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 9
-                    anchors.rightMargin: 9
-                    spacing: 8
+                    anchors.leftMargin: root.context.theme.metrics.barInnerGap
+                    anchors.rightMargin: root.context.theme.metrics.barInnerGap
+                    spacing: root.context.theme.metrics.barInnerGap
 
                     RowLayout {
                         id: leftSlot
                         objectName: "stillsuit-bar-left"
-                        spacing: 6
+                        spacing: root.context.theme.metrics.spaceUnit
                         Layout.alignment: Qt.AlignVCenter
                         Repeater {
                             model: root.recordsFor("left")
@@ -147,7 +116,7 @@ Scope {
                     RowLayout {
                         id: centerSlot
                         objectName: "stillsuit-bar-center"
-                        spacing: 6
+                        spacing: root.context.theme.metrics.spaceUnit
                         Layout.alignment: Qt.AlignVCenter
                         Repeater {
                             model: root.recordsFor("center")
@@ -164,7 +133,7 @@ Scope {
                     RowLayout {
                         id: rightSlot
                         objectName: "stillsuit-bar-right"
-                        spacing: 6
+                        spacing: root.context.theme.metrics.spaceUnit
                         Layout.alignment: Qt.AlignVCenter
                         Repeater {
                             model: root.recordsFor("right")
@@ -177,13 +146,13 @@ Scope {
                     }
                 }
 
-                Text {
+                Ui.ShellText {
                     anchors.centerIn: parent
                     visible: centerSlot.children.length === 0
+                    theme: root.context.theme
                     text: "Stillsuit"
-                    color: root.mutedTextColor
-                    font.family: root._theme("typography.family") || "sans-serif"
-                    font.pixelSize: Math.max(11, root._number(root._theme("typography.baseSize"), 13))
+                    role: "muted"
+                    sizeRole: "caption"
                 }
             }
         }
