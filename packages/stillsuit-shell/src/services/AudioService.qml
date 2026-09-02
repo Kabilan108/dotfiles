@@ -193,8 +193,6 @@ QtObject {
             })
         }
         next.sort(function(left, right) {
-            if (left.active !== right.active)
-                return left.active ? -1 : 1
             return left.description.localeCompare(right.description)
         })
         systemOutputs = next

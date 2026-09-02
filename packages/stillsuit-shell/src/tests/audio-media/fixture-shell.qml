@@ -366,6 +366,10 @@ ShellRoot {
             "audio panel exposes one panel window")
         _assert(panel.panelWindow.screen === outputScreen,
             "panel window binds the injected screen")
+        _assert(panel.formatTime(147 * 60 + 27) === "2:27:27",
+            "long playback duration uses hours minutes and seconds")
+        _assert(panel.formatTime(147) === "2:27",
+            "short playback duration uses minutes and seconds")
         panel.destroy()
         _assert(audio.apiVersion === "1", "audio API version")
         _assert(audio.volume === 1, "read volume clamp")
@@ -417,6 +421,10 @@ ShellRoot {
             "next transport")
         _assert(media.seekTo(999) === "ok" && seekTarget === 240,
             "absolute seek clamp")
+        _assert(media.seekBy(-10) === "ok" && seekTarget === 35,
+            "relative seek backward")
+        _assert(media.seekBy(10) === "ok" && seekTarget === 55,
+            "relative seek forward")
         _assert(media.toggleShuffle() === "ok" && requestedShuffle,
             "shuffle control")
         _assert(media.cycleRepeat() === "ok" && requestedRepeat === "playlist",
@@ -429,8 +437,10 @@ ShellRoot {
             && media.playerId === "paused", "explicit player selection")
         _assert(media.previous() === "unavailable" && previousCalls === 1,
             "previous capability gate")
-        _assert(media.seekTo(30) === "unavailable" && seekTarget === 240,
+        _assert(media.seekTo(30) === "unavailable" && seekTarget === 55,
             "seek capability gate")
+        _assert(media.seekBy(10) === "unavailable" && seekTarget === 55,
+            "relative seek capability gate")
         _assert(media.toggleShuffle() === "unavailable",
             "shuffle capability gate")
         _assert(media.cycleRepeat() === "unavailable",

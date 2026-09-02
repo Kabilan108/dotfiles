@@ -91,6 +91,32 @@ rg -F 'selectOutputProcess.command = ["pactl", "set-default-sink", selectedName]
 rg -F 'readonly property var player: _selectedPlayer()' "$media_service" >/dev/null
 rg -F 'context.actions.surfaceToggle("stillsuit.audio", "")' \
     "$audio_plugin/Widget.qml" >/dev/null
+rg -F 'root.media.playerSummaries.length > 1' \
+    "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'component RoundControl: Ui.ShellAction' \
+    "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'property bool accentIcon: false' \
+    "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'accentIcon: root.service' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'iconName: "skip-previous"' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'iconName: "skip-next"' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'iconName: "replay-10"' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'iconName: "forward-10"' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'text: "Audio"' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'text: "Levels"' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'text: "Output devices"' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'trackHeight: 7' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'minimumHeight: 30' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'Layout.preferredHeight: 38' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'valueText: root.media' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'onClicked: root.service.toggleMuted()' \
+    "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'onClicked: root.service.toggleInputMuted()' \
+    "$audio_plugin/Panel.qml" >/dev/null
+if rg -n 'Ui\.ShellToggle' "$audio_plugin/Panel.qml"; then
+    printf 'Audio panel still uses separate mute toggles\n' >&2
+    exit 1
+fi
 jq -e '.id == "stillsuit.audio"
     and .scope.service == "global"
     and (.capabilities | index("pipewire-control"))

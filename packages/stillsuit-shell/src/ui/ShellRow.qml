@@ -17,6 +17,7 @@ ShellAction {
     property bool selected: false
     property bool danger: false
     property bool reducedMotion: false
+    property int minimumHeight: theme.metrics.rowHeight
 
     readonly property int motionDuration: reducedMotion ? 0 : theme.motion.fast
     readonly property int visualBorderWidth: background.border.width
@@ -25,7 +26,7 @@ ShellAction {
 
     accessibleFallback: label
     implicitWidth: 300
-    implicitHeight: Math.max(theme.metrics.rowHeight, rowContent.implicitHeight)
+    implicitHeight: Math.max(minimumHeight, rowContent.implicitHeight)
     onActivated: clicked()
 
     Rectangle {

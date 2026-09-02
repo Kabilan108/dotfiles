@@ -16,6 +16,9 @@ Item {
     property alias stepSize: valueControl.stepSize
     property int decimals: 0
     property string suffix: ""
+    property string valueText: ""
+    property int trackHeight: 5
+    property int trackBottomMargin: 5
     property bool busy: false
     property bool reducedMotion: false
     property bool keyboardFocused: false
@@ -77,7 +80,9 @@ Item {
 
         ShellText {
             theme: root.theme
-            text: Number(root.value).toFixed(root.decimals) + root.suffix
+            text: root.valueText !== ""
+                ? root.valueText
+                : Number(root.value).toFixed(root.decimals) + root.suffix
             sizeRole: "caption"
             monospace: true
             role: root.enabled ? "primary" : "disabled"
@@ -91,9 +96,9 @@ Item {
             left: parent.left
             right: parent.right
             bottom: parent.bottom
-            bottomMargin: 5
+            bottomMargin: root.trackBottomMargin
         }
-        height: 5
+        height: root.trackHeight
         radius: height / 2
         color: root.theme.component.osd.track
         opacity: !root.enabled ? 0.6 : root.busy ? 0.82 : 1

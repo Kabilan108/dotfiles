@@ -118,6 +118,15 @@ QtObject {
         return "ok"
     }
 
+    function seekBy(seconds) {
+        if (!canSeek)
+            return "unavailable"
+        var offset = Number(seconds)
+        if (!isFinite(offset))
+            return "unavailable"
+        return seekTo(position + offset)
+    }
+
     function toggleShuffle() {
         if (!shuffleSupported)
             return "unavailable"
