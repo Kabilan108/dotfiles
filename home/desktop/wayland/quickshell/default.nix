@@ -21,6 +21,7 @@ let
     inherit meetingEnqueueHelper;
   };
   networkHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/network-helper.nix { };
+  agentUsageHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/agent-usage-helper.nix { };
 in
 {
   programs.stillsuitShell.enable = true;
@@ -39,11 +40,25 @@ in
     pkgs.pulseaudio
     pkgs.power-profiles-daemon
     pkgs.upower
+    agentUsageHelper
     networkHelper
   ];
 
   programs.stillsuitShell.plugins = [
     (builtinPlugin "agent-panel")
+    (
+      (builtinPlugin "agent-usage")
+      // {
+        settings = {
+          helperPath = lib.getExe agentUsageHelper;
+          inherit homeDir;
+          shadowRoot = "${homeDir}/.shadow-home-dirs";
+          includeDefaults = true;
+          refreshIntervalSec = 300;
+          accounts = [ ];
+        };
+      }
+    )
     (builtinPlugin "audio")
     (
       (builtinPlugin "bar")
