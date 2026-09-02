@@ -115,7 +115,7 @@ Scope {
             Ui.ShellToggle {
                 Layout.fillWidth: true
                 theme: root.context.theme
-                label: "Bluetooth"
+                label: "BlueZ adapter"
                 checked: Boolean(root.service && root.service.enabled)
                 busy: root.service && root.service.operation === "adapter"
                 interactive: Boolean(root.service && root.service.available)

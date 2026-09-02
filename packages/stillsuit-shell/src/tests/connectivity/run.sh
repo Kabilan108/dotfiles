@@ -58,6 +58,8 @@ rg -F 'onClicked: root.openManager()' "$source_root/plugins/builtin/bluetooth/Pa
 rg -F 'command: ["blueman-manager"]' "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
 rg -F 'implicitHeight: Math.min(availableDeviceColumn.implicitHeight, 244)' \
     "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
+rg -F 'label: "BlueZ adapter"' \
+    "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
 rg -F '? root.service.stopScan()' \
     "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
 if rg -F 'active: root.service.scanning' \
