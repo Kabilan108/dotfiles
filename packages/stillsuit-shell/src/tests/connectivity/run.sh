@@ -54,8 +54,8 @@ rg -F 'name === "MobergAnalytics"' "$source_root/plugins/builtin/network/Panel.q
 rg -F 'read-only' "$source_root/plugins/builtin/network/Panel.qml" >/dev/null
 rg -F 'preferredDefaultAudioSink = node' "$source_root/services/BluetoothService.qml" >/dev/null
 rg -F 'onClicked: root.service.forgetDevice(row.device)' "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
-rg -F 'onClicked: root.service.openManager()' "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
-rg -F 'command: ["blueman-manager"]' "$source_root/plugins/builtin/bluetooth/Service.qml" >/dev/null
+rg -F 'onClicked: root.openManager()' "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
+rg -F 'command: ["blueman-manager"]' "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
 rg -F 'implicitHeight: Math.min(availableDeviceColumn.implicitHeight, 244)' \
     "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
 rg -F '? root.service.stopScan()' \

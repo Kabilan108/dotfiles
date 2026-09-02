@@ -2,3 +2,4 @@
 [battery] Battery panel tuning stays within the battery plugin and power-resources fixture; no shared UI edits are needed.
 [battery] Final panel pass adds a hatched charge bar, compact status layout, aligned full-width profile controls, and stable pending-state styling. Power-resources fixtures pass.
 [bluetooth] Bluetooth panel tuning needs a narrow shared niri edit: keep blueman-manager floating and match the network editor's 560x420 default size. Panel, launcher service, and fixtures stay in the connectivity lane; no reload or activation.
+[bluetooth] Live niri inspection shows Blueman 2.4.6 uses app-id `blueman-manager`, not `.blueman-manager-wrapped`. The launcher now lives in the panel click path; the niri popup rule matches the observed app-id.

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import "../../../ui" as Ui
 
 Scope {
@@ -10,6 +11,14 @@ Scope {
     required property var service
     required property var screen
     required property string outputId
+
+    property Process managerProcess: Process {
+        command: ["blueman-manager"]
+        onExited: function(exitCode) {
+            if (exitCode !== 0 && exitCode !== 130 && root.service)
+                root.service.lastError = "Could not open Bluetooth settings"
+        }
+    }
 
     PanelWindow {
         id: panel
@@ -92,7 +101,7 @@ Scope {
                         compact: true
                         ghost: true
                         accessibleName: "Manage Bluetooth devices"
-                        onClicked: root.service.openManager()
+                        onClicked: root.openManager()
                     }
                 }
 
@@ -322,6 +331,13 @@ Scope {
 
     function open(payloadJson) {
         panel.visible = true
+    }
+
+    function openManager() {
+        if (managerProcess.running)
+            return "busy"
+        managerProcess.running = true
+        return "pending"
     }
 
     function close() {
