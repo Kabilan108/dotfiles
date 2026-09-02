@@ -185,7 +185,7 @@ in
   ];
 
   services.claude-bar = {
-    enable = true;
+    enable = false;
     package = inputs.claude-bar.packages.${systemName}.default;
     theme.mode = "dark";
     settings = {
