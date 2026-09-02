@@ -1,5 +1,14 @@
 [workspaces] Replaced workspace dots with compact numbered cells in WorkspaceWidget.qml. Active uses the theme workspaceActive color as a translucent child background with a full-color numeral; urgent uses red text only. Workspace spacing is 2px and cell width is 16px. bar-v2 contracts and d4-widgets headless fixture passed; fixture wrappers can still exit nonzero during gvfs/document-portal cleanup.
+[network] Network panel tuning also needs a narrow shared-file edit in niri config: float nm-connection-editor at a small default size. Network helper/panel changes remain within the connectivity lane; no reload or activation.
+[network] Long NetworkManager errors exposed overflow in shared ShellStatus. Constrain its text to the status width globally and opt the network error into wrapped, three-line rendering.
+[network] VPN-connected bar feedback needs an optional shared ShellBarCluster icon badge. The network widget alone opts into a lock badge when any reported VPN is active.
 [battery] Battery panel tuning stays within the battery plugin and power-resources fixture; no shared UI edits are needed.
+[resources] Resource QML maps 0-59/60-74/75-89/90-100 usage to component.resources normal/elevated/high/critical. Shared schema, canonical and design-lab themes, runtime guard, and fixtures now carry the green/yellow/peach/red assignments.
 [battery] Final panel pass adds a hatched charge bar, compact status layout, aligned full-width profile controls, and stable pending-state styling. Power-resources fixtures pass.
+[osds] Compacting only the volume and brightness OsdBar to 268x44 with 12px side padding and 8px content gaps. DictationPill and shared UI stay unchanged.
 [bluetooth] Bluetooth panel tuning needs a narrow shared niri edit: keep blueman-manager floating and match the network editor's 560x420 default size. Panel, launcher service, and fixtures stay in the connectivity lane; no reload or activation.
+[audio] Compact level controls need opt-in ShellSlider track height and bottom-margin properties. Defaults remain unchanged; only the audio panel uses a thicker, tighter track. No reload or activation.
+[audio] Compact output-device rows need an opt-in ShellRow minimum height. The shared default remains the theme row height; only Audio requests 30px rows.
+[audio] Media progress needs an opt-in ShellSlider valueText override so timestamps can replace raw numeric values. The default numeric display remains unchanged.
+[audio] Ten-second media seek controls need replay-10 and forward-10 glyphs in shared ShellIcon. Transport behavior remains inside MediaService and the audio panel.
 [bluetooth] Live niri inspection shows Blueman 2.4.6 uses app-id `blueman-manager`, not `.blueman-manager-wrapped`. The launcher now lives in the panel click path; the niri popup rule matches the observed app-id.
