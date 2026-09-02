@@ -96,7 +96,7 @@ Scope {
                     Rectangle {
                         visible: root.service && root.service.available
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 14
+                        Layout.preferredHeight: 28
                         radius: root.context.theme.metrics.radiusSmall
                         color: root.context.theme.component.osd.track
                         clip: true
@@ -113,6 +113,7 @@ Scope {
                                 root.service ? root.service.percentage / 100 : 0))
                             radius: parent.radius
                             color: root._batteryColor()
+                            opacity: 0.70
                             clip: true
 
                             Repeater {
