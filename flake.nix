@@ -44,6 +44,7 @@
             ./user.nix
             ./modules/nixos/docker.nix
             ./modules/nixos/fleet.nix
+            ./modules/nixos/moberg-vpn.nix
             inputs.stylix.nixosModules.stylix
             ./modules/nixos/theme.nix
             ./modules/nixos/virt-manager.nix

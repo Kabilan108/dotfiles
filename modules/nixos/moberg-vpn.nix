@@ -1,31 +1,32 @@
-{ config, ... }:
 {
-  # Secrets decrypted at activation (owned by root for openvpn)
-  age.secrets.moberg-vpn-key.file = ../../secrets/moberg/vpn/key.age;
-  age.secrets.moberg-vpn-ta.file = ../../secrets/moberg/vpn/ta.age;
-  age.secrets.moberg-vpn-cert.file = ../../secrets/moberg/vpn/cert.age;
-  age.secrets.moberg-vpn-ca.file = ../../secrets/moberg/vpn/ca.age;
+  networking.networkmanager.ensureProfiles.profiles.MobergAnalytics = {
+    connection = {
+      id = "MobergAnalytics";
+      type = "vpn";
+      uuid = "2b74c5ba-0d05-4932-9edc-a91f4efb5a60";
+      autoconnect = true;
+    };
 
-  services.openvpn.servers.moberg = {
-    autoStart = true;
-    config = ''
-      dev tun
-      persist-tun
-      persist-key
-      auth SHA1
-      tls-client
-      client
-      resolv-retry infinite
-      remote 71.25.106.254 1194 udp
-      ca ${config.age.secrets.moberg-vpn-ca.path}
-      key ${config.age.secrets.moberg-vpn-key.path}
-      cert ${config.age.secrets.moberg-vpn-cert.path}
-      tls-auth ${config.age.secrets.moberg-vpn-ta.path} 1
-      remote-cert-tls server
-      route 10.1.10.0 255.255.255.0
+    vpn = {
+      service-type = "org.freedesktop.NetworkManager.openvpn";
+      auth = "SHA1";
+      ca = "/home/kabilan/.config/moberg/vpn/ca.crt";
+      cert = "/home/kabilan/.config/moberg/vpn/tony.crt";
+      challenge-response-flags = 2;
+      connection-type = "tls";
+      dev = "tun";
+      key = "/home/kabilan/.config/moberg/vpn/tony.key";
+      remote = "71.25.106.254:1194:udp";
+      remote-cert-tls = "server";
+      ta = "/home/kabilan/.config/moberg/vpn/ta.key";
+      ta-dir = 1;
+    };
 
-      # Keep connection alive
-      keepalive 5 30
-    '';
+    ipv4 = {
+      method = "auto";
+      route1 = "10.1.10.0/24";
+    };
+
+    ipv6.method = "auto";
   };
 }
