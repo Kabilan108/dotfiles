@@ -61,16 +61,21 @@ deduplicated. Explicit IDs use lowercase letters, numbers, dots, and hyphens.
   token is not refreshed by the plugin. Opening Claude Code refreshes the
   CLI-owned sign-in.
 
-The helper caches each result for 30 seconds. The service refreshes every five
-minutes, and the panel refresh button bypasses the cache.
+The service requests a snapshot when it starts and every five minutes after
+that. Opening the panel requests another snapshot; the helper reuses provider
+results younger than 30 seconds. The panel refresh button forces a provider
+request and bypasses that cache. The bar reads the shared service snapshot and
+does not poll on its own.
 
 ## Presentation
 
-The bar shows the Codex and Claude marks for providers with discovered
-accounts, followed by the lowest remaining quota. The panel uses a flat account
-list with provider marks, account names, plans, identities, and separators.
-Limit bars fill from empty to the percentage remaining, so a shrinking bar
-means the account is closer to its limit.
+The bar shows only reporting default Codex and Claude accounts, followed by the
+lowest remaining quota among them. Signed-out providers and shadow accounts do
+not add marks or affect the bar value. Refreshing keeps the last snapshot
+visible until its replacement arrives.
 
-The Codex and Claude SVG marks are copied from Omarchy Quattro's MIT-licensed
-agents plugin. Its license notice is in `assets/LICENSE.omarchy-quattro`.
+The panel uses a flat account list with large provider marks, account names,
+plans, identities, and separators. Limit rows span the account width and use
+the provider color. Bars fill from empty to the percentage remaining, so a
+shrinking bar means the account is closer to its limit. The provider marks use
+the supplied `codex.svg` and `claude.svg` assets.

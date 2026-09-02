@@ -215,63 +215,87 @@ Scope {
 
                                     RowLayout {
                                         Layout.fillWidth: true
-                                        spacing: 7
+                                        spacing: 10
 
-                                        Image {
-                                            Layout.preferredWidth: 18
-                                            Layout.preferredHeight: 18
-                                            source: root._providerIcon(accountRow.account.provider)
-                                            sourceSize.width: 18
-                                            sourceSize.height: 18
-                                            fillMode: Image.PreserveAspectFit
-                                            mipmap: true
+                                        Item {
+                                            Layout.preferredWidth: 34
+                                            Layout.fillHeight: true
+
+                                            Image {
+                                                anchors {
+                                                    top: parent.top
+                                                    horizontalCenter: parent.horizontalCenter
+                                                }
+                                                width: 26
+                                                height: 26
+                                                source: root._providerIcon(
+                                                    accountRow.account.provider)
+                                                sourceSize.width: 26
+                                                sourceSize.height: 26
+                                                fillMode: Image.PreserveAspectFit
+                                                mipmap: true
+                                            }
                                         }
 
-                                        Ui.ShellText {
-                                            theme: root.context.theme
-                                            text: root._providerLabel(accountRow.account.provider)
-                                            sizeRole: "label"
-                                            color: accountRow.providerColor
-                                        }
-
-                                        Ui.ShellText {
+                                        ColumnLayout {
                                             Layout.fillWidth: true
-                                            theme: root.context.theme
-                                            text: String(accountRow.account.label || "Account")
-                                            sizeRole: "label"
-                                            role: "secondary"
-                                            elide: Text.ElideRight
+                                            spacing: 3
+
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 7
+
+                                                Ui.ShellText {
+                                                    theme: root.context.theme
+                                                    text: root._providerLabel(
+                                                        accountRow.account.provider)
+                                                    sizeRole: "label"
+                                                    color: accountRow.providerColor
+                                                }
+
+                                                Ui.ShellText {
+                                                    Layout.fillWidth: true
+                                                    theme: root.context.theme
+                                                    text: String(accountRow.account.label
+                                                        || "Account")
+                                                    sizeRole: "label"
+                                                    role: "secondary"
+                                                    elide: Text.ElideRight
+                                                }
+
+                                                Ui.ShellText {
+                                                    visible: String(accountRow.account.plan
+                                                        || "") !== ""
+                                                    theme: root.context.theme
+                                                    text: String(accountRow.account.plan || "")
+                                                    sizeRole: "caption"
+                                                    role: "secondary"
+                                                }
+                                            }
+
+                                            Ui.ShellText {
+                                                Layout.fillWidth: true
+                                                visible: String(accountRow.account.identity
+                                                    || "") !== ""
+                                                theme: root.context.theme
+                                                text: String(accountRow.account.identity || "")
+                                                sizeRole: "caption"
+                                                role: "muted"
+                                                elide: Text.ElideRight
+                                            }
+
+                                            Ui.ShellText {
+                                                Layout.fillWidth: true
+                                                visible: String(accountRow.account.status
+                                                    || "") !== "ready"
+                                                theme: root.context.theme
+                                                text: String(accountRow.account.statusText
+                                                    || "Unavailable")
+                                                sizeRole: "caption"
+                                                color: root._statusColor(accountRow.account)
+                                                elide: Text.ElideRight
+                                            }
                                         }
-
-                                        Ui.ShellText {
-                                            visible: String(accountRow.account.plan || "") !== ""
-                                            theme: root.context.theme
-                                            text: String(accountRow.account.plan || "")
-                                            sizeRole: "caption"
-                                            role: "secondary"
-                                        }
-                                    }
-
-                                    Ui.ShellText {
-                                        Layout.fillWidth: true
-                                        Layout.leftMargin: 25
-                                        visible: String(accountRow.account.identity || "") !== ""
-                                        theme: root.context.theme
-                                        text: String(accountRow.account.identity || "")
-                                        sizeRole: "caption"
-                                        role: "muted"
-                                        elide: Text.ElideRight
-                                    }
-
-                                    Ui.ShellText {
-                                        Layout.fillWidth: true
-                                        Layout.leftMargin: 25
-                                        visible: String(accountRow.account.status || "") !== "ready"
-                                        theme: root.context.theme
-                                        text: String(accountRow.account.statusText || "Unavailable")
-                                        sizeRole: "caption"
-                                        color: root._statusColor(accountRow.account)
-                                        elide: Text.ElideRight
                                     }
 
                                     Repeater {
@@ -287,7 +311,6 @@ Scope {
                                             readonly property real remaining: 1 - used
 
                                             Layout.fillWidth: true
-                                            Layout.leftMargin: 25
                                             spacing: 3
 
                                             RowLayout {
@@ -307,7 +330,7 @@ Scope {
                                                         + "% left"
                                                     sizeRole: "caption"
                                                     monospace: true
-                                                    color: root._remainingColor(windowRow.remaining)
+                                                    color: accountRow.providerColor
                                                 }
                                             }
 
@@ -325,7 +348,7 @@ Scope {
                                                     }
                                                     width: parent.width * windowRow.remaining
                                                     radius: parent.radius
-                                                    color: root._remainingColor(windowRow.remaining)
+                                                    color: accountRow.providerColor
                                                 }
                                             }
 
@@ -373,14 +396,6 @@ Scope {
         var role = service.statusRole(account)
         return context.theme.semantic.status[role]
             || context.theme.semantic.content.muted
-    }
-
-    function _remainingColor(remaining) {
-        if (remaining <= 0.1)
-            return context.theme.semantic.status.danger
-        if (remaining <= 0.3)
-            return context.theme.semantic.status.warning
-        return context.theme.semantic.status.success
     }
 
     function _resetText(value) {

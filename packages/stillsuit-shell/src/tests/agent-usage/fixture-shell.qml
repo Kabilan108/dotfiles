@@ -30,6 +30,7 @@ ShellRoot {
             {
                 id: "codex-default",
                 provider: "codex",
+                source: "default",
                 label: "Default",
                 plan: "Pro",
                 identity: "fixture@example.com",
@@ -43,8 +44,23 @@ ShellRoot {
                 ]
             },
             {
+                id: "codex-rani",
+                provider: "codex",
+                source: "shadow",
+                label: "rani",
+                plan: "Free",
+                identity: "shadow@example.com",
+                status: "ready",
+                statusText: "",
+                windows: [
+                    { id: "primary", label: "720 hour", used: 0.99,
+                        resetsAt: "2030-02-01T00:00:00+00:00" }
+                ]
+            },
+            {
                 id: "claude-work",
                 provider: "claude",
+                source: "default",
                 label: "work",
                 plan: "Max 20x",
                 identity: "",
@@ -53,7 +69,7 @@ ShellRoot {
                 windows: []
             }
         ]
-        property var summary: ({ accountCount: 2, readyCount: 1, maxUsed: 0.91 })
+        property var summary: ({ accountCount: 3, readyCount: 2, maxUsed: 0.99 })
 
         function refresh(force) {
             root.refreshes++
@@ -119,13 +135,18 @@ ShellRoot {
             verify(widget.remainingPercent === 9, "bar remaining summary")
             verify(String(widget.iconSource).endsWith("/assets/codex.svg"),
                 "bar Codex mark")
-            verify(String(widget.secondaryIconSource).endsWith("/assets/claude.svg"),
-                "bar Claude mark")
-            verify(usage.accountCount === 2 && usage.readyCount === 1,
+            verify(String(widget.secondaryIconSource) === "",
+                "signed-out default Claude hidden from bar")
+            verify(widget.hasCodex && !widget.hasClaude,
+                "only reporting default providers shown")
+            usage.refreshing = true
+            verify(!widget.busy, "refresh keeps bar value visible")
+            usage.refreshing = false
+            verify(usage.accountCount === 3 && usage.readyCount === 2,
                 "multi-account summary")
             verify(usage.statusRole(fakeModel.accounts[0]) === "success",
                 "ready status role")
-            verify(usage.statusRole(fakeModel.accounts[1]) === "warning",
+            verify(usage.statusRole(fakeModel.accounts[2]) === "warning",
                 "expired status role")
             verify(usage.refresh(true) === "ok" && refreshes === 1,
                 "refresh delegation")
