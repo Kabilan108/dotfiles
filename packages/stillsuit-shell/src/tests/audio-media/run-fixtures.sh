@@ -88,6 +88,9 @@ fi
 rg -F 'Math.max(0, Math.min(1, number))' "$audio_service" >/dev/null
 rg -F 'selectOutputProcess.command = ["pactl", "set-default-sink", selectedName]' \
     "$audio_service" >/dev/null
+rg -F 'command: ["pavucontrol"]' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'onClicked: root.openManager()' \
+    "$audio_plugin/Panel.qml" >/dev/null
 rg -F 'readonly property var player: _selectedPlayer()' "$media_service" >/dev/null
 rg -F 'context.actions.surfaceToggle("stillsuit.audio", "")' \
     "$audio_plugin/Widget.qml" >/dev/null

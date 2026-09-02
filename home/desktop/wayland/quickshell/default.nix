@@ -33,7 +33,9 @@ in
       { };
 
   programs.stillsuitShell.runtimeInputs = [
+    pkgs.blueman
     pkgs.niri
+    pkgs.pavucontrol
     pkgs.pulseaudio
     pkgs.power-profiles-daemon
     pkgs.upower

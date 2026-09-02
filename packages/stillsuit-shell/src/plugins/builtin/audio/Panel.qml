@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import "../../../ui" as Ui
 
 Scope {
@@ -13,6 +14,14 @@ Scope {
     readonly property var media: service ? service.media : null
     readonly property var panelWindow: window
     property bool opened: false
+
+    property Process managerProcess: Process {
+        command: ["pavucontrol"]
+        onExited: function(exitCode) {
+            if (exitCode !== 0 && exitCode !== 130 && root.service)
+                root.service.errorMessage = "Could not open audio settings"
+        }
+    }
 
     component RoundControl: Ui.ShellAction {
         id: control
@@ -149,11 +158,25 @@ Scope {
                         Layout.fillWidth: true
                         spacing: root.context.theme.metrics.spaceUnit
 
-                        Ui.ShellText {
+                        RowLayout {
                             Layout.fillWidth: true
-                            theme: root.context.theme
-                            text: "Audio"
-                            sizeRole: "heading"
+
+                            Ui.ShellText {
+                                Layout.fillWidth: true
+                                theme: root.context.theme
+                                text: "Audio"
+                                sizeRole: "heading"
+                            }
+
+                            Ui.ShellButton {
+                                theme: root.context.theme
+                                label: ""
+                                iconName: "settings"
+                                compact: true
+                                ghost: true
+                                accessibleName: "Open audio settings"
+                                onClicked: root.openManager()
+                            }
                         }
 
                         Rectangle {
@@ -569,6 +592,13 @@ Scope {
         opened = true
         if (service)
             service.refreshOutputs()
+    }
+
+    function openManager() {
+        if (managerProcess.running)
+            return "busy"
+        managerProcess.running = true
+        return "pending"
     }
 
     function close() {
