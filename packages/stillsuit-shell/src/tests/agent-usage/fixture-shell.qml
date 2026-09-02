@@ -76,8 +76,17 @@ ShellRoot {
         id: visualPanel
     }
 
+    Loader {
+        id: visualBar
+    }
+
     Component.onCompleted: {
         if (visualMode) {
+            visualBar.setSource("tests/agent-usage/visual-bar.qml", {
+                context: fakeContext,
+                service: usage,
+                screen: Quickshell.screens[0]
+            })
             visualPanel.setSource("plugins/builtin/agent-usage/Panel.qml", {
                 context: fakeContext,
                 service: usage,
@@ -107,6 +116,11 @@ ShellRoot {
             })
             verify(widget !== null, "widget construction")
             verify(widget.usedPercent === 91, "bar summary")
+            verify(widget.remainingPercent === 9, "bar remaining summary")
+            verify(String(widget.iconSource).endsWith("/assets/codex.svg"),
+                "bar Codex mark")
+            verify(String(widget.secondaryIconSource).endsWith("/assets/claude.svg"),
+                "bar Claude mark")
             verify(usage.accountCount === 2 && usage.readyCount === 1,
                 "multi-account summary")
             verify(usage.statusRole(fakeModel.accounts[0]) === "success",

@@ -63,3 +63,14 @@ deduplicated. Explicit IDs use lowercase letters, numbers, dots, and hyphens.
 
 The helper caches each result for 30 seconds. The service refreshes every five
 minutes, and the panel refresh button bypasses the cache.
+
+## Presentation
+
+The bar shows the Codex and Claude marks for providers with discovered
+accounts, followed by the lowest remaining quota. The panel uses a flat account
+list with provider marks, account names, plans, identities, and separators.
+Limit bars fill from empty to the percentage remaining, so a shrinking bar
+means the account is closer to its limit.
+
+The Codex and Claude SVG marks are copied from Omarchy Quattro's MIT-licensed
+agents plugin. Its license notice is in `assets/LICENSE.omarchy-quattro`.

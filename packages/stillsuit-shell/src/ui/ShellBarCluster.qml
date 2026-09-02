@@ -8,6 +8,8 @@ ShellAction {
 
     required property var theme
     property string iconName: "settings"
+    property url iconSource: ""
+    property url secondaryIconSource: ""
     property string badgeIconName: ""
     property string label: ""
     property bool active: false
@@ -62,16 +64,54 @@ ShellAction {
         Item {
             visible: !root.busy
             Layout.preferredWidth: root.theme.metrics.iconSmall
+                + (String(root.secondaryIconSource) !== ""
+                    ? root.theme.metrics.iconSmall + 3 : 0)
             Layout.preferredHeight: root.theme.metrics.iconSmall
 
-            ShellIcon {
+            Row {
                 anchors.centerIn: parent
-                theme: root.theme
-                name: root.iconName
-                sizeRole: "small"
-                color: root.active
-                    ? root.theme.component.bar.clusterActiveText
-                    : root.theme.component.bar.clusterText
+                spacing: 3
+
+                Item {
+                    width: root.theme.metrics.iconSmall
+                    height: root.theme.metrics.iconSmall
+
+                    Image {
+                        visible: String(root.iconSource) !== ""
+                        anchors.fill: parent
+                        source: root.iconSource
+                        sourceSize.width: width
+                        sourceSize.height: height
+                        fillMode: Image.PreserveAspectFit
+                        mipmap: true
+                    }
+
+                    ShellIcon {
+                        visible: String(root.iconSource) === ""
+                        anchors.centerIn: parent
+                        theme: root.theme
+                        name: root.iconName
+                        sizeRole: "small"
+                        color: root.active
+                            ? root.theme.component.bar.clusterActiveText
+                            : root.theme.component.bar.clusterText
+                    }
+                }
+
+                Item {
+                    visible: String(root.secondaryIconSource) !== ""
+                    width: visible ? root.theme.metrics.iconSmall : 0
+                    height: root.theme.metrics.iconSmall
+
+                    Image {
+                        anchors.fill: parent
+                        source: root.secondaryIconSource
+                        sourceSize.width: width
+                        sourceSize.height: height
+                        fillMode: Image.PreserveAspectFit
+                        mipmap: true
+                    }
+                }
             }
 
             ShellIcon {

@@ -31,7 +31,8 @@ owned_sources=(
     "$source_root/plugins/builtin/agent-usage"
     "$source_root/../bin/stillsuit-agent-usage"
 )
-if rg -n '#[0-9a-fA-F]{6}|\.palette\.|theme\.(colors|controls|geometry)\.' \
+if rg -n --glob '*.qml' --glob '*.py' \
+        '#[0-9a-fA-F]{6}|\.palette\.|theme\.(colors|controls|geometry)\.' \
         "${owned_sources[@]}"; then
     printf 'agent usage source contains a raw or legacy palette reference\n' >&2
     exit 1
@@ -45,6 +46,15 @@ rg -F 'required property var screen' \
     "$source_root/plugins/builtin/agent-usage/Panel.qml" >/dev/null
 rg -F 'screen: root.screen' \
     "$source_root/plugins/builtin/agent-usage/Panel.qml" >/dev/null
+rg -F '"% left"' \
+    "$source_root/plugins/builtin/agent-usage/Panel.qml" >/dev/null
+if rg -F 'kind: "raised"' \
+        "$source_root/plugins/builtin/agent-usage/Panel.qml"; then
+    printf 'agent usage accounts must use the flat list layout\n' >&2
+    exit 1
+fi
+test -f "$source_root/plugins/builtin/agent-usage/assets/codex.svg"
+test -f "$source_root/plugins/builtin/agent-usage/assets/claude.svg"
 
 fixture_config="$XDG_CONFIG_HOME/quickshell/$STILLSUIT_CONFIG_ID"
 cp -R -- "$source_root" "$fixture_config"
