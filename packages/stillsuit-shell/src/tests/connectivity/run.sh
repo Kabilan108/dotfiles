@@ -54,6 +54,28 @@ rg -F 'name === "MobergAnalytics"' "$source_root/plugins/builtin/network/Panel.q
 rg -F 'read-only' "$source_root/plugins/builtin/network/Panel.qml" >/dev/null
 rg -F 'preferredDefaultAudioSink = node' "$source_root/services/BluetoothService.qml" >/dev/null
 rg -F 'onClicked: root.service.forgetDevice(row.device)' "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
+rg -F 'onClicked: root.service.openManager()' "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
+rg -F 'command: ["blueman-manager"]' "$source_root/plugins/builtin/bluetooth/Service.qml" >/dev/null
+rg -F 'implicitHeight: Math.min(availableDeviceColumn.implicitHeight, 244)' \
+    "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
+rg -F '? root.service.stopScan()' \
+    "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
+if rg -F 'active: root.service.scanning' \
+        "$source_root/plugins/builtin/bluetooth/Panel.qml" \
+        || rg -F 'destructive: root.service.scanning' \
+            "$source_root/plugins/builtin/bluetooth/Panel.qml"; then
+    printf 'bluetooth stop action diverges from scan button styling\n' >&2
+    exit 1
+fi
+if rg -F 'BlueZ adapter is enabled' "$source_root/plugins/builtin/bluetooth/Panel.qml"; then
+    printf 'bluetooth toggle contains redundant adapter status text\n' >&2
+    exit 1
+fi
+if rg -F 'No connected devices' "$source_root/plugins/builtin/bluetooth/Panel.qml" \
+        || rg -F 'No disconnected paired devices' "$source_root/plugins/builtin/bluetooth/Panel.qml"; then
+    printf 'bluetooth panel contains a redundant empty section\n' >&2
+    exit 1
+fi
 
 for panel in network bluetooth; do
     panel_path="$source_root/plugins/builtin/$panel/Panel.qml"

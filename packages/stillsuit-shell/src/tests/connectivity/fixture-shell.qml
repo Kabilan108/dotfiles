@@ -254,7 +254,8 @@ ShellRoot {
     Component.onCompleted: {
         var urls = [
             "plugins/builtin/network/Widget.qml",
-            "plugins/builtin/bluetooth/Widget.qml"
+            "plugins/builtin/bluetooth/Widget.qml",
+            "plugins/builtin/bluetooth/Service.qml"
         ]
         for (var index = 0; index < urls.length; index++)
             viewComponents.push(Qt.createComponent(urls[index], Component.Asynchronous))

@@ -401,6 +401,8 @@ window-rule {
 window-rule {
     match app-id=r#"^\.blueman-manager-wrapped$"#
     open-floating true
+    default-column-width { fixed 560; }
+    default-window-height { fixed 420; }
 }
 
 window-rule {

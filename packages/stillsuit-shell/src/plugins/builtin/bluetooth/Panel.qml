@@ -42,6 +42,8 @@ Scope {
         }
 
     Ui.ShellSurface {
+        id: panelSurface
+
         anchors {
             top: parent.top
             right: parent.right
@@ -50,8 +52,10 @@ Scope {
             rightMargin: root.context.theme.metrics.spaceUnit
         }
         width: root.context.theme.metrics.panelWidth
-        height: Math.min(540, parent.height - anchors.topMargin
-            - root.context.theme.metrics.spaceUnit)
+        height: Math.min(panelContent.implicitHeight
+                + root.context.theme.metrics.panelPadding * 2,
+            parent.height - anchors.topMargin
+                - root.context.theme.metrics.spaceUnit)
         theme: root.context.theme
         kind: "panel"
 
@@ -61,24 +65,48 @@ Scope {
         }
 
         ColumnLayout {
+            id: panelContent
+
             anchors.fill: parent
             anchors.margins: root.context.theme.metrics.panelPadding
             spacing: 10
 
-            Ui.ShellText {
+            ColumnLayout {
                 Layout.fillWidth: true
-                theme: root.context.theme
-                text: "Bluetooth"
-                sizeRole: "heading"
+                spacing: 4
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Ui.ShellText {
+                        Layout.fillWidth: true
+                        theme: root.context.theme
+                        text: "Bluetooth"
+                        sizeRole: "heading"
+                    }
+
+                    Ui.ShellButton {
+                        theme: root.context.theme
+                        label: ""
+                        iconName: "settings"
+                        compact: true
+                        ghost: true
+                        accessibleName: "Manage Bluetooth devices"
+                        onClicked: root.service.openManager()
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 1
+                    color: root.context.theme.semantic.outline.subtle
+                }
             }
 
             Ui.ShellToggle {
                 Layout.fillWidth: true
                 theme: root.context.theme
                 label: "Bluetooth"
-                description: root.service && root.service.enabled
-                    ? "BlueZ adapter is enabled"
-                    : "BlueZ adapter is disabled"
                 checked: Boolean(root.service && root.service.enabled)
                 busy: root.service && root.service.operation === "adapter"
                 interactive: Boolean(root.service && root.service.available)
@@ -105,115 +133,146 @@ Scope {
                 iconName: "bluetooth"
             }
 
-            Flickable {
+            ColumnLayout {
+                id: deviceColumn
+
                 Layout.fillWidth: true
-                Layout.fillHeight: true
                 visible: root.service && root.service.available && root.service.enabled
-                clip: true
-                contentWidth: width
-                contentHeight: deviceColumn.implicitHeight
-                boundsBehavior: Flickable.StopAtBounds
+                spacing: 6
 
-                ColumnLayout {
-                    id: deviceColumn
+                Flickable {
+                    Layout.fillWidth: true
+                    implicitHeight: Math.min(knownDeviceColumn.implicitHeight, 203)
+                    visible: root.service.connectedDevices.length > 0
+                        || root.service.pairedDevices.length > 0
+                    clip: true
+                    contentWidth: width
+                    contentHeight: knownDeviceColumn.implicitHeight
+                    boundsBehavior: Flickable.StopAtBounds
+                    interactive: contentHeight > height
 
-                    width: parent.width
-                    spacing: 6
+                    ColumnLayout {
+                        id: knownDeviceColumn
 
-                    Ui.ShellSectionLabel {
-                        Layout.fillWidth: true
-                        theme: root.context.theme
-                        text: "Connected"
-                    }
-
-                    Ui.ShellStateView {
-                        Layout.fillWidth: true
-                        visible: root.service.connectedDevices.length === 0
-                        theme: root.context.theme
-                        mode: "empty"
-                        title: "No connected devices"
-                        message: "Choose a paired or available device below."
-                        iconName: "bluetooth"
-                    }
-
-                    Repeater {
-                        model: root.service.connectedDevices
-
-                        delegate: DeviceRow {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            device: modelData
-                            group: "connected"
-                        }
-                    }
-
-                    Ui.ShellSectionLabel {
-                        Layout.fillWidth: true
-                        theme: root.context.theme
-                        text: "Paired"
-                    }
-
-                    Ui.ShellStateView {
-                        Layout.fillWidth: true
-                        visible: root.service.pairedDevices.length === 0
-                        theme: root.context.theme
-                        mode: "empty"
-                        title: "No disconnected paired devices"
-                        iconName: "bluetooth"
-                    }
-
-                    Repeater {
-                        model: root.service.pairedDevices
-
-                        delegate: DeviceRow {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            device: modelData
-                            group: "paired"
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
+                        width: parent.width
+                        spacing: 6
 
                         Ui.ShellSectionLabel {
+                            visible: root.service.connectedDevices.length > 0
                             Layout.fillWidth: true
                             theme: root.context.theme
-                            text: "Available"
+                            text: "Connected"
                         }
 
-                        Ui.ShellButton {
+                        Repeater {
+                            model: root.service.connectedDevices
+
+                            delegate: DeviceRow {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                device: modelData
+                                group: "connected"
+                            }
+                        }
+
+                        Ui.ShellSectionLabel {
+                            visible: root.service.pairedDevices.length > 0
+                            Layout.fillWidth: true
                             theme: root.context.theme
-                            label: "Scan"
-                            iconName: "refresh"
-                            compact: true
-                            ghost: true
-                            busy: Boolean(root.service && root.service.scanning)
-                            accessibleName: "Scan for Bluetooth devices"
-                            onClicked: root.service.scan()
+                            text: "Paired"
+                        }
+
+                        Repeater {
+                            model: root.service.pairedDevices
+
+                            delegate: DeviceRow {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                device: modelData
+                                group: "paired"
+                            }
                         }
                     }
+                }
 
-                    Ui.ShellStateView {
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Ui.ShellSectionLabel {
                         Layout.fillWidth: true
-                        visible: root.service.availableDevices.length === 0
                         theme: root.context.theme
-                        mode: root.service.scanning ? "loading" : "empty"
-                        title: root.service.scanning ? "Scanning" : "No available devices"
-                        message: root.service.scanning
-                            ? "BlueZ is discovering nearby devices."
-                            : "Press Scan to discover devices."
-                        iconName: "bluetooth"
+                        text: "Available"
                     }
 
-                    Repeater {
-                        model: root.service.availableDevices
+                    Ui.ShellButton {
+                        theme: root.context.theme
+                        label: root.service.scanning ? "Stop" : "Scan"
+                        iconName: root.service.scanning ? "close" : "refresh"
+                        compact: true
+                        ghost: true
+                        accessibleName: root.service.scanning
+                            ? "Stop scanning for Bluetooth devices"
+                            : "Scan for Bluetooth devices"
+                        onClicked: root.service.scanning
+                            ? root.service.stopScan()
+                            : root.service.scan()
+                    }
+                }
 
-                        delegate: DeviceRow {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            device: modelData
-                            group: "available"
+                Flickable {
+                    Layout.fillWidth: true
+                    implicitHeight: Math.min(availableDeviceColumn.implicitHeight, 244)
+                    clip: true
+                    contentWidth: width
+                    contentHeight: availableDeviceColumn.implicitHeight
+                    boundsBehavior: Flickable.StopAtBounds
+                    interactive: contentHeight > height
+
+                    ColumnLayout {
+                        id: availableDeviceColumn
+
+                        width: parent.width
+                        spacing: 6
+
+                        RowLayout {
+                            Layout.alignment: Qt.AlignHCenter
+                            visible: root.service.availableDevices.length === 0
+                            spacing: 8
+
+                            Ui.ShellBusyIndicator {
+                                visible: root.service.scanning
+                                theme: root.context.theme
+                                sizeRole: "small"
+                                role: "muted"
+                            }
+
+                            Ui.ShellIcon {
+                                visible: !root.service.scanning
+                                theme: root.context.theme
+                                name: "bluetooth"
+                                sizeRole: "small"
+                                role: "muted"
+                            }
+
+                            Ui.ShellText {
+                                theme: root.context.theme
+                                text: root.service.scanning
+                                    ? "Scanning"
+                                    : "No available devices"
+                                sizeRole: "caption"
+                                role: "muted"
+                            }
+                        }
+
+                        Repeater {
+                            model: root.service.availableDevices
+
+                            delegate: DeviceRow {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                device: modelData
+                                group: "available"
+                            }
                         }
                     }
                 }
