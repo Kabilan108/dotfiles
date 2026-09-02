@@ -20,6 +20,6 @@
   "barWidget": {
     "defaultSection": "right",
     "allowMultiple": false,
-    "order": 30
+    "order": 0
   }
 }

@@ -55,6 +55,10 @@ if rg -F 'kind: "raised"' \
 fi
 test -f "$source_root/plugins/builtin/agent-usage/assets/codex.svg"
 test -f "$source_root/plugins/builtin/agent-usage/assets/claude.svg"
+jq -e '.barWidget.defaultSection == "right" and .barWidget.order == 0' \
+    "$source_root/plugins/builtin/agent-usage/manifest.json" >/dev/null
+jq -e '.barWidget.order > 0' \
+    "$source_root/plugins/builtin/resources/manifest.json" >/dev/null
 
 fixture_config="$XDG_CONFIG_HOME/quickshell/$STILLSUIT_CONFIG_ID"
 cp -R -- "$source_root" "$fixture_config"

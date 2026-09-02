@@ -76,7 +76,7 @@ def _check_manifest_schema() -> None:
         "clock": ("center", 10),
         "network": ("right", 10),
         "bluetooth": ("right", 20),
-        "agent-usage": ("right", 30),
+        "agent-usage": ("right", 0),
         "resources": ("right", 5),
         "notifications": ("right", 40),
         "audio": ("right", 50),
