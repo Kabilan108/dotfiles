@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.notifications",
+  "name": "Notifications",
+  "description": "Freedesktop notification daemon, DND policy, bounded history, toasts, and notification center.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["service", "bar-widget", "panel", "overlay"],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "Widget.qml",
+    "panel": "NotificationCenter.qml",
+    "overlay": "NotificationToasts.qml"
+  },
+  "scope": {
+    "service": "global",
+    "barWidget": "per-output",
+    "panel": "per-output",
+    "overlay": "per-output"
+  },
+  "capabilities": ["notification-server", "persistent-state"],
+  "barWidget": { "defaultSection": "right", "allowMultiple": false, "order": 40 },
+  "keepLoaded": true,
+  "stateSchemaVersion": 1
+}

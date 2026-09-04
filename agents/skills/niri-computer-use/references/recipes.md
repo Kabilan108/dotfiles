@@ -52,17 +52,15 @@ acu restore                            # back to where the user was
 Either path: for unattended sending, stop after the draft shot and confirm with
 the user unless they explicitly authorized sending.
 
-## 4. Launch a GUI app for later, without stealing focus
+## 4. Launch a GUI app and inspect its window
 
 ```bash
-acu spawn --bg -- nautilus                     # any app → "agent" workspace
-acu spawn --bg -- ghostty --class=acu.build -e htop   # marked terminal: zero flicker
-acu wait --app nautilus --timeout 15
-acu shot --app nautilus                        # confirm it opened sanely
+acu spawn --wait -- nautilus
+acu shot --app nautilus
 ```
 
-User pulls it over when ready: `nirius move-to-current-workspace --app-id nautilus`
-(or workspace navigation — it's all one session).
+This is a normal visible launch and may take focus. Use CDP, AT-SPI, or tmux if
+the task must leave the visible desktop unchanged.
 
 ## 5. Drive a terminal task (never click terminals)
 
@@ -73,7 +71,7 @@ tmux send-keys -t agent-task 'just build' Enter
 sleep 5; tmux capture-pane -t agent-task -p | tail -30   # verify output
 ```
 
-If the user should see it: `acu spawn --bg -- ghostty --class=acu.task -e tmux attach -t agent-task`.
+If the user should see it: `acu spawn -- ghostty -e tmux attach -t agent-task`.
 
 ## 6. Relaunch an Electron app with CDP (opt-in, restarts the app)
 
@@ -81,8 +79,7 @@ Only with user approval — it restarts their app and exposes CDP on loopback:
 
 ```bash
 pkill -x Discord && sleep 1
-acu spawn --bg -- Discord --remote-debugging-port=9223
-acu wait --app discord --timeout 30
+acu spawn --wait -- Discord --remote-debugging-port=9223
 agent-browser connect 9223                     # then drive it like a browser
 ```
 

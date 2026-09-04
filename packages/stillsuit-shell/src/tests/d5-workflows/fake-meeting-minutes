@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$*" > "$STILLSUIT_FIXTURE_MEETING_LOG"
+recording=""
+while (($# > 0)); do
+  if [[ $1 == --recording ]]; then
+    recording=$2
+    shift 2
+  else
+    shift
+  fi
+done
+
+printf '{"recording":"%s","job_id":"fixture-job"}\n' "$recording"

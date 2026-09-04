@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Source-pinned architecture study of Omarchy Quattro's Quickshell desktop and a Nix-native adoption plan for Stillsuit.">
+  <title>Quattro shell, tastefully robbed</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --paper: #f2eee3;
+      --paper-deep: #e9e2d2;
+      --ink: #17201e;
+      --panel: #fbf8ef;
+      --panel-2: #f7f2e7;
+      --muted: #66706b;
+      --line: #c8c2b4;
+      --line-strong: #918b7f;
+      --amber: #a7501f;
+      --amber-soft: #f0ddc8;
+      --teal: #116a6d;
+      --teal-soft: #d9e8e4;
+      --red: #a33e34;
+      --red-soft: #edd7d1;
+      --green: #426b45;
+      --green-soft: #dce7d7;
+      --code: #101816;
+      --code-ink: #e8efe9;
+      --shadow: 0 16px 45px rgba(35, 31, 24, .08);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: auto; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.62 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    a { color: var(--teal); text-underline-offset: .18em; }
+    code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
+    code { overflow-wrap: anywhere; }
+    .page { width: min(1380px, calc(100% - 32px)); margin: 0 auto; }
+    .hero { position: relative; overflow: hidden; padding: 72px 0 38px; border-bottom: 1px solid var(--line); }
+    .hero::after { content: "Q4"; position: absolute; z-index: -1; right: -3vw; top: 0; color: color-mix(in srgb, var(--amber) 7%, transparent); font: 800 clamp(9rem, 28vw, 26rem)/.75 ui-serif, Georgia, serif; letter-spacing: -.1em; }
+    .eyebrow, .section-label { color: var(--amber); font: 750 .73rem/1.3 ui-monospace, monospace; letter-spacing: .15em; text-transform: uppercase; }
+    .eyebrow { margin: 0 0 16px; }
+    h1, h2, h3, h4 { text-wrap: balance; }
+    h1 { max-width: 1040px; margin: 0; font: 760 clamp(3rem, 7.5vw, 7rem)/.88 ui-serif, Georgia, serif; letter-spacing: -.058em; }
+    .lede { max-width: 820px; margin: 28px 0 0; font-size: clamp(1.08rem, 2vw, 1.32rem); }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 28px 0 0; color: var(--muted); font: .78rem/1.45 ui-monospace, monospace; text-transform: uppercase; }
+    .layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 46px; align-items: start; }
+    .toc { position: sticky; top: 0; max-height: 100vh; overflow: auto; padding: 24px 0; }
+    .toc strong { display: block; margin-bottom: 12px; font: 750 .72rem/1.2 ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }
+    .toc a { display: block; padding: 5px 0; color: var(--muted); font-size: .86rem; text-decoration: none; }
+    .toc a:hover, .toc a:focus-visible { color: var(--amber); }
+    main { min-width: 0; padding-bottom: 96px; }
+    section { margin: 72px 0; scroll-margin-top: 28px; }
+    h2 { margin: 8px 0 22px; font: 730 clamp(2rem, 4vw, 3.45rem)/1 ui-serif, Georgia, serif; letter-spacing: -.04em; }
+    h3 { margin: 0 0 9px; font-size: 1.08rem; line-height: 1.3; }
+    h4 { margin: 20px 0 8px; font-size: .98rem; }
+    p { max-width: 850px; }
+    .summary { font-size: 1.1rem; }
+    .muted { color: var(--muted); }
+    .cards, .metrics, .verdict-grid, .decision-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+    .card, .metric, .decision { min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
+    .card { box-shadow: var(--shadow); }
+    .card p, .decision p { margin: 7px 0 0; color: var(--muted); }
+    .metric strong { display: block; color: var(--amber); font: 750 clamp(1.7rem, 4vw, 3rem)/1 ui-serif, Georgia, serif; }
+    .metric span { display: block; margin-top: 7px; color: var(--muted); font-size: .84rem; }
+    .stamp { display: inline-block; margin-bottom: 12px; padding: 4px 7px; border: 1px solid currentColor; color: var(--teal); font: 750 .66rem/1.1 ui-monospace, monospace; letter-spacing: .09em; text-transform: uppercase; transform: rotate(-1deg); }
+    .verdict { padding: 26px; border: 1px solid var(--line-strong); border-left: 7px solid var(--amber); background: var(--panel); box-shadow: var(--shadow); }
+    .verdict strong { font: 730 clamp(1.35rem, 3vw, 2rem)/1.15 ui-serif, Georgia, serif; }
+    .callout { margin: 24px 0; padding: 18px 20px; border-left: 4px solid var(--teal); background: var(--teal-soft); }
+    .callout.warn { border-color: var(--amber); background: var(--amber-soft); }
+    .callout.risk { border-color: var(--red); background: var(--red-soft); }
+    .callout.good { border-color: var(--green); background: var(--green-soft); }
+    .callout p { margin: 0; }
+    .source-pin { display: grid; grid-template-columns: minmax(180px, .4fr) minmax(0, 1fr); overflow: hidden; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
+    .source-pin > div { min-width: 0; padding: 18px; }
+    .source-pin > div + div { border-left: 1px solid var(--line); }
+    pre { overflow: auto; margin: 14px 0; padding: 16px; border-radius: 6px; background: var(--code); color: var(--code-ink); font-size: .84rem; line-height: 1.55; white-space: pre; }
+    .source-pin pre { margin: 0; }
+    .ref { display: inline; color: var(--teal); font: .82rem/1.45 ui-monospace, monospace; }
+    .flow { display: flex; align-items: stretch; gap: 8px; overflow-x: auto; margin: 26px 0; padding: 2px 2px 14px; }
+    .flow .node { flex: 1 0 155px; min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+    .flow .node strong { display: block; margin-bottom: 5px; font-size: .9rem; }
+    .flow .node span { display: block; color: var(--muted); font-size: .8rem; }
+    .flow .arrow { align-self: center; flex: 0 0 auto; color: var(--amber); font: 700 1.4rem/1 ui-monospace, monospace; }
+    .diagram { overflow: auto; margin: 26px 0; padding: 18px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
+    .diagram svg { display: block; width: 100%; min-width: 760px; height: auto; }
+    .table-wrap { overflow: auto; margin: 24px 0; border: 1px solid var(--line); border-radius: 7px; }
+    table { width: 100%; border-collapse: collapse; background: var(--panel); font-size: .91rem; }
+    th, td { padding: 11px 13px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+    th { position: sticky; top: 0; z-index: 1; background: var(--paper-deep); color: var(--ink); font: 750 .72rem/1.3 ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    .tag { display: inline-block; padding: 2px 7px; border-radius: 999px; font: 750 .67rem/1.5 ui-monospace, monospace; text-transform: uppercase; white-space: nowrap; }
+    .copy { color: var(--green); background: var(--green-soft); }
+    .adapt { color: var(--amber); background: var(--amber-soft); }
+    .reject { color: var(--red); background: var(--red-soft); }
+    .timeline { position: relative; margin-top: 26px; }
+    .timeline::before { content: ""; position: absolute; left: 17px; top: 10px; bottom: 10px; width: 1px; background: var(--line-strong); }
+    .milestone { position: relative; margin: 0 0 16px 46px; padding: 18px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
+    .milestone::before { content: attr(data-step); position: absolute; left: -46px; top: 17px; display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--amber); border-radius: 50%; background: var(--paper); color: var(--amber); font: 750 .72rem/1 ui-monospace, monospace; }
+    .milestone p { margin: 6px 0; }
+    .checks { margin: 10px 0 0; padding-left: 18px; color: var(--muted); }
+    .checks li + li { margin-top: 5px; }
+    details { margin: 12px 0; padding: 13px 15px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); }
+    summary { cursor: pointer; font-weight: 700; }
+    .footer { padding: 28px 0 50px; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+    .nowrap { white-space: nowrap; }
+    :focus-visible { outline: 3px solid color-mix(in srgb, var(--teal) 55%, transparent); outline-offset: 3px; }
+    @media (max-width: 880px) {
+      .page { width: min(100% - 24px, 1380px); }
+      .layout { grid-template-columns: 1fr; gap: 0; }
+      .toc { position: relative; display: flex; gap: 14px; overflow-x: auto; max-height: none; padding: 12px 0; border-bottom: 1px solid var(--line); }
+      .toc strong { display: none; }
+      .toc a { flex: none; }
+      section { margin: 58px 0; }
+    }
+    @media (max-width: 620px) {
+      .hero { padding-top: 46px; }
+      .source-pin { grid-template-columns: minmax(0, 1fr); }
+      .source-pin > div + div { border-left: 0; border-top: 1px solid var(--line); }
+      .verdict { padding: 20px; }
+      th, td { padding: 9px 10px; }
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --paper: #111715;
+        --paper-deep: #1d2521;
+        --ink: #ecf0e8;
+        --panel: #18201d;
+        --panel-2: #151c19;
+        --muted: #a8b0aa;
+        --line: #39423d;
+        --line-strong: #657069;
+        --amber: #e28c50;
+        --amber-soft: #3b281c;
+        --teal: #77c6c2;
+        --teal-soft: #173230;
+        --red: #e7897c;
+        --red-soft: #3c2320;
+        --green: #96bf8e;
+        --green-soft: #203222;
+        --shadow: 0 16px 45px rgba(0, 0, 0, .18);
+      }
+    }
+    @media print {
+      :root { color-scheme: light; }
+      body { background: white; color: #111; }
+      .page { width: 100%; }
+      .layout { display: block; }
+      .toc { display: none; }
+      section { break-inside: avoid-page; }
+      .card, .milestone, .verdict, .diagram, .table-wrap { box-shadow: none; }
+      a { color: #111; text-decoration: none; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <p class="eyebrow">Architecture field study · v4.0.0 source pin · execution scope refined 2026-08-30</p>
+      <h1>Quattro shell, tastefully robbed.</h1>
+      <p class="lede">How Omarchy 4 turned a desktop into one extensible Quickshell host. This report takes its best boundaries, lifecycle contracts, theme graph and components without importing its distro policy or sanding off Stillsuit's own character.</p>
+      <div class="meta">
+        <span>Artifact: architecture walkthrough + implementation plan</span>
+        <span>Upstream: basecamp/omarchy v4.0.0</span>
+        <span>Local target: Jacurutu / Niri / Stillsuit</span>
+        <span>Activation: not performed</span>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="toc" aria-label="On this page">
+        <strong>Field notes</strong>
+        <a href="#verdict">Verdict</a>
+        <a href="#evidence">Evidence</a>
+        <a href="#runtime">Runtime spine</a>
+        <a href="#plugins">Plugin architecture</a>
+        <a href="#themes">Theme system</a>
+        <a href="#surfaces">Desktop surfaces</a>
+        <a href="#notifications">Notifications</a>
+        <a href="#agents">Agent panel</a>
+        <a href="#authoring">Agent-authored extensions</a>
+        <a href="#stillsuit">Stillsuit audit</a>
+        <a href="#matrix">Copy / adapt / reject</a>
+        <a href="#target">Target architecture</a>
+        <a href="#migration">Migration</a>
+        <a href="#risks">Risks</a>
+        <a href="#verification">Verification</a>
+      </nav>
+
+      <main>
+        <section id="verdict">
+          <p class="section-label">00 · Executive call</p>
+          <h2>Steal the host. Keep the suit.</h2>
+          <div class="verdict">
+            <strong>Do not wrap Omarchy's shell as the new desktop. Rebuild Stillsuit around the same architectural seams.</strong>
+            <p>Quattro's durable contribution is not its colors or its exact bar. It is the separation between a long-running composition root, injected singleton services, versioned plugin metadata, typed contribution kinds, lazy surface loaders, a data-driven bar, shared UI primitives, one IPC facade, and a palette-to-adapter theme graph. Those ideas fit Nix extremely well once runtime Git, mutable source trees, Hyprland assumptions, and imperative config rewriting are removed.</p>
+          </div>
+
+          <div class="verdict-grid" style="margin-top:14px">
+            <article class="card"><span class="stamp">Preserve</span><h3>Stillsuit identity</h3><p>Catppuccin character, compact glass language, the Niri workspace/column model, recording and meeting workflows, Dictator's live waveform, and notification policy.</p></article>
+            <article class="card"><span class="stamp">Borrow</span><h3>Quattro boundaries</h3><p>Composition root, registry, manifests, lifecycle loaders, slot-based bar, injected context, service/view separation, safe fallback, and broad contract tests.</p></article>
+            <article class="card"><span class="stamp">Refuse</span><h3>Omarchy policy</h3><p>Runtime plugin installation, mutable Git source, whole-file config rewriting, app config surgery, broad login-shell commands, and Hypr-only assumptions. Mise is outside the desktop effort.</p></article>
+          </div>
+
+          <div class="callout good"><p><strong>The local work is not disposable.</strong> Stillsuit is already a functioning 7,264-line Niri shell with unusually good local workflows. The architectural rewrite should make those features easier to extend, not replace them with generic Omarchy equivalents.</p></div>
+        </section>
+
+        <section id="evidence">
+          <p class="section-label">01 · Source and scale</p>
+          <h2>A stable tag, not a moving branch.</h2>
+          <div class="source-pin">
+            <div>
+              <strong>Omarchy Quattro</strong><br>
+              <a href="https://github.com/basecamp/omarchy/releases/tag/v4.0.0">Release v4.0.0</a><br>
+              <span class="muted">Published 2026-08-14</span>
+            </div>
+            <div><pre>repository  https://github.com/basecamp/omarchy
+tag         v4.0.0
+commit      f0020448ca87329199de7cb12f2015ebc4a3e5e7
+worktree    /vault/repos/omarchy-quattro
+license     MIT</pre></div>
+          </div>
+
+          <div class="metrics" style="margin-top:14px">
+            <div class="metric"><strong>95</strong><span>upstream shell QML files</span></div>
+            <div class="metric"><strong>33,392</strong><span>upstream QML lines at the tag</span></div>
+            <div class="metric"><strong>29</strong><span>first-party plugin manifests under <code>shell/plugins</code></span></div>
+            <div class="metric"><strong>189</strong><span>files in <code>test/shell.d</code></span></div>
+            <div class="metric"><strong>38</strong><span>local Stillsuit QML files</span></div>
+            <div class="metric"><strong>11</strong><span>surfaces hard-wired in the local root</span></div>
+          </div>
+
+          <p>The tag points directly at an unsigned commit rather than an annotated release object. For Nix, pin the exact commit and nar hash rather than trusting a floating branch. Code reuse is allowed under MIT, but copied or substantial code must retain the copyright and permission notice. See <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/LICENSE#L1-L20">LICENSE:1–20</a>.</p>
+
+          <div class="callout good"><p><strong>Latest-release status rechecked 2026-08-23.</strong> GitHub still names v4.0.0 as the latest release, and the local detached worktree still resolves to <code>f0020448ca87329199de7cb12f2015ebc4a3e5e7</code>. The refresh also recounted the source tree and rechecked the live Stillsuit, Waybar, notification-owner and Niri state before synthesis.</p></div>
+
+          <details>
+            <summary>How the architecture arrived</summary>
+            <p>The recorded migration phases added the host, registries, configurable bar, background switcher, path and race fixes, IPC, and unified <code>shell.json</code> in successive slices. That is enough evidence that Stillsuit can migrate vertically rather than through a flag day. See <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/README.md#L283-L295">shell/README.md:283–295</a>.</p>
+          </details>
+        </section>
+
+        <section id="runtime">
+          <p class="section-label">02 · Runtime spine</p>
+          <h2>One process, three loader branches.</h2>
+          <p class="summary">Quattro launches one named Quickshell instance for the graphical session. The root owns the canonical service graph; manifests are discovered once; UI then fans into a selected full bar, singleton services, and on-demand surfaces.</p>
+
+          <div class="flow" aria-label="Quattro startup flow">
+            <div class="node"><strong>UWSM environment</strong><span>establishes <code>OMARCHY_PATH</code> and session environment</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>Hyprland autostart</strong><span>invokes the shell launcher once per graphical session</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>Launcher supervisor</strong><span>journals output, restarts failures, suppresses unsafe QML tree reloads</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong><code>ShellRoot</code></strong><span>creates registries, app library, config store, IPC and loaders</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>Plugin graph</strong><span>bar + services + panels / overlays / menus / widgets</span></div>
+          </div>
+
+          <div class="diagram" aria-label="Quattro runtime topology">
+            <svg viewBox="0 0 980 460" role="img" aria-labelledby="runtimeTitle runtimeDesc">
+              <title id="runtimeTitle">Quattro runtime topology</title>
+              <desc id="runtimeDesc">A central shell root owns config, registries and IPC, then loads the full bar, service plugins, and on-demand surfaces.</desc>
+              <defs><marker id="arrowHead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#a7501f"/></marker></defs>
+              <rect x="330" y="20" width="320" height="78" rx="9" fill="none" stroke="#a7501f" stroke-width="2"/>
+              <text x="490" y="51" text-anchor="middle" font-family="ui-monospace,monospace" font-size="16" fill="currentColor">shell.qml · ShellRoot</text>
+              <text x="490" y="76" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="13" fill="currentColor">single composition root and IPC façade</text>
+              <rect x="80" y="145" width="225" height="92" rx="8" fill="none" stroke="#116a6d" stroke-width="2"/>
+              <text x="192" y="177" text-anchor="middle" font-family="ui-monospace,monospace" font-size="15" fill="currentColor">PluginRegistry</text>
+              <text x="192" y="201" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">scan · validate · enable · reload</text>
+              <text x="192" y="219" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">first-party + user plugins</text>
+              <rect x="377" y="145" width="225" height="92" rx="8" fill="none" stroke="#116a6d" stroke-width="2"/>
+              <text x="489" y="177" text-anchor="middle" font-family="ui-monospace,monospace" font-size="15" fill="currentColor">Config + theme</text>
+              <text x="489" y="201" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">shell.json · Color · Style</text>
+              <text x="489" y="219" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">atomic writes + live bindings</text>
+              <rect x="675" y="145" width="225" height="92" rx="8" fill="none" stroke="#116a6d" stroke-width="2"/>
+              <text x="787" y="177" text-anchor="middle" font-family="ui-monospace,monospace" font-size="15" fill="currentColor">BarWidgetRegistry</text>
+              <text x="787" y="201" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">component + metadata catalogue</text>
+              <text x="787" y="219" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">shared across every bar/output</text>
+              <line x1="420" y1="98" x2="230" y2="144" stroke="#a7501f" stroke-width="2" marker-end="url(#arrowHead)"/>
+              <line x1="490" y1="98" x2="490" y2="144" stroke="#a7501f" stroke-width="2" marker-end="url(#arrowHead)"/>
+              <line x1="560" y1="98" x2="750" y2="144" stroke="#a7501f" stroke-width="2" marker-end="url(#arrowHead)"/>
+              <rect x="60" y="330" width="250" height="100" rx="8" fill="none" stroke="#918b7f"/>
+              <text x="185" y="362" text-anchor="middle" font-family="ui-monospace,monospace" font-size="15" fill="currentColor">Selected full bar</text>
+              <text x="185" y="386" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">one surface per output</text>
+              <text x="185" y="406" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">data-driven widget slots</text>
+              <rect x="365" y="330" width="250" height="100" rx="8" fill="none" stroke="#918b7f"/>
+              <text x="490" y="362" text-anchor="middle" font-family="ui-monospace,monospace" font-size="15" fill="currentColor">Service plugins</text>
+              <text x="490" y="386" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">one shared model/controller</text>
+              <text x="490" y="406" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">injected into visual consumers</text>
+              <rect x="670" y="330" width="250" height="100" rx="8" fill="none" stroke="#918b7f"/>
+              <text x="795" y="362" text-anchor="middle" font-family="ui-monospace,monospace" font-size="15" fill="currentColor">On-demand surfaces</text>
+              <text x="795" y="386" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">panel · overlay · menu</text>
+              <text x="795" y="406" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">async loader + open/close lifecycle</text>
+              <line x1="192" y1="237" x2="185" y2="329" stroke="#a7501f" stroke-width="2" marker-end="url(#arrowHead)"/>
+              <line x1="490" y1="237" x2="490" y2="329" stroke="#a7501f" stroke-width="2" marker-end="url(#arrowHead)"/>
+              <line x1="787" y1="237" x2="795" y2="329" stroke="#a7501f" stroke-width="2" marker-end="url(#arrowHead)"/>
+            </svg>
+          </div>
+
+          <div class="cards">
+            <article class="card"><h3>Explicit ownership</h3><p>The root instantiates exactly one <code>PluginRegistry</code>, <code>BarWidgetRegistry</code>, and <code>AppLibrary</code>, then injects those instances. This avoids accidental per-import singleton copies. <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/shell.qml#L11-L20">shell/shell.qml:11–20</a></p></article>
+            <article class="card"><h3>Warm surfaces</h3><p>Panels are summoned by IPC into an already-running process. Loaders are active only while open unless a manifest requests <code>keepLoaded</code>. Pending payloads are queued until the async component resolves. <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/shell.qml#L407-L478">shell/shell.qml:407–478</a></p></article>
+            <article class="card"><h3>Graceful fallback</h3><p>A broken replacement bar falls back to <code>omarchy.bar</code>; failed surfaces log and close; failed widgets release their load claim so a later rescan can retry. <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/shell.qml#L237-L260">shell.qml:237–260</a>, <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/shell.qml#L640-L649">640–649</a>, <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/shell.qml#L795-L804">795–804</a></p></article>
+            <article class="card"><h3>Focused-output routing</h3><p>The bar exists per output, but keyboard summons route to the already-open widget or the compositor-focused monitor. This prevents duplicated IPC authority in multi-monitor layouts. <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/plugins/bar/Bar.qml#L428-L518">Bar.qml:428–518</a></p></article>
+          </div>
+
+          <div class="callout warn"><p><strong>The root is already getting heavy.</strong> At roughly 1,030 lines, <code>shell.qml</code> owns config, plugin lifecycle, bar routing, service creation, theme IPC, compatibility and generic surface IPC. Copy the single composition root, but split Stillsuit's implementation into <code>ConfigStore</code>, <code>PluginHost</code>, <code>SurfaceRouter</code> and a small IPC facade.</p></div>
+        </section>
+
+        <section id="plugins">
+          <p class="section-label">03 · Plugin architecture</p>
+          <h2>Metadata decides what exists; the host decides how it lives.</h2>
+          <p class="summary">The manifest is deliberately small. It names an ID, version, contribution kinds and entry points. The host centralizes singleton versus per-output behavior, eager versus lazy loading, fallback, context injection, config placement and IPC.</p>
+
+          <pre aria-label="Proposed Stillsuit plugin manifest">{
+  "schemaVersion": 1,
+  "id": "stillsuit.agent-usage",
+  "name": "Agent usage",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["service", "bar-widget"],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "capabilities": ["agent-usage-read"],
+  "barWidget": { "defaultSection": "right", "allowMultiple": false }
+}</pre>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Kind</th><th>Quattro lifecycle</th><th>Best Stillsuit use</th><th>Key constraint</th></tr></thead>
+              <tbody>
+                <tr><td><code>bar</code></td><td>Exactly one selected implementation; async custom loader; built-in fallback</td><td>Wrap the current <code>TopBar</code> first, then permit alternatives</td><td>Never render two exclusion-zone owners</td></tr>
+                <tr><td><code>bar-widget</code></td><td>Component registered once, visual instance created per bar/output</td><td>Clock, workspaces, meeting, recording, resources, agent usage</td><td>Shared service state must not multiply per output</td></tr>
+                <tr><td><code>service</code></td><td>One enabled headless instance created under a service host</td><td>Niri, audio, network, power, recording and meeting controllers</td><td>Expose a narrow context API, not the whole root</td></tr>
+                <tr><td><code>panel</code></td><td>Async on first summon; destroyed when closed unless kept loaded</td><td>Audio, Bluetooth, network, battery and recording panels</td><td>Host owns mutual exclusion and focused-output placement</td></tr>
+                <tr><td><code>overlay</code></td><td>Fullscreen or free-standing surface, usually summoned by IPC</td><td>OSD stack, theme/background picker, later clipboard/emoji tools</td><td>Do not keep presentation-only overlays alive without reason</td></tr>
+                <tr><td><code>menu</code></td><td>Summoned searchable surface with its own route/payload model</td><td>Future Stillsuit command palette; retain Walker during migration</td><td>Typed actions only; avoid arbitrary login-shell strings</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="muted">This is the proposed Stillsuit contract, not Quattro's current agents manifest. Upstream declares the agents surface only as a <code>bar-widget</code>; Stillsuit should separate collectors and state into a service.</p>
+
+          <h3>The clever pieces worth taking</h3>
+          <div class="cards">
+            <article class="card"><h3>Structural enablement</h3><p>A widget is enabled by appearing in the bar layout; a full bar by <code>bar.id</code>; other third-party surfaces by a config entry. First-party infrastructure defaults on and records only deviations. <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/services/PluginRegistry.qml#L110-L166">PluginRegistry.qml:110–166</a></p></article>
+            <article class="card"><h3>Stable replacement identity</h3><p>A personalized clone can replace a built-in while old IPC callers keep using the built-in ID. The registry routes the stable identity to the active clone. This is a useful compatibility concept even if Nix overlays replace runtime cloning.</p></article>
+            <article class="card"><h3>Uniform core and local extensions</h3><p>Built-ins and dotfiles-owned additions use the same manifest contract. This keeps the extension path honest: agents can add a feature without learning secret-only composition hooks.</p></article>
+            <article class="card"><h3>Component-load containment</h3><p>Manifest errors omit one plugin; widget/panel/service load errors are caught; the rest of the shell continues. The containment ends at the QML engine boundary.</p></article>
+          </div>
+
+          <h3>Where Stillsuit should improve the contract</h3>
+          <ul>
+            <li>Add a real <code>apiVersion</code>, host compatibility range, known-kind rejection, dependency declarations, and state-schema version. Capabilities document authority and review scope; they are not a pretend sandbox. Upstream requires <code>version</code> but does not use it.</li>
+            <li>Generate and validate the production registry from dotfiles-owned Nix store paths. Keep out-of-store source only as an explicit local development mode.</li>
+            <li>Inject one narrow context object: <code>theme</code>, <code>compositor</code>, <code>services</code>, <code>panels</code>, <code>logger</code>, <code>settings</code> and <code>instanceId</code>. Do not expose the root object's entire authority.</li>
+            <li>Separate declarative defaults from writable UI state. A generated <code>defaults.json</code> may be overlaid by a narrowly scoped <code>runtime-overrides.json</code>; the shell must never rewrite Home Manager-owned files.</li>
+            <li>Let <code>stillsuitctl export-overrides</code> produce a Nix-ready fragment so an interactive bar arrangement can be promoted back into declarative config.</li>
+            <li>Make surface lifecycle explicit as <code>unloaded</code>, <code>loading</code>, <code>loaded</code>, or <code>error</code>. Clear queued open payloads on hide, disable, error, and reload; Quattro can otherwise replay a stale payload after a summon-hide race.</li>
+            <li>Reload one changed development plugin. Quattro destroys every panel and service, unregisters every widget, and clears the global QML component cache for any plugin edit.</li>
+          </ul>
+
+          <div class="callout good"><p><strong>The trust boundary is the dotfiles repository.</strong> There is no community marketplace, runtime installer, remote update path, or arbitrary third-party loading. Plugins are normal reviewed repo changes authored by the user or their agents and materialized by Nix. Same-process isolation is therefore not a phase-one requirement. Keep manifest validation, lazy-load error states, fallback components and per-plugin reload because trusted generated QML can still be buggy. <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/docs/omarchy-shell.md#L76-L80">Upstream contrast: docs/omarchy-shell.md:76–80</a></p></div>
+        </section>
+
+        <section id="themes">
+          <p class="section-label">04 · Unified theme graph</p>
+          <h2>The best idea is the fan-out, not the Bash.</h2>
+          <p class="summary">Quattro takes one semantic palette, derives a richer shell token layer, and renders adapters for every consumer. Keep that direction. Replace its mutable staging and app surgery with typed Nix data and generated files.</p>
+
+          <div class="flow" aria-label="Theme propagation flow">
+            <div class="node"><strong>Curated theme record</strong><span>neutral ramp, chromatic palette, semantic roles, geometry and motion</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>Nix validation</strong><span>required roles, color syntax, type and range checks</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>Generated adapters</strong><span>Stillsuit JSON, base16 projection, editor metadata, later app-specific output</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>Home Manager generation</strong><span>one Catppuccin Mocha theme first; selection changes on rebuild</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>Consumers</strong><span><code>Color</code> · <code>Style</code> · <code>Border</code> · Stylix applications</span></div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Layer</th><th>What Quattro gets right</th><th>Nix-native translation</th></tr></thead>
+              <tbody>
+                <tr><td>Source palette</td><td>Small semantic vocabulary, a neutral ramp, chromatic colors and derived roles</td><td>A curated versioned Stillsuit theme becomes canonical. Start with Catppuccin Mocha.</td></tr>
+                <tr><td>Shell roles</td><td>Separate surface roles, interaction states, border specs, spacing, type scale and bar geometry</td><td>Typed Nix options generate one JSON payload consumed by <code>Theme</code>, <code>Style</code> and UI primitives</td></tr>
+                <tr><td>Stylix/base16</td><td>Quattro keeps compatibility aliases while using a richer shell palette</td><td>Generate a lossy base16 projection for current Stylix consumers. Never round-trip it back into the canonical theme.</td></tr>
+                <tr><td>VS Code</td><td>Quattro generates editor config or selects a named extension theme from palette metadata</td><td>Keep VS Code downstream. Its hundreds of editor-specific keys are a poor desktop theme schema.</td></tr>
+                <tr><td>Precedence</td><td>Theme base → user overlay → global adapters → section override → machine override</td><td>Theme package → module overrides → host/accessibility overrides, all typed and inspectable</td></tr>
+                <tr><td>Selection</td><td>Quattro can retint the shell immediately, then mutate other consumers afterward</td><td>Keep selection rebuild-time in phase one. Runtime switching can wait until several immutable theme generations exist.</td></tr>
+                <tr><td>Plugin access</td><td>All plugins consume the same live <code>Color</code>/<code>Style</code>/<code>Border</code> contract</td><td>Expose a stable subset as <code>context.theme</code>; keep private styling internals private</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout good"><p><strong>Base16 becomes an adapter, not an authority.</strong> Today the local mapping collapses pink into mauve, red into maroon, teal into sky, and blue into sapphire. A richer source record fixes that without throwing away Stylix. <a class="ref" href="https://github.com/Kabilan108/dotfiles/blob/51b5fa5965dd80a42cc2bda5172b9f8a4a795042/home/desktop/wayland/quickshell/default.nix#L24-L50">local default.nix:24–50</a></p></div>
+
+          <pre aria-label="Target theme contract">{
+  "schemaVersion": 1,
+  "identity": { "id": "stillsuit.catppuccin-mocha", "mode": "dark" },
+  "palette": {
+    "neutral": { "bg0": "#…", "bg1": "#…", "fgMuted": "#…", "fg": "#…" },
+    "chromatic": { "red": "#…", "yellow": "#…", "green": "#…", "cyan": "#…", "blue": "#…", "magenta": "#…" }
+  },
+  "colors": {
+    "surface": { "canvas": "#…", "panel": "#…", "raised": "#…", "hover": "#…" },
+    "text": { "primary": "#…", "secondary": "#…", "tertiary": "#…", "onAccent": "#…" },
+    "border": { "subtle": "#…", "normal": "#…", "focus": "#…" },
+    "status": { "info": "#…", "success": "#…", "warning": "#…", "danger": "#…" }
+  },
+  "controls": { "normal": { "fill": "…", "border": "…" }, "focus": { "…": "…" } },
+  "typography": { "family": "monospace", "baseSize": 13, "scale": 1.0 },
+  "geometry": { "radius": 5, "density": 4, "barHeight": 38 },
+  "motion": { "fast": 120, "medium": 180, "slow": 260 }
+}</pre>
+
+          <p>Quattro rebinds every QML consumer by replacing one central values object. <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/Commons/Color.qml#L25-L32">Color.qml:25–32</a>. Stillsuit already has the right delivery mechanism: Home Manager emits JSON and <code>Theme.qml</code> watches it with a fallback. The migration changes what generates that JSON, then preserves today's flat <code>Theme.*</code> properties as compatibility aliases while plugins move to grouped semantic roles. <a class="ref" href="https://github.com/Kabilan108/dotfiles/blob/51b5fa5965dd80a42cc2bda5172b9f8a4a795042/home/desktop/wayland/quickshell/stillsuit/Theme.qml#L103-L123">local Theme.qml:103–123</a></p>
+        </section>
+
+        <section id="surfaces">
+          <p class="section-label">05 · Surface map</p>
+          <h2>A shell assembled from small, repeated contracts.</h2>
+          <p>Quattro deliberately avoids one giant "control center." Bar widgets own narrow popouts backed by shared models; standalone overlays and menus are summoned through the host; daemon-like roles live as services.</p>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Surface</th><th>Upstream shape</th><th>What to do locally</th></tr></thead>
+              <tbody>
+                <tr><td>Bar + workspaces</td><td>Replaceable full-bar plugin; per-output layer surfaces; manifest-backed widget slots; native Hyprland workspace model</td><td>Port slot/registry architecture and drag geometry; retain Stillsuit visuals and <code>NiriState</code>. Do not port Hyprland workspace code.</td></tr>
+                <tr><td>Launcher + menu</td><td>One searchable command/app surface with fuzzy/acronym search, JSONC routes and dmenu mode</td><td>Study and later port the model/search split; keep Walker/Elephant until the host and services are stable.</td></tr>
+                <tr><td>Notifications</td><td>One keep-loaded freedesktop daemon with snapshots, replacement tracking, bounded replayable history and per-output popups</td><td>Keep Stillsuit's engine and policy, then borrow the data lifecycle selectively. Migrate last because D-Bus ownership is exclusive.</td></tr>
+                <tr><td>OSDs</td><td>Shared OSD overlay/model fed by media and monitor services</td><td>Wrap volume, brightness and Dictator OSDs as one keep-loaded plugin; preserve current stacking and real waveform.</td></tr>
+                <tr><td>Audio / Bluetooth / network / power</td><td>Independent widget + panel modules; native Quickshell APIs where possible, helper commands for gaps</td><td>Separate each local service from its view; inject one shared instance; package helper argv and dependencies.</td></tr>
+                <tr><td>Background + pickers</td><td>Background service owns per-screen layers and crossfade; generic image picker drives theme/background selection</td><td>Borrow generic picker and coordinated transition later; avoid conflicting with current wallpaper ownership.</td></tr>
+                <tr><td>Lock / idle / polkit</td><td>Keep-loaded services inside the same shell, using PAM/session lock/Polkit APIs</td><td>Do not port initially. Keep swaylock and current auth agent isolated from plugin-capable code.</td></tr>
+                <tr><td>Clipboard + emoji</td><td>Keep-loaded searchable overlays; clipboard keeps up to 300 entries on disk</td><td>Emoji picker is low risk. Clipboard history is privacy-sensitive and must be explicit opt-in with TTL, <code>0600</code> state and password-manager tests.</td></tr>
+                <tr><td>Capture</td><td>Menu and helper driven; status indicator feeds the bar</td><td>Retain <code>stillsuit-recorder</code> and meeting handoff; expose its state as a shared service and bar/panel consumers.</td></tr>
+                <tr><td>Interaction kit</td><td><code>PanelKeyCatcher</code>, <code>PointerMoveGate</code>, <code>CursorSurface</code>, <code>KeyboardPanel</code>, border surfaces, sliders and toggles</td><td>This is the best component-level robbery. Port the small contracts into Stillsuit primitives before importing any large panel.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>Start with the panel lifecycle in <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/Ui/Panel.qml#L5-L57">Ui/Panel.qml:5–57</a>, keyboard normalization in <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/Ui/PanelKeyCatcher.qml#L33-L84">PanelKeyCatcher.qml:33–84</a>, stationary-pointer suppression in <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/Ui/PointerMoveGate.qml#L8-L53">PointerMoveGate.qml:8–53</a>, and cursor coordination in <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/Ui/CursorSurface.qml#L4-L40">CursorSurface.qml:4–40</a>. The polished network, audio, Bluetooth, menu and bar surfaces are useful UX references, but their 1,000 to 1,958 line QML files mix services, process calls, state and rendering. Steal the behaviors, not those monoliths.</p>
+        </section>
+
+        <section id="notifications">
+          <p class="section-label">06 · Notification engine decision</p>
+          <h2>Keep Stillsuit. Borrow the data lifecycle.</h2>
+          <p class="summary">Quattro has the cleaner snapshot and expiry machinery. Stillsuit has the safer action contract, better named-action UI, better DND policy and the actual notification center. A wholesale port would trade away working behavior and import a command-execution vulnerability.</p>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Concern</th><th>Keep from Stillsuit</th><th>Borrow from Quattro</th></tr></thead>
+              <tbody>
+                <tr><td>D-Bus and actions</td><td>Named action buttons, direct action invocation, current Nix-generated policy</td><td>Add a safe card-level default action. Never accept an executable notification hint.</td></tr>
+                <tr><td>Lifetime</td><td>Raw millisecond timeout semantics and current urgency policy</td><td>Archive a snapshot, then call <code>expire()</code>. The current timer only removes the popup ID.</td></tr>
+                <tr><td>Replacement</td><td>One visible row per notification ID</td><td>Snapshot property changes, preserve identity and restart the engine-owned deadline when content or timeout changes.</td></tr>
+                <tr><td>History</td><td>Browsable center UI and XDG-correct DND state</td><td>Bounded snapshot rows, corrupt-record isolation and explicit retention. Persistent notification content stays opt-in.</td></tr>
+                <tr><td>Outputs</td><td>One shared model</td><td>Define one focused-output or configured-output presentation policy. Do not duplicate each toast and timer on every monitor.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout risk"><p><strong>Reject <code>omarchy-exec</code> completely.</strong> Quattro reads a sender-provided notification hint, persists it, and later passes it to <code>bash -lc</code> when the card is clicked. Any local notification client can supply that hint. <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/plugins/notifications/NotificationLogic.js#L45-L92">NotificationLogic.js:45–92</a>, <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/plugins/notifications/Service.qml#L355-L368">Service.qml:355–368</a></p></div>
+
+          <div class="flow" aria-label="Target notification architecture">
+            <div class="node"><strong><code>NotificationService</code></strong><span>D-Bus owner, live references, timers, close reasons and action dispatch</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong><code>NotificationModel</code></strong><span>plain snapshots, replacement keys, bounded history and grouping policy</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong><code>NotificationPolicy</code></strong><span>DND, bypass, persistence and retention decisions</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>Views</strong><span>center, toast and card consume snapshots; live actions are visibly distinguished</span></div>
+          </div>
+
+          <p>The migration is a single-owner handoff. Stillsuit currently owns <code>org.freedesktop.Notifications</code>, and the dormant legacy <code>quickshell/osd</code> tree contains another server. Shadow mode must instantiate neither. Before cutover, test requested timeouts, replacement-only changes, all named/default actions, DND classes, 100-notification bursts, two outputs, malformed history, and an inert <code>omarchy-exec</code> hint. <a class="ref" href="https://github.com/Kabilan108/dotfiles/blob/51b5fa5965dd80a42cc2bda5172b9f8a4a795042/home/desktop/wayland/quickshell/stillsuit/NotificationCenter.qml#L220-L241">local NotificationCenter.qml:220–241</a></p>
+        </section>
+
+        <section id="agents">
+          <p class="section-label">07 · Agent panel</p>
+          <h2>The shell controls the quake panel. Ghostty renders it.</h2>
+          <p class="summary">Quattro's in-shell agent feature is a usage widget and popup. Launching an agent opens a separate terminal with a stable app ID. That separation is correct: Quickshell cannot embed a normal Wayland terminal surface, and building a PTY emulator in QML would turn a small convenience into a terminal project.</p>
+          <div class="flow" aria-label="Stillsuit cxf panel flow">
+            <div class="node"><strong>Mod+Grave / bar button</strong><span>calls the fixed <code>agent toggle</code> IPC action</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>Stillsuit controller</strong><span>runs one Nix-built helper; no caller-supplied command strings</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>tmux session</strong><span>one persistent <code>stillsuit-agent</code> session owns Codex</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>Ghostty window</strong><span>stable app ID <code>io.stillsuit.AgentPanel</code></span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>Niri rule</strong><span>floats and focuses the window on the current output</span></div>
+          </div>
+
+          <h3>Preserve <code>cxf</code> exactly, but stop depending on the alias</h3>
+          <pre aria-label="Current cxf command">codex --yolo \
+  --model gpt-5.6-sol \
+  --config model_reasoning_effort=low \
+  --config service_tier=fast</pre>
+          <p>The alias lives behind the interactive-shell guard, and Bash does not expand aliases in a normal noninteractive shell. Do not launch <code>bash -ic cxf</code>. Home Manager should generate the exact executable plus argument list and a helper with only <code>open</code>, <code>hide</code>, <code>toggle</code>, <code>status</code>, and an explicitly separate <code>terminate</code> action. <a class="ref" href="https://github.com/Kabilan108/dotfiles/blob/51b5fa5965dd80a42cc2bda5172b9f8a4a795042/config/.bashrc#L224-L227">local .bashrc:224–227</a></p>
+
+          <div class="cards">
+            <article class="card"><h3>Persistent session</h3><p>Tmux owns Codex, so hiding or closing Ghostty does not kill the desktop agent. A named session also prevents duplicate agents and preserves its current directory.</p></article>
+            <article class="card"><h3>Quake toggle</h3><p>A helper serializes actions with a lock, locates the exact Niri window ID and focuses it on the current workspace. Hiding closes only the Ghostty window; the named tmux session persists and a later toggle launches a fresh terminal attachment.</p></article>
+            <article class="card"><h3>Typed authority</h3><p>The shell may request only a literal lifecycle action. It cannot change the command, working directory, model or prompt over IPC.</p></article>
+            <article class="card"><h3>Usage later</h3><p>Port the Codex collector and JSON watcher after the terminal workflow works. Collectors run outside Quickshell and write sanitized records with no credentials.</p></article>
+          </div>
+
+          <p>Quattro's launcher already uses a separate terminal and stable <code>org.omarchy.agent</code> app ID. It normalizes the working directory and maps tool-specific flags before launching. <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/bin/omarchy-agent#L34-L104">bin/omarchy-agent:34–104</a>. Its usage plugin is a separate bar-widget contract backed by atomic JSON records, not the terminal controller. <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/plugins/agents/manifest.json#L1-L38">agents/manifest.json:1–38</a></p>
+
+          <div class="callout warn"><p><strong>The <code>--yolo</code> authority is intentional and already present in <code>cxf</code>.</strong> The panel should not broaden it. Use a fixed working root, keep QML free of credentials, and do not let notifications or arbitrary plugins inject prompts or command fragments. Crash assistance can arrive later through a reviewed structured file handoff.</p></div>
+        </section>
+
+        <section id="authoring">
+          <p class="section-label">08 · Agent-authored extensions</p>
+          <h2>The plugin system is a coding interface, not an app store.</h2>
+          <p class="summary">The intended workflow is deliberately local: ask an agent for a feature, let it change the dotfiles through the public extension contract, review the diff and activate it with the next explicit rebuild. There is no runtime discovery of community code.</p>
+
+          <div class="flow" aria-label="Agent-authored plugin workflow">
+            <div class="node"><strong>Feature request</strong><span>behavior, placement and acceptance examples</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>Agent skill</strong><span>scaffolds or studies a pinned upstream plugin</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>Dotfiles change</strong><span>manifest · QML · adapters · tests · attribution</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>Offline proof</strong><span>schema · fixtures · isolated host · Nix evaluation</span></div><div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><strong>User gate</strong><span>review, rebuild and visual acceptance</span></div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Agent step</th><th>Required output</th><th>Acceptance boundary</th></tr></thead>
+              <tbody>
+                <tr><td>Translate the request</td><td>Contribution kind, service dependencies, theme roles, interaction states and explicit non-goals</td><td>No core-root edits unless the public host contract is genuinely missing a reusable capability</td></tr>
+                <tr><td>Inspect an Omarchy reference, when supplied</td><td>Exact repository/tag/commit, license, source files, assets and an assumption ledger for Arch, Hyprland, UWSM and Omarchy helpers</td><td>Reimplement behavior against Niri/Stillsuit APIs; never make the local runtime depend on the upstream checkout</td></tr>
+                <tr><td>Author the local extension</td><td>Dotfiles-owned manifest, QML entry points, narrow service/context usage, semantic theme tokens, fixtures and attribution for copied or substantial MIT code</td><td>No runtime Git, installer, arbitrary command string, secret, private host object or direct Home Manager config mutation</td></tr>
+                <tr><td>Prove the change</td><td>Manifest/schema validation, component-load and failure fixture, isolated Quickshell run, formatter/evaluation results and a concise manual test card</td><td>A bad extension reaches <code>error</code> or fallback without taking down unrelated surfaces during load</td></tr>
+                <tr><td>Hand off activation</td><td>Scoped diff, expected UI, rollback command/path and rebuild requirement</td><td>The user explicitly approves activation and judges the live design</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout good"><p><strong>Build one repository skill after the host contract settles.</strong> It should offer two modes: scaffold a native Stillsuit extension, or reimplement a pinned Omarchy plugin. The second mode records provenance and dependencies first, then ports behavior into local components and services. It must not mechanically copy a plugin tree whose helpers and compositor assumptions do not exist here.</p></div>
+          <div class="callout warn"><p><strong>Mise is deferred entirely.</strong> Agent CLI ownership and updater consolidation are separate work. The desktop plan assumes only a stable <code>cxf</code> wrapper; it neither installs mise nor leaves a placeholder dependency on it.</p></div>
+        </section>
+
+        <section id="stillsuit">
+          <p class="section-label">09 · Local baseline</p>
+          <h2>Strong visual system, hand-built extension registry.</h2>
+          <p>The live check during this refresh found a healthy Stillsuit process, valid <code>shell status</code>, a live Niri event stream, and a passing <code>niri validate</code>. The problem is not that it fails to work. Every addition expands a fixed web of root, bar, IPC and policy edits.</p>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Already strong</th><th>Current debt</th><th>Architectural move</th></tr></thead>
+              <tbody>
+                <tr><td>Stylix → semantic JSON → watched <code>Theme</code> singleton</td><td>Base16 collapses useful colors; the contract is unversioned; public tokens and private helpers share one singleton</td><td>Make one richer theme record canonical, project it into Stylix, and split public <code>Color</code>/<code>Style</code> contracts from helpers</td></tr>
+                <tr><td>Niri event stream with incremental updates and 2.5s reconciliation</td><td>Compositor assumptions are consumed directly by the bar; reconciliation still polls forever</td><td>Promote <code>NiriState</code> into a compositor adapter service with a stable interface</td></tr>
+                <tr><td>Canonical <code>PopupPanel</code> and small <code>St*</code> controls</td><td>Hit targets and backdrop-blur implementation drift from <code>DESIGN.md</code></td><td>Keep the visual language; extend primitives with behavior and accessibility contracts</td></tr>
+                <tr><td>Recording helper uses atomic state and durable meeting queue boundary</td><td>Recorder, meeting, notification, policy and Dictator schemas are implicit/unversioned</td><td>Version those interfaces before moving any consumers</td></tr>
+                <tr><td>Native PipeWire, Bluetooth, Networking, UPower, MPRIS and notification APIs</td><td>Panels often mix daemon, persistence, policy, process calls and view in one file</td><td>Extract shared service/model objects; inject them into bar and panels</td></tr>
+                <tr><td>Root IPC already has <code>ping</code>, <code>status</code>, bar and panel routing</td><td>The root names every panel, keeps a close-list, constructs every surface and manually wires <code>TopBar</code></td><td>Keep IPC compatibility; route it through manifest metadata and a surface registry</td></tr>
+                <tr><td>Fast out-of-store development source</td><td>Edits bypass generation rollback; dependencies are scattered; there are no local contract tests</td><td>Keep explicit dev mode; production runs a store package with exact runtime inputs</td></tr>
+                <tr><td>Dedicated <code>agent</code> workspace and pinning service</td><td>The user does not use the workspace; <code>acu spawn --bg</code>, Niri rules, bar styling, shortcuts and a watcher all depend on it</td><td>Remove the feature coherently and retire its <code>acu --bg</code> contract; keep ordinary and waited computer-use launches</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout risk"><p><strong>Ownership conflict exists live today.</strong> Waybar is systemd-enabled while Niri also starts Stillsuit's top bar; both layer surfaces were present on the same output. Niri starts Stillsuit in a compositor scope, not a user service. Moving it to systemd without removing compositor startup in the same generation would create two hosts and two notification contenders. Ownership selection is milestone zero.</p></div>
+
+          <div class="callout warn"><p><strong>The old agent workspace is a cross-cutting feature.</strong> Complete removal covers <code>workspace "agent"</code>, the <code>acu.*</code> routing rule, Mod+0 bindings, <code>agent-workspace-pin</code> package/service/script, TopBar special styling and the <code>niri-computer-use</code> skill's <code>spawn --bg</code> behavior, doctor check and recipes. Editing <code>config.kdl</code> can affect the live compositor through its out-of-store symlink, so implementation should stage this change without touching the tracked live file until the first user gate.</p></div>
+
+          <p>The coupling is visible in the local root: panel close coordination and string-name routing live at <a class="ref" href="https://github.com/Kabilan108/dotfiles/blob/51b5fa5965dd80a42cc2bda5172b9f8a4a795042/home/desktop/wayland/quickshell/stillsuit/shell.qml#L34-L81">stillsuit/shell.qml:34–81</a>, while eleven concrete surfaces are instantiated at <a class="ref" href="https://github.com/Kabilan108/dotfiles/blob/51b5fa5965dd80a42cc2bda5172b9f8a4a795042/home/desktop/wayland/quickshell/stillsuit/shell.qml#L131-L182">stillsuit/shell.qml:131–182</a>.</p>
+
+          <details>
+            <summary>Local hazards to fix or fixture before the host migration</summary>
+            <ul>
+              <li>The installed legacy <code>quickshell/osd</code> tree contains a second dormant notification server. Launching it would compete for the D-Bus name.</li>
+              <li><code>stillctl reload</code> kills, sleeps 200 ms and restarts without waiting for process exit, IPC shutdown or notification-name release.</li>
+              <li>Production still runs out-of-store source with an open-ended runtime command set. The store package needs exact runtime inputs and an explicit development mode.</li>
+              <li>Dictator reconnect stops permanently after 30 failures. The new service contract should recover when Dictator returns later.</li>
+              <li>Recording, meeting and Dictator state crosses strong process/file boundaries already. Version those records before moving views, and prove a shell restart cannot kill an active recording.</li>
+            </ul>
+          </details>
+        </section>
+
+        <section id="matrix">
+          <p class="section-label">10 · Tasteful robbery ledger</p>
+          <h2>Copy the invariant; adapt the mechanism; reject the policy.</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Idea</th><th>Call</th><th>Reason and translation</th></tr></thead>
+              <tbody>
+                <tr><td>One supervised Quickshell host</td><td><span class="tag copy">Copy</span></td><td>Shared state and warm IPC are compelling. Run it as a Home Manager systemd user service, not compositor autostart plus a handwritten crash loop.</td></tr>
+                <tr><td>Explicit registries and injected singleton services</td><td><span class="tag copy">Copy</span></td><td>Directly solves the local fixed-composition problem and multi-output duplication hazards.</td></tr>
+                <tr><td>Versioned manifests and contribution kinds</td><td><span class="tag adapt">Adapt</span></td><td>Add actual API compatibility, capability and state schema; reject unknown kinds and validate paths/files at build time.</td></tr>
+                <tr><td>Lazy panel/overlay/menu loaders</td><td><span class="tag copy">Copy</span></td><td>Fast warm host with bounded presentation state. Use <code>keepLoaded</code> only for services/stateful surfaces.</td></tr>
+                <tr><td>Replaceable, slot-based bar</td><td><span class="tag copy">Copy</span></td><td>Wrap today's bar as the fallback implementation, then migrate widgets one at a time.</td></tr>
+                <tr><td>Shared <code>Color</code>/<code>Style</code>/<code>Border</code> UI contract</td><td><span class="tag adapt">Adapt</span></td><td>Expose Stillsuit semantic roles through stable grouped contracts rather than importing Omarchy's look or raw palette names.</td></tr>
+                <tr><td>Semantic palette → consumer adapters</td><td><span class="tag copy">Copy</span></td><td>Make a richer curated theme canonical, then generate Stillsuit JSON, a base16 Stylix projection and editor metadata.</td></tr>
+                <tr><td>Live theme selection and coordinated wallpaper reveal</td><td><span class="tag adapt">Later</span></td><td>Start with one rebuild-selected theme. Consider runtime selection only after multiple immutable generations and per-consumer status exist.</td></tr>
+                <tr><td>Generic menu, image picker and panel primitives</td><td><span class="tag adapt">Adapt</span></td><td>Port behavior and models selectively; reskin through local primitives and keep Walker during the host migration.</td></tr>
+                <tr><td>Keyboard/cursor/pointer interaction primitives</td><td><span class="tag copy">Copy</span></td><td>These small components solve real mixed-input problems without pulling in giant panels or compositor policy.</td></tr>
+                <tr><td><code>cxf</code> quake panel</td><td><span class="tag adapt">Build</span></td><td>Stillsuit owns fixed lifecycle IPC; a Nix helper owns one tmux session; Ghostty remains an external Niri window with a stable app ID.</td></tr>
+                <tr><td>Agent-authored local plugin workflow</td><td><span class="tag adapt">Build</span></td><td>Turn the manifest/context/test contract into a repo skill that scaffolds native extensions or reimplements pinned Omarchy references with provenance.</td></tr>
+                <tr><td>Agent usage record/view boundary</td><td><span class="tag copy">Later</span></td><td>Run credential-aware collectors outside the shell and render sanitized versioned records after the terminal workflow is solid.</td></tr>
+                <tr><td>Notification snapshot, replacement and expiry model</td><td><span class="tag adapt">Adapt</span></td><td>Refactor Stillsuit around plain snapshots while preserving its actions, center, policy and single-owner handoff.</td></tr>
+                <tr><td>Dedicated <code>agent</code> workspace</td><td><span class="tag reject">Remove</span></td><td>Delete its watcher, service, Niri rules/binds, bar styling and <code>acu --bg</code> contract together; the new quake panel does not depend on it.</td></tr>
+                <tr><td>Full mutable <code>shell.json</code> as canonical config</td><td><span class="tag reject">Reject</span></td><td>Use immutable defaults plus narrow writable overrides/state and an export-to-Nix path.</td></tr>
+                <tr><td>Runtime Git plugin add/update</td><td><span class="tag reject">Reject</span></td><td>The extension surface is the dotfiles repository. Production plugins are reviewed, Nix-materialized store paths.</td></tr>
+                <tr><td>Community plugin marketplace</td><td><span class="tag reject">Reject</span></td><td>There is no runtime installer, remote catalog or third-party update mechanism to secure or maintain.</td></tr>
+                <tr><td>Notification <code>omarchy-exec</code> hint</td><td><span class="tag reject">Reject</span></td><td>Sender-controlled persisted text becomes <code>bash -lc</code> code on click. Use live D-Bus actions or typed opaque action IDs.</td></tr>
+                <tr><td>Theme-owned executable Lua and app config mutation</td><td><span class="tag reject">Reject</span></td><td>Themes are data and assets. Nix/Home Manager owns compositor, browser, editor and terminal configuration.</td></tr>
+                <tr><td><code>bash -lc</code> as generic action API</td><td><span class="tag reject">Reject</span></td><td>Use typed argv actions and store-backed wrappers. Reserve a shell only for explicit, isolated user-authored commands.</td></tr>
+                <tr><td>Hyprland/UWSM environment and helpers</td><td><span class="tag reject">Reject</span></td><td>Keep a compositor interface; implement Niri first using the proven local event model.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="target">
+          <p class="section-label">11 · Target architecture</p>
+          <h2>Stillsuit Next: a Nix-built host with a narrow runtime state layer.</h2>
+
+          <div class="diagram" aria-label="Target Stillsuit architecture">
+            <svg viewBox="0 0 1000 560" role="img" aria-labelledby="targetTitle targetDesc">
+              <title id="targetTitle">Target Stillsuit architecture</title>
+              <desc id="targetDesc">Nix and Home Manager build immutable source, theme generations and a dotfiles-owned plugin registry; systemd supervises Stillsuit; the host owns a versioned context, registries and trusted services; agents author extensions through reviewed repository changes.</desc>
+              <defs><marker id="targetArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#a7501f"/></marker></defs>
+              <rect x="65" y="24" width="870" height="82" rx="10" fill="none" stroke="#116a6d" stroke-width="2"/>
+              <text x="500" y="55" text-anchor="middle" font-family="ui-monospace,monospace" font-size="17" fill="currentColor">Nix / Home Manager materialization</text>
+              <text x="500" y="81" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="13" fill="currentColor">store source · exact dependencies · manifest registry · Stylix theme generations · systemd units</text>
+              <rect x="335" y="145" width="330" height="70" rx="9" fill="none" stroke="#a7501f" stroke-width="2"/>
+              <text x="500" y="174" text-anchor="middle" font-family="ui-monospace,monospace" font-size="16" fill="currentColor">stillsuit-shell.service</text>
+              <text x="500" y="197" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">graphical-session.target · journal · restart policy</text>
+              <line x1="500" y1="106" x2="500" y2="144" stroke="#a7501f" stroke-width="2" marker-end="url(#targetArrow)"/>
+              <rect x="85" y="258" width="830" height="190" rx="12" fill="none" stroke="#918b7f" stroke-width="2"/>
+              <text x="500" y="286" text-anchor="middle" font-family="ui-monospace,monospace" font-size="17" fill="currentColor">Stillsuit Host · trusted process</text>
+              <rect x="115" y="310" width="170" height="105" rx="7" fill="none" stroke="#116a6d"/>
+              <text x="200" y="338" text-anchor="middle" font-family="ui-monospace,monospace" font-size="14" fill="currentColor">HostContext v1</text>
+              <text x="200" y="362" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="11" fill="currentColor">theme · compositor</text>
+              <text x="200" y="380" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="11" fill="currentColor">services · panels</text>
+              <text x="200" y="398" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="11" fill="currentColor">logger · typed actions</text>
+              <rect x="315" y="310" width="170" height="105" rx="7" fill="none" stroke="#116a6d"/>
+              <text x="400" y="338" text-anchor="middle" font-family="ui-monospace,monospace" font-size="14" fill="currentColor">Registries</text>
+              <text x="400" y="362" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="11" fill="currentColor">plugin · widget</text>
+              <text x="400" y="380" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="11" fill="currentColor">surface · config</text>
+              <text x="400" y="398" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="11" fill="currentColor">manifest validation</text>
+              <rect x="515" y="310" width="170" height="105" rx="7" fill="none" stroke="#116a6d"/>
+              <text x="600" y="338" text-anchor="middle" font-family="ui-monospace,monospace" font-size="14" fill="currentColor">Shared services</text>
+              <text x="600" y="362" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="11" fill="currentColor">Niri · media · network</text>
+              <text x="600" y="380" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="11" fill="currentColor">recording · meeting · notifications</text>
+              <text x="600" y="398" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="11" fill="currentColor">one authoritative instance</text>
+              <rect x="715" y="310" width="170" height="105" rx="7" fill="none" stroke="#116a6d"/>
+              <text x="800" y="338" text-anchor="middle" font-family="ui-monospace,monospace" font-size="14" fill="currentColor">UI contributions</text>
+              <text x="800" y="362" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="11" fill="currentColor">bar · widgets · panels</text>
+              <text x="800" y="380" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="11" fill="currentColor">overlays · menu</text>
+              <text x="800" y="398" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="11" fill="currentColor">Stillsuit visual primitives</text>
+              <line x1="500" y1="215" x2="500" y2="257" stroke="#a7501f" stroke-width="2" marker-end="url(#targetArrow)"/>
+              <rect x="85" y="490" width="390" height="48" rx="7" fill="none" stroke="#918b7f"/>
+              <text x="280" y="520" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">XDG state: runtime overrides · history · caches · selections</text>
+              <rect x="525" y="490" width="390" height="48" rx="7" fill="none" stroke="#a33e34" stroke-dasharray="7 5"/>
+              <text x="720" y="512" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="12" fill="currentColor">agent authoring loop · outside production runtime</text>
+              <text x="720" y="528" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="11" fill="currentColor">scaffold · validate · review diff · explicit activation</text>
+              <line x1="400" y1="448" x2="320" y2="489" stroke="#a7501f" stroke-width="2" marker-end="url(#targetArrow)"/>
+            </svg>
+          </div>
+
+          <h3>Proposed source shape</h3>
+          <pre>modules/home/stillsuit/
+├── default.nix                       # imports only
+├── options.nix                       # typed public contract
+├── assertions.nix                    # ownership, IDs, paths and API compatibility
+├── theme.nix                         # curated theme -> Stillsuit JSON + base16 projection
+├── registry.nix                      # deterministic store-backed manifest catalog
+├── service.nix                       # exactly one selected shell unit
+└── ownership.nix                     # bar and notification provider selection
+
+packages/stillsuit-shell/
+├── default.nix                       # package + exact runtime PATH
+├── schemas/                          # theme, manifest and workflow contracts
+├── src/legacy/                       # frozen rollback backend
+└── src/next/
+    ├── shell.qml                     # intentionally small composition root
+    ├── core/{HostContext,PluginCatalog,ServiceRegistry,SurfaceRouter,IpcFacade}.qml
+    ├── services/{Niri,Recording,Meeting,Dictator,Notification}Service.qml
+    ├── theme/{Color,Style,Border}.qml
+    ├── ui/                            # Stillsuit primitives + Quattro interaction lessons
+    ├── plugins/builtin/{bar,widgets,panels,osd,agent-cxf}/
+    └── tests/{fixtures,contracts,runtime}/
+
+docs/attribution/omarchy-quattro.md</pre>
+
+          <h3>Proposed Home Manager boundary</h3>
+          <pre>programs.stillsuitShell = {
+  enable = true;
+  backend = "legacy";                  # legacy | next
+  package = pkgs.stillsuit-shell;
+  compositor = "niri";
+
+  ownership = {
+    bar = "stillsuit";                  # stillsuit | waybar
+    notifications = "stillsuit-legacy"; # legacy | next | external
+  };
+
+  providers = {
+    bar = "legacy";                    # legacy | plugin
+    osd = "legacy";
+    panels = "legacy";
+    notifications = "legacy";
+    recording = "legacy";
+    meeting = "legacy";
+  };
+
+  theme = { selected = "catppuccin-mocha"; runtimeSelection = false; };
+  agentPanel = {
+    enable = true;
+    command = [
+      "codex" "--yolo" "--model" "gpt-5.6-sol"
+      "--config" "model_reasoning_effort=low"
+      "--config" "service_tier=fast"
+    ];
+    workingDirectory = "/home/kabilan/dotfiles";
+    persistence = "tmux";
+    appId = "io.stillsuit.AgentPanel";
+  };
+  plugins = { /* attrsOf typed, dotfiles-owned plugin submodule */ };
+  development = { sourceMode = "store"; mutablePlugins = false; };
+};</pre>
+
+          <div class="decision-grid">
+            <article class="decision"><h3>Configuration authority</h3><p><strong>Recommendation:</strong> immutable defaults plus narrow runtime overrides. Export overrides to Nix; never let the shell rewrite Home Manager-owned configuration.</p></article>
+            <article class="decision"><h3>Plugin trust</h3><p><strong>Recommendation:</strong> treat dotfiles-owned extensions like any other trusted shell code. Do not build a marketplace, installer or sandbox. Keep loader failure states and fallback for reliability.</p></article>
+            <article class="decision"><h3>Theme selection</h3><p><strong>Recommendation:</strong> one curated Catppuccin Mocha record selected on rebuild. Add runtime selection only after multiple immutable generations work.</p></article>
+            <article class="decision"><h3>Auth surfaces</h3><p><strong>Recommendation:</strong> keep swaylock/polkit outside the plugin-capable host for the first implementation.</p></article>
+            <article class="decision"><h3>Notification ownership</h3><p><strong>Recommendation:</strong> keep the D-Bus daemon in the small core or a dedicated process so it can be handed over and tested independently of optional UI contributions.</p></article>
+            <article class="decision"><h3>Code provenance</h3><p><strong>Recommendation:</strong> port selected MIT code with file-level attribution and a notice; do not vendor the whole desktop or erase history.</p></article>
+            <article class="decision"><h3>Development speed</h3><p><strong>Recommendation:</strong> preserve an explicit out-of-store dev mode on Jacurutu; production and rollback tests use the store package.</p></article>
+          </div>
+        </section>
+
+        <section id="migration">
+          <p class="section-label">12 · Incremental implementation</p>
+          <h2>Parallelize the code. Serialize ownership changes.</h2>
+          <p>The speed strategy is to freeze a small version-one contract, give agents disjoint file ownership, preview the next shell under a separate Quickshell config ID and batch compositor/Home Manager changes into two deliberate user rebuilds. Every provider can fall back to its legacy implementation; the entire next backend can fall back to <code>stillsuit-legacy</code>. Nothing activates automatically.</p>
+
+          <h3>Parallel work lanes after the contract freeze</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Lane</th><th>Exclusive ownership</th><th>Can start when</th><th>Offline result</th></tr></thead>
+              <tbody>
+                <tr><td>A · Nix and contracts</td><td>Home Manager module, package, schemas, registry generation, theme generation, ownership assertions and legacy service</td><td>Immediately</td><td>Evaluable legacy and next packages; deterministic Catppuccin and plugin catalogs; no activation</td></tr>
+                <tr><td>B · Host and interaction core</td><td><code>HostContext</code>, plugin/service registries, surface router, IPC facade, lifecycle fixtures and shared controls</td><td>Manifest/context v1 agreed</td><td>Headless host and broken-plugin fixtures under temporary XDG state</td></tr>
+                <tr><td>C · Agent workflow and quake panel</td><td><code>cxf</code> helper, tmux/Ghostty lifecycle, agent-panel extension, plugin-authoring skill and provenance tooling</td><td>Typed action and plugin skeleton agreed</td><td>Repeatable toggle tests plus a native/reimplementation scaffolding path</td></tr>
+                <tr><td>D · Desktop vertical slices</td><td>Legacy bar wrapper, widgets, panels, OSDs and their service/view splits</td><td>Host API and primitives compile</td><td>Separate-config preview that cannot claim production notification or bar authority</td></tr>
+                <tr><td>E · Notification refactor</td><td>Daemon/model/policy/view split, persistence fixtures and single-owner transfer script/checks</td><td>Service contract frozen; may proceed beside D</td><td>Fixture-complete next provider that remains disabled until the final ownership gate</td></tr>
+                <tr><td>Integrator</td><td>Shared root files, provider switches, Niri config, conflict resolution and evidence ledger</td><td>Continuously</td><td>Small reviewable merges; agents never race on composition roots or provider options</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout good"><p><strong>Most proof needs no rebuild.</strong> Agents can run manifest/theme snapshots, isolated Quickshell fixtures with temporary HOME/XDG paths, shell and QML checks, <code>niri validate -c</code>, <code>nixfmt --check</code>, exact Home Manager evaluation, <code>nix flake check --no-build</code>, and final <code>nix build --no-link</code> for the target package. A separate preview config may render UI without owning the production bar exclusive zone, notification D-Bus name, recorder, meeting worker, lock or polkit.</p></div>
+          <div class="callout"><p><strong>Tempo target, not a promise:</strong> contract freeze in a few hours; five parallel lanes in roughly one to two working days; half a day for integration and exact target proof; about an hour each for Gate A and Gate B. The notification lane can finish while Gate A is being prepared. The 8–24 hour soak is observation time, not blocked implementation time.</p></div>
+
+          <div class="timeline">
+            <article class="milestone" data-step="0"><h3>Freeze contracts and stage the live-config cleanup</h3><p>Capture current bar, notification, IPC, output, recording and meeting baselines. Agree manifest/context/theme v1. Prepare removal of the dedicated <code>agent</code> workspace and its complete <code>acu --bg</code> contract in a separate worktree or patch so the live out-of-store Niri config is not changed early.</p><ul class="checks"><li>Agent-workspace script, service, package, rules, binds, styling, skill docs and doctor behavior are all in the removal inventory.</li><li>Exactly one current notification D-Bus owner is recorded.</li><li>Each parallel lane has exclusive paths and a named integrator.</li></ul></article>
+            <article class="milestone" data-step="1"><h3>Build foundation, host and canary in parallel</h3><p>Package legacy unchanged, add typed contracts and one Catppuccin Mocha generation, build the next host in true shadow mode, and implement the <code>cxf</code> extension plus authoring skill. The quake helper closes/reopens Ghostty while tmux persists; it does not reuse the removed workspace.</p><ul class="checks"><li>Shadow mode claims no production layer, D-Bus, recorder, meeting, lock or polkit authority.</li><li>Broken manifests and components omit only that extension and expose useful error state.</li><li>Repeated <code>cxf</code> toggles leave one tmux session and at most one Ghostty window.</li></ul></article>
+            <article class="milestone" data-step="2"><h3>Port and integrate the visible desktop</h3><p>Wrap today's bar first; split shared services from per-output views; then move widgets, OSDs and panels in parallel slices. Integrate the supervised unit, Waybar decision, old workspace removal, <code>cxf</code> rule/binding and next providers behind one default-off option. Run the result under a separate config ID with one shared fixture matrix and screenshot checklist.</p><ul class="checks"><li>Per-output views never multiply global services, timers, sockets or IPC names.</li><li>Panel mutual exclusion, pointer/keyboard behavior and focused-output routing match baseline.</li><li>Exact Jacurutu evaluation/build passes; the active generation is still unchanged.</li></ul></article>
+            <article class="milestone" data-step="GA"><h3>User gate A · desktop cutover and design inspection</h3><p>Notify only when the full non-notification desktop is built. One explicit rebuild disables Waybar and Niri's direct shell startup, enables the supervised next host, removes the old agent workspace/watcher, enables <code>cxf</code> and selects the next bar, panels and OSDs. Notifications remain on legacy.</p><ul class="checks"><li>No <code>agent</code> workspace, pinning service or <code>acu --bg</code> promise remains.</li><li>One bar surface/exclusive zone per output; recording, meeting and Dictator behavior survive shell restart.</li><li>The user accepts density, hierarchy, hit targets, motion, panel placement and quake behavior.</li><li>Switching the backend option or prior generation restores the complete prior desktop.</li></ul></article>
+            <article class="milestone" data-step="3"><h3>Refactor notifications behind the disabled provider</h3><p>Finish daemon/model/policy/view separation, replacement tracking, bounded history, expiry and corrupt-record isolation while preserving Stillsuit's action and DND semantics. Keep the next provider disabled through all fixture work.</p><ul class="checks"><li>Expiry, replacement, actions, DND, markup, images, history and multi-output policy pass fixtures.</li><li><code>omarchy-exec</code> and every unknown executable hint remain inert.</li><li>Stop/wait/start/acquire and rollback steps are scripted and inspected.</li></ul></article>
+            <article class="milestone" data-step="GB"><h3>User gate B · notification ownership handoff</h3><p>Notify immediately before the only separate high-risk ownership transfer. The user rebuilds; the handoff stops legacy, waits for D-Bus release, starts next and verifies acquisition before callers proceed.</p><ul class="checks"><li>Exactly one expected <code>org.freedesktop.Notifications</code> PID at every transition.</li><li>Live replacement, action, timeout and DND smoke tests pass.</li><li>Rollback reacquires the name without leaving two daemons.</li></ul></article>
+            <article class="milestone" data-step="4"><h3>Soak, then clean up separately</h3><p>Run 8–24 hour resource checks and retain the legacy backend through one stable period. Remove dormant OSD source, compatibility aliases, old QML and Waybar material only in a later reviewed cleanup. A second theme, menu replacement and agent usage telemetry remain later polish.</p><ul class="checks"><li>RSS, wakeups, child processes, descriptors and watchers remain within budget.</li><li>Whole-generation rollback is documented and tested before cleanup.</li><li>Cleanup shares no change with an ownership cutover.</li></ul></article>
+          </div>
+
+          <h3>Notification policy</h3>
+          <p>Use the <code>notify</code> skill only for Gate A, Gate B, a genuine blocker requiring a user decision, or final success after the stability check. Each gate message names why input is needed, the exact command or inspection target, rollback and this plan's stable URL. Routine agent progress stays in the implementation log.</p>
+
+          <h3>Explicit initial non-goals</h3>
+          <ul>
+            <li>No Omarchy installer, package updater, migration runner, Hyprland Lua config, background manager or full CLI port.</li>
+            <li>No removal of Stylix, Walker/Elephant, swaylock, wallpaper handling or polkit during the host migration.</li>
+            <li>No community-plugin marketplace, runtime plugin installer, remote catalog or mutable production plugin directory.</li>
+            <li>No mise evaluation or agent-tool ownership changes in this desktop effort.</li>
+            <li>No visual redesign while composition and state contracts are moving.</li>
+            <li>No automatic NixOS/Home Manager rebuild or restart of Walker/Elephant.</li>
+          </ul>
+        </section>
+
+        <section id="risks">
+          <p class="section-label">13 · Risk register</p>
+          <h2>The hard problems are ownership, contracts and generated-code reliability.</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th><th>Proof</th></tr></thead>
+              <tbody>
+                <tr><td>Agent-authored QML compiles but destabilizes the shared host</td><td>Medium</td><td>High</td><td>Narrow context, explicit lifecycle state, load-error containment, fallback providers, isolated preview and immutable production package</td><td>Malformed/component-failure fixtures identify one plugin while the host and fallback remain responsive</td></tr>
+                <tr><td>Parallel agents drift the shared manifest/context contracts or race on composition roots</td><td>Medium</td><td>High</td><td>Freeze v1 first; assign exclusive directories; one integrator owns root, generated registry, provider switches and Niri config</td><td>Contract suite and conflict-free integration diff pass before target evaluation</td></tr>
+                <tr><td>Quattro relies on unreleased Quickshell behavior while local package is 0.3.0</td><td>High</td><td>High</td><td>Pin the exact compatible Quickshell revision or port without relying on synchronous kill behavior</td><td>Repeated restart under load leaves exactly one instance and IPC owner</td></tr>
+                <tr><td>Two bars or notification daemons run during transition</td><td>Present now</td><td>High</td><td>One ownership option drives Waybar, Niri startup, the Stillsuit unit and notification provider together</td><td>Check layer surfaces, compositor scopes and D-Bus owner at every milestone</td></tr>
+                <tr><td>Agent-workspace cleanup leaves <code>acu --bg</code>, bar styling or a service targeting deleted state</td><td>High if split</td><td>Medium</td><td>One atomic slice removes script/package/service, workspace/rules/binds, TopBar special case, skill behavior, doctor check and recipes</td><td>Repository search finds no contract references; ordinary and waited <code>acu</code> launches still pass</td></tr>
+                <tr><td>Declarative config and live layout overwrite each other</td><td>Medium</td><td>Medium</td><td>Store defaults + narrow override file + schema migration + export-to-Nix</td><td>Round-trip reorder/settings test and Nix generation rollback</td></tr>
+                <tr><td>Notification <code>omarchy-exec</code> hint becomes local code execution</td><td>High if copied</td><td>High</td><td>Use live freedesktop actions or typed opaque action IDs; persist no executable data</td><td>A forged hint remains inert before and after restart/click</td></tr>
+                <tr><td><code>cxf</code> controller creates duplicate agents or accepts injected commands</td><td>Medium without guard</td><td>High</td><td>Fixed argv from Nix, literal lifecycle actions, serialized helper, exact app ID and one named tmux session</td><td>Toggle race and hostile IPC tests leave one unchanged command/session/window</td></tr>
+                <tr><td>Theme says applied while consumers are mixed</td><td>Medium</td><td>Medium</td><td>One immutable generation pointer; per-consumer activation status; no concurrent fan-out reading mutable staging</td><td>Theme switch interruption reports partial consumers and preserves coherent shell generation</td></tr>
+                <tr><td>Port silently loses local recording/meeting/dictation semantics</td><td>Medium</td><td>High</td><td>Version and fixture the contracts before moving consumers; migrate whole vertical slices</td><td>State-machine, queue, socket reconnect and live-recording survival tests</td></tr>
+                <tr><td>One-process shell accumulates idle model/watcher cost</td><td>Medium</td><td>Medium</td><td>Lazy presentation loaders, event-driven services, bounded retry/backoff, resource budget</td><td>8–24h CPU wakeup, RSS, subprocess and descriptor comparison</td></tr>
+                <tr><td>Copied code loses required provenance</td><td>Low</td><td>Medium</td><td>File headers + attribution document + retained MIT notice; audit non-code assets separately</td><td>License/provenance review in each selective-port change</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="verification">
+          <p class="section-label">14 · Acceptance and rollout</p>
+          <h2>Evidence ladder and definition of done.</h2>
+          <div class="cards">
+            <article class="card"><h3>Static</h3><p>Manifest/schema validation; duplicate IDs and IPC targets; known kinds; entry points; API compatibility; theme completeness; provenance/license records; Nix option assertions; no stale agent-workspace references.</p></article>
+            <article class="card"><h3>Isolated runtime</h3><p>Temporary HOME/XDG directories; start one next-shell config; exercise list/open/close/reload/theme/config; inject broken fixtures and verify fallback without production layer, D-Bus or workflow authority.</p></article>
+            <article class="card"><h3>Nix</h3><p>Format and evaluate the exact Jacurutu closure; inspect generated registry/theme/units and runtime inputs; finish with <code>nix build --no-link</code>. Build and evaluation are not activation.</p></article>
+            <article class="card"><h3>Niri/live</h3><p>Run <code>niri validate -c</code> for binding/startup changes. At Gate A, check workspace removal, multi-output geometry, focused-output routing, layer ownership, panel exclusion and current workflows.</p></article>
+            <article class="card"><h3>Recovery</h3><p>Break each newest provider deliberately; prove component rollback, whole-backend rollback, no duplicate daemon, and a documented terminal recovery path.</p></article>
+            <article class="card"><h3>Long-run</h3><p>Compare 8–24 hour RSS, CPU wakeups, child processes, file watchers and model counts against the current Stillsuit baseline.</p></article>
+          </div>
+
+          <h3>Research verification performed</h3>
+          <ul>
+            <li>GitHub's latest-release endpoint was rechecked on 2026-08-23. Tag v4.0.0 still resolves to commit <code>f0020448ca87329199de7cb12f2015ebc4a3e5e7</code>; the detached worktree was fetched without changing it.</li>
+            <li>The original 2026-08-14 audit passed core plugin registry, validator, plugin manifest, user theme, background transition and bar-widget contract tests against this same commit. This refresh reran Quattro's notification shell tests successfully.</li>
+            <li>The complete upstream shell suite remains coupled to its Arch environment through <code>/usr/bin/python3</code> shebangs, <code>OMARCHY_PATH</code>, helper commands and a companion <code>omarchy-pkgs</code> checkout. That is environment coupling, not an upstream product verdict.</li>
+            <li>The refresh checked the live Stillsuit process and IPC, Waybar and layer ownership, notification D-Bus owner, Niri event stream and <code>niri validate</code>. No QML, Nix, compositor or service implementation was changed.</li>
+          </ul>
+
+          <h3>Definition of done for the eventual implementation</h3>
+          <ol>
+            <li>Stillsuit Next is the sole selected bar/shell owner and survives restart, output hotplug and a broken optional plugin.</li>
+            <li>All current Niri, recording, meeting, Dictator, notification policy and IPC behaviors have passing fixtures and live acceptance evidence.</li>
+            <li>Production plugins and themes are dotfiles-owned store artifacts; runtime state is separate, versioned and recoverable.</li>
+            <li>One curated Catppuccin Mocha record generates the shell contract and base16 Stylix projection without mutating managed config or losing current visuals.</li>
+            <li>The <code>cxf</code> quake panel uses the documented service/widget/action contracts, survives hide/reopen and terminal failure, and never creates a duplicate session.</li>
+            <li>At least one additional agent-authored local extension uses only the documented context/API, proving the seam is general. A pinned Omarchy reference can be reimplemented through the same skill with provenance.</li>
+            <li>The notification refactor preserves Stillsuit policy/actions and proves sender-provided executable hints remain inert.</li>
+            <li>The dedicated <code>agent</code> workspace, watcher, styling, shortcuts and <code>acu --bg</code> contract are gone; ordinary and waited computer-use launches still work.</li>
+            <li>The main rollout requires only Gate A for the non-notification desktop and Gate B for notification ownership. Legacy backend rollback remains available for one stable period.</li>
+          </ol>
+
+          <div class="callout"><p><strong>Activation boundary:</strong> this artifact ends at analysis and planning. No NixOS/Home Manager rebuild, systemd restart, bar ownership change, notification-daemon handoff or shell activation was performed.</p></div>
+        </section>
+
+        <section id="sources">
+          <p class="section-label">15 · High-value source index</p>
+          <h2>Where to read next.</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Question</th><th>Primary source</th></tr></thead>
+              <tbody>
+                <tr><td>What is the shell's declared architecture?</td><td><a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/README.md#L1-L44">shell/README.md:1–44</a></td></tr>
+                <tr><td>How does the root own and load components?</td><td><a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/shell.qml#L11-L31">shell/shell.qml:11–31</a>, <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/shell.qml#L581-L812">581–812</a></td></tr>
+                <tr><td>What is validated in a manifest?</td><td><a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/services/PluginRegistry.qml#L34-L108">PluginRegistry.qml:34–108</a></td></tr>
+                <tr><td>How are plugins enabled and configured?</td><td><a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/services/PluginRegistry.qml#L110-L251">PluginRegistry.qml:110–251</a></td></tr>
+                <tr><td>How is runtime plugin hot reload implemented?</td><td><a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/services/PluginRegistry.qml#L618-L715">PluginRegistry.qml:618–715</a>, <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/shell.qml#L739-L779">shell.qml:739–779</a></td></tr>
+                <tr><td>How does the theme fan out?</td><td><a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/docs/theming.md#L1-L29">docs/theming.md:1–29</a>, <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/docs/theming.md#L140-L162">140–162</a></td></tr>
+                <tr><td>How does Quattro model notification snapshots and click behavior?</td><td><a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/plugins/notifications/NotificationLogic.js#L45-L92">NotificationLogic.js:45–92</a>, <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/plugins/notifications/Service.qml#L321-L403">Service.qml:321–403</a></td></tr>
+                <tr><td>How are agent terminals launched separately from the shell widget?</td><td><a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/bin/omarchy-agent#L34-L104">bin/omarchy-agent:34–104</a>, <a class="ref" href="https://github.com/basecamp/omarchy/blob/v4.0.0/shell/plugins/agents/README.md#L3-L8">agents/README.md:3–8</a></td></tr>
+                <tr><td>What is Stillsuit's visual contract?</td><td><a class="ref" href="https://github.com/Kabilan108/dotfiles/blob/51b5fa5965dd80a42cc2bda5172b9f8a4a795042/home/desktop/wayland/quickshell/DESIGN.md#L11-L35">local DESIGN.md:11–35</a></td></tr>
+                <tr><td>Where is the current fixed composition?</td><td><a class="ref" href="https://github.com/Kabilan108/dotfiles/blob/51b5fa5965dd80a42cc2bda5172b9f8a4a795042/home/desktop/wayland/quickshell/stillsuit/shell.qml#L4-L182">local stillsuit/shell.qml:4–182</a></td></tr>
+                <tr><td>Where does Stylix feed the shell?</td><td><a class="ref" href="https://github.com/Kabilan108/dotfiles/blob/51b5fa5965dd80a42cc2bda5172b9f8a4a795042/home/desktop/wayland/quickshell/default.nix#L23-L137">local quickshell/default.nix:23–137</a></td></tr>
+                <tr><td>Where are Niri startup and shell bindings?</td><td><a class="ref" href="https://github.com/Kabilan108/dotfiles/blob/51b5fa5965dd80a42cc2bda5172b9f8a4a795042/home/desktop/wayland/compositors/niri/config.kdl#L298-L310">local config.kdl:298–310</a>, <a class="ref" href="https://github.com/Kabilan108/dotfiles/blob/51b5fa5965dd80a42cc2bda5172b9f8a4a795042/home/desktop/wayland/compositors/niri/config.kdl#L503-L507">503–507</a></td></tr>
+                <tr><td>What currently implements the dedicated agent workspace?</td><td><a class="ref" href="https://github.com/Kabilan108/dotfiles/blob/c63a2de682674a7c5938a3ced9fd1350ffd70c40/home/desktop/wayland/compositors/niri/default.nix#L8-L56">local niri/default.nix:8–56</a>, <a class="ref" href="https://github.com/Kabilan108/dotfiles/blob/c63a2de682674a7c5938a3ced9fd1350ffd70c40/home/desktop/wayland/compositors/niri/config.kdl#L343-L358">config.kdl:343–358</a>, <a class="ref" href="https://github.com/Kabilan108/dotfiles/blob/c63a2de682674a7c5938a3ced9fd1350ffd70c40/bin/agent-workspace-pin#L1-L27">bin/agent-workspace-pin:1–27</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <footer class="footer">Prepared from pinned upstream source, live read-only local inspection, and parallel architecture and execution reviews. The plan intentionally preserves unrelated worktree state and separates validation from activation.</footer>
+  </div>
+</body>
+</html>

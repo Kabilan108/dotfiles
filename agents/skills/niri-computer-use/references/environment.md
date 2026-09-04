@@ -6,8 +6,6 @@ Everything below was probed live on this machine; re-verify with `acu doctor` at
 
 - Laptop output `eDP-1`: 2256x1504 logical, scale 1.0, position (0,0). External monitors (`DP-2`, `DP-4`) are configured in the niri config with offsets — when connected, global coordinates include their positions (`acu state` shows the live layout).
 - niri config: `~/.config/niri/config.kdl` → out-of-store symlink → `~/dotfiles/home/desktop/wayland/compositors/niri/config.kdl`. **Live-editable**: edit, `niri validate`, then `niri msg action load-config-file` (niri also auto-reloads on save). No home-manager rebuild needed.
-- Named workspace `"agent"` is declared in config (persistent background staging area).
-- Window rule: `app-id ^acu\.` → `open-on-workspace "agent"` + `open-focused false` (zero-flicker background spawns for marked apps).
 - Hot corners are DISABLED in config (`gestures { hot-corners { off; } }`) because synthetic pointer sweeps through (0,0) kept opening the overview. Overview is still on Mod+O.
 - `focus-follows-mouse max-scroll-amount="0%"` is enabled — pointer motion over a fully-visible window focuses it.
 - Top layer surfaces: waybar + stillsuit-bar (quickshell). Floating windows clamp to y >= ~290 in the working area. Layer surfaces expose no geometry via IPC on this build.

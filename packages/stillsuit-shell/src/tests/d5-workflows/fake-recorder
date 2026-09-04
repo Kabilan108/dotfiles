@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$*" >> "$STILLSUIT_FIXTURE_HELPER_LOG"
+if [[ ${1:-} == rename ]]; then
+  title=""
+  while (($# > 0)); do
+    if [[ $1 == --title ]]; then title=$2; shift 2; else shift; fi
+  done
+  printf '{"schemaVersion":1,"phase":"completed","output":"/tmp/fixture-recordings/%s.mp4","title":"%s","elapsed_seconds":62,"size_bytes":2048}\n' "$title" "$title" \
+    | tee "$STILLSUIT_FIXTURE_RECORDING_STATE"
+elif [[ -s $STILLSUIT_FIXTURE_RECORDING_STATE ]]; then
+  cat -- "$STILLSUIT_FIXTURE_RECORDING_STATE"
+else
+  printf '{"schemaVersion":1,"phase":"idle"}\n'
+fi

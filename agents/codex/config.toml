@@ -379,3 +379,8 @@ skill = "#cba6f7"
 [memories]
 generate_memories = true
 use_memories = true
+
+[hooks.state]
+
+[hooks.state."/home/kabilan/.codex/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:7fcad8e587d2ed4c23aba1c21bbf1d53027bd6d1deb3f30f036aa9c3221c70dd"

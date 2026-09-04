@@ -1,6 +1,6 @@
 ---
 name: niri-computer-use
-description: Desktop inspection and control for the local NixOS + niri Wayland session. Use when an agent needs to see or drive the desktop - take screenshots of windows/outputs (including hidden workspaces), inspect windows/workspaces via niri, focus or launch apps (with or without stealing focus), click/type/scroll into GUI apps, run app tasks in the background on the agent workspace, or recover a confused desktop (overview open, focus lost). Route browser work to agent-browser/CDP and terminal work to tmux; use this skill's acu tool for everything the compositor and pixels must solve.
+description: Desktop inspection and control for the local NixOS + niri Wayland session. Use when an agent needs to see or drive the desktop - take screenshots of windows/outputs (including hidden workspaces), inspect windows/workspaces via niri, focus or launch apps, click/type/scroll into GUI apps, or recover a confused desktop (overview open, focus lost). Route browser work to agent-browser/CDP and terminal work to tmux; use this skill's acu tool for everything the compositor and pixels must solve.
 ---
 
 # Niri Computer Use
@@ -46,8 +46,8 @@ acu wait --app STR|--title RE [--timeout 10] # wait for window to appear
 acu wait --gone ID                           # ... or disappear
 acu focus ID|--app STR|--title RE            # focus + verify (records previous)
 acu focus --back                             # restore previously focused window
-acu spawn --bg -- CMD...                     # launch on "agent" ws, focus preserved
-acu spawn --wait -- CMD...                   # launch focused, print new window
+acu spawn -- CMD...                          # launch normally; may take focus
+acu spawn --wait -- CMD...                   # launch, wait for and print new window
 acu click [left|right|middle] --window ID --local X,Y [--double]
 acu click --at X,Y                           # global logical coords
 acu point X Y | acu scroll DY [DX]           # pointer move / scroll at pointer
@@ -71,14 +71,7 @@ acu restore                                  # epilogue: close overview, refocus
 - **focus-follows-mouse is ON**: any pointer motion over a different window refocuses it. After pointer work, re-assert focus (`acu focus`) before typing. `acu click --window` does this automatically.
 - **Keyboard/text always goes to the focused window.** Check `acu state` if in doubt.
 - **Seat input cannot reach background windows.** To drive a window you must focus it (its workspace becomes visible). Only CDP apps can be driven invisibly.
-- Etiquette: record what you displace, put it back — `acu focus`/`acu spawn --bg` remember the previous focus; end sessions with `acu restore`. If the user starts moving the mouse mid-task, stop and wait.
-
-## Background work ("do it without taking over the desktop")
-
-- `acu spawn --bg -- cmd` opens on the persistent **"agent" workspace** without focus/visibility change. Terminals can be marked (`ghostty --class=acu.<name>`) — `acu.*` app-ids get zero-flicker rules; anything else is moved there right after opening (~0.5s flicker at most, focus still preserved).
-- Watch progress: `acu shot --window <id>` — hidden windows screenshot fine.
-- Interact invisibly where a semantic channel exists: `acu ui`/`acu act` (AT-SPI) and CDP work on hidden windows without focus. Seat input (click/type/key) still requires focus: batch those bursts, then `acu restore`.
-- Hand-off: the user pulls a window to their workspace with `nirius move-to-current-workspace` or workspace nav — same session, windows move freely.
+- Etiquette: record what you displace and put it back — `acu focus` remembers the previous focus, but ordinary `acu spawn` does not. Record the current window before launching, refocus it explicitly, and end sessions with `acu restore`. If the user starts moving the mouse mid-task, stop and wait.
 
 ## Known traps → recovery
 
@@ -88,7 +81,7 @@ acu restore                                  # epilogue: close overview, refocus
 | Click landed nowhere / overview popped | Coordinates guessed, not grounded | Re-shot, use `--grid`, use `--window --local` |
 | Typed text went to wrong window | focus-follows-mouse after pointer motion | `acu focus <target>` immediately before typing |
 | Clipboard content replaced by a screenshot | Raw `niri msg action screenshot-*` always copies | Use `acu shot` (saves/restores clipboard) |
-| New window stole focus from user | Raw `niri msg action spawn` | `acu spawn --bg` |
+| New window stole focus from user | GUI spawns are normal visible launches | Use CDP, AT-SPI, or tmux when focus must remain unchanged; otherwise refocus the recorded window |
 | wlrctl/wev missing on PATH | Not yet in home.packages | acu resolves via nix-shell and caches; first call is slow |
 | Hot corner opens overview on pointer sweeps | Fixed: `gestures { hot-corners { off; } }` in niri config | If it recurs, re-check config reloaded |
 

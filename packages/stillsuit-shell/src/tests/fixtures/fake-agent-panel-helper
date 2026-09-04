@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+case ${1:-} in
+    open|hide|toggle|status|terminate) ;;
+    *) exit 64 ;;
+esac
+
+printf '%s\n' "$1" >> "$STILLSUIT_AGENT_PANEL_FIXTURE_LOG"
+printf '{"action":"%s","fixture":true}\n' "$1"

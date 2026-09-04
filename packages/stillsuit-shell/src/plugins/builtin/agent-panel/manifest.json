@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.agent-panel",
+  "name": "Agent panel",
+  "description": "Exposes typed lifecycle controls for the persistent Codex quake terminal.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["service"],
+  "entryPoints": {
+    "service": "AgentPanelService.qml"
+  },
+  "scope": {
+    "service": "global"
+  },
+  "capabilities": ["agent-panel-control"]
+}

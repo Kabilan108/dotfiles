@@ -53,6 +53,7 @@ in
     ../modules/home/gtk.nix
     ../modules/home/helium.nix
     ../modules/home/pwas.nix
+    ../modules/home/stillsuit
     ../modules/home/stylix.nix
     ../modules/home/wallpaper.nix
     ../modules/home/zen
@@ -184,7 +185,7 @@ in
   ];
 
   services.claude-bar = {
-    enable = true;
+    enable = false;
     package = inputs.claude-bar.packages.${systemName}.default;
     theme.mode = "dark";
     settings = {

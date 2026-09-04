@@ -1,0 +1,400 @@
+#!/usr/bin/env python3
+"""Fixed stdin-only NetworkManager helper for Stillsuit.
+
+The helper is a long-running JSON-lines worker. Requests arrive only on stdin;
+its process argv never contains an SSID, connection identifier, or secret.
+"""
+
+from __future__ import annotations
+
+import ipaddress
+import json
+import subprocess
+import sys
+from typing import Any
+
+VPN_NAME = "MobergAnalytics"
+
+
+def _tailscale_ipv4(addresses: Any) -> str:
+    if not isinstance(addresses, list):
+        return ""
+    for value in addresses:
+        try:
+            address = ipaddress.ip_address(str(value))
+        except ValueError:
+            continue
+        if address.version == 4:
+            return str(address)
+    return ""
+
+
+def _tailscale_services(records: Any) -> list[str]:
+    if not isinstance(records, list):
+        return []
+    names = {
+        str(record.get("Name", "")).rstrip(".")
+        for record in records
+        if isinstance(record, dict) and str(record.get("Name", "")).rstrip(".")
+    }
+    return sorted(names, key=str.casefold)
+
+
+def _run(
+    command: list[str],
+    *,
+    input_text: str | None = None,
+    timeout: int = 25,
+) -> subprocess.CompletedProcess[str]:
+    if command == ["wl-copy"]:
+        return subprocess.run(
+            command,
+            check=False,
+            input=input_text,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=timeout,
+        )
+    return subprocess.run(
+        command,
+        check=False,
+        capture_output=True,
+        input=input_text,
+        text=True,
+        timeout=timeout,
+    )
+
+
+def _split_terse(line: str, fields: int) -> list[str]:
+    values: list[str] = []
+    current: list[str] = []
+    escaped = False
+    for character in line:
+        if escaped:
+            current.append(character)
+            escaped = False
+        elif character == "\\":
+            escaped = True
+        elif character == ":" and len(values) < fields - 1:
+            values.append("".join(current))
+            current = []
+        else:
+            current.append(character)
+    if escaped:
+        current.append("\\")
+    values.append("".join(current))
+    return values
+
+
+def _checked(
+    command: list[str],
+    *,
+    input_text: str | None = None,
+    secret: str = "",
+) -> subprocess.CompletedProcess[str]:
+    result = _run(command, input_text=input_text)
+    if result.returncode == 0:
+        return result
+    message = (result.stderr or result.stdout or "operation failed").strip()
+    if secret:
+        message = message.replace(secret, "[REDACTED]")
+    raise RuntimeError(message)
+
+
+def _nmcli_rows(fields: str, *arguments: str) -> list[list[str]]:
+    result = _checked(
+        ["nmcli", "--terse", "--escape", "yes", "--fields", fields, *arguments]
+    )
+    count = len(fields.split(","))
+    return [
+        _split_terse(line, count) for line in result.stdout.splitlines() if line != ""
+    ]
+
+
+def _security_kind(security: str) -> str:
+    normalized = security.strip().lower()
+    if normalized in {"", "--", "none"}:
+        return "open"
+    if "802.1x" in normalized or "eap" in normalized or "enterprise" in normalized:
+        return "enterprise"
+    return "personal"
+
+
+def _connection_ssid(uuid: str) -> str:
+    result = _run(
+        [
+            "nmcli",
+            "--terse",
+            "--escape",
+            "yes",
+            "--get-values",
+            "802-11-wireless.ssid",
+            "connection",
+            "show",
+            "uuid",
+            uuid,
+        ]
+    )
+    if result.returncode != 0:
+        return ""
+    line = next((value for value in result.stdout.splitlines() if value != ""), "")
+    return _split_terse(line, 1)[0] if line else ""
+
+
+def _snapshot() -> dict[str, Any]:
+    general = _nmcli_rows("WIFI", "general")
+    wifi_enabled = bool(general and general[0][0].lower() == "enabled")
+
+    device_rows = _nmcli_rows("DEVICE,TYPE,STATE,CONNECTION", "device", "status")
+    wired_connected = any(
+        len(row) == 4 and row[1] == "ethernet" and row[2] == "connected"
+        for row in device_rows
+    )
+    wired_name = next(
+        (
+            row[3]
+            for row in device_rows
+            if len(row) == 4 and row[1] == "ethernet" and row[2] == "connected"
+        ),
+        "",
+    )
+
+    connection_rows = _nmcli_rows("UUID,NAME,TYPE,ACTIVE", "connection", "show")
+    saved_wifi: dict[str, dict[str, str]] = {}
+    for row in connection_rows:
+        if len(row) != 4 or row[2] not in {"802-11-wireless", "wifi"}:
+            continue
+        ssid = _connection_ssid(row[0]) or row[1]
+        if ssid:
+            saved_wifi[ssid] = {"uuid": row[0], "profileName": row[1]}
+
+    networks_by_name: dict[str, dict[str, Any]] = {}
+    if wifi_enabled:
+        for row in _nmcli_rows(
+            "IN-USE,SSID,SECURITY,SIGNAL", "device", "wifi", "list", "--rescan", "no"
+        ):
+            if len(row) != 4 or row[1] == "":
+                continue
+            try:
+                signal = max(0, min(100, int(row[3])))
+            except ValueError:
+                signal = 0
+            saved_profile = saved_wifi.get(row[1])
+            candidate = {
+                "id": saved_profile["uuid"] if saved_profile else row[1],
+                "name": row[1],
+                "uuid": saved_profile["uuid"] if saved_profile else "",
+                "profileName": saved_profile["profileName"] if saved_profile else "",
+                "connected": row[0] == "*",
+                "known": saved_profile is not None,
+                "kind": _security_kind(row[2]),
+                "security": row[2],
+                "signal": signal,
+                "signalStrength": signal / 100,
+            }
+            previous = networks_by_name.get(row[1])
+            if (
+                previous is None
+                or candidate["connected"]
+                or signal > previous["signal"]
+            ):
+                networks_by_name[row[1]] = candidate
+
+    networks = sorted(
+        networks_by_name.values(),
+        key=lambda row: (
+            not row["connected"],
+            not row["known"],
+            -row["signal"],
+            row["name"].casefold(),
+        ),
+    )
+
+    vpns: list[dict[str, Any]] = []
+    for row in connection_rows:
+        if len(row) != 4 or row[2] not in {"vpn", "wireguard"}:
+            continue
+        active = row[3] == "yes"
+        allowlisted = row[1] == VPN_NAME
+        if not allowlisted and not active:
+            continue
+        vpns.append(
+            {
+                "uuid": row[0],
+                "name": row[1],
+                "type": row[2],
+                "active": active,
+                "toggleAllowed": allowlisted,
+                "readOnly": not allowlisted,
+            }
+        )
+    vpns.sort(
+        key=lambda row: (not row["toggleAllowed"], not row["active"], row["name"])
+    )
+
+    tailscale: dict[str, Any] = {
+        "available": False,
+        "status": "unavailable",
+        "ip": "",
+        "hostName": "",
+        "dnsName": "",
+        "services": [],
+    }
+    tailscale_result = _run(["tailscale", "status", "--json"], timeout=8)
+    if tailscale_result.returncode == 0:
+        try:
+            status = json.loads(tailscale_result.stdout)
+            self_status = status.get("Self", {})
+            if not isinstance(self_status, dict):
+                self_status = {}
+            tailscale = {
+                "available": True,
+                "status": str(status.get("BackendState", "unknown")).lower(),
+                "ip": _tailscale_ipv4(self_status.get("TailscaleIPs", [])),
+                "hostName": str(self_status.get("HostName", "")),
+                "dnsName": str(self_status.get("DNSName", "")).rstrip("."),
+                "services": _tailscale_services(status.get("ExtraRecords", [])),
+            }
+        except (TypeError, ValueError, KeyError):
+            tailscale["status"] = "invalid status"
+
+    return {
+        "wifiEnabled": wifi_enabled,
+        "wiredConnected": wired_connected,
+        "wiredName": wired_name,
+        "networks": networks,
+        "vpns": vpns,
+        "tailscale": tailscale,
+    }
+
+
+def _join(request: dict[str, Any]) -> None:
+    kind = str(request.get("kind", ""))
+    name = str(request.get("name", ""))
+    uuid = str(request.get("uuid", ""))
+    password = str(request.get("password", ""))
+    if kind == "saved" and uuid:
+        _checked(["nmcli", "--wait", "25", "connection", "up", "uuid", uuid])
+        return
+    if kind == "open" and name:
+        _checked(["nmcli", "--wait", "25", "device", "wifi", "connect", name])
+        return
+    if kind == "personal" and name and password:
+        _checked(
+            ["nmcli", "--ask", "--wait", "25", "device", "wifi", "connect", name],
+            input_text=f"{password}\n",
+            secret=password,
+        )
+        return
+    raise RuntimeError("unsupported or incomplete Wi-Fi request")
+
+
+def _toggle_vpn(request: dict[str, Any]) -> None:
+    uuid = str(request.get("uuid", ""))
+    rows = _nmcli_rows("UUID,NAME,TYPE,ACTIVE", "connection", "show")
+    match = next((row for row in rows if len(row) == 4 and row[0] == uuid), None)
+    if match is None or match[1] != VPN_NAME or match[2] not in {"vpn", "wireguard"}:
+        raise RuntimeError("VPN is not allowlisted for control")
+    action = "down" if match[3] == "yes" else "up"
+    _checked(["nmcli", "--wait", "25", "connection", action, "uuid", uuid])
+
+
+def _open_editor(request: dict[str, Any]) -> None:
+    mode = str(request.get("mode", ""))
+    if mode == "hidden":
+        command = ["nm-connection-editor", "--create", "--type", "wifi"]
+    elif mode == "enterprise" and str(request.get("uuid", "")):
+        command = ["nm-connection-editor", "--edit", str(request["uuid"])]
+    else:
+        command = ["nm-connection-editor"]
+    subprocess.Popen(
+        command,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+
+def _dispatch(request: dict[str, Any]) -> dict[str, Any]:
+    operation = str(request.get("operation", ""))
+    secret = str(request.get("password", ""))
+    try:
+        if operation == "snapshot":
+            pass
+        elif operation == "scan":
+            _checked(["nmcli", "device", "wifi", "rescan"])
+        elif operation == "wifi-enabled":
+            state = "on" if bool(request.get("enabled")) else "off"
+            _checked(["nmcli", "radio", "wifi", state])
+        elif operation == "join":
+            _join(request)
+        elif operation == "disconnect":
+            _checked(
+                [
+                    "nmcli",
+                    "--wait",
+                    "20",
+                    "connection",
+                    "down",
+                    "uuid",
+                    str(request.get("uuid", "")),
+                ]
+            )
+        elif operation == "vpn-toggle":
+            _toggle_vpn(request)
+        elif operation == "copy-tailscale":
+            field = str(request.get("field", ""))
+            if field not in {"dns", "ip", "service"}:
+                raise RuntimeError("unsupported Tailscale copy field")
+            snapshot = _snapshot()
+            if field == "service":
+                service_name = str(request.get("serviceName", "")).rstrip(".")
+                if service_name not in snapshot["tailscale"].get("services", []):
+                    raise RuntimeError("Tailscale service is unavailable")
+                copy_value = f"https://{service_name}"
+            else:
+                key = "dnsName" if field == "dns" else "ip"
+                copy_value = str(snapshot["tailscale"].get(key, ""))
+            if not copy_value:
+                raise RuntimeError("Tailscale value is unavailable")
+            _checked(["wl-copy"], input_text=copy_value)
+            return {"ok": True, "operation": operation, "snapshot": snapshot}
+        elif operation == "open-editor":
+            _open_editor(request)
+            return {"ok": True, "operation": operation, "handoff": True}
+        else:
+            raise RuntimeError("unknown operation")
+        return {"ok": True, "operation": operation, "snapshot": _snapshot()}
+    except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+        message = str(error)
+        if secret:
+            message = message.replace(secret, "[REDACTED]")
+        response: dict[str, Any] = {
+            "ok": False,
+            "operation": operation,
+            "error": message or "operation failed",
+        }
+        try:
+            response["snapshot"] = _snapshot()
+        except (OSError, RuntimeError, subprocess.SubprocessError):
+            pass
+        return response
+
+
+def main() -> int:
+    for raw_line in sys.stdin:
+        try:
+            value = json.loads(raw_line)
+            if not isinstance(value, dict):
+                raise TypeError("request must be an object")
+            response = _dispatch(value)
+        except (TypeError, ValueError) as error:
+            response = {"ok": False, "operation": "invalid", "error": str(error)}
+        print(json.dumps(response, separators=(",", ":")), flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

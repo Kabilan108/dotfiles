@@ -306,8 +306,6 @@ spawn-at-startup "nm-applet" "--indicator"
 spawn-at-startup "blueman-applet"
 spawn-at-startup "obsidian"
 spawn-sh-at-startup "swaybg -i $HOME/dotfiles/wallpapers/shoggoth-001.png -m fill"
-spawn-sh-at-startup "$HOME/dotfiles/bin/battery-watcher"
-spawn-at-startup "qs" "-c" "stillsuit"
 
 hotkey-overlay {
     // Uncomment this line to disable the "Important Hotkeys" pop-up at startup.
@@ -337,24 +335,18 @@ animations {
     // off
 
     // Slow down all animations by this factor. Values below 1 speed them up instead.
-    slowdown 0.9
+    slowdown 0.5
 }
-
-// Persistent staging workspace for agent-driven (computer-use) windows.
-// Windows spawned there stay out of the way; move them over with
-// `nirius move-to-current-workspace` or normal workspace navigation.
-workspace "agent"
 
 // Window rules let you adjust behavior for individual windows.
 // Find more information on the wiki:
 // https://yalter.github.io/niri/Configuration:-Window-Rules
 
-// Agent-spawned windows (acu spawn --bg marks them with an acu.* app-id):
-// open on the agent workspace without stealing focus.
 window-rule {
-    match app-id=r#"^acu\."#
-    open-on-workspace "agent"
-    open-focused false
+    match app-id=r#"^io\.stillsuit\.AgentPanel$"#
+    open-floating true
+    default-column-width { proportion 0.6; }
+    default-window-height { proportion 0.6; }
 }
 
 // Hide windows from screen capture
@@ -383,6 +375,13 @@ window-rule {
 }
 
 window-rule {
+    match app-id=r#"^nm-connection-editor$"#
+    open-floating true
+    default-column-width { fixed 560; }
+    default-window-height { fixed 420; }
+}
+
+window-rule {
     match app-id=r#"^org\.gnome\.Loupe$"#
     open-floating true
 }
@@ -400,8 +399,10 @@ window-rule {
 }
 
 window-rule {
-    match app-id=r#"^\.blueman-manager-wrapped$"#
+    match app-id=r#"^blueman-manager$"#
     open-floating true
+    default-column-width { fixed 560; }
+    default-window-height { fixed 420; }
 }
 
 window-rule {
@@ -501,10 +502,11 @@ binds {
     Mod+V hotkey-overlay-title="Clipboard: walker" { spawn "walker" "--provider" "clipboard" "--width" "1000" "--height" "400"; }
 
     // quickshell panels
-    Mod+A hotkey-overlay-title="Audio Mixer" { spawn "qs" "ipc" "-c" "stillsuit" "call" "mixer" "toggle"; }
-    Mod+Alt+B hotkey-overlay-title="Bluetooth" { spawn "qs" "ipc" "-c" "stillsuit" "call" "bluetooth" "toggle"; }
-    Mod+N hotkey-overlay-title="Notification Center" { spawn "qs" "ipc" "-c" "stillsuit" "call" "notifications" "toggleCenter"; }
-    Mod+Alt+R hotkey-overlay-title="Screen Recording" { spawn "qs" "ipc" "-c" "stillsuit" "call" "recording" "toggle"; }
+    Mod+A hotkey-overlay-title="Audio Mixer" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.audio" "{}"; }
+    Mod+Alt+B hotkey-overlay-title="Bluetooth" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.bluetooth" "{}"; }
+    Mod+N hotkey-overlay-title="Notification Center" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.notifications" "{}"; }
+    Mod+Alt+R hotkey-overlay-title="Screen Recording" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.recording" "{}"; }
+    Mod+Grave hotkey-overlay-title="Toggle Agent Panel" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-agent-panel" "toggle"; }
 
     // lock
     Mod+Alt+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "swaylock"; }
@@ -631,8 +633,6 @@ binds {
     Mod+7 { focus-workspace 7; }
     Mod+8 { focus-workspace 8; }
     Mod+9 { focus-workspace 9; }
-    Mod+0 hotkey-overlay-title="Focus Agent Workspace" { focus-workspace "agent"; }
-    Mod+Shift+0 { move-column-to-workspace "agent"; }
     Mod+Shift+1 { move-column-to-workspace 1; }
     Mod+Shift+2 { move-column-to-workspace 2; }
     Mod+Shift+3 { move-column-to-workspace 3; }

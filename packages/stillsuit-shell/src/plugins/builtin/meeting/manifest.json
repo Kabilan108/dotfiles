@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.meeting",
+  "name": "Meeting status",
+  "description": "Meeting-minutes workflow status and result panel.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["bar-widget", "panel"],
+  "entryPoints": { "barWidget": "MeetingWidget.qml", "panel": "MeetingPanel.qml" },
+  "scope": { "barWidget": "per-output", "panel": "per-output" },
+  "dependencies": ["stillsuit.workflows"],
+  "barWidget": { "defaultSection": "left", "allowMultiple": false }
+}

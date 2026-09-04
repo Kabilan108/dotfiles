@@ -1,33 +1,117 @@
 #!/usr/bin/env bash
 # vim: syn=bash ft=bash
 
-THRESHOLD_LOW=20
-THRESHOLD_CRITICAL=5
-CHECK_INTERVAL=60
+set -euo pipefail
 
-BATTERY_PATH="/sys/class/power_supply/BAT1"
-[ ! -d "$BATTERY_PATH" ] && BATTERY_PATH="/sys/class/power_supply/BAT0"
+readonly threshold_low=${BATTERY_THRESHOLD_LOW:-20}
+readonly threshold_critical=${BATTERY_THRESHOLD_CRITICAL:-5}
+readonly threshold_full=${BATTERY_THRESHOLD_FULL:-95}
+readonly hysteresis=${BATTERY_HYSTERESIS:-3}
+readonly battery_root=${BATTERY_ROOT:-/sys/class/power_supply}
+readonly state_file=${BATTERY_STATE_FILE:-${XDG_STATE_HOME:-${HOME}/.local/state}/battery-watcher/state}
+readonly notify_bin=${BATTERY_NOTIFY_BIN:-notify-send}
 
-send_notification() {
-  env -u LD_LIBRARY_PATH -u APPDIR -u APPIMAGE notify-send "$@"
+low_armed=1
+critical_armed=1
+full_armed=1
+
+find_battery() {
+  local candidate
+
+  if [[ -n ${BATTERY_PATH:-} ]]; then
+    [[ -d $BATTERY_PATH ]] && printf '%s\n' "$BATTERY_PATH"
+    return
+  fi
+
+  for candidate in "$battery_root"/BAT*; do
+    [[ -d $candidate ]] || continue
+    if [[ ! -r $candidate/type ]] || [[ $(<"$candidate/type") == Battery ]]; then
+      printf '%s\n' "$candidate"
+      return
+    fi
+  done
 }
 
-while true; do
-  if [ -d "$BATTERY_PATH" ]; then
-    capacity=$(cat "$BATTERY_PATH/capacity")
-    status=$(cat "$BATTERY_PATH/status")
+valid_percent() {
+  [[ $1 =~ ^[0-9]+$ ]] && (( 10#$1 >= 0 && 10#$1 <= 100 ))
+}
 
-    if [ "$status" = "Charging" ]; then
-      if [ "$capacity" -ge 95 ]; then
-        send_notification -a "battery" -u "normal" "Battery Charged" "${capacity}%"
-      fi
-    else
-      if [ "$capacity" -le "$THRESHOLD_CRITICAL" ]; then
-        send_notification -a "battery" -u "critical" "Battery Critically Low" "${capacity}% — plug in now"
-      elif [ "$capacity" -le "$THRESHOLD_LOW" ]; then
-        send_notification -a "battery" -u "normal" "Low Battery" "${capacity}% remaining"
-      fi
+load_state() {
+  local key value
+
+  [[ -r $state_file ]] || return 0
+  while IFS='=' read -r key value; do
+    [[ $value == 0 || $value == 1 ]] || continue
+    case $key in
+      low_armed) low_armed=$value ;;
+      critical_armed) critical_armed=$value ;;
+      full_armed) full_armed=$value ;;
+    esac
+  done <"$state_file"
+}
+
+save_state() {
+  local state_dir temporary
+
+  state_dir=$(dirname -- "$state_file")
+  mkdir -p -- "$state_dir"
+  temporary=$(mktemp "$state_dir/.state.XXXXXX")
+  chmod 600 "$temporary"
+  {
+    printf 'low_armed=%s\n' "$low_armed"
+    printf 'critical_armed=%s\n' "$critical_armed"
+    printf 'full_armed=%s\n' "$full_armed"
+  } >"$temporary"
+  mv -f -- "$temporary" "$state_file"
+}
+
+send_notification() {
+  env -u LD_LIBRARY_PATH -u APPDIR -u APPIMAGE "$notify_bin" "$@"
+}
+
+main() {
+  local battery_path capacity status
+
+  battery_path=$(find_battery)
+  [[ -n $battery_path ]] || return 0
+  [[ -r $battery_path/capacity && -r $battery_path/status ]] || return 0
+  capacity=$(<"$battery_path/capacity")
+  status=$(<"$battery_path/status")
+  valid_percent "$capacity" || return 0
+  capacity=$((10#$capacity))
+
+  load_state
+
+  if (( capacity >= threshold_low + hysteresis )); then
+    low_armed=1
+  fi
+  if (( capacity >= threshold_critical + hysteresis )); then
+    critical_armed=1
+  fi
+  if (( capacity <= threshold_full - hysteresis )); then
+    full_armed=1
+  fi
+
+  if [[ $status == Discharging ]]; then
+    if (( capacity <= threshold_critical && critical_armed == 1 )); then
+      send_notification -a battery -u critical \
+        "Battery critically low" "$capacity% remaining. Plug in now."
+      critical_armed=0
+      low_armed=0
+    elif (( capacity <= threshold_low && low_armed == 1 )); then
+      send_notification -a battery -u normal \
+        "Low battery" "$capacity% remaining"
+      low_armed=0
+    fi
+  elif [[ $status == Charging || $status == Full || $status == "Not charging" ]]; then
+    if (( capacity >= threshold_full && full_armed == 1 )); then
+      send_notification -a battery -u normal \
+        "Battery charged" "$capacity%"
+      full_armed=0
     fi
   fi
-  sleep "$CHECK_INTERVAL"
-done
+
+  save_state
+}
+
+main "$@"
