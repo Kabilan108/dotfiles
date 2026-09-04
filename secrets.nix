@@ -19,7 +19,11 @@ in
     sietch
     jacurutu
   ];
-  "secrets/gog-creds".publicKeys = [
+  "secrets/gogcli/credentials-json.age".publicKeys = [
+    sietch
+    jacurutu
+  ];
+  "secrets/gogcli/keyring-env.age".publicKeys = [
     sietch
     jacurutu
   ];

@@ -48,6 +48,7 @@ in
     ../modules/home/btop.nix
     ../modules/home/fleet.nix
     ../modules/home/fonts.nix
+    ../modules/home/gogcli.nix
     ../modules/home/ghostty.nix
     ../modules/home/gtk.nix
     ../modules/home/helium.nix
@@ -69,6 +70,7 @@ in
   home.stateVersion = "25.11";
 
   programs.home-manager.enable = true;
+  programs.gogcli.enable = true;
 
   programs.yazi = {
     enable = true;

@@ -55,9 +55,14 @@ in
       owner = "kabilan";
       group = "users";
     };
-    secrets."secrets/gog-creds" = {
-      file = ./secrets/gog-creds;
-      path = "${home}/.config/gogcli/credentials.json";
+    secrets."secrets/gog-oauth-client" = {
+      file = ./secrets/gogcli/credentials-json.age;
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
+    secrets."secrets/gog-keyring-env" = {
+      file = ./secrets/gogcli/keyring-env.age;
       mode = "0600";
       owner = "kabilan";
       group = "users";
