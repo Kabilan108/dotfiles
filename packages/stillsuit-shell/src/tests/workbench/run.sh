@@ -20,10 +20,10 @@ trap cleanup EXIT
 
 export STILLSUIT_WORKBENCH_PACKAGED_SOURCE="$source_dir"
 workbench=("$package_dir/bin/stillsuit-workbench" --source "$source_dir" --sandbox "$sandbox" --plugins "$sandbox/plugins" --theme "$package_dir/design-lab/themes/catppuccin-mocha.json")
-"${workbench[@]}" --headless run > "$sandbox/launcher.log" 2>&1 &
+"${workbench[@]}" --headless > "$sandbox/launcher.log" 2>&1 &
 launcher_pid=$!
 
-status() { "${workbench[@]}" status 2>/dev/null; }
+status() { "${workbench[@]}" status --json 2>/dev/null; }
 call() { "${workbench[@]}" call "$@" 2>/dev/null; }
 wait_for() {
     local description=$1 expression=$2 attempt
@@ -39,15 +39,16 @@ wait_for "workbench readiness" '.ready == true and .fixture == "default"'
 status | jq -e '(.plugins | to_entries | map(select(.value.state == "error")) | length) == 0' > /dev/null
 status | jq -e '.modelsApplied | index("stillsuit.battery") != null and index("stillsuit.audio") != null' > /dev/null
 
-for fixture in $(call stillsuit-workbench fixtures | jq -r '.[]'); do
-    [[ $(call stillsuit-workbench select "$fixture") == ok ]]
+for fixture in $("${workbench[@]}" fixtures 2>/dev/null); do
+    [[ $("${workbench[@]}" fixture "$fixture" 2>/dev/null) == ok ]]
     wait_for "fixture $fixture" ".fixture == \"$fixture\" and .ready == true"
     status | jq -e '(.services | to_entries | map(select(.value.state != "loaded")) | length) == 0' > /dev/null
 done
-[[ $(call stillsuit-workbench select battery-low) == ok ]]
-[[ $(call stillsuit-surface open stillsuit.battery '{}') == ok ]]
+[[ $("${workbench[@]}" fixture battery-low 2>/dev/null) == ok ]]
+[[ $("${workbench[@]}" open battery 2>/dev/null) == ok ]]
 wait_for "battery panel" '.selectedPanel == "stillsuit.battery"'
-[[ $(call stillsuit-surface close stillsuit.battery) == ok ]]
+"${workbench[@]}" close 2>/dev/null
+wait_for "battery panel closed" '.selectedPanel == ""'
 
 plugin="$sandbox/plugins/probe"
 mkdir -p "$plugin"
@@ -66,8 +67,8 @@ wait_for "probe containment" '.plugins["stillsuit.probe"] == null and .ready == 
 printf '%s\n' "$manifest" > "$plugin/manifest.json"
 wait_for "probe recovery" '.plugins["stillsuit.probe"].visual["bar-widget"] == "loaded"'
 
-[[ $(call stillsuit-workbench notify "Workbench" "toast") == ok ]]
-[[ $(call stillsuit-workbench select default) == ok ]]
+[[ $("${workbench[@]}" notify "Workbench" "toast" 2>/dev/null) == ok ]]
+[[ $("${workbench[@]}" fixture default 2>/dev/null) == ok ]]
 wait_for "final state" '.ready == true and .fixture == "default"'
 if grep -q "ERROR qml\| ERROR:" "$sandbox/shell.log"; then grep "ERROR" "$sandbox/shell.log"; exit 1; fi
 echo "workbench: fixtures, real core, plugin create/edit/break/restore without restart: ok"

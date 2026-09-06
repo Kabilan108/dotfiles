@@ -24,6 +24,12 @@ ShellRoot {
     // in bar shadow mode; headless runs own every screen of their compositor.
     readonly property string outputFilter: Quickshell.env("STILLSUIT_WORKBENCH_OUTPUT") || ""
     readonly property bool shadowMode: Quickshell.env("STILLSUIT_WORKBENCH_SHADOW") === "1"
+    // In shadow mode the production bar still owns the top edge. Everything
+    // the core positions from barOuterGap (bar, panel hosts, toasts) moves
+    // down together so the two bars stack instead of overlapping.
+    readonly property real shadowOffset: shadowMode && effectiveTheme.metrics
+        ? effectiveTheme.metrics.barHeight + effectiveTheme.metrics.barOuterGap + effectiveTheme.metrics.spaceUnit * 2
+        : 0
     readonly property var screens: _selectScreens(Quickshell.screens, outputFilter)
     readonly property bool ready: themeLoaded && themeError === ""
         && pluginCatalog.ready && serviceRegistry.ready
@@ -317,10 +323,12 @@ ShellRoot {
 
     function _publicTheme(value) {
         if (!value || value.schemaVersion !== 2) return {}
+        var metrics = JSON.parse(JSON.stringify(value.metrics))
+        metrics.barOuterGap = Number(metrics.barOuterGap || 0) + shadowOffset
         return {
             schemaVersion: value.schemaVersion, identity: value.identity,
             semantic: value.semantic, component: value.component,
-            typography: value.typography, metrics: value.metrics,
+            typography: value.typography, metrics: metrics,
             motion: value.motion, effects: value.effects
         }
     }

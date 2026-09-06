@@ -15,13 +15,17 @@ QtObject {
     property var workspaces: []
     property var windows: []
 
+    // The workbench draws on exactly the screens it was given, so focus
+    // always lands there: a fixture's focusedOutputId only selects among
+    // several headless outputs and never points at a screen it cannot use.
     function apply(snapshot, screens) {
         var nextOutputs = []
         for (var index = 0; index < screens.length; index++)
             nextOutputs.push({ id: String(screens[index].name), name: String(screens[index].name) })
         var primary = nextOutputs.length > 0 ? nextOutputs[0].id : ""
         var requested = String(snapshot.focusedOutputId || "")
-        var focused = nextOutputs.some(function(output) { return output.id === requested }) ? requested : primary
+        var focused = nextOutputs.length === 1 ? primary
+            : nextOutputs.some(function(output) { return output.id === requested }) ? requested : primary
         outputs = nextOutputs
         focusedOutputId = focused
         workspaces = _retarget(snapshot.workspaces || [], primary)

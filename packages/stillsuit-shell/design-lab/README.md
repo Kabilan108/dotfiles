@@ -8,9 +8,10 @@ compositor, or service authority over the real session.
 `stillsuit-workbench` runs the production core (plugin catalog, service
 registry, surface router, panel hosts, IPC facade) a second time on one
 output of the current session, inside an isolated XDG sandbox. Its bar runs
-in shadow mode (no exclusive zone), so it stacks with the production bar
-instead of pushing windows; by default it picks the output you are not
-focused on, so the real shell stays usable on the other one. Real plugin
+in shadow mode (no exclusive zone) and sits one bar height below the
+production bar, with its panels and toasts offset to match; by default it
+picks the output you are not focused on, so the real shell stays usable on
+the other one. With a single output the two bars stack on it. Real plugin
 QML runs unchanged; only the inputs are synthetic:
 
 - services receive fixture `model` objects instead of hardware and helpers;
@@ -20,22 +21,29 @@ QML runs unchanged; only the inputs are synthetic:
 - the recorder and meeting-worker state files are written from the fixture.
 
 ```sh
-stillsuit-workbench run                       # shadow bar on the other output, default fixture
-stillsuit-workbench --output DP-4 --fixture battery-low run
-stillsuit-workbench fixtures                  # ids from fixtures/*.json
-stillsuit-workbench call stillsuit-workbench select media-playing
-stillsuit-workbench call stillsuit-surface open stillsuit.audio '{}'
-stillsuit-workbench call stillsuit-workbench notify "Summary" "Body"
-stillsuit-workbench call stillsuit-workbench actions   # service calls made by plugins
-stillsuit-workbench status
+stillsuit-workbench                              # start; picks the output you are not focused on
+stillsuit-workbench --output eDP-1 --fixture battery-low
+```
+
+In another terminal, while it runs:
+
+```sh
+stillsuit-workbench status                       # output, fixture, open panel, plugin errors
+stillsuit-workbench fixtures                     # scenario ids from fixtures/*.json
+stillsuit-workbench fixture media-playing        # switch scenario
+stillsuit-workbench open audio                   # open a panel on the workbench's output
+stillsuit-workbench close
+stillsuit-workbench notify "Summary" "Body"
+stillsuit-workbench actions                      # service calls plugins made
+stillsuit-workbench stop
 ```
 
 Plugins under `~/.config/stillsuit/workbench/plugins/<name>/` take precedence
 over the tracked builtins and are discovered, reloaded, contained, and
 restored within about a second, exactly as in production. Every IPC target the
 production shell exposes (`stillsuit`, `stillsuit-surface`, `stillsuit-plugin`)
-works against the workbench through `stillsuit-workbench call`. The
-`stillsuit-workbench` target adds fixture selection and the recorded action log.
+works against the workbench through `stillsuit-workbench call TARGET FN ...`,
+the raw escape hatch behind the commands above.
 
 Fixtures live in `fixtures/*.json` (`schemaVersion: 1`). Each one carries the
 compositor snapshot, per-service model documents keyed by plugin id,

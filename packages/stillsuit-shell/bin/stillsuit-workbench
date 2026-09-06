@@ -7,23 +7,31 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<'USAGE'
-usage: stillsuit-workbench [options] {run|call ...|status|plugins|fixtures}
+usage: stillsuit-workbench [start options]
+       stillsuit-workbench COMMAND [args]
 
-  run                 start the workbench (default)
-  call TARGET FN ...  quickshell ipc call against the running workbench
-  status              workbench status JSON
-  plugins             sandbox plugin catalog (stillsuit-plugins list)
-  fixtures            fixture ids
-
-options:
-  --fixture ID        initial fixture (default: default)
-  --plugins DIR       sandbox plugin root (default: $XDG_CONFIG_HOME/stillsuit/workbench/plugins)
-  --sandbox DIR       sandbox state root (default: $XDG_STATE_HOME/stillsuit/workbench)
-  --source DIR        shell source tree (default: packaged source)
-  --output NAME       output to draw on (default: the non-focused one, else the focused one)
+Start (no command): runs the workbench on one output of this session with its
+bar in shadow mode, stacked below the production bar. Ctrl-C stops it.
+  --output NAME       output to draw on (default: the one not focused; the only one if single)
+  --fixture ID        starting scenario (default: default)
+  --plugins DIR       sandbox plugin root (default: ~/.config/stillsuit/workbench/plugins)
   --headless          own a headless sway instead of the session (tests)
   --size WxH          headless output size (default: 1600x900)
+  --sandbox DIR       state root (default: ~/.local/state/stillsuit/workbench)
+  --source DIR        shell source tree (default: packaged)
   --theme PATH        theme.v2 json (default: production theme)
+
+Commands against a running workbench:
+  status [--json]     what is running, on which output, which fixture
+  fixtures            list fixture ids
+  fixture ID          switch scenario
+  open PLUGIN         open a plugin's panel (audio, network, stillsuit.audio ...)
+  close               dismiss open panels
+  notify SUMMARY BODY present a notification
+  actions             service calls plugins made since the last clear
+  plugins             sandbox plugin catalog
+  stop                stop the running workbench
+  call TARGET FN ...  raw quickshell ipc call
 USAGE
   exit 64
 }
@@ -36,7 +44,7 @@ theme_path="${STILLSUIT_WORKBENCH_THEME:-${XDG_CONFIG_HOME:-$HOME/.config}/still
 headless=0
 size="1600x900"
 output_name=""
-command_name="run"
+command_name="start"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -49,8 +57,8 @@ while [[ $# -gt 0 ]]; do
     --output) output_name=$2; shift 2 ;;
     --size) size=$2; shift 2 ;;
     -h | --help) usage ;;
-    run | call | status | plugins | fixtures) command_name=$1; shift; break ;;
-    *) usage ;;
+    -*) usage ;;
+    *) command_name=$1; shift; break ;;
   esac
 done
 
@@ -68,21 +76,58 @@ data_home="$sandbox_root/data"
 state_home="$sandbox_root/state"
 workflow_root="$sandbox_root/workflow"
 
-ipc() {
-  [[ -f $pid_file ]] || { printf 'workbench is not running\n' >&2; exit 69; }
+running_pid() {
+  [[ -f $pid_file ]] || return 1
   local pid
   pid=$(<"$pid_file")
-  kill -0 "$pid" 2>/dev/null || { printf 'workbench is not running\n' >&2; exit 69; }
+  kill -0 "$pid" 2>/dev/null || return 1
+  printf '%s\n' "$pid"
+}
+
+ipc() {
+  local pid
+  pid=$(running_pid) || { printf 'workbench is not running; start it with: stillsuit-workbench\n' >&2; exit 69; }
   XDG_RUNTIME_DIR="$runtime_root" quickshell ipc --pid "$pid" call "$@"
 }
 
+plugin_id() {
+  case "$1" in
+    stillsuit.*) printf '%s\n' "$1" ;;
+    *) printf 'stillsuit.%s\n' "$1" ;;
+  esac
+}
+
 case "$command_name" in
+  start) ;;
   call) ipc "$@"; exit ;;
-  status) ipc stillsuit-workbench status; exit ;;
-  fixtures) ipc stillsuit-workbench fixtures; exit ;;
+  fixtures) ipc stillsuit-workbench fixtures | jq -r '.[]'; exit ;;
+  fixture) [[ $# -eq 1 ]] || usage; ipc stillsuit-workbench select "$1"; exit ;;
+  open) [[ $# -eq 1 ]] || usage; ipc stillsuit-surface open "$(plugin_id "$1")" '{}'; exit ;;
+  close) ipc stillsuit-surface close "$(ipc stillsuit-workbench status | jq -r '.selectedPanel')" 2>/dev/null || true; exit ;;
+  notify) [[ $# -eq 2 ]] || usage; ipc stillsuit-workbench notify "$1" "$2"; exit ;;
+  actions) ipc stillsuit-workbench actions | jq .; exit ;;
   plugins) exec stillsuit-plugins --config "$config_home/stillsuit/runtime-discovery.json" list ;;
-  run) ;;
+  stop)
+    pid=$(running_pid) || { printf 'workbench is not running\n' >&2; exit 0; }
+    kill "$pid"; printf 'stopped %s\n' "$pid"; exit ;;
+  status)
+    if [[ ${1:-} == --json ]]; then ipc stillsuit-workbench status | jq .; exit; fi
+    ipc stillsuit-workbench status | jq -r '
+      "workbench: " + (if .ready then "ready" else "starting" end)
+      + "\noutput:    " + (.screens | join(", "))
+      + "\nfixture:   " + .fixture
+      + "\npanel:     " + (if .selectedPanel == "" then "none" else .selectedPanel end)
+      + "\nplugins:   " + ((.plugins | to_entries | map(select(.value.enabled)) | length) | tostring)
+      + " enabled, " + ((.plugins | to_entries | map(select(.value.state == "error")) | length) | tostring) + " in error"
+      + (if .fixtureError != "" then "\nfixtures:  " + .fixtureError else "" end)'
+    exit ;;
+  *) usage ;;
 esac
+
+if pid=$(running_pid); then
+  printf 'workbench already running (pid %s); use `stillsuit-workbench stop` first\n' "$pid" >&2
+  exit 75
+fi
 
 mkdir -p "$runtime_root" "$config_home/stillsuit" "$data_home" "$state_home" "$workflow_root" "$plugin_root"
 chmod 700 "$runtime_root"
@@ -126,6 +171,7 @@ else
     output_name=$(niri msg -j outputs 2>/dev/null \
       | jq -r --arg focused "$focused" '[.[] | .name] | (map(select(. != $focused)) | first) // first // ""')
   fi
+  [[ -n $output_name ]] || { printf 'could not pick an output; pass --output NAME\n' >&2; exit 69; }
 fi
 cleanup() {
   [[ -f $pid_file ]] && { kill "$(<"$pid_file")" 2>/dev/null || true; rm -f "$pid_file"; }
@@ -196,5 +242,6 @@ export STILLSUIT_CONFIG_ID="$config_id" \
 quickshell --no-color -p "$source_root/workbench.qml" > "$sandbox_root/shell.log" 2>&1 &
 shell_pid=$!
 printf '%s\n' "$shell_pid" > "$pid_file"
-printf 'workbench pid %s on %s, plugins %s, log %s\n' "$shell_pid" "${output_name:-all outputs}" "$plugin_root" "$sandbox_root/shell.log"
+printf 'workbench on %s (fixture %s), stacked below the production bar\nplugins: %s\nlog:     %s\n' \
+  "${output_name:-all headless outputs}" "$fixture_id" "$plugin_root" "$sandbox_root/shell.log"
 wait "$shell_pid"
