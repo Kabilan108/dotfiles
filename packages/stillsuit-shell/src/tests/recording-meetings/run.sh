@@ -56,20 +56,76 @@ shell_pid=$!
 ipc() { qs ipc --pid "$shell_pid" call stillsuit-recording-meetings-fixture "$@"; }
 for _ in {1..120}; do [[ $(ipc ready 2>/dev/null || true) == ready ]] && break; sleep 0.05; done
 [[ $(ipc ready) == ready ]]
+
+# Starting, pausing, resuming, and cancelling are terminal panel interactions.
+# The accepted command closes the panel before its resulting phase is rendered.
+[[ $(ipc startFromPanel) == started ]]
+jq -e '.recordingPhase == "recording" and .recordingOpen == false' \
+  <<< "$(ipc state)" >/dev/null
+[[ $(ipc togglePauseFromPanel recording) == started ]]
+jq -e '.recordingPhase == "paused" and .recordingOpen == false' \
+  <<< "$(ipc state)" >/dev/null
+[[ $(ipc togglePauseFromPanel paused) == started ]]
+jq -e '.recordingPhase == "recording" and .recordingOpen == false' \
+  <<< "$(ipc state)" >/dev/null
+[[ $(ipc cancelFromPanel) == started ]]
+jq -e '.recordingPhase == "idle" and .recordingOpen == false' \
+  <<< "$(ipc state)" >/dev/null
+
 [[ $(ipc openRecording idle) == open ]]
 [[ $(ipc openRecording recording) == open ]]
+state=$(ipc state)
+jq -e '.recordingPanelWidth < .standardPanelWidth' <<< "$state" >/dev/null
 [[ $(ipc openRecording completed) == open ]]
 jq -e '.recordingOpen and .recordingMeetingRows == 1 and .meetingRows == 2' \
   <<< "$(ipc state)" >/dev/null
+[[ $(ipc renameFromPanel 'renamed fixture') == started ]]
+jq -e '.renameTitle == "renamed fixture"' <<< "$(ipc state)" >/dev/null
+[[ $(ipc closeCompletedPanel) == closed ]]
+jq -e '.recordingPhase == "idle" and .recordingOpen == false
+  and .dismissCount == 1' <<< "$(ipc state)" >/dev/null
 
-# Both real recording indicators retain their static dot but expose no running
-# pulse when the user requests reduced motion.
+# Completion actions close immediately. Opening a file or folder defers the
+# state dismissal until its asynchronous launcher exits; copying dismisses now.
+[[ $(ipc openFileFromPanel) == started ]]
+jq -e '.recordingPhase == "completed" and .recordingOpen == false
+  and .actionRunning and .openRecordingCount == 1' <<< "$(ipc state)" >/dev/null
+[[ $(ipc finishOpenAction) == finished ]]
+jq -e '.recordingPhase == "idle" and .dismissCount == 2' \
+  <<< "$(ipc state)" >/dev/null
+[[ $(ipc openFolderFromPanel) == started ]]
+jq -e '.recordingPhase == "completed" and .recordingOpen == false
+  and .actionRunning and .openFolderCount == 1' <<< "$(ipc state)" >/dev/null
+[[ $(ipc finishOpenAction) == finished ]]
+jq -e '.recordingPhase == "idle" and .dismissCount == 3' \
+  <<< "$(ipc state)" >/dev/null
+[[ $(ipc copyPathFromPanel) == copied ]]
+jq -e '.recordingPhase == "idle" and .recordingOpen == false
+  and .copyPathCount == 1 and .copiedPath == "/tmp/recordings/renamed fixture.mp4"
+  and .dismissCount == 4' <<< "$(ipc state)" >/dev/null
+
+# Reduced motion no longer changes the static recording icon.
 [[ $(ipc setReducedMotion true) == ok ]]
 state=$(ipc state)
-jq -e '.pulses.widget == false and .pulses.panel == false
-  and .pulses.widgetScale == 1 and .pulses.panelScale == 1' <<< "$state" >/dev/null
+jq -e '.recordingWidgetIcon == "record"
+  and .recordingWidgetOutputLabel == "eDP-1"
+  and .recordingWidgetWidth < .standardPanelWidth' <<< "$state" >/dev/null
 [[ $(ipc setReducedMotion false) == ok ]]
-jq -e '.pulses.widget and .pulses.panel' <<< "$(ipc state)" >/dev/null
+jq -e '.recordingWidgetIcon == "record"' <<< "$(ipc state)" >/dev/null
+
+# A single click toggles pause after the double-click window. A double click
+# cancels that pending toggle and opens the recording panel instead.
+[[ $(ipc resetInteractionCounts) == ok ]]
+[[ $(ipc singleClickRecordingWidget) == queued ]]
+sleep 0.4
+state=$(ipc state)
+jq -e '.togglePauseCount == 1 and .surfaceToggleCount == 0
+  and .recordingWidgetIcon == "pause"' <<< "$state" >/dev/null
+[[ $(ipc doubleClickRecordingWidget) == opened ]]
+sleep 0.4
+state=$(ipc state)
+jq -e '.togglePauseCount == 1 and .surfaceToggleCount == 1
+  and .lastOpenPlugin == "stillsuit.recording"' <<< "$state" >/dev/null
 
 # Discarding the failed job removes it permanently and leaves the unrelated
 # completed job untouched.

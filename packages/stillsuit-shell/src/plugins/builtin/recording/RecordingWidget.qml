@@ -11,31 +11,65 @@ Ui.ShellAction {
     readonly property var recording: workflows ? workflows.recording : null
     readonly property bool activeRecording: recording && recording.active === true
     readonly property bool paused: recording && recording.paused === true
-    readonly property bool pulseRunning: activeRecording && !paused
-        && !(context.settings && context.settings.values
-            && context.settings.values.reducedMotion === true)
-    readonly property real pulseScale: recordingPulse.scale
+    readonly property string indicatorIconName: paused ? "pause" : "record"
+    readonly property string outputLabel: recording ? String(recording.monitor || "") : ""
     readonly property color stateColor: paused
         ? context.theme.semantic.status.warning
         : context.theme.semantic.signal.recording
 
-    onPulseRunningChanged: if (!pulseRunning) recordingPulse.scale = 1
-
     visible: activeRecording
-    accessibleName: paused ? "Recording paused, " + recording.elapsedText
-        : "Recording active, " + recording.elapsedText
+    accessibleName: (paused ? "Recording paused, " : "Recording active, ")
+        + recording.elapsedText + (outputLabel ? ", " + outputLabel : "")
     accessibleFallback: "Recording status"
     implicitWidth: indicatorRow.implicitWidth + 14
     implicitHeight: Math.max(22, context.theme.metrics.barHeight - 6)
-    onActivated: context.actions.surfaceToggle("stillsuit.recording", JSON.stringify({outputId: root.outputId}))
+    onActivated: root.toggleRecording()
+
+    function toggleRecording() {
+        if (recording)
+            recording.togglePause()
+    }
+
+    function openPanel() {
+        context.actions.surfaceToggle("stillsuit.recording", JSON.stringify({outputId: root.outputId}))
+    }
+
+    function queueSingleClick() {
+        singleClickTimer.restart()
+    }
+
+    function handleDoubleClick() {
+        singleClickTimer.stop()
+        openPanel()
+    }
+
+    Timer {
+        id: singleClickTimer
+        interval: 300
+        onTriggered: root.toggleRecording()
+    }
 
     Rectangle {
         anchors.fill: parent
         radius: root.context.theme.metrics.radiusSmall
-        color: root.pressed
+        color: clickArea.pressed
             ? root.context.theme.semantic.surface.pressed
-            : root.hovered ? root.context.theme.component.bar.clusterHover : "transparent"
+            : clickArea.containsMouse ? root.context.theme.component.bar.clusterHover : "transparent"
         border.width: 0
+    }
+
+    MouseArea {
+        id: clickArea
+        anchors.fill: parent
+        enabled: root.canActivate
+        hoverEnabled: true
+        cursorShape: root.canActivate ? Qt.PointingHandCursor : Qt.ArrowCursor
+        onPressed: root.forceActiveFocus(Qt.MouseFocusReason)
+        onClicked: root.queueSingleClick()
+        onDoubleClicked: function (mouse) {
+            mouse.accepted = true
+            root.handleDoubleClick()
+        }
     }
 
     RowLayout {
@@ -43,31 +77,12 @@ Ui.ShellAction {
         anchors.centerIn: parent
         spacing: 6
 
-        Item {
-            implicitWidth: 12
-            implicitHeight: 12
-            Rectangle {
-                id: recordingPulse
-                anchors.centerIn: parent
-                width: 8
-                height: 8
-                radius: 4
-                color: root.stateColor
-                SequentialAnimation on scale {
-                    running: root.pulseRunning
-                    loops: Animation.Infinite
-                    NumberAnimation { to: 0.55; duration: 700; easing.type: Easing.InOutQuad }
-                    NumberAnimation { to: 1; duration: 700; easing.type: Easing.InOutQuad }
-                }
-            }
-            Ui.ShellIcon {
-                visible: root.paused
-                anchors.centerIn: parent
-                theme: root.context.theme
-                name: "pause"
-                sizeRole: "small"
-                color: root.stateColor
-            }
+        Ui.ShellIcon {
+            theme: root.context.theme
+            name: root.indicatorIconName
+            pixelSize: Math.max(1, root.context.theme.metrics.iconSmall
+                - root.context.theme.metrics.spaceUnit / 2)
+            color: root.stateColor
         }
 
         Ui.ShellText {
@@ -77,6 +92,18 @@ Ui.ShellAction {
             sizeRole: "caption"
             color: root.stateColor
             font.weight: root.context.theme.typography.weightBold
+        }
+
+        Ui.ShellText {
+            id: outputName
+            visible: root.outputLabel !== ""
+            Layout.preferredWidth: Math.min(implicitWidth,
+                root.context.theme.metrics.spaceUnit * 40)
+            theme: root.context.theme
+            text: root.outputLabel
+            sizeRole: "caption"
+            role: "muted"
+            elide: Text.ElideRight
         }
     }
 }

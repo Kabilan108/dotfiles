@@ -44,23 +44,59 @@ ShellRoot {
         property string outputFilename: "fixture recording.mp4"
         property string outputSizeText: "2.0 KB"
         property string title: "fixture recording"
+        property string monitor: "eDP-1"
         property string recordingDirectory: "/tmp/recordings"
         property bool defaultDesktopAudio: true
         property bool defaultMicrophone: false
         property bool actionRunning: false
+        property int togglePauseCount: 0
+        property int dismissCount: 0
+        property int openRecordingCount: 0
+        property int openFolderCount: 0
+        property int copyPathCount: 0
         property string copiedPath: ""
         property string errorMessage: ""
         function defaultTitle() { return "fixture title" }
-        function start(directory, monitor, title, desktopAudio, microphone) { return "started" }
-        function togglePause() { return "started" }
+        function start(directory, monitor, title, desktopAudio, microphone) {
+            phase = "recording"
+            return "started"
+        }
+        function togglePause() {
+            togglePauseCount += 1
+            phase = paused ? "recording" : "paused"
+            return "started"
+        }
         function stopAsMeeting() { return "started" }
         function finish() { return "started" }
-        function cancel() { return "started" }
-        function rename(title) { return "started" }
-        function copyOutputPath() { copiedPath = outputPath; return "copied" }
-        function openRecording() { return "started" }
-        function openFolder() { return "started" }
-        function dismiss() { phase = "idle"; return "started" }
+        function cancel() {
+            phase = "idle"
+            return "started"
+        }
+        function rename(requestedTitle) {
+            outputPath = "/tmp/recordings/" + requestedTitle + ".mp4"
+            title = requestedTitle
+            return "started"
+        }
+        function copyOutputPath() {
+            copyPathCount += 1
+            copiedPath = outputPath
+            return "copied"
+        }
+        function openRecording() {
+            openRecordingCount += 1
+            actionRunning = true
+            return "started"
+        }
+        function openFolder() {
+            openFolderCount += 1
+            actionRunning = true
+            return "started"
+        }
+        function dismiss() {
+            dismissCount += 1
+            phase = "idle"
+            return "started"
+        }
     }
 
     QtObject {
@@ -107,11 +143,17 @@ ShellRoot {
         id: actions
         property string lastOpenPlugin: ""
         property string lastOpenPayload: ""
+        property int surfaceToggleCount: 0
         function surfaceClose(pluginId) {
             if (pluginId === "stillsuit.recording") recordingPanel.close()
             return "ok"
         }
-        function surfaceToggle(pluginId, payloadJson) { return "ok" }
+        function surfaceToggle(pluginId, payloadJson) {
+            surfaceToggleCount += 1
+            lastOpenPlugin = String(pluginId)
+            lastOpenPayload = String(payloadJson)
+            return "ok"
+        }
         function surfaceOpen(pluginId, payloadJson) {
             lastOpenPlugin = String(pluginId)
             lastOpenPayload = String(payloadJson)
@@ -153,9 +195,70 @@ ShellRoot {
         target: "stillsuit-recording-meetings-fixture"
         function ready(): string { return Quickshell.screens.length > 0 ? "ready" : "loading" }
         function openRecording(phase: string): string { recordingModel.phase = phase; recordingPanel.open(""); return recordingPanel.opened ? "open" : "closed" }
+        function startFromPanel(): string {
+            recordingModel.phase = "idle"
+            recordingPanel.open("")
+            return recordingPanel.startCapture()
+        }
+        function togglePauseFromPanel(phase: string): string {
+            recordingModel.phase = phase
+            recordingPanel.open("")
+            return recordingPanel.togglePauseAndClose()
+        }
+        function cancelFromPanel(): string {
+            recordingModel.phase = "recording"
+            recordingPanel.open("")
+            return recordingPanel.cancelAndClose()
+        }
+        function renameFromPanel(requestedTitle: string): string {
+            recordingModel.phase = "completed"
+            recordingPanel.open("")
+            recordingPanel.renameTitle = requestedTitle
+            return recordingModel.rename(requestedTitle)
+        }
+        function closeCompletedPanel(): string {
+            recordingModel.phase = "completed"
+            recordingPanel.open("")
+            recordingPanel.close()
+            return "closed"
+        }
+        function openFileFromPanel(): string {
+            recordingModel.phase = "completed"
+            recordingPanel.open("")
+            return recordingPanel.openRecordingAndClose()
+        }
+        function openFolderFromPanel(): string {
+            recordingModel.phase = "completed"
+            recordingPanel.open("")
+            return recordingPanel.openFolderAndClose()
+        }
+        function copyPathFromPanel(): string {
+            recordingModel.phase = "completed"
+            recordingPanel.open("")
+            return recordingPanel.copyOutputPathAndClose()
+        }
+        function finishOpenAction(): string {
+            recordingModel.actionRunning = false
+            return "finished"
+        }
         function setReducedMotion(value: bool): string {
             settings.values = { reducedMotion: value }
             recordingModel.phase = "recording"
+            return "ok"
+        }
+        function singleClickRecordingWidget(): string {
+            recordingWidget.queueSingleClick()
+            return "queued"
+        }
+        function doubleClickRecordingWidget(): string {
+            recordingWidget.queueSingleClick()
+            recordingWidget.handleDoubleClick()
+            return "opened"
+        }
+        function resetInteractionCounts(): string {
+            recordingModel.togglePauseCount = 0
+            actions.surfaceToggleCount = 0
+            actions.lastOpenPlugin = ""
             return "ok"
         }
         function discardJob(jobId: string): string {
@@ -169,14 +272,24 @@ ShellRoot {
         function state(): string {
             return JSON.stringify({
                 recordingOpen: recordingPanel.opened,
+                recordingPhase: recordingModel.phase,
+                renameTitle: recordingPanel.renameTitle,
+                dismissCount: recordingModel.dismissCount,
+                openRecordingCount: recordingModel.openRecordingCount,
+                openFolderCount: recordingModel.openFolderCount,
+                copyPathCount: recordingModel.copyPathCount,
+                copiedPath: recordingModel.copiedPath,
+                actionRunning: recordingModel.actionRunning,
+                recordingPanelWidth: recordingPanel.implicitWidth,
+                standardPanelWidth: fixture.theme.metrics.panelWidth,
                 recordingMeetingRows: recordingPanel.meetingQueueRowCount,
                 meetingRows: meetingModel.jobs.length,
-                pulses: {
-                    widget: recordingWidget.pulseRunning,
-                    panel: recordingPanel.pulseRunning,
-                    widgetScale: recordingWidget.pulseScale,
-                    panelScale: recordingPanel.pulseScale
-                }
+                recordingWidgetIcon: recordingWidget.indicatorIconName,
+                recordingWidgetOutputLabel: recordingWidget.outputLabel,
+                recordingWidgetWidth: recordingWidget.implicitWidth,
+                togglePauseCount: recordingModel.togglePauseCount,
+                surfaceToggleCount: actions.surfaceToggleCount,
+                lastOpenPlugin: actions.lastOpenPlugin
             })
         }
     }

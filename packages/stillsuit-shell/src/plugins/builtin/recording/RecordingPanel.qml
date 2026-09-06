@@ -7,7 +7,12 @@ import "../../../ui" as Ui
 Item {
     id: root
     readonly property bool hostedPanel: true
-    implicitWidth: root.context.theme.metrics.panelWidth
+    implicitWidth: root.recording && root.recording.active
+        ? activeContent.implicitWidth + root.context.theme.metrics.panelPadding * 2
+        : root.recording && root.recording.completed
+            ? Math.max(root.context.theme.metrics.panelWidth,
+                footerActions.implicitWidth + root.context.theme.metrics.panelPadding * 2)
+            : root.context.theme.metrics.panelWidth
     implicitHeight: panelContent.implicitHeight + root.context.theme.metrics.panelPadding * 2
     visible: false
 
@@ -17,8 +22,6 @@ Item {
     readonly property var workflows: context.services.get("stillsuit.workflows")
     readonly property var recording: workflows ? workflows.recording : null
     readonly property var meeting: workflows ? workflows.meeting : null
-    readonly property bool pulseRunning: recording && recording.phase === "recording" && !(context.settings && context.settings.values && context.settings.values.reducedMotion === true)
-    readonly property real pulseScale: panelPulse.scale
     readonly property int meetingQueueRowCount: meetingQueue.rowCount
     readonly property var monitorRows: {
         var rows = context.compositor && Array.isArray(context.compositor.outputs) ? context.compositor.outputs : [];
@@ -38,9 +41,7 @@ Item {
     property string renameTitle: ""
     property bool desktopAudio: true
     property bool microphone: false
-
-    onPulseRunningChanged: if (!pulseRunning)
-        panelPulse.scale = 1
+    property bool dismissWhenActionCompletes: false
 
     function open(payloadJson) {
         opened = true;
@@ -57,6 +58,12 @@ Item {
     function close() {
         opened = false;
         completionCountdown.stop();
+        if (recording && recording.completed) {
+            if (recording.actionRunning)
+                dismissWhenActionCompletes = true;
+            else
+                recording.dismiss();
+        }
     }
 
     function resetSetup() {
@@ -93,16 +100,111 @@ Item {
     function startCapture() {
         if (!recording)
             return "unavailable";
-        return recording.start(recording.recordingDirectory, selectedMonitor, draftTitle.trim(), desktopAudio, microphone);
+        var result = recording.start(recording.recordingDirectory, selectedMonitor, draftTitle.trim(), desktopAudio, microphone);
+        if (result === "started")
+            closeSurface();
+        return result;
+    }
+
+    function togglePauseAndClose() {
+        if (!recording)
+            return "unavailable";
+        var result = recording.togglePause();
+        if (result === "started")
+            closeSurface();
+        return result;
+    }
+
+    function cancelAndClose() {
+        if (!recording)
+            return "unavailable";
+        var result = recording.cancel();
+        if (result === "started")
+            closeSurface();
+        return result;
+    }
+
+    function runCompletedAction(action) {
+        if (!recording)
+            return "unavailable";
+        var result = action();
+        closeSurface();
+        return result;
+    }
+
+    function openRecordingAndClose() {
+        return runCompletedAction(function () { return recording.openRecording(); });
+    }
+
+    function openFolderAndClose() {
+        return runCompletedAction(function () { return recording.openFolder(); });
+    }
+
+    function copyOutputPathAndClose() {
+        return runCompletedAction(function () { return recording.copyOutputPath(); });
     }
 
     function closeSurface() {
         context.actions.surfaceClose("stillsuit.recording");
     }
 
+    component RoundControl: Ui.ShellAction {
+        id: control
+
+        required property var theme
+        property string iconName: ""
+        property bool dangerIcon: false
+
+        signal clicked
+
+        accessibleFallback: iconName.replace(/-/g, " ")
+        implicitWidth: 34
+        implicitHeight: implicitWidth
+        onActivated: clicked()
+
+        Rectangle {
+            anchors.fill: parent
+            radius: width / 2
+            color: !control.enabled
+                ? control.theme.component.control.disabled
+                : control.pressed
+                    ? control.theme.component.control.pressed
+                    : control.hovered
+                        ? control.theme.component.control.hover
+                        : control.theme.component.control.background
+            border.width: 1
+            border.color: control.theme.component.control.outline
+            opacity: control.enabled ? 1 : 0.74
+        }
+
+        Ui.ShellBusyIndicator {
+            anchors.centerIn: parent
+            visible: control.busy
+            theme: control.theme
+            sizeRole: "small"
+            color: control.dangerIcon
+                ? control.theme.semantic.status.danger
+                : control.theme.component.control.text
+        }
+
+        Ui.ShellIcon {
+            anchors.centerIn: parent
+            visible: !control.busy
+            theme: control.theme
+            name: control.iconName
+            sizeRole: "small"
+            color: !control.enabled
+                ? control.theme.component.control.textDisabled
+                : control.dangerIcon
+                    ? control.theme.semantic.status.danger
+                    : control.theme.component.control.text
+            role: control.dangerIcon ? "danger" : "primary"
+        }
+    }
+
     CompletionCountdown {
         id: completionCountdown
-        timeoutMs: 5000
+        timeoutMs: 30000
         interactionActive: completionHover.hovered || completionFocus.activeFocus
         onExpired: root.closeSurface()
     }
@@ -124,9 +226,22 @@ Item {
                 completionCountdown.start();
             } else if (!root.recording.completed) {
                 completionCountdown.stop();
+                root.dismissWhenActionCompletes = false;
             }
         }
+        function onActionRunningChanged() {
+            if (!root.recording || root.recording.actionRunning
+                    || !root.dismissWhenActionCompletes)
+                return;
+            root.dismissWhenActionCompletes = false;
+            if (root.recording.completed)
+                root.recording.dismiss();
+        }
         function onOutputPathChanged() {
+            if (root.recording && root.recording.completed)
+                root.renameTitle = root.recording.outputFilename.replace(/\.mp4$/, "");
+        }
+        function onTitleChanged() {
             if (root.recording && root.recording.completed)
                 root.renameTitle = root.recording.title;
         }
@@ -155,6 +270,7 @@ Item {
             spacing: root.context.theme.metrics.spaceUnit * 3
 
             Ui.ShellPanelHeader {
+                visible: !root.recording || !root.recording.active
                 Layout.fillWidth: true
                 theme: root.context.theme
                 title: root.recording && root.recording.completed ? "Recording saved" : root.recording && root.recording.phase === "error" ? "Recording failed" : root.recording && root.recording.active ? "Screen recording" : "New recording"
@@ -292,68 +408,42 @@ Item {
             RowLayout {
                 id: activeContent
                 visible: root.recording && root.recording.active
+                Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
                 spacing: 8
 
-                Rectangle {
-                    id: panelPulse
-                    implicitWidth: 10
-                    implicitHeight: 10
-                    radius: 5
-                    color: root.recording && root.recording.paused ? root.context.theme.semantic.status.warning : root.context.theme.semantic.signal.recording
-                    SequentialAnimation on scale {
-                        running: root.pulseRunning
-                        loops: Animation.Infinite
-                        NumberAnimation {
-                            to: 0.58
-                            duration: 700
-                            easing.type: Easing.InOutQuad
-                        }
-                        NumberAnimation {
-                            to: 1
-                            duration: 700
-                            easing.type: Easing.InOutQuad
-                        }
-                    }
-                }
-                Ui.ShellText {
+                RoundControl {
+                    id: pauseControl
                     theme: root.context.theme
-                    text: root.recording ? root.recording.elapsedText : "00:00"
-                    monospace: true
-                    sizeRole: "heading"
-                }
-                Ui.ShellButton {
-                    theme: root.context.theme
-                    label: root.recording && root.recording.paused ? "Resume" : "Pause"
                     iconName: root.recording && root.recording.paused ? "play" : "pause"
-                    compact: true
+                    accessibleName: root.recording && root.recording.paused ? "Resume recording" : "Pause recording"
                     busy: root.recording && root.recording.actionRunning
-                    onClicked: root.recording.togglePause()
+                    onClicked: root.togglePauseAndClose()
                 }
-                Ui.ShellButton {
+                RoundControl {
+                    id: meetingControl
                     theme: root.context.theme
-                    label: "Finish as meeting"
-                    iconName: "success"
-                    compact: true
-                    active: true
+                    iconName: "agent"
+                    accessibleName: "Finish as meeting"
                     busy: root.recording && root.recording.actionRunning
                     onClicked: root.recording.stopAsMeeting()
                 }
-                Ui.ShellButton {
+                RoundControl {
+                    id: finishControl
                     theme: root.context.theme
-                    label: "Finish"
-                    compact: true
+                    iconName: "success"
+                    accessibleName: "Finish recording"
                     busy: root.recording && root.recording.actionRunning
                     onClicked: root.recording.finish()
                 }
-                Ui.ShellButton {
+                RoundControl {
+                    id: cancelControl
                     theme: root.context.theme
-                    label: "Cancel"
-                    iconName: "delete"
-                    compact: true
-                    destructive: true
+                    iconName: "close"
+                    dangerIcon: true
+                    accessibleName: "Cancel recording"
                     busy: root.recording && root.recording.actionRunning
-                    onClicked: root.recording.cancel()
+                    onClicked: root.cancelAndClose()
                 }
             }
 
@@ -376,64 +466,17 @@ Item {
                     spacing: root.context.theme.metrics.spaceUnit * 2
 
                     RowLayout {
-                        Layout.fillWidth: true
-                        Ui.ShellText {
-                            Layout.fillWidth: true
-                            theme: root.context.theme
-                            text: (root.recording ? root.recording.elapsedText : "00:00") + " · " + (root.recording ? root.recording.outputSizeText : "0 B")
-                            role: "muted"
-                        }
-                        Ui.ShellStatus {
-                            theme: root.context.theme
-                            status: completionCountdown.interactionActive ? "warning" : "info"
-                            label: completionCountdown.interactionActive ? "Close paused" : "Closes in " + completionCountdown.remainingSeconds + " s"
-                        }
-                    }
-
-                    Ui.ShellSurface {
-                        Layout.fillWidth: true
-                        implicitHeight: root.context.theme.metrics.rowHeight + 4
-                        theme: root.context.theme
-                        kind: "raised"
-                        Ui.ShellText {
-                            anchors {
-                                left: parent.left
-                                right: copyPath.left
-                                verticalCenter: parent.verticalCenter
-                                leftMargin: 10
-                                rightMargin: 8
-                            }
-                            theme: root.context.theme
-                            text: root.recording ? root.recording.outputPath : ""
-                            monospace: true
-                            sizeRole: "caption"
-                            role: "secondary"
-                            elide: Text.ElideMiddle
-                        }
-                        Ui.ShellButton {
-                            id: copyPath
-                            anchors {
-                                right: parent.right
-                                rightMargin: 6
-                                verticalCenter: parent.verticalCenter
-                            }
-                            theme: root.context.theme
-                            label: root.recording && root.recording.copiedPath === root.recording.outputPath ? "Copied" : "Copy path"
-                            iconName: "copy"
-                            compact: true
-                            onClicked: root.recording.copyOutputPath()
-                        }
-                    }
-
-                    RowLayout {
                         visible: root.recording && root.recording.phase === "completed"
                         Layout.fillWidth: true
                         Controls.TextField {
                             id: renameInput
                             Layout.fillWidth: true
                             implicitHeight: root.context.theme.metrics.rowHeight
+                                - root.context.theme.metrics.spaceUnit * 2
                             text: root.renameTitle
                             selectByMouse: true
+                            leftPadding: root.context.theme.metrics.iconSmall
+                                + root.context.theme.metrics.spaceUnit * 5
                             color: root.context.theme.semantic.content.primary
                             selectionColor: root.context.theme.semantic.accent.primary
                             selectedTextColor: root.context.theme.semantic.accent.onAccent
@@ -448,11 +491,21 @@ Item {
                                 border.width: 1
                                 border.color: root.context.theme.component.control.outline
                             }
+                            Ui.ShellIcon {
+                                anchors {
+                                    left: parent.left
+                                    leftMargin: root.context.theme.metrics.spaceUnit * 3
+                                    verticalCenter: parent.verticalCenter
+                                }
+                                theme: root.context.theme
+                                name: "edit"
+                                sizeRole: "small"
+                                role: "muted"
+                            }
                         }
                         Ui.ShellButton {
                             theme: root.context.theme
                             label: "Rename"
-                            iconName: "edit"
                             compact: true
                             busy: root.recording && root.recording.actionRunning
                             enabled: root.renameTitle.trim() !== ""
@@ -460,37 +513,53 @@ Item {
                         }
                     }
 
-                    RowLayout {
+                    ColumnLayout {
                         Layout.fillWidth: true
+                        spacing: root.context.theme.metrics.spaceUnit
+
+                        Ui.ShellText {
+                            Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignHCenter
+                            theme: root.context.theme
+                            text: (root.recording ? root.recording.elapsedText : "00:00") + " · " + (root.recording ? root.recording.outputSizeText : "0 B")
+                            role: "muted"
+                            font.pixelSize: root.context.theme.typography.baseSize
+                                + root.context.theme.metrics.spaceUnit / 2
+                            font.weight: root.context.theme.typography.weightMedium
+                        }
+                    }
+
+                    RowLayout {
+                        id: footerActions
+                        Layout.fillWidth: true
+                        spacing: root.context.theme.metrics.spaceUnit
                         Ui.ShellButton {
                             theme: root.context.theme
                             label: "Open recording"
                             iconName: "play"
                             compact: true
+                            ghost: true
                             busy: root.recording && root.recording.actionRunning
-                            onClicked: root.recording.openRecording()
+                            onClicked: root.openRecordingAndClose()
                         }
                         Ui.ShellButton {
                             theme: root.context.theme
                             label: "Open folder"
                             iconName: "folder"
                             compact: true
+                            ghost: true
                             busy: root.recording && root.recording.actionRunning
-                            onClicked: root.recording.openFolder()
-                        }
-                        Item {
-                            Layout.fillWidth: true
+                            onClicked: root.openFolderAndClose()
                         }
                         Ui.ShellButton {
+                            id: copyPath
                             theme: root.context.theme
-                            label: "Dismiss"
+                            label: root.recording && root.recording.copiedPath === root.recording.outputPath ? "Copied" : "Copy path"
+                            iconName: "copy"
                             compact: true
-                            busy: root.recording && root.recording.actionRunning
-                            onClicked: {
-                                completionCountdown.stop();
-                                root.recording.dismiss();
-                                root.closeSurface();
-                            }
+                            ghost: true
+                            accessibleName: label
+                            onClicked: root.copyOutputPathAndClose()
                         }
                     }
                 }

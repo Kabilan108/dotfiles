@@ -18,6 +18,17 @@ let
   };
   networkHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/network-helper.nix { };
   agentUsageHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/agent-usage-helper.nix { };
+  openHelper = pkgs.writeShellApplication {
+    name = "stillsuit-open";
+    runtimeInputs = [
+      pkgs.glib
+      pkgs.mpv
+      pkgs.nautilus
+    ];
+    text = ''
+      gio open -- "$1"
+    '';
+  };
 in
 {
   programs.stillsuitShell.enable = true;
@@ -124,7 +135,7 @@ in
           meetingStatusPath = "${homeDir}/.local/state/meeting-minutes/status.json";
           meetingJobsPath = "${homeDir}/.local/state/meeting-minutes/jobs.json";
           meetingHelperPath = lib.getExe meetingEnqueueHelper;
-          openHelperPath = lib.getExe' pkgs.xdg-utils "xdg-open";
+          openHelperPath = lib.getExe openHelper;
           dictatorSocketPath = "/run/user/1000/dictator/osd.sock";
         };
       }
