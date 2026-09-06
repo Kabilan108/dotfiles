@@ -25,7 +25,27 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, NoReturn
 
-VERSION = "0.4.0"
+VERSION = "0.4.1"
+
+MACHINE_COLUMN_WIDTH = 10
+SESSION_COLUMN_WIDTH = 32
+DIRECTORY_COLOR = "#6c7086"
+AGENT_COLOR = "#a6e3a1"
+AGENT_NAMES = ("opencode2", "opencode", "claude", "codex")
+PANE_SEPARATOR = "\x1f"
+PANE_FORMAT = PANE_SEPARATOR.join(
+    (
+        "#{window_index}",
+        "#{window_name}",
+        "#{window_active}",
+        "#{pane_index}",
+        "#{pane_active}",
+        "#{pane_pid}",
+        "#{pane_current_command}",
+        "#{pane_current_path}",
+        "#{pane_title}",
+    )
+)
 
 CONFIG_PATH = Path(
     os.environ.get(
@@ -108,6 +128,19 @@ class Candidate:
             )
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise SessionizerError("invalid picker row") from exc
+
+
+@dataclass(frozen=True)
+class Pane:
+    window_index: str
+    window_name: str
+    window_active: bool
+    pane_index: str
+    pane_active: bool
+    pid: int
+    command: str
+    path: str
+    title: str
 
 
 DEFAULT_CONFIG = Config(
@@ -222,6 +255,17 @@ def colorize(text: str, color: str) -> str:
         return text
     components = [int(color[index : index + 2], 16) for index in (1, 3, 5)]
     return f"\033[38;2;{components[0]};{components[1]};{components[2]}m{text}\033[0m"
+
+
+def sanitize_field(value: str) -> str:
+    return value.replace("\t", " ").replace("\n", " ")
+
+
+def fit_column(value: str, width: int) -> str:
+    value = sanitize_field(value)
+    if len(value) > width:
+        return value[: width - 1] + "…"
+    return value.ljust(width)
 
 
 def local_candidates(origin_session: str = "") -> list[Candidate]:
@@ -425,12 +469,19 @@ def all_candidates(
 
 def render_row(candidate: Candidate) -> str:
     if candidate.kind == "directory":
-        badge = colorize("directory", os.environ.get("FLEET_HOST_HEX", ""))
+        machine = colorize(fit_column("󰉋", MACHINE_COLUMN_WIDTH), DIRECTORY_COLOR)
+        name = colorize(
+            fit_column(candidate.name, SESSION_COLUMN_WIDTH), DIRECTORY_COLOR
+        )
+        detail = colorize(sanitize_field(candidate.detail), DIRECTORY_COLOR)
     else:
-        badge = colorize(candidate.host, candidate.color)
-    name = candidate.name.replace("\t", " ").replace("\n", " ")
-    detail = candidate.detail.replace("\t", " ").replace("\n", " ")
-    return f"{candidate.identity}\t{candidate.token()}\t{name}\t{detail}\t{badge}"
+        machine = colorize(
+            fit_column(candidate.host, MACHINE_COLUMN_WIDTH), candidate.color
+        )
+        name = fit_column(candidate.name, SESSION_COLUMN_WIDTH)
+        detail = sanitize_field(candidate.detail)
+    display = f"{machine} │ {name} │ {detail}"
+    return f"{candidate.identity}\t{candidate.token()}\t{display}"
 
 
 def render_rows(candidates: list[Candidate]) -> str:
@@ -501,7 +552,7 @@ def picker(
         + edit_keys
         + ")"
     )
-    bindings = ["start:unbind(" + edit_keys + ")"]
+    bindings = ["start:unbind(" + ",".join(modal_keys) + ")"]
     bindings.extend(
         key + ":ignore" for key in SWITCH_TYPING_KEYS if key not in SWITCH_NORMAL_KEYS
     )
@@ -525,13 +576,15 @@ def picker(
         "--info=inline",
         "--print-query",
         "--prompt",
-        "normal> ",
+        "insert> ",
+        "--header",
+        f"{'MACHINE':<{MACHINE_COLUMN_WIDTH}} │ {'SESSION':<{SESSION_COLUMN_WIDTH}} │ DETAILS",
         "--delimiter",
         "\t",
         "--with-nth",
-        "3,4,5",
+        "3",
         "--nth",
-        "3,4,5",
+        "1",
         "--track",
         "--id-nth",
         "1",
@@ -588,23 +641,164 @@ def refresh_picker(
     print("reload(cat " + shlex.quote(str(snapshot)) + ")")
 
 
-def preview(candidate: Candidate) -> None:
+def parse_panes(output: str) -> list[Pane]:
+    panes: list[Pane] = []
+    for line in output.splitlines():
+        fields = line.split(PANE_SEPARATOR, 8)
+        if len(fields) != 9:
+            continue
+        try:
+            pid = int(fields[5])
+        except ValueError:
+            pid = 0
+        panes.append(
+            Pane(
+                window_index=fields[0],
+                window_name=fields[1],
+                window_active=fields[2] == "1",
+                pane_index=fields[3],
+                pane_active=fields[4] == "1",
+                pid=pid,
+                command=fields[6],
+                path=fields[7],
+                title=fields[8],
+            )
+        )
+    return panes
+
+
+def descendant_process_text(pid: int) -> str:
+    if pid <= 0:
+        return ""
+    pending = [pid]
+    seen: set[int] = set()
+    fragments: list[str] = []
+    while pending:
+        current = pending.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        process_dir = Path("/proc") / str(current)
+        with contextlib.suppress(OSError):
+            fragments.append((process_dir / "comm").read_text(encoding="utf-8"))
+        with contextlib.suppress(OSError):
+            fragments.append(
+                (process_dir / "cmdline")
+                .read_bytes()
+                .replace(b"\0", b" ")
+                .decode(errors="replace")
+            )
+        children_path = process_dir / "task" / str(current) / "children"
+        with contextlib.suppress(OSError, ValueError):
+            pending.extend(int(value) for value in children_path.read_text().split())
+    return " ".join(fragments)
+
+
+def detect_agents(pane: Pane, *, inspect_processes: bool) -> tuple[str, ...]:
+    text = f"{pane.window_name} {pane.command} {pane.title}"
+    if inspect_processes:
+        text += " " + descendant_process_text(pane.pid)
+    lowered = text.casefold()
+    return tuple(
+        agent
+        for agent in AGENT_NAMES
+        if re.search(rf"(?<![a-z0-9]){re.escape(agent)}(?![a-z0-9])", lowered)
+    )
+
+
+def abbreviated_path(value: str) -> str:
+    home = str(Path.home())
+    if value == home:
+        return "~"
+    if value.startswith(home + "/"):
+        return "~" + value[len(home) :]
+    return value
+
+
+def session_panes(candidate: Candidate) -> tuple[list[Pane], bool]:
     if candidate.kind == "local":
         output = tmux(
-            "list-windows",
+            "list-panes",
+            "-s",
             "-t",
             candidate.target,
             "-F",
-            "#{window_index}: #{window_name} (#{pane_current_command})",
+            PANE_FORMAT,
             check=False,
         )
-        print(output)
-        return
+        return parse_panes(output), True
+
+    remote_command = (
+        shlex.join(
+            ["tmux", "list-panes", "-s", "-t", candidate.target, "-F", PANE_FORMAT]
+        )
+        + " 2>/dev/null"
+    )
+    result = run(
+        [
+            "ssh",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=2",
+            f"{candidate.host}-agent",
+            remote_command,
+        ],
+        check=False,
+        timeout=5,
+    )
+    return parse_panes(result.stdout), False
+
+
+def render_session_preview(candidate: Candidate) -> None:
+    panes, inspect_processes = session_panes(candidate)
+    agents_by_pane = {
+        (pane.window_index, pane.pane_index): detect_agents(
+            pane, inspect_processes=inspect_processes
+        )
+        for pane in panes
+    }
+    agents = tuple(
+        dict.fromkeys(
+            agent for detected in agents_by_pane.values() for agent in detected
+        )
+    )
+    windows = len({pane.window_index for pane in panes})
+
+    print(colorize(candidate.name, candidate.color))
+    summary = f"{candidate.host} · {windows} window{'s' if windows != 1 else ''} · {len(panes)} pane{'s' if len(panes) != 1 else ''}"
+    if agents:
+        summary += " · agents: " + ", ".join(agents)
+    print(summary)
+    print()
+
+    previous_window = ""
+    for pane in panes:
+        if pane.window_index != previous_window:
+            if previous_window:
+                print()
+            marker = "●" if pane.window_active else "○"
+            print(f"{marker} {pane.window_index}: {pane.window_name}")
+            previous_window = pane.window_index
+        marker = "›" if pane.pane_active else " "
+        detected = agents_by_pane[(pane.window_index, pane.pane_index)]
+        agent_label = ""
+        if detected:
+            agent_label = " " + colorize("[" + ", ".join(detected) + "]", AGENT_COLOR)
+        command = sanitize_field(pane.command) or "shell"
+        print(f"  {marker} {pane.pane_index}  {command}{agent_label}")
+        path = abbreviated_path(sanitize_field(pane.path))
+        if path:
+            print(f"      {path}")
+
     if candidate.kind == "remote":
-        print(f"remote tmux session '{candidate.name}' on {candidate.host}")
-        print("Enter: replace this client with the remote tmux client")
-        print("M-s: return to the origin fleet picker")
-        print("prefix+d: return to the origin local session")
+        print()
+        print("M-s returns to the origin picker · prefix+d returns locally")
+
+
+def preview(candidate: Candidate) -> None:
+    if candidate.kind in {"local", "remote"}:
+        render_session_preview(candidate)
         return
 
     path = Path(candidate.target)
