@@ -60,6 +60,19 @@ rg -F 'statFile.reload()' \
   "$source_root/plugins/builtin/resources/ResourceService.qml" >/dev/null
 rg -F 'memoryFile.reload()' \
   "$source_root/plugins/builtin/resources/ResourceService.qml" >/dev/null
+rg -F 'name: root.cpuIconName' \
+  "$source_root/plugins/builtin/resources/ResourceWidget.qml" >/dev/null
+rg -F 'name: root.memoryIconName' \
+  "$source_root/plugins/builtin/resources/ResourceWidget.qml" >/dev/null
+rg -F 'text: root.cpuLabel' \
+  "$source_root/plugins/builtin/resources/ResourceWidget.qml" >/dev/null
+rg -F 'text: root.memoryLabel' \
+  "$source_root/plugins/builtin/resources/ResourceWidget.qml" >/dev/null
+if rg -n 'text: "(CPU|MEM):"' \
+    "$source_root/plugins/builtin/resources/ResourceWidget.qml"; then
+  printf 'resource widget bypasses its label contract\n' >&2
+  exit 1
+fi
 rg -F 'readonly property var detailHelperArgv: ["upower", "--dump"]' \
   "$source_root/services/BatteryService.qml" >/dev/null
 rg -F 'interval: 15000' "$source_root/services/PowerService.qml" >/dev/null

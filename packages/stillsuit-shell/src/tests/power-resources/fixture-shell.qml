@@ -246,6 +246,12 @@ ShellRoot {
                 outputId: "fixture-output"
             })
             verify(resourceWidget !== null, "resource widget construction")
+            verify(resourceWidget.cpuIconName === "cpu", "CPU icon contract")
+            verify(resourceWidget.memoryIconName === "memory", "memory icon contract")
+            verify(resourceWidget.cpuLabel === "CPU:", "CPU label contract")
+            verify(resourceWidget.memoryLabel === "MEM:", "memory label contract")
+            verify(resourceWidget.accessibleName === "CPU 50%, memory 75%",
+                "resource widget accessible name")
             verify(String(resourceWidget.cpuColor).toLowerCase() === "#a6e3a1",
                 "normal CPU color")
             verify(String(resourceWidget.memoryColor).toLowerCase() === "#fab387",
