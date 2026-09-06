@@ -7,7 +7,10 @@ ShellAction {
     required property var theme
     property string iconName: "settings"
     property url iconSource: ""
+    // A second icon beside the first, by catalog name or image source.
+    property string secondaryIconName: ""
     property url secondaryIconSource: ""
+    // A small overlay on the corner of the first icon.
     property string badgeIconName: ""
     property string label: ""
     property string secondaryLabel: ""
@@ -76,11 +79,12 @@ ShellAction {
             color: root.contentColor
         }
         ShellIcon {
-            visible: String(root.secondaryIconSource) !== ""
+            visible: root.secondaryIconName !== "" || String(root.secondaryIconSource) !== ""
             Layout.leftMargin: 3
             Layout.preferredWidth: root.theme.metrics.iconSmall
             Layout.preferredHeight: root.theme.metrics.iconSmall
             theme: root.theme
+            name: root.secondaryIconName !== "" ? root.secondaryIconName : "circle"
             source: root.secondaryIconSource
             sizeRole: "small"
             color: root.contentColor

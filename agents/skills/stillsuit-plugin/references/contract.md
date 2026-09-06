@@ -89,7 +89,10 @@ windows or handle dismissal.
 
 States: `unloaded → loading → loaded`, any → `error`, `loaded → unloaded` on
 close without `keepLoaded`. A compile or construction error contains only that
-plugin; the bar and other plugins continue. Fixing the source rediscovers it.
+plugin; the bar and other plugins continue. Containment raises a desktop toast
+("<id> bar-widget omitted" with the error), logs a warning tagged with the
+plugin id, and shows `"error"` in `stillsuit status`. Fixing the source
+rediscovers it.
 
 Runtime discovery snapshots each changed plugin tree into a content-addressed
 generation, so a stable URL never serves stale QML. The first root claiming an

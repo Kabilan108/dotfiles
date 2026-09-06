@@ -149,7 +149,20 @@ ShellRoot {
         }
     }
 
-    Component { id: notificationComponent; Workbench.SyntheticNotification {} }
+    Component { id: notificationComponent; HostNotice {} }
+
+    Connections {
+        target: pluginCatalog
+        function onPluginContained(pluginId, kind, message) {
+            shell.presentNotification({ appName: "Stillsuit", summary: pluginId + " " + kind + " omitted", body: message, urgency: 2 })
+        }
+    }
+    Connections {
+        target: serviceRegistry
+        function onServiceContained(pluginId, message) {
+            shell.presentNotification({ appName: "Stillsuit", summary: pluginId + " service failed", body: message, urgency: 2 })
+        }
+    }
 
     IpcHandler {
         target: "stillsuit-workbench"

@@ -1,5 +1,6 @@
-// Minimal stand-in for a Quickshell.Services.Notifications object so the real
-// NotificationService can track fixture toasts without owning the D-Bus name.
+// A notification the host raises itself, shaped like a
+// Quickshell.Services.Notifications object so NotificationService tracks it
+// without a D-Bus round trip. Containment reports and workbench fixtures use it.
 import QtQuick
 
 QtObject {

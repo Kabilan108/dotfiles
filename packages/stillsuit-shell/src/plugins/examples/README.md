@@ -10,5 +10,6 @@ the production registry.
 | `widget-panel/` | bar-widget, panel | a chip that toggles a hosted panel; `selected` highlight |
 | `service-widget-panel/` | service, bar-widget, panel | one global service owning state and a timer; per-output views |
 
-Copy one into `~/.config/stillsuit/workbench/plugins/<name>/`, change the
-manifest `id`, and start `stillsuit-workbench`.
+Copy one into `src/plugins/builtin/<name>/` for a live plugin, or into
+`~/.config/stillsuit/workbench/plugins/<name>/` to iterate in the workbench,
+and change the manifest `id`.

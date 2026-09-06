@@ -23,6 +23,7 @@ QtObject {
     property QtObject serviceHost: QtObject {}
 
     signal dependencyContained(string pluginId)
+    signal serviceContained(string pluginId, string message)
 
     property Connections catalogConnections: Connections {
         target: root.catalog
@@ -305,10 +306,12 @@ QtObject {
     }
 
     function _setError(pluginId, message) {
+        var text = String(message || "unknown service error")
         var errorsNext = _copy(errors)
-        errorsNext[pluginId] = String(message || "unknown service error")
+        errorsNext[pluginId] = text
         errors = errorsNext
         _setState(pluginId, "error")
+        serviceContained(String(pluginId), text)
     }
 
     function _clearError(pluginId) {

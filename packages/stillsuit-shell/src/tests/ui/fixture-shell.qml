@@ -180,6 +180,7 @@ ShellRoot {
         Ui.ShellBarCluster {
             theme: fixture.theme
             iconName: "network"
+            secondaryIconName: "vpn"
         }
     }
 
@@ -351,6 +352,9 @@ ShellRoot {
                 "slider interaction severed its binding to owner state")
 
             var cluster = _create(clusterComponent, objects)
+            var secondary = fixture._childWithName(cluster, "vpn")
+            _assert(secondary !== null && secondary.visible && secondary.x > 0,
+                "named secondary icon is not laid out beside the primary icon")
             _assert(cluster.effectiveAccessibleName === "network",
                 "icon-only bar cluster lacks an accessible name")
             var clusterClicks = 0
@@ -426,6 +430,16 @@ ShellRoot {
         _assert(object !== null, "component did not construct")
         objects.push(object)
         return object
+    }
+
+    function _childWithName(item, iconName) {
+        if (item.name === iconName && item.symbolicSource !== undefined) return item
+        var children = item.children || []
+        for (var index = 0; index < children.length; index++) {
+            var found = _childWithName(children[index], iconName)
+            if (found) return found
+        }
+        return null
     }
 
     function _assert(condition, message) {

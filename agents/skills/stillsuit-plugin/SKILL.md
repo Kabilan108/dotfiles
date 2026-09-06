@@ -1,48 +1,80 @@
 ---
 name: stillsuit-plugin
-description: Build, change, or debug a Stillsuit shell plugin (bar widget, panel, service, overlay) against the plugin workbench. Use when asked to add a bar chip, make a panel, write a Stillsuit plugin, wire a service into the bar, or when a plugin fails to load in the shell.
+description: Build, change, or debug a Stillsuit shell plugin (bar widget, panel, service, overlay) on the live shell, or in the plugin workbench for isolated iteration. Use when asked to add a bar chip, make a panel, change how a widget looks, write a Stillsuit plugin, wire a service into the bar, or when a plugin disappears from or fails to load in the bar.
 ---
 
 # Stillsuit plugin
 
-A plugin is a directory with `manifest.json` plus QML entry points. The host
-loads it in-process; the workbench runs that same host on a spare output with
-fixture data, and reloads a plugin within a second of each save. Work there,
-never against the live shell.
+A plugin is a directory with `manifest.json` plus QML entry points, loaded
+in-process by the shell. Saving a file under `src/plugins/builtin/` is a live
+deploy: the running shell picks it up within a second. A plugin that fails to
+load is **contained** — removed from the bar and reported by a desktop toast,
+the journal, and `status`; nothing crashes and nothing tells you unless you
+look.
 
 Repo: `~/dotfiles/packages/stillsuit-shell`. Paths below are relative to it.
 
-## Loop
+## Loop (live shell)
 
-1. **Start the workbench** (once; it stays up):
+1. **Locate.** Existing plugin: `src/plugins/builtin/<name>/`. New plugin:
+   copy the closest example from `src/plugins/examples/` (see its README)
+   into `src/plugins/builtin/<name>/` with a new manifest `id`
+   (`stillsuit.<name>`), and add `(builtinPlugin "<name>")` to
+   `home/desktop/wayland/quickshell/default.nix` so it survives a rebuild.
+2. **Edit and save.** Then, before anything else:
    ```sh
-   stillsuit-workbench            # picks the output you are not focused on
-   stillsuit-workbench status     # ready, output, fixture, plugin errors
+   qs ipc -c stillsuit-next call stillsuit status | jq '.plugins["stillsuit.<name>"]'
    ```
-2. **Copy the closest example** from `src/plugins/examples/` into
-   `~/.config/stillsuit/workbench/plugins/<name>/` and set a new manifest `id`
-   (`stillsuit.<name>`). Read `src/plugins/examples/README.md` to pick.
-3. **Edit and save.** After each save, before anything else:
-   ```sh
-   stillsuit-workbench status --json | jq '.plugins["stillsuit.<name>"]'
-   ```
-   `state: "error"` carries the QML or manifest error text. A plugin absent
-   from the list did not pass manifest validation: `stillsuit-workbench plugins`
-   prints the validator's reason.
-4. **Look at it.** `stillsuit-workbench open <name>` for a panel, then
-   screenshot the workbench output (`grim -o <output>`, read the image). Switch
-   scenarios with `stillsuit-workbench fixture <id>` (`fixtures` lists them)
-   and screenshot each state the plugin renders differently.
-5. **Done** when: status shows no error, every state you can reach through
-   fixtures renders correctly in a screenshot, and the plugin uses only the
-   `context` facades and `Stillsuit.Ui` components.
-6. **Promote**: move the directory into `src/plugins/builtin/<name>/`, keep
-   the id, then register it in `home/desktop/wayland/quickshell/default.nix`
-   (`builtinPlugin "<name>"`). That needs a rebuild; say so rather than doing it.
+   Loaded looks like `visual: {"bar-widget": "loaded"}` / `surface.state:
+   "loaded"`. `"error"` anywhere, or an `errors` array, carries the QML or
+   manifest message — fix that first. A plugin missing from the list failed
+   manifest validation: `stillsuit-plugins validate` prints why.
+3. **Look.** Screenshot the bar (`grim -o <output> /tmp/x.png`, read the
+   image); open a panel with `qs ipc -c stillsuit-next call stillsuit-surface
+   open stillsuit.<name> '{}'` and screenshot that too. Reach every state the
+   plugin renders differently; if a state needs conditions you cannot produce
+   on the live machine, use the workbench fixture for it (below).
+4. **Cover.** Extend the plugin's fixture under `src/tests/` for the contract
+   you changed; run it with `direnv exec "$PWD" bash <suite>` and capture the
+   exit code. Fixtures prove the change stays; they never prove it works.
+5. **Done** when status shows the plugin loaded with no error, every reachable
+   state is verified in a screenshot, the fixture passes, and the plugin uses
+   only the `context` facades and `Stillsuit.Ui`.
+
+## Shared code needs a rebuild
+
+Only `src/plugins/*` hot-loads. `src/ui/`, `src/services/`, `src/core/`,
+`schemas/`, and `themes/` are served from the Nix store; edits there reach the
+shell only after `rebuild`. A plugin that references a new shared property
+before that rebuild is contained (unknown property → whole widget rejected).
+
+When a change touches shared code:
+
+1. Make the shared change and the plugin change together, coherently. Keep the
+   old API untouched; add, do not repurpose.
+2. Verify both in the workbench, which runs from `--source` and sees the
+   checkout: `stillsuit-workbench`, then the loop above against it
+   (`stillsuit-workbench status --json`, `open`, screenshot its output).
+3. **Stop and report**: what changed, that a rebuild is required, and what you
+   will verify after it. Do not rebuild. Do not add a hot-reload shim, alias,
+   or fallback so the plugin limps along on the old host.
+4. After the human rebuilds, run the live loop and only then say done.
+
+## Workbench (isolated iteration)
+
+`stillsuit-workbench` runs the same core on your other output with fixture
+data, in a sandbox that never touches the live bar. Reach for it when: a new
+plugin should not appear in the real bar yet; you need a state the machine
+cannot produce (low battery, notification storm, failed transcription — see
+`stillsuit-workbench fixtures`); or you are verifying a shared-code change.
+Plugins go in `~/.config/stillsuit/workbench/plugins/<name>/`; a copy of a
+builtin under the same id shadows it in the workbench only. Commands:
+`status [--json]`, `fixture ID`, `open <name>`, `close`, `notify`, `stop`.
+Details: `design-lab/README.md`.
 
 ## Contract in one screen
 
-Details: `references/contract.md`. Full source of truth: `docs/host-contract.md`.
+Details: `references/contract.md`. Source of truth: `docs/host-contract.md`.
 
 - Entry points receive `required property var context` and, per kind,
   `service` (when the plugin declares one), `screen`, `outputId`.
@@ -63,11 +95,10 @@ Details: `references/contract.md`. Full source of truth: `docs/host-contract.md`
 
 - Manifest `id` must match `^stillsuit(\.[a-z][a-z0-9-]*)+$`; `entryPoints`
   keys are camelCase (`barWidget`) while `kinds` are kebab (`bar-widget`).
-- A per-output panel that reads `context.compositor.focusedOutputId` will land
-  on the wrong screen; use the `outputId` it was constructed with.
+- A per-output panel that reads `context.compositor.focusedOutputId` lands on
+  the wrong screen; use the `outputId` it was constructed with.
 - `keepLoaded: true` keeps a panel's state across close; without it the panel
   is destroyed on close and rebuilt on open.
-- The workbench bar sits below the production bar; that offset is workbench
-  only, panels position themselves from the theme and need no adjustment.
-- `stillsuit-workbench call TARGET FN ...` is the raw IPC escape hatch; the
-  named commands cover everything a plugin needs.
+- `ShellBarCluster`: `secondaryIconName`/`secondaryIconSource` put a second
+  icon beside the first; `badgeIconName` is a small corner overlay. Pick by
+  intent, and never change what an existing property means.

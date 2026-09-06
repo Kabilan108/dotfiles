@@ -6,8 +6,10 @@ keyboard focus. An empty string disables the tooltip. `ShellBarCluster`
 defaults it to the accessible name. Hover exit and panel selection hide it.
 
 `ShellBarCluster.selected` means its panel is open. Use `contentColor` for
-domain states such as low battery or charging. `secondaryIconSource` and
-`secondaryLabel` add a second icon/value pair inside the same click target.
+domain states such as low battery or charging. `secondaryIconName` (catalog)
+or `secondaryIconSource` (image) plus `secondaryLabel` add a second icon/value
+pair beside the first inside the same click target; `badgeIconName` is a small
+corner overlay on the first icon.
 
 `ShellIcon` renders a generated SVG from `icons/` (see `icons/README.md`) tinted
 with the requested theme role. Setting `source` renders that image with its own

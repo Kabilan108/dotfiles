@@ -69,6 +69,7 @@ QtObject {
     signal pluginUnloaded(string pluginId)
     signal pluginReloaded(string pluginId)
     signal rescanFinished()
+    signal pluginContained(string pluginId, string kind, string message)
 
     property FileView catalogFile: FileView {
         path: root.catalogPath
@@ -824,9 +825,11 @@ QtObject {
     }
 
     function _recordRuntimeError(pluginId, kind, message) {
+        var text = String(message || "unknown component error")
         var errorsNext = _copy(internalRuntimeErrors)
-        errorsNext[String(pluginId) + ":" + kind] = String(message || "unknown component error")
+        errorsNext[String(pluginId) + ":" + kind] = text
         internalRuntimeErrors = errorsNext
+        pluginContained(String(pluginId), String(kind), text)
     }
 
     function _clearRuntimeErrors(pluginId) {

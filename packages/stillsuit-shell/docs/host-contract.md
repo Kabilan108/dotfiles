@@ -269,7 +269,10 @@ not accept a command, working directory, prompt, or extra argument.
 
 - A malformed manifest, unknown kind, unsupported host API, unsafe path,
   missing dependency, or component error omits only that plugin and records an
-  actionable error in `status`.
+  actionable error in `status`. The catalog emits `pluginContained(id, kind,
+  message)` and the registry `serviceContained(id, message)`; the shell root
+  turns each into a critical desktop notification from "Stillsuit" so a
+  hot-reloaded plugin never vanishes silently.
 - A selected bar plugin that fails validation, compilation, or construction
   releases its load claim and activates the built-in Stillsuit bar. Exactly one
   bar owns an exclusion zone at a time.

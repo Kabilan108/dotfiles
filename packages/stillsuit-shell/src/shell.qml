@@ -140,6 +140,37 @@ ShellRoot {
         }
     }
 
+    // A contained plugin disappears from the bar; the desktop must say why.
+    Component { id: hostNoticeComponent; HostNotice {} }
+    property int hostNoticeSequence: 0
+    Connections {
+        target: pluginCatalog
+        function onPluginContained(pluginId, kind, message) {
+            shell.raiseHostNotice(pluginId + " " + kind + " omitted", message)
+        }
+    }
+    Connections {
+        target: serviceRegistry
+        function onServiceContained(pluginId, message) {
+            shell.raiseHostNotice(pluginId + " service failed", message)
+        }
+    }
+    function raiseHostNotice(summary, body) {
+        var service = serviceRegistry.get("stillsuit.notifications")
+        if (!service || typeof service.handleNotification !== "function") {
+            console.warn("[stillsuit] " + summary + ": " + body)
+            return
+        }
+        var notice = hostNoticeComponent.createObject(shell, {
+            id: 900000 + (++hostNoticeSequence),
+            appName: "Stillsuit",
+            summary: String(summary),
+            body: String(body),
+            urgency: 2
+        })
+        service.handleNotification(notice)
+    }
+
     function _xdgRoot(variable, fallbackSuffix) {
         return Quickshell.env(variable) || homeRoot + "/" + fallbackSuffix
     }

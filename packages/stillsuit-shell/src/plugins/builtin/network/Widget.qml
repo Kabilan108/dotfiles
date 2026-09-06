@@ -17,8 +17,7 @@ Ui.ShellBarCluster {
 
     theme: context.theme
     iconName: service && service.wifiEnabled ? "wifi" : "wifi-off"
-    badgeIconName: vpnConnected ? "lock" : ""
-    label: service && service.connectedNetwork ? signalPercentage + "%" : ""
+    secondaryIconName: vpnConnected ? "vpn" : ""
     selected: context.panels && context.panels.selectedId === "stillsuit.network"
         && context.panels.selectedOutputId === outputId
     busy: Boolean(service && service.operation !== "idle")

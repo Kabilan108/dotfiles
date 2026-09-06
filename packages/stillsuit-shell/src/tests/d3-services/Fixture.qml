@@ -14,7 +14,7 @@ ShellRoot {
         property bool wiredConnected: false
         property var devices: []
         property var networks: [{ name: "fixture", connected: true, signalStrength: 0.8 }]
-        property var vpns: []
+        property var vpns: [{ name: "Fixture VPN", active: true }]
         function scan() { return "ok" }
         function setWifiEnabled(value) { wifiEnabled = value; return "ok" }
         function activate(network) { return "ok" }
@@ -98,6 +98,9 @@ ShellRoot {
             var widgetServices = [audio, network, battery, bluetooth]
             var viewCount = 0
             var networkSignalPercentage = -1
+            var networkLabel = "unset"
+            var networkSecondaryIcon = "unset"
+            var networkBadge = "unset"
             for (var viewIndex = 0; viewIndex < viewComponents.length; viewIndex++) {
                 if (viewComponents[viewIndex].status !== Component.Ready) {
                     console.error("D3 fixture view failed "
@@ -118,14 +121,20 @@ ShellRoot {
                         Qt.quit()
                         return
                     }
-                    if (viewIndex === 1)
+                    if (viewIndex === 1) {
                         networkSignalPercentage = view.signalPercentage
+                        networkLabel = view.label
+                        networkSecondaryIcon = view.secondaryIconName
+                        networkBadge = view.badgeIconName
+                    }
                     viewCount++
                 }
             }
             if (audio.volume !== 0.42 || !network.connectedNetwork
                     || battery.percentage !== 56 || !bluetooth.connected
-                    || networkSignalPercentage !== 80 || viewCount !== 8) {
+                    || networkSignalPercentage !== 80 || networkLabel !== ""
+                    || networkSecondaryIcon !== "vpn" || networkBadge !== ""
+                    || viewCount !== 8) {
                 console.error("D3 fixture state propagation failed")
                 Qt.quit()
                 return
