@@ -105,6 +105,12 @@ in
       '';
     };
 
+    workbench.enable = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Install stillsuit-workbench, the fixture-backed plugin workbench on a nested compositor.";
+    };
+
     integrations.agentPanelHelperPackage = mkOption {
       type = types.nullOr types.package;
       default = null;

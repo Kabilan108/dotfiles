@@ -23,7 +23,8 @@ stdenvNoCC.mkDerivation {
       || lib.hasPrefix "src/" relative
       || lib.hasPrefix "schemas/" relative
       || lib.hasPrefix "docs/" relative
-      || lib.hasPrefix "themes/" relative;
+      || lib.hasPrefix "themes/" relative
+      || lib.hasPrefix "design-lab/fixtures/" relative;
   };
 
   nativeBuildInputs = [ makeWrapper ];
@@ -33,7 +34,7 @@ stdenvNoCC.mkDerivation {
     runHook preInstall
 
     mkdir -p "$out/share/stillsuit-shell"
-    for directory in src schemas docs themes; do
+    for directory in src schemas docs themes design-lab; do
       if [ -d "$directory" ]; then
         cp -R "$directory" "$out/share/stillsuit-shell/$directory"
       fi

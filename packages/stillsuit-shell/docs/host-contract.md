@@ -323,6 +323,14 @@ the service derives elapsed seconds once per second from `started_at`,
 helper's `elapsed_seconds` remains the fallback for older or incomplete
 version-1 active records without `started_at`.
 
+## Workbench boundary
+
+`ServiceRegistry.constructionProvider` is the one host seam for synthetic
+inputs. When set, it returns extra construction properties for a service
+(the workbench supplies `model`). Production leaves it null. Services that
+accept `model` treat it as their only input; they do not read hardware or run
+helpers while it is set.
+
 ## Shadow-mode boundary
 
 Tests use a separate Quickshell config ID and temporary `HOME`,

@@ -5,6 +5,9 @@ QtObject {
 
     property QtObject catalog: null
     property QtObject hostContext: null
+    // Optional: returns extra construction properties for a service, e.g. a
+    // fixture `model`. Production leaves this null so services bind to hardware.
+    property var constructionProvider: null
     readonly property int revision: internalRevision
     readonly property bool ready: catalog !== null && catalog.loaded && pendingLoads === 0
     readonly property int objectCount: Object.keys(objects).length
@@ -272,7 +275,11 @@ QtObject {
             }
 
             var context = hostContext ? hostContext.contextFor(entry) : null
-            var instance = component.createObject(serviceHost, { context: context })
+            var properties = { context: context }
+            var extra = typeof constructionProvider === "function" ? constructionProvider(pluginId) : null
+            for (var key in (extra || {}))
+                properties[key] = extra[key]
+            var instance = component.createObject(serviceHost, properties)
             if (!instance) {
                 _setError(pluginId, "service construction returned null")
                 component.destroy()

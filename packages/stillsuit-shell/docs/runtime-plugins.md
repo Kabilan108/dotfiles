@@ -33,6 +33,11 @@ stillsuit-plugins enable stillsuit.example
 stillsuit-plugins place stillsuit.example right 50
 ```
 
+Develop against `stillsuit-workbench` first: it runs the same core and
+discovery on a nested compositor with fixture-driven services, so a plugin can
+be created, edited, broken, and restored without touching the live session.
+See `../design-lab/README.md`.
+
 Promote an experiment by moving its whole directory into the tracked root,
 keeping its manifest ID, then reviewing and committing its source. Do not leave
 two divergent copies. This is a manual source operation, not a runtime deploy.

@@ -26,6 +26,7 @@ in
     "${config.xdg.configHome}/stillsuit/plugins"
   ];
   programs.stillsuitShell.ownership.barOwners = [ "stillsuit.builtin-bar" ];
+  programs.stillsuitShell.workbench.enable = true;
   programs.stillsuitShell.ownership.notificationOwners = [ "stillsuit.notifications" ];
   home.packages = [ pkgs.quickshell ];
 

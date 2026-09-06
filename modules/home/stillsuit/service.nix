@@ -29,6 +29,10 @@ let
   );
   agentPanelConfig = "${config.xdg.configHome}/stillsuit/agent-panel.json";
   pluginHelper = pkgs.callPackage ../../../packages/stillsuit-shell/plugin-helper.nix { };
+  workbench = pkgs.callPackage ../../../packages/stillsuit-shell/workbench-helper.nix {
+    stillsuit-shell = cfg.package;
+    stillsuit-plugins = pluginHelper;
+  };
   runtimeDiscovery = pkgs.writeText "stillsuit-runtime-discovery.json" (
     builtins.toJSON {
       seed = toString stillsuitRegistry.discoverySeed;
@@ -47,6 +51,7 @@ in
         home.packages =
           (if localMode then [ pkgs.quickshell ] else [ cfg.package ])
           ++ lib.optional (cfg.pluginRoots != [ ]) pluginHelper
+          ++ lib.optional cfg.workbench.enable workbench
           ++ lib.optional (agentPanelHelper != null) agentPanelHelper;
 
         xdg.configFile."quickshell/${cfg.configId}".source = configSource;

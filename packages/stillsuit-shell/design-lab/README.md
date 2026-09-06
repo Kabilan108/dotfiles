@@ -1,43 +1,63 @@
-# Stillsuit design lab
+# Stillsuit design lab and plugin workbench
 
-This is a development-only Quickshell surface for settling Stillsuit's visual
-system before the production panels adopt it. It runs as a separate Quickshell
-process, uses mock data, and has no notification, compositor, or service
-authority.
+Two development-only surfaces share this directory. Neither has notification,
+compositor, or service authority over the real session.
 
-The lab compares three draft themes and lets you tune:
+## Plugin workbench
 
-- body, telemetry, and icon fonts;
-- 26, 28, 30, and 32 px bar heights;
-- anchored and floating bar treatments, with inline workspaces fixed;
-- surface opacity, radius, and core semantic colors;
-- motion speed and reduced-motion behavior.
+`stillsuit-workbench` runs the production core (plugin catalog, service
+registry, surface router, panel hosts, IPC facade) on a nested compositor
+inside an isolated XDG sandbox. Real plugin QML runs unchanged; only the
+inputs are synthetic:
 
-The approved preset reproduces the accepted screenshot baseline:
-Catppuccin Mocha, Noto Sans, JetBrainsMono Nerd Font, rounded Material Symbols,
-a 28 px anchored bar, 0.95 opacity, 7 px medium radius, and 0.55 motion scale.
-Use `Approved` to restore it after comparing theme defaults.
+- services receive fixture `model` objects instead of hardware and helpers;
+- the compositor snapshot comes from the fixture, not Niri;
+- notifications are injected through the real notification service without
+  claiming the D-Bus name;
+- the recorder and meeting-worker state files are written from the fixture.
 
-The composition preview includes six notification states and five network
-states. The network header's borderless `Scan` action switches to the scanning
-state. Do Not Disturb is owned by the notification preview. OSDs read
-`semantic.surface.panel` directly and always use the selected medium radius;
-there is no `component.osd.background` token. `surface.raised` remains the role
-for controls and panel sections.
+```sh
+stillsuit-workbench run                       # visible nested window, default fixture
+stillsuit-workbench --fixture battery-low run
+stillsuit-workbench fixtures                  # ids from fixtures/*.json
+stillsuit-workbench call stillsuit-workbench select media-playing
+stillsuit-workbench call stillsuit-surface open stillsuit.audio '{}'
+stillsuit-workbench call stillsuit-workbench notify "Summary" "Body"
+stillsuit-workbench call stillsuit-workbench actions   # service calls made by plugins
+stillsuit-workbench status
+```
 
-The previews import the shared components in `../src/ui/`; they are not copies
-of production-looking controls. Candidate files live in `themes/` and validate
-against the production contract in `../schemas/theme.v2.json`.
+Plugins under `~/.config/stillsuit/workbench/plugins/<name>/` take precedence
+over the tracked builtins and are discovered, reloaded, contained, and
+restored within about a second, exactly as in production. Every IPC target the
+production shell exposes (`stillsuit`, `stillsuit-surface`, `stillsuit-plugin`)
+works against the workbench through `stillsuit-workbench call`. The
+`stillsuit-workbench` target adds fixture selection and the recorded action log.
 
-After the declarative fonts have been activated, launch the lab from the
-repository root with:
+Fixtures live in `fixtures/*.json` (`schemaVersion: 1`). Each one carries the
+compositor snapshot, per-service model documents keyed by plugin id,
+notifications to present, and recorder/meeting state. Add a scenario by adding
+a file; `reloadFixtures` picks it up without a restart. The service model
+shapes are the same ones the fixture suites under `src/tests/` use.
 
-```bash
+`src/tests/workbench/run.sh` boots the workbench headless and asserts the
+acceptance target: every fixture switches with no service errors, and a plugin
+can be created, edited, broken, and restored without a restart while the bar
+keeps running.
+
+## Design lab
+
+`src/design-lab.qml` is the earlier theme playground. It compares the three
+draft themes in `themes/` and lets you tune fonts, bar height, anchoring,
+opacity, radius, semantic colors, and motion against mock previews built from
+the shared `src/ui/` components. The approved preset reproduces the accepted
+baseline; use `Approved` to restore it.
+
+```sh
 STILLSUIT_LAB_ROOT="$PWD/packages/stillsuit-shell/design-lab" \
   quickshell --no-duplicate \
   --path "$PWD/packages/stillsuit-shell/src/design-lab.qml"
 ```
 
-The production source and the lab now share the same v2 schema. The design
-decisions are approved and recorded in `DESIGN.md`; deploying them remains a
-separate human gate.
+Candidate themes validate against `../schemas/theme.v2.json`. Design decisions
+are recorded in `DESIGN.md`; deploying them remains a separate human gate.
