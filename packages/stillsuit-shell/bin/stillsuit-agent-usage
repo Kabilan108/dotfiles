@@ -1,0 +1,707 @@
+#!/usr/bin/env python3
+"""Read-only multi-account rate-limit collector for Stillsuit."""
+
+from __future__ import annotations
+
+import datetime as dt
+import http.client
+import json
+import math
+import os
+import re
+import select
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.error
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import IO, Any, TextIO
+
+SCHEMA_VERSION = 1
+ANTHROPIC_USAGE_ENDPOINT = "https://api.anthropic.com/api/oauth/usage"
+BLOCKED_CODEX_REFRESH_ENDPOINT = "http://127.0.0.1:0/token"
+CACHE_SECONDS = 30
+ACCOUNT_ID_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:[-.][a-z0-9]+)*$")
+
+Account = dict[str, Any]
+Snapshot = dict[str, Any]
+
+_snapshot_cache: dict[str, tuple[float, Account]] = {}
+
+
+def _utc_now() -> dt.datetime:
+    return dt.datetime.now(dt.timezone.utc)
+
+
+def _iso_now() -> str:
+    return _utc_now().isoformat()
+
+
+def _expand_path(value: str, home: Path) -> Path:
+    expanded = value.replace("${HOME}", str(home))
+    if expanded == "~":
+        expanded = str(home)
+    elif expanded.startswith("~/"):
+        expanded = str(home / expanded[2:])
+    return Path(os.path.expandvars(expanded)).resolve()
+
+
+def _slug(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.casefold()).strip("-")
+    return slug or "account"
+
+
+def _account(
+    provider: str,
+    name: str,
+    config_dir: Path,
+    source: str,
+    account_id: str = "",
+) -> Account:
+    normalized_id = account_id or f"{provider}-{_slug(name)}"
+    if not ACCOUNT_ID_PATTERN.fullmatch(normalized_id):
+        raise ValueError(f"invalid account id {normalized_id!r}")
+    return {
+        "id": normalized_id,
+        "provider": provider,
+        "label": name,
+        "configDir": str(config_dir),
+        "source": source,
+    }
+
+
+def _explicit_accounts(raw_accounts: Any, home: Path) -> list[Account]:
+    if not isinstance(raw_accounts, list):
+        return []
+    accounts: list[Account] = []
+    for raw in raw_accounts:
+        if not isinstance(raw, dict):
+            continue
+        provider = str(raw.get("provider", "")).casefold()
+        if provider not in {"claude", "codex"}:
+            continue
+        label = str(raw.get("label") or raw.get("name") or "Configured").strip()
+        config_value = str(raw.get("configDir") or "").strip()
+        home_value = str(raw.get("homeDir") or "").strip()
+        if config_value:
+            config_dir = _expand_path(config_value, home)
+        elif home_value:
+            account_home = _expand_path(home_value, home)
+            config_dir = account_home / (
+                ".claude" if provider == "claude" else ".codex"
+            )
+        else:
+            continue
+        accounts.append(
+            _account(
+                provider,
+                label or "Configured",
+                config_dir,
+                "configured",
+                str(raw.get("id") or ""),
+            )
+        )
+    return accounts
+
+
+def _claude_shadow_config_dir(path: Path) -> Path:
+    nested = path / ".claude"
+    if (nested / ".credentials.json").is_file():
+        return nested
+    if (path / ".credentials.json").is_file():
+        return path
+    return nested if nested.is_dir() else path
+
+
+def discover_accounts(request: dict[str, Any]) -> list[Account]:
+    home = _expand_path(str(request.get("homeDir") or "~"), Path.home())
+    discovered: list[Account] = []
+    if request.get("includeDefaults", True) is not False:
+        discovered.extend(
+            [
+                _account("codex", "Default", home / ".codex", "default"),
+                _account("claude", "Default", home / ".claude", "default"),
+            ]
+        )
+
+    shadow_value = str(request.get("shadowRoot") or "").strip()
+    if shadow_value:
+        shadow_root = _expand_path(shadow_value, home)
+        try:
+            children = sorted(
+                shadow_root.iterdir(), key=lambda path: path.name.casefold()
+            )
+        except OSError:
+            children = []
+        for child in children:
+            if not child.is_dir():
+                continue
+            if child.name.startswith("codex--"):
+                label = child.name.removeprefix("codex--") or "Shadow"
+                discovered.append(_account("codex", label, child, "shadow"))
+            elif child.name.startswith("claude--"):
+                label = child.name.removeprefix("claude--") or "Shadow"
+                discovered.append(
+                    _account(
+                        "claude",
+                        label,
+                        _claude_shadow_config_dir(child),
+                        "shadow",
+                    )
+                )
+
+    discovered.extend(_explicit_accounts(request.get("accounts"), home))
+    unique: list[Account] = []
+    seen_paths: set[tuple[str, str]] = set()
+    seen_ids: set[str] = set()
+    for account in discovered:
+        key = (str(account["provider"]), str(account["configDir"]))
+        if key in seen_paths:
+            continue
+        account_id = str(account["id"])
+        if account_id in seen_ids:
+            suffix = 2
+            base = account_id
+            while f"{base}-{suffix}" in seen_ids:
+                suffix += 1
+            account["id"] = f"{base}-{suffix}"
+        seen_paths.add(key)
+        seen_ids.add(str(account["id"]))
+        unique.append(account)
+    return unique
+
+
+def _empty_result(account: Account) -> Account:
+    return {
+        "id": account["id"],
+        "provider": account["provider"],
+        "label": account["label"],
+        "source": account["source"],
+        "plan": "",
+        "identity": "",
+        "status": "unavailable",
+        "statusText": "Usage unavailable",
+        "windows": [],
+        "fetchedAt": _iso_now(),
+    }
+
+
+def _number(value: Any) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return -1
+    return number if math.isfinite(number) else -1
+
+
+def _normalize_percent(value: Any, percent_scale: bool = True) -> float:
+    number = _number(str(value).strip().replace("%", ""))
+    if number < 0:
+        return -1
+    if percent_scale or number > 1:
+        number /= 100
+    return max(0, min(1, number))
+
+
+def _normalize_reset(value: Any) -> str:
+    if value is None or str(value).strip() == "":
+        return ""
+    if isinstance(value, (int, float)):
+        timestamp = float(value)
+        if timestamp > 10_000_000_000:
+            timestamp /= 1000
+        try:
+            return dt.datetime.fromtimestamp(timestamp, dt.timezone.utc).isoformat()
+        except (OverflowError, OSError, ValueError):
+            return ""
+    raw = str(value).strip()
+    if raw.isdigit():
+        timestamp = int(raw)
+        if timestamp > 10_000_000_000:
+            timestamp /= 1000
+        try:
+            return dt.datetime.fromtimestamp(timestamp, dt.timezone.utc).isoformat()
+        except (OverflowError, OSError, ValueError):
+            return ""
+    try:
+        return dt.datetime.fromisoformat(raw.replace("Z", "+00:00")).isoformat()
+    except ValueError:
+        return ""
+
+
+def _plan_label(tier: str, subscription: str) -> str:
+    match = re.search(r"max_(\d+x)", tier, re.IGNORECASE)
+    if match:
+        return f"Max {match.group(1)}"
+    return subscription[:1].upper() + subscription[1:] if subscription else ""
+
+
+def _humanize_plan(value: Any) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    words = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", raw)
+    words = re.sub(r"[_-]+", " ", words)
+    normalized = " ".join(words.split()).title()
+    normalized = re.sub(r"\bChatgpt\b", "ChatGPT", normalized)
+    return re.sub(r"\bProlite\b", "Pro Lite", normalized)
+
+
+def _claude_scoped_window(kind: str) -> str:
+    lowered = kind.casefold()
+    if "month" in lowered:
+        return "Monthly"
+    if "week" in lowered or "day" in lowered:
+        return "Weekly"
+    if "hour" in lowered or "session" in lowered:
+        return "Session"
+    return ""
+
+
+def _claude_windows(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    session = payload.get("five_hour")
+    weekly = payload.get("seven_day_oauth_apps") or payload.get("seven_day")
+    scoped = payload.get("limits")
+    windows: list[dict[str, Any]] = []
+    for window_id, label, bucket in (
+        ("session", "Session", session),
+        ("weekly", "Weekly", weekly),
+    ):
+        if not isinstance(bucket, dict):
+            continue
+        used = _normalize_percent(bucket.get("utilization"), True)
+        if used >= 0:
+            windows.append(
+                {
+                    "id": window_id,
+                    "label": label,
+                    "used": used,
+                    "resetsAt": _normalize_reset(bucket.get("resets_at")),
+                }
+            )
+    seen: set[tuple[str, str]] = set()
+    if isinstance(scoped, list):
+        for entry in scoped:
+            if not isinstance(entry, dict):
+                continue
+            scope = entry.get("scope")
+            model = scope.get("model") if isinstance(scope, dict) else None
+            if not isinstance(model, dict):
+                continue
+            name = str(model.get("display_name") or model.get("id") or "").strip()
+            kind = str(entry.get("kind") or "").strip()
+            key = (name, kind)
+            used = _normalize_percent(entry.get("percent"), True)
+            if not name or key in seen or used < 0:
+                continue
+            seen.add(key)
+            window_name = _claude_scoped_window(kind)
+            windows.append(
+                {
+                    "id": f"scoped-{_slug(name)}-{_slug(kind)}",
+                    "label": f"{name} {window_name}".strip(),
+                    "used": used,
+                    "resetsAt": _normalize_reset(entry.get("resets_at")),
+                }
+            )
+    return windows
+
+
+class _RejectRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: IO[bytes],
+        code: int,
+        msg: str,
+        headers: http.client.HTTPMessage,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        return None
+
+
+def _open_usage_request(request: urllib.request.Request, timeout: int) -> Any:
+    opener = urllib.request.build_opener(_RejectRedirects())
+    return opener.open(request, timeout=timeout)
+
+
+def _collect_claude(account: Account) -> Account:
+    result = _empty_result(account)
+    credentials_path = Path(str(account["configDir"])) / ".credentials.json"
+    try:
+        credentials = json.loads(credentials_path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        result.update(status="signed-out", statusText="Not signed in")
+        return result
+    except (OSError, json.JSONDecodeError):
+        result.update(status="error", statusText="Credentials are unreadable")
+        return result
+    if not isinstance(credentials, dict):
+        result.update(status="error", statusText="Credentials are invalid")
+        return result
+    login = credentials.get("claudeAiOauth")
+    if not isinstance(login, dict):
+        result.update(status="signed-out", statusText="Not signed in")
+        return result
+    access_token = str(login.get("accessToken") or "")
+    refresh_token = str(login.get("refreshToken") or "")
+    expires_at = _number(login.get("expiresAt"))
+    result["plan"] = _plan_label(
+        str(login.get("rateLimitTier") or ""),
+        str(login.get("subscriptionType") or ""),
+    )
+    if not access_token:
+        if refresh_token:
+            result.update(
+                status="refresh-required",
+                statusText="Open Claude Code to refresh sign-in",
+            )
+        else:
+            result.update(status="signed-out", statusText="Not signed in")
+        return result
+    if expires_at > 0 and expires_at <= time.time() * 1000:
+        result.update(
+            status="refresh-required",
+            statusText="Open Claude Code to refresh sign-in",
+        )
+        return result
+
+    request = urllib.request.Request(
+        ANTHROPIC_USAGE_ENDPOINT,
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "anthropic-beta": "oauth-2025-04-20",
+            "Accept": "application/json",
+            "User-Agent": "stillsuit-agent-usage/1",
+        },
+    )
+    try:
+        with _open_usage_request(request, timeout=12) as response:
+            payload = json.loads(response.read().decode("utf-8", errors="replace"))
+    except urllib.error.HTTPError as error:
+        status_text = (
+            "Rate limited"
+            if error.code == 429
+            else f"Usage request failed ({error.code})"
+        )
+        result.update(status="error", statusText=status_text)
+        return result
+    except (OSError, TimeoutError, urllib.error.URLError):
+        result.update(status="offline", statusText="Claude usage is unreachable")
+        return result
+    except json.JSONDecodeError:
+        result.update(status="error", statusText="Claude returned invalid usage data")
+        return result
+
+    windows = _claude_windows(payload if isinstance(payload, dict) else {})
+    result["windows"] = windows
+    result.update(
+        status="ready" if windows else "empty",
+        statusText="" if windows else "No limit windows returned",
+        fetchedAt=_iso_now(),
+    )
+    return result
+
+
+def _rpc_request(
+    process: subprocess.Popen[str],
+    request_id: int,
+    method: str,
+    params: dict[str, Any] | None = None,
+    timeout: float = 8,
+) -> dict[str, Any]:
+    if process.stdin is None or process.stdout is None:
+        raise RuntimeError("Codex app-server pipes are unavailable")
+    process.stdin.write(
+        json.dumps({"id": request_id, "method": method, "params": params or {}}) + "\n"
+    )
+    process.stdin.flush()
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        ready, _, _ = select.select([process.stdout], [], [], 0.25)
+        if not ready:
+            continue
+        line = process.stdout.readline()
+        if not line:
+            break
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(message, dict) and message.get("id") == request_id:
+            return message
+    raise TimeoutError(method)
+
+
+def _codex_window(window_id: str, window: Any) -> dict[str, Any] | None:
+    if not isinstance(window, dict):
+        return None
+    used = _normalize_percent(window.get("usedPercent"), True)
+    if used < 0:
+        return None
+    minutes = int(max(0, _number(window.get("windowDurationMins"))))
+    if minutes == 10080:
+        label = "Weekly"
+    elif minutes and minutes % 60 == 0:
+        label = f"{minutes // 60} hour"
+    elif minutes:
+        label = f"{minutes} minute"
+    else:
+        label = "Limit"
+    return {
+        "id": window_id,
+        "label": label,
+        "used": used,
+        "resetsAt": _normalize_reset(window.get("resetsAt")),
+    }
+
+
+def _terminate(process: subprocess.Popen[str]) -> None:
+    try:
+        process.terminate()
+        process.wait(timeout=1)
+    except (OSError, subprocess.TimeoutExpired):
+        try:
+            process.kill()
+        except OSError:
+            pass
+
+
+def _codex_runtime_parent() -> Path | None:
+    value = os.environ.get("XDG_RUNTIME_DIR", "").strip()
+    if not value:
+        return None
+    path = Path(value)
+    return path if path.is_dir() and os.access(path, os.W_OK) else None
+
+
+def _copy_codex_auth(source_dir: Path, probe_dir: Path) -> None:
+    source = source_dir / "auth.json"
+    if not source.is_file():
+        return
+    auth = json.loads(source.read_text(encoding="utf-8"))
+    if not isinstance(auth, dict):
+        raise TypeError("Codex credentials are invalid")
+    tokens = auth.get("tokens")
+    if isinstance(tokens, dict) and "refresh_token" in tokens:
+        tokens["refresh_token"] = ""
+    destination = probe_dir / "auth.json"
+    destination.write_text(json.dumps(auth), encoding="utf-8")
+    destination.chmod(0o600)
+
+
+def _add_loopback_no_proxy(environment: dict[str, str]) -> None:
+    for name in ("NO_PROXY", "no_proxy"):
+        entries = [entry for entry in environment.get(name, "").split(",") if entry]
+        for loopback in ("127.0.0.1", "localhost", "::1"):
+            if loopback not in entries:
+                entries.append(loopback)
+        environment[name] = ",".join(entries)
+
+
+def _collect_codex(account: Account) -> Account:
+    result = _empty_result(account)
+    codex = shutil.which("codex")
+    if not codex:
+        result.update(status="unavailable", statusText="Codex is not installed")
+        return result
+    with tempfile.TemporaryDirectory(
+        prefix="stillsuit-codex-", dir=_codex_runtime_parent()
+    ) as probe_value:
+        probe_dir = Path(probe_value)
+        try:
+            _copy_codex_auth(Path(str(account["configDir"])), probe_dir)
+        except (OSError, TypeError, ValueError):
+            result.update(status="error", statusText="Codex credentials are unreadable")
+            return result
+        environment = os.environ.copy()
+        environment["CODEX_HOME"] = str(probe_dir)
+        environment["CODEX_REFRESH_TOKEN_URL_OVERRIDE"] = BLOCKED_CODEX_REFRESH_ENDPOINT
+        _add_loopback_no_proxy(environment)
+        try:
+            process = subprocess.Popen(
+                [codex, "app-server"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                env=environment,
+            )
+        except OSError:
+            result.update(status="unavailable", statusText="Codex could not start")
+            return result
+        try:
+            initialized = _rpc_request(
+                process,
+                1,
+                "initialize",
+                {"clientInfo": {"name": "stillsuit-agent-usage", "version": "1"}},
+            )
+            if initialized.get("error"):
+                raise RuntimeError("Codex initialization failed")
+            if process.stdin is None:
+                raise RuntimeError("Codex app-server input is unavailable")
+            process.stdin.write(
+                json.dumps({"method": "initialized", "params": {}}) + "\n"
+            )
+            process.stdin.flush()
+            account_message = _rpc_request(process, 2, "account/read", timeout=5)
+            limits_message = _rpc_request(
+                process, 3, "account/rateLimits/read", timeout=5
+            )
+            if account_message.get("error") or limits_message.get("error"):
+                raise RuntimeError("Codex usage request failed")
+            account_result = account_message.get("result")
+            limits_result = limits_message.get("result")
+            account_data = (
+                account_result.get("account")
+                if isinstance(account_result, dict)
+                else {}
+            ) or {}
+            limits = (
+                limits_result.get("rateLimits")
+                if isinstance(limits_result, dict)
+                else {}
+            ) or {}
+            if not isinstance(account_data, dict) or not account_data:
+                result.update(status="signed-out", statusText="Not signed in")
+                return result
+            if not isinstance(limits, dict):
+                limits = {}
+            plan = (
+                limits.get("planType")
+                or account_data.get("planType")
+                or account_data.get("type")
+            )
+            identity = account_data.get("email") or account_data.get("name") or ""
+            windows = [
+                entry
+                for entry in (
+                    _codex_window("primary", limits.get("primary")),
+                    _codex_window("secondary", limits.get("secondary")),
+                )
+                if entry is not None
+            ]
+            result.update(
+                plan=_humanize_plan(plan),
+                identity=str(identity),
+                windows=windows,
+                status="ready" if windows else "empty",
+                statusText="" if windows else "No limit windows returned",
+                fetchedAt=_iso_now(),
+            )
+            return result
+        except TimeoutError:
+            result.update(status="error", statusText="Codex usage timed out")
+            return result
+        except (BrokenPipeError, OSError, RuntimeError):
+            result.update(status="error", statusText="Codex usage is unavailable")
+            return result
+        finally:
+            _terminate(process)
+
+
+def _collect_account(account: Account, force: bool) -> Account:
+    cache_key = f"{account['provider']}:{account['configDir']}"
+    cached = _snapshot_cache.get(cache_key)
+    if not force and cached and time.monotonic() - cached[0] < CACHE_SECONDS:
+        return cached[1]
+    if account["provider"] == "claude":
+        result = _collect_claude(account)
+    else:
+        result = _collect_codex(account)
+    _snapshot_cache[cache_key] = (time.monotonic(), result)
+    return result
+
+
+def collect_snapshot(request: dict[str, Any]) -> Snapshot:
+    accounts = discover_accounts(request)
+    force = request.get("force") is True
+    with ThreadPoolExecutor(max_workers=min(4, max(1, len(accounts)))) as executor:
+        results = list(
+            executor.map(lambda account: _collect_account(account, force), accounts)
+        )
+    order = {"codex": 0, "claude": 1}
+    results.sort(
+        key=lambda account: (
+            order.get(str(account.get("provider")), 9),
+            0 if account.get("source") == "default" else 1,
+            str(account.get("label", "")).casefold(),
+        )
+    )
+    ready = sum(1 for account in results if account.get("status") == "ready")
+    max_used = max(
+        (
+            float(window.get("used", 0))
+            for account in results
+            for window in account.get("windows", [])
+            if isinstance(window, dict)
+        ),
+        default=-1,
+    )
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "operation": "snapshot",
+        "accounts": results,
+        "summary": {
+            "accountCount": len(results),
+            "readyCount": ready,
+            "maxUsed": max_used,
+        },
+        "updatedAt": _iso_now(),
+    }
+
+
+def _write_response(response: Snapshot, stream: TextIO = sys.stdout) -> None:
+    stream.write(json.dumps(response, separators=(",", ":"), sort_keys=True) + "\n")
+    stream.flush()
+
+
+def _dispatch(raw: Any) -> Snapshot:
+    if not isinstance(raw, dict):
+        return {
+            "schemaVersion": SCHEMA_VERSION,
+            "operation": "error",
+            "error": "request must be a JSON object",
+        }
+    operation = str(raw.get("operation") or "snapshot")
+    if operation not in {"snapshot", "refresh"}:
+        return {
+            "schemaVersion": SCHEMA_VERSION,
+            "operation": "error",
+            "error": "unsupported operation",
+        }
+    return collect_snapshot(raw)
+
+
+def main() -> int:
+    for line in sys.stdin:
+        try:
+            request = json.loads(line)
+        except json.JSONDecodeError:
+            _write_response(
+                {
+                    "schemaVersion": SCHEMA_VERSION,
+                    "operation": "error",
+                    "error": "invalid JSON request",
+                }
+            )
+            continue
+        try:
+            response = _dispatch(request)
+        except (OSError, RuntimeError, TypeError, ValueError):
+            response = {
+                "schemaVersion": SCHEMA_VERSION,
+                "operation": "error",
+                "error": "usage collection failed",
+            }
+        _write_response(response)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

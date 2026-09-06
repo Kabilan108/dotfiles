@@ -1,0 +1,8 @@
+diff --git a/home/desktop/wayland/waybar.nix b/home/desktop/wayland/waybar.nix
+--- a/home/desktop/wayland/waybar.nix
++++ b/home/desktop/wayland/waybar.nix
+@@ -13,2 +13,2 @@
+-    enable = true;
+-    systemd.enable = true;
++    enable = false;
++    systemd.enable = false;

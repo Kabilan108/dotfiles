@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.example-widget",
+  "name": "Example widget",
+  "description": "Smallest plugin: one bar chip with no panel and no service.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Widget.qml" },
+  "scope": { "barWidget": "per-output" },
+  "barWidget": { "defaultSection": "right", "allowMultiple": false, "order": 90 }
+}

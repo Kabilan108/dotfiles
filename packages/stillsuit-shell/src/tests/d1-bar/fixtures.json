@@ -1,0 +1,12 @@
+{
+  "outputs": ["eDP-1", "HDMI-A-1"],
+  "registrations": [
+    {"id": "stillsuit.workspaces", "section": "left", "allowMultiple": false, "result": "ok"},
+    {"id": "stillsuit.clock", "section": "center", "allowMultiple": false, "result": "ok"},
+    {"id": "stillsuit.network", "section": "right", "allowMultiple": false, "result": "ok"},
+    {"id": "stillsuit.spacer", "section": "left", "allowMultiple": true, "result": "ok"},
+    {"id": "stillsuit.spacer", "section": "left", "allowMultiple": true, "result": "ok"},
+    {"id": "stillsuit.network", "section": "right", "allowMultiple": false, "result": "ok"},
+    {"id": "stillsuit.broken", "section": "right", "allowMultiple": false, "result": "broken"}
+  ]
+}

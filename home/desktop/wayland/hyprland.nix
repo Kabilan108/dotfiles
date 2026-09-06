@@ -205,7 +205,6 @@ in
         "hypridle"
         "obsidian"
         "[workspace name:0 silent] ghostty"
-        "$HOME/dotfiles/bin/battery-watcher"
       ];
 
       binds.allow_workspace_cycles = true;

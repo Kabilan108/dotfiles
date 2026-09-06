@@ -1,0 +1,11 @@
+diff --git a/home/desktop/wayland/compositors/niri/config.kdl b/home/desktop/wayland/compositors/niri/config.kdl
+--- a/home/desktop/wayland/compositors/niri/config.kdl
++++ b/home/desktop/wayland/compositors/niri/config.kdl
+@@ -347,5 +347,5 @@ window-rule {
+     match app-id=r#"^io\.stillsuit\.AgentPanel$"#
+     open-floating true
+-    default-column-width { proportion 0.72; }
+-    default-window-height { proportion 0.72; }
++    default-column-width { proportion 0.6; }
++    default-window-height { proportion 0.6; }
+ }

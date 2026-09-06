@@ -1,6 +1,7 @@
 {
   imports = [
     ./backup.nix
+    ./battery-watcher.nix
     ./cliproxyapi.nix
     ./codex-desktop.nix
     ./codex-remote-control.nix
@@ -18,6 +19,7 @@
 
   dotfiles.services = {
     backup.enable = true;
+    battery-watcher.enable = true;
     cliproxyapi.enable = true;
     install-tools.enable = true;
     meeting-minutes.enable = true;

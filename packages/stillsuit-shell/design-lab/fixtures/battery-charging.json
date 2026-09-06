@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 1,
+  "id": "battery-charging",
+  "name": "Battery charging",
+  "description": "41% charging with time-to-full; charging color precedence.",
+  "compositor": {
+    "focusedOutputId": "WB-1",
+    "workspaces": [
+      {
+        "id": 1,
+        "idx": 1,
+        "output": "WB-1",
+        "is_active": true,
+        "is_focused": true,
+        "is_urgent": false,
+        "active_window_id": 11
+      },
+      {
+        "id": 2,
+        "idx": 2,
+        "output": "WB-1",
+        "is_active": false,
+        "is_focused": false,
+        "is_urgent": false,
+        "active_window_id": null
+      },
+      {
+        "id": 3,
+        "idx": 3,
+        "output": "WB-1",
+        "is_active": false,
+        "is_focused": false,
+        "is_urgent": true,
+        "active_window_id": null
+      }
+    ],
+    "windows": [
+      {
+        "id": 11,
+        "workspace_id": 1,
+        "is_focused": true,
+        "is_floating": false,
+        "layout": {
+          "pos_in_scrolling_layout": [
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": 12,
+        "workspace_id": 1,
+        "is_focused": false,
+        "is_floating": false,
+        "layout": {
+          "pos_in_scrolling_layout": [
+            2,
+            1
+          ]
+        }
+      },
+      {
+        "id": 13,
+        "workspace_id": 1,
+        "is_focused": false,
+        "is_floating": false,
+        "layout": {
+          "pos_in_scrolling_layout": [
+            3,
+            1
+          ]
+        }
+      }
+    ]
+  },
+  "services": {
+    "stillsuit.battery": {
+      "revision": 1,
+      "state": "charging",
+      "device": {
+        "isPresent": true,
+        "percentage": 41,
+        "timeToEmpty": 0,
+        "timeToFull": 4200
+      },
+      "details": {
+        "healthPercent": 91,
+        "cycleCount": 212,
+        "capacityWh": 51.2,
+        "designCapacityWh": 56.0
+      }
+    },
+    "stillsuit.power": {
+      "revision": 1,
+      "profiles": [
+        "power-saver",
+        "balanced",
+        "performance"
+      ],
+      "activeProfile": "balanced"
+    },
+    "stillsuit.network": {
+      "revision": 1,
+      "wifiEnabled": true,
+      "wiredConnected": false,
+      "wiredName": "",
+      "networks": [
+        {
+          "id": "home",
+          "uuid": "home-uuid",
+          "name": "windrunner",
+          "kind": "personal",
+          "known": true,
+          "connected": true,
+          "signal": 79
+        },
+        {
+          "id": "cafe",
+          "name": "Cafe Guest",
+          "kind": "open",
+          "known": false,
+          "connected": false,
+          "signal": 61
+        },
+        {
+          "id": "ent",
+          "uuid": "ent-uuid",
+          "name": "Moberg-Corp",
+          "kind": "enterprise",
+          "known": true,
+          "connected": false,
+          "signal": 44
+        }
+      ],
+      "vpns": [
+        {
+          "uuid": "moberg-vpn",
+          "name": "MobergAnalytics",
+          "active": false,
+          "toggleAllowed": true,
+          "readOnly": false
+        }
+      ],
+      "tailscale": {
+        "available": true,
+        "status": "running",
+        "ip": "100.108.28.4",
+        "hostName": "jacurutu",
+        "dnsName": "jacurutu.sole-pierce.ts.net",
+        "services": []
+      }
+    },
+    "stillsuit.bluetooth": {
+      "revision": 1,
+      "enabled": true,
+      "scanning": false,
+      "devices": [
+        {
+          "address": "AA:00:00:00:00:01",
+          "name": "WH-1000XM5",
+          "connected": true,
+          "paired": true,
+          "bonded": true,
+          "trusted": true,
+          "batteryAvailable": true,
+          "battery": 0.63,
+          "state": "connected"
+        },
+        {
+          "address": "AA:00:00:00:00:02",
+          "name": "MX Master 3S",
+          "connected": false,
+          "paired": true,
+          "bonded": true,
+          "trusted": true,
+          "batteryAvailable": false,
+          "battery": 0,
+          "state": "disconnected"
+        },
+        {
+          "address": "AA:00:00:00:00:03",
+          "name": "Unknown speaker",
+          "connected": false,
+          "paired": false,
+          "bonded": false,
+          "trusted": false,
+          "batteryAvailable": false,
+          "battery": 0,
+          "state": "disconnected"
+        }
+      ]
+    },
+    "stillsuit.audio": {
+      "revision": 1,
+      "volume": 0.42,
+      "muted": false,
+      "inputVolume": 0.8,
+      "inputMuted": false,
+      "sink": {
+        "description": "Built-in speakers"
+      },
+      "source": {
+        "description": "Built-in microphone"
+      },
+      "outputs": [
+        {
+          "name": "sink.speakers",
+          "description": "Built-in speakers",
+          "active": true,
+          "iconName": "audio"
+        },
+        {
+          "name": "sink.headset",
+          "description": "WH-1000XM5",
+          "active": false,
+          "iconName": "headphones"
+        }
+      ],
+      "media": {
+        "players": [
+          {
+            "dbusName": "spotify",
+            "identity": "Spotify",
+            "trackTitle": "Dune (Main Theme)",
+            "trackArtist": "Hans Zimmer",
+            "trackAlbum": "Dune OST",
+            "trackArtUrl": "",
+            "isPlaying": false,
+            "position": 71,
+            "length": 231,
+            "lengthSupported": true,
+            "canSeek": true,
+            "canGoPrevious": true,
+            "canTogglePlaying": true,
+            "canGoNext": true,
+            "shuffleSupported": true,
+            "shuffle": false,
+            "loopSupported": true,
+            "loopState": "none"
+          }
+        ]
+      }
+    },
+    "stillsuit.resources": {
+      "cpuPercent": 7,
+      "memoryPercent": 47
+    },
+    "stillsuit.agent-usage": {
+      "revision": 1,
+      "updatedAt": "2026-09-06T12:00:00Z",
+      "accounts": [
+        {
+          "id": "codex-default",
+          "provider": "codex",
+          "source": "default",
+          "label": "Default",
+          "plan": "Pro",
+          "identity": "you@example.com",
+          "status": "ready",
+          "statusText": "",
+          "windows": [
+            {
+              "id": "primary",
+              "label": "5 hour",
+              "used": 0.23,
+              "resetsAt": "2030-01-01T05:00:00+00:00"
+            },
+            {
+              "id": "secondary",
+              "label": "Weekly",
+              "used": 0.58,
+              "resetsAt": "2030-01-08T00:00:00+00:00"
+            }
+          ]
+        },
+        {
+          "id": "claude-default",
+          "provider": "claude",
+          "source": "default",
+          "label": "Default",
+          "plan": "Max",
+          "identity": "",
+          "status": "ready",
+          "statusText": "",
+          "windows": [
+            {
+              "id": "primary",
+              "label": "5 hour",
+              "used": 0.72,
+              "resetsAt": "2030-01-01T05:00:00+00:00"
+            }
+          ]
+        }
+      ],
+      "summary": {
+        "accountCount": 2,
+        "readyCount": 2,
+        "maxUsed": 0.72
+      }
+    }
+  },
+  "notifications": [
+    {
+      "appName": "Slack",
+      "summary": "Justin",
+      "body": "PR 1395 is green, merging after lunch",
+      "urgency": 1
+    },
+    {
+      "appName": "Calendar",
+      "summary": "Standup in 10 minutes",
+      "body": "Neuro-ICU sync \u2014 Meet link in invite",
+      "urgency": 1
+    }
+  ],
+  "recording": {
+    "schemaVersion": 1,
+    "phase": "idle"
+  },
+  "meetingJobs": {
+    "schemaVersion": 1,
+    "jobs": []
+  }
+}

@@ -1,0 +1,249 @@
+#!/usr/bin/env bash
+# Runs the Stillsuit plugin workbench: the production core against fixture
+# service models, in an isolated XDG sandbox. Interactive runs draw on one
+# output of the current session with the bar in shadow mode; --headless runs
+# own a headless sway for tests.
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'USAGE'
+usage: stillsuit-workbench [start options]
+       stillsuit-workbench COMMAND [args]
+
+Start (no command): runs the workbench on one output of this session with its
+bar in shadow mode, stacked below the production bar. Ctrl-C stops it.
+  --output NAME       output to draw on (default: the one not focused; the only one if single)
+  --fixture ID        starting scenario (default: default)
+  --plugins DIR       sandbox plugin root (default: ~/.config/stillsuit/workbench/plugins)
+  --headless          own a headless sway instead of the session (tests)
+  --size WxH          headless output size (default: 1600x900)
+  --sandbox DIR       state root (default: ~/.local/state/stillsuit/workbench)
+  --source DIR        shell source tree (default: packaged)
+  --theme PATH        theme.v2 json (default: production theme)
+
+Commands against a running workbench:
+  status [--json]     what is running, on which output, which fixture
+  fixtures            list fixture ids
+  fixture ID          switch scenario
+  open PLUGIN         open a plugin's panel (audio, network, stillsuit.audio ...)
+  close               dismiss open panels
+  notify SUMMARY BODY present a notification
+  actions             service calls plugins made since the last clear
+  plugins             sandbox plugin catalog
+  stop                stop the running workbench
+  call TARGET FN ...  raw quickshell ipc call
+USAGE
+  exit 64
+}
+
+fixture_id="default"
+plugin_root="${XDG_CONFIG_HOME:-$HOME/.config}/stillsuit/workbench/plugins"
+sandbox_root="${XDG_STATE_HOME:-$HOME/.local/state}/stillsuit/workbench"
+source_root="${STILLSUIT_WORKBENCH_SOURCE:-}"
+theme_path="${STILLSUIT_WORKBENCH_THEME:-${XDG_CONFIG_HOME:-$HOME/.config}/stillsuit/theme.json}"
+headless=0
+size="1600x900"
+output_name=""
+command_name="start"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --fixture) fixture_id=$2; shift 2 ;;
+    --plugins) plugin_root=$2; shift 2 ;;
+    --sandbox) sandbox_root=$2; shift 2 ;;
+    --source) source_root=$2; shift 2 ;;
+    --theme) theme_path=$2; shift 2 ;;
+    --headless) headless=1; shift ;;
+    --output) output_name=$2; shift 2 ;;
+    --size) size=$2; shift 2 ;;
+    -h | --help) usage ;;
+    -*) usage ;;
+    *) command_name=$1; shift; break ;;
+  esac
+done
+
+[[ -n $source_root ]] || source_root=${STILLSUIT_WORKBENCH_PACKAGED_SOURCE:?no shell source; pass --source}
+[[ -d $source_root ]] || { printf 'shell source not found: %s\n' "$source_root" >&2; exit 66; }
+fixture_root="$source_root/../design-lab/fixtures"
+[[ -d $fixture_root ]] || fixture_root="${STILLSUIT_WORKBENCH_FIXTURES:?no fixture directory}"
+schema_path="$source_root/../schemas/manifest.v1.json"
+config_id="stillsuit-workbench"
+pid_file="$sandbox_root/quickshell.pid"
+
+runtime_root="$sandbox_root/runtime"
+config_home="$sandbox_root/config"
+data_home="$sandbox_root/data"
+state_home="$sandbox_root/state"
+workflow_root="$sandbox_root/workflow"
+
+running_pid() {
+  [[ -f $pid_file ]] || return 1
+  local pid
+  pid=$(<"$pid_file")
+  kill -0 "$pid" 2>/dev/null || return 1
+  printf '%s\n' "$pid"
+}
+
+ipc() {
+  local pid
+  pid=$(running_pid) || { printf 'workbench is not running; start it with: stillsuit-workbench\n' >&2; exit 69; }
+  XDG_RUNTIME_DIR="$runtime_root" quickshell ipc --pid "$pid" call "$@"
+}
+
+plugin_id() {
+  case "$1" in
+    stillsuit.*) printf '%s\n' "$1" ;;
+    *) printf 'stillsuit.%s\n' "$1" ;;
+  esac
+}
+
+case "$command_name" in
+  start) ;;
+  call) ipc "$@"; exit ;;
+  fixtures) ipc stillsuit-workbench fixtures | jq -r '.[]'; exit ;;
+  fixture) [[ $# -eq 1 ]] || usage; ipc stillsuit-workbench select "$1"; exit ;;
+  open) [[ $# -eq 1 ]] || usage; ipc stillsuit-surface open "$(plugin_id "$1")" '{}'; exit ;;
+  close) ipc stillsuit-surface close "$(ipc stillsuit-workbench status | jq -r '.selectedPanel')" 2>/dev/null || true; exit ;;
+  notify) [[ $# -eq 2 ]] || usage; ipc stillsuit-workbench notify "$1" "$2"; exit ;;
+  actions) ipc stillsuit-workbench actions | jq .; exit ;;
+  plugins) exec stillsuit-plugins --config "$config_home/stillsuit/runtime-discovery.json" list ;;
+  stop)
+    pid=$(running_pid) || { printf 'workbench is not running\n' >&2; exit 0; }
+    kill "$pid"; printf 'stopped %s\n' "$pid"; exit ;;
+  status)
+    if [[ ${1:-} == --json ]]; then ipc stillsuit-workbench status | jq .; exit; fi
+    ipc stillsuit-workbench status | jq -r '
+      "workbench: " + (if .ready then "ready" else "starting" end)
+      + "\noutput:    " + (.screens | join(", "))
+      + "\nfixture:   " + .fixture
+      + "\npanel:     " + (if .selectedPanel == "" then "none" else .selectedPanel end)
+      + "\nplugins:   " + ((.plugins | to_entries | map(select(.value.enabled)) | length) | tostring)
+      + " enabled, " + ((.plugins | to_entries | map(select(.value.state == "error")) | length) | tostring) + " in error"
+      + (if .fixtureError != "" then "\nfixtures:  " + .fixtureError else "" end)'
+    exit ;;
+  *) usage ;;
+esac
+
+if pid=$(running_pid); then
+  printf 'workbench already running (pid %s); use `stillsuit-workbench stop` first\n' "$pid" >&2
+  exit 75
+fi
+
+mkdir -p "$runtime_root" "$config_home/stillsuit" "$data_home" "$state_home" "$workflow_root" "$plugin_root"
+chmod 700 "$runtime_root"
+: > "$workflow_root/recording.json"
+
+# Named module imports (Stillsuit.Ui, Stillsuit.Services) for sandbox plugins.
+qml_root="$sandbox_root/qml/Stillsuit"
+mkdir -p "$qml_root"
+ln -sfn "$source_root/ui" "$qml_root/Ui"
+ln -sfn "$source_root/services" "$qml_root/Services"
+
+sway_pid=""
+shadow=0
+if [[ $headless -eq 1 ]]; then
+  sway_bin=$(command -v sway || true)
+  [[ -n $sway_bin ]] || { printf 'sway is required for headless runs\n' >&2; exit 69; }
+  sway_conf="$sandbox_root/sway.conf"
+  printf 'output * resolution %s\n' "${size/x/ }" > "$sway_conf"
+  env -u DISPLAY XDG_RUNTIME_DIR="$runtime_root" DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_root/no-bus" \
+    WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_LIBINPUT_NO_DEVICES=1 WLR_RENDERER=pixman \
+    "$sway_bin" -c "$sway_conf" > "$sandbox_root/sway.log" 2>&1 &
+  sway_pid=$!
+  display=""
+  for _ in $(seq 1 200); do
+    for candidate in "$runtime_root"/wayland-*; do
+      [[ -S $candidate ]] && { display=$(basename "$candidate"); break; }
+    done
+    [[ -n $display ]] && break
+    sleep 0.05
+  done
+  [[ -n $display ]] || { cat "$sandbox_root/sway.log" >&2; exit 70; }
+  shell_runtime="$runtime_root"
+else
+  [[ -n ${WAYLAND_DISPLAY:-} ]] || { printf 'no WAYLAND_DISPLAY; run inside a Wayland session or pass --headless\n' >&2; exit 69; }
+  shadow=1
+  display=$WAYLAND_DISPLAY
+  [[ $display == /* ]] || display="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/$display"
+  shell_runtime="$runtime_root"
+  if [[ -z $output_name ]] && command -v niri >/dev/null; then
+    focused=$(niri msg -j focused-output 2>/dev/null | jq -r '.name // ""')
+    output_name=$(niri msg -j outputs 2>/dev/null \
+      | jq -r --arg focused "$focused" '[.[] | .name] | (map(select(. != $focused)) | first) // first // ""')
+  fi
+  [[ -n $output_name ]] || { printf 'could not pick an output; pass --output NAME\n' >&2; exit 69; }
+fi
+cleanup() {
+  [[ -f $pid_file ]] && { kill "$(<"$pid_file")" 2>/dev/null || true; rm -f "$pid_file"; }
+  [[ -n $sway_pid ]] && kill "$sway_pid" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# Seed: every builtin plugin with sandbox-safe settings. Nothing here reaches
+# real helpers, sockets, or the session bus.
+python3 - "$source_root" "$config_home/stillsuit/seed.json" "$workflow_root" "$shadow" <<'PY'
+import json, sys
+from pathlib import Path
+source, seed_path, workflow = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
+shadow = sys.argv[4] == "1"
+builtin = source / "plugins" / "builtin"
+settings = {
+    "stillsuit.bar": {"shadowMode": shadow},
+    "stillsuit.notifications": {"shadowMode": True, "claimNotificationBus": False},
+    "stillsuit.workflows": {
+        "recordingStatePath": f"{workflow}/recording.json",
+        "meetingJobsPath": f"{workflow}/meeting-jobs.json",
+        "meetingStatusPath": f"{workflow}/meeting-status.json",
+        "recordingDirectory": f"{workflow}/recordings",
+    },
+    "stillsuit.osd": {"brightnessPath": "", "brightnessMaxPath": ""},
+    "stillsuit.agent-usage": {"includeDefaults": True, "accounts": []},
+}
+rows = []
+for folder in sorted(builtin.iterdir()):
+    manifest_path = folder / "manifest.json"
+    if not manifest_path.is_file():
+        continue
+    manifest = json.loads(manifest_path.read_text())
+    rows.append({"manifest": manifest, "packageRoot": str(folder.resolve()),
+                 "enabled": True, "settings": settings.get(manifest["id"], {})})
+seed_path.write_text(json.dumps({"schemaVersion": 1, "selectedBar": "stillsuit.bar", "plugins": rows}, indent=2))
+PY
+
+# workbench/plugins holds review tools (icon gallery) that only this sandbox
+# discovers; production enumerates the Nix plugin registry, never this tree.
+cat > "$config_home/stillsuit/runtime-discovery.json" <<JSON
+{
+  "seed": "$config_home/stillsuit/seed.json",
+  "roots": ["$plugin_root", "$source_root/plugins/builtin", "$source_root/workbench/plugins", "$source_root/plugins/examples"],
+  "state": "$state_home/stillsuit",
+  "core": "$source_root",
+  "schema": "$schema_path",
+  "preferences": "$config_home/stillsuit/plugins.json"
+}
+JSON
+
+export HOME="$sandbox_root/home"
+mkdir -p "$HOME"
+export XDG_RUNTIME_DIR="$shell_runtime" XDG_CONFIG_HOME="$config_home" \
+  XDG_DATA_HOME="$data_home" XDG_STATE_HOME="$state_home" \
+  WAYLAND_DISPLAY="$display" QT_QPA_PLATFORM=wayland
+unset DBUS_SESSION_BUS_ADDRESS
+export STILLSUIT_CONFIG_ID="$config_id" \
+  STILLSUIT_THEME_PATH="$theme_path" \
+  STILLSUIT_ALLOW_LOCAL_PLUGINS=1 \
+  STILLSUIT_PLUGIN_RUNTIME_CONFIG="$config_home/stillsuit/runtime-discovery.json" \
+  STILLSUIT_PLUGIN_HELPER="$(command -v stillsuit-plugins)" \
+  STILLSUIT_WORKBENCH_FIXTURES="$fixture_root" \
+  STILLSUIT_WORKBENCH_FIXTURE="$fixture_id" \
+  STILLSUIT_WORKBENCH_STATE="$workflow_root" \
+  STILLSUIT_WORKBENCH_OUTPUT="$output_name" \
+  STILLSUIT_WORKBENCH_SHADOW="$shadow" \
+  QML_IMPORT_PATH="$sandbox_root/qml"
+
+quickshell --no-color -p "$source_root/workbench.qml" > "$sandbox_root/shell.log" 2>&1 &
+shell_pid=$!
+printf '%s\n' "$shell_pid" > "$pid_file"
+printf 'workbench on %s (fixture %s), stacked below the production bar\nplugins: %s\nlog:     %s\n' \
+  "${output_name:-all headless outputs}" "$fixture_id" "$plugin_root" "$sandbox_root/shell.log"
+wait "$shell_pid"

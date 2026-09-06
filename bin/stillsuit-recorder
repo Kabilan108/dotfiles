@@ -24,21 +24,24 @@ def runtime_dir() -> Path:
 STATE_PATH = runtime_dir() / "recording.json"
 LOG_PATH = runtime_dir() / "gpu-screen-recorder.log"
 MEETING_HELPER = Path.home() / "bin/meeting-minutes"
+ACTIVE_PHASES = frozenset({"recording", "paused", "stopping"})
+FINISHED_PHASES = frozenset({"completed", "meeting_queued"})
 
 
 def read_state() -> dict[str, Any]:
     if not STATE_PATH.exists():
-        return {"phase": "idle"}
+        return {"schemaVersion": 1, "phase": "idle"}
     try:
         data = json.loads(STATE_PATH.read_text())
     except (json.JSONDecodeError, OSError):
-        return {"phase": "idle"}
-    return data if isinstance(data, dict) else {"phase": "idle"}
+        return {"schemaVersion": 1, "phase": "idle"}
+    return data if isinstance(data, dict) else {"schemaVersion": 1, "phase": "idle"}
 
 
 def write_state(state: dict[str, Any]) -> None:
+    payload = {"schemaVersion": 1, **state}
     temp_path = STATE_PATH.with_suffix(".tmp")
-    temp_path.write_text(json.dumps(state, separators=(",", ":")))
+    temp_path.write_text(json.dumps(payload, separators=(",", ":")))
     temp_path.replace(STATE_PATH)
 
 
@@ -63,12 +66,12 @@ def elapsed_seconds(state: dict[str, Any]) -> int:
 
 def refreshed_state() -> dict[str, Any]:
     state = read_state()
-    if state.get("phase") == "completed":
+    if state.get("phase") in FINISHED_PHASES:
         output = Path(str(state.get("output", "")))
         if output.is_file():
             state["size_bytes"] = output.stat().st_size
         return state
-    if state.get("phase") not in {"recording", "paused", "stopping"}:
+    if state.get("phase") not in ACTIVE_PHASES:
         return state
 
     pid = int(state.get("pid", 0))
@@ -93,7 +96,7 @@ def refreshed_state() -> dict[str, Any]:
 
 
 def print_state(state: dict[str, Any]) -> None:
-    print(json.dumps(state, separators=(",", ":")))
+    print(json.dumps({"schemaVersion": 1, **state}, separators=(",", ":")))
 
 
 def safe_title(title: str) -> str:
@@ -122,7 +125,7 @@ def require_active() -> dict[str, Any]:
 
 def start_recording(args: argparse.Namespace) -> None:
     current = refreshed_state()
-    if current.get("phase") in {"recording", "paused", "stopping"}:
+    if current.get("phase") in ACTIVE_PHASES:
         raise RuntimeError("A Stillsuit recording is already active")
 
     directory = Path(args.directory).expanduser()
@@ -317,7 +320,7 @@ def rename_recording(title: str) -> None:
 
 def dismiss() -> None:
     state = refreshed_state()
-    if state.get("phase") in {"recording", "paused", "stopping"}:
+    if state.get("phase") in ACTIVE_PHASES:
         raise RuntimeError("Cannot dismiss an active recording")
     STATE_PATH.unlink(missing_ok=True)
     print_state({"phase": "idle"})

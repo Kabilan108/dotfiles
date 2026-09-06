@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"stillsuit.power","name":"Power profiles","description":"Shared power profile state used by the battery panel.","version":"1.0.0","apiVersion":"1","kinds":["service"],"entryPoints":{"service":"Service.qml"},"scope":{"service":"global"},"capabilities":["power-profile-control"]}

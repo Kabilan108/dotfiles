@@ -1,0 +1,18 @@
+diff --git a/home/desktop/wayland/compositors/niri/config.kdl b/home/desktop/wayland/compositors/niri/config.kdl
+--- a/home/desktop/wayland/compositors/niri/config.kdl
++++ b/home/desktop/wayland/compositors/niri/config.kdl
+@@ -309 +308,0 @@ spawn-sh-at-startup "swaybg -i $HOME/dotfiles/wallpapers/shoggoth-001.png -m fill"
+-spawn-sh-at-startup "$HOME/dotfiles/bin/battery-watcher"
+diff --git a/home/desktop/wayland/hyprland.nix b/home/desktop/wayland/hyprland.nix
+--- a/home/desktop/wayland/hyprland.nix
++++ b/home/desktop/wayland/hyprland.nix
+@@ -208 +207,0 @@ in
+-        "$HOME/dotfiles/bin/battery-watcher"
+diff --git a/home/desktop/x11/i3.nix b/home/desktop/x11/i3.nix
+--- a/home/desktop/x11/i3.nix
++++ b/home/desktop/x11/i3.nix
+@@ -150,4 +149,0 @@ in
+-        {
+-          command = "${../../../bin/battery-watcher}";
+-          notification = false;
+-        }

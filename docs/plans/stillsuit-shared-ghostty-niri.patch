@@ -1,0 +1,8 @@
+--- a/home/desktop/wayland/compositors/niri/config.kdl
++++ b/home/desktop/wayland/compositors/niri/config.kdl
+@@ -346,1 +346,1 @@
+-    match app-id=r#"^io\.stillsuit\.AgentPanel$"#
++    match app-id=r#"^com\.mitchellh\.ghostty$"# title=r#"^Stillsuit Agent$"#
+@@ -515,1 +515,1 @@
+-    Mod+Return hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty"; }
++    Mod+Return hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty" "+new-window"; }

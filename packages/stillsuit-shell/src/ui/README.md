@@ -1,0 +1,59 @@
+# Shared Stillsuit UI contracts
+
+Bar entries may expose a dynamic `property string tooltipText`. The bar host
+displays it as plain text after 500 ms of hover, without pointer capture or
+keyboard focus. An empty string disables the tooltip. `ShellBarCluster`
+defaults it to the accessible name. Hover exit and panel selection hide it.
+
+`ShellBarCluster.selected` means its panel is open. Use `contentColor` for
+domain states such as low battery or charging. `secondaryIconSource` and
+`secondaryLabel` add a second icon/value pair inside the same click target.
+
+`ShellIcon` renders a generated SVG from `icons/` (see `icons/README.md`) tinted
+with the requested theme role. Setting `source` renders that image with its own
+colors instead, falling back to the named icon while it is unavailable. `ShellEmptyRow` supplies the compact
+icon-and-caption empty treatment used by the media section.
+
+`ShellPanelHeader` supplies `title`, optional `subtitle`, the divider, and a
+default trailing action slot. Actions remain caller-owned. `ShellScrollArea`
+caps content at `maximumHeight` and adds clipping, bounded scrolling, and a
+scrollbar. Use it for lists that can grow, starting with Bluetooth device lists.
+
+These components consume theme-v2 semantic roles and component assignments.
+Callers must not pass palette colors or add private color records. Direct
+`color` overrides are reserved for values already obtained from a semantic or
+component assignment.
+
+`ShellAction` owns activation for `ShellButton`, `ShellToggle`, `ShellRow`, and
+`ShellBarCluster`. Enter, Return, Space, and primary-pointer activation all call
+the same guarded path. Disabled and busy actions do not emit. `accessibleName`
+is the public naming hook for Quickshell 0.3, which cannot expose the full Qt
+accessibility attached API used by newer runtimes. Labeled controls derive a
+name from their label. Icon-only buttons and bar clusters derive a readable
+fallback from `iconName`, but callers should set a more specific name when the
+icon does not fully describe the action.
+
+`ShellToggle` is owner-controlled. Activation emits `toggled(!checked)` and
+never writes `checked`. The owner performs the operation and publishes the
+accepted state back to the control. This prevents a failed service write from
+briefly showing a state that never became true.
+
+`ShellSlider` is owner-controlled. It clamps the owner's displayed value to the
+inclusive `from` and `to` range and emits `moved(value)` for accepted pointer or
+keyboard changes without writing `value` itself. The owner performs the
+operation and publishes authoritative state back to the control, preserving
+bindings across failures and external changes. It supports arrows, Page Up,
+Page Down, Home, and End. Set `stepSize` when the default one-percent step is
+not appropriate.
+
+`ShellRow` reserves a fixed icon column by default so rows align across mixed
+states. Selected and danger rows use borderless theme fills. `ShellSectionLabel`
+provides the approved monospace uppercase section treatment. `ShellStatus` is
+the compact inline status treatment. `ShellStateView` centers empty, loading,
+and error content selected through its `mode` property and can expose one
+guarded action.
+
+Set `reducedMotion` on controls when the host requests it. Theme motion values
+of zero also stop the busy indicator. Color and position transitions then
+resolve immediately. None of these components animate width, height, implicit
+size, padding, or another layout measurement.

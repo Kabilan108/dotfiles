@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.example-panel",
+  "name": "Example panel",
+  "description": "A bar chip that opens a hosted panel; the core positions and dismisses it.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["bar-widget", "panel"],
+  "entryPoints": { "barWidget": "Widget.qml", "panel": "Panel.qml" },
+  "scope": { "barWidget": "per-output", "panel": "per-output" },
+  "barWidget": { "defaultSection": "right", "allowMultiple": false, "order": 91 },
+  "keepLoaded": true
+}

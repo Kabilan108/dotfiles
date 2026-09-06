@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.workspaces",
+  "name": "Workspaces",
+  "description": "Niri workspace and scrolling-column presentation from compositor snapshots.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "WorkspaceWidget.qml" },
+  "scope": { "barWidget": "per-output" },
+  "capabilities": ["compositor-read"],
+  "barWidget": { "defaultSection": "left", "allowMultiple": false, "order": 10 }
+}
