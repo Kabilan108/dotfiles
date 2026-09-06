@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 import QtQuick
-import QtQuick.Effects
+import Quickshell.Io
 
 Item {
     id: root
@@ -15,24 +15,35 @@ Item {
     property real pixelSize: _iconSize(sizeRole)
     readonly property url source: _source(name)
     readonly property bool ready: image.status === Image.Ready
+    readonly property string _fill: String(color)
+
+    FileView {
+        id: file
+        path: root.source
+        blockLoading: true
+    }
 
     implicitWidth: pixelSize
     implicitHeight: pixelSize
     Accessible.name: accessibleName !== "" ? accessibleName : name.replace(/-/g, " ")
 
+    // Qt SVG has no currentColor support, so the fill is written into the
+    // markup before decoding instead of tinting pixels afterwards.
     Image {
         id: image
         anchors.fill: parent
-        source: root.source
+        source: root._tinted(file.text(), root._fill)
         sourceSize.width: Math.ceil(width)
         sourceSize.height: Math.ceil(height)
         fillMode: Image.PreserveAspectFit
         smooth: true
-        layer.enabled: true
-        layer.effect: MultiEffect {
-            colorization: 1.0
-            colorizationColor: root.color
-        }
+    }
+
+    function _tinted(markup, fill) {
+        if (!markup)
+            return ""
+        var svg = markup.replace(/<svg\b/, '<svg fill="' + fill + '"')
+        return "data:image/svg+xml;utf8," + encodeURIComponent(svg)
     }
 
     function _source(iconName) {
