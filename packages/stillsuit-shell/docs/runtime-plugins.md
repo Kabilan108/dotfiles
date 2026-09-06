@@ -33,6 +33,8 @@ stillsuit-plugins enable stillsuit.example
 stillsuit-plugins place stillsuit.example right 50
 ```
 
+The `stillsuit-plugin` agent skill (`agents/skills/stillsuit-plugin/`) walks
+this loop and points at `src/plugins/examples/` as starting templates.
 Develop against `stillsuit-workbench` first: it runs the same core and
 discovery on a nested compositor with fixture-driven services, so a plugin can
 be created, edited, broken, and restored without touching the live session.

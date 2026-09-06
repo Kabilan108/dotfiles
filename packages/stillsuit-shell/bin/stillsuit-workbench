@@ -215,7 +215,7 @@ PY
 cat > "$config_home/stillsuit/runtime-discovery.json" <<JSON
 {
   "seed": "$config_home/stillsuit/seed.json",
-  "roots": ["$plugin_root", "$source_root/plugins/builtin", "$source_root/workbench/plugins"],
+  "roots": ["$plugin_root", "$source_root/plugins/builtin", "$source_root/workbench/plugins", "$source_root/plugins/examples"],
   "state": "$state_home/stillsuit",
   "core": "$source_root",
   "schema": "$schema_path",

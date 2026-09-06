@@ -40,7 +40,10 @@ stillsuit-workbench stop
 
 Plugins under `~/.config/stillsuit/workbench/plugins/<name>/` take precedence
 over the tracked builtins and are discovered, reloaded, contained, and
-restored within about a second, exactly as in production. Every IPC target the
+restored within about a second, exactly as in production. The workbench also
+loads `src/plugins/examples/` (the `stillsuit-plugin` skill's templates) and
+`src/workbench/plugins/` (review tools such as the icon gallery); neither is
+in the production registry. Every IPC target the
 production shell exposes (`stillsuit`, `stillsuit-surface`, `stillsuit-plugin`)
 works against the workbench through `stillsuit-workbench call TARGET FN ...`,
 the raw escape hatch behind the commands above.

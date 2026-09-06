@@ -39,6 +39,15 @@ wait_for "workbench readiness" '.ready == true and .fixture == "default"'
 status | jq -e '(.plugins | to_entries | map(select(.value.state == "error")) | length) == 0' > /dev/null
 status | jq -e '.modelsApplied | index("stillsuit.battery") != null and index("stillsuit.audio") != null' > /dev/null
 
+# The example plugins are the skill's templates; they must load cleanly.
+for example in stillsuit.example-widget stillsuit.example-panel stillsuit.example-counter; do
+    wait_for "$example loaded" ".plugins[\"$example\"].enabled == true and (.plugins[\"$example\"].state // \"\") != \"error\""
+done
+[[ $("${workbench[@]}" open example-counter 2>/dev/null) == ok ]]
+wait_for "example counter panel" '.selectedPanel == "stillsuit.example-counter"'
+"${workbench[@]}" close 2>/dev/null
+wait_for "example counter closed" '.selectedPanel == ""'
+
 for fixture in $("${workbench[@]}" fixtures 2>/dev/null); do
     [[ $("${workbench[@]}" fixture "$fixture" 2>/dev/null) == ok ]]
     wait_for "fixture $fixture" ".fixture == \"$fixture\" and .ready == true"

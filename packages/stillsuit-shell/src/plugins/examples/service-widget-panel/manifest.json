@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.example-counter",
+  "name": "Example counter",
+  "description": "A global service owning state, with per-output bar and panel views of it.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["service", "bar-widget", "panel"],
+  "entryPoints": { "service": "Service.qml", "barWidget": "Widget.qml", "panel": "Panel.qml" },
+  "scope": { "service": "global", "barWidget": "per-output", "panel": "per-output" },
+  "barWidget": { "defaultSection": "right", "allowMultiple": false, "order": 92 },
+  "keepLoaded": true
+}
