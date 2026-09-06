@@ -20,6 +20,11 @@ ShellRoot {
     readonly property string fixtureRoot: Quickshell.env("STILLSUIT_WORKBENCH_FIXTURES") || ""
     readonly property string themePath: Quickshell.env("STILLSUIT_THEME_PATH") || ""
     readonly property string initialFixtureId: Quickshell.env("STILLSUIT_WORKBENCH_FIXTURE") || "default"
+    // Interactive runs share the real session and draw on one chosen output
+    // in bar shadow mode; headless runs own every screen of their compositor.
+    readonly property string outputFilter: Quickshell.env("STILLSUIT_WORKBENCH_OUTPUT") || ""
+    readonly property bool shadowMode: Quickshell.env("STILLSUIT_WORKBENCH_SHADOW") === "1"
+    readonly property var screens: _selectScreens(Quickshell.screens, outputFilter)
     readonly property bool ready: themeLoaded && themeError === ""
         && pluginCatalog.ready && serviceRegistry.ready
         && surfaceRouter.pendingLoadCount === 0 && fixtureId !== ""
@@ -80,7 +85,7 @@ ShellRoot {
         allowLocalPlugins: true
         hostContext: hostContext
         serviceRegistry: serviceRegistry
-        outputScreens: Quickshell.screens
+        outputScreens: shell.screens
         fallbackContext: null
     }
 
@@ -101,7 +106,7 @@ ShellRoot {
         hostContext: hostContext
         serviceRegistry: serviceRegistry
         compositor: compositor
-        screens: Quickshell.screens
+        screens: shell.screens
     }
 
     IpcFacade {
@@ -117,13 +122,13 @@ ShellRoot {
     }
 
     Loader {
-        active: Quickshell.screens.length > 0
+        active: shell.screens.length > 0
             && Quickshell.env("QT_QPA_PLATFORM") !== "offscreen"
         source: "core/PanelHosts.qml"
         onLoaded: {
             item.router = surfaceRouter
             item.theme = Qt.binding(function() { return shell.publicTheme })
-            item.screens = Qt.binding(function() { return Quickshell.screens })
+            item.screens = Qt.binding(function() { return shell.screens })
         }
     }
 
@@ -164,7 +169,8 @@ ShellRoot {
                 services: serviceRegistry.statusRecords(),
                 surfaces: surfaceRouter.statusRecords(),
                 selectedPanel: surfaceRouter.presentedId,
-                screens: Quickshell.screens.map(function(screen) { return String(screen.name) }),
+                screens: shell.screens.map(function(screen) { return String(screen.name) }),
+                shadowMode: shell.shadowMode,
                 modelsApplied: shell._appliedModelIds()
             })
         }
@@ -179,7 +185,7 @@ ShellRoot {
             _loadTheme(text)
         }
         pluginCatalog.fallbackContext = hostContext.contextForBuiltin(
-            "stillsuit.builtin-bar", Quickshell.shellDir, { shadowMode: false })
+            "stillsuit.builtin-bar", Quickshell.shellDir, { shadowMode: shell.shadowMode })
         pluginCatalog.rescan()
         fixtures.reload()
     }
@@ -190,7 +196,7 @@ ShellRoot {
         fixtureId = String(id)
         models.fixture = document
         models.rebuild()
-        compositor.apply(document.compositor || {}, Quickshell.screens)
+        compositor.apply(document.compositor || {}, shell.screens)
         applyModels()
         _writeWorkflowState(document)
         _replaceNotifications(document.notifications || [])
@@ -280,6 +286,15 @@ ShellRoot {
             if (service && service.model === models.built[key]) result.push(key)
         }
         return result.sort()
+    }
+
+    function _selectScreens(all, filter) {
+        var result = []
+        for (var index = 0; index < all.length; index++) {
+            if (filter === "" || String(all[index].name) === filter)
+                result.push(all[index])
+        }
+        return result
     }
 
     function _xdgRoot(variable, fallbackSuffix) {

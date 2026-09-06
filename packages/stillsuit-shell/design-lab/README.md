@@ -6,9 +6,12 @@ compositor, or service authority over the real session.
 ## Plugin workbench
 
 `stillsuit-workbench` runs the production core (plugin catalog, service
-registry, surface router, panel hosts, IPC facade) on a nested compositor
-inside an isolated XDG sandbox. Real plugin QML runs unchanged; only the
-inputs are synthetic:
+registry, surface router, panel hosts, IPC facade) a second time on one
+output of the current session, inside an isolated XDG sandbox. Its bar runs
+in shadow mode (no exclusive zone), so it stacks with the production bar
+instead of pushing windows; by default it picks the output you are not
+focused on, so the real shell stays usable on the other one. Real plugin
+QML runs unchanged; only the inputs are synthetic:
 
 - services receive fixture `model` objects instead of hardware and helpers;
 - the compositor snapshot comes from the fixture, not Niri;
@@ -17,8 +20,8 @@ inputs are synthetic:
 - the recorder and meeting-worker state files are written from the fixture.
 
 ```sh
-stillsuit-workbench run                       # visible nested window, default fixture
-stillsuit-workbench --fixture battery-low run
+stillsuit-workbench run                       # shadow bar on the other output, default fixture
+stillsuit-workbench --output DP-4 --fixture battery-low run
 stillsuit-workbench fixtures                  # ids from fixtures/*.json
 stillsuit-workbench call stillsuit-workbench select media-playing
 stillsuit-workbench call stillsuit-surface open stillsuit.audio '{}'
@@ -40,8 +43,9 @@ notifications to present, and recorder/meeting state. Add a scenario by adding
 a file; `reloadFixtures` picks it up without a restart. The service model
 shapes are the same ones the fixture suites under `src/tests/` use.
 
-`src/tests/workbench/run.sh` boots the workbench headless and asserts the
-acceptance target: every fixture switches with no service errors, and a plugin
+`src/tests/workbench/run.sh` boots the workbench with `--headless`, which
+owns a headless sway instead of the session, and asserts the acceptance
+target: every fixture switches with no service errors, and a plugin
 can be created, edited, broken, and restored without a restart while the bar
 keeps running.
 

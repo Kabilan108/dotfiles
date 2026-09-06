@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Runs the Stillsuit plugin workbench: the production core against fixture
-# service models, in an isolated XDG sandbox on a nested compositor.
+# service models, in an isolated XDG sandbox. Interactive runs draw on one
+# output of the current session with the bar in shadow mode; --headless runs
+# own a headless sway for tests.
 set -euo pipefail
 
 usage() {
@@ -18,8 +20,9 @@ options:
   --plugins DIR       sandbox plugin root (default: $XDG_CONFIG_HOME/stillsuit/workbench/plugins)
   --sandbox DIR       sandbox state root (default: $XDG_STATE_HOME/stillsuit/workbench)
   --source DIR        shell source tree (default: packaged source)
-  --headless          nested compositor without a visible window (tests)
-  --size WxH          nested output size (default: 1600x900)
+  --output NAME       output to draw on (default: the non-focused one, else the focused one)
+  --headless          own a headless sway instead of the session (tests)
+  --size WxH          headless output size (default: 1600x900)
   --theme PATH        theme.v2 json (default: production theme)
 USAGE
   exit 64
@@ -32,6 +35,7 @@ source_root="${STILLSUIT_WORKBENCH_SOURCE:-}"
 theme_path="${STILLSUIT_WORKBENCH_THEME:-${XDG_CONFIG_HOME:-$HOME/.config}/stillsuit/theme.json}"
 headless=0
 size="1600x900"
+output_name=""
 command_name="run"
 
 while [[ $# -gt 0 ]]; do
@@ -42,6 +46,7 @@ while [[ $# -gt 0 ]]; do
     --source) source_root=$2; shift 2 ;;
     --theme) theme_path=$2; shift 2 ;;
     --headless) headless=1; shift ;;
+    --output) output_name=$2; shift 2 ;;
     --size) size=$2; shift 2 ;;
     -h | --help) usage ;;
     run | call | status | plugins | fixtures) command_name=$1; shift; break ;;
@@ -89,15 +94,55 @@ mkdir -p "$qml_root"
 ln -sfn "$source_root/ui" "$qml_root/Ui"
 ln -sfn "$source_root/services" "$qml_root/Services"
 
+sway_pid=""
+shadow=0
+if [[ $headless -eq 1 ]]; then
+  sway_bin=$(command -v sway || true)
+  [[ -n $sway_bin ]] || { printf 'sway is required for headless runs\n' >&2; exit 69; }
+  sway_conf="$sandbox_root/sway.conf"
+  printf 'output * resolution %s\n' "${size/x/ }" > "$sway_conf"
+  env -u DISPLAY XDG_RUNTIME_DIR="$runtime_root" DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_root/no-bus" \
+    WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_LIBINPUT_NO_DEVICES=1 WLR_RENDERER=pixman \
+    "$sway_bin" -c "$sway_conf" > "$sandbox_root/sway.log" 2>&1 &
+  sway_pid=$!
+  display=""
+  for _ in $(seq 1 200); do
+    for candidate in "$runtime_root"/wayland-*; do
+      [[ -S $candidate ]] && { display=$(basename "$candidate"); break; }
+    done
+    [[ -n $display ]] && break
+    sleep 0.05
+  done
+  [[ -n $display ]] || { cat "$sandbox_root/sway.log" >&2; exit 70; }
+  shell_runtime="$runtime_root"
+else
+  [[ -n ${WAYLAND_DISPLAY:-} ]] || { printf 'no WAYLAND_DISPLAY; run inside a Wayland session or pass --headless\n' >&2; exit 69; }
+  shadow=1
+  display=$WAYLAND_DISPLAY
+  [[ $display == /* ]] || display="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/$display"
+  shell_runtime="$runtime_root"
+  if [[ -z $output_name ]] && command -v niri >/dev/null; then
+    focused=$(niri msg -j focused-output 2>/dev/null | jq -r '.name // ""')
+    output_name=$(niri msg -j outputs 2>/dev/null \
+      | jq -r --arg focused "$focused" '[.[] | .name] | (map(select(. != $focused)) | first) // first // ""')
+  fi
+fi
+cleanup() {
+  [[ -f $pid_file ]] && { kill "$(<"$pid_file")" 2>/dev/null || true; rm -f "$pid_file"; }
+  [[ -n $sway_pid ]] && kill "$sway_pid" 2>/dev/null || true
+}
+trap cleanup EXIT
+
 # Seed: every builtin plugin with sandbox-safe settings. Nothing here reaches
 # real helpers, sockets, or the session bus.
-python3 - "$source_root" "$config_home/stillsuit/seed.json" "$workflow_root" <<'PY'
+python3 - "$source_root" "$config_home/stillsuit/seed.json" "$workflow_root" "$shadow" <<'PY'
 import json, sys
 from pathlib import Path
 source, seed_path, workflow = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
+shadow = sys.argv[4] == "1"
 builtin = source / "plugins" / "builtin"
 settings = {
-    "stillsuit.bar": {"shadowMode": False},
+    "stillsuit.bar": {"shadowMode": shadow},
     "stillsuit.notifications": {"shadowMode": True, "claimNotificationBus": False},
     "stillsuit.workflows": {
         "recordingStatePath": f"{workflow}/recording.json",
@@ -130,39 +175,11 @@ cat > "$config_home/stillsuit/runtime-discovery.json" <<JSON
 }
 JSON
 
-sway_bin=$(command -v sway || true)
-[[ -n $sway_bin ]] || { printf 'sway is required for the nested compositor\n' >&2; exit 69; }
-sway_conf="$sandbox_root/sway.conf"
-printf 'output * resolution %s\n' "${size/x/ }" > "$sway_conf"
-if [[ $headless -eq 1 ]]; then
-  export WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_LIBINPUT_NO_DEVICES=1 WLR_RENDERER=pixman
-else
-  export WLR_BACKENDS=wayland
-fi
-env -u DISPLAY XDG_RUNTIME_DIR="$runtime_root" DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_root/no-bus" \
-  "$sway_bin" -c "$sway_conf" > "$sandbox_root/sway.log" 2>&1 &
-sway_pid=$!
-cleanup() {
-  [[ -f $pid_file ]] && { kill "$(<"$pid_file")" 2>/dev/null || true; rm -f "$pid_file"; }
-  kill "$sway_pid" 2>/dev/null || true
-}
-trap cleanup EXIT
-
-nested_socket=""
-for _ in $(seq 1 200); do
-  for candidate in "$runtime_root"/wayland-*; do
-    [[ -S $candidate ]] && { nested_socket=$(basename "$candidate"); break; }
-  done
-  [[ -n $nested_socket ]] && break
-  sleep 0.05
-done
-[[ -n $nested_socket ]] || { cat "$sandbox_root/sway.log" >&2; exit 70; }
-
 export HOME="$sandbox_root/home"
 mkdir -p "$HOME"
-export XDG_RUNTIME_DIR="$runtime_root" XDG_CONFIG_HOME="$config_home" \
+export XDG_RUNTIME_DIR="$shell_runtime" XDG_CONFIG_HOME="$config_home" \
   XDG_DATA_HOME="$data_home" XDG_STATE_HOME="$state_home" \
-  WAYLAND_DISPLAY="$nested_socket" QT_QPA_PLATFORM=wayland
+  WAYLAND_DISPLAY="$display" QT_QPA_PLATFORM=wayland
 unset DBUS_SESSION_BUS_ADDRESS
 export STILLSUIT_CONFIG_ID="$config_id" \
   STILLSUIT_THEME_PATH="$theme_path" \
@@ -172,10 +189,12 @@ export STILLSUIT_CONFIG_ID="$config_id" \
   STILLSUIT_WORKBENCH_FIXTURES="$fixture_root" \
   STILLSUIT_WORKBENCH_FIXTURE="$fixture_id" \
   STILLSUIT_WORKBENCH_STATE="$workflow_root" \
+  STILLSUIT_WORKBENCH_OUTPUT="$output_name" \
+  STILLSUIT_WORKBENCH_SHADOW="$shadow" \
   QML_IMPORT_PATH="$sandbox_root/qml"
 
 quickshell --no-color -p "$source_root/workbench.qml" > "$sandbox_root/shell.log" 2>&1 &
 shell_pid=$!
 printf '%s\n' "$shell_pid" > "$pid_file"
-printf 'workbench pid %s, plugins %s, log %s\n' "$shell_pid" "$plugin_root" "$sandbox_root/shell.log"
+printf 'workbench pid %s on %s, plugins %s, log %s\n' "$shell_pid" "${output_name:-all outputs}" "$plugin_root" "$sandbox_root/shell.log"
 wait "$shell_pid"
