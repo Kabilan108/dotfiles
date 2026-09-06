@@ -60,10 +60,11 @@ rg -F 'statFile.reload()' \
   "$source_root/plugins/builtin/resources/ResourceService.qml" >/dev/null
 rg -F 'memoryFile.reload()' \
   "$source_root/plugins/builtin/resources/ResourceService.qml" >/dev/null
-rg -F 'name: root.cpuIconName' \
-  "$source_root/plugins/builtin/resources/ResourceWidget.qml" >/dev/null
-rg -F 'name: root.memoryIconName' \
-  "$source_root/plugins/builtin/resources/ResourceWidget.qml" >/dev/null
+if rg -n 'ShellIcon|IconName' \
+    "$source_root/plugins/builtin/resources/ResourceWidget.qml"; then
+  printf 'resource widget contains an icon\n' >&2
+  exit 1
+fi
 rg -F 'text: root.cpuLabel' \
   "$source_root/plugins/builtin/resources/ResourceWidget.qml" >/dev/null
 rg -F 'text: root.memoryLabel' \

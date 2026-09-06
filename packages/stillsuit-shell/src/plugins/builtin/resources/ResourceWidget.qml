@@ -11,8 +11,6 @@ Item {
     readonly property string accessibleName: "CPU " + _percent(service ? service.cpuPercent : null)
         + ", memory " + _percent(service ? service.memoryPercent : null)
     property string tooltipText: accessibleName
-    readonly property string cpuIconName: "cpu"
-    readonly property string memoryIconName: "memory"
     readonly property string cpuLabel: "CPU:"
     readonly property string memoryLabel: "MEM:"
     readonly property color cpuColor: _usageColor(service ? service.cpuPercent : null)
@@ -28,14 +26,6 @@ Item {
 
         Row {
             spacing: root.context.theme.metrics.spaceUnit / 2
-
-            Ui.ShellIcon {
-                theme: root.context.theme
-                name: root.cpuIconName
-                sizeRole: "small"
-                role: "secondary"
-                accessibleName: "CPU"
-            }
 
             Ui.ShellText {
                 theme: root.context.theme
@@ -56,14 +46,6 @@ Item {
 
         Row {
             spacing: root.context.theme.metrics.spaceUnit / 2
-
-            Ui.ShellIcon {
-                theme: root.context.theme
-                name: root.memoryIconName
-                sizeRole: "small"
-                role: "secondary"
-                accessibleName: "Memory"
-            }
 
             Ui.ShellText {
                 theme: root.context.theme
