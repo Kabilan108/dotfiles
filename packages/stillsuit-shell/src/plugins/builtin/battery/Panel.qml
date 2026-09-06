@@ -111,7 +111,7 @@ Item {
                         Ui.ShellIcon {
                             theme: root.context.theme
                             name: root.displayIconName
-                            font.pixelSize: root.context.theme.metrics.iconMedium * 2
+                            pixelSize: root.context.theme.metrics.iconMedium * 2
                             role: root._batteryRole()
                         }
 

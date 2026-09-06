@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
 import QtQuick
+import QtQuick.Effects
 
-Text {
+Item {
     id: root
 
     required property var theme
@@ -10,81 +11,49 @@ Text {
     property string role: "primary"
     property string sizeRole: "medium"
     property string accessibleName: ""
+    property color color: _roleColor(role)
+    property real pixelSize: _iconSize(sizeRole)
+    readonly property url source: _source(name)
+    readonly property bool ready: image.status === Image.Ready
 
-    text: _glyph(name)
-    color: _roleColor(role)
-    font.family: theme.typography.iconFamily
-    font.pixelSize: _iconSize(sizeRole)
-    font.weight: theme.typography.weightRegular
-    horizontalAlignment: Text.AlignHCenter
-    verticalAlignment: Text.AlignVCenter
-    renderType: Text.NativeRendering
+    implicitWidth: pixelSize
+    implicitHeight: pixelSize
+    Accessible.name: accessibleName !== "" ? accessibleName : name.replace(/-/g, " ")
 
-    function _glyph(iconName) {
-        var icons = {
-            "add": "\ue145",
-            "agent": "\uf10d",
-            "audio": "\ue050",
-            "battery": "\ue1a4",
-            "battery-alert": "\uf306",
-            "battery-charging": "\uf102",
-            "battery-level-0": "\uf30d",
-            "battery-level-1": "\uf30c",
-            "battery-level-2": "\uf30b",
-            "battery-level-3": "\uf30a",
-            "battery-level-4": "\uf309",
-            "battery-level-5": "\uf308",
-            "battery-level-6": "\uf307",
-            "battery-level-full": "\uf304",
-            "battery-question": "\uf302",
-            "bluetooth": "\ue1a7",
-            "brightness": "\ue1ac",
-            "check": "\ue5ca",
-            "chevron-left": "\ue5cb",
-            "chevron-right": "\ue5cc",
-            "circle": "\ue061",
-            "close": "\ue5cd",
-            "copy": "\ue14d",
-            "cpu": "\ue322",
-            "danger": "\ue002",
-            "delete": "\ue872",
-            "edit": "\ue3c9",
-            "ethernet": "\ue8be",
-            "expand-less": "\ue5ce",
-            "expand-more": "\ue5cf",
-            "folder": "\ue2c7",
-            "forward-10": "\ue056",
-            "headphones": "\uf01f",
-            "info": "\ue88e",
-            "lock": "\ue897",
-            "memory": "\uf7a3",
-            "microphone": "\ue029",
-            "more": "\ue5d4",
-            "network": "\ue63e",
-            "notifications": "\ue7f4",
-            "pause": "\ue034",
-            "play": "\ue037",
-            "power": "\ue8ac",
-            "record": "\uf679",
-            "refresh": "\ue5d5",
-            "replay-10": "\ue059",
-            "repeat": "\ue040",
-            "search": "\ue8b6",
-            "settings": "\ue8b8",
-            "shuffle": "\ue043",
-            "skip-next": "\ue044",
-            "skip-previous": "\ue045",
-            "success": "\ue86c",
-            "unlock": "\ue898",
-            "volume-down": "\ue04d",
-            "volume-mute": "\ue04f",
-            "volume-up": "\ue050",
-            "vpn": "\ue0da",
-            "warning": "\uf083",
-            "wifi": "\ue63e",
-            "wifi-off": "\ue648"
+    Image {
+        id: image
+        anchors.fill: parent
+        source: root.source
+        sourceSize.width: Math.ceil(width)
+        sourceSize.height: Math.ceil(height)
+        fillMode: Image.PreserveAspectFit
+        smooth: true
+        layer.enabled: true
+        layer.effect: MultiEffect {
+            colorization: 1.0
+            colorizationColor: root.color
         }
-        return icons[iconName] !== undefined ? icons[iconName] : icons.circle
+    }
+
+    function _source(iconName) {
+        var known = _catalog()
+        var key = known.indexOf(iconName) >= 0 ? iconName : "circle"
+        return Qt.resolvedUrl("icons/" + key + ".svg")
+    }
+
+    function _catalog() {
+        return [
+            "add", "agent", "audio", "battery", "battery-alert", "battery-charging",
+            "battery-level-0", "battery-level-1", "battery-level-2", "battery-level-3",
+            "battery-level-4", "battery-level-5", "battery-level-6", "battery-level-full",
+            "battery-question", "bluetooth", "brightness", "check", "chevron-left",
+            "chevron-right", "circle", "close", "copy", "cpu", "danger", "delete", "edit",
+            "ethernet", "expand-less", "expand-more", "folder", "forward-10", "headphones",
+            "info", "lock", "memory", "microphone", "more", "network", "notifications",
+            "pause", "play", "power", "record", "refresh", "replay-10", "repeat", "search",
+            "settings", "shuffle", "skip-next", "skip-previous", "success", "unlock",
+            "volume-down", "volume-mute", "volume-up", "vpn", "warning", "wifi", "wifi-off"
+        ]
     }
 
     function _roleColor(name) {

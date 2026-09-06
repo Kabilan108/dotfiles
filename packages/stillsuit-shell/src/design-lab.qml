@@ -17,7 +17,6 @@ ShellRoot {
     ]
     readonly property var bodyFontChoices: ["Inter", "IBM Plex Sans", "Noto Sans", "JetBrainsMono Nerd Font"]
     readonly property var monoFontChoices: ["JetBrainsMono Nerd Font", "FiraMono Nerd Font", "IBM Plex Mono"]
-    readonly property var iconFontChoices: ["Material Symbols Rounded", "Material Symbols Outlined"]
     readonly property var barHeightChoices: [26, 28, 30, 32]
     readonly property var reviewPreset: ({
         bodyFont: "Noto Sans",
@@ -491,36 +490,6 @@ ShellRoot {
                                         active: String(modelData) === lab.monoFontChoice
                                         onClicked: {
                                             lab.monoFontChoice = String(modelData)
-                                            lab.rebuildTheme()
-                                        }
-                                    }
-                                }
-                            }
-
-                            Ui.ShellText {
-                                theme: lab.theme
-                                text: "ICONS"
-                                sizeRole: "caption"
-                                role: "muted"
-                                monospace: true
-                            }
-
-                            Flow {
-                                Layout.fillWidth: true
-                                width: parent.width
-                                spacing: 7
-
-                                Repeater {
-                                    model: lab.iconFontChoices
-
-                                    Ui.ShellButton {
-                                        required property var modelData
-                                        theme: lab.theme
-                                        label: String(modelData).replace("Material Symbols ", "")
-                                        compact: true
-                                        active: String(modelData) === lab.iconFontChoice
-                                        onClicked: {
-                                            lab.iconFontChoice = String(modelData)
                                             lab.rebuildTheme()
                                         }
                                     }

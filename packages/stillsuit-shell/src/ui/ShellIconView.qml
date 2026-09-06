@@ -11,6 +11,8 @@ Item {
     implicitWidth: glyph.implicitWidth
     implicitHeight: glyph.implicitHeight
 
+    // A caller-supplied source (plugin assets such as provider marks) renders
+    // as-is; the named catalog icon fills in when there is none or it fails.
     Image {
         id: image
         anchors.fill: parent

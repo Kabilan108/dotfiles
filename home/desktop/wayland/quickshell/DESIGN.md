@@ -19,7 +19,7 @@ The current baseline includes the subsequent daily-use refinements:
 | Theme | Catppuccin Mocha |
 | Body type | Noto Sans |
 | Monospace type | JetBrainsMono Nerd Font |
-| Icons | Material Symbols Rounded |
+| Icons | Material Symbols Rounded, vendored as tinted SVGs in `src/ui/icons/` |
 | Bar | 28 px, anchored to the top edge |
 | Workspaces | Inline |
 | Surface opacity | 0.95 |
@@ -104,10 +104,7 @@ JetBrainsMono Nerd Font is the monospace family. Use it for clocks, resource
 readouts, percentages, identifiers, keyboard hints, and short uppercase
 section labels.
 
-Material Symbols Rounded is the icon family. Use the filled rounded vocabulary
-consistently. Do not mix outlined and rounded symbols within a production
-surface. `ShellIconView` supports both shared glyph names and local SVG/image sources;
-bar clusters compose it without prescribing one asset format.
+Icons are Material Symbols Rounded SVGs vendored under `src/ui/icons/` and tinted at render time from theme roles, so no icon font needs to be installed. `ShellIcon` maps a stable name to a vendored file and falls back to `circle` for unknown names; `ShellIconView` layers a caller-supplied image (plugin assets such as provider marks) over that named fallback.
 
 | Type role | Size |
 |---|---|
