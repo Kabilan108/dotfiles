@@ -73,6 +73,7 @@ ShellRoot {
         hostContext: hostContext
         serviceRegistry: serviceRegistry
         outputScreens: Quickshell.screens
+        panelAnchors: surfaceRouter.barAnchorFacade
         fallbackBarComponent: shell.shadowMode ? builtinFallbackBar : null
         fallbackContext: null
     }

@@ -92,6 +92,7 @@ ShellRoot {
         hostContext: hostContext
         serviceRegistry: serviceRegistry
         outputScreens: shell.screens
+        panelAnchors: surfaceRouter.barAnchorFacade
         fallbackContext: null
     }
 

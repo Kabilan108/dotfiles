@@ -23,6 +23,10 @@ Scope {
     // actual output objects, while the bar stays independent of host globals.
     property var outputScreens: []
 
+    // Host-injected anchor facade (set/clear); each slot reports its entry's
+    // center x in output coordinates so panels open centered beneath it.
+    property var panelAnchors: null
+
     readonly property bool shadowMode: context
         && context.settings
         && context.settings.values
@@ -141,6 +145,8 @@ Scope {
                                 required property var modelData
                                 registration: modelData.registration
                                 outputId: barWindow.outputId
+                                panelAnchors: root.panelAnchors
+                                anchorOffset: root.outerGap
                             }
                         }
                     }
@@ -158,6 +164,8 @@ Scope {
                                 required property var modelData
                                 registration: modelData.registration
                                 outputId: barWindow.outputId
+                                panelAnchors: root.panelAnchors
+                                anchorOffset: root.outerGap
                             }
                         }
                     }

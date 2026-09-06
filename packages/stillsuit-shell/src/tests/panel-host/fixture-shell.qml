@@ -113,6 +113,19 @@ ShellRoot {
                 root.verify(batteryPanel.parent.y === root.theme.metrics.barHeight
                     + root.theme.metrics.barOuterGap + root.theme.metrics.spaceUnit,
                     "panel sits one theme space below the bar")
+                var content = batteryPanel.parent
+                var edge = root.theme.metrics.spaceUnit
+                root.verify(content.x === host.width - content.width - edge,
+                    "anchorless panel keeps the right-edge fallback")
+                host.present(batteryPanel, host.width / 2)
+                root.verify(Math.abs(content.x - (host.width / 2 - content.width / 2)) < 1,
+                    "panel centers under its bar anchor")
+                host.present(batteryPanel, 10)
+                root.verify(content.x === edge,
+                    "left-edge anchor clamps inside the output")
+                host.present(batteryPanel, host.width - 10)
+                root.verify(content.x === host.width - content.width - edge,
+                    "right-edge anchor clamps inside the output")
                 host.dismiss(batteryPanel)
                 testRouter.open("a", "")
                 root.pointerPhase = "ready"
@@ -277,6 +290,21 @@ ShellRoot {
                 testRouter.open("a", "")
                 testRouter.dismissPanels()
                 verify(!host.visible && testRouter.pendingCount("a") === 0, "outside dismissal clears routing")
+                testRouter.barAnchorFacade.set("a", testCompositor.focusedOutputId,
+                    function() { return 640 })
+                testRouter.open("a", "")
+                verify(host.anchorCenterX === 640,
+                    "router delivers the bar anchor to the presenting host")
+                testRouter.dismissPanels()
+                testRouter.barAnchorFacade.set("a", testCompositor.focusedOutputId,
+                    function() { throw new Error("broken resolver") })
+                testRouter.open("a", "")
+                verify(host.anchorCenterX === -1, "broken anchor resolver falls back")
+                testRouter.dismissPanels()
+                testRouter.barAnchorFacade.clear("a", testCompositor.focusedOutputId)
+                testRouter.open("a", "")
+                verify(host.anchorCenterX === -1, "cleared anchor falls back")
+                testRouter.dismissPanels()
                 testRouter.open("b", "")
                 testRouter.unload("b")
                 verify(!host.visible, "unload removes host content")

@@ -23,6 +23,9 @@ QtObject {
     property QtObject hostContext: null
     property QtObject serviceRegistry: null
     property var outputScreens: []
+    // Narrow facade the bar uses to report each entry's center x per output
+    // (SurfaceRouter.barAnchorFacade); panels open centered on that anchor.
+    property QtObject panelAnchors: null
     property url fallbackBarUrl: Qt.resolvedUrl("../plugins/builtin/bar/Bar.qml")
     property Component fallbackBarComponent: null
     property QtObject fallbackContext: null
@@ -802,6 +805,8 @@ QtObject {
             barInstance.widgetRegistrations = _widgetRegistrations()
         if ("outputScreens" in barInstance)
             barInstance.outputScreens = outputScreens
+        if ("panelAnchors" in barInstance)
+            barInstance.panelAnchors = panelAnchors
     }
 
     function _invalidateBarLoad() {

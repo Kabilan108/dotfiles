@@ -9,6 +9,8 @@ PanelWindow {
     required property var theme
     required property string outputId
     property Item panelContent: null
+    // Output-space x of the opening bar entry's center, or -1 when unknown.
+    property real anchorCenterX: -1
     color: "transparent"
     // Geometry below is in output coordinates, including the bar's reserved
     // height. Respecting its exclusive zone here would count that height twice.
@@ -40,7 +42,15 @@ PanelWindow {
     }
     Item {
         id: contentArea
-        x: Math.max(0, root.width - width - root.theme.metrics.spaceUnit)
+        objectName: "panel-host-content"
+        x: {
+            var edge = root.theme.metrics.spaceUnit
+            var fallback = Math.max(0, root.width - width - edge)
+            if (root.anchorCenterX < 0)
+                return fallback
+            var centered = root.anchorCenterX - width / 2
+            return Math.max(edge, Math.min(centered, root.width - width - edge))
+        }
         y: root.theme.metrics.barHeight + root.theme.metrics.barOuterGap
             + root.theme.metrics.spaceUnit
         width: Math.min(root.panelContent ? root.panelContent.implicitWidth : 0,
@@ -50,7 +60,8 @@ PanelWindow {
         clip: true
         Keys.onEscapePressed: root.router.dismissPanels()
     }
-    function present(item) {
+    function present(item, anchorX) {
+        anchorCenterX = typeof anchorX === "number" && isFinite(anchorX) ? anchorX : -1
         if (panelContent && panelContent !== item) panelContent.visible = false
         panelContent = item
         item.parent = contentArea

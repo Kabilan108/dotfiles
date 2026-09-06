@@ -49,6 +49,45 @@ QtObject {
     }
     property QtObject surfaceHost: QtObject {}
 
+    // Anchor resolvers reported by the bar, keyed pluginId + "@" + outputId.
+    // Each returns the bar entry's center x in output coordinates, queried at
+    // present time so layout changes never go stale.
+    property var panelAnchors: ({})
+
+    readonly property QtObject barAnchorFacade: QtObject {
+        function set(pluginId, outputId, resolver) {
+            if (typeof resolver !== "function") return
+            var next = root._copy(root.panelAnchors)
+            next[root._anchorKey(pluginId, outputId)] = resolver
+            root.panelAnchors = next
+        }
+        function clear(pluginId, outputId) {
+            var key = root._anchorKey(pluginId, outputId)
+            if (root.panelAnchors[key] === undefined) return
+            var next = root._copy(root.panelAnchors)
+            delete next[key]
+            root.panelAnchors = next
+        }
+    }
+
+    function panelAnchorX(pluginId, outputId) {
+        var resolver = panelAnchors[_anchorKey(pluginId, outputId)]
+        if (typeof resolver !== "function")
+            return -1
+        try {
+            var value = resolver()
+            return typeof value === "number" && isFinite(value) && value >= 0
+                ? value
+                : -1
+        } catch (error) {
+            return -1
+        }
+    }
+
+    function _anchorKey(pluginId, outputId) {
+        return String(pluginId) + "@" + String(outputId)
+    }
+
     function dismissPanels() {
         var ids = Object.keys(sessionOpen)
         for (var index = 0; index < ids.length; index++)
@@ -542,7 +581,8 @@ QtObject {
                 var host = panelHosts[placementOutputId(pluginId)]
                 if (!host) throw new Error("no panel host for output")
                 var outgoingId = presentedId
-                host.present(instance)
+                host.present(instance,
+                    panelAnchorX(pluginId, placementOutputId(pluginId)))
                 presentedId = pluginId
                 if (outgoingId !== "" && outgoingId !== pluginId)
                     close(outgoingId)

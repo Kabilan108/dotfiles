@@ -28,6 +28,14 @@ dismiss through `SurfaceRouter`. The bar remains outside the host input mask.
 Bar actions send their `outputId` in the surface payload; moving the same panel
 to another output is a single action.
 
+A panel opens horizontally centered under its bar entry. The bar reports each
+entry's center x per output through the host-injected `panelAnchors` facade
+(`set(pluginId, outputId, resolver)` / `clear(pluginId, outputId)`, same
+injection pattern as `widgetRegistrations`); the router queries the resolver at
+present time. The position clamps to one `spaceUnit` from either output edge so
+a panel near an edge is never cut off. Without an anchor — no bar entry, or a
+surface opened purely via IPC — the panel falls back to the right edge.
+
 A banner dismisses a non-notification panel on its own output, not another
 output. Opening the notification center suppresses banners on that output;
 incoming rows still enter history. DND suppresses visible banners immediately.
