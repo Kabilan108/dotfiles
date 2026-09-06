@@ -93,6 +93,7 @@ case ${1:-} in
     ;;
   set-option)
     require_exact_target "$@"
+    printf '%s\n' "$*" >>"$FIXTURE_ROOT/tmux-options"
     ;;
   kill-session)
     require_exact_target "$@"
@@ -131,7 +132,7 @@ if [[ ${1:-} == msg && ${2:-} == -j && ${3:-} == windows ]]; then
   fi
   if [[ -s $FIXTURE_ROOT/window ]]; then
     id=$(<"$FIXTURE_ROOT/window")
-    printf '[{"id":%s,"app_id":"io.stillsuit.AgentPanel"}]\n' "$id"
+    printf '[{"id":%s,"app_id":"com.mitchellh.ghostty","title":"Stillsuit Agent"},{"id":90,"app_id":"com.mitchellh.ghostty","title":"Ordinary terminal"},{"id":91,"app_id":"other","title":"Stillsuit Agent"}]\n' "$id"
   else
     printf '[]\n'
   fi
@@ -151,62 +152,18 @@ EOF
 cat >"$TEST_DIR/bin/ghostty" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-
-if [[ ${1:-} == +new-window ]]; then
-  [[ " $* " == *" --class=io.stillsuit.AgentPanel "* ]] || exit 2
-  [[ " $* " == *" --title=Stillsuit Agent "* ]] || exit 2
-  [[ -r $FIXTURE_ROOT/active-ghostty.pid ]] || exit 3
-  persistent_pid=$(<"$FIXTURE_ROOT/active-ghostty.pid")
-  kill -0 "$persistent_pid" 2>/dev/null || exit 3
-  printf '%s\n' "$@" >"$FIXTURE_ROOT/new-window.argv"
-  count=0
-  [[ -r $FIXTURE_ROOT/new-window-count ]] && count=$(<"$FIXTURE_ROOT/new-window-count")
-  printf '%s\n' "$((count + 1))" >"$FIXTURE_ROOT/new-window-count"
-  if [[ -e $FIXTURE_ROOT/window ]]; then
-    touch "$FIXTURE_ROOT/window-overlap"
-  fi
-  if [[ -s $FIXTURE_ROOT/open-delay-polls ]]; then
-    cp "$FIXTURE_ROOT/open-delay-polls" "$FIXTURE_ROOT/window-opening-polls"
-  else
-    printf '41\n' >"$FIXTURE_ROOT/window"
-  fi
-  exit 0
-fi
-
-[[ " $* " == *" --class=io.stillsuit.AgentPanel "* ]] || exit 2
+[[ $# -eq 3 && $1 == +new-window && $2 == "--title=Stillsuit Agent"
+   && $3 == "--command=direct:tmux attach-session -t =stillsuit-agent" ]] || exit 97
 printf '%s\n' "$@" >"$FIXTURE_ROOT/ghostty.argv"
-printf '%s\n' "$BASHPID" >>"$FIXTURE_ROOT/ghostty.pids"
 count=0
-[[ -r $FIXTURE_ROOT/ghostty-launch-count ]] && count=$(<"$FIXTURE_ROOT/ghostty-launch-count")
-printf '%s\n' "$((count + 1))" >"$FIXTURE_ROOT/ghostty-launch-count"
-if [[ -r $FIXTURE_ROOT/active-ghostty.pid ]]; then
-  previous_pid=$(<"$FIXTURE_ROOT/active-ghostty.pid")
-  if kill -0 "$previous_pid" 2>/dev/null; then
-    touch "$FIXTURE_ROOT/ghostty-overlap"
-  fi
+[[ -r $FIXTURE_ROOT/new-window-count ]] && count=$(<"$FIXTURE_ROOT/new-window-count")
+printf '%s\n' "$((count + 1))" >"$FIXTURE_ROOT/new-window-count"
+if [[ -e $FIXTURE_ROOT/window ]]; then touch "$FIXTURE_ROOT/window-overlap"; fi
+if [[ -s $FIXTURE_ROOT/open-delay-polls ]]; then
+  cp "$FIXTURE_ROOT/open-delay-polls" "$FIXTURE_ROOT/window-opening-polls"
+else
+  printf '41\n' >"$FIXTURE_ROOT/window"
 fi
-printf '%s\n' "$BASHPID" >"$FIXTURE_ROOT/active-ghostty.pid"
-if [[ -e $FIXTURE_ROOT/window ]]; then
-  touch "$FIXTURE_ROOT/window-overlap"
-fi
-printf '41\n' >"$FIXTURE_ROOT/window"
-cleanup_ghostty() {
-  active_pid=''
-  [[ -r $FIXTURE_ROOT/active-ghostty.pid ]] && active_pid=$(<"$FIXTURE_ROOT/active-ghostty.pid")
-  if [[ $active_pid == "$BASHPID" ]]; then
-    rm -f "$FIXTURE_ROOT/active-ghostty.pid" "$FIXTURE_ROOT/window"
-  fi
-}
-stop_ghostty() {
-  touch "$FIXTURE_ROOT/term-requested"
-  if [[ -s $FIXTURE_ROOT/term-delay ]]; then
-    sleep "$(<"$FIXTURE_ROOT/term-delay")"
-  fi
-  exit 0
-}
-trap cleanup_ghostty EXIT
-trap stop_ghostty TERM INT
-while :; do sleep 0.05; done
 EOF
 
 cat >"$TEST_DIR/bin/codex" <<'EOF'
@@ -240,10 +197,10 @@ mapfile -t argv <"$FIXTURE_ROOT/codex.argv"
 expected=(codex --yolo --model gpt-5.6-sol --config model_reasoning_effort=low --config service_tier=fast)
 assert_eq "${expected[*]}" "${argv[*]}" "fixed default Codex argv"
 mapfile -t ghostty_argv <"$FIXTURE_ROOT/ghostty.argv"
-[[ " ${ghostty_argv[*]} " == *" --gtk-single-instance=true "* ]] ||
-  fail "Ghostty was not launched as a custom single instance"
-[[ " ${ghostty_argv[*]} " == *" --quit-after-last-window-closed=false "* ]] ||
-  fail "Ghostty was not configured to survive a hidden surface"
+assert_eq "+new-window" "${ghostty_argv[0]}" "shared Ghostty request"
+grep -Fx 'set-option -t =stillsuit-agent set-titles off' "$FIXTURE_ROOT/tmux-options" >/dev/null ||
+  fail "agent session did not disable title rewriting"
+assert_eq 1 "$("$HELPER" status | jq -r .windowCount)" "window identity rejects title and app-ID near misses"
 [[ " ${ghostty_argv[*]} " == *" --command=direct:tmux attach-session -t =stillsuit-agent "* ]] ||
   fail "Ghostty did not receive an exact direct tmux attach target"
 assert_eq false "$("$HELPER" status | jq -r .launchPending)" "settled launch status"
@@ -279,11 +236,8 @@ assert_eq 41 "$(<"$FIXTURE_ROOT/window")" "dead Codex window replacement"
 reset_fixture
 touch "$FIXTURE_ROOT/session"
 "$HELPER" open >/dev/null
-old_pid=$(<"$XDG_RUNTIME_DIR/agent-panel-ghostty.pid")
 "$HELPER" hide >/dev/null
-kill -0 "$old_pid" 2>/dev/null || fail "hide terminated the persistent Ghostty"
-assert_eq absent "$("$HELPER" status | jq -r .window)" "hidden persistent window status"
-assert_eq false "$("$HELPER" status | jq -r .launchPending)" "hidden persistent launch status"
+assert_eq absent "$("$HELPER" status | jq -r .window)" "hidden shared window status"
 printf '4\n' >"$FIXTURE_ROOT/open-delay-polls"
 "$HELPER" open >/dev/null &
 first_open_pid=$!
@@ -291,26 +245,8 @@ first_open_pid=$!
 second_open_pid=$!
 wait "$first_open_pid"
 wait "$second_open_pid"
-assert_eq "$old_pid" "$(<"$XDG_RUNTIME_DIR/agent-panel-ghostty.pid")" "reopen persistent Ghostty PID"
-assert_eq 1 "$(<"$FIXTURE_ROOT/ghostty-launch-count")" "single Ghostty process launch after reopen"
-assert_eq 1 "$(<"$FIXTURE_ROOT/new-window-count")" "single remote window request during concurrent reopen"
-
-reset_fixture
-touch "$FIXTURE_ROOT/session"
-"$HELPER" open >/dev/null
-old_pid=$(<"$XDG_RUNTIME_DIR/agent-panel-ghostty.pid")
-printf '0.25\n' >"$FIXTURE_ROOT/term-delay"
-"$HELPER" terminate >/dev/null &
-terminate_pid=$!
-for _ in $(seq 1 100); do
-  [[ -e $FIXTURE_ROOT/term-requested ]] && break
-  sleep 0.01
-done
-[[ -e $FIXTURE_ROOT/term-requested ]] || fail "delayed Ghostty did not receive TERM"
-"$HELPER" open >/dev/null
-wait "$terminate_pid"
-kill -0 "$old_pid" 2>/dev/null && fail "open returned before the old Ghostty exited"
-[[ ! -e $FIXTURE_ROOT/ghostty-overlap ]] || fail "new Ghostty overlapped the exiting Ghostty"
+assert_eq 2 "$(<"$FIXTURE_ROOT/new-window-count")" "one initial and one concurrent reopen request"
+[[ ! -e $FIXTURE_ROOT/window-overlap ]] || fail "concurrent reopen overlapped windows"
 
 reset_fixture
 sleep 60 &
@@ -337,7 +273,6 @@ assert_eq 1 "$(<"$FIXTURE_ROOT/session-count")" "single session after storm"
 window_count=0
 [[ -e $FIXTURE_ROOT/window ]] && window_count=1
 ((window_count <= 1)) || fail "toggle storm created duplicate windows"
-assert_eq 1 "$(<"$FIXTURE_ROOT/ghostty-launch-count")" "single persistent Ghostty after storm"
 "$HELPER" open >/dev/null
 assert_eq 1 "$(jq -r .windowCount < <("$HELPER" status))" "single window after storm"
 

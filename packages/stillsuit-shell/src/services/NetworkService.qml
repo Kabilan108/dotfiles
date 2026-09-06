@@ -49,6 +49,8 @@ QtObject {
         ? String(model.wiredName || "")
         : String(snapshot.wiredName || "")
     readonly property var networks: model ? model.networks || [] : snapshot.networks || []
+    readonly property var wiredConnections: model
+        ? model.wiredConnections || [] : snapshot.wiredConnections || []
     readonly property var vpns: model ? model.vpns || [] : snapshot.vpns || []
     readonly property var tailscale: model ? model.tailscale || ({
         available: false,
@@ -177,6 +179,7 @@ QtObject {
             lastResult = "failed"
         } else {
             lastResult = successLabel
+            if (successLabel === "handoff") _closeForManager()
         }
         operation = "idle"
         operationTarget = ""
@@ -219,9 +222,15 @@ QtObject {
         lastResult = response.ok
             ? response.handoff ? "handoff" : String(response.operation || "ok")
             : "failed"
+        if (response.ok && response.handoff) _closeForManager()
         operation = "idle"
         operationTarget = ""
         localRevision++
+    }
+
+    function _closeForManager() {
+        if (context.actions && typeof context.actions.surfaceClose === "function")
+            context.actions.surfaceClose("stillsuit.network")
     }
 
     function refresh() {

@@ -13,7 +13,8 @@ Ui.ShellBarCluster {
     label: service && service.connectedDevices.length > 1
         ? String(service.connectedDevices.length)
         : ""
-    active: Boolean(service && service.connected)
+    selected: context.panels && context.panels.selectedId === "stillsuit.bluetooth"
+        && context.panels.selectedOutputId === outputId
     busy: Boolean(service && service.operation !== "idle")
     accessibleName: !service || !service.available ? "Bluetooth unavailable"
         : !service.enabled ? "Bluetooth disabled"
@@ -22,5 +23,5 @@ Ui.ShellBarCluster {
             : service.connectedDevices.length > 1
                 ? service.connectedDevices.length + " Bluetooth devices connected"
                 : "Bluetooth enabled, no device connected"
-    onClicked: context.actions.surfaceToggle("stillsuit.bluetooth", "")
+    onClicked: context.actions.surfaceToggle("stillsuit.bluetooth", JSON.stringify({outputId: root.outputId}))
 }

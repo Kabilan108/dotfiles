@@ -274,7 +274,6 @@ ShellRoot {
             plugins: [
                 {
                     packageRoot: packageRoot,
-                    sourceMode: "local",
                     enabled: true,
                     settings: {},
                     manifest: {
@@ -291,7 +290,6 @@ ShellRoot {
                 },
                 {
                     packageRoot: packageRoot,
-                    sourceMode: "local",
                     enabled: true,
                     settings: {},
                     manifest: {

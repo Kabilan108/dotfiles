@@ -12,9 +12,29 @@ not select "the newest" instance as a correctness mechanism.
 
 The host accepts only manifests that validate against
 `schemas/manifest.v1.json`. It also checks that every entry point resolves
-below the plugin's Nix store root, exists, and matches a declared kind. The host
+below the plugin's validated package root, exists, and matches a declared kind. The host
 rejects unknown kinds, unsupported `apiVersion` values, duplicate IDs, missing
 dependencies, dependency cycles, and duplicate IPC targets.
+
+### Core-owned panels
+
+Production panel entry points are `Item` content with `hostedPanel: true`,
+`implicitWidth`, `implicitHeight`, and `open(payload)` / `close()` methods.
+They do not create a window or implement outside-click dismissal. The core
+keeps one `PanelHost` per output and one selected bar panel shell-wide.
+Cached content switches in the existing host; while new content compiles the
+previous panel remains visible. Outside press, outside wheel, and Escape
+dismiss through `SurfaceRouter`. The bar remains outside the host input mask.
+Bar actions send their `outputId` in the surface payload; moving the same panel
+to another output is a single action.
+
+A banner dismisses a non-notification panel on its own output, not another
+output. Opening the notification center suppresses banners on that output;
+incoming rows still enter history. DND suppresses visible banners immediately.
+Tooltips neither focus nor dismiss panels.
+
+See `runtime-plugins.md` for mutable plugin discovery and `../src/ui/README.md`
+for the shared component API. Theme compilation remains Nix-owned.
 
 Each manifest declares construction scope per kind:
 
@@ -105,11 +125,16 @@ Each service publishes its own versioned, narrow contract.
 
 ```text
 activeId: string
+selectedId: string
+selectedOutputId: string
 focusedOutputId: string
 isOpen(id: string): bool
 state(id: string): "unloaded" | "loading" | "loaded" | "error"
 ```
 
+`activeId` identifies the requested route. `selectedId` and `selectedOutputId`
+identify the hosted panel actually displayed. Bar highlighting uses the latter
+pair, so asynchronous replacement cannot highlight both entries or both outputs.
 The facade does not mutate surfaces. Plugins use the typed `actions` methods.
 
 ### `logger`
@@ -158,6 +183,7 @@ command.
 ```text
 surfaceOpen(id: string, payloadJson: string): string
 surfaceClose(id: string): string
+surfaceDismissPanels(): string
 surfaceToggle(id: string, payloadJson: string): string
 pluginUnload(id: string): string
 pluginReload(id: string): string
@@ -175,6 +201,9 @@ agentPanelTerminate(): string
 An ID must name a validated catalog entry. Payload JSON is surface data only;
 the host and helpers never turn it into argv, QML source, a file path, or a
 shell command.
+
+The bar calls `surfaceDismissPanels()` for empty-background presses. It uses
+the same router dismissal as PanelHost's outside-click handler.
 
 ## Surface lifecycle
 
@@ -197,6 +226,10 @@ Valid transitions are:
 - `error -> loading` only after an explicit reload or a catalog rescan that
   changed the entry.
 - Any state may become `unloaded` on disable or unload.
+
+Hosted Item panels follow the same `keepLoaded` rule. Current production panels
+explicitly opt into caching in their manifests; new plugins default to unload
+on close unless they opt in themselves.
 
 Open payloads are FIFO while a surface is `loading`. The router clears every
 queued payload for that surface on hide, disable, error, unload, or reload.

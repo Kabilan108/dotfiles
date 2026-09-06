@@ -25,9 +25,9 @@ Ui.ShellAction {
     accessibleName: paused ? "Recording paused, " + recording.elapsedText
         : "Recording active, " + recording.elapsedText
     accessibleFallback: "Recording status"
-    implicitWidth: indicatorRow.implicitWidth + 12
-    implicitHeight: context.theme.metrics.barHeight
-    onActivated: context.actions.surfaceToggle("stillsuit.recording", "")
+    implicitWidth: indicatorRow.implicitWidth + 14
+    implicitHeight: Math.max(22, context.theme.metrics.barHeight - 6)
+    onActivated: context.actions.surfaceToggle("stillsuit.recording", JSON.stringify({outputId: root.outputId}))
 
     Rectangle {
         anchors.fill: parent

@@ -182,6 +182,12 @@ QtObject {
         return surfaceRouter ? surfaceRouter.close(String(pluginId)) : "error"
     }
 
+    function surfaceDismissPanels() {
+        if (!surfaceRouter) return "error"
+        surfaceRouter.dismissPanels()
+        return "ok"
+    }
+
     function surfaceToggle(pluginId, payloadJson) {
         return surfaceRouter
             ? surfaceRouter.toggle(String(pluginId), String(payloadJson || ""))
@@ -199,8 +205,7 @@ QtObject {
     function pluginRescan() {
         if (!catalog)
             return "error"
-        catalog.rescan()
-        return "ok"
+        return catalog.rescan() || "ok"
     }
 
     function agentPanelOpen() {

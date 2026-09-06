@@ -1,0 +1,13 @@
+module Stillsuit.Services
+AudioService 1.0 AudioService.qml
+BatteryService 1.0 BatteryService.qml
+BluetoothService 1.0 BluetoothService.qml
+CompositorAdapter 1.0 CompositorAdapter.qml
+DictatorService 1.0 DictatorService.qml
+MediaService 1.0 MediaService.qml
+MeetingService 1.0 MeetingService.qml
+NetworkService 1.0 NetworkService.qml
+NiriService 1.0 NiriService.qml
+NotificationService 1.0 NotificationService.qml
+PowerService 1.0 PowerService.qml
+RecordingService 1.0 RecordingService.qml

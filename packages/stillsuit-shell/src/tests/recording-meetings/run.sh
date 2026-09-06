@@ -50,7 +50,6 @@ mkdir -p "$config_dir/plugins/builtin"
 cp "$fixture_dir/fixture-shell.qml" "$config_dir/shell.qml"
 cp -R "$source_root/ui" "$config_dir/ui"
 cp -R "$source_root/plugins/builtin/recording" "$config_dir/plugins/builtin/recording"
-cp -R "$source_root/plugins/builtin/meeting" "$config_dir/plugins/builtin/meeting"
 
 qs --no-color -p "$config_dir" > "$tmp_dir/quickshell.log" 2>&1 &
 shell_pid=$!
@@ -72,21 +71,29 @@ jq -e '.pulses.widget == false and .pulses.panel == false
 [[ $(ipc setReducedMotion false) == ok ]]
 jq -e '.pulses.widget and .pulses.panel' <<< "$(ipc state)" >/dev/null
 
+# Discarding the failed job removes it permanently and leaves the unrelated
+# completed job untouched.
+[[ $(ipc discardJob aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa) == ok ]]
+state=$(ipc state)
+jq -e '.recordingMeetingRows == 0 and .meetingRows == 1' <<< "$state" >/dev/null
+
+# A subsequent reload of the durable job state must not resurrect the
+# discarded job.
+[[ $(ipc refreshMeeting) == ok ]]
+state=$(ipc state)
+jq -e '.recordingMeetingRows == 0 and .meetingRows == 1' <<< "$state" >/dev/null
+
 if rg -n 'ERROR:|Failed to load configuration|Type .* unavailable|Cannot assign to non-existent property' "$tmp_dir/quickshell.log"; then
   echo "recording-meetings fixture logged a QML error" >&2
   exit 1
 fi
 
-rg -n 'MeetingQueueView|Finish as meeting|Pause|Resume|Finish|Cancel|Copy path' "$source_root/plugins/builtin/recording/RecordingPanel.qml" >/dev/null
+rg -n 'FailedMeetingJobsView|Finish as meeting|Pause|Resume|Finish|Cancel|Copy path' "$source_root/plugins/builtin/recording/RecordingPanel.qml" >/dev/null
 if rg -n 'Recent meetings|Open in Obsidian|Previous|Next' \
   "$source_root/plugins/builtin/recording/RecordingPanel.qml" \
-  "$source_root/plugins/builtin/meeting/MeetingQueueView.qml"; then
+  "$source_root/plugins/builtin/recording/FailedMeetingJobsView.qml"; then
   echo "recording panel exposes meeting history instead of failed-job recovery" >&2
   exit 1
 fi
-rg -n 'Failed meeting jobs|Details|Retry' "$source_root/plugins/builtin/meeting/MeetingQueueView.qml" >/dev/null
-if rg -n 'builtinPlugin "meeting"' "$source_root/../../../home/desktop/wayland/quickshell/default.nix"; then
-  echo "meeting-only bar plugin remains enabled by default" >&2
-  exit 1
-fi
+rg -n 'Failed meeting jobs|Details|Retry|Discard' "$source_root/plugins/builtin/recording/FailedMeetingJobsView.qml" >/dev/null
 echo "recording-meetings panels: ok"

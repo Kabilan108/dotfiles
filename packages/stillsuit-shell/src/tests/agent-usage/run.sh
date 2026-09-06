@@ -44,7 +44,7 @@ if rg -n 'accessToken.*(?:print|json\.dumps)|Authorization.*result|stderr=.*PIPE
 fi
 rg -F 'required property var screen' \
     "$source_root/plugins/builtin/agent-usage/Panel.qml" >/dev/null
-rg -F 'screen: root.screen' \
+rg -F 'readonly property bool hostedPanel: true' \
     "$source_root/plugins/builtin/agent-usage/Panel.qml" >/dev/null
 rg -F '"% left"' \
     "$source_root/plugins/builtin/agent-usage/Panel.qml" >/dev/null

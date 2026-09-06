@@ -25,6 +25,10 @@ let
 in
 {
   programs.stillsuitShell.enable = true;
+  programs.stillsuitShell.pluginRoots = [
+    "${homeDir}/dotfiles/packages/stillsuit-shell/src/plugins/builtin"
+    "${config.xdg.configHome}/stillsuit/plugins"
+  ];
   programs.stillsuitShell.ownership.barOwners = [ "stillsuit.builtin-bar" ];
   programs.stillsuitShell.ownership.notificationOwners = [ "stillsuit.notifications" ];
   home.packages = [ pkgs.quickshell ];
@@ -59,7 +63,7 @@ in
         };
       }
     )
-    (builtinPlugin "audio")
+    ((builtinPlugin "audio") // { settings.managerPath = lib.getExe pkgs.pavucontrol; })
     (
       (builtinPlugin "bar")
       // {
@@ -67,7 +71,12 @@ in
       }
     )
     (builtinPlugin "battery")
-    (builtinPlugin "bluetooth")
+    (
+      (builtinPlugin "bluetooth")
+      // {
+        settings.managerPath = lib.getExe' pkgs.blueman "blueman-manager";
+      }
+    )
     (builtinPlugin "clock")
     (
       (builtinPlugin "network")

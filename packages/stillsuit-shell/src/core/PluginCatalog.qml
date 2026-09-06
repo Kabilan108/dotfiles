@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import "ManifestValidator.js" as ManifestValidator
 
@@ -6,6 +7,18 @@ QtObject {
     id: root
 
     property string catalogPath: ""
+    property string runtimeConfigPath: Quickshell.env("STILLSUIT_PLUGIN_RUNTIME_CONFIG")
+    property string runtimeHelperPath: Quickshell.env("STILLSUIT_PLUGIN_HELPER")
+    property Process runtimeDiscovery: Process {
+        command: [root.runtimeHelperPath, "--config", root.runtimeConfigPath, "watch"]
+        running: root.runtimeHelperPath !== "" && root.runtimeConfigPath !== ""
+        stdout: SplitParser {
+            onRead: data => root._readCatalog(data)
+        }
+        onExited: function(exitCode) {
+            if (exitCode !== 0) console.warn("Plugin discovery stopped; keeping current catalog")
+        }
+    }
     property bool allowLocalPlugins: false
     property QtObject hostContext: null
     property QtObject serviceRegistry: null
@@ -84,10 +97,12 @@ QtObject {
     }
 
     function rescan() {
+        if (runtimeConfigPath !== "") return "watching"
         if (catalogPath === "") {
             _documentFailed("catalog path is empty")
             return
         }
+        catalogFile.reload()
         var text = catalogFile.text()
         if (text === "") {
             _documentFailed("cannot read catalog " + catalogPath)
@@ -260,6 +275,7 @@ QtObject {
         _setRuntimeDisabled(key, true)
         _unloadVisualContributions(key)
         pluginUnloaded(key)
+        _syncBarInputs()
         if (internalSelectedBarId === key)
             _reconcileBar()
         return "ok"
@@ -334,7 +350,7 @@ QtObject {
         if (!ManifestValidator.isPlainObject(value))
             return { key: key, errors: ["catalog entry must be an object"], entry: null }
         if (!ManifestValidator.hasOnlyKeys(value,
-                ["packageRoot", "sourceMode", "enabled", "settings", "manifest"]))
+                ["packageRoot", "enabled", "settings", "manifest"]))
             errors.push("catalog entry contains an unknown field")
 
         var manifestErrors = ManifestValidator.validate(value.manifest)
@@ -345,10 +361,8 @@ QtObject {
                 manifestErrorIndex++)
             errors.push(manifestErrors[manifestErrorIndex])
 
-        var sourceMode = value.sourceMode === undefined ? "store" : value.sourceMode
-        if (sourceMode !== "store" && sourceMode !== "local")
-            errors.push("sourceMode must be store or local")
-        if (sourceMode === "local" && !allowLocalPlugins)
+        var storePath = String(value.packageRoot).indexOf("/nix/store/") === 0
+        if (!storePath && !allowLocalPlugins)
             errors.push("local plugins are disabled")
         if (typeof value.packageRoot !== "string" || value.packageRoot.charAt(0) !== "/") {
             errors.push("packageRoot must be absolute")
@@ -356,7 +370,7 @@ QtObject {
             var normalizedRoot = _normalizeRoot(value.packageRoot)
             if (normalizedRoot !== value.packageRoot.replace(/\/$/, ""))
                 errors.push("packageRoot must be canonical")
-            if (sourceMode === "store"
+            if (storePath
                     && !/^\/nix\/store\/[a-z0-9]{32}-[^/]+(?:\/[^/]+)*$/.test(normalizedRoot))
                 errors.push("store packageRoot must be below one Nix store path")
         }
@@ -382,7 +396,6 @@ QtObject {
             errors: errors,
             entry: errors.length === 0 ? {
                 packageRoot: _normalizeRoot(value.packageRoot),
-                sourceMode: sourceMode,
                 enabled: value.enabled !== false,
                 settings: value.settings || {},
                 manifest: value.manifest,
@@ -528,6 +541,7 @@ QtObject {
             _loadVisualContributions(addedIds[addedIndex])
         }
         _loadUnclaimedWidgets()
+        _syncBarInputs()
         if (!wasLoaded || oldSelectedBar !== selectedBar || selectedEntryChanged)
             _reconcileBar()
         catalogChanged()

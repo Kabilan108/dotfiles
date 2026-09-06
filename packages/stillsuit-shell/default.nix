@@ -40,6 +40,9 @@ stdenvNoCC.mkDerivation {
     done
 
     mkdir -p "$out/bin"
+    mkdir -p "$out/share/stillsuit-shell/qml/Stillsuit"
+    ln -s ../../src/ui "$out/share/stillsuit-shell/qml/Stillsuit/Ui"
+    ln -s ../../src/services "$out/share/stillsuit-shell/qml/Stillsuit/Services"
     makeWrapper ${lib.getExe quickshell} "$out/bin/stillsuit-shell" \
       --set PATH ${lib.escapeShellArg runtimePath} \
       --add-flags "--no-duplicate"

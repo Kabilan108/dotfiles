@@ -71,6 +71,16 @@ in
       description = "Reviewed plugin roots included in the deterministic store-backed catalog.";
     };
 
+    pluginRoots = mkOption {
+      type = types.listOf (types.strMatching "^/.*");
+      default = [ ];
+      description = ''
+        Trusted filesystem plugin directories, in precedence order. Each child
+        directory contains manifest.json. The core bar remains packaged.
+        An empty list retains the generated catalog for isolated installations.
+      '';
+    };
+
     ownership = {
       barOwners = mkOption {
         type = types.listOf types.str;

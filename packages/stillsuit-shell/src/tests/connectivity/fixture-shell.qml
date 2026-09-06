@@ -9,7 +9,13 @@ ShellRoot {
     property int checks: 0
     property string secret: "fixture-personal-secret"
     property var events: []
+    property int panelCloses: 0
     property var fakeContext: QtObject {
+        property var actions: QtObject {
+            function surfaceClose(id) {
+                if (id === "stillsuit.network") root.panelCloses++
+            }
+        }
         property var settings: QtObject {
             property var values: ({ networkHelperPath: "" })
         }
@@ -317,6 +323,11 @@ ShellRoot {
             expect(network.openManager() === "ok"
                     && events.indexOf("editor:manage") !== -1,
                 "network-manager handoff failed")
+            expect(panelCloses === 3, "successful editor handoffs must close the network panel")
+            network._handleResponse(JSON.stringify({operation: "open-editor", ok: false, error: "launch failed"}))
+            expect(panelCloses === 3, "failed editor launch must retain the panel")
+            network._handleResponse(JSON.stringify({operation: "open-editor", ok: true, handoff: true}))
+            expect(panelCloses === 4, "helper handoff closes only after success")
 
             expect(network.toggleVpn(otherVpn) === "read-only"
                     && fakeNetwork.vpnToggles === 0,

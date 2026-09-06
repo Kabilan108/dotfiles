@@ -4,7 +4,6 @@ import Quickshell.Io
 import "FixtureTheme.js" as FixtureTheme
 import "plugins/builtin/bar" as Bar
 import "plugins/builtin/clock" as Clock
-import "plugins/builtin/meeting" as Meeting
 import "plugins/builtin/recording" as Recording
 import "plugins/builtin/resources" as Resources
 import "plugins/builtin/workspaces" as Workspaces
@@ -155,8 +154,6 @@ ShellRoot {
         Workspaces.WorkspaceWidget { id: workspaceSecondary; context: context; outputId: fixture.secondaryOutputId }
         Resources.ResourceWidget { id: resourcesPrimary; context: context; service: resourceService; outputId: fixture.primaryOutputId }
         Resources.ResourceWidget { id: resourcesSecondary; context: context; service: resourceService; outputId: fixture.secondaryOutputId }
-        Meeting.MeetingWidget { id: meetingPrimary; context: context; outputId: fixture.primaryOutputId }
-        Meeting.MeetingWidget { id: meetingSecondary; context: context; outputId: fixture.secondaryOutputId }
         Recording.RecordingWidget { id: recordingPrimary; context: context; outputId: fixture.primaryOutputId }
         Recording.RecordingWidget { id: recordingSecondary; context: context; outputId: fixture.secondaryOutputId }
     }
@@ -176,7 +173,6 @@ ShellRoot {
                 clockViews: 2,
                 workspaceViews: 2,
                 resourceViews: 2,
-                meetingViews: 2,
                 recordingViews: 2,
                 sharedClockService: clockOne.service === clockTwo.service,
                 sharedResourceService: resourcesPrimary.service === resourcesSecondary.service
@@ -206,7 +202,6 @@ ShellRoot {
             })
         }
         function routeActions(): string {
-            meetingPrimary.trigger()
             recordingPrimary.trigger()
             return JSON.stringify(fixture.actionCalls)
         }
@@ -215,9 +210,7 @@ ShellRoot {
             meetingModel.completed = true
             meetingModel.label = "Minutes ready"
             return JSON.stringify({
-                recordingText: recordingPrimary.recording.elapsedText,
-                meetingText: meetingPrimary.meeting.label,
-                meetingCompleted: meetingPrimary.meeting.completed
+                recordingText: recordingPrimary.recording.elapsedText
             })
         }
     }

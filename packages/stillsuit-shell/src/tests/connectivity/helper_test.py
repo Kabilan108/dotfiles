@@ -38,6 +38,9 @@ def main() -> None:
             return completed(command, "enabled\n")
         if command[-2:] == ["device", "status"]:
             return completed(command, "eth0:ethernet:connected:Fixture Ethernet\n")
+        if command[-3:] == ["device", "show", "eth0"]:
+            return completed(command, "IP4.ADDRESS[1]:192.0.2.10/24\n"
+                "IP6.ADDRESS[1]:2001\\:db8\\:\\:1/64\nWIRED-PROPERTIES.CARRIER:on\n")
         if "--get-values" in command and "802-11-wireless.ssid" in command:
             return completed(command, "Home\\:WiFi\n")
         if command[-2:] == ["connection", "show"]:
@@ -82,6 +85,10 @@ def main() -> None:
     assert join_call["input"] == secret + "\n"
     assert secret not in str(response)
     assert response["ok"] is True
+    assert response["snapshot"]["wiredConnections"] == [{
+        "device": "eth0", "name": "Fixture Ethernet",
+        "addresses": ["192.0.2.10/24", "2001:db8::1/64"], "carrier": "on",
+    }]
     assert response["snapshot"]["networks"][0]["name"] == "Home:WiFi"
     assert response["snapshot"]["networks"][0]["known"] is True
     assert response["snapshot"]["networks"][0]["uuid"] == "saved"

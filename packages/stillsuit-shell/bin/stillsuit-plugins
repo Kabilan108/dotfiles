@@ -1,0 +1,228 @@
+#!/usr/bin/env python3
+"""Discover trusted local plugins and publish immutable QML generations.
+
+Generation paths avoid QQmlComponent's stale URL cache. This validates file
+containment and input shapes; it does not sandbox trusted QML.
+"""
+from __future__ import annotations
+
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+import re
+import shutil
+import sys
+import tempfile
+import time
+from pathlib import Path
+from typing import Any
+
+from jsonschema import Draft202012Validator
+
+
+def record(path: Path) -> dict[str, Any]:
+    value = json.loads(path.read_text())
+    if not isinstance(value, dict):
+        raise TypeError(f"{path.name} must contain an object")
+    return value
+
+
+def contained_files(folder: Path) -> list[Path]:
+    if folder.is_symlink() or not folder.is_dir():
+        raise ValueError("plugin tree must be a real directory")
+    root = folder.resolve(strict=True)
+    files = sorted(folder.rglob("*"))
+    for path in files:
+        if path.is_symlink() or not path.resolve().is_relative_to(root):
+            raise ValueError("plugin trees must not contain symlinks")
+        if not path.is_file() and not path.is_dir():
+            raise ValueError("plugin trees may contain only regular files and directories")
+    return [path for path in files if path.is_file()]
+
+
+def validate_manifest(folder: Path) -> dict[str, Any]:
+    if folder.is_symlink():
+        raise ValueError("plugin directory must not be a symlink")
+    contained_files(folder)
+    manifest = record(folder / "manifest.json")
+    if not re.fullmatch(r"stillsuit\.[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*", str(manifest.get("id", ""))):
+        raise ValueError("invalid plugin ID")
+    points = manifest.get("entryPoints")
+    if not isinstance(points, dict) or not points:
+        raise ValueError("entryPoints must be a nonempty object")
+    for relative in points.values():
+        if not isinstance(relative, str) or Path(relative).is_absolute() or ".." in Path(relative).parts:
+            raise ValueError("invalid entry point path")
+        target = (folder / relative).resolve(strict=True)
+        if not target.is_relative_to(folder.resolve()) or not target.is_file():
+            raise ValueError("entry point escapes plugin root")
+    return manifest
+
+
+def generation(folder: Path, manifest: dict[str, Any], state: Path, core: Path) -> Path:
+    # The only current cross-plugin view import is recording -> meeting. Copy
+    # explicitly imported sibling directories into this same generation.
+    trees = {folder.name: folder}
+    pending = [folder]
+    while pending:
+        tree = pending.pop()
+        for path in contained_files(tree):
+            if path.suffix != ".qml":
+                continue
+            for name in re.findall(r'^import "\.\./([a-z][a-z0-9-]*)"', path.read_text(), re.MULTILINE):
+                if name not in trees:
+                    sibling = folder.parent / name
+                    contained_files(sibling)
+                    trees[name] = sibling
+                    pending.append(sibling)
+    digest = hashlib.sha256(str(core).encode())
+    for name, tree in sorted(trees.items()):
+        for path in contained_files(tree):
+            digest.update(f"{name}/{path.relative_to(tree)}\0".encode())
+            digest.update(path.read_bytes())
+    base = state / "plugin-generations"
+    destination = base / manifest["id"] / digest.hexdigest()
+    if not destination.exists():
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        # Existing builtins use ../../../ui and ../../../services. These point
+        # to immutable core exports, also available as named QML modules.
+        for name in ("ui", "services"):
+            link = base / name
+            target = core / name
+            if link.is_symlink() and link.readlink() != target:
+                link.unlink()
+            if not link.exists():
+                link.symlink_to(target, target_is_directory=True)
+        temporary = Path(tempfile.mkdtemp(prefix=".pending-", dir=destination.parent))
+        try:
+            for name, tree in trees.items():
+                shutil.copytree(tree, temporary / name)
+            temporary.rename(destination)
+        finally:
+            if temporary.exists():
+                shutil.rmtree(temporary)
+    return destination / folder.name
+
+
+def scan(configuration: dict[str, Any], overrides: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    seed = record(Path(configuration["seed"]))
+    validator = Draft202012Validator(record(Path(configuration["schema"])))
+    defaults = {row["manifest"]["id"]: row for row in seed["plugins"]}
+    # The bar frame stays in the core closure. Runtime plugins fill its slots.
+    reserved = seed.get("selectedBar", "stillsuit.bar")
+    rows = [defaults[reserved]] if reserved in defaults else []
+    seen = {reserved}
+    problems: list[str] = []
+    for root_text in configuration["roots"]:
+        root = Path(root_text)
+        if not root.exists():
+            continue
+        for folder in sorted(root.iterdir()):
+            if not folder.is_dir() or not (folder / "manifest.json").exists():
+                continue
+            try:
+                manifest = record(folder / "manifest.json")
+                plugin_id = manifest["id"]
+                if not isinstance(plugin_id, str):
+                    raise TypeError("plugin ID must be a string")
+                if plugin_id in seen:
+                    if plugin_id != reserved:
+                        problems.append(f"{plugin_id}: earlier root takes precedence")
+                    continue
+                seen.add(plugin_id)
+                manifest = validate_manifest(folder)
+                error = next(validator.iter_errors(manifest), None)
+                if error is not None:
+                    raise ValueError(error.message)
+                preference = overrides.get(plugin_id, {})
+                if not isinstance(preference, dict):
+                    raise TypeError("plugin preferences must be an object")
+                default = defaults.get(plugin_id, {})
+                settings = dict(default.get("settings", {}))
+                settings.update(preference.get("settings", {}))
+                if "section" in preference or "order" in preference:
+                    bar = dict(manifest.get("barWidget", {}))
+                    if "section" in preference:
+                        if preference["section"] not in {"left", "center", "right"}:
+                            raise ValueError("invalid bar section")
+                        bar["defaultSection"] = preference["section"]
+                    if "order" in preference:
+                        if type(preference["order"]) is not int:
+                            raise ValueError("bar order must be an integer")
+                        bar["order"] = preference["order"]
+                    manifest["barWidget"] = bar
+                enabled = preference.get("enabled", default.get("enabled", True))
+                if not isinstance(enabled, bool):
+                    raise TypeError("enabled must be boolean")
+                package = generation(folder, manifest, Path(configuration["state"]), Path(configuration["core"]))
+                rows.append({"manifest": manifest, "packageRoot": str(package),
+                    "enabled": enabled, "settings": settings})
+            except (OSError, ValueError, TypeError, KeyError) as error:
+                problems.append(f"{folder.name}: {error}")
+    return {"schemaVersion": 1, "selectedBar": reserved, "plugins": rows}, problems
+
+
+def set_preference(path: Path, plugin_id: str, changes: dict[str, Any]) -> None:
+    if not re.fullmatch(r"stillsuit\.[a-z][a-z0-9.-]*", plugin_id):
+        raise ValueError("invalid plugin ID")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.with_suffix(".lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        data = record(path) if path.exists() else {}
+        data[plugin_id] = dict(data.get(plugin_id, {})) | changes
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(data, indent=2) + "\n")
+        temporary.replace(path)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    config_root = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
+    parser.add_argument("--config", type=Path,
+        default=config_root / "stillsuit" / "runtime-discovery.json")
+    parser.add_argument("command", choices=["watch", "list", "validate", "enable", "disable", "place"])
+    parser.add_argument("plugin_id", nargs="?")
+    parser.add_argument("section", nargs="?", choices=["left", "center", "right"])
+    parser.add_argument("order", nargs="?", type=int)
+    args = parser.parse_args()
+    configuration = record(args.config)
+    preferences = Path(configuration["preferences"])
+    if args.command in {"enable", "disable", "place"}:
+        if not args.plugin_id:
+            parser.error("plugin ID is required")
+        changes = {"enabled": args.command == "enable"}
+        if args.command == "place":
+            if args.section is None or args.order is None:
+                parser.error("place requires plugin ID, section and order")
+            changes = {"section": args.section, "order": args.order}
+        set_preference(preferences, args.plugin_id, changes)
+        return
+    previous = ""
+    previous_errors = ""
+    while True:
+        try:
+            overrides = record(preferences) if preferences.exists() else {}
+            document, problems = scan(configuration, overrides)
+            encoded = json.dumps(document, sort_keys=True)
+            errors = "\n".join(problems)
+            if errors != previous_errors and errors:
+                print(errors, file=sys.stderr, flush=True)
+            previous_errors = errors
+            if encoded != previous:
+                print(encoded, flush=True)
+                previous = encoded
+        except (OSError, ValueError, TypeError, KeyError) as error:
+            print(f"plugin scan failed: {error}", file=sys.stderr, flush=True)
+            if args.command != "watch":
+                raise SystemExit(1) from error
+        if args.command != "watch":
+            if args.command == "validate" and previous_errors:
+                raise SystemExit(1)
+            return
+        time.sleep(1)
+
+
+if __name__ == "__main__":
+    main()

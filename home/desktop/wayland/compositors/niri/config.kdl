@@ -343,10 +343,11 @@ animations {
 // https://yalter.github.io/niri/Configuration:-Window-Rules
 
 window-rule {
-    match app-id=r#"^io\.stillsuit\.AgentPanel$"#
+    match app-id=r#"^com\.mitchellh\.ghostty$"# title=r#"^Stillsuit Agent$"#
     open-floating true
-    default-column-width { proportion 0.6; }
-    default-window-height { proportion 0.6; }
+    default-column-width { proportion 0.3; }
+    default-window-height { proportion 0.8; }
+    default-floating-position x=64 y=64 relative-to="bottom-right"
 }
 
 // Hide windows from screen capture
@@ -512,7 +513,7 @@ binds {
     Mod+Alt+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "swaylock"; }
 
     // launch programs
-    Mod+Return hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty"; }
+    Mod+Return hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty" "+new-window"; }
     Mod+Shift+Return hotkey-overlay-title="Open Floating Note: Obsidian" { spawn "coppermind-quick-note"; }
     Mod+B hotkey-overlay-title="Open Browser: zen-beta" { spawn "zen-beta"; }
     Mod+Shift+B hotkey-overlay-title="Open Browser: helium" { spawn "helium"; }

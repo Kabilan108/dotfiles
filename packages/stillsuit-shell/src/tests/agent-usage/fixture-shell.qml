@@ -150,6 +150,19 @@ ShellRoot {
                 "expired status role")
             verify(usage.refresh(true) === "ok" && refreshes === 1,
                 "refresh delegation")
+            var accounts = fakeModel.accounts.slice()
+            accounts[2] = {
+                provider: "claude", source: "default", status: "ready",
+                windows: [{ used: 0.25 }]
+            }
+            fakeModel.accounts = accounts
+            verify(widget.label === "9%" && widget.secondaryLabel === "75%",
+                "default providers retain separate percentages")
+            verify(String(widget.secondaryIconSource).endsWith("/assets/claude.svg"),
+                "Claude percentage has its own mark")
+            fakeModel.accounts = [accounts[2]]
+            verify(widget.label === "75%" && widget.secondaryLabel === "",
+                "Claude alone occupies the primary slot")
             console.log("AGENT_USAGE_FIXTURE_OK", checks)
             Qt.quit()
         } catch (error) {

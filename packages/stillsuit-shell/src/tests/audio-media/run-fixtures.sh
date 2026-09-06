@@ -88,11 +88,11 @@ fi
 rg -F 'Math.max(0, Math.min(1, number))' "$audio_service" >/dev/null
 rg -F 'selectOutputProcess.command = ["pactl", "set-default-sink", selectedName]' \
     "$audio_service" >/dev/null
-rg -F 'command: ["pavucontrol"]' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'command: root.managerPath !== "" ? [root.managerPath] : []' "$audio_service" >/dev/null
 rg -F 'onClicked: root.openManager()' \
     "$audio_plugin/Panel.qml" >/dev/null
 rg -F 'readonly property var player: _selectedPlayer()' "$media_service" >/dev/null
-rg -F 'context.actions.surfaceToggle("stillsuit.audio", "")' \
+rg -F 'context.actions.surfaceToggle("stillsuit.audio", JSON.stringify({outputId: root.outputId}))' \
     "$audio_plugin/Widget.qml" >/dev/null
 rg -F 'root.media.playerSummaries.length > 1' \
     "$audio_plugin/Panel.qml" >/dev/null
@@ -105,7 +105,7 @@ rg -F 'iconName: "skip-previous"' "$audio_plugin/Panel.qml" >/dev/null
 rg -F 'iconName: "skip-next"' "$audio_plugin/Panel.qml" >/dev/null
 rg -F 'iconName: "replay-10"' "$audio_plugin/Panel.qml" >/dev/null
 rg -F 'iconName: "forward-10"' "$audio_plugin/Panel.qml" >/dev/null
-rg -F 'text: "Audio"' "$audio_plugin/Panel.qml" >/dev/null
+rg -F 'title: "Audio"' "$audio_plugin/Panel.qml" >/dev/null
 rg -F 'text: "Levels"' "$audio_plugin/Panel.qml" >/dev/null
 rg -F 'text: "Output devices"' "$audio_plugin/Panel.qml" >/dev/null
 rg -F 'trackHeight: 7' "$audio_plugin/Panel.qml" >/dev/null

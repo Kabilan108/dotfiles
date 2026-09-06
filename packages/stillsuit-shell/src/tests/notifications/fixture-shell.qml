@@ -93,6 +93,10 @@ ShellRoot {
             return notificationService.openCenter("output-a")
         }
 
+        function closeCenter(): string {
+            return notificationService.closeCenter("output-a")
+        }
+
         function dismissAll(): string {
             return notificationService.dismissAll()
         }

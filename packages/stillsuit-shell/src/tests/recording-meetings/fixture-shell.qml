@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "plugins/builtin/meeting" as Meeting
 import "plugins/builtin/recording" as Recording
 
 ShellRoot {
@@ -74,12 +73,22 @@ ShellRoot {
         property bool retryConfigured: true
         property bool actionRunning: false
         property string retryingJobId: ""
+        property string discardingJobId: ""
         property var jobs: [
             { jobId: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", phase: "error", title: "Failed meeting", label: "Meeting failed", progress: 0, total: 0, attempt: 2, error: "Fixture failure\nFull details", notePath: "", updatedAt: 20, createdAt: 10, completedAt: 0 },
             { jobId: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", phase: "completed", title: "Completed meeting", label: "Meeting note ready", progress: 1, total: 1, attempt: 1, error: "", notePath: "/tmp/meeting.md", updatedAt: 10, createdAt: 5, completedAt: 10 }
         ]
+        // The real service persists discard through the meeting-minutes helper,
+        // which rewrites jobs.json; refresh() there reloads from that file. This
+        // fixture keeps the same in-memory jobs array as its durable source, so
+        // calling refresh() after a discard must not resurrect the removed job.
         function refresh() {}
         function retry(jobId) { retryingJobId = jobId; return "started" }
+        function discard(jobId) {
+            discardingJobId = jobId
+            jobs = jobs.filter(function (job) { return job.jobId !== jobId })
+            return "started"
+        }
         function openResult(jobId) { return "started" }
     }
 
@@ -100,7 +109,6 @@ ShellRoot {
         property string lastOpenPayload: ""
         function surfaceClose(pluginId) {
             if (pluginId === "stillsuit.recording") recordingPanel.close()
-            if (pluginId === "stillsuit.meeting") meetingPanel.close()
             return "ok"
         }
         function surfaceToggle(pluginId, payloadJson) { return "ok" }
@@ -108,7 +116,6 @@ ShellRoot {
             lastOpenPlugin = String(pluginId)
             lastOpenPayload = String(payloadJson)
             if (pluginId === "stillsuit.recording") recordingPanel.open(payloadJson)
-            if (pluginId === "stillsuit.meeting") meetingPanel.open(payloadJson)
             return "ok"
         }
     }
@@ -149,6 +156,14 @@ ShellRoot {
         function setReducedMotion(value: bool): string {
             settings.values = { reducedMotion: value }
             recordingModel.phase = "recording"
+            return "ok"
+        }
+        function discardJob(jobId: string): string {
+            meetingModel.discard(jobId)
+            return "ok"
+        }
+        function refreshMeeting(): string {
+            meetingModel.refresh()
             return "ok"
         }
         function state(): string {

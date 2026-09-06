@@ -104,6 +104,17 @@ ShellRoot {
         ready: shell.ready
     }
 
+    Loader {
+        active: Quickshell.screens.length > 0
+            && Quickshell.env("QT_QPA_PLATFORM") !== "offscreen"
+        source: "core/PanelHosts.qml"
+        onLoaded: {
+            item.router = surfaceRouter
+            item.theme = Qt.binding(function() { return shell.publicTheme })
+            item.screens = Qt.binding(function() { return Quickshell.screens })
+        }
+    }
+
     Component.onCompleted: {
         var text = themeFile.text()
         if (text === "") {
@@ -116,6 +127,17 @@ ShellRoot {
             "stillsuit.builtin-bar", Quickshell.shellDir,
             { shadowMode: shell.shadowMode })
         pluginCatalog.rescan()
+    }
+
+    Connections {
+        target: {
+            void(serviceRegistry.revision)
+            return serviceRegistry.get("stillsuit.notifications")
+        }
+        ignoreUnknownSignals: true
+        function onBannerWillPresent(outputId) {
+            surfaceRouter.interruptForBanner(outputId)
+        }
     }
 
     function _xdgRoot(variable, fallbackSuffix) {
@@ -136,11 +158,10 @@ ShellRoot {
                     || !_isRecord(parsed.effects)
                     || !_hasRecords(parsed.semantic, [
                         "background", "surface", "content", "outline",
-                        "accent", "status", "signal"
+                        "accent", "status", "signal", "intensity"
                     ])
                     || !_hasRecords(parsed.component, [
-                        "bar", "panel", "control", "notification", "osd",
-                        "resources"
+                        "bar", "panel", "control", "notification", "osd"
                     ]))
                 throw new Error("theme does not satisfy theme.v2")
             effectiveTheme = parsed

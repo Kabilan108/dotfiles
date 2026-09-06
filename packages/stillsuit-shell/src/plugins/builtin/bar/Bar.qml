@@ -97,6 +97,33 @@ Scope {
                 radius: 0
                 bordered: false
 
+                MouseArea {
+                    objectName: "stillsuit-bar-dismiss"
+                    anchors.fill: parent
+                    acceptedButtons: Qt.AllButtons
+                    // Widgets above this area receive their own presses first.
+                    // Also leave disabled widgets and unhandled buttons alone.
+                    function handlePress(x, y) {
+                        var slots = [leftSlot, centerSlot, rightSlot]
+                        for (var i = 0; i < slots.length; i++) {
+                            var children = slots[i].children
+                            for (var j = 0; j < children.length; j++) {
+                                var child = children[j]
+                                if (!child.visible || !child.registration) continue
+                                var point = mapToItem(child, x, y)
+                                if (point.x >= 0 && point.y >= 0
+                                        && point.x < child.width && point.y < child.height) return
+                            }
+                        }
+                        root.context.actions.surfaceDismissPanels()
+                    }
+                    onPressed: mouse => handlePress(mouse.x, mouse.y)
+                    Component.onCompleted: {
+                        if (root.context.registerBarPressProbe)
+                            root.context.registerBarPressProbe(this, barWindow.outputId)
+                    }
+                }
+
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: root.context.theme.metrics.barInnerGap

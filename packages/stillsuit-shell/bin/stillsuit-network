@@ -159,6 +159,28 @@ def _snapshot() -> dict[str, Any]:
         ),
         "",
     )
+    wired_connections: list[dict[str, Any]] = []
+    for row in device_rows:
+        if len(row) != 4 or row[1] != "ethernet" or row[2] != "connected":
+            continue
+        details = _run([
+            "nmcli", "--terse", "--escape", "yes", "--fields",
+            "IP4.ADDRESS,IP6.ADDRESS,WIRED-PROPERTIES.CARRIER",
+            "device", "show", row[0],
+        ])
+        addresses: list[str] = []
+        carrier = ""
+        if details.returncode == 0:
+            for line in details.stdout.splitlines():
+                field, value = _split_terse(line, 2) if ":" in line else ("", "")
+                if field.startswith(("IP4.ADDRESS", "IP6.ADDRESS")) and value:
+                    addresses.append(value)
+                elif field == "WIRED-PROPERTIES.CARRIER":
+                    carrier = value
+        wired_connections.append({
+            "device": row[0], "name": row[3], "addresses": addresses,
+            "carrier": carrier,
+        })
 
     connection_rows = _nmcli_rows("UUID,NAME,TYPE,ACTIVE", "connection", "show")
     saved_wifi: dict[str, dict[str, str]] = {}
@@ -263,6 +285,7 @@ def _snapshot() -> dict[str, Any]:
         "wifiEnabled": wifi_enabled,
         "wiredConnected": wired_connected,
         "wiredName": wired_name,
+        "wiredConnections": wired_connections,
         "networks": networks,
         "vpns": vpns,
         "tailscale": tailscale,

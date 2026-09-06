@@ -219,6 +219,11 @@ sleep 0.15
 [[ $(ipc state | jq '.trackedCount') == "$local_count" ]]
 [[ $(ipc setDnd off) == off ]]
 
+# The open center suppresses banners on its own output. Closing it restores
+# single-output presentation for notifications that are still live.
+presentation=$(ipc presentationProof)
+jq -e '.outputA == 0 and .outputB == 0' >/dev/null <<<"$presentation"
+[[ $(ipc closeCenter) == closed ]]
 # One global service presents every toast on exactly one output.
 presentation=$(ipc presentationProof)
 jq -e '.serviceInstances == 1 and .outputA == 1 and .outputB == 0 and .overlap == 0' >/dev/null <<<"$presentation"

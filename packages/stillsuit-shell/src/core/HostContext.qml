@@ -82,6 +82,10 @@ QtObject {
     property Component panelsFacadeComponent: Component {
         QtObject {
             readonly property string activeId: root.surfaceRouter ? root.surfaceRouter.activeId : ""
+            readonly property string selectedId: root.surfaceRouter ? root.surfaceRouter.presentedId || "" : ""
+            readonly property string selectedOutputId: root.surfaceRouter
+                && typeof root.surfaceRouter.placementOutputId === "function"
+                ? root.surfaceRouter.placementOutputId(selectedId) : ""
             readonly property string focusedOutputId: root.surfaceRouter
                 ? root.surfaceRouter.focusedOutputId
                 : ""
@@ -144,6 +148,10 @@ QtObject {
 
     property Component actionsComponent: Component {
         QtObject {
+            function surfaceDismissPanels() {
+                return root.actionsSource ? root.actionsSource.surfaceDismissPanels() : "error"
+            }
+
             function surfaceOpen(pluginId, payloadJson) {
                 return root.actionsSource
                     ? root.actionsSource.surfaceOpen(String(pluginId), String(payloadJson))

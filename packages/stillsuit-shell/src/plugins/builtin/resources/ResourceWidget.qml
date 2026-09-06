@@ -10,6 +10,7 @@ Item {
 
     readonly property string accessibleName: "CPU " + _percent(service ? service.cpuPercent : null)
         + ", memory " + _percent(service ? service.memoryPercent : null)
+    property string tooltipText: accessibleName
     readonly property color cpuColor: _usageColor(service ? service.cpuPercent : null)
     readonly property color memoryColor: _usageColor(service ? service.memoryPercent : null)
     implicitWidth: Math.max(24, metrics.implicitWidth + 14)
@@ -70,7 +71,7 @@ Item {
 
     function _usageColor(value) {
         var band = service ? service.usageBand(value) : ""
-        var colors = context.theme.component.resources
+        var colors = context.theme.semantic.intensity
         return band !== "" && colors && colors[band] !== undefined
             ? colors[band] : context.theme.semantic.content.secondary
     }

@@ -19,6 +19,7 @@ Item {
         && context.settings.values.reducedMotion === true
     readonly property int motionDuration: reducedMotion ? 0 : context.theme.motion.fast
     readonly property string accessibleName: "Workspaces and Niri columns on " + outputId
+    property string tooltipText: accessibleName
     readonly property bool inlineLayout: workspaceStrip.parent === contentRow
         && separator.parent === contentRow
         && columnStrip.parent === contentRow

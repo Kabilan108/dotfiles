@@ -40,7 +40,8 @@ stdenvNoCC.mkDerivation {
     substituteInPlace "$out/libexec/stillsuit-agent-panel" \
       --replace-fail '#!/usr/bin/env bash' '#!${lib.getExe bash}'
     makeWrapper "$out/libexec/stillsuit-agent-panel" "$out/bin/stillsuit-agent-panel" \
-      --set PATH ${lib.escapeShellArg (lib.makeBinPath runtimeInputs)}
+      --set PATH ${lib.escapeShellArg (lib.makeBinPath runtimeInputs)} \
+      --set STILLSUIT_AGENT_PANEL_SELF "$out/bin/stillsuit-agent-panel"
 
     runHook postInstall
   '';

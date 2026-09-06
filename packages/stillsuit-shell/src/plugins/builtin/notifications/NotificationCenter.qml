@@ -3,8 +3,13 @@ import QtQuick.Layouts
 import Quickshell
 import "../../../ui" as Ui
 
-Scope {
+Item {
     id: root
+    readonly property bool hostedPanel: true
+    implicitWidth: root.theme.metrics.panelWidth
+    implicitHeight: panelLayout.implicitHeight + root.theme.metrics.panelPadding * 2
+    visible: false
+    property bool opened: false
 
     required property var context
     required property var screen
@@ -15,176 +20,143 @@ Scope {
     readonly property var theme: context.theme
 
     function open(payloadJson) {
-        return service ? service.openCenter(outputId) : "error"
+        opened = true;
+        return service ? service.openCenter(outputId) : "error";
     }
 
     function close() {
-        return service ? service.closeCenter(outputId) : "error"
+        opened = false;
+        return service ? service.closeCenter(outputId) : "error";
     }
 
     function toggle(payloadJson) {
-        return service ? service.toggleCenter(outputId) : "error"
+        return service ? service.toggleCenter(outputId) : "error";
     }
 
     function relativeTime(timestamp) {
-        var minutes = Math.floor(Math.max(0, Date.now() - Number(timestamp || 0)) / 60000)
-        if (minutes < 1) return "now"
-        if (minutes < 60) return String(minutes) + "m"
-        var hours = Math.floor(minutes / 60)
-        return hours < 24 ? String(hours) + "h" : String(Math.floor(hours / 24)) + "d"
+        var minutes = Math.floor(Math.max(0, Date.now() - Number(timestamp || 0)) / 60000);
+        if (minutes < 1)
+            return "now";
+        if (minutes < 60)
+            return String(minutes) + "m";
+        var hours = Math.floor(minutes / 60);
+        return hours < 24 ? String(hours) + "h" : String(Math.floor(hours / 24)) + "d";
     }
 
-    PanelWindow {
-        id: centerWindow
+    Ui.ShellSurface {
+        id: panel
 
-        screen: root.screen
-        visible: root.service && root.service.centerOutputId === root.outputId
-        anchors {
-            top: true
-            bottom: true
-            left: true
-            right: true
-        }
-        exclusiveZone: 0
-        focusable: true
-        color: "transparent"
-        mask: Region {
-            item: dismissArea
-        }
+        anchors.fill: parent
+
+        theme: root.theme
+        kind: "panel"
 
         MouseArea {
-            id: dismissArea
-            anchors {
-                top: parent.top
-                bottom: parent.bottom
-                left: parent.left
-                right: parent.right
-                topMargin: root.theme.metrics.barHeight
-            }
-            acceptedButtons: Qt.AllButtons
-            onClicked: root.service.closeCenter(root.outputId)
+            anchors.fill: parent
+            onClicked: mouse => mouse.accepted = true
         }
 
-        Ui.ShellSurface {
-            id: panel
+        ColumnLayout {
+            id: panelLayout
 
             anchors {
-                top: parent.top
+                left: parent.left
                 right: parent.right
-                topMargin: root.theme.metrics.barHeight + root.theme.metrics.spaceUnit
-                rightMargin: root.theme.metrics.spaceUnit
+                top: parent.top
+                margins: root.theme.metrics.panelPadding
             }
-            width: root.theme.metrics.panelWidth
-            height: Math.min(panelLayout.implicitHeight + root.theme.metrics.panelPadding * 2,
-                parent.height - anchors.topMargin - root.theme.metrics.spaceUnit)
-            theme: root.theme
-            kind: "panel"
+            spacing: root.theme.metrics.spaceUnit * 2
 
-            MouseArea {
-                anchors.fill: parent
-                onClicked: mouse => mouse.accepted = true
+            RowLayout {
+                Layout.fillWidth: true
+
+                Ui.ShellText {
+                    theme: root.theme
+                    text: "Notifications"
+                    sizeRole: "heading"
+                }
+
+                Ui.ShellText {
+                    theme: root.theme
+                    text: String(root.rows.length) + " recent"
+                    sizeRole: "caption"
+                    role: "muted"
+                    monospace: true
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                }
+
+                Ui.ShellButton {
+                    visible: root.rows.length > 0
+                    theme: root.theme
+                    label: "Clear all"
+                    iconName: "delete"
+                    compact: true
+                    ghost: true
+                    destructive: true
+                    accessibleName: "Delete all notification history"
+                    onClicked: root.service.clearHistory()
+                }
             }
 
-            ColumnLayout {
-                id: panelLayout
+            Ui.ShellToggle {
+                Layout.fillWidth: true
+                theme: root.theme
+                label: "Do not disturb"
+                description: "Hide banners and retain notifications in history"
+                checked: root.service ? root.service.doNotDisturb : false
+                onToggled: requestedChecked => root.service.setDnd(requestedChecked)
+            }
 
-                anchors {
-                    left: parent.left
-                    right: parent.right
-                    top: parent.top
-                    margins: root.theme.metrics.panelPadding
-                }
-                spacing: root.theme.metrics.spaceUnit * 2
+            Ui.ShellStatus {
+                visible: root.service && root.service.doNotDisturb
+                Layout.fillWidth: true
+                theme: root.theme
+                status: "muted"
+                iconName: "notifications"
+                label: "Banners hidden; history is still retained"
+                accessibleName: label
+            }
 
-                RowLayout {
-                    Layout.fillWidth: true
+            Flickable {
+                Layout.fillWidth: true
+                implicitHeight: Math.min(centerColumn.implicitHeight, 420)
+                contentHeight: centerColumn.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                interactive: contentHeight > height
 
-                    Ui.ShellText {
-                        theme: root.theme
-                        text: "Notifications"
-                        sizeRole: "heading"
-                    }
+                ColumnLayout {
+                    id: centerColumn
 
-                    Ui.ShellText {
-                        theme: root.theme
-                        text: String(root.rows.length) + " recent"
-                        sizeRole: "caption"
-                        role: "muted"
-                        monospace: true
-                    }
+                    width: parent.width
+                    spacing: root.theme.metrics.spaceUnit * 2
 
-                    Item { Layout.fillWidth: true }
+                    Repeater {
+                        model: root.rows
 
-                    Ui.ShellButton {
-                        visible: root.rows.length > 0
-                        theme: root.theme
-                        label: "Clear all"
-                        iconName: "delete"
-                        compact: true
-                        ghost: true
-                        destructive: true
-                        accessibleName: "Delete all notification history"
-                        onClicked: root.service.clearHistory()
-                    }
-                }
+                        NotificationCard {
+                            required property var modelData
 
-                Ui.ShellToggle {
-                    Layout.fillWidth: true
-                    theme: root.theme
-                    label: "Do not disturb"
-                    description: "Hide banners and retain notifications in history"
-                    checked: root.service ? root.service.doNotDisturb : false
-                    onToggled: requestedChecked => root.service.setDnd(requestedChecked)
-                }
-
-                Ui.ShellStatus {
-                    visible: root.service && root.service.doNotDisturb
-                    Layout.fillWidth: true
-                    theme: root.theme
-                    status: "muted"
-                    iconName: "notifications"
-                    label: "Banners hidden; history is still retained"
-                    accessibleName: label
-                }
-
-                Flickable {
-                    Layout.fillWidth: true
-                    implicitHeight: Math.min(centerColumn.implicitHeight, 420)
-                    contentHeight: centerColumn.implicitHeight
-                    clip: true
-                    boundsBehavior: Flickable.StopAtBounds
-                    interactive: contentHeight > height
-
-                    ColumnLayout {
-                        id: centerColumn
-
-                        width: parent.width
-                        spacing: root.theme.metrics.spaceUnit * 2
-
-                        Repeater {
-                            model: root.rows
-
-                            NotificationCard {
-                                required property var modelData
-
-                                context: root.context
-                                service: root.service
-                                snapshot: modelData
-                                inline: true
-                                timeText: root.relativeTime(modelData.timestamp)
-                                Layout.fillWidth: true
-                            }
-                        }
-
-                        Ui.ShellStateView {
-                            visible: root.rows.length === 0
+                            context: root.context
+                            service: root.service
+                            snapshot: modelData
+                            inline: true
+                            timeText: root.relativeTime(modelData.timestamp)
                             Layout.fillWidth: true
-                            theme: root.theme
-                            mode: "empty"
-                            iconName: "notifications"
-                            title: "No notifications"
-                            message: "New alerts will appear here."
                         }
+                    }
+
+                    Ui.ShellStateView {
+                        visible: root.rows.length === 0
+                        Layout.fillWidth: true
+                        theme: root.theme
+                        mode: "empty"
+                        iconName: "notifications"
+                        title: "No notifications"
+                        message: "New alerts will appear here."
                     }
                 }
             }

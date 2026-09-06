@@ -55,6 +55,11 @@ let
               source = pluginSource;
               inherit manifestFile;
             }
+            {
+              source = ../src;
+              manifestFile = "plugins/builtin/battery/manifest.json";
+              enable = false;
+            }
           ];
         };
       }
@@ -65,6 +70,6 @@ let
 in
 assert failures == [ ];
 {
-  inherit (registry) catalogData;
+  inherit (registry) catalogData discoveryData;
   pluginIds = map (plugin: plugin.id) registry.sortedPlugins;
 }

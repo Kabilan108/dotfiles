@@ -3,7 +3,8 @@ set -euo pipefail
 
 readonly SESSION_NAME="stillsuit-agent"
 readonly SESSION_TARGET="=$SESSION_NAME"
-readonly APP_ID="io.stillsuit.AgentPanel"
+readonly APP_ID="com.mitchellh.ghostty"
+readonly WINDOW_TITLE="Stillsuit Agent"
 readonly DEFAULT_MODEL="gpt-5.6-sol"
 readonly DEFAULT_EFFORT="low"
 readonly DEFAULT_TIER="fast"
@@ -11,16 +12,20 @@ readonly SHUTDOWN_POLL_INTERVAL="0.05"
 readonly SHUTDOWN_POLL_ATTEMPTS=100
 readonly WINDOW_OPEN_POLL_INTERVAL="0.05"
 readonly WINDOW_OPEN_POLL_ATTEMPTS=100
-readonly GHOSTTY_COMMAND="direct:tmux attach-session -t $SESSION_TARGET"
+readonly SELF=${STILLSUIT_AGENT_PANEL_SELF:-$(readlink -f "${BASH_SOURCE[0]}")}
+# Ghostty 1.3 prepends "--posix" to the command it starts in a new window.
+readonly GHOSTTY_COMMAND="direct:$SELF attach"
 
 usage() {
   printf 'usage: %s {open|hide|toggle|status|terminate}\n' "${0##*/}" >&2
   exit 64
 }
 
+while [[ $# -gt 0 && $1 == --posix ]]; do shift; done
 [[ $# -eq 1 ]] || usage
 readonly ACTION=$1
 case "$ACTION" in
+  attach) exec tmux attach-session -t "$SESSION_TARGET" ;;
   open | hide | toggle | status | terminate) ;;
   *) usage ;;
 esac
@@ -30,7 +35,6 @@ readonly STATE_ROOT=${XDG_STATE_HOME:-${HOME:?HOME is not set}/.local/state}/sti
 readonly RUNTIME_ROOT=${XDG_RUNTIME_DIR:-$STATE_ROOT/run}
 readonly CONFIG_FILE="$CONFIG_ROOT/stillsuit/agent-panel.json"
 readonly LOCK_FILE="$RUNTIME_ROOT/agent-panel.lock"
-readonly GHOSTTY_PID_FILE="$RUNTIME_ROOT/agent-panel-ghostty.pid"
 
 mkdir -p "$RUNTIME_ROOT"
 exec 9>"$LOCK_FILE"
@@ -39,7 +43,7 @@ flock 9
 query_window_ids() {
   local windows
   windows=$(niri msg -j windows 2>/dev/null) || return
-  jq -r --arg app_id "$APP_ID" '.[] | select(.app_id == $app_id) | .id' <<<"$windows"
+  jq -r --arg app_id "$APP_ID" --arg title "$WINDOW_TITLE" '.[] | select(.app_id == $app_id and .title == $title) | .id' <<<"$windows"
 }
 
 window_ids() {
@@ -59,33 +63,6 @@ load_window_ids() {
       destination+=("$id")
     done <<<"$output"
   fi
-}
-
-pending_pid() {
-  local pid
-  [[ -r $GHOSTTY_PID_FILE ]] || return 1
-  IFS= read -r pid <"$GHOSTTY_PID_FILE"
-  [[ $pid =~ ^[1-9][0-9]*$ ]] || {
-    rm -f "$GHOSTTY_PID_FILE"
-    return 1
-  }
-  if kill -0 "$pid" 2>/dev/null && pid_is_agent_ghostty "$pid"; then
-    printf '%s\n' "$pid"
-    return 0
-  fi
-  rm -f "$GHOSTTY_PID_FILE"
-  return 1
-}
-
-pid_is_agent_ghostty() {
-  local pid=$1 arg
-  local -a argv=()
-  [[ -r /proc/$pid/cmdline ]] || return 1
-  mapfile -d '' -t argv <"/proc/$pid/cmdline"
-  for arg in "${argv[@]}"; do
-    [[ $arg == "--class=$APP_ID" ]] && return 0
-  done
-  return 1
 }
 
 session_state() {
@@ -175,10 +152,6 @@ wait_for_window_open() {
     if [[ -n $output ]]; then
       return
     fi
-    if ! pending_pid >/dev/null; then
-      printf 'agent panel Ghostty exited before its window opened\n' >&2
-      return 75
-    fi
     ((attempt + 1 == WINDOW_OPEN_POLL_ATTEMPTS)) || sleep "$WINDOW_OPEN_POLL_INTERVAL"
   done
 
@@ -202,50 +175,13 @@ close_windows() {
   close_window_ids "${ids[@]}"
 }
 
-clear_pending_pid() {
-  local expected_pid=$1 recorded_pid
-  [[ -r $GHOSTTY_PID_FILE ]] || return
-  IFS= read -r recorded_pid <"$GHOSTTY_PID_FILE"
-  if [[ $recorded_pid == "$expected_pid" ]]; then
-    rm -f "$GHOSTTY_PID_FILE"
-  fi
-}
-
-wait_for_pid_exit() {
-  local pid=$1 attempt
-  for ((attempt = 0; attempt < SHUTDOWN_POLL_ATTEMPTS; attempt++)); do
-    if ! kill -0 "$pid" 2>/dev/null; then
-      clear_pending_pid "$pid"
-      return
-    fi
-    ((attempt + 1 == SHUTDOWN_POLL_ATTEMPTS)) || sleep "$SHUTDOWN_POLL_INTERVAL"
-  done
-
-  printf 'timed out waiting for agent panel Ghostty PID %s to exit\n' "$pid" >&2
-  return 75
-}
-
-stop_pending_window() {
-  local pid
-  if pid=$(pending_pid); then
-    if ! pid_is_agent_ghostty "$pid"; then
-      printf 'refusing to terminate unverified agent panel PID %s\n' "$pid" >&2
-      return 75
-    fi
-    if ! kill "$pid" 2>/dev/null && kill -0 "$pid" 2>/dev/null; then
-      printf 'failed to terminate agent panel Ghostty PID %s\n' "$pid" >&2
-      return 75
-    fi
-    wait_for_pid_exit "$pid"
-  else
-    rm -f "$GHOSTTY_PID_FILE"
-  fi
-}
-
 ensure_session() {
   local state=$1
   case "$state" in
-    running) return ;;
+    running)
+      tmux set-option -t "$SESSION_NAME" set-titles off >/dev/null
+      return ;;
+
     dead) tmux kill-session -t "$SESSION_TARGET" 2>/dev/null || true ;;
     absent) ;;
   esac
@@ -255,30 +191,16 @@ ensure_session() {
     codex --yolo --model "$MODEL" \
     --config "model_reasoning_effort=$EFFORT" \
     --config "service_tier=$TIER"
-  tmux set-option -t "$SESSION_TARGET" remain-on-exit on >/dev/null
+  tmux set-option -t "$SESSION_NAME" remain-on-exit on >/dev/null
+  tmux set-option -t "$SESSION_NAME" set-titles off >/dev/null
 }
 
 launch_window() {
-  local pid
-  if pending_pid >/dev/null; then
-    if ! ghostty +new-window --class="$APP_ID" --title="Stillsuit Agent" \
-      >/dev/null 2>&1; then
-      printf 'failed to request a window from the persistent agent panel Ghostty\n' >&2
-      return 75
-    fi
-  else
-    ghostty --class="$APP_ID" --title="Stillsuit Agent" \
-      --gtk-single-instance=true \
-      --quit-after-last-window-closed=false \
-      --command="$GHOSTTY_COMMAND" >/dev/null 2>&1 9>&- &
-    pid=$!
-    printf '%s\n' "$pid" >"$GHOSTTY_PID_FILE"
-  fi
-
-  if ! wait_for_window_open; then
-    stop_pending_window
+  if ! ghostty +new-window --title="$WINDOW_TITLE" --command="$GHOSTTY_COMMAND" >/dev/null 2>&1; then
+    printf 'failed to request the agent window from shared Ghostty\n' >&2
     return 75
   fi
+  wait_for_window_open
 }
 
 focus_single_window() {
@@ -294,7 +216,6 @@ open_panel() {
   before=$(session_state)
   if [[ $before != running ]]; then
     close_windows
-    stop_pending_window
   fi
   ensure_session "$before"
 
@@ -324,7 +245,6 @@ hide_panel() {
 
 terminate_panel() {
   hide_panel
-  stop_pending_window
   if tmux has-session -t "$SESSION_TARGET" 2>/dev/null; then
     tmux kill-session -t "$SESSION_TARGET"
   fi

@@ -62,10 +62,18 @@ let
     plugins = map (plugin: {
       inherit (plugin) manifest packageRoot settings;
       enabled = true;
-      sourceMode = "store";
     }) sortedPlugins;
   };
   catalogSource = pkgs.writeText "stillsuit-plugin-catalog.json" (builtins.toJSON catalogData);
+  discoveryData = catalogData // {
+    plugins = map (plugin: {
+      inherit (plugin) manifest packageRoot settings;
+      enabled = plugin.enable;
+    }) indexedPlugins;
+  };
+  discoverySeed = pkgs.writeText "stillsuit-plugin-discovery-seed.json" (
+    builtins.toJSON discoveryData
+  );
   schema = ../../../packages/stillsuit-shell/schemas/manifest.v1.json;
   schemaChecks = lib.concatMapStringsSep "\n" (plugin: ''
     check-jsonschema --schemafile ${schema} ${lib.escapeShellArg plugin.storeManifestPath}
@@ -87,6 +95,8 @@ in
         inherit
           catalog
           catalogData
+          discoveryData
+          discoverySeed
           enabledPlugins
           indexedPlugins
           sortedPlugins

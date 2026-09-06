@@ -55,8 +55,8 @@ rg -F 'read-only' "$source_root/plugins/builtin/network/Panel.qml" >/dev/null
 rg -F 'preferredDefaultAudioSink = node' "$source_root/services/BluetoothService.qml" >/dev/null
 rg -F 'onClicked: root.service.forgetDevice(row.device)' "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
 rg -F 'onClicked: root.openManager()' "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
-rg -F 'command: ["blueman-manager"]' "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
-rg -F 'implicitHeight: Math.min(availableDeviceColumn.implicitHeight, 244)' \
+rg -F 'command: root.managerPath !== "" ? [root.managerPath] : []' "$source_root/services/BluetoothService.qml" >/dev/null
+rg -F 'maximumHeight: 244' \
     "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
 rg -F 'label: "BlueZ adapter"' \
     "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
@@ -82,7 +82,7 @@ fi
 for panel in network bluetooth; do
     panel_path="$source_root/plugins/builtin/$panel/Panel.qml"
     rg -F 'required property var screen' "$panel_path" >/dev/null
-    rg -F 'screen: root.screen' "$panel_path" >/dev/null
+    rg -F 'readonly property bool hostedPanel: true' "$panel_path" >/dev/null
 done
 
 if ! timeout 20s quickshell --config "$STILLSUIT_CONFIG_ID" --no-color \

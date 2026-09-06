@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell.Io
 import Quickshell.Bluetooth
 import Quickshell.Services.Pipewire
 
@@ -8,6 +9,29 @@ QtObject {
     required property var context
     property var model: null
     property bool forceUnavailable: false
+    readonly property string managerPath: String(context && context.settings
+        && context.settings.values ? context.settings.values.managerPath || "" : "")
+    property Process managerProcess: Process {
+        command: root.managerPath !== "" ? [root.managerPath] : []
+        onStarted: {
+            if (root.context.actions)
+                root.context.actions.surfaceClose("stillsuit.bluetooth")
+        }
+        onExited: function(exitCode) {
+            if (exitCode !== 0 && exitCode !== 130)
+                root.lastError = "Could not open Bluetooth settings"
+        }
+    }
+
+    function openManager() {
+        if (managerProcess.running) return "busy"
+        if (managerPath.charAt(0) !== "/") {
+            lastError = "Bluetooth settings command is not configured"
+            return "unavailable"
+        }
+        managerProcess.running = true
+        return "pending"
+    }
     property string operation: "idle"
     property string operationTarget: ""
     property var pendingDevice: null

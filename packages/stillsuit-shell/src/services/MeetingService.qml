@@ -42,6 +42,7 @@ Scope {
     property var jobs: []
     property bool actionRunning: false
     property string retryingJobId: ""
+    property string discardingJobId: ""
     property string lastCommandJson: "[]"
 
     function _siblingPath(path, filename) {
@@ -197,12 +198,23 @@ Scope {
         var selected = _job(jobId)
         if (!retryConfigured || !selected || selected.phase !== "error" || actionRunning)
             return "unavailable"
-        return _runAction([helperPath, "retry", selected.jobId], selected.jobId)
+        return _runAction([helperPath, "retry", selected.jobId], selected.jobId, "")
     }
 
-    function _runAction(argv, retryJobId) {
+    // Discard permanently removes a failed job from the durable jobs.json
+    // queue. It goes through the same typed host-action process as retry so
+    // the worker (never this service) owns the mutation of on-disk state.
+    function discard(jobId) {
+        var selected = _job(jobId)
+        if (!retryConfigured || !selected || selected.phase !== "error" || actionRunning)
+            return "unavailable"
+        return _runAction([helperPath, "discard", selected.jobId], "", selected.jobId)
+    }
+
+    function _runAction(argv, retryJobId, discardJobId) {
         lastCommandJson = JSON.stringify(argv)
         retryingJobId = String(retryJobId || "")
+        discardingJobId = String(discardJobId || "")
         actionRunning = true
         action.command = argv
         action.running = true
@@ -243,6 +255,7 @@ Scope {
         onExited: function(exitCode) {
             root.actionRunning = false
             root.retryingJobId = ""
+            root.discardingJobId = ""
             root.refresh()
         }
     }

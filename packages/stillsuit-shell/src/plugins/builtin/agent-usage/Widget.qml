@@ -13,8 +13,8 @@ Ui.ShellBarCluster {
         ? Math.round(defaultMaxUsed * 100) : -1
     readonly property int remainingPercent: usedPercent >= 0
         ? Math.max(0, 100 - usedPercent) : -1
-    readonly property bool hasCodex: _hasReportingDefault("codex")
-    readonly property bool hasClaude: _hasReportingDefault("claude")
+    readonly property bool hasCodex: codexRemaining >= 0
+    readonly property bool hasClaude: claudeRemaining >= 0
     readonly property int reportingDefaultCount:
         (hasCodex ? 1 : 0) + (hasClaude ? 1 : 0)
 
@@ -26,17 +26,20 @@ Ui.ShellBarCluster {
         : hasClaude ? Qt.resolvedUrl("assets/claude.svg") : ""
     secondaryIconSource: hasCodex && hasClaude
         ? Qt.resolvedUrl("assets/claude.svg") : ""
-    label: remainingPercent >= 0 ? remainingPercent + "%" : ""
-    active: context.panels.isOpen("stillsuit.agent-usage")
+    readonly property int codexRemaining: _remaining("codex")
+    readonly property int claudeRemaining: _remaining("claude")
+    label: hasCodex ? codexRemaining + "%" : hasClaude ? claudeRemaining + "%" : ""
+    secondaryLabel: hasCodex && hasClaude ? claudeRemaining + "%" : ""
+    selected: context.panels && context.panels.selectedId === "stillsuit.agent-usage"
+        && context.panels.selectedOutputId === outputId
     accessibleName: !service || !service.available
         ? "Agent usage unavailable"
         : reportingDefaultCount === 0
             ? "No default agent accounts reporting"
-            : remainingPercent >= 0
-                ? "Default agent limits, lowest account has " + remainingPercent
-                    + " percent remaining"
-                : "Default agent usage"
-    onClicked: context.actions.surfaceToggle("stillsuit.agent-usage", "")
+            : (hasCodex ? "Codex " + codexRemaining + "% remaining" : "")
+                + (hasCodex && hasClaude ? "; " : "")
+                + (hasClaude ? "Claude " + claudeRemaining + "% remaining" : "")
+    onClicked: context.actions.surfaceToggle("stillsuit.agent-usage", JSON.stringify({outputId: root.outputId}))
 
     function _isReportingDefault(account) {
         return account && String(account.source || "") === "default"
@@ -52,6 +55,22 @@ Ui.ShellBarCluster {
                 return true
         }
         return false
+    }
+
+    function _remaining(provider) {
+        var accounts = service && service.accounts ? service.accounts : []
+        var maximum = -1
+        for (var index = 0; index < accounts.length; index++) {
+            var account = accounts[index]
+            if (!_isReportingDefault(account) || account.provider !== provider)
+                continue
+            for (var windowIndex = 0; windowIndex < account.windows.length; windowIndex++) {
+                var used = Number(account.windows[windowIndex].used)
+                if (isFinite(used))
+                    maximum = Math.max(maximum, Math.max(0, Math.min(1, used)))
+            }
+        }
+        return maximum < 0 ? -1 : 100 - Math.round(maximum * 100)
     }
 
     function _defaultMaxUsed() {

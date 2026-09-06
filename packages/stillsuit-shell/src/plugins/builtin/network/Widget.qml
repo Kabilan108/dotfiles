@@ -19,7 +19,8 @@ Ui.ShellBarCluster {
     iconName: service && service.wifiEnabled ? "wifi" : "wifi-off"
     badgeIconName: vpnConnected ? "lock" : ""
     label: service && service.connectedNetwork ? signalPercentage + "%" : ""
-    active: Boolean(service && (service.connectedNetwork || service.wiredConnected))
+    selected: context.panels && context.panels.selectedId === "stillsuit.network"
+        && context.panels.selectedOutputId === outputId
     busy: Boolean(service && service.operation !== "idle")
     accessibleName: (!service || !service.available ? "Network unavailable"
         : service.wiredConnected ? "Wired network connected"
@@ -28,5 +29,5 @@ Ui.ShellBarCluster {
                 + " at " + signalPercentage + " percent signal"
             : service.wifiEnabled ? "Wi-Fi enabled, not connected" : "Wi-Fi disabled")
         + (vpnConnected ? ", VPN connected" : "")
-    onClicked: context.actions.surfaceToggle("stillsuit.network", "")
+    onClicked: context.actions.surfaceToggle("stillsuit.network", JSON.stringify({outputId: root.outputId}))
 }

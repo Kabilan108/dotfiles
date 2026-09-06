@@ -21,6 +21,7 @@ QtObject {
     readonly property int screenCount: _screens().length
 
     property string internalActiveId: ""
+    property string presentedId: ""
     property int internalRevision: 0
     property int pendingLoads: 0
     property int nextToken: 0
@@ -32,7 +33,36 @@ QtObject {
     property var tokens: ({})
     property var sessionOpen: ({})
     property var placements: ({})
+    property var panelHosts: ({})
+
+    function registerPanelHost(outputId, host) {
+        var next = _copy(panelHosts)
+        next[outputId] = host
+        panelHosts = next
+    }
+
+    function unregisterPanelHost(outputId, host) {
+        if (panelHosts[outputId] !== host) return
+        var next = _copy(panelHosts)
+        delete next[outputId]
+        panelHosts = next
+    }
     property QtObject surfaceHost: QtObject {}
+
+    function dismissPanels() {
+        var ids = Object.keys(sessionOpen)
+        for (var index = 0; index < ids.length; index++)
+            if (sessionOpen[ids[index]]) close(ids[index])
+    }
+
+    function interruptForBanner(outputId) {
+        var ids = Object.keys(sessionOpen)
+        for (var index = 0; index < ids.length; index++) {
+            var id = ids[index]
+            if (id !== "stillsuit.notifications" && isOpen(id)
+                    && placementOutputId(id) === String(outputId)) close(id)
+        }
+    }
 
     onScreensChanged: Qt.callLater(root._reconcileScreens)
 
@@ -88,6 +118,11 @@ QtObject {
         ignoreUnknownSignals: true
 
         function onFocusedOutputIdChanged() {
+            if (root.presentedId !== ""
+                    && root.placementOutputId(root.presentedId) !== root._currentFocusedOutputId()) {
+                root.dismissPanels()
+                return
+            }
             var active = root.internalActiveId
             var kind = active !== "" && root.catalog
                 ? root.catalog.primarySurfaceKind(active)
@@ -166,11 +201,17 @@ QtObject {
         if (contributionState(key, kind) === "error")
             return "error"
 
-        if (internalActiveId !== "" && internalActiveId !== key)
+        if (internalActiveId !== "" && internalActiveId !== key
+                && internalActiveId !== presentedId)
             close(internalActiveId)
         _setSessionOpen(key, true)
         internalActiveId = key
-        _setPlacement(key, _currentFocusedOutputId())
+        var requestedOutput = ""
+        if (payloadJson) {
+            var payload = JSON.parse(payloadJson)
+            requestedOutput = payload && typeof payload.outputId === "string" ? payload.outputId : ""
+        }
+        _setPlacement(key, _screenById(requestedOutput) ? requestedOutput : _currentFocusedOutputId())
 
         if (contributionState(key, kind) === "loaded") {
             _applyPlacement(key)
@@ -186,7 +227,7 @@ QtObject {
         _setSessionOpen(key, false)
         _setPlacement(key, "")
         if (internalActiveId === key)
-            internalActiveId = ""
+            internalActiveId = presentedId
         return "error"
     }
 
@@ -195,11 +236,13 @@ QtObject {
         if (!catalog || !catalog.has(key) || catalog.primarySurfaceKind(key) === "")
             return "unknown"
 
+        if (presentedId === key) presentedId = ""
+
         _clearQueue(key)
         _setSessionOpen(key, false)
         _setPlacement(key, "")
         if (internalActiveId === key)
-            internalActiveId = ""
+            internalActiveId = presentedId
 
         var primaryKind = catalog.primarySurfaceKind(key)
         var primaryState = contributionState(key, primaryKind)
@@ -212,16 +255,25 @@ QtObject {
     }
 
     function toggle(pluginId, payloadJson) {
+        if (isOpen(pluginId) && payloadJson) {
+            var requested
+            try { requested = JSON.parse(payloadJson) } catch (error) { return "invalid-payload" }
+            if (requested && typeof requested.outputId === "string"
+                    && _screenById(requested.outputId)
+                    && requested.outputId !== placementOutputId(pluginId))
+                return open(pluginId, payloadJson)
+        }
         return isOpen(pluginId) ? close(pluginId) : open(pluginId, payloadJson)
     }
 
     function unload(pluginId) {
         var key = String(pluginId)
+        if (presentedId === key) presentedId = ""
         _clearQueue(key)
         _setSessionOpen(key, false)
         _setPlacement(key, "")
         if (internalActiveId === key)
-            internalActiveId = ""
+            internalActiveId = presentedId
         _unloadObjects(key)
         _clearErrors(key)
     }
@@ -470,10 +522,31 @@ QtObject {
             return false
         }
         try {
+            if (instance.hostedPanel === true && presentedId === pluginId) {
+                var siblings = contributionInstances(pluginId, kind)
+                for (var index = 0; index < siblings.length; index++) {
+                    var sibling = siblings[index]
+                    if (sibling === instance) continue
+                    var oldHost = panelHosts[String(sibling.outputId || "")]
+                    if (oldHost && oldHost.panelContent === sibling) {
+                        oldHost.dismiss(sibling)
+                        if (typeof sibling.close === "function") sibling.close()
+                    }
+                }
+            }
             if (typeof instance.open === "function")
                 instance.open(payloadJson)
             else if ("visible" in instance)
                 instance.visible = true
+            if (instance.hostedPanel === true) {
+                var host = panelHosts[placementOutputId(pluginId)]
+                if (!host) throw new Error("no panel host for output")
+                var outgoingId = presentedId
+                host.present(instance)
+                presentedId = pluginId
+                if (outgoingId !== "" && outgoingId !== pluginId)
+                    close(outgoingId)
+            }
             return true
         } catch (error) {
             _failPlugin(pluginId, kind, "surface open failed: " + error)
@@ -485,6 +558,9 @@ QtObject {
         var instances = contributionInstances(pluginId, kind)
         try {
             for (var index = 0; index < instances.length; index++) {
+                var host = panelHosts[String(instances[index].outputId || "")]
+                if (host && instances[index].hostedPanel === true)
+                    host.dismiss(instances[index])
                 if (typeof instances[index].close === "function")
                     instances[index].close()
                 else if ("visible" in instances[index])
@@ -675,7 +751,7 @@ QtObject {
             nextInstances.push(instance)
         }
         for (var removedId in existingById)
-            existingById[removedId].destroy()
+            _destroyInstances([existingById[removedId]])
         var objectsNext = _copy(objects)
         objectsNext[routeKey] = nextInstances
         objects = objectsNext
@@ -721,7 +797,8 @@ QtObject {
         _setSessionOpen(key, false)
         _setPlacement(key, "")
         if (internalActiveId === key)
-            internalActiveId = ""
+            internalActiveId = presentedId !== key ? presentedId : ""
+        if (presentedId === key) presentedId = ""
         _unloadObjects(key)
         var errorsNext = _copy(errors)
         errorsNext[_routeKey(key, kind)] = String(message || "unknown surface error")
@@ -879,6 +956,9 @@ QtObject {
 
     function _destroyInstances(instances) {
         for (var index = 0; index < instances.length; index++) {
+            var host = panelHosts[String(instances[index].outputId || "")]
+            if (host && instances[index].hostedPanel === true)
+                host.dismiss(instances[index])
             if (instances[index] && typeof instances[index].destroy === "function")
                 instances[index].destroy()
         }

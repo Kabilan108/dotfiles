@@ -12,7 +12,7 @@ current desktop generation has been rebuilt.
 
 ## Approved baseline
 
-The design lab was approved with these settings:
+The current baseline includes the subsequent daily-use refinements:
 
 | Setting | Value |
 |---|---|
@@ -20,9 +20,9 @@ The design lab was approved with these settings:
 | Body type | Noto Sans |
 | Monospace type | JetBrainsMono Nerd Font |
 | Icons | Material Symbols Rounded |
-| Bar | 26 px, anchored to the top edge |
+| Bar | 28 px, anchored to the top edge |
 | Workspaces | Inline |
-| Surface opacity | 0.80 |
+| Surface opacity | 0.95 |
 | Medium radius | 7 px |
 | Motion scale | 0.55 |
 | Accent | `#89b4fa` |
@@ -65,11 +65,12 @@ Semantic roles describe what a color means across the shell.
 | Group | Roles |
 |---|---|
 | Background | canvas, desktop, scrim |
-| Surface | bar, panel, raised, overlay, hover, pressed, selected |
+| Surface | bar, panel, raised, overlay, hover, pressed, selected, danger |
 | Content | primary, secondary, muted, disabled, inverse |
 | Outline | subtle, default, strong, focus |
 | Accent | primary, hover, pressed, subtle, on-accent |
 | Status | info, success, warning, danger |
+| Intensity | normal, elevated, high, critical (numeric values, not errors) |
 | Signal | audio, microphone, brightness, charging, recording |
 
 Signal colors are not decoration. Green means audio, yellow means brightness,
@@ -105,7 +106,8 @@ section labels.
 
 Material Symbols Rounded is the icon family. Use the filled rounded vocabulary
 consistently. Do not mix outlined and rounded symbols within a production
-surface. Shared `ShellIcon` names are the only icon API exposed to plugins.
+surface. `ShellIconView` supports both shared glyph names and local SVG/image sources;
+bar clusters compose it without prescribing one asset format.
 
 | Type role | Size |
 |---|---|
@@ -126,7 +128,7 @@ unit. The approved component metrics are:
 | Small radius | 5 px |
 | Medium radius | 7 px |
 | Large radius | 11 px |
-| Bar height | 26 px |
+| Bar height | 28 px |
 | Bar outer gap | 0 px |
 | Bar inner gap | 7 px |
 | Small, medium, large icons | 15, 18, 24 px |
@@ -138,7 +140,7 @@ Use the small radius for controls and contained row treatments. Use the medium
 radius for the bar and OSDs. Use the large radius for panels and notification
 cards.
 
-The standard panel, bar, and notification opacity is 0.80. Raised controls and
+The standard panel, bar, and notification opacity is 0.95. Raised controls and
 OSDs may render opaquely while keeping their assigned surface color. The
 approved effect defaults are 24 px blur and 0.50 shadow opacity. Legibility over
 the wallpaper takes priority over showing more wallpaper through a panel.
@@ -150,7 +152,8 @@ the wallpaper takes priority over showing more wallpaper through a panel.
   not a replacement panel background.
 - Selected rows use the component's selected fill with no decorative outline.
 - Failed rows use `component.panel.rowDanger` as a borderless tinted fill.
-- Empty states center their icon and copy within the available section.
+- Compact list/media empty states use `ShellEmptyRow`. Use centered
+  `ShellStateView` only when a whole panel needs an explanatory state.
 - Borders separate a whole panel or card. Do not add nested outlines to every
   button or row.
 - Notification state color belongs in a compact tinted icon tile. Do not use a
@@ -160,7 +163,7 @@ the wallpaper takes priority over showing more wallpaper through a panel.
 
 ## Bar
 
-The bar is 26 px tall and anchored to the top edge with no outer gap. It spans
+The bar is 28 px tall and anchored to the top edge with no outer gap. It spans
 each output edge. This replaces the earlier floating treatment.
 
 Workspace treatment is fixed to inline. Workspace pips and the Niri column
@@ -228,3 +231,21 @@ The next implementation phase is:
 
 Do not infer missing panel requirements from removed prototypes or old design
 notes.
+
+## Shared panel behavior
+
+`ShellPanelHeader` owns title, optional subtitle, divider, and a trailing action
+slot. Manager launching belongs to the audio/Bluetooth service, not the header;
+a successful process start closes its panel. `ShellScrollArea` bounds growing
+Bluetooth lists. The core `PanelHost` owns window placement and dismissal.
+
+Bar background highlighting means selected/open only. Connected Wi-Fi or
+Bluetooth communicates through icon/content; charging and low battery use
+semantic content colors. The bar has a bottom border only. Numeric CPU/MEM
+values use `semantic.intensity`; actual errors remain `semantic.status.danger`.
+Dynamic bar tooltips are plain text, delayed, and non-interactive.
+
+The Nix theme compiler derives semantic roles from the palette, then component
+assignments from semantic roles. The Base16 adapter remains compatible with
+Stylix. A global theming replacement and a full plugin-interface workbench are
+separate future tasks.

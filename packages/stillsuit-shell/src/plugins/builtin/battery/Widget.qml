@@ -16,10 +16,14 @@ Ui.ShellBarCluster {
     accessibleName: service && service.available
         ? "Battery " + service.percentage + " percent, " + service.stateLabel
         : "Battery unavailable"
-    active: context.panels && context.panels.isOpen("stillsuit.battery")
+    selected: context.panels && context.panels.selectedId === "stillsuit.battery"
+        && context.panels.selectedOutputId === outputId
+    contentColor: service && service.low ? theme.semantic.status.danger
+        : service && service.charging ? theme.semantic.signal.charging
+        : theme.component.bar.clusterText
     enabled: service && service.available
     visible: service && service.present
-    onClicked: context.actions.surfaceToggle("stillsuit.battery", "")
+    onClicked: context.actions.surfaceToggle("stillsuit.battery", JSON.stringify({outputId: root.outputId}))
 
     function _iconName() {
         if (!service || !service.available)

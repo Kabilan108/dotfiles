@@ -362,10 +362,10 @@ ShellRoot {
         _assert(panel.context === fakeContext && panel.service === audio
             && panel.screen === outputScreen && panel.outputId === outputId,
             "audio panel retains host construction properties")
-        _assert(panel.panelWindow !== null,
-            "audio panel exposes one panel window")
-        _assert(panel.panelWindow.screen === outputScreen,
-            "panel window binds the injected screen")
+        _assert(panel.hostedPanel === true,
+            "audio supplies content for the core panel host")
+        _assert(panel.implicitWidth === root.fixtureTheme.metrics.panelWidth,
+            "panel content advertises its preferred width")
         _assert(panel.formatTime(147 * 60 + 27) === "2:27:27",
             "long playback duration uses hours minutes and seconds")
         _assert(panel.formatTime(147) === "2:27",

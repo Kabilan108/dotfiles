@@ -14,6 +14,8 @@ let
   localSource = toString cfg.development.localSource;
   executable = if localMode then lib.getExe pkgs.quickshell else lib.getExe cfg.package;
   arguments = lib.optionals localMode [ "--no-duplicate" ] ++ [
+    "--no-color"
+    "--verbose"
     "--config"
     cfg.configId
   ];
@@ -26,6 +28,17 @@ let
     builtins.toJSON cfg.integrations.agentPanelDefaults
   );
   agentPanelConfig = "${config.xdg.configHome}/stillsuit/agent-panel.json";
+  pluginHelper = pkgs.callPackage ../../../packages/stillsuit-shell/plugin-helper.nix { };
+  runtimeDiscovery = pkgs.writeText "stillsuit-runtime-discovery.json" (
+    builtins.toJSON {
+      seed = toString stillsuitRegistry.discoverySeed;
+      roots = cfg.pluginRoots;
+      state = "${config.xdg.stateHome}/stillsuit";
+      core = "${cfg.package}/share/stillsuit-shell/src";
+      schema = "${cfg.package}/share/stillsuit-shell/schemas/manifest.v1.json";
+      preferences = "${config.xdg.configHome}/stillsuit/plugins.json";
+    }
+  );
 in
 {
   config = lib.mkIf cfg.enable (
@@ -33,9 +46,13 @@ in
       {
         home.packages =
           (if localMode then [ pkgs.quickshell ] else [ cfg.package ])
+          ++ lib.optional (cfg.pluginRoots != [ ]) pluginHelper
           ++ lib.optional (agentPanelHelper != null) agentPanelHelper;
 
         xdg.configFile."quickshell/${cfg.configId}".source = configSource;
+        xdg.configFile."stillsuit/runtime-discovery.json" = lib.mkIf (cfg.pluginRoots != [ ]) {
+          source = runtimeDiscovery;
+        };
 
         systemd.user.services.stillsuit-shell = {
           Unit = {
@@ -50,6 +67,10 @@ in
             ExecStart = lib.escapeShellArgs ([ executable ] ++ arguments);
             Restart = "on-failure";
             RestartSec = 2;
+            # Keep informational shell logs across restarts in the journal.
+            # configuration.nix bounds the shared journal to 14 days, 1 GiB
+            # persistent / 256 MiB runtime. No unbounded per-service copy.
+            # Read with: journalctl --user -u stillsuit-shell --since '14 days ago'
             StandardOutput = "journal";
             StandardError = "journal";
             SyslogIdentifier = "stillsuit-shell";
@@ -61,8 +82,13 @@ in
               "STILLSUIT_CATALOG_PATH=${stillsuitRegistry.catalog}"
               "STILLSUIT_CONFIG_ID=${cfg.configId}"
               "STILLSUIT_THEME_PATH=${stillsuitTheme.validatedTheme}"
-              "STILLSUIT_ALLOW_LOCAL_PLUGINS=${if localMode then "1" else "0"}"
+              "STILLSUIT_ALLOW_LOCAL_PLUGINS=${if localMode || cfg.pluginRoots != [ ] then "1" else "0"}"
               "STILLSUIT_SHADOW_MODE=${if cfg.development.shadowMode then "1" else "0"}"
+            ]
+            ++ lib.optionals (cfg.pluginRoots != [ ]) [
+              "STILLSUIT_PLUGIN_RUNTIME_CONFIG=${runtimeDiscovery}"
+              "STILLSUIT_PLUGIN_HELPER=${lib.getExe pluginHelper}"
+              "QML_IMPORT_PATH=${cfg.package}/share/stillsuit-shell/qml"
             ]
             ++ lib.optional (agentPanelHelper != null) (
               "STILLSUIT_AGENT_PANEL_HELPER=${lib.getExe agentPanelHelper}"

@@ -11,7 +11,7 @@ function create() {
             surface: {
                 bar: "#181825", panel: "#181825", raised: "#313244",
                 overlay: "#1e1e2e", hover: "#45475a", pressed: "#585b70",
-                selected: "#2b3a57"
+                selected: "#2b3a57", danger: "#462a38"
             },
             content: {
                 primary: "#cdd6f4", secondary: "#bac2de", muted: "#7f849c",
@@ -28,6 +28,10 @@ function create() {
             status: {
                 info: "#89dceb", success: "#a6e3a1", warning: "#f9e2af",
                 danger: "#f38ba8"
+            },
+            intensity: {
+                normal: "#a6e3a1", elevated: "#f9e2af",
+                high: "#fab387", critical: "#f38ba8"
             },
             signal: {
                 audio: "#a6e3a1", microphone: "#f38ba8",
@@ -61,10 +65,6 @@ function create() {
             osd: {
                 border: "#45475a", track: "#45475a", fill: "#89b4fa",
                 text: "#cdd6f4"
-            },
-            resources: {
-                normal: "#a6e3a1", elevated: "#f9e2af",
-                high: "#fab387", critical: "#f38ba8"
             }
         },
         typography: {

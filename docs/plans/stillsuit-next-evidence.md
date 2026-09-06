@@ -2,7 +2,8 @@
 
 Branch: `stillsuit-next`
 
-Activation status: Gates 1 and 2 were completed by the human on 2026-08-31. The
+Historical activation status (2026-08-31; not a current runtime audit):
+Gates 1 and 2 were completed by the human on 2026-08-31. The
 active system generation is
 `/nix/store/6nlz1x4cq38q7r6zpp4pjcab815xz7iz-nixos-system-jacurutu-26.11.20260822.2c423e0`;
 Waybar and the configured agent workspace are retired. Stillsuit Next PID
@@ -1726,3 +1727,243 @@ Review notes:
   using specific accessible names at each call site.
 - No rebuild, activation, service restart, production-shell reload, Niri
   mutation, legacy cleanup, or soak was performed.
+# 2026-09-05 follow-up implementation checkpoint
+
+Approved source-only work follows `stillsuit-core-followup.html`. The user
+confirmed Ethernet should appear only while connected. No subagents were
+started, no production shell was reloaded, and no rebuild or activation ran.
+Production shell source resolves to a Nix store path. The unrelated untracked
+`agents/skills/html-plans/todos.md` is preserved.
+
+Implemented so far: bounded battery summary; disabled audio transport contrast;
+compact media empty row; selected-only bar highlights with battery state color;
+separate Codex/Claude default-account percentages; optional bar tooltip text and
+shared presentation; shared icon rendering; Ethernet details; panel header and
+Bluetooth scroll area; Nix palette-to-semantic-to-component compilation and a
+Base16 adapter; semantic intensity; removal of unreachable ResourcePanel.qml.
+The removed resource panel remains recoverable from Git.
+
+Verification at this checkpoint: agent-usage, audio-media, connectivity, bar-v2,
+power-resources, and schema-theme fixture scripts exited 0. The agent fixture
+checks independent percentages and provider disappearance; connectivity checks
+IPv4/IPv6 and Ethernet link details. `nix eval --json --file
+packages/stillsuit-shell/tests/theme-compiler.nix` returned true, exit 0.
+Later edits require their relevant checks again. Isolated fixtures needed
+permission for temporary sockets. Installed sway was explicitly placed on the
+test PATH to avoid fetching an unpinned flake-registry package.
+
+PageBin publication was rejected by automatic approval review as unapproved
+external transfer of repository content. The local HTML remains available;
+do not bypass that rejection. Publication and browser QA are not complete.
+
+Remaining approved scope at this checkpoint: core PanelHost/routing/toast
+arbitration, manager-launch service integration, runtime filesystem plugins,
+shared Ghostty rollout, final design-lab refresh, review and source verification.
+No completion of those phases is claimed by this checkpoint.
+
+## 2026-09-05 source verification handoff
+
+The approved follow-up is implemented in the primary checkout. Ethernet is
+connected-only, with connection name and expandable interface/carrier/IP
+details. Changes are uncommitted. No agents, rebuild, activation, production
+restart/reload, soak, or branch/worktree deletion occurred. The separately
+changed `agents/codex/config.toml` and untracked skill todo were preserved.
+
+Completed source slices:
+
+- Core-owned persistent panel hosts; seven current panels now provide Item
+  content. Cached first-click switching preserves the outgoing panel during
+  compilation and handles cancellation, cross-output transfer, and removal.
+  The bar is outside the input mask; inside whitespace is not dismissal.
+- SurfaceRouter banner arbitration, center suppression on its output, shared
+  headers, capped Bluetooth scroll areas, glyph/SVG icon view, delayed plain
+  text bar tooltips, selected-only highlighting, independent default-agent
+  percentages, battery layout/color fixes, and compact audio empty state.
+- Audio/Bluetooth manager launchers are service-owned with Nix paths. Network
+  editor handoff also closes its panel only after successful launch.
+- Nix palette -> semantic -> component compiler, Base16 adapter, semantic
+  intensity and danger fill. Existing Stylix ownership remains unchanged.
+- Tracked/ephemeral runtime plugin roots with schema/containment checks,
+  deterministic precedence, immutable QML generations, and runtime
+  enable/disable/placement preferences. The store bar frame is reserved.
+  The retired meeting plugin has an explicit disabled seed default so scanning
+  the tracked directory cannot silently enable it. Generation GC is deferred.
+- Normal resident Ghostty service configuration and fixed-title agent-window
+  forwarding. Only the exact agent tmux session disables title rewriting.
+  The matching Niri change remains UNAPPLIED in
+  `stillsuit-shared-ghostty-niri.patch`; deploy these pieces together later.
+- Design-lab baseline updated to 28 px / .95 with the real inline workspace
+  widget, selected clusters, shared header, empty row, and capped scroll area.
+  DESIGN.md, host contract, UI API, plugin-runtime and Ghostty docs updated.
+
+Verification (all listed final suite commands exited 0):
+
+| Command / scope | Evidence |
+|---|---|
+| `src/tests/panel-host/run.sh` | `PANEL_HOST_OK 22`; private two-output sway, atomic/canceled replacement, same-plugin transfer, host removal, battery width, tooltip rendering/dismissal |
+| `src/tests/run-lane-b-fixtures.sh` | host fixture, 69 core checks, 24 repair checks |
+| `src/tests/audio-media/run-fixtures.sh` | 49 checks |
+| `src/tests/connectivity/run.sh` | helper and QML pass; IP4/IP6/carrier, successful and failed editor handoff |
+| `src/tests/notifications/run-fixtures.sh` | model policy, notification card source, isolated history/banner fixtures pass |
+| `src/tests/power-resources/run-fixtures.sh` | QML, battery watcher thresholds/dedupe/hysteresis, systemd module contract pass |
+| `src/tests/agent-usage/run.sh` | helper and QML pass, independent provider percentages |
+| `src/tests/bar-v2/run.sh` | source and private headless bar pass |
+| `src/tests/ui/run-fixtures.sh` | 52 shared-control checks pass |
+| `src/tests/recording-meetings/run.sh` | recording and failed-job-only panel contracts pass |
+| `src/plugins/builtin/agent-panel/tests/run.sh` | exact window/session selection, forwarding/concurrency and unrelated-session survival pass |
+| `src/tests/schema-theme/run.sh` | manifests, theme-v2, all lab themes, missing/invalid theme rejection pass |
+| `nix eval --json --file packages/stillsuit-shell/tests/theme-compiler.nix` | `true` |
+| `uv run --with jsonschema python .../runtime-plugins/test_helper.py` | generations, preferences, schema, containment and precedence pass |
+| `uv run --with jsonschema python .../runtime-plugins/test_runtime.py` | real isolated Quickshell keeps its PID while plugin source, enablement, and malformed-manifest recovery change |
+| `ruff check` on new discovery helper/runtime Python tests | all checks passed |
+| `nix flake check --no-build path:/tmp/stillsuit-source-check.qkPOafvg` | both sietch and jacurutu pass; new files included in disposable source snapshot, unrelated config change excluded |
+| evaluated Ghostty Home Manager records | upstream wants link and resident drop-in correct; resident flags absent from global Ghostty settings; ordered plugin roots correct |
+| staged Niri patch | applies cleanly; `niri validate` on `/tmp/stillsuit-niri-check.QoXfjKHs/.../config.kdl` exits 0 |
+
+Test paths in this table are under `packages/stillsuit-shell` unless absolute.
+Installed sway was used, not a test-time flake build. Direct `python3` runtime
+tests initially lacked jsonschema; rerunning with the declared dependency
+passed. The recording fixture's old grep mistook an explicitly disabled seed
+for enablement; it now asserts that exact disabled declaration.
+
+The refreshed lab reached Configuration Loaded offscreen with temporary HOME,
+no scene/QML errors, and only the offscreen platform's unsupported-mask warning.
+It was intentionally ended by `timeout` (124), not counted as a full interactive
+test. Final log: `/tmp/stillsuit-lab-check.nHWJV0iv/lab.log`.
+
+Manual source review caught and fixed retired-plugin rediscovery, invalid
+preferred-plugin fallback, missing Ethernet/expand glyph mappings, inside-panel
+hit testing, cross-output same-plugin double-click behavior, and canceled-load
+selection bookkeeping. Production pointer behavior and appearance still need
+the approved deployment/visual check; source fixtures are not that proof.
+
+Automatic approval review rejected PageBin publication and collaborative-browser
+preview as unapproved external transfer of repository content. No alternate
+egress was used. The plan is local; publication/browser QA need explicit user
+authorization. These restrictions did not prevent local source verification.
+
+Next boundary: review this uncommitted batch, then approve a coordinated rollout
+including the staged Niri patch. Do not rebuild the helper/service changes in
+isolation from that patch. Logging source configuration is covered by the scoped
+follow-up below; activation and soak remain later human gates.
+
+## Review remediation, 2026-09-05
+
+The requested blank-context GPT-5.6-Sol high reviewer identified five defects
+and a selection-state ambiguity. Parent source triage confirmed the defects.
+All are addressed; user explicitly declined another reviewer pass.
+
+- Registry now exports a separate discovery seed containing disabled Nix
+  entries. The enabled-only store catalog is unchanged. A test evaluates the
+  real Nix registry, passes its discovery data through the scanner, and asserts
+  the retired meeting plugin stays disabled. The prior grep-only assertion was
+  insufficient to prove that boundary.
+- Catalog installation and IPC unload resynchronize bar registrations. The
+  runtime fixture now constructs real WidgetSlots and checks removal/restoration
+  after disable, malformed manifest, IPC unload and reload.
+- Removed the blanket hosted-panel cache exemption. Seven current panel
+  manifests explicitly opt into keepLoaded; transient hosted panels unload.
+- Runtime IPC rescan returns `watching`, documenting automatic discovery rather
+  than falsely claiming an immediate scan. Store-catalog rescan is unchanged.
+- Battery percentage uses the same role as its icon. Fixture checks charging
+  and low-battery danger precedence.
+- Added public selectedId/selectedOutputId for presented content; activeId
+  retains requested-route semantics. Bar selection uses the displayed pair,
+  keeping the outgoing chip selected during async replacement and avoiding
+  duplicate output highlights.
+
+Final checks exited 0: 27 panel-host assertions, 69 core + 24 repair assertions,
+52 shared UI assertions, schema/theme suite, agent usage, power/resources,
+runtime discovery Nix integration, real-slot runtime lifecycle, Ruff and
+git diff --check. `nix flake check --no-build` passed for both hosts using the
+refreshed `/tmp/stillsuit-source-check.qkPOafvg` snapshot. Only known deprecation
+warnings were reported. No additional reviewer, production reload, rebuild,
+activation, staging or commit occurred. Unrelated checkout changes preserved.
+
+Coordinated rollout and interactive QA checklist:
+`docs/plans/stillsuit-followup-qa.md`, also included in the published HTML plan.
+Niri patch remains unapplied. A Git-backed flake requires new source files to
+be staged before rebuilding; avoid a blanket add of the dirty checkout.
+
+An unrelated Codex Desktop commit advanced HEAD to `01ce38aa` during this work.
+Its four changed files were preserved and copied into the disposable evaluation
+snapshot. The repeated no-build flake check passed for both hosts with that
+commit included. PageBin revision 2 contains the review resolutions and QA
+checklist; its published content hash matches the local HTML. Browser visual
+verification remains pending. A local rebuild-gate notice was sent.
+
+## Niri patch approved and applied, 2026-09-05
+
+User reported staging the source batch and explicitly requested applying the
+shared-Ghostty Niri patch. Its target had no staged or unstaged changes; patch
+preflight passed. Applied the exact app-ID plus Stillsuit Agent title match and
+Mod+Return `ghostty +new-window` binding. `niri validate -c
+home/desktop/wayland/compositors/niri/config.kdl` and `git diff --check` exited 0.
+The checkout-backed Niri configuration may reload automatically. No rebuild,
+service restart, explicit shell reload or commit was performed. The new Niri
+and ledger edits are unstaged; existing user staging was preserved.
+
+## Scoped removal, panel dismissal and retained logs, 2026-09-05
+
+Removed the retired standalone meeting plugin and its disabled home seed.
+Registry/discovery regression coverage now uses the existing battery plugin as
+its disabled entry. Removed legacy meeting widgets from D4 fixtures; D5 and
+recording fixtures consume the recording-local `FailedMeetingJobsView` supplied
+by the concurrent recording change. This task did not edit recording plugin
+files, workflow services, meeting-minutes or enqueue helpers.
+
+PanelHost now uses `ExclusionMode.Ignore`. Its existing geometry already includes
+the bar height, so respecting the bar's exclusive zone counted that height twice.
+The gap remains the compiled theme's `spaceUnit`, currently 4 px. The
+[Quickshell exclusion contract](https://quickshell.org/docs/v0.1.0/types/Quickshell/ExclusionMode/)
+confirms the coordinate distinction. The bar's empty-background MouseArea calls
+`HostContext.actions.surfaceDismissPanels`, through IpcFacade to the same
+`SurfaceRouter.dismissPanels` used by outside clicks. Widget bounds are excluded,
+including disabled widgets and buttons the widget does not handle.
+
+The panel-host fixture now creates the production bar with its exclusive zone,
+checks full-output host geometry, and injects real Sway pointer clicks to check
+widget switching, empty-bar dismissal and cancellation of pending replacement.
+This pointer sequence has not executed successfully in the current sandbox.
+
+The service adds `--no-color --verbose`, retaining informational shell output
+in its existing journal stream. Shared journal retention was already configured
+in `configuration.nix`: `MaxRetentionSec=14day`, `SystemMaxUse=1G`,
+`RuntimeMaxUse=256M`. No extra unbounded log copy or cleanup timer is introduced.
+Use `journalctl --user -u stillsuit-shell.service --since '14 days ago'` after
+activation. These are source changes; no production restart, rebuild or soak
+was performed.
+
+Verification and limits:
+
+- `bash src/tests/panel-host/run.sh`, with installed Sway added to PATH: exit 1.
+  Sway cannot open its Wayland socket in the sandbox, before QML execution.
+  Log: `/tmp/stillsuit-panel-host-check.log`.
+- `python test_runtime.py`: exit 1. Quickshell cannot create its IPC socket.
+  Retried with installed Python 3.14 and jsonschema dependencies; this removes
+  the default Python environment's missing-jsonschema issue.
+  Log: `/tmp/stillsuit-test_runtime.py.log`.
+- `python test_helper.py` with those dependencies: exit 1 at its Nix subprocess.
+  The preceding discovery, generation, preferences and containment assertions
+  passed. Log: `/tmp/stillsuit-test_helper.py.log`.
+- Full `nix eval` of `tests/registry-evaluation.nix`: exit 1 because access to
+  the Nix daemon socket is denied. A daemon-free `nix-instantiate --store
+  dummy:// --eval --strict --json` projection of the same test passed, exit 0.
+  It forces registry assertions, plugin IDs and catalog/discovery enabled flags,
+  omitting package-tree materialization. Result: enabled clock in the catalog;
+  enabled clock and disabled battery in discovery.
+  Result file: `/tmp/stillsuit-registry-assertions.json`.
+- `nix eval --offline --json
+  .#nixosConfigurations.jacurutu.config.home-manager.users.kabilan.systemd.user.services.stillsuit-shell.Service`:
+  exit 1, Nix daemon socket denied. No full flake check was attempted after this
+  prerequisite failed. Log: `/tmp/stillsuit-home-eval.log`.
+- `qmlformat` parsing of the changed QML files without in-place writes: exit 0.
+  `bash -n` for all four affected fixture launchers: exit 0.
+  `nixfmt --check` for the three changed Nix files: exit 0.
+- The retired directory is absent; repository searches find no remaining plugin
+  ID or imports of that directory. `git diff --check` passes. The staged binary
+  diff is byte-for-byte identical to the snapshot taken before this task.
+
+The required `notify-send` rebuild reminder was attempted but could not connect
+inside the sandbox. A flake rebuild is needed to activate the core/service
+changes; it was not run. Runtime and full Nix verification remain outstanding.

@@ -5,35 +5,24 @@ service forwards the five HostContext v1 agent-panel actions. It does not
 accept prompts, commands, paths, or launch settings. Niri's `Mod+Grave` binding
 still calls the fixed `stillsuit-agent-panel` `toggle` IPC method.
 
-The Niri geometry change from 72% to 60% of the output width and height is
-staged separately in `docs/plans/stillsuit-agent-geometry.patch`. Applying that
-patch and deploying this source both require a later human gate.
+The source now uses the normal resident Ghostty application
+`com.mitchellh.ghostty`, with the exact window title `Stillsuit Agent`.
+`+new-window` forwards a fixed command attaching directly to tmux target
+`=stillsuit-agent`. Hide closes only matching windows; terminate closes those
+windows and that exact session. Neither action terminates the shared Ghostty
+process or unrelated terminals. Session names with similar prefixes do not match.
 
-`stillsuit-agent-panel` owns the `stillsuit-agent` tmux session and the exact
-Ghostty app ID `io.stillsuit.AgentPanel`. The first open starts a custom
-single-instance Ghostty process whose direct default command attaches to the
-exact tmux target `=stillsuit-agent`. Hide closes the terminal surface but
-leaves both Ghostty and tmux running. Reopen asks that exact Ghostty instance
-for a new window, avoiding another process and GTK startup. Hide never ends
-either process. `terminate` ends both, while stale-session recovery replaces
-them as needed. New sessions start in `$HOME`; neither IPC nor helper arguments
-can choose a working directory. A session such as `stillsuit-agent-extra` is
-never treated as the panel session.
+The helper sets tmux `set-titles off` only on this session, including an existing
+session, so the fixed title remains the reliable Niri identity. Other sessions
+retain their own title policy. Window map/close waits are bounded and serialized
+under a lock to prevent duplicate dispatch during concurrent opens.
 
-Niri does not provide a hidden-window or scratchpad action, and the packaged
-Ghostty does not expose its quick-terminal toggle as an external command.
-Reopen must still create and map a new terminal surface. The helper waits up to
-five seconds for that surface to appear before releasing its lock, so concurrent
-opens cannot request duplicate windows.
-
-The warm-reopen optimization remains source-only until that later deployment.
-Removing the bar item does not activate it or change the running desktop.
-
-Hide waits up to five seconds for the exact Niri window IDs to disappear.
-Terminate and stale-session replacement also wait up to five seconds for the
-recorded Ghostty PID to exit. The helper sends TERM only while that PID's argv
-contains `--class=io.stillsuit.AgentPanel`. A timeout fails the action with exit
-75 and does not launch another Ghostty over the old one.
+The user-level systemd drop-in makes normal Ghostty resident without putting
+resident flags in global application settings. The matching Niri title rule
+and Mod+Return forwarding command remain in the separate, unapplied
+`docs/plans/stillsuit-shared-ghostty-niri.patch`. The current 60% geometry is
+preserved. Deploy the helper, resident service, and Niri patch together only
+after approval; this source verification does not start the resident service.
 
 The helper reads `$XDG_CONFIG_HOME/stillsuit/agent-panel.json` when it needs to
 start Codex. If `XDG_CONFIG_HOME` is unset, it reads
@@ -61,8 +50,6 @@ as `bin/stillsuit-agent-panel`, include this plugin root in the store-backed
 registry, and configure the host's five agent-panel actions to execute the
 helper with exactly one corresponding literal action.
 
-The fixture suite uses delayed fake Niri maps and delayed Niri and Ghostty exits
-to check the wait barriers. It verifies that hide and concurrent reopen reuse
-one Ghostty process without duplicate window requests. It also starts real tmux
-sessions on a temporary socket and confirms that a lone
-`stillsuit-agent-extra` session is ignored and survives panel termination.
+The fixtures cover bounded map/close waits, concurrent forwarding, exact
+app-ID/title selection, tmux title ownership, and survival of unrelated
+windows, processes, and similarly named real tmux sessions.

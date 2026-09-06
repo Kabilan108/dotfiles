@@ -15,7 +15,7 @@ The lab compares three draft themes and lets you tune:
 
 The approved preset reproduces the accepted screenshot baseline:
 Catppuccin Mocha, Noto Sans, JetBrainsMono Nerd Font, rounded Material Symbols,
-a 26 px anchored bar, 0.80 opacity, 7 px medium radius, and 0.55 motion scale.
+a 28 px anchored bar, 0.95 opacity, 7 px medium radius, and 0.55 motion scale.
 Use `Approved` to restore it after comparing theme defaults.
 
 The composition preview includes six notification states and five network

@@ -1,6 +1,7 @@
 // Adapted from Omarchy Quattro v4.0.0's per-slot widget construction pattern.
 // Copyright (c) David Heinemeier Hansson. Licensed under MIT.
 import QtQuick
+import "../../../ui" as Ui
 
 Item {
     id: root
@@ -25,6 +26,16 @@ Item {
         ? 0
         : Math.max(0, createdWidget.implicitHeight || createdWidget.height || 0)
     visible: !failed && createdWidget !== null
+
+    HoverHandler { id: tooltipHover }
+    Ui.ShellBarTooltip {
+        theme: root.activeRegistration ? root.activeRegistration.context.theme : ({})
+        target: root
+        hovering: tooltipHover.hovered && root.visible
+            && !(root.createdWidget && root.createdWidget.selected === true)
+        text: root.createdWidget && typeof root.createdWidget.tooltipText === "string"
+            ? root.createdWidget.tooltipText : ""
+    }
 
     function loadRegistration() {
         invalidateConstruction()

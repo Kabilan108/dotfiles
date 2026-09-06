@@ -74,7 +74,9 @@ cp -R "$package_dir/src/services/." "$config_dir/services/"
 cp -R "$package_dir/src/plugins/builtin/workflows" "$config_dir/plugins/builtin/workflows"
 cp -R "$package_dir/src/plugins/builtin/osd" "$config_dir/plugins/builtin/osd"
 cp -R "$package_dir/src/plugins/builtin/recording" "$config_dir/plugins/builtin/recording"
-cp -R "$package_dir/src/plugins/builtin/meeting" "$config_dir/plugins/builtin/meeting"
+mkdir -p "$config_dir/tests"
+cp "$package_dir/src/tests/FixtureTheme.js" "$config_dir/tests/FixtureTheme.js"
+cp -R "$package_dir/src/ui" "$config_dir/ui"
 
 ipc() { qs ipc --pid "$shell_pid" call stillsuit-d5-fixture "$@"; }
 wait_json() {

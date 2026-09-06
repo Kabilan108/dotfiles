@@ -1994,6 +1994,28 @@ def retry_job(job_id: str) -> dict[str, Any]:
     return job
 
 
+def discard_job(job_id: str) -> dict[str, Any]:
+    with job_lock_path(job_id).open("a+") as job_lock:
+        fcntl.flock(job_lock.fileno(), fcntl.LOCK_EX)
+        job = read_json(job_path(job_id))
+        if job.get("phase") != "error":
+            raise MeetingMinutesError("Only failed jobs can be discarded")
+        job_path(job_id).unlink()
+    job_lock_path(job_id).unlink(missing_ok=True)
+    publish_jobs_snapshot()
+    if STATUS_PATH.is_file():
+        try:
+            status = read_json(STATUS_PATH)
+        except MeetingMinutesError:
+            status = {}
+        if str(status.get("job_id", "")) == job_id:
+            atomic_write_json(
+                STATUS_PATH,
+                {"schemaVersion": 1, "phase": "idle", "updated_at": now_epoch()},
+            )
+    return job_summary(job)
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="meeting-minutes")
     commands = root.add_subparsers(dest="command", required=True)
@@ -2004,6 +2026,8 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("work")
     retry = commands.add_parser("retry")
     retry.add_argument("job_id")
+    discard = commands.add_parser("discard")
+    discard.add_argument("job_id")
     commands.add_parser("jobs")
     commands.add_parser("status")
     return root
@@ -2018,6 +2042,8 @@ def main() -> int:
             return work_queue()
         elif args.command == "retry":
             print(json.dumps(retry_job(args.job_id), separators=(",", ":")))
+        elif args.command == "discard":
+            print(json.dumps(discard_job(args.job_id), separators=(",", ":")))
         elif args.command == "jobs":
             ensure_directories()
             print(json.dumps(publish_jobs_snapshot(), separators=(",", ":")))

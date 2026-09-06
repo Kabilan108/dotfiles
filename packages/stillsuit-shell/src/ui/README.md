@@ -1,5 +1,23 @@
 # Shared Stillsuit UI contracts
 
+Bar entries may expose a dynamic `property string tooltipText`. The bar host
+displays it as plain text after 500 ms of hover, without pointer capture or
+keyboard focus. An empty string disables the tooltip. `ShellBarCluster`
+defaults it to the accessible name. Hover exit and panel selection hide it.
+
+`ShellBarCluster.selected` means its panel is open. Use `contentColor` for
+domain states such as low battery or charging. `secondaryIconSource` and
+`secondaryLabel` add a second icon/value pair inside the same click target.
+
+`ShellIconView` renders `source` images with preserved aspect ratio and falls
+back to the named glyph while unavailable. `ShellEmptyRow` supplies the compact
+icon-and-caption empty treatment used by the media section.
+
+`ShellPanelHeader` supplies `title`, optional `subtitle`, the divider, and a
+default trailing action slot. Actions remain caller-owned. `ShellScrollArea`
+caps content at `maximumHeight` and adds clipping, bounded scrolling, and a
+scrollbar. Use it for lists that can grow, starting with Bluetooth device lists.
+
 These components consume theme-v2 semantic roles and component assignments.
 Callers must not pass palette colors or add private color records. Direct
 `color` overrides are reserved for values already obtained from a semantic or

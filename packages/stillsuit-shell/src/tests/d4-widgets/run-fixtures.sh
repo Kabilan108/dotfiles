@@ -70,12 +70,12 @@ cp "$fixture_dir/fixture-shell.qml" "$config_dir/shell.qml"
 cp "$fixture_dir/../FixtureTheme.js" "$config_dir/FixtureTheme.js"
 cp -r "$source_root/ui" "$config_dir/ui"
 mkdir -p "$config_dir/plugins/builtin"
-for plugin in clock workspaces resources meeting recording; do
+for plugin in clock workspaces resources recording; do
     cp -r "$source_root/plugins/builtin/$plugin" "$config_dir/plugins/builtin/$plugin"
 done
 cp -r "$source_root/plugins/builtin/bar" "$config_dir/plugins/builtin/bar"
 
-for manifest in "$source_root"/plugins/builtin/{clock,workspaces,resources,meeting,recording}/manifest.json; do
+for manifest in "$source_root"/plugins/builtin/{clock,workspaces,resources,recording}/manifest.json; do
     jq -e '.schemaVersion == 1 and (.id | startswith("stillsuit."))' "$manifest" >/dev/null
 done
 for manifest in "$source_root"/plugins/builtin/*/manifest.json; do
@@ -89,7 +89,6 @@ jq -e '.kinds == ["service", "bar-widget"] and .scope.service == "global"' \
 jq -e '.kinds == ["service", "bar-widget"] and .scope.service == "global"
   and (.entryPoints | has("panel") | not)' \
     "$source_root/plugins/builtin/resources/manifest.json" >/dev/null
-jq -e '.dependencies == ["stillsuit.workflows"]' "$source_root/plugins/builtin/meeting/manifest.json" >/dev/null
 jq -e '.dependencies == ["stillsuit.workflows"]' "$source_root/plugins/builtin/recording/manifest.json" >/dev/null
 
 qs --no-color -p "$config_dir" >"$tmp_dir/quickshell.log" 2>&1 &
@@ -110,7 +109,7 @@ if [[ $(ipc ready) != ready ]]; then
 fi
 
 topology=$(ipc topology)
-jq -e '.clockServiceInstances == 1 and .resourceServiceInstances == 1 and .outputs == 2 and .clockViews == 2 and .workspaceViews == 2 and .resourceViews == 2 and .meetingViews == 2 and .recordingViews == 2 and .sharedClockService and .sharedResourceService' >/dev/null <<<"$topology"
+jq -e '.clockServiceInstances == 1 and .resourceServiceInstances == 1 and .outputs == 2 and .clockViews == 2 and .workspaceViews == 2 and .resourceViews == 2 and .recordingViews == 2 and .sharedClockService and .sharedResourceService' >/dev/null <<<"$topology"
 production_bar=$(ipc productionBarSnapshot)
 jq -e '.constructions == 2 and (.outputIds | length) == 2 and .outputIds[0] != .outputIds[1] and .primaryWorkspaces == 1 and .secondaryWorkspaces == 2' >/dev/null <<<"$production_bar"
 workspace=$(ipc workspaceSnapshot)
@@ -122,9 +121,9 @@ printf '%s\n' 'MemTotal: 1000 kB' 'MemAvailable: 250 kB' > "$STILLSUIT_FIXTURE_M
 second_resources=$(ipc resourceSnapshot)
 jq -e '.cpuPercent == 50 and .memoryPercent == 75' >/dev/null <<<"$second_resources"
 routes=$(ipc routeActions)
-jq -e '. == ["stillsuit.recording", "stillsuit.recording"]' >/dev/null <<<"$routes"
+jq -e '. == ["stillsuit.recording"]' >/dev/null <<<"$routes"
 workflow=$(ipc workflowState)
-jq -e '.recordingText == "01:07" and .meetingText == "Minutes ready" and .meetingCompleted' >/dev/null <<<"$workflow"
+jq -e '.recordingText == "01:07"' >/dev/null <<<"$workflow"
 
 if rg -n '(^| )?(ERROR|FATAL)(:| )' "$tmp_dir/quickshell.log"; then
     echo "fixture logged a QML error" >&2

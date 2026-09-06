@@ -1,5 +1,12 @@
-{ ... }:
+{ config, lib, ... }:
 {
+  xdg.configFile."systemd/user/graphical-session.target.wants/app-com.mitchellh.ghostty.service".source =
+    "${config.programs.ghostty.package}/share/systemd/user/app-com.mitchellh.ghostty.service";
+  xdg.configFile."systemd/user/app-com.mitchellh.ghostty.service.d/resident.conf".text = ''
+    [Service]
+    ExecStart=
+    ExecStart=${lib.getExe config.programs.ghostty.package} --gtk-single-instance=true --initial-window=false --quit-after-last-window-closed=false
+  '';
   stylix.targets.ghostty.enable = true;
 
   programs.ghostty = {

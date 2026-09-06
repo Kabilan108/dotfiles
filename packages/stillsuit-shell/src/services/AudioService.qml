@@ -8,6 +8,29 @@ QtObject {
     required property var context
     property var model: null
     property bool forceUnavailable: false
+    readonly property string managerPath: String(context && context.settings
+        && context.settings.values ? context.settings.values.managerPath || "" : "")
+    property Process managerProcess: Process {
+        command: root.managerPath !== "" ? [root.managerPath] : []
+        onStarted: {
+            if (root.context.actions)
+                root.context.actions.surfaceClose("stillsuit.audio")
+        }
+        onExited: function(exitCode) {
+            if (exitCode !== 0 && exitCode !== 130)
+                root.errorMessage = "Could not open audio settings"
+        }
+    }
+
+    function openManager() {
+        if (managerProcess.running) return "busy"
+        if (managerPath.charAt(0) !== "/") {
+            errorMessage = "audio settings command is not configured"
+            return "unavailable"
+        }
+        managerProcess.running = true
+        return "pending"
+    }
     property var systemOutputs: []
     property string errorMessage: ""
     property bool outputActionBusy: false

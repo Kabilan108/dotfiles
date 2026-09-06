@@ -43,7 +43,8 @@
       "overlay": "#1b1f29",
       "hover": "#303746",
       "pressed": "#414a5c",
-      "selected": "#4a3328"
+      "selected": "#4a3328",
+      "danger": "#3b2427"
     },
     "content": {
       "primary": "#e6ded0",
@@ -77,6 +78,12 @@
       "brightness": "#d8b466",
       "charging": "#d98952",
       "recording": "#dc727b"
+    },
+    "intensity": {
+      "normal": "#8ebf84",
+      "elevated": "#d8b466",
+      "high": "#d98952",
+      "critical": "#dc727b"
     }
   },
   "component": {
@@ -127,12 +134,6 @@
       "track": "#303746",
       "fill": "#d98952",
       "text": "#e6ded0"
-    },
-    "resources": {
-      "normal": "#8ebf84",
-      "elevated": "#d8b466",
-      "high": "#d98952",
-      "critical": "#dc727b"
     }
   },
   "typography": {

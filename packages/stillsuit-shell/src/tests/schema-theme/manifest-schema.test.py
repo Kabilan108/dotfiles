@@ -288,11 +288,11 @@ def _check_design_lab_theme_schema() -> None:
     )
 
     missing_resources_high = deepcopy(themes[0])
-    del missing_resources_high["component"]["resources"]["high"]
+    del missing_resources_high["semantic"]["intensity"]["high"]
     _assert_rejected(
         validator,
         missing_resources_high,
-        "a design-lab theme without component.resources.high",
+        "a design-lab theme without semantic.intensity.high",
     )
 
 

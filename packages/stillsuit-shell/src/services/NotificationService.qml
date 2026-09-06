@@ -39,6 +39,7 @@ Scope {
 
     signal archived(string key, string reason)
     signal actionInvoked(string key, string identifier)
+    signal bannerWillPresent(string outputId)
 
     function logWarning(message) {
         if (context && context.logger && typeof context.logger.warn === "function")
@@ -99,7 +100,7 @@ Scope {
 
     function toastsForOutput(outputId) {
         void(revision)
-        if (!popupsVisible) return []
+        if (!popupsVisible || centerOutputId === String(outputId)) return []
         var outputs = outputIds()
         var focused = focusedOutputId()
         return popups.filter(function(snapshot) {
@@ -168,6 +169,16 @@ Scope {
     }
 
     function insertPopup(snapshot) {
+        if (popupsVisible) {
+            var outputs = outputIds()
+            var focused = focusedOutputId()
+            var targets = outputs.length ? outputs : [focused]
+            for (var index = 0; index < targets.length; index++) {
+                if (targets[index] !== centerOutputId
+                        && NotificationPolicy.shouldPresentOn(snapshot, targets[index], outputs, focused))
+                    bannerWillPresent(targets[index])
+            }
+        }
         var next = popups.filter(function(row) { return row.key !== snapshot.key })
         next.unshift(snapshot)
         popups = next

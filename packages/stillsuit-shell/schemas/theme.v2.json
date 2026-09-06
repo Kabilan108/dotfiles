@@ -23,7 +23,12 @@
     "identity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "mode", "description"],
+      "required": [
+        "id",
+        "name",
+        "mode",
+        "description"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -35,7 +40,10 @@
           "maxLength": 80
         },
         "mode": {
-          "enum": ["dark", "light"]
+          "enum": [
+            "dark",
+            "light"
+          ]
         },
         "description": {
           "type": "string",
@@ -47,7 +55,10 @@
     "palette": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["neutral", "chromatic"],
+      "required": [
+        "neutral",
+        "chromatic"
+      ],
       "properties": {
         "neutral": {
           "type": "object",
@@ -68,7 +79,16 @@
     "semantic": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["background", "surface", "content", "outline", "accent", "status", "signal"],
+      "required": [
+        "background",
+        "surface",
+        "content",
+        "outline",
+        "accent",
+        "status",
+        "signal",
+        "intensity"
+      ],
       "properties": {
         "background": {
           "$ref": "#/$defs/backgroundSemantic"
@@ -90,13 +110,22 @@
         },
         "signal": {
           "$ref": "#/$defs/signalSemantic"
+        },
+        "intensity": {
+          "$ref": "#/$defs/intensitySemantic"
         }
       }
     },
     "component": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["bar", "panel", "control", "notification", "osd", "resources"],
+      "required": [
+        "bar",
+        "panel",
+        "control",
+        "notification",
+        "osd"
+      ],
       "properties": {
         "bar": {
           "$ref": "#/$defs/barComponent"
@@ -112,9 +141,6 @@
         },
         "osd": {
           "$ref": "#/$defs/osdComponent"
-        },
-        "resources": {
-          "$ref": "#/$defs/resourcesComponent"
         }
       }
     },
@@ -236,7 +262,14 @@
     "motion": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["fast", "normal", "slow", "distanceSmall", "distanceMedium", "easing"],
+      "required": [
+        "fast",
+        "normal",
+        "slow",
+        "distanceSmall",
+        "distanceMedium",
+        "easing"
+      ],
       "properties": {
         "fast": {
           "$ref": "#/$defs/duration"
@@ -254,14 +287,23 @@
           "$ref": "#/$defs/nonNegativeNumber"
         },
         "easing": {
-          "enum": ["out-cubic", "out-quart", "out-expo"]
+          "enum": [
+            "out-cubic",
+            "out-quart",
+            "out-expo"
+          ]
         }
       }
     },
     "effects": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["surfaceOpacity", "blurEnabled", "blurRadius", "shadowOpacity"],
+      "required": [
+        "surfaceOpacity",
+        "blurEnabled",
+        "blurRadius",
+        "shadowOpacity"
+      ],
       "properties": {
         "surfaceOpacity": {
           "type": "number",
@@ -290,83 +332,193 @@
     "backgroundSemantic": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["canvas", "desktop", "scrim"],
+      "required": [
+        "canvas",
+        "desktop",
+        "scrim"
+      ],
       "properties": {
-        "canvas": { "$ref": "#/$defs/color" },
-        "desktop": { "$ref": "#/$defs/color" },
-        "scrim": { "$ref": "#/$defs/color" }
+        "canvas": {
+          "$ref": "#/$defs/color"
+        },
+        "desktop": {
+          "$ref": "#/$defs/color"
+        },
+        "scrim": {
+          "$ref": "#/$defs/color"
+        }
       }
     },
     "surfaceSemantic": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["bar", "panel", "raised", "overlay", "hover", "pressed", "selected"],
+      "required": [
+        "bar",
+        "panel",
+        "raised",
+        "overlay",
+        "hover",
+        "pressed",
+        "selected",
+        "danger"
+      ],
       "properties": {
-        "bar": { "$ref": "#/$defs/color" },
-        "panel": { "$ref": "#/$defs/color" },
-        "raised": { "$ref": "#/$defs/color" },
-        "overlay": { "$ref": "#/$defs/color" },
-        "hover": { "$ref": "#/$defs/color" },
-        "pressed": { "$ref": "#/$defs/color" },
-        "selected": { "$ref": "#/$defs/color" }
+        "bar": {
+          "$ref": "#/$defs/color"
+        },
+        "panel": {
+          "$ref": "#/$defs/color"
+        },
+        "raised": {
+          "$ref": "#/$defs/color"
+        },
+        "overlay": {
+          "$ref": "#/$defs/color"
+        },
+        "hover": {
+          "$ref": "#/$defs/color"
+        },
+        "pressed": {
+          "$ref": "#/$defs/color"
+        },
+        "selected": {
+          "$ref": "#/$defs/color"
+        },
+        "danger": {
+          "$ref": "#/$defs/color"
+        }
       }
     },
     "contentSemantic": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["primary", "secondary", "muted", "disabled", "inverse"],
+      "required": [
+        "primary",
+        "secondary",
+        "muted",
+        "disabled",
+        "inverse"
+      ],
       "properties": {
-        "primary": { "$ref": "#/$defs/color" },
-        "secondary": { "$ref": "#/$defs/color" },
-        "muted": { "$ref": "#/$defs/color" },
-        "disabled": { "$ref": "#/$defs/color" },
-        "inverse": { "$ref": "#/$defs/color" }
+        "primary": {
+          "$ref": "#/$defs/color"
+        },
+        "secondary": {
+          "$ref": "#/$defs/color"
+        },
+        "muted": {
+          "$ref": "#/$defs/color"
+        },
+        "disabled": {
+          "$ref": "#/$defs/color"
+        },
+        "inverse": {
+          "$ref": "#/$defs/color"
+        }
       }
     },
     "outlineSemantic": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["subtle", "default", "strong", "focus"],
+      "required": [
+        "subtle",
+        "default",
+        "strong",
+        "focus"
+      ],
       "properties": {
-        "subtle": { "$ref": "#/$defs/color" },
-        "default": { "$ref": "#/$defs/color" },
-        "strong": { "$ref": "#/$defs/color" },
-        "focus": { "$ref": "#/$defs/color" }
+        "subtle": {
+          "$ref": "#/$defs/color"
+        },
+        "default": {
+          "$ref": "#/$defs/color"
+        },
+        "strong": {
+          "$ref": "#/$defs/color"
+        },
+        "focus": {
+          "$ref": "#/$defs/color"
+        }
       }
     },
     "accentSemantic": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["primary", "hover", "pressed", "subtle", "onAccent"],
+      "required": [
+        "primary",
+        "hover",
+        "pressed",
+        "subtle",
+        "onAccent"
+      ],
       "properties": {
-        "primary": { "$ref": "#/$defs/color" },
-        "hover": { "$ref": "#/$defs/color" },
-        "pressed": { "$ref": "#/$defs/color" },
-        "subtle": { "$ref": "#/$defs/color" },
-        "onAccent": { "$ref": "#/$defs/color" }
+        "primary": {
+          "$ref": "#/$defs/color"
+        },
+        "hover": {
+          "$ref": "#/$defs/color"
+        },
+        "pressed": {
+          "$ref": "#/$defs/color"
+        },
+        "subtle": {
+          "$ref": "#/$defs/color"
+        },
+        "onAccent": {
+          "$ref": "#/$defs/color"
+        }
       }
     },
     "statusSemantic": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["info", "success", "warning", "danger"],
+      "required": [
+        "info",
+        "success",
+        "warning",
+        "danger"
+      ],
       "properties": {
-        "info": { "$ref": "#/$defs/color" },
-        "success": { "$ref": "#/$defs/color" },
-        "warning": { "$ref": "#/$defs/color" },
-        "danger": { "$ref": "#/$defs/color" }
+        "info": {
+          "$ref": "#/$defs/color"
+        },
+        "success": {
+          "$ref": "#/$defs/color"
+        },
+        "warning": {
+          "$ref": "#/$defs/color"
+        },
+        "danger": {
+          "$ref": "#/$defs/color"
+        }
       }
     },
     "signalSemantic": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["audio", "microphone", "brightness", "charging", "recording"],
+      "required": [
+        "audio",
+        "microphone",
+        "brightness",
+        "charging",
+        "recording"
+      ],
       "properties": {
-        "audio": { "$ref": "#/$defs/color" },
-        "microphone": { "$ref": "#/$defs/color" },
-        "brightness": { "$ref": "#/$defs/color" },
-        "charging": { "$ref": "#/$defs/color" },
-        "recording": { "$ref": "#/$defs/color" }
+        "audio": {
+          "$ref": "#/$defs/color"
+        },
+        "microphone": {
+          "$ref": "#/$defs/color"
+        },
+        "brightness": {
+          "$ref": "#/$defs/color"
+        },
+        "charging": {
+          "$ref": "#/$defs/color"
+        },
+        "recording": {
+          "$ref": "#/$defs/color"
+        }
       }
     },
     "barComponent": {
@@ -384,29 +536,69 @@
       ],
       "additionalProperties": false,
       "properties": {
-        "background": { "$ref": "#/$defs/color" },
-        "border": { "$ref": "#/$defs/color" },
-        "separator": { "$ref": "#/$defs/color" },
-        "workspaceIdle": { "$ref": "#/$defs/color" },
-        "workspaceActive": { "$ref": "#/$defs/color" },
-        "clusterHover": { "$ref": "#/$defs/color" },
-        "clusterActive": { "$ref": "#/$defs/color" },
-        "clusterText": { "$ref": "#/$defs/color" },
-        "clusterActiveText": { "$ref": "#/$defs/color" }
+        "background": {
+          "$ref": "#/$defs/color"
+        },
+        "border": {
+          "$ref": "#/$defs/color"
+        },
+        "separator": {
+          "$ref": "#/$defs/color"
+        },
+        "workspaceIdle": {
+          "$ref": "#/$defs/color"
+        },
+        "workspaceActive": {
+          "$ref": "#/$defs/color"
+        },
+        "clusterHover": {
+          "$ref": "#/$defs/color"
+        },
+        "clusterActive": {
+          "$ref": "#/$defs/color"
+        },
+        "clusterText": {
+          "$ref": "#/$defs/color"
+        },
+        "clusterActiveText": {
+          "$ref": "#/$defs/color"
+        }
       }
     },
     "panelComponent": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["background", "border", "section", "rowHover", "rowSelected", "rowDanger", "shadow"],
+      "required": [
+        "background",
+        "border",
+        "section",
+        "rowHover",
+        "rowSelected",
+        "rowDanger",
+        "shadow"
+      ],
       "properties": {
-        "background": { "$ref": "#/$defs/color" },
-        "border": { "$ref": "#/$defs/color" },
-        "section": { "$ref": "#/$defs/color" },
-        "rowHover": { "$ref": "#/$defs/color" },
-        "rowSelected": { "$ref": "#/$defs/color" },
-        "rowDanger": { "$ref": "#/$defs/color" },
-        "shadow": { "$ref": "#/$defs/color" }
+        "background": {
+          "$ref": "#/$defs/color"
+        },
+        "border": {
+          "$ref": "#/$defs/color"
+        },
+        "section": {
+          "$ref": "#/$defs/color"
+        },
+        "rowHover": {
+          "$ref": "#/$defs/color"
+        },
+        "rowSelected": {
+          "$ref": "#/$defs/color"
+        },
+        "rowDanger": {
+          "$ref": "#/$defs/color"
+        },
+        "shadow": {
+          "$ref": "#/$defs/color"
+        }
       }
     },
     "controlComponent": {
@@ -425,53 +617,100 @@
         "onActive"
       ],
       "properties": {
-        "background": { "$ref": "#/$defs/color" },
-        "hover": { "$ref": "#/$defs/color" },
-        "pressed": { "$ref": "#/$defs/color" },
-        "active": { "$ref": "#/$defs/color" },
-        "disabled": { "$ref": "#/$defs/color" },
-        "outline": { "$ref": "#/$defs/color" },
-        "focus": { "$ref": "#/$defs/color" },
-        "text": { "$ref": "#/$defs/color" },
-        "textDisabled": { "$ref": "#/$defs/color" },
-        "onActive": { "$ref": "#/$defs/color" }
+        "background": {
+          "$ref": "#/$defs/color"
+        },
+        "hover": {
+          "$ref": "#/$defs/color"
+        },
+        "pressed": {
+          "$ref": "#/$defs/color"
+        },
+        "active": {
+          "$ref": "#/$defs/color"
+        },
+        "disabled": {
+          "$ref": "#/$defs/color"
+        },
+        "outline": {
+          "$ref": "#/$defs/color"
+        },
+        "focus": {
+          "$ref": "#/$defs/color"
+        },
+        "text": {
+          "$ref": "#/$defs/color"
+        },
+        "textDisabled": {
+          "$ref": "#/$defs/color"
+        },
+        "onActive": {
+          "$ref": "#/$defs/color"
+        }
       }
     },
     "notificationComponent": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["background", "border", "unread", "info", "success", "warning", "danger", "muted"],
+      "required": [
+        "background",
+        "border",
+        "unread",
+        "info",
+        "success",
+        "warning",
+        "danger",
+        "muted"
+      ],
       "properties": {
-        "background": { "$ref": "#/$defs/color" },
-        "border": { "$ref": "#/$defs/color" },
-        "unread": { "$ref": "#/$defs/color" },
-        "info": { "$ref": "#/$defs/color" },
-        "success": { "$ref": "#/$defs/color" },
-        "warning": { "$ref": "#/$defs/color" },
-        "danger": { "$ref": "#/$defs/color" },
-        "muted": { "$ref": "#/$defs/color" }
+        "background": {
+          "$ref": "#/$defs/color"
+        },
+        "border": {
+          "$ref": "#/$defs/color"
+        },
+        "unread": {
+          "$ref": "#/$defs/color"
+        },
+        "info": {
+          "$ref": "#/$defs/color"
+        },
+        "success": {
+          "$ref": "#/$defs/color"
+        },
+        "warning": {
+          "$ref": "#/$defs/color"
+        },
+        "danger": {
+          "$ref": "#/$defs/color"
+        },
+        "muted": {
+          "$ref": "#/$defs/color"
+        }
       }
     },
     "osdComponent": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["border", "track", "fill", "text"],
+      "required": [
+        "border",
+        "track",
+        "fill",
+        "text"
+      ],
       "properties": {
-        "border": { "$ref": "#/$defs/color" },
-        "track": { "$ref": "#/$defs/color" },
-        "fill": { "$ref": "#/$defs/color" },
-        "text": { "$ref": "#/$defs/color" }
-      }
-    },
-    "resourcesComponent": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["normal", "elevated", "high", "critical"],
-      "properties": {
-        "normal": { "$ref": "#/$defs/color" },
-        "elevated": { "$ref": "#/$defs/color" },
-        "high": { "$ref": "#/$defs/color" },
-        "critical": { "$ref": "#/$defs/color" }
+        "border": {
+          "$ref": "#/$defs/color"
+        },
+        "track": {
+          "$ref": "#/$defs/color"
+        },
+        "fill": {
+          "$ref": "#/$defs/color"
+        },
+        "text": {
+          "$ref": "#/$defs/color"
+        }
       }
     },
     "fontWeight": {
@@ -491,6 +730,30 @@
       "type": "integer",
       "minimum": 0,
       "maximum": 2000
+    },
+    "intensitySemantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "normal",
+        "elevated",
+        "high",
+        "critical"
+      ],
+      "properties": {
+        "normal": {
+          "$ref": "#/$defs/color"
+        },
+        "elevated": {
+          "$ref": "#/$defs/color"
+        },
+        "high": {
+          "$ref": "#/$defs/color"
+        },
+        "critical": {
+          "$ref": "#/$defs/color"
+        }
+      }
     }
   }
 }

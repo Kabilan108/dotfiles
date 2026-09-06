@@ -83,6 +83,25 @@
           ];
         };
       };
+
+      devShells.${system}.default =
+        let
+          pkgs = import nixpkgs {
+            inherit system overlays;
+            config.allowUnfree = true;
+          };
+        in
+        pkgs.mkShell {
+          packages = [
+            (pkgs.python3.withPackages (ps: [ ps.jsonschema ]))
+            pkgs.quickshell
+            pkgs.sway
+            pkgs.jq
+            pkgs.ripgrep
+            pkgs.libnotify
+            pkgs.nixfmt
+          ];
+        };
     };
 
   inputs = {

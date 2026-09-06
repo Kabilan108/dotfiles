@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import "../ui" as Ui
+import "../plugins/builtin/workspaces" as Workspaces
 
 Rectangle {
     id: root
@@ -57,6 +58,21 @@ Rectangle {
         theme: root.theme
         kind: "bar"
         radius: root.anchored ? 0 : root.theme.metrics.radiusMedium
+        bordered: false
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 1
+            color: root.theme.component.bar.border
+        }
+        Ui.ShellText {
+            anchors.centerIn: parent
+            theme: root.theme
+            text: "05-09-2026  22:14:32"
+            monospace: true
+            sizeRole: "caption"
+        }
 
         RowLayout {
             anchors {
@@ -66,43 +82,25 @@ Rectangle {
             }
             spacing: root.theme.metrics.barInnerGap
 
-            RowLayout {
-                spacing: 5
-
-                Repeater {
-                    model: 5
-
-                    Rectangle {
-                        required property int index
-                        Layout.preferredWidth: index === 1 ? 17 : 7
-                        Layout.preferredHeight: 6
-                        radius: 3
-                        color: index === 1
-                            ? root.theme.component.bar.workspaceActive
-                            : root.theme.component.bar.workspaceIdle
+            Workspaces.WorkspaceWidget {
+                outputId: "lab"
+                context: ({
+                    theme: root.theme,
+                    settings: {values: {}},
+                    compositor: {
+                        workspaces: [
+                            { id: 1, idx: 1, output: "lab", is_active: true, is_urgent: false },
+                            { id: 2, idx: 2, output: "lab", is_active: false, is_urgent: false }
+                        ],
+                        windows: []
                     }
-                }
-
-                Rectangle {
-                    Layout.preferredWidth: 1
-                    Layout.preferredHeight: Math.max(12, root.theme.metrics.barHeight - 14)
-                    color: root.theme.component.bar.separator
-                }
-
-                Repeater {
-                    model: 4
-
-                    Rectangle {
-                        required property int index
-                        Layout.preferredWidth: index === 2 ? 9 : 4
-                        Layout.preferredHeight: 9
-                        radius: 2
-                        color: index === 2
-                            ? root.theme.component.bar.workspaceActive
-                            : root.theme.component.bar.workspaceIdle
-                    }
-                }
+                })
             }
+
+            Item {
+                Layout.fillWidth: true
+            }
+
 
             Item {
                 Layout.fillWidth: true
@@ -110,20 +108,10 @@ Rectangle {
 
             Ui.ShellText {
                 theme: root.theme
-                text: "MON 31 AUG  ·  22:14"
-                sizeRole: "caption"
+                text: "CPU: 18%  MEM: 42%"
                 monospace: true
-                role: "secondary"
-            }
-
-            Item {
-                Layout.fillWidth: true
-            }
-
-            Ui.ShellBarCluster {
-                theme: root.theme
-                iconName: "cpu"
-                label: "18%  42%"
+                sizeRole: "caption"
+                color: root.theme.semantic.intensity.normal
             }
 
             Ui.ShellBarCluster {
@@ -139,8 +127,8 @@ Rectangle {
             Ui.ShellBarCluster {
                 theme: root.theme
                 iconName: "audio"
-                label: "34"
-                active: true
+                label: "34%"
+                selected: true
             }
 
             Ui.ShellBarCluster {
@@ -151,7 +139,7 @@ Rectangle {
             Ui.ShellBarCluster {
                 theme: root.theme
                 iconName: "battery"
-                label: "78"
+                label: "78%"
             }
         }
     }

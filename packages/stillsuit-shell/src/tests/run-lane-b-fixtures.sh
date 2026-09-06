@@ -49,7 +49,6 @@ jq -n --arg valid "$fixture_root/valid" \
         plugins: [
             {
                 packageRoot: $valid,
-                sourceMode: "local",
                 enabled: true,
                 settings: { fixture: true },
                 manifest: {
@@ -66,7 +65,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $multi,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -92,7 +90,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $multi,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -109,7 +106,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $valid,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -124,7 +120,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $valid,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -140,7 +135,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $valid,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -156,7 +150,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $valid,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -172,7 +165,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $valid,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -189,7 +181,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $valid,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -206,7 +197,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $valid,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -223,7 +213,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $valid,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -239,7 +228,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $valid,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -255,7 +243,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $valid,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -271,7 +258,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $brokenPanel,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -287,7 +273,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $brokenPanel,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -303,7 +288,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $valid,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -320,7 +304,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $brokenBar,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {
@@ -336,7 +319,6 @@ jq -n --arg valid "$fixture_root/valid" \
             },
             {
                 packageRoot: $brokenWidget,
-                sourceMode: "local",
                 enabled: true,
                 settings: {},
                 manifest: {

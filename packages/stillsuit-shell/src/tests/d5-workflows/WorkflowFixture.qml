@@ -4,7 +4,7 @@ import Quickshell.Io
 import "plugins/builtin/workflows" as Workflows
 import "plugins/builtin/osd" as Osd
 import "plugins/builtin/recording" as Recording
-import "plugins/builtin/meeting" as Meeting
+import "tests/FixtureTheme.js" as FixtureTheme
 
 ShellRoot {
     id: fixture
@@ -25,7 +25,7 @@ ShellRoot {
             dictatorSocketPath: Quickshell.env("STILLSUIT_FIXTURE_SOCKET")
         } })
         property var compositor: ({ focusedOutputId: "DP-1" })
-        property var theme: ({ motion: { slow: 260 } })
+        property var theme: FixtureTheme.create()
     }
 
     Workflows.Service { id: workflows; context: fixtureContext }
@@ -35,9 +35,10 @@ ShellRoot {
         property int expirationCount: 0
         onExpired: expirationCount += 1
     }
-    Meeting.MeetingQueueModel {
+    Recording.FailedMeetingJobsView {
         id: meetingQueue
-        jobs: workflows.meeting.jobs
+        context: fixtureContext
+        meeting: workflows.meeting
     }
     // Two output views consume one global aggregate. Production OsdOverlay
     // instances use context.services.get() with the same identity.

@@ -4,24 +4,20 @@ import Quickshell
 import Quickshell.Io
 import "../../../ui" as Ui
 
-Scope {
+Item {
     id: root
+    readonly property bool hostedPanel: true
+    implicitWidth: root.context.theme.metrics.panelWidth
+    implicitHeight: content.implicitHeight + root.context.theme.metrics.panelPadding * 2
+    visible: false
 
     required property var context
     required property var service
     required property var screen
     required property string outputId
     readonly property var media: service ? service.media : null
-    readonly property var panelWindow: window
+    readonly property var panelWindow: root.QsWindow.window
     property bool opened: false
-
-    property Process managerProcess: Process {
-        command: ["pavucontrol"]
-        onExited: function(exitCode) {
-            if (exitCode !== 0 && exitCode !== 130 && root.service)
-                root.service.errorMessage = "Could not open audio settings"
-        }
-    }
 
     component RoundControl: Ui.ShellAction {
         id: control
@@ -33,7 +29,7 @@ Scope {
         property bool accentIcon: false
         property bool prominent: false
 
-        signal clicked()
+        signal clicked
 
         accessibleFallback: iconName.replace(/-/g, " ")
         implicitWidth: prominent ? 40 : 34
@@ -43,16 +39,8 @@ Scope {
         Rectangle {
             anchors.fill: parent
             radius: width / 2
-            color: !control.enabled
-                ? control.theme.component.control.disabled
-                : control.active
-                    ? control.theme.component.control.active
-                    : control.pressed
-                        ? control.theme.component.control.pressed
-                        : control.hovered
-                            ? control.theme.component.control.hover
-                            : control.theme.component.control.background
-            border.width: control.active ? 0 : 1
+            color: !control.enabled ? control.theme.component.control.disabled : control.active ? control.theme.component.control.active : control.pressed ? control.theme.component.control.pressed : control.hovered ? control.theme.component.control.hover : control.theme.component.control.background
+            border.width: control.active && control.enabled ? 0 : 1
             border.color: control.theme.component.control.outline
             opacity: control.enabled ? 1 : 0.74
         }
@@ -62,11 +50,8 @@ Scope {
             theme: control.theme
             name: control.iconName
             sizeRole: control.prominent ? "medium" : "small"
-            role: control.active
-                ? "on-accent"
-                : control.accentIcon
-                    ? "accent"
-                    : "primary"
+            color: !control.enabled ? control.theme.component.control.textDisabled : control.active ? control.theme.component.control.onActive : control.accentIcon ? control.theme.semantic.accent.primary : control.theme.component.control.text
+            role: control.active ? "on-accent" : control.accentIcon ? "accent" : "primary"
         }
 
         Ui.ShellText {
@@ -84,503 +69,398 @@ Scope {
         }
     }
 
-    PanelWindow {
-        id: window
+    Ui.ShellSurface {
+        id: panelSurface
 
-        screen: root.screen
-        visible: root.opened
-        color: "transparent"
-        exclusiveZone: 0
-        focusable: true
-        anchors {
-            top: true
-            bottom: true
-            left: true
-            right: true
-        }
-        mask: Region {
-            item: dismissArea
-        }
+        anchors.fill: parent
+
+        theme: root.context.theme
+        kind: "panel"
 
         MouseArea {
-            id: dismissArea
-            anchors {
-                top: parent.top
-                bottom: parent.bottom
-                left: parent.left
-                right: parent.right
-                topMargin: root.context.theme.metrics.barHeight
+            anchors.fill: parent
+            onClicked: function (mouse) {
+                mouse.accepted = true;
             }
-            acceptedButtons: Qt.AllButtons
-            onClicked: root.context.actions.surfaceClose("stillsuit.audio")
         }
 
-        Ui.ShellSurface {
-            id: panelSurface
-
+        Flickable {
             anchors {
-                top: parent.top
-                right: parent.right
-                topMargin: root.context.theme.metrics.barHeight
-                    + root.context.theme.metrics.spaceUnit
-                rightMargin: root.context.theme.metrics.spaceUnit
+                fill: parent
+                margins: root.context.theme.metrics.panelPadding
             }
-            width: root.context.theme.metrics.panelWidth
-            height: Math.min(content.implicitHeight
-                    + root.context.theme.metrics.panelPadding * 2,
-                parent.height - anchors.topMargin
-                    - root.context.theme.metrics.spaceUnit)
-            theme: root.context.theme
-            kind: "panel"
+            contentWidth: width
+            contentHeight: content.implicitHeight
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
 
-            MouseArea {
-                anchors.fill: parent
-                onClicked: function(mouse) { mouse.accepted = true }
-            }
+            ColumnLayout {
+                id: content
 
-            Flickable {
-                anchors {
-                    fill: parent
-                    margins: root.context.theme.metrics.panelPadding
+                width: parent.width
+                spacing: root.context.theme.metrics.spaceUnit * 3
+
+                Ui.ShellPanelHeader {
+                    Layout.fillWidth: true
+                    theme: root.context.theme
+                    title: "Audio"
+                    Ui.ShellButton {
+                        theme: root.context.theme
+                        label: ""
+                        iconName: "settings"
+                        compact: true
+                        ghost: true
+                        accessibleName: "Open audio settings"
+                        onClicked: root.openManager()
+                    }
                 }
-                contentWidth: width
-                contentHeight: content.implicitHeight
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
+
+                Ui.ShellSectionLabel {
+                    Layout.fillWidth: true
+                    theme: root.context.theme
+                    text: "Now playing"
+                }
+
+                Ui.ShellEmptyRow {
+                    visible: !root.media || root.media.state !== "ready"
+                    Layout.fillWidth: true
+                    theme: root.context.theme
+                    error: Boolean(root.media && root.media.state === "error")
+                    text: root.media && root.media.state === "error" ? "Media controls unavailable" : "Nothing playing"
+                    iconName: "play"
+                }
 
                 ColumnLayout {
-                    id: content
+                    visible: root.media && root.media.state === "ready"
+                    Layout.fillWidth: true
+                    spacing: root.context.theme.metrics.spaceUnit * 2
 
-                    width: parent.width
-                    spacing: root.context.theme.metrics.spaceUnit * 3
-
-                    ColumnLayout {
+                    RowLayout {
                         Layout.fillWidth: true
-                        spacing: root.context.theme.metrics.spaceUnit
+                        spacing: root.context.theme.metrics.spaceUnit * 3
 
-                        RowLayout {
-                            Layout.fillWidth: true
+                        Ui.ShellSurface {
+                            Layout.preferredWidth: 64
+                            Layout.preferredHeight: 64
+                            theme: root.context.theme
+                            kind: "raised"
 
-                            Ui.ShellText {
-                                Layout.fillWidth: true
-                                theme: root.context.theme
-                                text: "Audio"
-                                sizeRole: "heading"
+                            Image {
+                                id: albumArt
+
+                                anchors.fill: parent
+                                source: root.media ? root.media.artUrl : ""
+                                fillMode: Image.PreserveAspectCrop
+                                visible: status === Image.Ready
                             }
 
-                            Ui.ShellButton {
+                            Ui.ShellIcon {
+                                visible: albumArt.status !== Image.Ready
+                                anchors.centerIn: parent
                                 theme: root.context.theme
-                                label: ""
-                                iconName: "settings"
-                                compact: true
-                                ghost: true
-                                accessibleName: "Open audio settings"
-                                onClicked: root.openManager()
-                            }
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            implicitHeight: 1
-                            color: root.context.theme.semantic.outline.subtle
-                        }
-                    }
-
-                    Ui.ShellSectionLabel {
-                        Layout.fillWidth: true
-                        theme: root.context.theme
-                        text: "Now playing"
-                    }
-
-                    Ui.ShellStateView {
-                        visible: !root.media || root.media.state !== "ready"
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 104
-                        theme: root.context.theme
-                        mode: root.media && root.media.state === "error"
-                            ? "error"
-                            : "empty"
-                        title: root.media && root.media.state === "error"
-                            ? "Media controls unavailable"
-                            : "Nothing playing"
-                        message: root.media && root.media.errorMessage
-                            ? root.media.errorMessage
-                            : "Start a compatible media player to show controls."
-                        iconName: "play"
-                    }
-
-                    ColumnLayout {
-                        visible: root.media && root.media.state === "ready"
-                        Layout.fillWidth: true
-                        spacing: root.context.theme.metrics.spaceUnit * 2
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: root.context.theme.metrics.spaceUnit * 3
-
-                            Ui.ShellSurface {
-                                Layout.preferredWidth: 64
-                                Layout.preferredHeight: 64
-                                theme: root.context.theme
-                                kind: "raised"
-
-                                Image {
-                                    id: albumArt
-
-                                    anchors.fill: parent
-                                    source: root.media ? root.media.artUrl : ""
-                                    fillMode: Image.PreserveAspectCrop
-                                    visible: status === Image.Ready
-                                }
-
-                                Ui.ShellIcon {
-                                    visible: albumArt.status !== Image.Ready
-                                    anchors.centerIn: parent
-                                    theme: root.context.theme
-                                    name: "audio"
-                                    sizeRole: "large"
-                                    role: "muted"
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: root.context.theme.metrics.spaceUnit
-
-                                Ui.ShellText {
-                                    Layout.fillWidth: true
-                                    theme: root.context.theme
-                                    text: root.media ? root.media.title : ""
-                                    sizeRole: "label"
-                                    elide: Text.ElideRight
-                                }
-
-                                Ui.ShellText {
-                                    Layout.fillWidth: true
-                                    theme: root.context.theme
-                                    text: root.media ? root.media.artist : ""
-                                    role: "secondary"
-                                    elide: Text.ElideRight
-                                }
-
-                                Ui.ShellText {
-                                    visible: root.media && root.media.album !== ""
-                                    Layout.fillWidth: true
-                                    theme: root.context.theme
-                                    text: root.media ? root.media.album : ""
-                                    sizeRole: "caption"
-                                    role: "muted"
-                                    elide: Text.ElideRight
-                                }
-
-                                Ui.ShellText {
-                                    Layout.fillWidth: true
-                                    theme: root.context.theme
-                                    text: root.media ? root.media.playerName : ""
-                                    sizeRole: "caption"
-                                    role: "muted"
-                                    elide: Text.ElideRight
-                                }
+                                name: "audio"
+                                sizeRole: "large"
+                                role: "muted"
                             }
                         }
 
                         ColumnLayout {
-                            visible: root.media
-                                && root.media.playerSummaries.length > 1
                             Layout.fillWidth: true
                             spacing: root.context.theme.metrics.spaceUnit
 
-                            Ui.ShellSectionLabel {
+                            Ui.ShellText {
                                 Layout.fillWidth: true
                                 theme: root.context.theme
-                                text: "Sources"
+                                text: root.media ? root.media.title : ""
+                                sizeRole: "label"
+                                elide: Text.ElideRight
                             }
 
-                            Repeater {
-                                model: root.media ? root.media.playerSummaries : []
+                            Ui.ShellText {
+                                Layout.fillWidth: true
+                                theme: root.context.theme
+                                text: root.media ? root.media.artist : ""
+                                role: "secondary"
+                                elide: Text.ElideRight
+                            }
 
-                                Ui.ShellRow {
-                                    required property var modelData
+                            Ui.ShellText {
+                                visible: root.media && root.media.album !== ""
+                                Layout.fillWidth: true
+                                theme: root.context.theme
+                                text: root.media ? root.media.album : ""
+                                sizeRole: "caption"
+                                role: "muted"
+                                elide: Text.ElideRight
+                            }
 
-                                    Layout.fillWidth: true
-                                    theme: root.context.theme
-                                    label: modelData.name
-                                    description: modelData.title
-                                    iconName: modelData.playing ? "play" : "audio"
-                                    selected: modelData.selected
-                                    trailingText: modelData.playing ? "PLAYING" : ""
-                                    accessibleName: "Select " + modelData.name
-                                    onClicked: root.media.selectPlayer(modelData.id)
-                                }
+                            Ui.ShellText {
+                                Layout.fillWidth: true
+                                theme: root.context.theme
+                                text: root.media ? root.media.playerName : ""
+                                sizeRole: "caption"
+                                role: "muted"
+                                elide: Text.ElideRight
                             }
                         }
-
-                        Ui.ShellSlider {
-                            visible: root.media && root.media.lengthSupported
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 38
-                            theme: root.context.theme
-                            label: root.formatTime(root.media ? root.media.position : 0)
-                            accessibleName: "Playback position"
-                            from: 0
-                            to: root.media ? Math.max(1, root.media.length) : 1
-                            value: root.media ? root.media.position : 0
-                            stepSize: 1
-                            decimals: 0
-                            valueText: root.media
-                                ? root.formatTime(root.media.length)
-                                : ""
-                            trackBottomMargin: 6
-                            enabled: root.media && root.media.canSeek
-                            onMoved: function(value) { root.media.seekTo(value) }
-                        }
-
-                        RowLayout {
-                            Layout.alignment: Qt.AlignHCenter
-                            spacing: root.context.theme.metrics.spaceUnit * 2
-
-                            RoundControl {
-                                visible: root.media && root.media.shuffleSupported
-                                theme: root.context.theme
-                                iconName: "shuffle"
-                                active: root.media && root.media.shuffle
-                                accessibleName: root.media && root.media.shuffle
-                                    ? "Disable shuffle"
-                                    : "Enable shuffle"
-                                onClicked: root.media.toggleShuffle()
-                            }
-
-                            RoundControl {
-                                theme: root.context.theme
-                                iconName: "skip-previous"
-                                enabled: root.media && root.media.canGoPrevious
-                                accessibleName: "Previous track"
-                                onClicked: root.media.previous()
-                            }
-
-                            RoundControl {
-                                theme: root.context.theme
-                                iconName: "replay-10"
-                                enabled: root.media && root.media.canSeek
-                                accessibleName: "Seek back 10 seconds"
-                                onClicked: root.media.seekBy(-10)
-                            }
-
-                            RoundControl {
-                                theme: root.context.theme
-                                iconName: root.media && root.media.isPlaying ? "pause" : "play"
-                                active: true
-                                prominent: true
-                                enabled: root.media && root.media.canTogglePlaying
-                                accessibleName: root.media && root.media.isPlaying
-                                    ? "Pause"
-                                    : "Play"
-                                onClicked: root.media.togglePlaying()
-                            }
-
-                            RoundControl {
-                                theme: root.context.theme
-                                iconName: "forward-10"
-                                enabled: root.media && root.media.canSeek
-                                accessibleName: "Seek forward 10 seconds"
-                                onClicked: root.media.seekBy(10)
-                            }
-
-                            RoundControl {
-                                theme: root.context.theme
-                                iconName: "skip-next"
-                                enabled: root.media && root.media.canGoNext
-                                accessibleName: "Next track"
-                                onClicked: root.media.next()
-                            }
-
-                            RoundControl {
-                                visible: root.media && root.media.repeatSupported
-                                theme: root.context.theme
-                                iconName: "repeat"
-                                label: root.media && root.media.repeatMode === "track" ? "1" : ""
-                                active: root.media && root.media.repeatMode !== "none"
-                                accessibleName: "Repeat "
-                                    + (root.media ? root.media.repeatMode : "none")
-                                onClicked: root.media.cycleRepeat()
-                            }
-                        }
-                    }
-
-                    Ui.ShellSectionLabel {
-                        Layout.fillWidth: true
-                        theme: root.context.theme
-                        text: "Levels"
-                    }
-
-                    Ui.ShellStateView {
-                        visible: !root.service || !root.service.available
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 100
-                        theme: root.context.theme
-                        mode: "error"
-                        title: "PipeWire unavailable"
-                        message: "Output and microphone controls are disabled."
-                        iconName: "volume-mute"
                     }
 
                     ColumnLayout {
-                        visible: root.service && root.service.available
+                        visible: root.media && root.media.playerSummaries.length > 1
                         Layout.fillWidth: true
                         spacing: root.context.theme.metrics.spaceUnit
 
-                        RowLayout {
+                        Ui.ShellSectionLabel {
                             Layout.fillWidth: true
-                            spacing: root.context.theme.metrics.spaceUnit * 2
-
-                            RoundControl {
-                                theme: root.context.theme
-                                iconName: !root.service || root.service.muted
-                                    ? "volume-mute"
-                                    : root.service.volume < 0.5
-                                        ? "volume-down"
-                                        : "volume-up"
-                                accentIcon: root.service
-                                    && !root.service.muted
-                                enabled: root.service && root.service.available
-                                accessibleName: root.service && root.service.muted
-                                    ? "Unmute output"
-                                    : "Mute output"
-                                onClicked: root.service.toggleMuted()
-                            }
-
-                            Ui.ShellSlider {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 38
-                                theme: root.context.theme
-                                label: root.service
-                                    ? root.service.outputName
-                                    : "Output"
-                                accessibleName: "Output volume"
-                                from: 0
-                                to: 100
-                                value: root.service
-                                    ? Math.min(100, root.service.volume * 100)
-                                    : 0
-                                stepSize: 1
-                                decimals: 0
-                                suffix: "%"
-                                trackHeight: 7
-                                trackBottomMargin: 6
-                                enabled: root.service && root.service.available
-                                onMoved: function(value) {
-                                    root.service.setVolume(value / 100)
-                                }
-                            }
-                        }
-
-                        RowLayout {
-                            visible: root.service
-                                && root.service.microphoneAvailable
-                            Layout.fillWidth: true
-                            spacing: root.context.theme.metrics.spaceUnit * 2
-
-                            RoundControl {
-                                theme: root.context.theme
-                                iconName: root.service && root.service.inputMuted
-                                    ? "volume-mute"
-                                    : "microphone"
-                                accentIcon: root.service
-                                    && !root.service.inputMuted
-                                enabled: root.service
-                                    && root.service.microphoneAvailable
-                                accessibleName: root.service
-                                        && root.service.inputMuted
-                                    ? "Unmute microphone"
-                                    : "Mute microphone"
-                                onClicked: root.service.toggleInputMuted()
-                            }
-
-                            Ui.ShellSlider {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 38
-                                theme: root.context.theme
-                                label: root.service
-                                    ? root.service.inputName
-                                    : "Microphone"
-                                accessibleName: "Microphone level"
-                                from: 0
-                                to: 100
-                                value: root.service
-                                    ? Math.min(100,
-                                        root.service.inputVolume * 100)
-                                    : 0
-                                stepSize: 1
-                                decimals: 0
-                                suffix: "%"
-                                trackHeight: 7
-                                trackBottomMargin: 6
-                                enabled: root.service
-                                    && root.service.microphoneAvailable
-                                onMoved: function(value) {
-                                    root.service.setInputVolume(value / 100)
-                                }
-                            }
-                        }
-
-                        Ui.ShellStateView {
-                            visible: root.service
-                                && !root.service.microphoneAvailable
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 88
                             theme: root.context.theme
-                            mode: "empty"
-                            title: "Microphone unavailable"
-                            iconName: "microphone"
+                            text: "Sources"
                         }
-
-                        Ui.ShellStatus {
-                            visible: root.service
-                                && root.service.errorMessage !== ""
-                            Layout.alignment: Qt.AlignHCenter
-                            theme: root.context.theme
-                            status: "danger"
-                            label: root.service
-                                ? root.service.errorMessage
-                                : ""
-                        }
-                    }
-
-                    Ui.ShellSectionLabel {
-                        visible: root.service && root.service.available
-                        Layout.fillWidth: true
-                        theme: root.context.theme
-                        text: "Output devices"
-                    }
-
-                    ColumnLayout {
-                        visible: root.service && root.service.available
-                        Layout.fillWidth: true
-                        spacing: 2
 
                         Repeater {
-                            model: root.service ? root.service.outputs : []
+                            model: root.media ? root.media.playerSummaries : []
 
                             Ui.ShellRow {
                                 required property var modelData
 
                                 Layout.fillWidth: true
                                 theme: root.context.theme
-                                minimumHeight: 30
-                                label: modelData.description
-                                iconName: modelData.iconName || "audio"
-                                selected: Boolean(modelData.active)
-                                trailingIconName: modelData.active ? "check" : ""
-                                enabled: root.service
-                                    && !root.service.outputActionBusy
-                                busy: root.service
-                                    && root.service.outputActionBusy
-                                    && !modelData.active
-                                accessibleName: "Use "
-                                    + modelData.description
-                                    + " for audio output"
-                                onClicked: root.service.selectOutput(modelData.name)
+                                label: modelData.name
+                                description: modelData.title
+                                iconName: modelData.playing ? "play" : "audio"
+                                selected: modelData.selected
+                                trailingText: modelData.playing ? "PLAYING" : ""
+                                accessibleName: "Select " + modelData.name
+                                onClicked: root.media.selectPlayer(modelData.id)
                             }
+                        }
+                    }
+
+                    Ui.ShellSlider {
+                        visible: root.media && root.media.lengthSupported
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 38
+                        theme: root.context.theme
+                        label: root.formatTime(root.media ? root.media.position : 0)
+                        accessibleName: "Playback position"
+                        from: 0
+                        to: root.media ? Math.max(1, root.media.length) : 1
+                        value: root.media ? root.media.position : 0
+                        stepSize: 1
+                        decimals: 0
+                        valueText: root.media ? root.formatTime(root.media.length) : ""
+                        trackBottomMargin: 6
+                        enabled: root.media && root.media.canSeek
+                        onMoved: function (value) {
+                            root.media.seekTo(value);
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.alignment: Qt.AlignHCenter
+                        spacing: root.context.theme.metrics.spaceUnit * 2
+
+                        RoundControl {
+                            visible: root.media && root.media.shuffleSupported
+                            theme: root.context.theme
+                            iconName: "shuffle"
+                            active: root.media && root.media.shuffle
+                            accessibleName: root.media && root.media.shuffle ? "Disable shuffle" : "Enable shuffle"
+                            onClicked: root.media.toggleShuffle()
+                        }
+
+                        RoundControl {
+                            theme: root.context.theme
+                            iconName: "skip-previous"
+                            enabled: root.media && root.media.canGoPrevious
+                            accessibleName: "Previous track"
+                            onClicked: root.media.previous()
+                        }
+
+                        RoundControl {
+                            theme: root.context.theme
+                            iconName: "replay-10"
+                            enabled: root.media && root.media.canSeek
+                            accessibleName: "Seek back 10 seconds"
+                            onClicked: root.media.seekBy(-10)
+                        }
+
+                        RoundControl {
+                            theme: root.context.theme
+                            iconName: root.media && root.media.isPlaying ? "pause" : "play"
+                            active: true
+                            prominent: true
+                            enabled: root.media && root.media.canTogglePlaying
+                            accessibleName: root.media && root.media.isPlaying ? "Pause" : "Play"
+                            onClicked: root.media.togglePlaying()
+                        }
+
+                        RoundControl {
+                            theme: root.context.theme
+                            iconName: "forward-10"
+                            enabled: root.media && root.media.canSeek
+                            accessibleName: "Seek forward 10 seconds"
+                            onClicked: root.media.seekBy(10)
+                        }
+
+                        RoundControl {
+                            theme: root.context.theme
+                            iconName: "skip-next"
+                            enabled: root.media && root.media.canGoNext
+                            accessibleName: "Next track"
+                            onClicked: root.media.next()
+                        }
+
+                        RoundControl {
+                            visible: root.media && root.media.repeatSupported
+                            theme: root.context.theme
+                            iconName: "repeat"
+                            label: root.media && root.media.repeatMode === "track" ? "1" : ""
+                            active: root.media && root.media.repeatMode !== "none"
+                            accessibleName: "Repeat " + (root.media ? root.media.repeatMode : "none")
+                            onClicked: root.media.cycleRepeat()
+                        }
+                    }
+                }
+
+                Ui.ShellSectionLabel {
+                    Layout.fillWidth: true
+                    theme: root.context.theme
+                    text: "Levels"
+                }
+
+                Ui.ShellStateView {
+                    visible: !root.service || !root.service.available
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 100
+                    theme: root.context.theme
+                    mode: "error"
+                    title: "PipeWire unavailable"
+                    message: "Output and microphone controls are disabled."
+                    iconName: "volume-mute"
+                }
+
+                ColumnLayout {
+                    visible: root.service && root.service.available
+                    Layout.fillWidth: true
+                    spacing: root.context.theme.metrics.spaceUnit
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: root.context.theme.metrics.spaceUnit * 2
+
+                        RoundControl {
+                            theme: root.context.theme
+                            iconName: !root.service || root.service.muted ? "volume-mute" : root.service.volume < 0.5 ? "volume-down" : "volume-up"
+                            accentIcon: root.service && !root.service.muted
+                            enabled: root.service && root.service.available
+                            accessibleName: root.service && root.service.muted ? "Unmute output" : "Mute output"
+                            onClicked: root.service.toggleMuted()
+                        }
+
+                        Ui.ShellSlider {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 38
+                            theme: root.context.theme
+                            label: root.service ? root.service.outputName : "Output"
+                            accessibleName: "Output volume"
+                            from: 0
+                            to: 100
+                            value: root.service ? Math.min(100, root.service.volume * 100) : 0
+                            stepSize: 1
+                            decimals: 0
+                            suffix: "%"
+                            trackHeight: 7
+                            trackBottomMargin: 6
+                            enabled: root.service && root.service.available
+                            onMoved: function (value) {
+                                root.service.setVolume(value / 100);
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        visible: root.service && root.service.microphoneAvailable
+                        Layout.fillWidth: true
+                        spacing: root.context.theme.metrics.spaceUnit * 2
+
+                        RoundControl {
+                            theme: root.context.theme
+                            iconName: root.service && root.service.inputMuted ? "volume-mute" : "microphone"
+                            accentIcon: root.service && !root.service.inputMuted
+                            enabled: root.service && root.service.microphoneAvailable
+                            accessibleName: root.service && root.service.inputMuted ? "Unmute microphone" : "Mute microphone"
+                            onClicked: root.service.toggleInputMuted()
+                        }
+
+                        Ui.ShellSlider {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 38
+                            theme: root.context.theme
+                            label: root.service ? root.service.inputName : "Microphone"
+                            accessibleName: "Microphone level"
+                            from: 0
+                            to: 100
+                            value: root.service ? Math.min(100, root.service.inputVolume * 100) : 0
+                            stepSize: 1
+                            decimals: 0
+                            suffix: "%"
+                            trackHeight: 7
+                            trackBottomMargin: 6
+                            enabled: root.service && root.service.microphoneAvailable
+                            onMoved: function (value) {
+                                root.service.setInputVolume(value / 100);
+                            }
+                        }
+                    }
+
+                    Ui.ShellStateView {
+                        visible: root.service && !root.service.microphoneAvailable
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 88
+                        theme: root.context.theme
+                        mode: "empty"
+                        title: "Microphone unavailable"
+                        iconName: "microphone"
+                    }
+
+                    Ui.ShellStatus {
+                        visible: root.service && root.service.errorMessage !== ""
+                        Layout.alignment: Qt.AlignHCenter
+                        theme: root.context.theme
+                        status: "danger"
+                        label: root.service ? root.service.errorMessage : ""
+                    }
+                }
+
+                Ui.ShellSectionLabel {
+                    visible: root.service && root.service.available
+                    Layout.fillWidth: true
+                    theme: root.context.theme
+                    text: "Output devices"
+                }
+
+                ColumnLayout {
+                    visible: root.service && root.service.available
+                    Layout.fillWidth: true
+                    spacing: 2
+
+                    Repeater {
+                        model: root.service ? root.service.outputs : []
+
+                        Ui.ShellRow {
+                            required property var modelData
+
+                            Layout.fillWidth: true
+                            theme: root.context.theme
+                            minimumHeight: 30
+                            label: modelData.description
+                            iconName: modelData.iconName || "audio"
+                            selected: Boolean(modelData.active)
+                            trailingIconName: modelData.active ? "check" : ""
+                            enabled: root.service && !root.service.outputActionBusy
+                            busy: root.service && root.service.outputActionBusy && !modelData.active
+                            accessibleName: "Use " + modelData.description + " for audio output"
+                            onClicked: root.service.selectOutput(modelData.name)
                         }
                     }
                 }
@@ -589,30 +469,26 @@ Scope {
     }
 
     function open(payloadJson) {
-        opened = true
+        opened = true;
         if (service)
-            service.refreshOutputs()
+            service.refreshOutputs();
     }
 
     function openManager() {
-        if (managerProcess.running)
-            return "busy"
-        managerProcess.running = true
-        return "pending"
+        return service ? service.openManager() : "unavailable";
     }
 
     function close() {
-        opened = false
+        opened = false;
     }
 
     function formatTime(seconds) {
-        var safe = Math.max(0, Number(seconds || 0))
-        var hours = Math.floor(safe / 3600)
-        var minutes = Math.floor(safe % 3600 / 60)
-        var remainder = Math.floor(safe % 60)
+        var safe = Math.max(0, Number(seconds || 0));
+        var hours = Math.floor(safe / 3600);
+        var minutes = Math.floor(safe % 3600 / 60);
+        var remainder = Math.floor(safe % 60);
         if (hours > 0)
-            return hours + ":" + String(minutes).padStart(2, "0")
-                + ":" + String(remainder).padStart(2, "0")
-        return minutes + ":" + String(remainder).padStart(2, "0")
+            return hours + ":" + String(minutes).padStart(2, "0") + ":" + String(remainder).padStart(2, "0");
+        return minutes + ":" + String(remainder).padStart(2, "0");
     }
 }

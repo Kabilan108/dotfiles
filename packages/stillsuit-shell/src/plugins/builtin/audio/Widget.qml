@@ -23,6 +23,7 @@ Ui.ShellBarCluster {
             ? "Audio muted, open audio and media panel"
             : "Volume " + Math.round(Math.min(1, service.volume) * 100)
                 + " percent, open audio and media panel"
-    active: context.panels && context.panels.isOpen("stillsuit.audio")
-    onClicked: context.actions.surfaceToggle("stillsuit.audio", "")
+    selected: context.panels && context.panels.selectedId === "stillsuit.audio"
+        && context.panels.selectedOutputId === outputId
+    onClicked: context.actions.surfaceToggle("stillsuit.audio", JSON.stringify({outputId: root.outputId}))
 }
