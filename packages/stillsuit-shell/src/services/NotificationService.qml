@@ -104,7 +104,7 @@ Scope {
         var outputs = outputIds()
         var focused = focusedOutputId()
         return popups.filter(function(snapshot) {
-            return NotificationPolicy.shouldPresentOn(snapshot, outputId, outputs, focused)
+            return NotificationPolicy.shouldPresentOn(snapshot, outputId, outputs, focused, policy.avoidOutputs)
         })
     }
 
@@ -175,7 +175,7 @@ Scope {
             var targets = outputs.length ? outputs : [focused]
             for (var index = 0; index < targets.length; index++) {
                 if (targets[index] !== centerOutputId
-                        && NotificationPolicy.shouldPresentOn(snapshot, targets[index], outputs, focused))
+                        && NotificationPolicy.shouldPresentOn(snapshot, targets[index], outputs, focused, policy.avoidOutputs))
                     bannerWillPresent(targets[index])
             }
         }

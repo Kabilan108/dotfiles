@@ -177,26 +177,62 @@ def set_preference(path: Path, plugin_id: str, changes: dict[str, Any]) -> None:
         temporary.replace(path)
 
 
+def update_setting(path: Path, plugin_id: str, keys: list[str], value: Any, remove: bool) -> None:
+    """Set or remove one dotted key under a plugin's runtime `settings` override."""
+    if not re.fullmatch(r"stillsuit\.[a-z][a-z0-9.-]*", plugin_id):
+        raise ValueError("invalid plugin ID")
+    if not keys or any(not re.fullmatch(r"[A-Za-z][A-Za-z0-9]*", key) for key in keys):
+        raise ValueError("settings keys are dotted identifiers")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.with_suffix(".lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        data = record(path) if path.exists() else {}
+        plugin = dict(data.get(plugin_id, {}))
+        settings = dict(plugin.get("settings", {}))
+        node = settings
+        for key in keys[:-1]:
+            node[key] = dict(node.get(key, {}))
+            node = node[key]
+        if remove:
+            node.pop(keys[-1], None)
+        else:
+            node[keys[-1]] = value
+        plugin["settings"] = settings
+        data[plugin_id] = plugin
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(data, indent=2) + "\n")
+        temporary.replace(path)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     config_root = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
     parser.add_argument("--config", type=Path,
         default=config_root / "stillsuit" / "runtime-discovery.json")
-    parser.add_argument("command", choices=["watch", "list", "validate", "enable", "disable", "place"])
+    parser.add_argument("command",
+        choices=["watch", "list", "validate", "enable", "disable", "place", "set", "unset"])
     parser.add_argument("plugin_id", nargs="?")
-    parser.add_argument("section", nargs="?", choices=["left", "center", "right"])
-    parser.add_argument("order", nargs="?", type=int)
+    parser.add_argument("section", nargs="?",
+        help="place: left|center|right; set/unset: dotted settings key such as notifications.avoidOutputs")
+    parser.add_argument("order", nargs="?",
+        help="place: integer order; set: JSON value")
     args = parser.parse_args()
     configuration = record(args.config)
     preferences = Path(configuration["preferences"])
-    if args.command in {"enable", "disable", "place"}:
+    if args.command in {"enable", "disable", "place", "set", "unset"}:
         if not args.plugin_id:
             parser.error("plugin ID is required")
-        changes = {"enabled": args.command == "enable"}
+        changes: dict[str, Any] = {"enabled": args.command == "enable"}
         if args.command == "place":
-            if args.section is None or args.order is None:
-                parser.error("place requires plugin ID, section and order")
-            changes = {"section": args.section, "order": args.order}
+            if args.section not in {"left", "center", "right"} or args.order is None:
+                parser.error("place requires plugin ID, section and integer order")
+            changes = {"section": args.section, "order": int(args.order)}
+        elif args.command in {"set", "unset"}:
+            if not args.section or (args.command == "set" and args.order is None):
+                parser.error(f"{args.command} requires plugin ID and a settings key")
+            value = json.loads(args.order) if args.command == "set" else None
+            update_setting(preferences, args.plugin_id, args.section.split("."), value, args.command == "unset")
+            return
         set_preference(preferences, args.plugin_id, changes)
         return
     previous = ""

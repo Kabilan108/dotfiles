@@ -31,7 +31,9 @@ to another output is a single action.
 A banner dismisses a non-notification panel on its own output, not another
 output. Opening the notification center suppresses banners on that output;
 incoming rows still enter history. DND suppresses visible banners immediately.
-Tooltips neither focus nor dismiss panels.
+Tooltips neither focus nor dismiss panels. Banners go to the notification's
+saved output, else the focused output, minus any listed in the
+`notifications.avoidOutputs` setting while another output remains.
 
 See `runtime-plugins.md` for mutable plugin discovery and `../src/ui/README.md`
 for the shared component API. Theme compilation remains Nix-owned.

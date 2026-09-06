@@ -11,7 +11,9 @@ output of the current session, inside an isolated XDG sandbox. Its bar runs
 in shadow mode (no exclusive zone) and sits one bar height below the
 production bar, with its panels and toasts offset to match; by default it
 picks the output you are not focused on, so the real shell stays usable on
-the other one. With a single output the two bars stack on it. Real plugin
+the other one, and it steers the live shell's notification banners to the
+other output for as long as it runs (a `notifications.avoidOutputs` runtime
+preference, cleared on stop). With a single output the two bars stack on it. Real plugin
 QML runs unchanged; only the inputs are synthetic:
 
 - services receive fixture `model` objects instead of hardware and helpers;

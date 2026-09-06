@@ -58,6 +58,17 @@ assert(Policy.shouldPresentOn(first, "DP-1", ["DP-1", "DP-2"], "DP-2"))
 assert(!Policy.shouldPresentOn(first, "DP-2", ["DP-1", "DP-2"], "DP-2"))
 assert.equal(Policy.presentationOutput(first, ["DP-2"], "DP-2"), "DP-2")
 
+const unsaved = { ...first, outputId: "" }
+assert.equal(Policy.presentationOutput(unsaved, ["DP-1", "DP-2"], "DP-2", ["DP-2"]), "DP-1",
+    "an avoided focused output yields to the remaining one")
+assert.equal(Policy.presentationOutput(first, ["DP-1", "DP-2"], "DP-2", ["DP-1"]), "DP-2",
+    "a saved output that is avoided does not pin the banner there")
+assert.equal(Policy.presentationOutput(unsaved, ["DP-2"], "DP-2", ["DP-2"]), "DP-2",
+    "avoiding the only output changes nothing")
+assert.deepEqual(Policy.notificationsPolicy({ notifications: { avoidOutputs: ["DP-4", 7] } }).avoidOutputs,
+    ["DP-4", "7"], "avoidOutputs is normalized to strings")
+assert.deepEqual(Policy.notificationsPolicy({}).avoidOutputs, [], "avoidOutputs defaults empty")
+
 const good = { ...first, key: "good" }
 const parsed = Model.parseState(JSON.stringify({
     dnd: true,

@@ -13,6 +13,7 @@ function notificationsPolicy(settings) {
     var bypass = values.dndBypass || {}
     return {
         popupLimit: Math.round(boundedNumber(values.popupLimit, 5, 1, 20)),
+        avoidOutputs: Array.isArray(values.avoidOutputs) ? values.avoidOutputs.map(stringValue) : [],
         historyLimit: Math.round(boundedNumber(values.historyLimit, 100, 1, 100)),
         historyMaxAgeMs: 24 * 60 * 60 * 1000,
         normalTimeoutMs: boundedNumber(values.normalTimeoutMs, 5000, 1, 24 * 60 * 60 * 1000),
@@ -95,8 +96,14 @@ function dndClass(snapshot, dnd, settings) {
 // Multi-output rule: a toast stays on the output focused when it arrived.
 // If that output disappeared, exactly one fallback is selected: the currently
 // focused output, then the first output in stable input order.
-function presentationOutput(snapshot, outputIds, focusedOutputId) {
-    var outputs = Array.isArray(outputIds) ? outputIds.map(stringValue) : []
+// Banners go to the output the notification was saved for, else the focused
+// output, else the first. `avoidOutputs` removes candidates while another
+// process (the workbench) owns those screens, as long as one output remains.
+function presentationOutput(snapshot, outputIds, focusedOutputId, avoidOutputs) {
+    var all = Array.isArray(outputIds) ? outputIds.map(stringValue) : []
+    var avoid = Array.isArray(avoidOutputs) ? avoidOutputs.map(stringValue) : []
+    var allowed = all.filter(function(id) { return avoid.indexOf(id) === -1 })
+    var outputs = allowed.length > 0 ? allowed : all
     var saved = stringValue((snapshot || {}).outputId)
     if (saved && outputs.indexOf(saved) !== -1) return saved
     var focused = stringValue(focusedOutputId)
@@ -104,8 +111,8 @@ function presentationOutput(snapshot, outputIds, focusedOutputId) {
     return outputs.length > 0 ? outputs[0] : saved || focused
 }
 
-function shouldPresentOn(snapshot, viewOutputId, outputIds, focusedOutputId) {
-    return stringValue(viewOutputId) === presentationOutput(snapshot, outputIds, focusedOutputId)
+function shouldPresentOn(snapshot, viewOutputId, outputIds, focusedOutputId, avoidOutputs) {
+    return stringValue(viewOutputId) === presentationOutput(snapshot, outputIds, focusedOutputId, avoidOutputs)
 }
 
 if (typeof module !== "undefined") {

@@ -31,7 +31,14 @@ stillsuit-plugins validate
 stillsuit-plugins disable stillsuit.example
 stillsuit-plugins enable stillsuit.example
 stillsuit-plugins place stillsuit.example right 50
+stillsuit-plugins set stillsuit.notifications notifications.avoidOutputs '["DP-4"]'
+stillsuit-plugins unset stillsuit.notifications notifications.avoidOutputs
 ```
+
+`set` and `unset` edit one dotted key under a plugin's runtime `settings`
+override; the value is JSON. The change re-constructs that plugin's service
+within about a second, which for notifications preserves history through the
+persisted state file.
 
 The `stillsuit-plugin` agent skill (`agents/skills/stillsuit-plugin/`) walks
 this loop and points at `src/plugins/examples/` as starting templates.

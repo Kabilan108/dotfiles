@@ -90,6 +90,20 @@ ipc() {
   XDG_RUNTIME_DIR="$runtime_root" quickshell ipc --pid "$pid" call "$@"
 }
 
+# While the workbench owns an output, the live shell's banners go elsewhere.
+# Only interactive runs on a real session touch the production preferences.
+live_prefs_config="${XDG_CONFIG_HOME:-$HOME/.config}/stillsuit/runtime-discovery.json"
+steer_live_banners() {
+  [[ -f $live_prefs_config ]] || return 0
+  stillsuit-plugins --config "$live_prefs_config" set stillsuit.notifications \
+    notifications.avoidOutputs "$(jq -cn --arg o "$1" '[$o]')" 2>/dev/null || true
+}
+restore_live_banners() {
+  [[ -f $live_prefs_config ]] || return 0
+  stillsuit-plugins --config "$live_prefs_config" unset stillsuit.notifications \
+    notifications.avoidOutputs 2>/dev/null || true
+}
+
 plugin_id() {
   case "$1" in
     stillsuit.*) printf '%s\n' "$1" ;;
@@ -108,8 +122,8 @@ case "$command_name" in
   actions) ipc stillsuit-workbench actions | jq .; exit ;;
   plugins) exec stillsuit-plugins --config "$config_home/stillsuit/runtime-discovery.json" list ;;
   stop)
-    pid=$(running_pid) || { printf 'workbench is not running\n' >&2; exit 0; }
-    kill "$pid"; printf 'stopped %s\n' "$pid"; exit ;;
+    pid=$(running_pid) || { restore_live_banners; printf 'workbench is not running\n' >&2; exit 0; }
+    kill "$pid"; restore_live_banners; printf 'stopped %s\n' "$pid"; exit ;;
   status)
     if [[ ${1:-} == --json ]]; then ipc stillsuit-workbench status | jq .; exit; fi
     ipc stillsuit-workbench status | jq -r '
@@ -176,8 +190,10 @@ fi
 cleanup() {
   [[ -f $pid_file ]] && { kill "$(<"$pid_file")" 2>/dev/null || true; rm -f "$pid_file"; }
   [[ -n $sway_pid ]] && kill "$sway_pid" 2>/dev/null || true
+  [[ $shadow -eq 1 ]] && restore_live_banners
 }
 trap cleanup EXIT
+[[ $shadow -eq 1 ]] && steer_live_banners "$output_name"
 
 # Seed: every builtin plugin with sandbox-safe settings. Nothing here reaches
 # real helpers, sockets, or the session bus.
@@ -244,6 +260,6 @@ export STILLSUIT_CONFIG_ID="$config_id" \
 quickshell --no-color -p "$source_root/workbench.qml" > "$sandbox_root/shell.log" 2>&1 &
 shell_pid=$!
 printf '%s\n' "$shell_pid" > "$pid_file"
-printf 'workbench on %s (fixture %s), stacked below the production bar\nplugins: %s\nlog:     %s\n' \
+printf 'workbench on %s (fixture %s), stacked below the production bar; live banners avoid it\nplugins: %s\nlog:     %s\n' \
   "${output_name:-all headless outputs}" "$fixture_id" "$plugin_root" "$sandbox_root/shell.log"
 wait "$shell_pid"
