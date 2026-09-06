@@ -30,7 +30,7 @@ export STILLSUIT_FIXTURE_STAT="$tmp_dir/stat"
 export STILLSUIT_FIXTURE_MEMINFO="$tmp_dir/meminfo"
 export QT_QPA_PLATFORM=wayland
 unset DBUS_SESSION_BUS_ADDRESS
-mkdir -p "$HOME" "$XDG_CONFIG_HOME/quickshell/stillsuit-d4-fixture" "$XDG_DATA_HOME" \
+mkdir -p "$HOME" "$XDG_CONFIG_HOME/stillsuit-fixtures/d4" "$XDG_DATA_HOME" \
     "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
 
@@ -65,7 +65,7 @@ export WAYLAND_DISPLAY=${wayland_socket##*/}
 printf '%s\n' 'cpu 100 0 100 800 0 0 0 0 0 0' > "$STILLSUIT_FIXTURE_STAT"
 printf '%s\n' 'MemTotal: 1000 kB' 'MemAvailable: 600 kB' > "$STILLSUIT_FIXTURE_MEMINFO"
 
-config_dir="$XDG_CONFIG_HOME/quickshell/stillsuit-d4-fixture"
+config_dir="$XDG_CONFIG_HOME/stillsuit-fixtures/d4"
 cp "$fixture_dir/fixture-shell.qml" "$config_dir/shell.qml"
 cp "$fixture_dir/../FixtureTheme.js" "$config_dir/FixtureTheme.js"
 cp -r "$source_root/ui" "$config_dir/ui"

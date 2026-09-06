@@ -21,11 +21,11 @@ export XDG_RUNTIME_DIR="$fixture_root/runtime"
 export QT_QPA_PLATFORM=offscreen
 unset DBUS_SESSION_BUS_ADDRESS
 
-mkdir -p "$HOME" "$XDG_CONFIG_HOME/quickshell" "$XDG_DATA_HOME" \
+mkdir -p "$HOME" "$XDG_CONFIG_HOME/stillsuit-fixtures" "$XDG_DATA_HOME" \
   "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
 
-config_dir="$XDG_CONFIG_HOME/quickshell/stillsuit-power-resources-fixture"
+config_dir="$XDG_CONFIG_HOME/stillsuit-fixtures/power-resources"
 mkdir -p "$config_dir"
 cp -R -- "$source_root/." "$config_dir/"
 cp -- "$script_dir/fixture-shell.qml" "$config_dir/shell.qml"

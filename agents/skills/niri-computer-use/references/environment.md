@@ -48,7 +48,7 @@ Everything below was probed live on this machine; re-verify with `acu doctor` at
 - **zen-beta** (Firefox): no CDP; GUI loop or keyboard-driven.
 - **Electron**: Discord, Slack, obsidian, t3code — CDP only if relaunched with `--remote-debugging-port=<port>`; that also exposes the app to any local process (loopback), so treat as opt-in.
 - **ghostty**: supports `--class=<app-id>` (marker app-ids for window rules) and `--title=...`; user works in tmux inside it — prefer tmux for terminal content.
-- Spotify: `playerctl`. Quickshell bar: `qs ipc -c stillsuit call ...`, `stillctl`.
+- Spotify: `playerctl`. Stillsuit Next: `qs ipc -c stillsuit-next call ...`; manage the shell with `stillsuit-shell.service` and plugins with `stillsuit-plugins`.
 
 ## Verification oracles (for testing input paths)
 

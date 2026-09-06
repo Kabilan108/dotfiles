@@ -1,4 +1,4 @@
-// Ported from home/desktop/wayland/quickshell/stillsuit/{TopBar,NiriState}.qml
+// Ported from the retired v1 shell (TopBar and NiriState views)
 // for Lane D4. This view uses HostContext compositor snapshots only and contains
 // no Omarchy Quattro code.
 import QtQuick

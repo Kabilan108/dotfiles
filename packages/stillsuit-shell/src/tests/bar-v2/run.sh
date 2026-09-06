@@ -30,7 +30,7 @@ export XDG_CACHE_HOME="$tmp_dir/cache"
 export XDG_RUNTIME_DIR="$tmp_dir/runtime"
 export QT_QPA_PLATFORM=wayland
 unset DBUS_SESSION_BUS_ADDRESS
-mkdir -p "$HOME" "$XDG_CONFIG_HOME/quickshell/stillsuit-bar-v2-fixture" \
+mkdir -p "$HOME" "$XDG_CONFIG_HOME/stillsuit-fixtures/bar-v2" \
     "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
 
@@ -64,7 +64,7 @@ if [[ -z ${wayland_socket:-} ]]; then
 fi
 export WAYLAND_DISPLAY=${wayland_socket##*/}
 
-config_dir="$XDG_CONFIG_HOME/quickshell/stillsuit-bar-v2-fixture"
+config_dir="$XDG_CONFIG_HOME/stillsuit-fixtures/bar-v2"
 cp "$fixture_dir/fixture-shell.qml" "$config_dir/shell.qml"
 mkdir -p "$config_dir/plugins/builtin"
 for plugin in bar clock workspaces osd; do
