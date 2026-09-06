@@ -1,0 +1,7 @@
+- references shoudl be much lest prescriptive. just outline the basic html structure and let the agents figure it out
+- include more concrete rules, a la Theo's recent vids (letter to CLaude +1)
+    - external links should open in new tabs.
+    - when you reference outside material (e.g. PRs, comments, sites) include links to the referenced material
+- pagebin
+    - dashboard needs ui overhaul
+    - searching/managing artifacts needs better UX

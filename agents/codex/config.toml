@@ -1,6 +1,6 @@
-model = "gpt-5.6-sol"
+model = "gpt-6-astra"
 
-model_reasoning_effort = "high"
+model_reasoning_effort = "medium"
 model_supports_reasoning_summaries = true
 
 sandbox_mode = "danger-full-access"
@@ -302,14 +302,13 @@ trust_level = "trusted"
 [tui.model_availability_nux]
 "gpt-5.5" = 4
 "gpt-5.6-sol" = 4
+gpt-6-astra = 4
 
 [marketplaces.openai-bundled]
-last_updated = "2026-08-14T18:42:03Z"
 source_type = "local"
 source = "/home/kabilan/dotfiles/agents/codex/.tmp/bundled-marketplaces/openai-bundled"
 
 [marketplaces.openai-primary-runtime]
-last_updated = "2026-08-19T23:18:03Z"
 source_type = "local"
 source = "/home/kabilan/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
 

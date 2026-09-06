@@ -6,6 +6,10 @@
     [Service]
     ExecStart=
     ExecStart=${lib.getExe config.programs.ghostty.package} --gtk-single-instance=true --initial-window=false --quit-after-last-window-closed=false
+    # Every terminal is a child of this one process. AppImages (T3 Code) export
+    # their bundled library path; stripping it here keeps shells clean no
+    # matter which app requested the window.
+    UnsetEnvironment=LD_LIBRARY_PATH APPDIR APPIMAGE GSETTINGS_SCHEMA_DIR
   '';
   stylix.targets.ghostty.enable = true;
 
