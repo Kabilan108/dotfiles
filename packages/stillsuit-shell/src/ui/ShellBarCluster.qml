@@ -45,11 +45,12 @@ ShellAction {
             sizeRole: "small"
             color: root.contentColor
         }
-        ShellIconView {
+        ShellIcon {
             visible: !root.busy
             theme: root.theme
             source: root.iconSource
             name: root.iconName
+            sizeRole: "small"
             color: root.contentColor
             Layout.preferredWidth: root.theme.metrics.iconSmall
             Layout.preferredHeight: root.theme.metrics.iconSmall
@@ -74,13 +75,14 @@ ShellAction {
             monospace: true
             color: root.contentColor
         }
-        ShellIconView {
+        ShellIcon {
             visible: String(root.secondaryIconSource) !== ""
             Layout.leftMargin: 3
             Layout.preferredWidth: root.theme.metrics.iconSmall
             Layout.preferredHeight: root.theme.metrics.iconSmall
             theme: root.theme
             source: root.secondaryIconSource
+            sizeRole: "small"
             color: root.contentColor
         }
         ShellText {

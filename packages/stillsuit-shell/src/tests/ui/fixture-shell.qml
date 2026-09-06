@@ -405,7 +405,7 @@ ShellRoot {
                 "section label lost approved typography")
 
             var icon = _create(iconComponent, objects)
-            _assert(String(icon.source).endsWith("/icons/circle.svg"),
+            _assert(String(icon.symbolicSource).endsWith("/icons/circle.svg"),
                 "unknown icon did not use the stable fallback glyph")
 
             var busy = _create(busyComponent, objects)

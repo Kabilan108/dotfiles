@@ -10,8 +10,8 @@ domain states such as low battery or charging. `secondaryIconSource` and
 `secondaryLabel` add a second icon/value pair inside the same click target.
 
 `ShellIcon` renders a vendored SVG from `icons/` (see `icons/manifest.tsv`) tinted
-with the requested theme role. `ShellIconView` renders `source` images with
-preserved aspect ratio and falls back to the named icon while unavailable. `ShellEmptyRow` supplies the compact
+with the requested theme role. Setting `source` renders that image with its own
+colors instead, falling back to the named icon while it is unavailable. `ShellEmptyRow` supplies the compact
 icon-and-caption empty treatment used by the media section.
 
 `ShellPanelHeader` supplies `title`, optional `subtitle`, the divider, and a

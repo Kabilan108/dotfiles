@@ -104,7 +104,7 @@ JetBrainsMono Nerd Font is the monospace family. Use it for clocks, resource
 readouts, percentages, identifiers, keyboard hints, and short uppercase
 section labels.
 
-Icons are Material Symbols Rounded SVGs vendored under `src/ui/icons/` and tinted at render time from theme roles, so no icon font needs to be installed. `ShellIcon` maps a stable name to a vendored file and falls back to `circle` for unknown names; `ShellIconView` layers a caller-supplied image (plugin assets such as provider marks) over that named fallback.
+Icons are Material Symbols Rounded SVGs vendored under `src/ui/icons/` and tinted at render time from theme roles, so no icon font needs to be installed. `ShellIcon` maps a stable name to a vendored file and falls back to `circle` for unknown names; setting its `source` renders a caller-supplied image (plugin assets such as provider marks) with its own colors, over that named fallback.
 
 | Type role | Size |
 |---|---|

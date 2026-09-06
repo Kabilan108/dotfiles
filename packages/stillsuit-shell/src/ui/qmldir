@@ -9,7 +9,6 @@ ShellBarTooltip 1.0 ShellBarTooltip.qml
 ShellBusyIndicator 1.0 ShellBusyIndicator.qml
 ShellButton 1.0 ShellButton.qml
 ShellIcon 1.0 ShellIcon.qml
-ShellIconView 1.0 ShellIconView.qml
 ShellEmptyRow 1.0 ShellEmptyRow.qml
 ShellPanelHeader 1.0 ShellPanelHeader.qml
 ShellScrollArea 1.0 ShellScrollArea.qml
