@@ -68,6 +68,14 @@ assert.equal(Policy.presentationOutput(unsaved, ["DP-2"], "DP-2", ["DP-2"]), "DP
 assert.deepEqual(Policy.notificationsPolicy({ notifications: { avoidOutputs: ["DP-4", 7] } }).avoidOutputs,
     ["DP-4", "7"], "avoidOutputs is normalized to strings")
 assert.deepEqual(Policy.notificationsPolicy({}).avoidOutputs, [], "avoidOutputs defaults empty")
+const variantList = { length: 2, 0: "DP-4", 1: "eDP-1" }
+assert.deepEqual(Policy.listValue(variantList), ["DP-4", "eDP-1"], "array-like settings lists are accepted")
+assert.deepEqual(Policy.notificationsPolicy({ notifications: { avoidOutputs: variantList } }).avoidOutputs,
+    ["DP-4", "eDP-1"], "avoidOutputs survives a QVariantList-shaped value")
+assert.deepEqual(Policy.notificationsPolicy({ notifications: { dndBypass: { appNames: { length: 1, 0: "Slack" } } } }).dndBypass.appNames,
+    ["Slack"], "dndBypass lists survive a QVariantList-shaped value")
+assert.equal(Policy.listValue("DP-4"), null, "strings are not lists")
+assert.equal(Policy.listValue({ a: 1 }), null, "plain objects are not lists")
 
 const good = { ...first, key: "good" }
 const parsed = Model.parseState(JSON.stringify({

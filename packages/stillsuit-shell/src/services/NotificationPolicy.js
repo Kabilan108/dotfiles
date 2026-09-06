@@ -2,6 +2,18 @@ function stringValue(value) {
     return value === undefined || value === null ? "" : String(value)
 }
 
+// Settings cross a QML property boundary as QVariantList, which fails
+// Array.isArray inside Qt's engine while still iterating like an array.
+function listValue(value) {
+    if (Array.isArray(value)) return value.slice()
+    if (value && typeof value === "object" && typeof value.length === "number") {
+        var result = []
+        for (var index = 0; index < value.length; index++) result.push(value[index])
+        return result
+    }
+    return null
+}
+
 function boundedNumber(value, fallback, minimum, maximum) {
     var number = Number(value)
     if (!isFinite(number)) number = fallback
@@ -13,18 +25,18 @@ function notificationsPolicy(settings) {
     var bypass = values.dndBypass || {}
     return {
         popupLimit: Math.round(boundedNumber(values.popupLimit, 5, 1, 20)),
-        avoidOutputs: Array.isArray(values.avoidOutputs) ? values.avoidOutputs.map(stringValue) : [],
+        avoidOutputs: (listValue(values.avoidOutputs) || []).map(stringValue),
         historyLimit: Math.round(boundedNumber(values.historyLimit, 100, 1, 100)),
         historyMaxAgeMs: 24 * 60 * 60 * 1000,
         normalTimeoutMs: boundedNumber(values.normalTimeoutMs, 5000, 1, 24 * 60 * 60 * 1000),
         lowTimeoutMs: boundedNumber(values.lowTimeoutMs, 4000, 1, 24 * 60 * 60 * 1000),
         dndBypass: {
             critical: bypass.critical === undefined ? true : !!bypass.critical,
-            appNames: Array.isArray(bypass.appNames) ? bypass.appNames : ["battery", "Battery"],
-            appUrgencies: Array.isArray(bypass.appUrgencies) ? bypass.appUrgencies : [
+            appNames: listValue(bypass.appNames) || ["battery", "Battery"],
+            appUrgencies: listValue(bypass.appUrgencies) || [
                 { appName: "notify-send", urgency: "critical" }
             ],
-            summaryPatterns: Array.isArray(bypass.summaryPatterns) ? bypass.summaryPatterns : []
+            summaryPatterns: listValue(bypass.summaryPatterns) || []
         }
     }
 }
@@ -100,8 +112,8 @@ function dndClass(snapshot, dnd, settings) {
 // output, else the first. `avoidOutputs` removes candidates while another
 // process (the workbench) owns those screens, as long as one output remains.
 function presentationOutput(snapshot, outputIds, focusedOutputId, avoidOutputs) {
-    var all = Array.isArray(outputIds) ? outputIds.map(stringValue) : []
-    var avoid = Array.isArray(avoidOutputs) ? avoidOutputs.map(stringValue) : []
+    var all = (listValue(outputIds) || []).map(stringValue)
+    var avoid = (listValue(avoidOutputs) || []).map(stringValue)
     var allowed = all.filter(function(id) { return avoid.indexOf(id) === -1 })
     var outputs = allowed.length > 0 ? allowed : all
     var saved = stringValue((snapshot || {}).outputId)
@@ -125,6 +137,7 @@ if (typeof module !== "undefined") {
         dndClass: dndClass,
         viewState: viewState,
         presentationOutput: presentationOutput,
-        shouldPresentOn: shouldPresentOn
+        shouldPresentOn: shouldPresentOn,
+        listValue: listValue
     }
 }

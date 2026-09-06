@@ -23,8 +23,10 @@ QtObject {
     readonly property string homeDir: String(values.homeDir || "")
     readonly property string shadowRoot: String(values.shadowRoot || "")
     readonly property bool includeDefaults: values.includeDefaults !== false
-    readonly property var configuredAccounts: Array.isArray(values.accounts)
-        ? values.accounts : []
+    // Settings lists arrive as QVariantList, which fails Array.isArray in Qt.
+    readonly property var configuredAccounts: values.accounts
+        && typeof values.accounts === "object" && typeof values.accounts.length === "number"
+        ? Array.prototype.slice.call(values.accounts) : []
     readonly property int refreshIntervalSec: Math.max(60,
         Number(values.refreshIntervalSec || 300))
     readonly property bool helperReady: model === null
