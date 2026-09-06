@@ -210,10 +210,12 @@ for folder in sorted(builtin.iterdir()):
 seed_path.write_text(json.dumps({"schemaVersion": 1, "selectedBar": "stillsuit.bar", "plugins": rows}, indent=2))
 PY
 
+# workbench/plugins holds review tools (icon gallery) that only this sandbox
+# discovers; production enumerates the Nix plugin registry, never this tree.
 cat > "$config_home/stillsuit/runtime-discovery.json" <<JSON
 {
   "seed": "$config_home/stillsuit/seed.json",
-  "roots": ["$plugin_root", "$source_root/plugins/builtin"],
+  "roots": ["$plugin_root", "$source_root/plugins/builtin", "$source_root/workbench/plugins"],
   "state": "$state_home/stillsuit",
   "core": "$source_root",
   "schema": "$schema_path",

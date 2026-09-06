@@ -9,7 +9,7 @@ defaults it to the accessible name. Hover exit and panel selection hide it.
 domain states such as low battery or charging. `secondaryIconSource` and
 `secondaryLabel` add a second icon/value pair inside the same click target.
 
-`ShellIcon` renders a vendored SVG from `icons/` (see `icons/manifest.tsv`) tinted
+`ShellIcon` renders a generated SVG from `icons/` (see `icons/README.md`) tinted
 with the requested theme role. Setting `source` renders that image with its own
 colors instead, falling back to the named icon while it is unavailable. `ShellEmptyRow` supplies the compact
 icon-and-caption empty treatment used by the media section.

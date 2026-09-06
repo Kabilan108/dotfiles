@@ -7,7 +7,7 @@ Item {
     id: root
 
     required property var theme
-    // Symbolic icon from the vendored catalog, tinted with the role color.
+    // Symbolic icon from the generated catalog in icons/, tinted with the role color.
     property string name: "circle"
     // Optional caller-supplied image (plugin assets such as provider marks).
     // Rendered with its own colors; the named icon shows while it is unavailable.
