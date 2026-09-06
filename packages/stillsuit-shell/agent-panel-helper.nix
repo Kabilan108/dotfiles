@@ -3,7 +3,6 @@
   stdenvNoCC,
   makeWrapper,
   bash,
-  codex,
   coreutils,
   ghostty,
   gnugrep,
@@ -15,7 +14,6 @@
 let
   runtimeInputs = [
     bash
-    codex
     coreutils
     ghostty
     gnugrep
@@ -39,8 +37,10 @@ stdenvNoCC.mkDerivation {
     install -Dm0755 "$src" "$out/libexec/stillsuit-agent-panel"
     substituteInPlace "$out/libexec/stillsuit-agent-panel" \
       --replace-fail '#!/usr/bin/env bash' '#!${lib.getExe bash}'
+    # The helper's own tools are pinned; the configured agent command resolves
+    # against the session PATH that tmux inherits, so any agent can be used.
     makeWrapper "$out/libexec/stillsuit-agent-panel" "$out/bin/stillsuit-agent-panel" \
-      --set PATH ${lib.escapeShellArg (lib.makeBinPath runtimeInputs)} \
+      --prefix PATH : ${lib.escapeShellArg (lib.makeBinPath runtimeInputs)} \
       --set STILLSUIT_AGENT_PANEL_SELF "$out/bin/stillsuit-agent-panel"
 
     runHook postInstall
@@ -51,7 +51,7 @@ stdenvNoCC.mkDerivation {
   };
 
   meta = {
-    description = "Fixed-action Stillsuit Codex quake-panel helper";
+    description = "Fixed-action Stillsuit agent quake-panel helper";
     license = lib.licenses.mit;
     mainProgram = "stillsuit-agent-panel";
     platforms = lib.platforms.linux;

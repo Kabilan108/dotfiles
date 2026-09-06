@@ -4,6 +4,7 @@ set -euo pipefail
 TEST_DIR=$(mktemp -d)
 readonly TEST_DIR
 HELPER=${HELPER:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)/bin/stillsuit-agent-panel}
+export HELPER
 readonly HELPER
 PLUGIN_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 readonly PLUGIN_ROOT
@@ -61,7 +62,7 @@ cat >"$TEST_DIR/bin/tmux" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 require_exact_target() {
-  [[ ${2:-} == -t && ${3:-} == =stillsuit-agent ]] || {
+  [[ ${2:-} == -t && ${3:-} == =stillsuit ]] || {
     printf 'non-exact tmux target: %q\n' "$*" >&2
     exit 97
   }
@@ -77,13 +78,16 @@ case ${1:-} in
     if [[ -e $FIXTURE_ROOT/dead ]]; then printf '1\n'; else printf '0\n'; fi
     ;;
   new-session)
-    [[ ${2:-} == -d && ${3:-} == -s && ${4:-} == stillsuit-agent ]] || exit 97
+    [[ ${2:-} == -d && ${3:-} == -s && ${4:-} == stillsuit ]] || exit 97
     touch "$FIXTURE_ROOT/session"
     rm -f "$FIXTURE_ROOT/dead"
     count=0
     [[ -r $FIXTURE_ROOT/session-count ]] && count=$(<"$FIXTURE_ROOT/session-count")
     printf '%s\n' "$((count + 1))" >"$FIXTURE_ROOT/session-count"
     : >"$FIXTURE_ROOT/codex.argv"
+    for ((i = 1; i <= $#; i++)); do
+      if [[ ${!i} == -c ]]; then j=$((i + 1)); printf '%s\n' "${!j}" >"$FIXTURE_ROOT/session-cwd"; fi
+    done
     found=false
     for arg in "$@"; do
       if [[ $found == true ]]; then printf '%s\n' "$arg" >>"$FIXTURE_ROOT/codex.argv"; fi
@@ -92,7 +96,12 @@ case ${1:-} in
     exit 0
     ;;
   set-option)
-    require_exact_target "$@"
+    # tmux 3.7 rejects the = prefix on set-option targets; the helper passes
+    # the bare session name here and the exact target everywhere else.
+    [[ ${2:-} == -t && ${3:-} == stillsuit ]] || {
+      printf 'set-option target must be the bare session name: %q\n' "$*" >&2
+      exit 97
+    }
     printf '%s\n' "$*" >>"$FIXTURE_ROOT/tmux-options"
     ;;
   kill-session)
@@ -152,8 +161,10 @@ EOF
 cat >"$TEST_DIR/bin/ghostty" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+# Ghostty 1.3 prepends --posix to the command; the helper therefore hands
+# Ghostty its own `attach` action and strips that flag before dispatching.
 [[ $# -eq 3 && $1 == +new-window && $2 == "--title=Stillsuit Agent"
-   && $3 == "--command=direct:tmux attach-session -t =stillsuit-agent" ]] || exit 97
+   && $3 == "--command=direct:$HELPER attach" ]] || exit 97
 printf '%s\n' "$@" >"$FIXTURE_ROOT/ghostty.argv"
 count=0
 [[ -r $FIXTURE_ROOT/new-window-count ]] && count=$(<"$FIXTURE_ROOT/new-window-count")
@@ -166,12 +177,8 @@ else
 fi
 EOF
 
-cat >"$TEST_DIR/bin/codex" <<'EOF'
-#!/usr/bin/env bash
-exit 99
-EOF
-
-chmod +x "$TEST_DIR/bin/tmux" "$TEST_DIR/bin/niri" "$TEST_DIR/bin/ghostty" "$TEST_DIR/bin/codex"
+chmod +x "$TEST_DIR/bin/tmux" "$TEST_DIR/bin/niri" "$TEST_DIR/bin/ghostty"
+mkdir -p "$HOME/dotfiles"
 
 reset_fixture() {
   if [[ -r $FIXTURE_ROOT/ghostty.pids ]]; then
@@ -195,14 +202,15 @@ reset_fixture
 assert_eq running "$("$HELPER" status | jq -r .session)" "absent session launch"
 mapfile -t argv <"$FIXTURE_ROOT/codex.argv"
 expected=(codex --yolo --model gpt-5.6-sol --config model_reasoning_effort=low --config service_tier=fast)
-assert_eq "${expected[*]}" "${argv[*]}" "fixed default Codex argv"
+assert_eq "${expected[*]}" "${argv[*]}" "default agent argv"
+assert_eq "$HOME/dotfiles" "$(<"$FIXTURE_ROOT/session-cwd")" "default working directory is ~/dotfiles"
 mapfile -t ghostty_argv <"$FIXTURE_ROOT/ghostty.argv"
 assert_eq "+new-window" "${ghostty_argv[0]}" "shared Ghostty request"
-grep -Fx 'set-option -t =stillsuit-agent set-titles off' "$FIXTURE_ROOT/tmux-options" >/dev/null ||
+grep -Fx 'set-option -t stillsuit set-titles off' "$FIXTURE_ROOT/tmux-options" >/dev/null ||
   fail "agent session did not disable title rewriting"
 assert_eq 1 "$("$HELPER" status | jq -r .windowCount)" "window identity rejects title and app-ID near misses"
-[[ " ${ghostty_argv[*]} " == *" --command=direct:tmux attach-session -t =stillsuit-agent "* ]] ||
-  fail "Ghostty did not receive an exact direct tmux attach target"
+[[ " ${ghostty_argv[*]} " == *" --command=direct:$HELPER attach "* ]] ||
+  fail "Ghostty did not receive the helper's own attach action"
 assert_eq false "$("$HELPER" status | jq -r .launchPending)" "settled launch status"
 
 if "$HELPER" open injected >/dev/null 2>&1; then
@@ -211,12 +219,31 @@ fi
 
 reset_fixture
 cat >"$XDG_CONFIG_HOME/stillsuit/agent-panel.json" <<'EOF'
-{"model":"gpt-5.6-sol;touch /tmp/pwned","reasoningEffort":"low","serviceTier":"fast","command":"sh"}
+{"command":"sh -c 'touch /tmp/pwned'","workingDirectory":"~/dotfiles"}
 EOF
 if "$HELPER" open >/dev/null 2>&1; then
-  fail "hostile config was accepted"
+  fail "string command was accepted"
 fi
-[[ ! -e $FIXTURE_ROOT/session ]] || fail "hostile config started a session"
+[[ ! -e $FIXTURE_ROOT/session ]] || fail "string command started a session"
+
+reset_fixture
+cat >"$XDG_CONFIG_HOME/stillsuit/agent-panel.json" <<'EOF'
+{"command":["sh"],"workingDirectory":"/nonexistent/dir"}
+EOF
+if "$HELPER" open >/dev/null 2>&1; then
+  fail "missing working directory was accepted"
+fi
+
+reset_fixture
+mkdir -p "$HOME/project one"
+cat >"$XDG_CONFIG_HOME/stillsuit/agent-panel.json" <<'EOF'
+{"command":["claude","--model","opus","-p","hello world; echo pwned"],"workingDirectory":"~/project one"}
+EOF
+"$HELPER" open >/dev/null
+mapfile -t argv <"$FIXTURE_ROOT/codex.argv"
+expected=(claude --model opus -p "hello world; echo pwned")
+assert_eq "${expected[*]}" "${argv[*]}" "custom argv passes through unsplit"
+assert_eq "$HOME/project one" "$(<"$FIXTURE_ROOT/session-cwd")" "custom working directory with a space"
 
 reset_fixture
 printf '73\n' >"$FIXTURE_ROOT/window"
@@ -290,12 +317,12 @@ EOF
 chmod +x "$TEST_DIR/real-bin/tmux"
 export REAL_TMUX FIXTURE_TMUX_SOCKET
 export PATH="$TEST_DIR/real-bin:$REAL_PATH"
-"$REAL_TMUX" -S "$FIXTURE_TMUX_SOCKET" new-session -d -s stillsuit-agent-extra sleep 60
+"$REAL_TMUX" -S "$FIXTURE_TMUX_SOCKET" new-session -d -s stillsuit-extra sleep 60
 assert_eq absent "$("$HELPER" status | jq -r .session)" "real tmux prefix decoy ignored"
-"$REAL_TMUX" -S "$FIXTURE_TMUX_SOCKET" new-session -d -s stillsuit-agent sleep 60
+"$REAL_TMUX" -S "$FIXTURE_TMUX_SOCKET" new-session -d -s stillsuit sleep 60
 assert_eq running "$("$HELPER" status | jq -r .session)" "real tmux exact session found"
 "$HELPER" terminate >/dev/null
-"$REAL_TMUX" -S "$FIXTURE_TMUX_SOCKET" has-session -t =stillsuit-agent-extra ||
+"$REAL_TMUX" -S "$FIXTURE_TMUX_SOCKET" has-session -t =stillsuit-extra ||
   fail "terminate killed the prefixed real tmux decoy"
 
 printf 'agent-panel fixtures: ok\n'

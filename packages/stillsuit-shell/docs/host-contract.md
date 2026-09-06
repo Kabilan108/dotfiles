@@ -171,10 +171,9 @@ paths from `HOME`, mix XDG and project conventions, or write Home Manager-owned
 defaults. Writable state uses a service-owned, versioned file below the
 injected root.
 
-The agent panel's model, reasoning effort, and service tier are the one v1
-runtime configuration exception. Its helper reads
-`configRoot/agent-panel.json`; IPC still cannot change those values or its
-command.
+The agent panel's command (an argv array) and working directory are the one
+v1 runtime configuration exception. Its helper reads
+`configRoot/agent-panel.json`; IPC still cannot change those values.
 
 ### `actions`
 
@@ -264,8 +263,7 @@ or whole-shell kill endpoint.
 | `stillsuit-agent-panel` | `terminate` | none | helper status |
 
 The agent-panel methods pass one literal action to the fixed helper. They do
-not accept a model, reasoning effort, service tier, working directory, prompt,
-or extra argument.
+not accept a command, working directory, prompt, or extra argument.
 
 ## Failure containment and fallback
 

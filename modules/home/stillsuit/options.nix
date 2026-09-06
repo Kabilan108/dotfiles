@@ -122,36 +122,29 @@ in
     };
 
     integrations.agentPanelDefaults = {
-      model = mkOption {
-        type = types.enum [
+      command = mkOption {
+        type = types.nonEmptyListOf types.str;
+        default = [
+          "codex"
+          "--yolo"
+          "--model"
           "gpt-5.6-sol"
-          "gpt-5.6-terra"
-          "gpt-5.6-luna"
+          "--config"
+          "model_reasoning_effort=low"
+          "--config"
+          "service_tier=fast"
         ];
-        default = "gpt-5.6-sol";
-        description = "Initial agent-panel model, written only when its runtime configuration is absent.";
+        description = ''
+          Initial agent command as an argv list, run inside the panel's tmux
+          session. Written only when the runtime configuration is absent; edit
+          ~/.config/stillsuit/agent-panel.json to change it without a rebuild.
+        '';
       };
 
-      reasoningEffort = mkOption {
-        type = types.enum [
-          "low"
-          "medium"
-          "high"
-          "xhigh"
-          "max"
-          "ultra"
-        ];
-        default = "low";
-        description = "Initial agent-panel reasoning effort, written only when its runtime configuration is absent.";
-      };
-
-      serviceTier = mkOption {
-        type = types.enum [
-          "fast"
-          "priority"
-        ];
-        default = "fast";
-        description = "Initial agent-panel service tier, written only when its runtime configuration is absent.";
+      workingDirectory = mkOption {
+        type = types.str;
+        default = "~/dotfiles";
+        description = "Initial working directory for the agent; `~` expands to HOME.";
       };
     };
 

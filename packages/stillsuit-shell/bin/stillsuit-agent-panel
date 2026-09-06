@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly SESSION_NAME="stillsuit-agent"
+readonly SESSION_NAME="stillsuit"
 readonly SESSION_TARGET="=$SESSION_NAME"
 readonly APP_ID="com.mitchellh.ghostty"
 readonly WINDOW_TITLE="Stillsuit Agent"
-readonly DEFAULT_MODEL="gpt-5.6-sol"
-readonly DEFAULT_EFFORT="low"
-readonly DEFAULT_TIER="fast"
+readonly DEFAULT_COMMAND_JSON='["codex","--yolo","--model","gpt-5.6-sol","--config","model_reasoning_effort=low","--config","service_tier=fast"]'
+readonly DEFAULT_WORKING_DIRECTORY="$HOME/dotfiles"
 readonly SHUTDOWN_POLL_INTERVAL="0.05"
 readonly SHUTDOWN_POLL_ATTEMPTS=100
 readonly WINDOW_OPEN_POLL_INTERVAL="0.05"
@@ -82,6 +81,8 @@ session_state() {
   fi
 }
 
+# The config supplies the agent as an argv array and a working directory.
+# It is data, never a shell fragment: each element becomes one tmux argument.
 read_launch_config() {
   local config
   if [[ -e $CONFIG_FILE ]]; then
@@ -91,28 +92,28 @@ read_launch_config() {
     }
     config=$(<"$CONFIG_FILE")
   else
-    config=$(jq -cn \
-      --arg model "$DEFAULT_MODEL" \
-      --arg effort "$DEFAULT_EFFORT" \
-      --arg tier "$DEFAULT_TIER" \
-      '{model: $model, reasoningEffort: $effort, serviceTier: $tier}')
+    config=$(jq -cn --argjson command "$DEFAULT_COMMAND_JSON" --arg directory "$DEFAULT_WORKING_DIRECTORY" \
+      '{command: $command, workingDirectory: $directory}')
   fi
 
   jq -e '
     type == "object" and
-    (keys | sort) == ["model", "reasoningEffort", "serviceTier"] and
-    (.model | type == "string" and IN("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")) and
-    (.reasoningEffort | type == "string" and IN("low", "medium", "high", "xhigh", "max", "ultra")) and
-    (.serviceTier | type == "string" and IN("fast", "priority"))
+    (keys | sort) == ["command", "workingDirectory"] and
+    (.command | type == "array" and length > 0 and all(type == "string" and length > 0)) and
+    (.workingDirectory | type == "string" and length > 0)
   ' >/dev/null <<<"$config" || {
     printf 'invalid agent panel config: %s\n' "$CONFIG_FILE" >&2
     return 78
   }
 
-  MODEL=$(jq -r '.model' <<<"$config")
-  EFFORT=$(jq -r '.reasoningEffort' <<<"$config")
-  TIER=$(jq -r '.serviceTier' <<<"$config")
-  readonly MODEL EFFORT TIER
+  mapfile -t AGENT_COMMAND < <(jq -r '.command[]' <<<"$config")
+  WORKING_DIRECTORY=$(jq -r '.workingDirectory' <<<"$config")
+  WORKING_DIRECTORY=${WORKING_DIRECTORY/#\~/$HOME}
+  [[ $WORKING_DIRECTORY == /* && -d $WORKING_DIRECTORY ]] || {
+    printf 'agent panel working directory is not an absolute existing directory: %s\n' "$WORKING_DIRECTORY" >&2
+    return 78
+  }
+  readonly AGENT_COMMAND WORKING_DIRECTORY
 }
 
 wait_for_windows_closed() {
@@ -187,10 +188,7 @@ ensure_session() {
   esac
 
   read_launch_config
-  tmux new-session -d -s "$SESSION_NAME" -c "$HOME" -- \
-    codex --yolo --model "$MODEL" \
-    --config "model_reasoning_effort=$EFFORT" \
-    --config "service_tier=$TIER"
+  tmux new-session -d -s "$SESSION_NAME" -c "$WORKING_DIRECTORY" -- "${AGENT_COMMAND[@]}"
   tmux set-option -t "$SESSION_NAME" remain-on-exit on >/dev/null
   tmux set-option -t "$SESSION_NAME" set-titles off >/dev/null
 }
