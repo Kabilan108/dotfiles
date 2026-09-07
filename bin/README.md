@@ -30,7 +30,7 @@ useful bash tools. some of these are used as part of my desktop env others are j
   uses fzf to select directories or ssh hosts, and opens them in a new or split tmux window.
 
 - [sessionizer](./sessionizer):
-  fleet-aware tmux session manager and project directory jumper with an fzf picker. It lists sessions and unused project directories from reachable machines; Tab cycles the active machine filter. Remote selections replace the local tmux client over SSH and can return to the origin machine's picker without mirroring tmux state.
+  fleet-aware tmux session manager and project directory jumper with an fzf picker. It lists sessions and unused project directories from reachable machines; Tab and Shift-Tab cycle the active machine filter. Remote selections replace the local tmux client over SSH and can return to the origin machine's picker without mirroring tmux state.
 
 - [set-wallpaper](./set-wallpaper):
   sets wallpaper using the `feh` utility, loading the path from a variable.

@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, NoReturn
 
-VERSION = "0.6.0"
+VERSION = "0.6.1"
 
 MACHINE_COLUMN_WIDTH = 10
 SESSION_COLUMN_WIDTH = 32
@@ -603,7 +603,7 @@ def picker_header(machine: str = "") -> str:
     label = machine.upper() if machine else "ALL"
     return (
         f"{label:<{MACHINE_COLUMN_WIDTH}} │ "
-        f"{'SESSION':<{SESSION_COLUMN_WIDTH}} │ DETAILS  Tab cycles machine"
+        f"{'SESSION':<{SESSION_COLUMN_WIDTH}} │ DETAILS  Tab and Shift-Tab cycle machine"
     )
 
 
@@ -641,7 +641,7 @@ def machine_rows_command(snapshot: Path, state: Path) -> str:
     return shlex.join([str(SCRIPT_PATH), "--machine-rows", str(snapshot), str(state)])
 
 
-def cycle_machine(snapshot_value: str, state_value: str) -> None:
+def cycle_machine(snapshot_value: str, state_value: str, direction: str) -> None:
     snapshot = Path(snapshot_value)
     state = Path(state_value)
     machines = list(
@@ -662,7 +662,13 @@ def cycle_machine(snapshot_value: str, state_value: str) -> None:
         index = filters.index(current)
     except ValueError:
         index = 0
-    selected = filters[(index + 1) % len(filters)]
+    if direction == "forward":
+        offset = 1
+    elif direction == "backward":
+        offset = -1
+    else:
+        raise SessionizerError(f"invalid machine cycle direction: {direction}")
+    selected = filters[(index + offset) % len(filters)]
     temporary = state.with_suffix(f".{os.getpid()}.tmp")
     temporary.write_text(selected + "\n", encoding="utf-8")
     temporary.replace(state)
@@ -725,8 +731,23 @@ def picker(
             json.dumps(overrides, separators=(",", ":")),
         ]
     )
-    cycle_machine_command = shlex.join(
-        [str(SCRIPT_PATH), "--cycle-machine", str(snapshot), str(state)]
+    cycle_machine_forward = shlex.join(
+        [
+            str(SCRIPT_PATH),
+            "--cycle-machine",
+            str(snapshot),
+            str(state),
+            "forward",
+        ]
+    )
+    cycle_machine_backward = shlex.join(
+        [
+            str(SCRIPT_PATH),
+            "--cycle-machine",
+            str(snapshot),
+            str(state),
+            "backward",
+        ]
     )
     modal_keys = sorted(set(SWITCH_TYPING_KEYS) | set(SWITCH_NORMAL_KEYS))
     edit_keys = ",".join(SWITCH_EDIT_KEYS)
@@ -758,7 +779,8 @@ def picker(
         + " || echo abort"
     )
     bindings.append("change:first")
-    bindings.append("tab:transform(" + cycle_machine_command + ")")
+    bindings.append("tab:transform(" + cycle_machine_forward + ")")
+    bindings.append("btab:transform(" + cycle_machine_backward + ")")
     bindings.append("load:bg-transform(" + refresh_command + ")+unbind(load)")
 
     command = [
@@ -1294,7 +1316,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--preview-directory", help=argparse.SUPPRESS)
     parser.add_argument("--refresh-picker", nargs=4, help=argparse.SUPPRESS)
     parser.add_argument("--machine-rows", nargs=2, help=argparse.SUPPRESS)
-    parser.add_argument("--cycle-machine", nargs=2, help=argparse.SUPPRESS)
+    parser.add_argument("--cycle-machine", nargs=3, help=argparse.SUPPRESS)
     parser.add_argument("--inventory", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--ensure-directory-session", help=argparse.SUPPRESS)
     parser.add_argument("--is-managed", help=argparse.SUPPRESS)
