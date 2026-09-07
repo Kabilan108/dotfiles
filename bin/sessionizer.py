@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, NoReturn
 
-VERSION = "0.4.1"
+VERSION = "0.4.2"
 
 MACHINE_COLUMN_WIDTH = 10
 SESSION_COLUMN_WIDTH = 32
@@ -429,6 +429,8 @@ def directory_candidates(config: Config, overrides: list[str]) -> list[Candidate
         raise SessionizerError("missing required command: fd")
 
     roots = overrides or list(config.search_paths)
+    host = socket.gethostname()
+    color = os.environ.get("FLEET_HOST_HEX", "")
     seen: set[Path] = set()
     result: list[Candidate] = []
     for value in roots:
@@ -452,6 +454,8 @@ def directory_candidates(config: Config, overrides: list[str]) -> list[Candidate
                     name=path.name or str(path),
                     target=str(path),
                     detail=str(path),
+                    host=host,
+                    color=color,
                 )
             )
     return result
@@ -468,18 +472,14 @@ def all_candidates(
 
 
 def render_row(candidate: Candidate) -> str:
+    machine = colorize(
+        fit_column(candidate.host, MACHINE_COLUMN_WIDTH), candidate.color
+    )
+    name = fit_column(candidate.name, SESSION_COLUMN_WIDTH)
+    detail = sanitize_field(candidate.detail)
     if candidate.kind == "directory":
-        machine = colorize(fit_column("󰉋", MACHINE_COLUMN_WIDTH), DIRECTORY_COLOR)
-        name = colorize(
-            fit_column(candidate.name, SESSION_COLUMN_WIDTH), DIRECTORY_COLOR
-        )
-        detail = colorize(sanitize_field(candidate.detail), DIRECTORY_COLOR)
-    else:
-        machine = colorize(
-            fit_column(candidate.host, MACHINE_COLUMN_WIDTH), candidate.color
-        )
-        name = fit_column(candidate.name, SESSION_COLUMN_WIDTH)
-        detail = sanitize_field(candidate.detail)
+        name = colorize(name, DIRECTORY_COLOR)
+        detail = colorize(detail, DIRECTORY_COLOR)
     display = f"{machine} │ {name} │ {detail}"
     return f"{candidate.identity}\t{candidate.token()}\t{display}"
 
@@ -565,6 +565,7 @@ def picker(
         + shlex.quote(normal_action)
         + " || echo abort"
     )
+    bindings.append("change:first")
     bindings.append("load:bg-transform(" + refresh_command + ")+unbind(load)")
 
     command = [
@@ -573,6 +574,7 @@ def picker(
         "--reverse",
         "--no-multi",
         "--cycle",
+        "--exact",
         "--info=inline",
         "--print-query",
         "--prompt",
@@ -585,7 +587,8 @@ def picker(
         "3",
         "--nth",
         "1",
-        "--track",
+        "--scheme=default",
+        "--tiebreak=begin,length,index",
         "--id-nth",
         "1",
         "--preview",
