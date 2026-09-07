@@ -10,8 +10,8 @@ let
 in
 {
   programs.waybar = {
-    enable = false;
-    systemd.enable = false;
+    enable = waylandCompositor != "niri";
+    systemd.enable = waylandCompositor != "niri";
 
     settings = {
       mainBar = {

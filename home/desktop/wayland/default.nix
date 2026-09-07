@@ -1,4 +1,5 @@
 {
+  lib,
   pkgs,
   waylandCompositor,
   ...
@@ -8,9 +9,9 @@
     ./screenshots.nix
     ./waybar.nix
     ./walker.nix
-    ./quickshell
     (./compositors + "/${waylandCompositor}")
-  ];
+  ]
+  ++ lib.optionals (waylandCompositor == "niri") [ ./quickshell ];
 
   home.packages = with pkgs; [
     wl-clipboard
