@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, NoReturn
 
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 
 MACHINE_COLUMN_WIDTH = 10
 SESSION_COLUMN_WIDTH = 32
@@ -76,7 +76,6 @@ class Config:
     search_paths: tuple[str, ...]
     max_depth: int
     ignore: tuple[str, ...]
-    session_commands: tuple[str, ...]
     remote_hosts: tuple[str, ...]
 
 
@@ -147,7 +146,6 @@ DEFAULT_CONFIG = Config(
     search_paths=("~/", "~/repos", "~/gists"),
     max_depth=1,
     ignore=("node_modules", ".git", "target"),
-    session_commands=("claude", "codex", "opencode"),
     remote_hosts=("sietch",),
 )
 
@@ -161,7 +159,6 @@ def load_config() -> Config:
         search_paths = tuple(str(value) for value in raw["search_paths"])
         max_depth = int(raw.get("max_depth", 1))
         ignore = tuple(str(value) for value in raw.get("ignore", []))
-        session_commands = tuple(str(value) for value in raw["session_commands"])
         remote_hosts = tuple(str(value) for value in raw.get("remote_hosts", []))
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         raise SessionizerError(
@@ -170,7 +167,7 @@ def load_config() -> Config:
 
     if max_depth < 0:
         raise SessionizerError("max_depth must be non-negative")
-    return Config(search_paths, max_depth, ignore, session_commands, remote_hosts)
+    return Config(search_paths, max_depth, ignore, remote_hosts)
 
 
 def write_default_config() -> None:
@@ -181,7 +178,6 @@ def write_default_config() -> None:
         "search_paths": list(DEFAULT_CONFIG.search_paths),
         "max_depth": DEFAULT_CONFIG.max_depth,
         "ignore": list(DEFAULT_CONFIG.ignore),
-        "session_commands": list(DEFAULT_CONFIG.session_commands),
         "remote_hosts": list(DEFAULT_CONFIG.remote_hosts),
     }
     CONFIG_PATH.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
@@ -603,6 +599,79 @@ def render_rows(candidates: list[Candidate]) -> str:
     return "\n".join(render_row(candidate) for candidate in candidates) + "\n"
 
 
+def picker_header(machine: str = "") -> str:
+    label = machine.upper() if machine else "ALL"
+    return (
+        f"{label:<{MACHINE_COLUMN_WIDTH}} │ "
+        f"{'SESSION':<{SESSION_COLUMN_WIDTH}} │ DETAILS  Tab cycles machine"
+    )
+
+
+def snapshot_candidates(snapshot: Path) -> list[tuple[str, Candidate]]:
+    try:
+        rows = snapshot.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+
+    result: list[tuple[str, Candidate]] = []
+    for row in rows:
+        fields = row.split("\t", 2)
+        if len(fields) < 2:
+            continue
+        with contextlib.suppress(SessionizerError):
+            result.append((row, Candidate.from_token(fields[1])))
+    return result
+
+
+def read_machine_filter(state: Path) -> str:
+    try:
+        return state.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def print_machine_rows(snapshot_value: str, state_value: str) -> None:
+    machine = read_machine_filter(Path(state_value))
+    for row, candidate in snapshot_candidates(Path(snapshot_value)):
+        if not machine or candidate.host == machine:
+            print(row)
+
+
+def machine_rows_command(snapshot: Path, state: Path) -> str:
+    return shlex.join([str(SCRIPT_PATH), "--machine-rows", str(snapshot), str(state)])
+
+
+def cycle_machine(snapshot_value: str, state_value: str) -> None:
+    snapshot = Path(snapshot_value)
+    state = Path(state_value)
+    machines = list(
+        dict.fromkeys(
+            candidate.host
+            for _, candidate in snapshot_candidates(snapshot)
+            if candidate.host
+        )
+    )
+    local_host = socket.gethostname()
+    if local_host in machines:
+        machines.remove(local_host)
+        machines.insert(0, local_host)
+
+    filters = ["", *machines]
+    current = read_machine_filter(state)
+    try:
+        index = filters.index(current)
+    except ValueError:
+        index = 0
+    selected = filters[(index + 1) % len(filters)]
+    temporary = state.with_suffix(f".{os.getpid()}.tmp")
+    temporary.write_text(selected + "\n", encoding="utf-8")
+    temporary.replace(state)
+    print(
+        f"reload({machine_rows_command(snapshot, state)})"
+        f"+change-header({picker_header(selected)})+first"
+    )
+
+
 SWITCH_TYPING_KEYS = [
     *[chr(value) for value in range(ord("a"), ord("z") + 1)],
     *[chr(value) for value in range(ord("A"), ord("Z") + 1)],
@@ -639,15 +708,25 @@ def picker(
     os.close(descriptor)
     snapshot = Path(snapshot_name)
     snapshot.write_text(rows, encoding="utf-8")
+    descriptor, state_name = tempfile.mkstemp(
+        prefix="picker-machine-", suffix=".txt", dir=CACHE_DIR
+    )
+    os.close(descriptor)
+    state = Path(state_name)
+    state.write_text("\n", encoding="utf-8")
 
     refresh_command = shlex.join(
         [
             str(SCRIPT_PATH),
             "--refresh-picker",
             str(snapshot),
+            str(state),
             origin_session,
             json.dumps(overrides, separators=(",", ":")),
         ]
+    )
+    cycle_machine_command = shlex.join(
+        [str(SCRIPT_PATH), "--cycle-machine", str(snapshot), str(state)]
     )
     modal_keys = sorted(set(SWITCH_TYPING_KEYS) | set(SWITCH_NORMAL_KEYS))
     edit_keys = ",".join(SWITCH_EDIT_KEYS)
@@ -679,6 +758,7 @@ def picker(
         + " || echo abort"
     )
     bindings.append("change:first")
+    bindings.append("tab:transform(" + cycle_machine_command + ")")
     bindings.append("load:bg-transform(" + refresh_command + ")+unbind(load)")
 
     command = [
@@ -694,7 +774,7 @@ def picker(
         "--prompt",
         "insert> ",
         "--header",
-        f"{'MACHINE':<{MACHINE_COLUMN_WIDTH}} │ {'SESSION':<{SESSION_COLUMN_WIDTH}} │ DETAILS",
+        picker_header(),
         "--delimiter",
         "\t",
         "--with-nth",
@@ -724,6 +804,7 @@ def picker(
         )
     finally:
         snapshot.unlink(missing_ok=True)
+        state.unlink(missing_ok=True)
 
     output = result.stdout.splitlines()
     if result.returncode != 0 or len(output) < 2:
@@ -736,9 +817,13 @@ def picker(
 
 
 def refresh_picker(
-    snapshot_value: str, origin_session: str, overrides_value: str
+    snapshot_value: str,
+    state_value: str,
+    origin_session: str,
+    overrides_value: str,
 ) -> None:
     snapshot = Path(snapshot_value)
+    state = Path(state_value)
     config = load_config()
     try:
         overrides = [str(value) for value in json.loads(overrides_value)]
@@ -755,7 +840,7 @@ def refresh_picker(
     temporary = snapshot.with_suffix(f".{os.getpid()}.tmp")
     temporary.write_text(rows, encoding="utf-8")
     temporary.replace(snapshot)
-    print("reload(cat " + shlex.quote(str(snapshot)) + ")")
+    print("reload(" + machine_rows_command(snapshot, state) + ")")
 
 
 def parse_panes(output: str) -> list[Pane]:
@@ -1197,58 +1282,6 @@ def begin_travel(candidate: Candidate) -> None:
     tmux(*args, "-E", command)
 
 
-def handle_session_command(index: int, split: str | None, config: Config) -> None:
-    if not os.environ.get("TMUX"):
-        raise SessionizerError("session commands require a running tmux client")
-    if index < 0 or index >= len(config.session_commands):
-        raise SessionizerError(
-            f"session command index must be between 0 and {len(config.session_commands) - 1}"
-        )
-
-    command = config.session_commands[index]
-    session = tmux("display-message", "-p", "#{session_id}")
-    if split is None:
-        window_index = 10 + index
-        target = f"{session}:{window_index}"
-        exists = tmux(
-            "list-windows", "-t", session, "-F", "#{window_index}", check=False
-        ).splitlines()
-        if str(window_index) not in exists:
-            tmux("new-window", "-d", "-t", target, command)
-        tmux("select-window", "-t", target)
-        return
-
-    key = f"{index}:{split}"
-    listing = tmux(
-        "list-panes",
-        "-s",
-        "-t",
-        session,
-        "-F",
-        "#{pane_id}\t#{@sessionizer-command}",
-        check=False,
-    )
-    for line in listing.splitlines():
-        pane_id, _, pane_key = line.partition("\t")
-        if pane_key == key:
-            tmux("select-pane", "-t", pane_id)
-            return
-
-    current_path = tmux("display-message", "-p", "#{pane_current_path}")
-    flag = "-h" if split == "vsplit" else "-v"
-    pane_id = tmux(
-        "split-window",
-        flag,
-        "-c",
-        current_path,
-        "-P",
-        "-F",
-        "#{pane_id}",
-        command,
-    )
-    tmux("set-option", "-p", "-t", pane_id, "@sessionizer-command", key)
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sessionizer",
@@ -1257,13 +1290,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("search_paths", nargs="*")
     parser.add_argument("-v", "--version", action="store_true")
     parser.add_argument("--init", action="store_true")
-    parser.add_argument("-s", "--session", type=int)
-    split = parser.add_mutually_exclusive_group()
-    split.add_argument("--vsplit", action="store_true")
-    split.add_argument("--hsplit", action="store_true")
     parser.add_argument("--preview-token", help=argparse.SUPPRESS)
     parser.add_argument("--preview-directory", help=argparse.SUPPRESS)
-    parser.add_argument("--refresh-picker", nargs=3, help=argparse.SUPPRESS)
+    parser.add_argument("--refresh-picker", nargs=4, help=argparse.SUPPRESS)
+    parser.add_argument("--machine-rows", nargs=2, help=argparse.SUPPRESS)
+    parser.add_argument("--cycle-machine", nargs=2, help=argparse.SUPPRESS)
     parser.add_argument("--inventory", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--ensure-directory-session", help=argparse.SUPPRESS)
     parser.add_argument("--is-managed", help=argparse.SUPPRESS)
@@ -1289,6 +1320,12 @@ def main() -> int:
     if args.refresh_picker:
         refresh_picker(*args.refresh_picker)
         return 0
+    if args.machine_rows:
+        print_machine_rows(*args.machine_rows)
+        return 0
+    if args.cycle_machine:
+        cycle_machine(*args.cycle_machine)
+        return 0
     if args.is_managed:
         return 0 if is_managed_client(args.is_managed) else 1
     if args.remote_attach:
@@ -1303,13 +1340,6 @@ def main() -> int:
     if args.ensure_directory_session:
         print(ensure_directory_session(args.ensure_directory_session))
         return 0
-    if (args.vsplit or args.hsplit) and args.session is None:
-        raise SessionizerError("--vsplit and --hsplit require --session")
-    if args.session is not None:
-        split = "vsplit" if args.vsplit else "hsplit" if args.hsplit else None
-        handle_session_command(args.session, split, config)
-        return 0
-
     selected = picker(config, args.search_paths, current_session_id())
     if selected is None:
         return 0
