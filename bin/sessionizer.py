@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, NoReturn
 
-VERSION = "0.4.2"
+VERSION = "0.5.0"
 
 MACHINE_COLUMN_WIDTH = 10
 SESSION_COLUMN_WIDTH = 32
@@ -64,7 +64,7 @@ FLEET_HOSTS_PATH = (
 )
 SCRIPT_PATH = Path(__file__).resolve()
 
-CandidateKind = Literal["local", "remote", "directory"]
+CandidateKind = Literal["local", "remote", "directory", "remote-directory"]
 
 
 class SessionizerError(RuntimeError):
@@ -268,21 +268,74 @@ def fit_column(value: str, width: int) -> str:
     return value.ljust(width)
 
 
-def local_candidates(origin_session: str = "") -> list[Candidate]:
+def local_session_inventory() -> list[dict[str, str]]:
     listing = tmux(
         "list-sessions",
         "-F",
-        "#{session_id}\t#{session_activity}\t#{session_name}\t#{session_windows}\t#{session_attached}",
+        PANE_SEPARATOR.join(
+            (
+                "#{session_id}",
+                "#{session_activity}",
+                "#{session_name}",
+                "#{session_windows}",
+                "#{session_attached}",
+                "#{@sessionizer-path}",
+                "#{session_path}",
+            )
+        ),
         check=False,
     )
+    result: list[dict[str, str]] = []
+    for line in listing.splitlines():
+        fields = line.split(PANE_SEPARATOR, 6)
+        if len(fields) != 7:
+            continue
+        result.append(
+            dict(
+                zip(
+                    (
+                        "id",
+                        "activity",
+                        "name",
+                        "windows",
+                        "attached",
+                        "registered_path",
+                        "session_path",
+                    ),
+                    fields,
+                    strict=True,
+                )
+            )
+        )
+    return result
+
+
+def inventory_session_paths(inventory: list[dict[str, str]]) -> set[Path]:
+    result: set[Path] = set()
+    for session in inventory:
+        for key in ("registered_path", "session_path"):
+            value = session.get(key, "")
+            if not value:
+                continue
+            with contextlib.suppress(OSError):
+                result.add(Path(value).expanduser().resolve())
+    return result
+
+
+def local_candidates(
+    origin_session: str = "", inventory: list[dict[str, str]] | None = None
+) -> list[Candidate]:
+    if inventory is None:
+        inventory = local_session_inventory()
     local_color = os.environ.get("FLEET_HOST_HEX", "")
     host = socket.gethostname()
     candidates: list[tuple[int, Candidate]] = []
-    for line in listing.splitlines():
-        fields = line.split("\t", 4)
-        if len(fields) != 5:
-            continue
-        session_id, activity, name, windows, attached = fields
+    for session in inventory:
+        session_id = session["id"]
+        activity = session["activity"]
+        name = session["name"]
+        windows = session["windows"]
+        attached = session["attached"]
         detail = f"{windows} window{'s' if windows != '1' else ''}"
         if session_id == origin_session:
             detail += " (origin)"
@@ -313,9 +366,11 @@ def read_remote_cache(host: FleetHost) -> dict[str, Any]:
         raw = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(raw.get("sessions"), list):
             raise TypeError("sessions is not a list")
+        if not isinstance(raw.get("directories", []), list):
+            raise TypeError("directories is not a list")
         return raw
     except (OSError, TypeError, ValueError, json.JSONDecodeError):
-        return {"status": "connecting", "sessions": []}
+        return {"status": "connecting", "sessions": [], "directories": []}
 
 
 def write_remote_cache(host: FleetHost, data: dict[str, Any]) -> None:
@@ -324,6 +379,10 @@ def write_remote_cache(host: FleetHost, data: dict[str, Any]) -> None:
     temporary = path.with_suffix(f".{os.getpid()}.tmp")
     temporary.write_text(json.dumps(data), encoding="utf-8")
     temporary.replace(path)
+
+
+def remote_sessionizer_command(*args: str) -> str:
+    return '"$HOME/bin/sessionizer" ' + shlex.join(args)
 
 
 def refresh_remote_host(host: FleetHost) -> None:
@@ -345,35 +404,45 @@ def refresh_remote_host(host: FleetHost) -> None:
                     "-o",
                     "ConnectTimeout=2",
                     f"{host.name}-agent",
-                    "tmux list-sessions -F '#{session_id}\t#{session_name}\t#{session_windows}' 2>/dev/null",
+                    remote_sessionizer_command("--inventory"),
                 ],
                 check=False,
-                timeout=5,
+                timeout=15,
             )
         except SessionizerError:
             write_remote_cache(
                 host,
-                {"status": "offline", "sessions": previous.get("sessions", [])},
+                {
+                    "status": "offline",
+                    "sessions": previous.get("sessions", []),
+                    "directories": previous.get("directories", []),
+                },
             )
             return
-        sessions: list[dict[str, str]] = []
         if result.returncode == 0:
-            for line in result.stdout.splitlines():
-                fields = line.split("\t", 2)
-                if len(fields) != 3:
-                    continue
-                session_id, name, windows = fields
-                if re.fullmatch(r"\$\d+", session_id):
-                    sessions.append(
-                        {"id": session_id, "name": name, "windows": windows}
-                    )
-            data = {"status": "online", "sessions": sessions}
-        elif result.returncode == 1 and not result.stderr.strip():
-            data = {"status": "online", "sessions": []}
+            try:
+                inventory = json.loads(result.stdout)
+                sessions = inventory["sessions"]
+                directories = inventory["directories"]
+                if not isinstance(sessions, list) or not isinstance(directories, list):
+                    raise TypeError("inventory lists are invalid")
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+                data = {
+                    "status": "offline",
+                    "sessions": previous.get("sessions", []),
+                    "directories": previous.get("directories", []),
+                }
+            else:
+                data = {
+                    "status": "online",
+                    "sessions": sessions,
+                    "directories": directories,
+                }
         else:
             data = {
                 "status": "offline",
                 "sessions": previous.get("sessions", []),
+                "directories": previous.get("directories", []),
             }
         write_remote_cache(host, data)
 
@@ -413,6 +482,24 @@ def remote_candidates(allowed_hosts: tuple[str, ...]) -> list[Candidate]:
                     color=host.color,
                 )
             )
+        directories = cached.get("directories", [])
+        for raw in directories:
+            try:
+                name = str(raw["name"])
+                path = str(raw["path"])
+            except (KeyError, TypeError):
+                continue
+            result.append(
+                Candidate(
+                    identity=f"remote-directory:{host.name}:{path}",
+                    kind="remote-directory",
+                    name=name,
+                    target=path,
+                    detail=path,
+                    host=host.name,
+                    color=host.color,
+                )
+            )
     return result
 
 
@@ -423,7 +510,11 @@ def parse_search_path(value: str, default_depth: int) -> tuple[Path, int]:
     return Path(value).expanduser(), default_depth
 
 
-def directory_candidates(config: Config, overrides: list[str]) -> list[Candidate]:
+def directory_candidates(
+    config: Config,
+    overrides: list[str],
+    used_paths: set[Path] | None = None,
+) -> list[Candidate]:
     fd = shutil.which("fd") or shutil.which("fdfind")
     if fd is None:
         raise SessionizerError("missing required command: fd")
@@ -431,6 +522,7 @@ def directory_candidates(config: Config, overrides: list[str]) -> list[Candidate
     roots = overrides or list(config.search_paths)
     host = socket.gethostname()
     color = os.environ.get("FLEET_HOST_HEX", "")
+    used_paths = used_paths or set()
     seen: set[Path] = set()
     result: list[Candidate] = []
     for value in roots:
@@ -444,7 +536,7 @@ def directory_candidates(config: Config, overrides: list[str]) -> list[Candidate
         listing = run(command, check=False).stdout
         for line in listing.splitlines():
             path = Path(line).expanduser().resolve()
-            if path in seen or not path.is_dir():
+            if path in seen or path in used_paths or not path.is_dir():
                 continue
             seen.add(path)
             result.append(
@@ -464,11 +556,32 @@ def directory_candidates(config: Config, overrides: list[str]) -> list[Candidate
 def all_candidates(
     config: Config, overrides: list[str], origin_session: str = ""
 ) -> list[Candidate]:
+    inventory = local_session_inventory()
     return [
-        *local_candidates(origin_session),
+        *local_candidates(origin_session, inventory),
         *remote_candidates(config.remote_hosts),
-        *directory_candidates(config, overrides),
+        *directory_candidates(config, overrides, inventory_session_paths(inventory)),
     ]
+
+
+def print_inventory(config: Config) -> None:
+    inventory = local_session_inventory()
+    sessions = [
+        {
+            "id": session["id"],
+            "name": session["name"],
+            "windows": session["windows"],
+        }
+        for session in inventory
+        if re.fullmatch(r"\$\d+", session["id"])
+    ]
+    directories = [
+        {"name": candidate.name, "path": candidate.target}
+        for candidate in directory_candidates(
+            config, [], inventory_session_paths(inventory)
+        )
+    ]
+    print(json.dumps({"sessions": sessions, "directories": directories}))
 
 
 def render_row(candidate: Candidate) -> str:
@@ -477,7 +590,7 @@ def render_row(candidate: Candidate) -> str:
     )
     name = fit_column(candidate.name, SESSION_COLUMN_WIDTH)
     detail = sanitize_field(candidate.detail)
-    if candidate.kind == "directory":
+    if candidate.kind in {"directory", "remote-directory"}:
         name = colorize(name, DIRECTORY_COLOR)
         detail = colorize(detail, DIRECTORY_COLOR)
     display = f"{machine} │ {name} │ {detail}"
@@ -575,6 +688,7 @@ def picker(
         "--no-multi",
         "--cycle",
         "--exact",
+        "--no-hscroll",
         "--info=inline",
         "--print-query",
         "--prompt",
@@ -799,12 +913,8 @@ def render_session_preview(candidate: Candidate) -> None:
         print("M-s returns to the origin picker · prefix+d returns locally")
 
 
-def preview(candidate: Candidate) -> None:
-    if candidate.kind in {"local", "remote"}:
-        render_session_preview(candidate)
-        return
-
-    path = Path(candidate.target)
+def print_directory_preview(path_value: str) -> None:
+    path = Path(path_value)
     try:
         entries = sorted(path.iterdir(), key=lambda entry: entry.name.casefold())[:30]
     except OSError:
@@ -812,6 +922,31 @@ def preview(candidate: Candidate) -> None:
     for entry in entries:
         suffix = "/" if entry.is_dir() else ""
         print(entry.name + suffix)
+
+
+def preview(candidate: Candidate) -> None:
+    if candidate.kind in {"local", "remote"}:
+        render_session_preview(candidate)
+        return
+
+    if candidate.kind == "remote-directory":
+        result = run(
+            [
+                "ssh",
+                "-o",
+                "BatchMode=yes",
+                "-o",
+                "ConnectTimeout=2",
+                f"{candidate.host}-agent",
+                remote_sessionizer_command("--preview-directory", candidate.target),
+            ],
+            check=False,
+            timeout=5,
+        )
+        print(result.stdout, end="")
+        return
+
+    print_directory_preview(candidate.target)
 
 
 def marker_directory() -> Path:
@@ -876,6 +1011,37 @@ def remote_attach(target: str) -> int:
 def remote_command(target: str) -> str:
     executable = '"$HOME/bin/sessionizer"'
     return f"exec {executable} --remote-attach {shlex.quote(target)}"
+
+
+def ensure_remote_directory_session(candidate: Candidate) -> Candidate:
+    result = run(
+        [
+            "ssh",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=2",
+            f"{candidate.host}-agent",
+            remote_sessionizer_command("--ensure-directory-session", candidate.target),
+        ],
+        check=False,
+        timeout=15,
+    )
+    target = result.stdout.strip()
+    if result.returncode != 0 or not re.fullmatch(r"\$\d+", target):
+        message = result.stderr.strip() or "remote session creation failed"
+        raise SessionizerError(
+            f"could not open {candidate.target} on {candidate.host}: {message}"
+        )
+    return Candidate(
+        identity=f"remote:{candidate.host}:{target}",
+        kind="remote",
+        name=candidate.name,
+        target=target,
+        detail=candidate.detail,
+        host=candidate.host,
+        color=candidate.color,
+    )
 
 
 def attach_remote(host: str, target: str) -> int:
@@ -996,6 +1162,8 @@ def travel(origin_session: str, initial_host: str, initial_target: str) -> NoRet
         selected = picker(config, [], origin_session)
         if selected is None:
             continue
+        if selected.kind == "remote-directory":
+            selected = ensure_remote_directory_session(selected)
         if selected.kind == "remote":
             host = selected.host
             target = selected.target
@@ -1094,7 +1262,10 @@ def build_parser() -> argparse.ArgumentParser:
     split.add_argument("--vsplit", action="store_true")
     split.add_argument("--hsplit", action="store_true")
     parser.add_argument("--preview-token", help=argparse.SUPPRESS)
+    parser.add_argument("--preview-directory", help=argparse.SUPPRESS)
     parser.add_argument("--refresh-picker", nargs=3, help=argparse.SUPPRESS)
+    parser.add_argument("--inventory", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--ensure-directory-session", help=argparse.SUPPRESS)
     parser.add_argument("--is-managed", help=argparse.SUPPRESS)
     parser.add_argument("--remote-attach", help=argparse.SUPPRESS)
     parser.add_argument("--travel", nargs=3, help=argparse.SUPPRESS)
@@ -1112,6 +1283,9 @@ def main() -> int:
     if args.preview_token:
         preview(Candidate.from_token(args.preview_token))
         return 0
+    if args.preview_directory:
+        print_directory_preview(args.preview_directory)
+        return 0
     if args.refresh_picker:
         refresh_picker(*args.refresh_picker)
         return 0
@@ -1123,6 +1297,12 @@ def main() -> int:
         travel(*args.travel)
 
     config = load_config()
+    if args.inventory:
+        print_inventory(config)
+        return 0
+    if args.ensure_directory_session:
+        print(ensure_directory_session(args.ensure_directory_session))
+        return 0
     if (args.vsplit or args.hsplit) and args.session is None:
         raise SessionizerError("--vsplit and --hsplit require --session")
     if args.session is not None:
@@ -1133,6 +1313,8 @@ def main() -> int:
     selected = picker(config, args.search_paths, current_session_id())
     if selected is None:
         return 0
+    if selected.kind == "remote-directory":
+        selected = ensure_remote_directory_session(selected)
     if selected.kind == "remote":
         begin_travel(selected)
     else:
