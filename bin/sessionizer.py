@@ -1017,7 +1017,7 @@ def render_session_preview(candidate: Candidate) -> None:
 
     if candidate.kind == "remote":
         print()
-        print("M-s returns to the origin picker · prefix+d returns locally")
+        print("M-s returns to the origin picker · prefix+d returns to the origin session")
 
 
 def print_directory_preview(path_value: str) -> None:
