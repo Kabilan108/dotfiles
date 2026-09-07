@@ -38,6 +38,9 @@ chmod 700 "$runtime_dir"
 cp "$fixture_dir/view-fixture-shell.qml" "$config_dir/shell.qml"
 cp "$fixture_dir/../../services/NotificationModel.js" "$config_dir/src/services/NotificationModel.js"
 cp "$fixture_dir/../../services/NotificationPolicy.js" "$config_dir/src/services/NotificationPolicy.js"
+cp "$fixture_dir/../../services/NotificationSource.js" "$config_dir/src/services/NotificationSource.js"
+cp "$fixture_dir/../../services/NotificationLinks.js" "$config_dir/src/services/NotificationLinks.js"
+cp "$fixture_dir/../../services/NotificationLayout.js" "$config_dir/src/services/NotificationLayout.js"
 cp "$fixture_dir/../../services/NotificationService.qml" "$config_dir/src/services/NotificationService.qml"
 cp "$fixture_dir/../../ui/"*.qml "$config_dir/src/ui/"
 cp "$fixture_dir/../../plugins/builtin/notifications/NotificationCard.qml" \
@@ -46,6 +49,8 @@ cp "$fixture_dir/../../plugins/builtin/notifications/NotificationCenter.qml" \
   "$config_dir/src/plugins/builtin/notifications/NotificationCenter.qml"
 cp "$fixture_dir/../../plugins/builtin/notifications/NotificationToasts.qml" \
   "$config_dir/src/plugins/builtin/notifications/NotificationToasts.qml"
+cp "$fixture_dir/../../plugins/builtin/notifications/NotificationDeck.qml" \
+  "$config_dir/src/plugins/builtin/notifications/NotificationDeck.qml"
 cp "$fixture_dir/../../plugins/builtin/notifications/Widget.qml" \
   "$config_dir/src/plugins/builtin/notifications/Widget.qml"
 cp "$fixture_dir/../../../design-lab/themes/catppuccin-mocha.json" "$config_dir/theme.json"

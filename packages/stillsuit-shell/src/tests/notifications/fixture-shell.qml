@@ -54,9 +54,11 @@ ShellRoot {
 
         function state(): string {
             return JSON.stringify({
-                dnd: notificationService.doNotDisturb,
+                snoozes: notificationService.snoozes,
+                quietActive: notificationService.quietActive,
                 popups: notificationService.popups,
                 history: notificationService.history,
+                heldArrivals: notificationService.heldArrivals,
                 trackedCount: notificationService.trackedCount,
                 unreadCount: notificationService.unreadCount,
                 unreadBadgeText: notificationService.unreadBadgeText,
@@ -101,9 +103,32 @@ ShellRoot {
             return notificationService.dismissAll()
         }
 
-        function setDnd(value: string): string {
-            var normalized = String(value).toLowerCase()
-            return notificationService.setDnd(normalized === "on" || normalized === "true" || normalized === "1")
+        function clearSource(key: string): string {
+            return notificationService.clearSource(key)
+        }
+
+        function snoozeAll(preset: string): string {
+            return notificationService.snooze("*", preset)
+        }
+
+        function snoozeFirstSource(preset: string): string {
+            var rows = notificationService.centerRows()
+            return rows.length ? notificationService.snooze(rows[0].sourceKey, preset) : "unknown"
+        }
+
+        function wake(key: string): string {
+            return notificationService.wake(key)
+        }
+
+        function wakeEverything(): string {
+            return notificationService.wakeEverything()
+        }
+
+        function hoverFirst(value: string): string {
+            var rows = notificationService.popups
+            if (!rows.length) return "unknown"
+            notificationService.setDeckHovered(rows[0].sourceKey, String(value) === "on")
+            return "ok"
         }
 
         function pruneAt(timestamp: string): string {

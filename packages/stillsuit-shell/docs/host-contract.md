@@ -38,7 +38,8 @@ surface opened purely via IPC — the panel falls back to the right edge.
 
 A banner dismisses a non-notification panel on its own output, not another
 output. Opening the notification center suppresses banners on that output;
-incoming rows still enter history. DND suppresses visible banners immediately.
+incoming rows still enter history. Finite global and per-source snoozes suppress
+visible banners immediately while retaining non-transient rows in history.
 Tooltips neither focus nor dismiss panels. Banners go to the notification's
 saved output, else the focused output, minus any listed in the
 `notifications.avoidOutputs` setting while another output remains.
@@ -271,9 +272,15 @@ or whole-shell kill endpoint.
 | `stillsuit-agent-panel` | `toggle` | none | helper status |
 | `stillsuit-agent-panel` | `status` | none | structured helper status JSON |
 | `stillsuit-agent-panel` | `terminate` | none | helper status |
+| `stillsuit-notifications` | `status` | none | versioned, redacted notification presentation status JSON |
 
 The agent-panel methods pass one literal action to the fixed helper. They do
 not accept a command, working directory, prompt, or extra argument.
+
+The notification status method is read-only. It reports counts, quiet-mode
+deadlines, source grouping keys, output placement, and interaction state. It
+does not expose notification text, URLs, images, raw hints, sender PIDs, action
+labels, persistence paths, or mutation methods.
 
 ## Failure containment and fallback
 

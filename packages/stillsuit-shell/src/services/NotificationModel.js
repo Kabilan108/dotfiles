@@ -4,8 +4,11 @@
 
 var SNAPSHOT_ROLES = [
     "appName", "appIcon", "summary", "body", "image", "urgency",
-    "expireTimeout", "actions", "hints"
+    "expireTimeout", "actions", "hints", "sourceKey", "sourceLabel",
+    "sourceKind", "sourceHostname", "link"
 ]
+
+var HINT_ALLOWLIST = ["transient", "desktop-entry", "x-stillsuit-state"]
 
 var DEFAULT_HISTORY_LIMIT = 100
 var DEFAULT_HISTORY_MAX_AGE_MS = 24 * 60 * 60 * 1000
@@ -24,18 +27,11 @@ function finiteNumber(value, fallback) {
     return isFinite(number) ? number : fallback
 }
 
-function safeHintValue(value, depth) {
-    if (depth > 3 || value === undefined || value === null) return null
+function safeHintValue(value) {
+    if (value === undefined || value === null) return null
     if (typeof value === "string" || typeof value === "boolean") return value
     if (typeof value === "number") return isFinite(value) ? value : null
-    if (Array.isArray(value)) {
-        var array = []
-        var limit = Math.min(value.length, 64)
-        for (var index = 0; index < limit; index++)
-            array.push(safeHintValue(value[index], depth + 1))
-        return array
-    }
-    return safeString(value)
+    return null
 }
 
 function inertHints(hints) {
@@ -43,9 +39,10 @@ function inertHints(hints) {
     if (!hints) return result
 
     try {
-        for (var key in hints) {
-            if (key === "__proto__" || key === "constructor" || key === "prototype") continue
-            result[safeString(key)] = safeHintValue(hints[key], 0)
+        for (var index = 0; index < HINT_ALLOWLIST.length; index++) {
+            var key = HINT_ALLOWLIST[index]
+            var value = safeHintValue(hints[key])
+            if (value !== null) result[key] = value
         }
     } catch (error) {
         return result
@@ -92,10 +89,20 @@ function snapshotOf(notification, identity) {
         timestamp: timestamp,
         deadline: finiteNumber(meta.deadline, 0),
         outputId: safeString(meta.outputId),
-        dndClass: safeString(meta.dndClass || "visible"),
+        quietClass: safeString(meta.quietClass || meta.dndClass || source.quietClass || "visible"),
         closeReason: safeString(meta.closeReason),
         read: meta.read === true,
-        readAt: Math.max(0, finiteNumber(meta.readAt, 0))
+        readAt: Math.max(0, finiteNumber(meta.readAt, 0)),
+        sourceKey: safeString(meta.sourceKey || source.sourceKey),
+        sourceLabel: safeString(meta.sourceLabel || source.sourceLabel),
+        sourceKind: safeString(meta.sourceKind || source.sourceKind),
+        sourceHostname: safeString(meta.sourceHostname || source.sourceHostname),
+        link: source.link && typeof source.link === "object" ? {
+            url: safeString(source.link.url),
+            label: safeString(source.link.label),
+            meeting: source.link.meeting === true
+        } : null,
+        heldReason: safeString(meta.heldReason || source.heldReason)
     }
 }
 
@@ -106,10 +113,15 @@ function replacementSnapshot(notification, previous) {
         timestamp: old.timestamp,
         outputId: old.outputId,
         deadline: old.deadline,
-        dndClass: old.dndClass,
+        quietClass: old.quietClass,
         closeReason: old.closeReason,
         read: old.read,
-        readAt: old.readAt
+        readAt: old.readAt,
+        sourceKey: old.sourceKey,
+        sourceLabel: old.sourceLabel,
+        sourceKind: old.sourceKind,
+        sourceHostname: old.sourceHostname,
+        heldReason: old.heldReason
     })
 }
 
@@ -132,10 +144,15 @@ function validSnapshot(value) {
         timestamp: Number(value.timestamp),
         outputId: value.outputId,
         deadline: value.deadline,
-        dndClass: value.dndClass,
+        quietClass: value.quietClass || value.dndClass,
         closeReason: value.closeReason,
         read: value.read,
-        readAt: value.readAt
+        readAt: value.readAt,
+        sourceKey: value.sourceKey,
+        sourceLabel: value.sourceLabel,
+        sourceKind: value.sourceKind,
+        sourceHostname: value.sourceHostname,
+        heldReason: value.heldReason
     })
 }
 
@@ -149,8 +166,33 @@ function isolateRecords(values, limit) {
     return result
 }
 
+function tomorrowMorning(now) {
+    var date = new Date(finiteNumber(now, Date.now()))
+    date.setDate(date.getDate() + 1)
+    date.setHours(8, 0, 0, 0)
+    return date.getTime()
+}
+
+function validSnoozes(value, now) {
+    var result = {}
+    if (!value || typeof value !== "object" || Array.isArray(value)) return result
+    for (var key in value) {
+        if (!Object.prototype.hasOwnProperty.call(value, key)) continue
+        if (key === "__proto__" || key === "constructor" || key === "prototype") continue
+        var entry = value[key] || {}
+        var until = finiteNumber(entry.until, 0)
+        if (!safeString(key) || until <= now) continue
+        result[safeString(key)] = {
+            until: until,
+            startedAt: Math.max(0, finiteNumber(entry.startedAt, now))
+        }
+    }
+    return result
+}
+
 function parseState(raw, popupLimit, historyLimit, now, historyMaxAgeMs) {
-    var result = { dnd: false, popups: [], history: [], corrupt: false }
+    var referenceTime = finiteNumber(now, Date.now())
+    var result = { snoozes: {}, migratedDnd: false, popups: [], history: [], corrupt: false }
     var text = safeString(raw).trim()
     if (!text) return result
 
@@ -160,7 +202,11 @@ function parseState(raw, popupLimit, historyLimit, now, historyMaxAgeMs) {
             result.corrupt = true
             return result
         }
-        result.dnd = typeof parsed.dnd === "boolean" ? parsed.dnd : false
+        result.snoozes = validSnoozes(parsed.snoozes, referenceTime)
+        if (parsed.dnd === true && !result.snoozes["*"]) {
+            result.snoozes["*"] = { until: tomorrowMorning(referenceTime), startedAt: referenceTime }
+            result.migratedDnd = true
+        }
         var isolatedPopups = isolateRecords(parsed.popups, popupLimit)
         result.popups = pruneSnapshots(isolatedPopups, now, historyMaxAgeMs, popupLimit)
         var isolatedHistory = isolateRecords(parsed.history, historyLimit)
@@ -295,6 +341,7 @@ function centerRows(popups, history, limit) {
 if (typeof module !== "undefined") {
     module.exports = {
         SNAPSHOT_ROLES: SNAPSHOT_ROLES,
+        HINT_ALLOWLIST: HINT_ALLOWLIST,
         inertHints: inertHints,
         actionSnapshots: actionSnapshots,
         snapshotOf: snapshotOf,
@@ -310,6 +357,8 @@ if (typeof module !== "undefined") {
         unreadCount: unreadCount,
         historyKeysRemoved: historyKeysRemoved,
         centerRows: centerRows,
+        tomorrowMorning: tomorrowMorning,
+        validSnoozes: validSnoozes,
         DEFAULT_HISTORY_LIMIT: DEFAULT_HISTORY_LIMIT,
         DEFAULT_HISTORY_MAX_AGE_MS: DEFAULT_HISTORY_MAX_AGE_MS
     }

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "notification-storm",
   "name": "Notification storm",
-  "description": "Five notifications across urgencies including a critical one and an actionable one.",
+  "description": "Grouped notification decks across sources, urgency, action overflow, and an explicit meeting link.",
   "compositor": {
     "focusedOutputId": "WB-1",
     "workspaces": [
@@ -304,13 +304,8 @@
       "appName": "Discord",
       "summary": "#fleet",
       "body": "sietch rebuilt, 0 warnings",
-      "urgency": 0
-    },
-    {
-      "appName": "Slack",
-      "summary": "Justin",
-      "body": "can you look at the EEG paging PR when you get a sec?",
-      "urgency": 1
+      "urgency": 0,
+      "expireTimeout": 3600000
     },
     {
       "appName": "Battery",
@@ -323,22 +318,56 @@
       "summary": "Stillsuit QA",
       "body": "Toast and panel interaction test",
       "urgency": 1,
+      "expireTimeout": 3600000,
       "actions": [
         {
-          "identifier": "open",
+          "identifier": "default",
           "text": "Open"
         },
         {
-          "identifier": "dismiss",
-          "text": "Dismiss"
+          "identifier": "reply",
+          "text": "Reply"
+        },
+        {
+          "identifier": "settings",
+          "text": "Settings"
         }
       ]
     },
     {
       "appName": "Calendar",
       "summary": "1:1 with Kabilan",
-      "body": "Starts in 5 minutes",
-      "urgency": 1
+      "body": "Starts in 5 minutes: https://meet.google.com/abc-defg-hij",
+      "urgency": 1,
+      "expireTimeout": 3600000
+    },
+    {
+      "appName": "Google Chrome",
+      "summary": "Build finished",
+      "body": "<a href=\"https://github.com/\">github.com</a> CI passed for stillsuit-shell",
+      "urgency": 1,
+      "expireTimeout": 3600000
+    },
+    {
+      "appName": "Slack",
+      "summary": "Justin",
+      "body": "can you look at the EEG paging PR when you get a sec?",
+      "urgency": 1,
+      "expireTimeout": 3600000
+    },
+    {
+      "appName": "Slack",
+      "summary": "Maya",
+      "body": "The fixture export is ready for review.",
+      "urgency": 1,
+      "expireTimeout": 3600000
+    },
+    {
+      "appName": "Slack",
+      "summary": "#engineering",
+      "body": "Deploy completed without warnings.",
+      "urgency": 1,
+      "expireTimeout": 3600000
     }
   ],
   "recording": {

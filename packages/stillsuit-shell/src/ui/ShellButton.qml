@@ -14,6 +14,7 @@ ShellAction {
     property bool compact: false
     property bool ghost: false
     property bool reducedMotion: false
+    property color foregroundColor: "transparent"
 
     readonly property int motionDuration: reducedMotion ? 0 : theme.motion.fast
 
@@ -95,6 +96,8 @@ ShellAction {
     }
 
     function _foregroundColor() {
+        if (foregroundColor.a > 0)
+            return foregroundColor
         if (destructive)
             return theme.semantic.status.danger
         if (active)

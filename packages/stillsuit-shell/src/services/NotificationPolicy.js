@@ -22,7 +22,7 @@ function boundedNumber(value, fallback, minimum, maximum) {
 
 function notificationsPolicy(settings) {
     var values = settings && settings.notifications ? settings.notifications : {}
-    var bypass = values.dndBypass || {}
+    var bypass = values.quietBypass || values.dndBypass || {}
     return {
         popupLimit: Math.round(boundedNumber(values.popupLimit, 5, 1, 20)),
         avoidOutputs: (listValue(values.avoidOutputs) || []).map(stringValue),
@@ -30,7 +30,7 @@ function notificationsPolicy(settings) {
         historyMaxAgeMs: 24 * 60 * 60 * 1000,
         normalTimeoutMs: boundedNumber(values.normalTimeoutMs, 5000, 1, 24 * 60 * 60 * 1000),
         lowTimeoutMs: boundedNumber(values.lowTimeoutMs, 4000, 1, 24 * 60 * 60 * 1000),
-        dndBypass: {
+        quietBypass: {
             critical: bypass.critical === undefined ? true : !!bypass.critical,
             appNames: listValue(bypass.appNames) || ["battery", "Battery"],
             appUrgencies: listValue(bypass.appUrgencies) || [
@@ -49,7 +49,7 @@ function viewState(snapshot) {
     if (["info", "success", "warning", "danger", "muted"].indexOf(hinted) !== -1)
         return hinted
     if (Number(row.urgency) === 2) return "danger"
-    if (Number(row.urgency) === 0 || stringValue(row.dndClass).indexOf("silenced-") === 0)
+    if (Number(row.urgency) === 0 || stringValue(row.quietClass).indexOf("silenced-") === 0)
         return "muted"
     return "info"
 }
@@ -69,8 +69,8 @@ function durationFor(snapshot, settings) {
     return Math.round(policy.normalTimeoutMs)
 }
 
-function shouldBypassDnd(snapshot, settings) {
-    var policy = notificationsPolicy(settings).dndBypass
+function shouldBypassQuiet(snapshot, settings) {
+    var policy = notificationsPolicy(settings).quietBypass
     var appName = stringValue((snapshot || {}).appName)
     var summary = stringValue((snapshot || {}).summary)
     var urgency = urgencyName((snapshot || {}).urgency)
@@ -99,9 +99,9 @@ function isTransient(snapshot) {
     return hints.transient === true || hints["transient"] === 1
 }
 
-function dndClass(snapshot, dnd, settings) {
-    if (!dnd) return "visible"
-    if (shouldBypassDnd(snapshot, settings)) return "bypass"
+function quietClass(snapshot, quiet, settings) {
+    if (!quiet) return "visible"
+    if (shouldBypassQuiet(snapshot, settings)) return "bypass"
     return isTransient(snapshot) ? "silenced-ephemeral" : "silenced-retained"
 }
 
@@ -132,9 +132,9 @@ if (typeof module !== "undefined") {
         notificationsPolicy: notificationsPolicy,
         urgencyName: urgencyName,
         durationFor: durationFor,
-        shouldBypassDnd: shouldBypassDnd,
+        shouldBypassQuiet: shouldBypassQuiet,
         isTransient: isTransient,
-        dndClass: dndClass,
+        quietClass: quietClass,
         viewState: viewState,
         presentationOutput: presentationOutput,
         shouldPresentOn: shouldPresentOn,

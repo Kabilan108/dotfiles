@@ -9,7 +9,7 @@ Ui.ShellBarCluster {
     required property string outputId
 
     theme: context.theme
-    iconName: "notifications"
+    iconName: service && service.quietActive ? "notifications-off" : "notifications"
     label: service ? service.unreadBadgeText : ""
     selected: service && service.centerOutputId === outputId
     accessibleName: !service || service.unreadCount === 0

@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "id": "notification-empty",
+  "name": "Notifications empty",
+  "description": "Notification center with no popup or history rows.",
+  "notifications": []
+}

@@ -40,6 +40,9 @@ mkdir -p "$config_dir/services"
 cp "$fixture_dir/fixture-shell.qml" "$config_dir/shell.qml"
 cp "$fixture_dir/../../services/NotificationModel.js" "$config_dir/services/NotificationModel.js"
 cp "$fixture_dir/../../services/NotificationPolicy.js" "$config_dir/services/NotificationPolicy.js"
+cp "$fixture_dir/../../services/NotificationSource.js" "$config_dir/services/NotificationSource.js"
+cp "$fixture_dir/../../services/NotificationLinks.js" "$config_dir/services/NotificationLinks.js"
+cp "$fixture_dir/../../services/NotificationLayout.js" "$config_dir/services/NotificationLayout.js"
 cp "$fixture_dir/../../services/NotificationService.qml" "$config_dir/services/NotificationService.qml"
 shell_pid=""
 
@@ -67,6 +70,14 @@ trap cleanup EXIT
 
 ipc() {
   qs ipc --pid "$shell_pid" call stillsuit-notification-fixture "$@"
+}
+
+send_notification() {
+  env -u LD_LIBRARY_PATH notify-send "$@"
+}
+
+notification_status() {
+  qs ipc --pid "$shell_pid" call stillsuit-notifications status
 }
 
 wait_ready() {
@@ -149,15 +160,16 @@ wait_for_pid_exit() {
 }
 
 node "$fixture_dir/model-policy.test.js"
+node "$fixture_dir/source-links-layout.test.js"
 node "$fixture_dir/notification-card-source.test.js"
 start_shell
 
 # Opening the center marks only the rows present at that instant as read.
-notify-send -a lane-e -t 5000 "before-center-open"
+send_notification -a lane-e -t 5000 "before-center-open"
 wait_for_json '.unreadCount == 1' >/dev/null
 [[ $(ipc openCenter) == open ]]
 wait_for_json '.unreadCount == 0' >/dev/null
-notify-send -a lane-e -t 5000 "after-center-open"
+send_notification -a lane-e -t 5000 "after-center-open"
 wait_for_json '.unreadCount == 1 and (.popups | length) == 2' >/dev/null
 
 # Toast dismissal archives a row; center deletion removes its history.
@@ -169,15 +181,15 @@ wait_for_json '.trackedCount == 1' >/dev/null
 ipc dismissAll >/dev/null
 
 # Requested timeout is milliseconds, and expiry archives before closing.
-notify-send -a lane-e -t 350 "requested-timeout"
+send_notification -a lane-e -t 350 "requested-timeout"
 wait_for_json '.popups | length == 1' >/dev/null
 wait_for_json '(.popups | length) == 0 and .history[0].closeReason == "expired"' >/dev/null
 
 # A replacement-only update keeps identity and restarts the engine deadline.
 ipc dismissAll >/dev/null
-replacement_id=$(notify-send -p -a lane-e -t 350 "replace-before")
+replacement_id=$(send_notification -p -a lane-e -t 350 "replace-before")
 sleep 0.2
-notify-send -a lane-e -r "$replacement_id" -t 700 "replace-after"
+send_notification -a lane-e -r "$replacement_id" -t 700 "replace-after"
 sleep 0.25
 replacement_state=$(ipc state)
 jq -e '(.popups | length) == 1 and .popups[0].summary == "replace-after"' >/dev/null <<<"$replacement_state"
@@ -187,37 +199,92 @@ wait_for_json '(.popups | length) == 0 and .history[0].summary == "replace-after
 
 # Named and default actions invoke the sender directly.
 ipc dismissAll >/dev/null
-notify-send -a lane-e -t 5000 -A default=Open -A reply=Reply "named-action" >"$tmp_dir/named.out" &
+send_notification -a lane-e -t 5000 -A default=Open -A reply=Reply "named-action" >"$tmp_dir/named.out" &
 named_pid=$!
 wait_for_json '.popups[0].actions | map(.identifier) == ["default", "reply"]' >/dev/null
 [[ $(ipc invokeFirst reply) == ok ]]
 wait "$named_pid"
 [[ $(<"$tmp_dir/named.out") == reply ]]
 
-notify-send -a lane-e -t 5000 -A default=Open "default-action" >"$tmp_dir/default.out" &
+send_notification -a lane-e -t 5000 -A default=Open "default-action" >"$tmp_dir/default.out" &
 default_pid=$!
 wait_for_json '.popups[0].actions[0].identifier == "default"' >/dev/null
 [[ $(ipc invokeFirst default) == ok ]]
 wait "$default_pid"
 [[ $(<"$tmp_dir/default.out") == default ]]
 
-# DND has visible, bypass, retained, and transient classes.
+# Hover intent pauses one deck in the service and queues arrivals until exit.
 ipc dismissAll >/dev/null
-notify-send -a chat-app -t 5000 "visible-before-dnd"
+send_notification -a lane-e -t 300 "pause-me"
+wait_for_json '.popups[0].summary == "pause-me"' >/dev/null
+[[ $(ipc hoverFirst on) == ok ]]
+sleep 0.2
+wait_for_json '.popups[0].summary == "pause-me"' >/dev/null
+send_notification -a another-app -t 5000 "held-arrival"
+paused_state=$(wait_for_json '.heldArrivals | length == 1')
+jq -e '.popups[0].summary == "pause-me"' >/dev/null <<<"$paused_state"
+sleep 0.25
+jq -e '.popups[0].summary == "pause-me"' >/dev/null <<<"$(ipc state)"
+status_state=$(notification_status)
+jq -e '.apiVersion == 1 and .counts.heldArrivals == 1
+  and .presentation.pausedNotificationCount == 1
+  and (has("summary") | not) and (has("body") | not) and (has("urls") | not)' \
+  >/dev/null <<<"$status_state"
+[[ $(ipc hoverFirst off) == ok ]]
+wait_for_json '(.heldArrivals | length) == 0 and (.popups | length) == 2' >/dev/null
+wait_for_json '.history[0].summary == "pause-me"' >/dev/null
+ipc dismissAll >/dev/null
+
+# Clearing a source removes only that group's notifications.
+send_notification -a clear-source-one -t 5000 "clear-source-one-a"
+send_notification -a clear-source-two -t 5000 "clear-source-two"
+send_notification -a clear-source-one -t 5000 "clear-source-one-b"
+clear_source_state=$(wait_for_json '.trackedCount == 3')
+clear_source_key=$(jq -r '.popups[] | select(.summary == "clear-source-one-a") | .sourceKey' <<<"$clear_source_state")
+[[ $(ipc clearSource "$clear_source_key") == ok ]]
+cleared_source_state=$(wait_for_json '.trackedCount == 1')
+jq -e --arg key "$clear_source_key" '
+  .popups[0].summary == "clear-source-two"
+  and (.popups + .history + .heldArrivals | all(.sourceKey != $key))
+' >/dev/null <<<"$cleared_source_state"
+[[ $(ipc clearSource "$clear_source_key") == unknown ]]
+ipc dismissAll >/dev/null
+
+# Per-source snoozes share the finite mechanism without muting other sources.
+send_notification -a source-one -t 5000 "source-one-before"
+wait_for_json '.popups[0].summary == "source-one-before"' >/dev/null
+source_key=$(ipc state | jq -r '.popups[0].sourceKey')
+ipc snoozeFirstSource 30m >/dev/null
+send_notification -a source-one -t 5000 "source-one-held"
+send_notification -a source-two -t 5000 "source-two-visible"
+source_state=$(wait_for_json '.popups[0].summary == "source-two-visible" and (.history | length) == 2')
+jq -e '.history | all(.heldReason == "source-snooze")' >/dev/null <<<"$source_state"
+ipc snoozeAll 30m >/dev/null
+overlap_state=$(wait_for_json ".snoozes[\"*\"] and .snoozes[\"$source_key\"]")
+jq -e --arg key "$source_key" '.snoozes["*"] and .snoozes[$key]' >/dev/null <<<"$overlap_state"
+[[ $(ipc wake '*') == ok ]]
+wait_for_json "(.snoozes[\"*\"] == null) and .snoozes[\"$source_key\"]" >/dev/null
+[[ $(ipc wake "$source_key") == ok ]]
+ipc dismissAll >/dev/null
+
+# A finite global snooze has bypass, retained, and transient classes.
+ipc dismissAll >/dev/null
+send_notification -a chat-app -t 5000 "visible-before-snooze"
 wait_for_json '(.popups | length) == 1' >/dev/null
-[[ $(ipc setDnd on) == on ]]
+global_until=$(ipc snoozeAll 1h)
+[[ $global_until =~ ^[0-9]+$ ]]
 cleared_state=$(wait_for_json '(.popups | length) == 0 and (.history | length) == 1')
-jq -e '.history[0].closeReason == "dnd-enabled" and .liveRefCount == 1' >/dev/null <<<"$cleared_state"
+jq -e '.history[0].closeReason == "global-snooze" and .history[0].heldReason == "global-snooze" and .liveRefCount == 1' >/dev/null <<<"$cleared_state"
 ipc dismissAll >/dev/null
-notify-send -a chat-app -t 5000 "retained-dnd"
-wait_for_json '.history[0].dndClass == "silenced-retained"' >/dev/null
-notify-send -u critical -a any-app -t 5000 "critical-bypass"
-wait_for_json '.popups[0].dndClass == "bypass"' >/dev/null
+send_notification -a chat-app -t 5000 "retained-snooze"
+wait_for_json '.history[0].quietClass == "silenced-retained" and .history[0].heldReason == "global-snooze"' >/dev/null
+send_notification -u critical -a any-app -t 5000 "critical-bypass"
+wait_for_json '.popups[0].quietClass == "bypass"' >/dev/null
 local_count=$(ipc state | jq '.trackedCount')
-notify-send -e -a chat-app -t 5000 "ephemeral-dnd"
+send_notification -e -a chat-app -t 5000 "ephemeral-snooze"
 sleep 0.15
 [[ $(ipc state | jq '.trackedCount') == "$local_count" ]]
-[[ $(ipc setDnd off) == off ]]
+[[ $(ipc wake '*') == ok ]]
 
 # The open center suppresses banners on its own output. Closing it restores
 # single-output presentation for notifications that are still live.
@@ -231,7 +298,7 @@ jq -e '.serviceInstances == 1 and .outputA == 1 and .outputB == 0 and .overlap =
 # A burst over the limit keeps five live toasts and 95 history rows.
 ipc dismissAll >/dev/null
 for index in {1..105}; do
-  notify-send -a lane-e -t 60000 "burst-$index"
+  send_notification -a lane-e -t 60000 "burst-$index"
 done
 burst_state=$(wait_for_json '.trackedCount == 100')
 jq -e '.popups | length == 5' >/dev/null <<<"$burst_state"
@@ -240,7 +307,7 @@ jq -e '.unreadCount == 100 and .unreadBadgeText == "9+"' >/dev/null <<<"$burst_s
 
 # Expired sender actions remain visible only as inert history metadata.
 ipc dismissAll >/dev/null
-notify-send -a lane-e -t 300 -A default=Open "expired-action" >"$tmp_dir/expired.out" &
+send_notification -a lane-e -t 300 -A default=Open "expired-action" >"$tmp_dir/expired.out" &
 expired_pid=$!
 wait_for_json '.popups[0].actions[0].identifier == "default"' >/dev/null
 expired_state=$(wait_for_json '(.popups | length) == 0 and .history[0].summary == "expired-action"')
@@ -250,7 +317,7 @@ wait "$expired_pid" 2>/dev/null || true
 
 # A persisted popup keeps its absolute engine deadline across a restart.
 ipc dismissAll >/dev/null
-notify-send -a lane-e -t 1200 "restart-deadline"
+send_notification -a lane-e -t 1200 "restart-deadline"
 wait_for_json '.popups[0].summary == "restart-deadline"' >/dev/null
 [[ $(ipc openCenter) == open ]]
 wait_for_json '.unreadCount == 0' >/dev/null
@@ -283,7 +350,7 @@ jq -e '.trackedCount == 0 and .unreadCount == 0 and .liveRefCount == 0' \
   >/dev/null <<<"$old_restart_state"
 
 # Runtime cleanup drops an old live popup, closes its sender, and releases its ref.
-notify-send -u critical -a lane-e -t 0 -A default=Open "old-live-cleanup" \
+send_notification -u critical -a lane-e -t 0 -A default=Open "old-live-cleanup" \
   >"$tmp_dir/old-live.out" &
 old_live_pid=$!
 old_live_state=$(wait_for_json '.popups[0].summary == "old-live-cleanup" and .liveRefCount == 1')
@@ -296,16 +363,16 @@ jq -e '.trackedCount == 0 and .unreadCount == 0 and .liveRefCount == 0' \
   >/dev/null <<<"$pruned_live_state"
 wait_for_pid_exit "$old_live_pid"
 
-# Executable-looking hints remain data before and after a process restart.
+# Unknown hints are discarded before and after a process restart.
 ipc dismissAll >/dev/null
-notify-send -a lane-e -t 250 -h "string:omarchy-exec:touch $marker" "forged-hint"
+send_notification -a lane-e -t 250 -h "string:untrusted-command:touch $marker" "forged-hint"
 hint_state=$(wait_for_json '.history[0].summary == "forged-hint"')
-jq -e --arg marker "touch $marker" '.history[0].hints["omarchy-exec"] == $marker' >/dev/null <<<"$hint_state"
+jq -e '.history[0].hints["untrusted-command"] == null' >/dev/null <<<"$hint_state"
 [[ ! -e $marker ]]
 stop_shell
 start_shell
 restarted_state=$(wait_for_json '.history[0].summary == "forged-hint"')
-jq -e --arg marker "touch $marker" '.history[0].hints["omarchy-exec"] == $marker' >/dev/null <<<"$restarted_state"
+jq -e '.history[0].hints["untrusted-command"] == null' >/dev/null <<<"$restarted_state"
 [[ $(ipc invokeFirst default) == unavailable ]]
 [[ ! -e $marker ]]
 
@@ -318,14 +385,14 @@ recovered_state=$(wait_for_json '.history | length == 1')
 jq -e '.history[0].summary == "forged-hint"' >/dev/null <<<"$recovered_state"
 [[ ! -e $marker ]]
 
-# Evicting a retained DND row releases its live notification reference.
+# Evicting a retained quiet row releases its live notification reference.
 ipc dismissAll >/dev/null
 stop_shell
 export STILLSUIT_NOTIFICATION_HISTORY_LIMIT=2
 start_shell
-[[ $(ipc setDnd on) == on ]]
+ipc snoozeAll 1h >/dev/null
 for index in {1..3}; do
-  notify-send -a lane-e -t 60000 "retained-$index"
+  send_notification -a lane-e -t 60000 "retained-$index"
 done
 eviction_state=$(wait_for_json '(.history | length) == 2 and .liveRefCount == 2')
 jq -e '.history | map(.summary) == ["retained-3", "retained-2"]' >/dev/null <<<"$eviction_state"

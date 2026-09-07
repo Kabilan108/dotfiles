@@ -8,6 +8,10 @@ root `fill` for the requested theme role, so any fixed color or stroke would
 break tinting. Transparent detail such as the VPN lettering is cut with
 contour winding, not with extra fills.
 
+`notifications` and `notifications-off` use the CC0 Bell and Bell Slash
+vectors supplied through SVG Repo. Their normalized source files live in
+`design-lab/icon-pack/sources/` so regeneration preserves the original paths.
+
 Edit the geometry sources, never these files, then regenerate and install:
 
 ```sh

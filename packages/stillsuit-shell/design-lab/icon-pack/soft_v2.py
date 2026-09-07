@@ -118,12 +118,6 @@ def draw_soft(name: str, g: Glyph) -> bool:
         if name!='volume-mute': arc(11,12,5.5,-40,40)
         else:
             line((16,9.5),(21,14.5)); line((21,9.5),(16,14.5))
-    elif name == 'notifications':
-        points=[(4.5,17.5),(6,15.5),(6,10)]
-        for i in range(33):
-            a=math.radians(180+180*i/32);points.append((12+6*math.cos(a),10+6*math.sin(a)))
-        points.extend([(18,15.5),(19.5,17.5),(4.5,17.5)])
-        line(*points); arc(12,18,3,25,155); line((12,2),(12,4))
     elif name == 'delete':
         line((4,7),(20,7)); box(6,7,12,14)
         # Rounded handle and straight walls under one continuous lid.

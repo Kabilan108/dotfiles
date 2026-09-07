@@ -8,6 +8,8 @@ Item {
     property string iconName: "info"
     property string text: ""
     property bool error: false
+    property string iconSizeRole: "small"
+    property string textSizeRole: "caption"
     implicitHeight: row.implicitHeight + 12
     implicitWidth: row.implicitWidth
     RowLayout {
@@ -18,14 +20,14 @@ Item {
         ShellIcon {
             theme: root.theme
             name: root.iconName
-            sizeRole: "small"
+            sizeRole: root.iconSizeRole
             role: root.error ? "danger" : "muted"
         }
         ShellText {
             Layout.fillWidth: true
             theme: root.theme
             text: root.text
-            sizeRole: "caption"
+            sizeRole: root.textSizeRole
             role: root.error ? "danger" : "muted"
             wrapMode: Text.Wrap
         }

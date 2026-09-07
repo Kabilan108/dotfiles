@@ -121,7 +121,9 @@ ShellRoot {
                 timestamp: now,
                 deadline: now + 60000,
                 outputId: outputId,
-                dndClass: "visible",
+                quietClass: "visible",
+                sourceKey: "app:fixture",
+                sourceLabel: "Fixture",
                 closeReason: "",
                 read: false,
                 readAt: 0
@@ -138,13 +140,16 @@ ShellRoot {
                 timestamp: now - 1000,
                 deadline: 0,
                 outputId: outputId,
-                dndClass: "visible",
+                quietClass: "visible",
+                sourceKey: "app:fixture",
+                sourceLabel: "Fixture",
                 closeReason: "dismissed",
                 read: false,
                 readAt: 0
             }]
             notificationService.revision += 1
             notificationService.openCenter(outputId)
+            notificationService.closeCenter(outputId)
             fixture.rowsSeeded = true
             return "ok"
         }

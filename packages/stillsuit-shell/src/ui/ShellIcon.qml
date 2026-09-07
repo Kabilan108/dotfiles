@@ -76,6 +76,7 @@ Item {
             "chevron-right", "circle", "close", "copy", "cpu", "danger", "delete", "edit",
             "ethernet", "expand-less", "expand-more", "folder", "forward-10", "headphones",
             "info", "lock", "memory", "microphone", "more", "network", "notifications",
+            "notifications-off",
             "pause", "play", "power", "record", "refresh", "replay-10", "repeat", "search",
             "settings", "shuffle", "skip-next", "skip-previous", "success", "unlock",
             "volume-down", "volume-mute", "volume-up", "vpn", "warning", "wifi", "wifi-off"

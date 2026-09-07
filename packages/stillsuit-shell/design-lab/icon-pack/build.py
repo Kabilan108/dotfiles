@@ -11,6 +11,7 @@ from soft_v2 import draw_soft
 ROOT = Path(__file__).resolve().parent
 SHELL_ICON = (ROOT / '../../src/ui/ShellIcon.qml').resolve()
 PRODUCTION = (ROOT / '../../src/ui/icons').resolve()
+SOURCES = ROOT / 'sources'
 CATALOG = re.findall(r'"([a-z0-9-]+)"', SHELL_ICON.read_text().split('return [')[1].split(']')[0])
 
 
@@ -104,6 +105,9 @@ class Glyph:
 
 
 def draw(name: str) -> str:
+    source = SOURCES / f'{name}.svg'
+    if source.exists():
+        return source.read_text().strip()
     g = Glyph()
     if draw_soft(name, g):
         return g.svg()
