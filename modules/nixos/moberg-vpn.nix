@@ -23,10 +23,18 @@
     };
 
     ipv4 = {
+      ignore-auto-dns = true;
+      ignore-auto-routes = true;
       method = "auto";
+      never-default = true;
       route1 = "10.1.10.0/24";
     };
 
-    ipv6.method = "auto";
+    ipv6 = {
+      ignore-auto-dns = true;
+      ignore-auto-routes = true;
+      method = "auto";
+      never-default = true;
+    };
   };
 }
