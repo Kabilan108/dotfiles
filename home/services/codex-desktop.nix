@@ -24,6 +24,7 @@ in
       enable = true;
       linuxFeatures = [
         "frameless-titlebar"
+        "node-repl-reaper"
         "remote-control-ui"
         "remote-mobile-control"
       ];

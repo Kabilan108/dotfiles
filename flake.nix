@@ -109,7 +109,7 @@
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
     codex-desktop-linux = {
-      url = "github:Kabilan108/codex-desktop-linux";
+      url = "github:ilysenko/codex-desktop-linux";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
