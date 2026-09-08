@@ -1,12 +1,10 @@
 # AGENTS.md
 
-# system info
+## Local Machine
 
-the current machine runs nixos with a custom home-manager configuration. you can find the flake at ~/dotfiles/flake.nix.
+This machine runs nixos with home-manager. The flake is managed at ~/dotfiles. Various dev tools are installed in the base environment (e.g. uv, pnpm, npm, pythonk, etc); if you need additional dependencies, use `nix-shell -p` to grab them. Execute commands via the flake dev shell if one is present for the current project. For new projects, set up a flake devshell with the necessary dependencies. Where applicable, `nix-direnv` may auto-load a project's dev shell.
 
-tools for a variety of languages are installed in the home environment, but where necessary, project specific dependencies will be made available via a flake. the nix-direnv tool will typically be used to automatically start the flake's dev shell.
-
-# Language-specific instructions
+## Language-specific instructions
 
 ## `python`
 
@@ -61,12 +59,6 @@ this project uses the `uv` package manager for dependency management:
 # Browser Tools
 
 - Use `agent-browser` for most interactive browser work. It is the default choice for agent-driven exploration, iterative UI interaction, screenshots, and stateful sessions. Prefer it when you want AI-friendly page discovery via `snapshot` and stable element refs like `@e1`.
-- Use `dev-browser` when you need programmable browser automation with Playwright-style APIs. Prefer it for scripted multi-step flows, reusable inspection scripts, or cases where `snapshotForAI()` plus direct `page` methods are the best fit.
-- On this machine, `dev-browser` may work better with `--connect` to an existing Chrome/CDP session than by launching its bundled browser directly.
-
-## Knowledge Vault
-
-The coppermind vault (~/notes, /vault/notes/coppermind) is the knowledge base for projects and tasks. When working in a repo mapped by ~/notes/04-projects/manifest.md (notably /vault/work/moberg/*), read that project's brief.md + tasks.md for context. Vault write rules: the `coppermind` skill (~/dotfiles/agents/skills/coppermind/SKILL.md) — 04-projects/ is agent-writable (briefs/people via proposals), 00-bin/01-logs/02-moberg are Tony's zones.
 
 # Shell & CI discipline
 

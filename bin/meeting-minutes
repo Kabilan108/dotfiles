@@ -948,7 +948,7 @@ def calendar_prompt(job: dict[str, Any]) -> str:
     start = datetime.fromtimestamp(float(job["recording_started_at"])).astimezone()
     duration = max(float(job.get("recording_duration_seconds") or 0), 60.0)
     end = start + timedelta(seconds=duration)
-    return f"""Use the executor-access-google skill to read Google Calendar and return only the JSON object required by the supplied schema. Do not use Gmail, Slack, or any mutation.
+    return f"""Use the executor skill to read Google Calendar and return only the JSON object required by the supplied schema. Do not use Gmail, Slack, or any mutation.
 
 Find every calendar event overlapping this America/New_York interval (inclusive start, exclusive end):
 - start: {start.isoformat()}

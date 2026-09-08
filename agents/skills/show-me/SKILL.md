@@ -117,7 +117,7 @@ function expandSkill(command: string): string {
 - For a visual UI, layout, state comparison, or concept too dense for Mermaid, write one focused HTML file — a diagram, an infographic, or a short slide deck, whichever fits the point. Match the product's colors, type, spacing, and components; use real labels and data; support desktop and mobile. Then open it for the user:
 
 ```
-Bash(open path/to/show-me-{description}.html)
+Open the artifact with the available browser or file-viewing tool.
 ```
 
 ### guidance
@@ -125,3 +125,5 @@ Bash(open path/to/show-me-{description}.html)
 Place each visual next to the short text it supports. Keep only the calls, files, props, states, and boundaries needed to answer the user's current question or the options to resolve the current discussion point.
 
 You may use one of these, you may use several, it is unlikely you will use all of them. Use your judgement and don't overwhelm the user.
+
+For a substantial HTML artifact, use html-communication for authoring and publishing. An inline diagram does not need publication.

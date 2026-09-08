@@ -58,7 +58,7 @@ If the helper is unavailable, start the tunnel manually from the browser-host ma
 
 ```bash
 tmux new-session -d -s helium-browser-use -n sietch \
-  'ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -R 127.0.0.1:9223:127.0.0.1:9222 sietch'
+  'ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -R 127.0.0.1:9223:127.0.0.1:9222 sietch-agent'
 ```
 
 Then verify from `sietch`:

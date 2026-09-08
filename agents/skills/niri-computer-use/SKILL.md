@@ -1,6 +1,6 @@
 ---
 name: niri-computer-use
-description: Desktop inspection and control for the local NixOS + niri Wayland session. Use when an agent needs to see or drive the desktop - take screenshots of windows/outputs (including hidden workspaces), inspect windows/workspaces via niri, focus or launch apps, click/type/scroll into GUI apps, or recover a confused desktop (overview open, focus lost). Route browser work to agent-browser/CDP and terminal work to tmux; use this skill's acu tool for everything the compositor and pixels must solve.
+description: Desktop inspection and control for the local NixOS + niri Wayland session. Use when an agent needs to see or drive the desktop - take screenshots of windows/outputs (including hidden workspaces), inspect windows/workspaces via niri, focus or launch apps, click/type/scroll into GUI apps, or recover a confused desktop (overview open, focus lost). Use for compositor or native-app interaction; use this skill's acu tool for everything the compositor and pixels must solve.
 ---
 
 # Niri Computer Use

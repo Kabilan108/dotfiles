@@ -7,7 +7,7 @@ description: Conventions for working in the coppermind vault - write zones, task
 
 Only non-discoverable rules live here. Explore the tree yourself for structure; consult `04-projects/manifest.md` for project routing and write zones.
 
-Vault root path gotcha: the actual root is `/vault/notes/coppermind/coppermind/` (doubled directory). `~/notes` symlinks to `/vault/notes/coppermind/`, so the manifest is at `~/notes/coppermind/04-projects/manifest.md` — `~/notes/04-projects/` does not exist.
+Resolve the root from `~/notes` and confirm `04-projects/manifest.md` exists there. Both fleet hosts use that layout.
 
 ## Write zones (hard rules)
 
@@ -19,11 +19,11 @@ Vault root path gotcha: the actual root is `/vault/notes/coppermind/coppermind/`
 
 ## Tasks
 
-- Format: dataview (`[due:: YYYY-MM-DD]`, `[scheduled:: ...]`, `[completion:: ...]`, `[id:: ]`/`[dependsOn:: ]`). Statuses: ` ` todo, `x` done, `/` in-progress, `-` cancelled.
-- NO global filter — every `- [ ]` checkbox is a task (since 2026-07-20). Tags like `#moberg/eboost` are for routing/grouping only.
-- Canonical task home: `04-projects/<project>/tasks.md`, sections per workstream. Quick-capture in the weekly log is fine; the daily brief files strays into tasks.md (move the line, keep metadata).
-- GOTCHA: the plugin's `globalQuery` hides `01-logs/2024`, `01-logs/2025`, `02-moberg`, and `raindrop` from ALL queries. Don't debug "missing tasks" without checking it (`.obsidian/plugins/obsidian-tasks-plugin/data.json`).
-- Weekly log day-sections use pinned-date queries with a rollover clause: overdue/past-scheduled open tasks surface under TODAY's section only.
+TaskNotes is the current task system: one Markdown note per task, identified by the `task` tag. Before task writes, inspect `.obsidian/plugins/tasknotes/data.json` for the current folder, field mapping, statuses, and filename/template settings. Current task and archive folders are `task-notes/tasks` and `task-notes/archive`; archive only when requested.
+
+Use an existing task note for updates; search title, project links and ticket ID before creating a duplicate. Match current note conventions: `title`, `status`, `priority`, `projects`, `tags`, `dateCreated`, `dateModified`, with due/scheduled/completed dates only when applicable. Projects are wikilinks to existing project notes. Current statuses are backlog, open, in-progress, blocked and done. Preserve recurrence, dependency and occurrence metadata when editing.
+
+When asked to create/manage tasks, write in the configured TaskNotes folder. A checkbox in a meeting note or legacy `tasks.md` is not automatically a TaskNotes task. Keep legacy context in place unless migration is requested; do not move lines out of Tony's logs as an automatic sweep.
 
 ## Wiki tiers (04-projects/<project>/)
 
@@ -41,7 +41,7 @@ The codebase is ALWAYS the more accurate source for how code works right now. A 
 - Write down what is **non-obvious and not cheaply recoverable** from the repo in a normal session: why a decision went one way, a debugging root-cause and the hypotheses it killed, an environment gotcha, a constraint that isn't visible in the code that expresses it.
 - Do NOT write down what any agent can read directly: API shapes, file inventories, function-by-function walkthroughs.
 - Minimize brittle pointers. Name a module or a concept; only cite `file.ts:line` when the exact location IS the non-obvious part (e.g. a comment documenting a unit convention). Assume line numbers rot.
-- Separate durable structure from current state. Systems pages describe how a thing works; the live status of in-flight work belongs on the ticket page, and open work belongs in `tasks.md`. When a systems page needs to mention current state, keep it to a short, clearly-labeled note.
+- Separate durable structure from current state. Systems pages describe how a thing works; the live status of in-flight work belongs on the ticket page, and open work belongs in TaskNotes. When a systems page needs to mention current state, keep it to a short, clearly-labeled note.
 - Note branch/version scoping when a page describes something that only exists on one branch.
 - Repo paths are written **repo-relative in code spans**, never absolute and never as markdown links: `dev-server/docs/MCP-7162-EDF/`, not `/vault/work/moberg/...` and not `[text](path)`. Obsidian resolves link targets against the vault, so a repo path written as a link becomes a broken vault link.
 - Discovery: `rg -m1 '^description:' <dir>/*.md` lists every page's one-liner in one call — do that before reading whole files. (Generated per-dir indexes come with the compile step; descriptions are what they're built from.)
@@ -50,7 +50,7 @@ The codebase is ALWAYS the more accurate source for how code works right now. A 
 
 - Location: `01-logs/meetings/YYYY-MM-DD-<context>-<slug>.md` (context = moberg/xploit/personal/...). One note per meeting, vault-wide — no per-project meeting dirs.
 - Frontmatter contract: `date`, `project` (manifest taxonomy, e.g. `moberg/eboost` — this is how meetings route to projects, NOT tags), `attendees` (plain names; resolve against the project's people.md — no wikilinks needed), `summary` (a tight 2–3 sentence abstract of what happened — problem, key finding/outcome, next step; grep surface for agents, and also opens the body as a `## summary` section above `## notes`), `source: manual|pipeline`, `recording` (artifact path when pipeline-written). Template: `templates/meeting-note.md`.
-- Body: `## notes` / `## decisions` / `## follow-ups`. Follow-up checkboxes are query-visible (01-logs is not excluded) — tag them normally; the daily sweep files durable ones into tasks.md.
+- Body: `## notes` / `## decisions` / `## follow-ups`. Follow-up checkboxes describe meeting content; create or link TaskNotes tasks when requested instead of assuming checkbox discovery.
 - Pipeline exception (meeting-minutes agent): it may APPEND one backlink bullet under today's heading in the weekly log — append-only, never edit existing text. This is the only sanctioned automated write to a weekly log.
 - Unknown names in pipeline-written `attendees` → propose a people.md addition via `_pipeline/proposals/`, don't add directly.
 

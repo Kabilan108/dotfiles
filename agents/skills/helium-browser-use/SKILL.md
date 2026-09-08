@@ -1,6 +1,6 @@
 ---
 name: helium-browser-use
-description: Control a dedicated Helium browser profile through agent-browser and Chrome DevTools Protocol. Use when an agent needs to drive the user's Helium browser locally or through an SSH-forwarded CDP endpoint, inspect browser state, open pages in a visible browser, collaborate on local or remote dev-server debugging, take screenshots, read snapshots, manage tabs, or validate browser behavior in the Helium profile.
+description: Control the configured Helium browser when explicitly requested, when its persistent login session is needed, or when integrated browser tools are unavailable or unsuitable.
 ---
 
 # Helium Browser Use
@@ -82,4 +82,4 @@ Do not dump private data such as bookmark URLs, cookies, localStorage, account p
 
 ## Remote Agents
 
-When the agent is running on another machine but should control this Helium browser, read [references/remote.md](references/remote.md). The remote side should connect to a loopback-forwarded CDP port, usually `127.0.0.1:9223`.
+When remote control of this Helium browser is explicitly needed, read [references/remote.md](references/remote.md). The remote side should connect to a loopback-forwarded CDP port, usually `127.0.0.1:9223`.

@@ -1,95 +1,42 @@
 # CLAUDE.md
 
-# system info
+## Local Machine
 
-the current machine runs nixos with a custom home-manager configuration. you can find the flake at ~/dotfiles/flake.nix.
+This machine runs nixos with home-manager. The flake is managed at ~/dotfiles. Various dev tools are installed in the base environment (e.g. uv, pnpm, npm, pythonk, etc); if you need additional dependencies, use `nix-shell -p` to grab them. Execute commands via the flake dev shell if one is present for the current project. For new projects, set up a flake devshell with the necessary dependencies. Where applicable, `nix-direnv` may auto-load a project's dev shell.
 
-tools for a variety of languages are installed in the home environment, but where necessary, project specific dependencies will be made available via a flake. the nix-direnv tool will typically be used to automatically start the flake's dev shell.
+## Working together
 
-# LSP Usage
+Complete the requested work through its stated stopping point. Carry forward decisions and authorization across follow-ups. An investigation produces an assessment unless implementation was requested. Make routine choices yourself; ask good questions when an unresolved decision materially affects the outcome or scope. Continue independent work while waiting for an answer, unless the question(s) is blocking.
 
-Use the LSP tool to check for errors, explore code, and debug. The following operations are available:
+Preserve unrelated staged, unstaged, and untracked changes. Follow the repository's implementation and verification conventions. Use the smallest reliable checks for the changed behavior, broadening them when new evidence warrants it. Report the outcome, what was verified, and remaining dependencies in plain language. Use unslop for writing.
 
-## error checking
-- after editing a file, use `hover` on modified symbols to verify types are correct
-- use `findReferences` before deleting or renaming functions to understand impact
+## Delegation
 
-## code exploration
-- `goToDefinition`: trace where a function/class/variable is defined - essential for understanding unfamiliar code
-- `findReferences`: find all usages of a symbol across the codebase
-- `documentSymbol`: get an overview of all functions, classes, and variables in a file
-- `workspaceSymbol`: search for symbols by name across the entire project
-- `goToImplementation`: find concrete implementations of interfaces or abstract methods
+Only spawn subagents when I ask you to or explicitly select a workflow that includes them. That permission covers its scoped follow-up work. Give each worker a bounded task, owned files or read-only scope, the relevant decisions, and a checkable completion point. The lead owns integration and verification.
 
-## debugging & understanding call flow
-- `hover`: inspect types, documentation, and inferred information for any symbol
-- `incomingCalls`: find all functions that call a specific function (useful for tracing how code is reached)
-- `outgoingCalls`: find all functions called by a specific function (useful for understanding dependencies)
-- `prepareCallHierarchy`: get call hierarchy information for a function
+Use native workers within the current harness when available. Use a provider CLI when I request another provider or a separate runtime. Preserve the selected coordinator. Sol (`gpt-5.6-sol`) at medium is the default for bounded delegated work; Fable 5.1 at medium is the default Claude choice. Astra (`gpt-6-astra`) is an option for peer consultation, design discussion, and consequential review. Keep my explicit model and effort choices. Add another review perspective for material API/design or high-risk behavioral changes, or when requested; ordinary scoped checks need not run a paired review. Never use Haiku.
 
-## practical workflows
-- **before refactoring**: use `findReferences` to understand all affected code
-- **debugging a bug**: use `incomingCalls` to trace how a function is reached, `goToDefinition` to follow the data flow
-- **understanding new code**: use `documentSymbol` for file overview, `hover` for type info, `goToDefinition` to dive deeper
+For durable shell delegation, use `agent-run --help` (source: `~/dotfiles/bin/agent-run`). It records model, scope, process identity, result and exit status. Give it a self-contained prompt file. Reconcile the task's existing runs after a restart before launching replacements. Review the result and diff before acknowledging completion. Use `launch-agent` for interactive panes, not batch completion tracking.
 
-# Tools
+For review of a consequential behavioral invariant, consult `~/dotfiles/agents/references/empirical-review.md`.
 
-## Browser Tools
+## Browser and artifacts
 
-- Use `agent-browser` for most interactive browser work. It is the default choice for agent-driven exploration, iterative UI interaction, screenshots, and stateful sessions. Prefer it when you want AI-friendly page discovery via `snapshot` and stable element refs like `@e1`.
-- Use `dev-browser` when you need programmable browser automation with Playwright-style APIs. Prefer it for scripted multi-step flows, reusable inspection scripts, or cases where `snapshotForAI()` plus direct `page` methods are the best fit.
-- On this machine, `dev-browser` may work better with `--connect` to an existing Chrome/CDP session than by launching its bundled browser directly.
+Honor an explicit browser choice. Otherwise use available integrated browser tools when suitable; use helium-browser-use for the configured persistent session, required logins, or when integrated tools are unavailable or unsuitable. Use agent-browser instructions only when that CLI is selected. Use desktop control for compositor/native-app tasks. Search Gmail and Slack through Executor rather than browser automation when service search is the task.
 
-# Picking the right models for workflows and subagents
+For HTML publication, follow `~/dotfiles/agents/references/publication.md`; html-communication owns authoring and PageBin owns transport. Keep the artifact's identity across updates.
 
-Rankings, higher = better. Cost reflects actual plan limits, not list price. Intelligence is how hard a problem you can hand the model unsupervised. Taste covers UI/UX, code quality, API design, and copy.
+## Claude-specific tools
 
-| model    | cost | intelligence | taste |
-|----------|------|--------------|-------|
-| gpt-5.6  | 9    | 8            | 5     |
-| sonnet   | 5    | 5            | 7     |
-| opus     | 4    | 7            | 8     |
-| fable    | 2    | 9            | 9     |
+Use available LSP navigation for unfamiliar call paths and reference searches before refactors. Verify types with the project's checks; hover alone is not a type check.
 
-How to apply:
-- These are defaults, not limits. You have standing permission to override them: if a cheaper model's output doesn't meet the bar, rerun or redo the work with a smarter model without asking. Judge the output, not the price tag. Escalating costs less than shipping mediocre work.
-- Don't let cost prevent you from using the right model for the job. Instead, take advantage of cheaper options to get more information and try things before moving the work to a more expensive option.
-- Bulk/mechanical work (clear-spec implementation, data analysis, migrations, investigation of large codebases): gpt-5.6 — it's effectively free.
-- Anything user-facing (UI, copy, API design) needs taste ≥ 7.
-- Reviews of plans/implementations: fable or opus, optionally gpt-5.6 as an extra independent perspective. A gpt-5.6 review is never the sole gate: always pair it with a fable/opus adversarial pass focused on API and interface design before presenting findings or merging.
-- Never use haiku.
-- Claude models (sonnet, opus, fable) run via the Agent/Workflow model parameter. gpt-5.6 is only reachable through the Codex CLI (`codex exec`).
+Use codex-review when I request a Codex/Sol review or Astra consultation. After `agent-run start`, immediately run `agent-run wait <id> --timeout 0` through Bash with `run_in_background: true`; retain the task handle and read its completion notification. After a restart, reconcile and re-arm waits. The durable worker runs in tmux, while the watcher is owned by this Claude session.
 
-## Delegating to gpt-5.6 via Codex CLI
+## Knowledge Vault
 
-`~/.codex/config.toml` defaults to gpt-5.6 at high effort with a full-access sandbox and no approvals — ALWAYS pass `-s` and `-c model_reasoning_effort=...` explicitly per invocation.
+Use `~/notes/04-projects/manifest.md` for project routing and read the relevant brief. Invoke coppermind if the project is covered in the manifest; use it for vault work, including current TaskNotes conventions and write zones. Resolve the actual root from `~/notes`.
 
-Use the skills for the mechanics (command shapes, effort guidance, prompt templates, session capture):
-- `codex-implementation` — scoped code changes producing a patch
-- `codex-review` — independent second-opinion review of a diff, branch, or commit
-- `codex-computer-use` — browser/desktop verification of running apps
-
-For quick one-off investigation with no file changes:
-
-```sh
-codex exec -s read-only -c model_reasoning_effort=medium "<self-contained prompt>"
-```
-
-Prompt rules — Codex shares none of your conversation context:
-- Prompts must be fully self-contained: repo path, relevant file paths, exact requirements, acceptance criteria, and project-specific constraints (Codex already loads the global AGENTS.md conventions).
-- State what "done" looks like and tell it to end with a summary of changed files.
-- For long tasks, run via Bash with run_in_background and check output when notified; use `-o <file>` to capture the final message.
-- For follow-ups, capture the `session id:` from codex's output frontmatter and run `codex exec resume <session-id> "<correction>"` so follow-ups stay pinned to the right run.
-- After a delegated implementation, review the diff yourself before presenting it. If the output misses the bar, fix or redo with a Claude model — don't ship it unexamined.
-
-Using gpt-5.6 inside workflows and subagents (the model parameter only takes Claude models, so use a wrapper):
-- Spawn a thin Claude wrapper agent with `model: 'sonnet', effort: 'low'` whose prompt instructs it to write a self-contained codex prompt, run `codex exec` via Bash, and return the raw result without editorializing.
-
-# Knowledge Vault
-
-The coppermind vault (~/notes, /vault/notes/coppermind) is the knowledge base for projects and tasks. When working in a repo mapped by ~/notes/04-projects/manifest.md (notably /vault/work/moberg/*), read the project's brief.md + tasks.md there for context, and invoke the vault's `coppermind` skill before writing anything into it.
-
-# Shell & CI discipline
+## Shell & CI discipline
 
 - Never pipe verification commands (tests, linters, builds) through filters that mask exit codes (`| tail`, `| grep`). Capture output to a file and check the exit code explicitly: `cmd > /tmp/out 2>&1; echo "exit=$?"`. A masked failure has caused a broken commit to be pushed.
 - When watching a CI/workflow run, capture the run ID at trigger time and poll that ID. Never poll "latest run" (`gh run list --limit 1`) — a just-triggered push races the previous run and you will report the wrong result.

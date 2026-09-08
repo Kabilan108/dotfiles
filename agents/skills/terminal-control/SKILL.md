@@ -1,6 +1,7 @@
 ---
+disable-model-invocation: true
 name: terminal-control
-description: Drive and verify terminal applications with the termctrl CLI in a real PTY - read visible screens, run named live sessions, send typed keyboard input, wait for text, save evidence, record timelines, and export edited videos. Use when an agent must operate or test a TUI, REPL, interactive CLI, shell process, or OpenTUI application.
+description: Inspect and drive terminal user interfaces in a real PTY with termctrl.
 ---
 
 # Terminal Control

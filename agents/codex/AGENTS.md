@@ -1,14 +1,44 @@
 # AGENTS.md
 
-## system info
+## Local Machine
 
-the current machine runs nixos with a custom home-manager configuration. you can find the flake at ~/dotfiles/flake.nix.
+This machine runs nixos with home-manager. The flake is managed at ~/dotfiles. Various dev tools are installed in the base environment (e.g. uv, pnpm, npm, pythonk, etc); if you need additional dependencies, use `nix-shell -p` to grab them. Execute commands via the flake dev shell if one is present for the current project. For new projects, set up a flake devshell with the necessary dependencies. Where applicable, `nix-direnv` may auto-load a project's dev shell.
 
-tools for a variety of languages are installed in the home environment, but where necessary, project specific dependencies will be made available via a flake. the nix-direnv tool will typically be used to automatically start the flake's dev shell.
+## Working together
 
-## subagents
+Complete the requested work through its stated stopping point. Carry forward decisions and authorization across follow-ups. An investigation produces an assessment unless implementation was requested. Make routine choices yourself; ask good questions when an unresolved decision materially affects the outcome or scope. Continue independent work while waiting for an answer, unless the question(s) is blocking.
 
-Only spawn subagents when i ask you to
+Preserve unrelated staged, unstaged, and untracked changes. Follow the repository's implementation and verification conventions. Use the smallest reliable checks for the changed behavior, broadening them when new evidence warrants it. Report the outcome, what was verified, and remaining dependencies in plain language. Use unslop for writing.
+
+## Delegation
+
+Only spawn subagents when I ask you to or explicitly select a workflow that includes them. That permission covers its scoped follow-up work. Give each worker a bounded task, owned files or read-only scope, the relevant decisions, and a checkable completion point. The lead owns integration and verification.
+
+Use native workers within the current harness when available. Use a provider CLI when I request another provider or a separate runtime. Preserve the selected coordinator. Sol (`gpt-5.6-sol`) at medium is the default for bounded delegated work; Fable 5.1 at medium is the default Claude choice. Astra (`gpt-6-astra`) is an option for peer consultation, design discussion, and consequential review. Keep my explicit model and effort choices. Add another review perspective for material API/design or high-risk behavioral changes, or when requested; ordinary scoped checks need not run a paired review. Never use Haiku.
+
+For durable shell delegation, use `agent-run --help` (source: `~/dotfiles/bin/agent-run`). It records model, scope, process identity, result and exit status. Give it a self-contained prompt file. Reconcile the task's existing runs after a restart before launching replacements. Review the result and diff before acknowledging completion. Use `launch-agent` for interactive panes, not batch completion tracking.
+
+For review of a consequential behavioral invariant, consult `~/dotfiles/agents/references/empirical-review.md`.
+
+## Browser and artifacts
+
+Honor an explicit browser choice. Otherwise use available integrated browser tools when suitable; use helium-browser-use for the configured persistent session, required logins, or when integrated tools are unavailable or unsuitable. Use agent-browser instructions only when that CLI is selected. Use desktop control for compositor/native-app tasks. Search Gmail and Slack through Executor rather than browser automation when service search is the task.
+
+For HTML publication, follow `~/dotfiles/agents/references/publication.md`; html-communication owns authoring and PageBin owns transport. Keep the artifact's identity across updates.
+
+## Codex-specific tools
+
+Use claude-review for a requested Fable 5.1 second opinion. After `agent-run start`, run `agent-run wait <id> --timeout 0` through the available process tool and retain its yielded handle. Resume that handle with the tool's wait/poll operation; keep the managed wait active until completion or an explicit checkpoint. A finished turn is not guaranteed to be awakened by a background process. On restart, reconcile and reattach waits before starting replacements.
+
+## Knowledge Vault
+
+Use `~/notes/04-projects/manifest.md` for project routing and read the relevant brief. Invoke coppermind if the project is covered in the manifest; use it for vault work, including current TaskNotes conventions and write zones. Resolve the actual root from `~/notes`.
+
+## Shell & CI discipline
+
+- Never pipe verification commands (tests, linters, builds) through filters that mask exit codes (`| tail`, `| grep`). Capture output to a file and check the exit code explicitly: `cmd > /tmp/out 2>&1; echo "exit=$?"`. A masked failure has caused a broken commit to be pushed.
+- When watching a CI/workflow run, capture the run ID at trigger time and poll that ID. Never poll "latest run" (`gh run list --limit 1`) — a just-triggered push races the previous run and you will report the wrong result.
+- When an applicable `.envrc` exists, run project commands through `direnv exec "$PWD" ...`.
 
 ## Rules
 
@@ -52,13 +82,3 @@ Use `uv` for dependency management:
 | `uvx <cmd>` | Run arbitrary python executable without installing |
 
 Always use `uv add` to add dependencies rather than editing `pyproject.toml` manually.
-
-## Knowledge Vault
-
-The coppermind vault (~/notes, /vault/notes/coppermind) is the knowledge base for projects and tasks. When working in a repo mapped by ~/notes/04-projects/manifest.md (notably /vault/work/moberg/*), read that project's brief.md + tasks.md for context. Vault write rules: ~/dotfiles/agents/skills/coppermind/SKILL.md — 04-projects/ is agent-writable (briefs/people via proposals), 00-bin/01-logs/02-moberg are Tony's zones.
-
-## Shell & CI discipline
-
-- Never pipe verification commands (tests, linters, builds) through filters that mask exit codes (`| tail`, `| grep`). Capture output to a file and check the exit code explicitly: `cmd > /tmp/out 2>&1; echo "exit=$?"`. A masked failure has caused a broken commit to be pushed.
-- When watching a CI/workflow run, capture the run ID at trigger time and poll that ID. Never poll "latest run" (`gh run list --limit 1`) — a just-triggered push races the previous run and you will report the wrong result.
-- When an applicable `.envrc` exists, run project commands through `direnv exec "$PWD" ...`.
