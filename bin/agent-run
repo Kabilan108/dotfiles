@@ -1,0 +1,376 @@
+#!/usr/bin/env python3
+"""Durable batch workers in tmux. No provider credentials or permission bypasses."""
+
+from __future__ import annotations
+
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import time
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+
+def now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def save(path: Path, data: dict[str, Any]) -> None:
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(data, indent=2) + "\n")
+    temporary.replace(path)
+
+
+def directory(root: Path, run_id: str) -> Path:
+    if not re.fullmatch(r"[a-zA-Z0-9_-]+", run_id):
+        raise ValueError("invalid run ID")
+    return root / run_id
+
+
+def tmux(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    socket = "agent-run-" + hashlib.sha256(str(root).encode()).hexdigest()[:12]
+    return subprocess.run(
+        ["tmux", "-L", socket, *args], capture_output=True, text=True, check=False
+    )
+
+
+def read_record(root: Path, run_id: str) -> dict[str, Any]:
+    folder = directory(root, run_id)
+    record = json.loads((folder / "run.json").read_text())
+    # Separate terminal/ack files avoid races between worker and coordinator writes.
+    terminal = folder / "exit.json"
+    if terminal.exists():
+        record.update(json.loads(terminal.read_text()))
+    elif record["state"] == "running":
+        live = tmux(root, "has-session", "-t", record["tmux_session"])
+        if live.returncode != 0:
+            record["state"] = "interrupted"
+    record["reviewed"] = (folder / "ack.json").exists()
+    return record
+
+
+def provider_command(record: dict[str, Any], folder: Path) -> list[str]:
+    provider = record["provider"]
+    resume = record.get("resume_session")
+    if provider == "command":
+        return record["command"]
+    if provider == "codex":
+        args = [
+            "codex",
+            "exec",
+            "-m",
+            record["model"],
+            "-c",
+            f'model_reasoning_effort="{record["effort"]}"',
+            "-c",
+            f'sandbox_mode="{record["access"]}"',
+            "-c",
+            'approval_policy="never"',
+            "--json",
+            "-o",
+            str(folder / "result.md"),
+        ]
+        # Config flags are accepted by exec/resume; never use --last.
+        return args + (["resume", resume, "-"] if resume else ["-"])
+    args = [
+        "claude",
+        "-p",
+        "--model",
+        record["model"],
+        "--effort",
+        record["effort"],
+        "--permission-mode",
+        record["access"],
+        "--output-format",
+        "json",
+    ]
+    return args + (["--resume", resume] if resume else [])
+
+
+def worker(root: Path, run_id: str) -> int:
+    folder = directory(root, run_id)
+    record = json.loads((folder / "run.json").read_text())
+    command = provider_command(record, folder)
+    if (Path(record["repo"]) / ".envrc").exists():
+        command = ["direnv", "exec", record["repo"], *command]
+    started = now()
+    try:
+        with (
+            (folder / "prompt.txt").open() as prompt,
+            (folder / "output.log").open("w") as log,
+        ):
+            result = subprocess.run(
+                command,
+                cwd=record["repo"],
+                stdin=prompt,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                text=True,
+                check=False,
+            )
+        code = result.returncode
+    except OSError as error:
+        (folder / "output.log").write_text(f"Launch failed: {error}\n")
+        code = 127
+    session = None
+    provider_error = False
+    reported_model = None
+    for line in (folder / "output.log").read_text(errors="replace").splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        if isinstance(event.get("model"), str):
+            reported_model = event["model"]
+        if event.get("type") == "thread.started":
+            session = event.get("thread_id")
+        if record["provider"] == "claude" and event.get("type") == "result":
+            session = event.get("session_id", session)
+            provider_error = bool(event.get("is_error"))
+            if isinstance(event.get("result"), str):
+                (folder / "result.md").write_text(event["result"])
+    report = folder / "result.md"
+    state = "completed" if code == 0 and not provider_error else "failed"
+    if (
+        state == "completed"
+        and record["provider"] != "command"
+        and (not report.exists() or not report.stat().st_size)
+    ):
+        state = "missing-result"
+    save(
+        folder / "exit.json",
+        {
+            "state": state,
+            "exit_code": code,
+            "started": started,
+            "finished": now(),
+            "worker_session": session,
+            "provider_error": provider_error,
+            "reported_model": reported_model,
+        },
+    )
+    return 0
+
+
+def start(root: Path, args: argparse.Namespace) -> int:
+    with (root / ".start.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        run_id = args.id or uuid.uuid4().hex
+        folder = directory(root, run_id)
+        if folder.exists():
+            raise ValueError(
+                f"run {run_id} already exists; inspect status or resume it explicitly"
+            )
+        previous = read_record(root, args.resume_from) if args.resume_from else None
+        if previous:
+            if previous["state"] in ("running", "interrupted"):
+                raise ValueError(
+                    "previous worker may still be active; resolve it before resuming"
+                )
+            if not previous.get("worker_session"):
+                raise ValueError(
+                    "no provider session ID was captured; use a new self-contained handoff"
+                )
+        repo = previous["repo"] if previous else str(Path(args.repo or ".").resolve())
+        if not Path(repo).is_dir():
+            raise ValueError(f"repository does not exist: {repo}")
+        provider = previous["provider"] if previous else args.provider
+        if not provider:
+            raise ValueError("--provider is required for a new run")
+        access = previous["access"] if previous else args.access
+        if provider != "command" and not access:
+            raise ValueError(
+                "--access is required: codex read-only/workspace-write; claude default/acceptEdits"
+            )
+        allowed = {
+            "codex": ("read-only", "workspace-write"),
+            "claude": ("default", "acceptEdits"),
+            "command": (None,),
+        }
+        if access not in allowed[provider]:
+            raise ValueError(f"invalid access for {provider}: {access}")
+        model = (
+            previous["model"]
+            if previous
+            else (
+                args.model
+                or {
+                    "codex": "gpt-5.6-sol",
+                    "claude": "claude-fable-5-1",
+                    "command": None,
+                }[provider]
+            )
+        )
+        command = args.command[1:] if args.command[:1] == ["--"] else args.command
+        if provider == "command" and not command:
+            raise ValueError("command provider requires -- command args...")
+        prompt = Path(args.prompt).read_text() if args.prompt else ""
+        if provider != "command" and not prompt.strip():
+            raise ValueError("--prompt must name a nonempty self-contained prompt file")
+        executable = command[0] if provider == "command" else provider
+        if not shutil.which(executable):
+            raise ValueError(f"executable unavailable: {executable}")
+        folder.mkdir(mode=0o700)
+        (folder / "prompt.txt").write_text(prompt)
+        record = {
+            "id": run_id,
+            "repo": repo,
+            "provider": provider,
+            "model": model,
+            "effort": previous["effort"] if previous else args.effort,
+            "access": access,
+            "created": now(),
+            "state": "running",
+            "tmux_session": "run-" + run_id,
+            "exit_code": None,
+            "coordinator_session": args.coordinator,
+            "worker_session": None,
+            "resume_session": previous["worker_session"] if previous else None,
+            "parent_run": args.resume_from,
+            "command": command,
+            "result": str(folder / "result.md"),
+            "log": str(folder / "output.log"),
+        }
+        save(folder / "run.json", record)
+        launch = shlex.join(
+            [
+                sys.executable,
+                str(Path(__file__).resolve()),
+                "--state-dir",
+                str(root),
+                "_worker",
+                run_id,
+            ]
+        )
+        result = tmux(
+            root, "new-session", "-d", "-s", record["tmux_session"], "-c", repo, launch
+        )
+        if result.returncode:
+            save(
+                folder / "exit.json",
+                {
+                    "state": "failed",
+                    "exit_code": None,
+                    "error": result.stderr,
+                    "finished": now(),
+                },
+            )
+            raise ValueError(
+                f"tmux launch failed: {result.stderr.strip()} (run {run_id})"
+            )
+        print(run_id)
+    return 0
+
+
+def main() -> int:
+    os.umask(0o077)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog="After start, attach wait through your harness. tmux alone sends no notification. Commands inherit configured credentials, never bypass permissions. launch-agent is for interactive panes.",
+    )
+    parser.add_argument(
+        "--state-dir",
+        type=Path,
+        default=Path(
+            os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local/state"))
+        )
+        / "agent-runs",
+    )
+    sub = parser.add_subparsers(dest="operation", required=True)
+    launch = sub.add_parser(
+        "start",
+        help="launch once; print run ID (use --id to prevent accidental duplicates)",
+    )
+    launch.add_argument("--provider", choices=["codex", "claude", "command"])
+    launch.add_argument("--model")
+    launch.add_argument(
+        "--effort", default="medium", choices=["low", "medium", "high", "xhigh"]
+    )
+    launch.add_argument(
+        "--access", help="codex: read-only/workspace-write; claude: default/acceptEdits"
+    )
+    launch.add_argument("--repo")
+    launch.add_argument(
+        "--prompt", help="prompt file, copied into private run directory"
+    )
+    launch.add_argument("--id")
+    launch.add_argument("--coordinator", help="coordinator session ID, when available")
+    launch.add_argument(
+        "--resume-from",
+        help="completed/failed run with a captured provider session; preserves model/access/repo",
+    )
+    launch.add_argument(
+        "command",
+        nargs=argparse.REMAINDER,
+        help="with --provider command, a shell-free argv after --",
+    )
+    for name in ["status", "wait", "acknowledge", "_worker"]:
+        item = sub.add_parser(name)
+        item.add_argument("id")
+        if name == "wait":
+            item.add_argument(
+                "--timeout",
+                type=float,
+                default=60,
+                help="seconds; 0 waits indefinitely; timeout exits 124",
+            )
+    reconcile = sub.add_parser(
+        "reconcile",
+        help="list unreviewed runs and their current states; never relaunch",
+    )
+    reconcile.add_argument("--repo", required=True)
+    args = parser.parse_args()
+    if args.operation == "wait" and args.timeout < 0:
+        parser.error("--timeout must be nonnegative")
+    root = args.state_dir.expanduser().resolve()
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if args.operation == "start":
+        return start(root, args)
+    if args.operation == "_worker":
+        return worker(root, args.id)
+    if args.operation == "reconcile":
+        repo = str(Path(args.repo).resolve())
+        for path in sorted(root.glob("*/run.json")):
+            record = read_record(root, path.parent.name)
+            if record["repo"] == repo and not record["reviewed"]:
+                print(json.dumps(record))
+        return 0
+    deadline = (
+        time.monotonic() + args.timeout
+        if args.operation == "wait" and args.timeout
+        else None
+    )
+    while True:
+        record = read_record(root, args.id)
+        if args.operation != "wait" or record["state"] != "running":
+            break
+        if deadline is not None and time.monotonic() >= deadline:
+            print(json.dumps(record))
+            return 124
+        time.sleep(0.25)
+    if args.operation == "acknowledge":
+        if record["state"] in ("running", "interrupted"):
+            raise ValueError("resolve active/uncertain work before acknowledging it")
+        save(directory(root, args.id) / "ack.json", {"reviewed_at": now()})
+        record["reviewed"] = True
+    print(json.dumps(record))
+    return 0 if args.operation != "wait" or record["state"] == "completed" else 1
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (ValueError, OSError) as error:
+        print(f"agent-run: {error}", file=sys.stderr)
+        sys.exit(1)

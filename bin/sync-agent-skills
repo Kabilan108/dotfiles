@@ -4,10 +4,13 @@ set -euo pipefail
 
 usage() {
   cat <<EOF
-Usage: sync-agent-skills
+Usage: sync-agent-skills [--dry-run] [--host HOST]
 
 Symlink child directories from shared and agent-specific skill roots into each
 agent config's skills directory.
+
+Niri is installed only on jacurutu. --host previews/selects a target host.
+Use DOTFILES_DIR to select a checkout; default is ~/dotfiles.
 
 Sources:
   agents/skills           -> claude, codex, opencode
@@ -27,14 +30,26 @@ error() {
   exit 1
 }
 
-if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
-  usage
-  exit 0
-fi
+dry_run=false
+skill_host="$(hostname -s)"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run) dry_run=true; shift ;;
+    --host) [[ $# -ge 2 ]] || error "--host requires a name"; skill_host="$2"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) error "unexpected argument '$1'" ;;
+  esac
+done
 
-if [[ $# -gt 0 ]]; then
-  error "unexpected argument '$1'"
-fi
+change() {
+  if [[ "$dry_run" == true ]]; then
+    printf 'would run:'
+    printf ' %q' "$@"
+    printf '\n'
+  else
+    "$@"
+  fi
+}
 
 repo_root="${DOTFILES_DIR:-$HOME/dotfiles}"
 agents_dir="$repo_root/agents"
@@ -98,12 +113,12 @@ prepare_target_dir() {
       error "target skills directory is a symlink outside managed skill roots: $target_dir -> $link_target"
     fi
 
-    rm "$target_dir"
+    change rm "$target_dir"
   elif [[ -e "$target_dir" && ! -d "$target_dir" ]]; then
     error "target skills path exists and is not a directory: $target_dir"
   fi
 
-  mkdir -p "$target_dir"
+  change mkdir -p "$target_dir"
 }
 
 add_skill_source() {
@@ -123,6 +138,10 @@ add_skill_source() {
       continue
     fi
 
+    [[ -f "$skill/SKILL.md" ]] || continue
+    if [[ "$skill_name" == niri-computer-use && "$skill_host" != jacurutu ]]; then
+      continue
+    fi
     source_path=$(resolve_path "$skill")
     target_path="$target_dir/$skill_name"
 
@@ -135,10 +154,6 @@ add_skill_source() {
   done < <(find "$source_dir" -mindepth 1 -maxdepth 1 -type d -print0)
 }
 
-for target_dir in "${target_dirs[@]}"; do
-  prepare_target_dir "$target_dir"
-done
-
 for agent in "${!target_dirs[@]}"; do
   add_skill_source "$agents_dir/skills" "${target_dirs[$agent]}" "agents/skills"
 done
@@ -147,13 +162,26 @@ add_skill_source "$agents_dir/claude-skills" "${target_dirs[claude]}" "agents/cl
 add_skill_source "$agents_dir/codex-skills" "${target_dirs[codex]}" "agents/codex-skills"
 add_skill_source "$agents_dir/opencode-skills" "${target_dirs[opencode]}" "agents/opencode-skills"
 
+for target_path in "${!desired_sources[@]}"; do
+  if [[ -L "$target_path" ]]; then
+    current_target=$(resolve_link "$target_path")
+    is_managed_path "$current_target" || error "refusing to replace unmanaged link: $target_path"
+  elif [[ -e "$target_path" ]]; then
+    error "target exists and is not a managed symlink: $target_path"
+  fi
+done
+
+for target_dir in "${target_dirs[@]}"; do
+  prepare_target_dir "$target_dir"
+done
+
 for target_dir in "${target_dirs[@]}"; do
   [[ -d "$target_dir" ]] || continue
 
   while IFS= read -r -d '' link; do
     link_target=$(resolve_link "$link")
     if [[ -z "${desired_sources[$link]+set}" ]] && is_managed_path "$link_target"; then
-      rm "$link"
+      change rm "$link"
       echo "removed stale skill link: $link"
     fi
   done < <(find "$target_dir" -mindepth 1 -maxdepth 1 -type l -print0)
@@ -172,11 +200,11 @@ while IFS= read -r target_path; do
       continue
     fi
 
-    ln -sfnT "$source_path" "$target_path"
+    change ln -sfnT "$source_path" "$target_path"
     echo "updated skill link: $target_path -> $source_path"
     continue
   fi
 
-  ln -sT "$source_path" "$target_path"
+  change ln -sT "$source_path" "$target_path"
   echo "created skill link: $target_path -> $source_path"
 done < <(printf '%s\n' "${!desired_sources[@]}" | sort)
