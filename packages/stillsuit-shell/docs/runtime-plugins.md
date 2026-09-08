@@ -40,7 +40,7 @@ override; the value is JSON. The change re-constructs that plugin's service
 within about a second, which for notifications preserves history through the
 persisted state file.
 
-The `stillsuit-plugin` agent skill (`agents/skills/stillsuit-plugin/`) walks
+The `stillsuit-plugin` agent skill (`.agents/skills/stillsuit-plugin/`) walks
 this loop and points at `src/plugins/examples/` as starting templates.
 Develop against `stillsuit-workbench` first: it runs the same core and
 discovery on a nested compositor with fixture-driven services, so a plugin can

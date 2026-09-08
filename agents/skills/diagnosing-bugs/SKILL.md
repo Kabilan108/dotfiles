@@ -1,7 +1,7 @@
 ---
 name: diagnosing-bugs
 disable-model-invocation: true
-description: Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow.
+description: A human-invoked workflow for reproducing and diagnosing hard bugs or performance regressions with a tight feedback loop.
 ---
 
 # Diagnosing Bugs

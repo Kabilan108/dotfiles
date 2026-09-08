@@ -1,6 +1,6 @@
 # Personal skill inventory
 
-> September 6 review update: [decisions](review-decisions.md) and the [concrete change plan](change-plan.md) supersede conflicting proposals below.
+> Historical audit/proposal. Superseded where it conflicts with the reviewed source files and [September 8 follow-up](fable-follow-up.md). See the [audit index](README.md) for current entrypoints. Retained for rationale and chronology, not as active agent instructions.
 
 All 30 active personal source skills are covered. Counts are distinct archive session IDs with a visible skill invocation or skill-file read attempt. They are conservative observations, not successful-use counts or unique workstreams. Long tool inputs can be truncated, inherited histories can repeat loads, and automated sessions can contribute. A zero means no observed load in this sample.
 

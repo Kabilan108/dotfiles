@@ -1,6 +1,6 @@
 # Agent workflow audit, September 5, 2026
 
-> September 6 review update: [decisions](review-decisions.md) and the [concrete change plan](change-plan.md) supersede conflicting proposals below.
+> Historical audit/proposal. Superseded where it conflicts with the reviewed source files and [September 8 follow-up](fable-follow-up.md). See the [audit index](README.md) for current entrypoints. Retained for rationale and chronology, not as active agent instructions.
 
 My recommendation is to keep the useful tools, reduce the number of workflows that trigger automatically, and move repeated operational rules into helpers. The biggest debt is conflicting routing, machine-specific facts presented as universal, and duplicated process instructions. Deleting rarely used skills alone would miss most of it.
 

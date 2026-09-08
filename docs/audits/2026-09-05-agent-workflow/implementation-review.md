@@ -1,5 +1,9 @@
 # Draft implementation for review
 
+> Historical implementation snapshot. Superseded where it conflicts with the reviewed source files and [September 8 follow-up](fable-follow-up.md). See the [audit index](README.md) for current entrypoints. Retained for rationale and chronology, not as active agent instructions.
+
+Latest corrections and live validation: [Fable review follow-up](fable-follow-up.md). The September 7 checks below are historical.
+
 September 7. Source changes are uncommitted; no live skill sync, provider configuration activation, cache deletion, publication, Nix rebuild, or Moberg rollout was performed.
 
 ## Start here
@@ -7,8 +11,8 @@ September 7. Source changes are uncommitted; no live skill sync, provider config
 - [x] `agents/claude/CLAUDE.md` and `agents/codex/AGENTS.md`: short shared operating policy, explicit delegation, model choices, browser routing, and reference discovery. Claude's old ranking table and duplicated launch recipes are removed. Unslop is unchanged.
 - [x] `agents/references/publication.md` and `empirical-review.md`: single homes for publication scope and behavioral review evidence.
 - `agents/skills/html-communication/`, `dependency-source/`, and `executor/`: renamed/consolidated capabilities. Rich HTML assets and service references are preserved. The old dependency cache is untouched; future source work uses `~/.agents/vendored-deps`.
-- `agents/skills/grilling/`, `diagnosing-bugs/`, and `create-verification-skill/`: small adapted trials with upstream attribution. Grilling and verification-skill creation are manual-only.
-- `show-me` and `terminal-control`: manual-only metadata in both harness formats. Show-me's visual examples remain; its platform-specific open instruction is adapted.
+- `agents/skills/grilling/`, `diagnosing-bugs/`, and `create-verification-skill/`: trial workflows. Verification and debugging retain the upstream structure with narrow compatibility edits; grilling remains a lighter adaptation. All three are manual-only.
+- `show-me` is model-invokable; `terminal-control` is manual-only in both harness formats. Show-me's visual examples remain; its platform-specific open instruction is adapted.
 - `bin/agent-run`: batch worker lifecycle, distinct from interactive `launch-agent`. Explicit access/model/effort, private state directory, real exit status, provider result/session capture, resume, reconciliation and acknowledgment. `model` is the requested model; `reported_model` is populated only when provider output supplies it. No guessed actual model attribution.
 - `bin/sync-agent-skills`: preview mode and host selection, with Niri limited to Jacurutu and protection against replacing foreign links.
 

@@ -1,5 +1,7 @@
 # Review reconciliation, September 6
 
+> Historical audit/proposal. Superseded where it conflicts with the reviewed source files and [September 8 follow-up](fable-follow-up.md). See the [audit index](README.md) for current entrypoints. Retained for rationale and chronology, not as active agent instructions.
+
 This records the user's feedback and the revised proposal. It supersedes conflicting recommendations in the initial audit and inventory. Configured skills have not been changed. User prompt additions now live in [prompt-quick-reference.md](prompt-quick-reference.md). The concrete file-by-file implementation scope is [change-plan.md](change-plan.md); deferred project work is [moberg-follow-up.md](moberg-follow-up.md).
 
 ## Settled direction
@@ -46,7 +48,7 @@ The shared operating policy was a proposed replacement for duplicated global pro
 
 ## New references
 
-[HumanLayer show-me](https://github.com/humanlayer/skills/blob/main/plugins/show-me/skills/show-me/SKILL.md) selects compact visual forms including pseudocode, call/file/component trees, Mermaid, diffs, and focused HTML. Include an adapted human-invoked version in the initial pass. Route its HTML output through html-communication when useful and adapt its `open` command to the environment. It should not turn every explanation into a published report.
+[HumanLayer show-me](https://github.com/humanlayer/skills/blob/main/plugins/show-me/skills/show-me/SKILL.md) selects compact visual forms including pseudocode, call/file/component trees, Mermaid, diffs, and focused HTML. Include an adapted model-invokable version in the initial pass (final review decision). Route its HTML output through html-communication when useful and adapt its `open` command to the environment. It should not turn every explanation into a published report.
 
 [Columbia Pages](https://github.com/davis7dotsh/columbia-pages/blob/main/.skills/columbia-pages/SKILL.md) is a useful example of semantic HTML and optional components. Its simplicity partly comes from a server-provided theme and body-only input contract. Borrow the restrained authoring guidance; do not copy its transport commands, house-theme default, or server assumptions into PageBin.
 
@@ -62,7 +64,7 @@ The shared operating policy was a proposed replacement for duplicated global pro
 - Preserve the two cross-provider review entrypoints in their respective harness roots; retire implementation/computer-use wrappers once helper coverage replaces them.
 - Discover empirical-review guidance through a conditional pointer in each global file and the retained review skills, all pointing to one `agents/references/empirical-review.md`. It is not a separate mandatory skill.
 - A durable run record is a per-run JSON/status/log/result directory in the user's state directory. The worker wrapper records actual exit status. Harness-specific wait instructions replace vague “arm watcher” language; Codex wakeup after an ended turn must not be assumed.
-- Keep show-me human-invoked. Retain the central dependency store. Keep rich HTML templates as an optional starting point rather than replacing all of them.
+- Keep show-me model-invokable (final review decision). Retain the central dependency store. Keep rich HTML templates as an optional starting point rather than replacing all of them.
 - Defer Moberg skill implementation to its dedicated follow-up list. General verification-skill creation guidance can be trialed in this pass.
 
 ## September 7 alignment

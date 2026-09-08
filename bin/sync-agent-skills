@@ -41,6 +41,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+case "$skill_host" in
+  jacurutu|sietch|tleilax) ;;
+  *) error "unknown host: $skill_host (expected jacurutu, sietch, or tleilax)" ;;
+esac
+
 change() {
   if [[ "$dry_run" == true ]]; then
     printf 'would run:'

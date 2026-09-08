@@ -1,6 +1,6 @@
 ---
 name: agent-browser
-description: Automate browser interaction with the agent-browser CLI when that CLI is selected for navigation, page inspection, form interaction, screenshots, or UI verification.
+description: Command reference for agent-browser, loaded through helium-browser-use or directly for Electron and other CDP targets.
 allowed-tools: Bash(agent-browser:*), Bash(npx agent-browser:*)
 ---
 

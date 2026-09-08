@@ -2,7 +2,12 @@
 
 ## Local Machine
 
-This machine runs nixos with home-manager. The flake is managed at ~/dotfiles. Various dev tools are installed in the base environment (e.g. uv, pnpm, npm, pythonk, etc); if you need additional dependencies, use `nix-shell -p` to grab them. Execute commands via the flake dev shell if one is present for the current project. For new projects, set up a flake devshell with the necessary dependencies. Where applicable, `nix-direnv` may auto-load a project's dev shell.
+This machine runs nixos with home-manager. The flake is managed at ~/dotfiles. Various dev tools are installed in the base environment (e.g. uv, pnpm, npm, python, etc); if you need additional dependencies, use `nix-shell -p` to grab them. Execute commands via the flake dev shell if one is present for the current project. For new projects, set up a flake devshell with the necessary dependencies. Where applicable, `nix-direnv` may auto-load a project's dev shell.
+
+## Dev server networking
+
+Bind dev servers to the server host's current Tailscale IP (`tailscale ip -4`) and return that reachable URL, unless the project is configured otherwise. Adhere to established project-specific networking conventions. Keep development access within the tailnet; public Funnel exposure requires an explicit request.
+
 
 ## Language-specific instructions
 

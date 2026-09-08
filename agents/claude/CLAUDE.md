@@ -2,7 +2,7 @@
 
 ## Local Machine
 
-This machine runs nixos with home-manager. The flake is managed at ~/dotfiles. Various dev tools are installed in the base environment (e.g. uv, pnpm, npm, pythonk, etc); if you need additional dependencies, use `nix-shell -p` to grab them. Execute commands via the flake dev shell if one is present for the current project. For new projects, set up a flake devshell with the necessary dependencies. Where applicable, `nix-direnv` may auto-load a project's dev shell.
+This machine runs nixos with home-manager. The flake is managed at ~/dotfiles. Various dev tools are installed in the base environment (e.g. uv, pnpm, npm, python, etc); if you need additional dependencies, use `nix-shell -p` to grab them. Execute commands via the flake dev shell if one is present for the current project. For new projects, set up a flake devshell with the necessary dependencies. Where applicable, `nix-direnv` may auto-load a project's dev shell.
 
 ## Working together
 
@@ -12,17 +12,17 @@ Preserve unrelated staged, unstaged, and untracked changes. Follow the repositor
 
 ## Delegation
 
-Only spawn subagents when I ask you to or explicitly select a workflow that includes them. That permission covers its scoped follow-up work. Give each worker a bounded task, owned files or read-only scope, the relevant decisions, and a checkable completion point. The lead owns integration and verification.
+Use subagents at your judgment for read-only exploration: searches, context gathering, an independent review perspective. Be judicious and prefer the cheapest model that meets the bar. Splitting implementation across subagents, using another provider, or launching workers that outlive the session is opt-in: only when I ask, or when a workflow I selected includes it. Once I ask for delegation on a task, that covers its follow-up workers; no need to re-ask for each one. Give each worker a bounded task, owned files or read-only scope, the relevant decisions, and a checkable completion point. The lead owns integration and verification.
 
 Use native workers within the current harness when available. Use a provider CLI when I request another provider or a separate runtime. Preserve the selected coordinator. Sol (`gpt-5.6-sol`) at medium is the default for bounded delegated work; Fable 5.1 at medium is the default Claude choice. Astra (`gpt-6-astra`) is an option for peer consultation, design discussion, and consequential review. Keep my explicit model and effort choices. Add another review perspective for material API/design or high-risk behavioral changes, or when requested; ordinary scoped checks need not run a paired review. Never use Haiku.
 
-For durable shell delegation, use `agent-run --help` (source: `~/dotfiles/bin/agent-run`). It records model, scope, process identity, result and exit status. Give it a self-contained prompt file. Reconcile the task's existing runs after a restart before launching replacements. Review the result and diff before acknowledging completion. Use `launch-agent` for interactive panes, not batch completion tracking.
+For durable shell delegation, use `agent-run --help` (source: `~/dotfiles/bin/agent-run`). It records model, scope, process identity, result and exit status. Give it a self-contained prompt file. After `agent-run start`, immediately run `agent-run wait <id> --timeout 0` using the harness mechanism below. Retain its handle. After a restart, reconcile the task's existing runs and re-arm waits before launching replacements. Review the result and diff before acknowledging completion. Use `launch-agent` for interactive panes, not batch completion tracking.
 
 For review of a consequential behavioral invariant, consult `~/dotfiles/agents/references/empirical-review.md`.
 
 ## Browser and artifacts
 
-Honor an explicit browser choice. Otherwise use available integrated browser tools when suitable; use helium-browser-use for the configured persistent session, required logins, or when integrated tools are unavailable or unsuitable. Use agent-browser instructions only when that CLI is selected. Use desktop control for compositor/native-app tasks. Search Gmail and Slack through Executor rather than browser automation when service search is the task.
+Use available integrated browser tools when suitable; use helium-browser-use otherwise or when explicitly requested, including when its persistent login session is needed. Use desktop control for compositor/native-app tasks. Search Gmail and Slack through Executor rather than browser automation when service search is the task.
 
 For HTML publication, follow `~/dotfiles/agents/references/publication.md`; html-communication owns authoring and PageBin owns transport. Keep the artifact's identity across updates.
 
@@ -30,7 +30,11 @@ For HTML publication, follow `~/dotfiles/agents/references/publication.md`; html
 
 Use available LSP navigation for unfamiliar call paths and reference searches before refactors. Verify types with the project's checks; hover alone is not a type check.
 
-Use codex-review when I request a Codex/Sol review or Astra consultation. After `agent-run start`, immediately run `agent-run wait <id> --timeout 0` through Bash with `run_in_background: true`; retain the task handle and read its completion notification. After a restart, reconcile and re-arm waits. The durable worker runs in tmux, while the watcher is owned by this Claude session.
+Use codex-review when I request a Codex/Sol review or Astra consultation. Run the watcher through Bash with `run_in_background: true`; retain the task handle and read its completion notification. The durable worker runs in tmux, while the watcher is owned by this Claude session.
+
+## Dev server networking
+
+Bind dev servers to the server host's current Tailscale IP (`tailscale ip -4`) and return that reachable URL, unless the project is configured otherwise. Adhere to established project-specific networking conventions. Keep development access within the tailnet; public Funnel exposure requires an explicit request.
 
 ## Knowledge Vault
 

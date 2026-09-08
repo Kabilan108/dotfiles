@@ -1,5 +1,7 @@
 # Concrete change plan
 
+> Historical audit/proposal. Superseded where it conflicts with the reviewed source files and [September 8 follow-up](fable-follow-up.md). See the [audit index](README.md) for current entrypoints. Retained for rationale and chronology, not as active agent instructions.
+
 Status: proposed implementation scope, September 6. This plan incorporates the user's completed review. It changes no live configuration. [Review decisions](review-decisions.md) are authoritative over the original audit; [Moberg follow-up](moberg-follow-up.md) is separate work.
 
 ## Global instructions
@@ -33,9 +35,9 @@ All paths below are under `agents/skills/` unless stated otherwise.
 | `terminal-control/` | Narrow to actual TUI/PTY control; enforce manual invocation in both harnesses. | Human only |
 | `coppermind/` | Verify normalized root; replace checkbox task conventions with current TaskNotes schema/workflow after inspecting current configuration. Preserve actual write-zone policy. | Vault work |
 | `unslop/` | Keep close to the current original, including its current invocation policy. No broad rewrite or duplicated global replacement. | Existing always-apply behavior |
-| `show-me/` (already added upstream) | Preserve the existing source rather than reinstalling; set human-only invocation metadata. Adapt HumanLayer's compact visual explanation skill. Honor tool availability; route substantial HTML through html-communication without mandatory publishing. Preserve source attribution. | Human only |
+| `show-me/` (already added upstream) | Preserve the existing source rather than reinstalling; allow model invocation. Adapt HumanLayer's compact visual explanation skill. Honor tool availability; route substantial HTML through html-communication without mandatory publishing. Retain provenance in the audit. | Model-invokable |
 | `grilling/` (new adapted trial) | Bounded design questions focused on material decisions; no compulsory exhaustive interview, automatic documents, or subagents. | Human only |
-| `diagnosing-bugs/` (new adapted trial) | Hypothesis/evidence loop with targeted reproduction when feasible; permit qualified analysis when access is limited. Avoid restating ordinary debugging basics. | Relevant bug investigation |
+| `diagnosing-bugs/` (new adapted trial) | Hypothesis/evidence loop with targeted reproduction when feasible; permit qualified analysis when access is limited. Retain the upstream phased workflow for a fair trial. | Human only |
 | `create-verification-skill/` (new adapted trial) | Derive a project recipe from proven launch/check/drive/evidence/cleanup commands. No automatic proliferation after ordinary sessions. | Human only |
 
 Keep `bro` unchanged. Keep fleet, tracer, handoff, frontend-design, niri-computer-use, writing-for-agents, and notify; touch them only for renamed/deleted references, host selection, or a directly conflicting instruction. Notification sending still follows the user's communication authorization.
@@ -100,7 +102,7 @@ After the user reviews the source changes, activation/sync can be handled as a s
 
 ## September 7 additions
 
-- Relocate the newly added shared `agents/skills/stillsuit-plugin/` to project-local `.agents/skills/stillsuit-plugin/` after validating harness discovery. Keep Niri focused on compositor interaction, with a conditional pointer to shell-specific guidance.
+- Relocate the newly added shared `agents/skills/stillsuit-plugin/` to project-local `.agents/skills/stillsuit-plugin/` after validating harness discovery. Keep Niri focused on compositor interaction; do not point the global skill at project-local Stillsuit guidance (final review decision).
 - Dependency cache and all reference worktrees live under `~/.agents/vendored-deps`. Inspect the old store for unique work before removal; no mandatory migration.
 - Preserve unslop's current behavior and avoid new global prose rules that fight it.
 - Executor skill consolidation retains the deployed interface; direct MCP exposure is not assumed or introduced in this pass.

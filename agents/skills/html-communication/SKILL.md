@@ -13,4 +13,4 @@ For a requested live log, keep the current state, verification, outstanding depe
 
 Use PageBin for publication. Load its version-matched instructions with `pagebin skill` for transport details. Update the existing artifact using its receipt or ID; create a second identity only when wanted. Explicit local-only requests stay local.
 
-Verify the changed behavior proportionally. Check a new layout where readability is uncertain and exercise new controls. Text edits to a verified layout need content/link checks, not repeated desktop/mobile/console passes. Publication verification establishes the uploaded artifact, not the truth of its research. Return the stable viewer URL when published, otherwise the local file.
+Verify the changed behavior proportionally; see [artifact checks](references/verification.md). Return the stable viewer URL when published, otherwise the local file.

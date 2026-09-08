@@ -43,17 +43,60 @@ def tmux(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def read_record(root: Path, run_id: str) -> dict[str, Any]:
+def captured_output(folder: Path, provider: str) -> dict[str, Any]:
+    captured: dict[str, Any] = {}
+    log = folder / "output.log"
+    if not log.exists():
+        return captured
+    for line in log.read_text(errors="replace").splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        if isinstance(event.get("model"), str):
+            captured["reported_model"] = event["model"]
+        if event.get("type") == "thread.started":
+            captured["worker_session"] = event.get("thread_id")
+        if provider == "claude":
+            if event.get("session_id"):
+                captured["worker_session"] = event["session_id"]
+            if isinstance(event.get("modelUsage"), dict):
+                models = sorted(event["modelUsage"])
+                captured["reported_models"] = models
+                captured["reported_model"] = models[0] if len(models) == 1 else None
+            if event.get("type") == "result":
+                captured["provider_error"] = bool(event.get("is_error"))
+                if isinstance(event.get("result"), str):
+                    captured["result_text"] = event["result"]
+    return captured
+
+
+def read_record(
+    root: Path, run_id: str, *, launch_locked: bool = False
+) -> dict[str, Any]:
+    # Readers share the launch lock: no observable running record before launch.
+    if not launch_locked:
+        with (root / ".start.lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_SH)
+            return read_record(root, run_id, launch_locked=True)
     folder = directory(root, run_id)
     record = json.loads((folder / "run.json").read_text())
-    # Separate terminal/ack files avoid races between worker and coordinator writes.
     terminal = folder / "exit.json"
-    if terminal.exists():
-        record.update(json.loads(terminal.read_text()))
-    elif record["state"] == "running":
+    if not terminal.exists() and record["state"] == "running":
         live = tmux(root, "has-session", "-t", record["tmux_session"])
         if live.returncode != 0:
             record["state"] = "interrupted"
+    # The worker may have saved completion while has-session was running.
+    if terminal.exists():
+        record.update(json.loads(terminal.read_text()))
+    elif record["state"] == "interrupted":
+        captured = captured_output(folder, record["provider"])
+        captured.pop("result_text", None)
+        record.update(captured)
+    report = folder / "result.md"
+    record["result_exists"] = report.is_file()
     record["reviewed"] = (folder / "ack.json").exists()
     return record
 
@@ -71,14 +114,19 @@ def provider_command(record: dict[str, Any], folder: Path) -> list[str]:
             record["model"],
             "-c",
             f'model_reasoning_effort="{record["effort"]}"',
-            "-c",
-            f'sandbox_mode="{record["access"]}"',
-            "-c",
-            'approval_policy="never"',
             "--json",
             "-o",
             str(folder / "result.md"),
         ]
+        if record["access"] == "auto":
+            args += ["--approve-for-me"]
+        else:
+            args += [
+                "-c",
+                f'sandbox_mode="{record["access"]}"',
+                "-c",
+                'approval_policy="never"',
+            ]
         # Config flags are accepted by exec/resume; never use --last.
         return args + (["resume", resume, "-"] if resume else ["-"])
     args = [
@@ -121,25 +169,11 @@ def worker(root: Path, run_id: str) -> int:
     except OSError as error:
         (folder / "output.log").write_text(f"Launch failed: {error}\n")
         code = 127
-    session = None
-    provider_error = False
-    reported_model = None
-    for line in (folder / "output.log").read_text(errors="replace").splitlines():
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(event, dict):
-            continue
-        if isinstance(event.get("model"), str):
-            reported_model = event["model"]
-        if event.get("type") == "thread.started":
-            session = event.get("thread_id")
-        if record["provider"] == "claude" and event.get("type") == "result":
-            session = event.get("session_id", session)
-            provider_error = bool(event.get("is_error"))
-            if isinstance(event.get("result"), str):
-                (folder / "result.md").write_text(event["result"])
+    captured = captured_output(folder, record["provider"])
+    result_text = captured.pop("result_text", None)
+    if result_text is not None:
+        (folder / "result.md").write_text(result_text)
+    provider_error = captured.get("provider_error", False)
     report = folder / "result.md"
     state = "completed" if code == 0 and not provider_error else "failed"
     if (
@@ -155,9 +189,10 @@ def worker(root: Path, run_id: str) -> int:
             "exit_code": code,
             "started": started,
             "finished": now(),
-            "worker_session": session,
+            "worker_session": captured.get("worker_session"),
             "provider_error": provider_error,
-            "reported_model": reported_model,
+            "reported_model": captured.get("reported_model"),
+            "reported_models": captured.get("reported_models", []),
         },
     )
     return 0
@@ -172,9 +207,13 @@ def start(root: Path, args: argparse.Namespace) -> int:
             raise ValueError(
                 f"run {run_id} already exists; inspect status or resume it explicitly"
             )
-        previous = read_record(root, args.resume_from) if args.resume_from else None
+        previous = (
+            read_record(root, args.resume_from, launch_locked=True)
+            if args.resume_from
+            else None
+        )
         if previous:
-            if previous["state"] in ("running", "interrupted"):
+            if previous["state"] == "running":
                 raise ValueError(
                     "previous worker may still be active; resolve it before resuming"
                 )
@@ -190,12 +229,10 @@ def start(root: Path, args: argparse.Namespace) -> int:
             raise ValueError("--provider is required for a new run")
         access = previous["access"] if previous else args.access
         if provider != "command" and not access:
-            raise ValueError(
-                "--access is required: codex read-only/workspace-write; claude default/acceptEdits"
-            )
+            access = "auto"
         allowed = {
-            "codex": ("read-only", "workspace-write"),
-            "claude": ("default", "acceptEdits"),
+            "codex": ("auto", "read-only", "workspace-write"),
+            "claude": ("auto", "default", "acceptEdits", "plan"),
             "command": (None,),
         }
         if access not in allowed[provider]:
@@ -277,7 +314,7 @@ def main() -> int:
     os.umask(0o077)
     parser = argparse.ArgumentParser(
         description=__doc__,
-        epilog="After start, attach wait through your harness. tmux alone sends no notification. Commands inherit configured credentials, never bypass permissions. launch-agent is for interactive panes.",
+        epilog="After start, attach wait through your harness. tmux alone sends no notification. Commands inherit configured credentials, never bypass permissions. launch-agent is for interactive panes. Command argv is persisted and shown in status/reconcile; pass secrets through the environment, not argv.",
     )
     parser.add_argument(
         "--state-dir",
@@ -298,7 +335,8 @@ def main() -> int:
         "--effort", default="medium", choices=["low", "medium", "high", "xhigh"]
     )
     launch.add_argument(
-        "--access", help="codex: read-only/workspace-write; claude: default/acceptEdits"
+        "--access",
+        help="default auto: provider automatic approval review; codex also read-only/workspace-write; claude also default/acceptEdits/plan",
     )
     launch.add_argument("--repo")
     launch.add_argument(
@@ -308,7 +346,7 @@ def main() -> int:
     launch.add_argument("--coordinator", help="coordinator session ID, when available")
     launch.add_argument(
         "--resume-from",
-        help="completed/failed run with a captured provider session; preserves model/access/repo",
+        help="terminal run (including interrupted) with a captured provider session; preserves model/access/repo",
     )
     launch.add_argument(
         "command",
@@ -318,6 +356,12 @@ def main() -> int:
     for name in ["status", "wait", "acknowledge", "_worker"]:
         item = sub.add_parser(name)
         item.add_argument("id")
+        if name == "acknowledge":
+            item.add_argument(
+                "--interrupted",
+                action="store_true",
+                help="acknowledge an interrupted run after reviewing its log, result and possible side effects",
+            )
         if name == "wait":
             item.add_argument(
                 "--timeout",
@@ -360,8 +404,12 @@ def main() -> int:
             return 124
         time.sleep(0.25)
     if args.operation == "acknowledge":
-        if record["state"] in ("running", "interrupted"):
-            raise ValueError("resolve active/uncertain work before acknowledging it")
+        if record["state"] == "running" or (
+            record["state"] == "interrupted" and not args.interrupted
+        ):
+            raise ValueError(
+                "running work cannot be acknowledged; inspect interrupted work and use --interrupted"
+            )
         save(directory(root, args.id) / "ack.json", {"reviewed_at": now()})
         record["reviewed"] = True
     print(json.dumps(record))

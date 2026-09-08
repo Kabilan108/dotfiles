@@ -5,6 +5,8 @@ description: Control the configured Helium browser when explicitly requested, wh
 
 # Helium Browser Use
 
+This is a dedicated, isolated agent profile, not Tony's daily browser; drive it freely within the task.
+
 Use `agent-browser` against an already-running Helium CDP endpoint. Treat the browser as shared, stateful infrastructure: other agents or the user may have tabs open in the same profile.
 
 ## Start

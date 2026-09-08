@@ -1,6 +1,6 @@
 # Proposed wording for review
 
-> September 6 review update: [decisions](review-decisions.md) and the [concrete change plan](change-plan.md) supersede conflicting proposals below.
+> Historical audit/proposal. Superseded where it conflicts with the reviewed source files and [September 8 follow-up](fable-follow-up.md). See the [audit index](README.md) for current entrypoints. Retained for rationale and chronology, not as active agent instructions.
 
 These are uninstalled drafts, not instructions governing the audit. They are based primarily on the observed workflow and the conflicts identified in [audit.md](audit.md). They are intended as replacements for overlapping text, not additions to every existing file.
 

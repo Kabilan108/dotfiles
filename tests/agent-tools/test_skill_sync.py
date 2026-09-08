@@ -21,10 +21,22 @@ with tempfile.TemporaryDirectory() as temp:
         )
         assert p.returncode == code, p.stdout + p.stderr
 
+    run("--host", "jacurtu", code=1)
+    assert not list((agents / "codex/skills").iterdir())
+    empty = agents / "skills/empty"
+    empty.mkdir()
+    (agents / "codex/skills/empty").symlink_to(empty)
     run("--host", "jacurutu", "--dry-run")
+    assert (agents / "codex/skills/empty").is_symlink()
+    (agents / "codex/skills/empty").unlink()
+
     assert not list((agents / "codex/skills").iterdir())
     run("--host", "jacurutu")
     assert (agents / "codex/skills/niri-computer-use").is_symlink()
+    assert not (agents / "codex/skills/empty").exists()
+    (agents / "codex/skills/empty").symlink_to(empty)
+    run("--host", "jacurutu")
+    assert not (agents / "codex/skills/empty").is_symlink()
     (agents / "codex/skills/foreign").symlink_to(root / "foreign")
     run("--host", "sietch")
     assert not (agents / "codex/skills/niri-computer-use").is_symlink()
