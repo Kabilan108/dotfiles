@@ -1,0 +1,11 @@
+# Moberg skill follow-up
+
+Deferred project rollout, informed by the general skill audit. Start in `/vault/work/moberg/dev-server/.agents/skills/`; verify discovery from independent component repositories before relying on parent-directory placement. Do not put Moberg-specific workflow rules into global personal skills.
+
+1. **Implementation and review lifecycle:** replace milestone-delegation-loop with a human-invoked workflow adapted from babysit. Track exact commits, component repositories, verification and reviewer feedback. Complete authorized repairs, then rest when human review is the remaining dependency. Merge, image build, and deployment remain separate task-authorized actions. Preserve non-linear Bitbucket relationships rather than assuming GitHub stacks.
+2. **Project verification recipe:** derive launch/doctor/drive/evidence/cleanup from current Dev CLI, containers, fixtures, and proven browser workflows. Invoke automatically for relevant project verification. Identify what can run locally, what requires a deployment, and which permanent checks protect useful behavior. Reference current commands rather than fossilizing historical ones.
+3. **Domain vocabulary:** use the existing project documentation to settle terms such as archive, measurement, data object, source DSA, and associated CNS. Produce an initial concrete glossary as a rollout deliverable and keep canonical definitions there. Use human-invoked domain-modeling/grilling for consequential ambiguity and selective ADRs for decisions.
+4. **Review references:** put exact forge/CI handling, reviewer expectations and project-specific adversarial scenarios near this workflow. Reference the shared empirical method. Add parallel review roles only when explicitly useful, with a bounded agent budget.
+5. **Knowledge integration:** inspect current TaskNotes conventions and the planned recurring digest before introducing learning automation. Remove obsolete code-walkthrough requirements in any project review instructions when the global skill is retired.
+
+Acceptance: one real implementation reaches the correct human-review resting state with an understandable handoff; the verification recipe exercises the changed behavior without unnecessary infrastructure or broad test scaffolding. Use that ordinary work as the trial, not a parallel model tournament.

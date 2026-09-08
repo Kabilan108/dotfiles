@@ -1,0 +1,649 @@
+{
+  "window30": [
+    "2026-08-07",
+    "2026-09-05"
+  ],
+  "window14": [
+    "2026-08-23",
+    "2026-09-05"
+  ],
+  "unit": "distinct archive session IDs with observable load attempts; not independent tasks",
+  "skills": {
+    "coppermind": {
+      "source": "agents/skills/coppermind/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019f6de4-d436-7650-baae-070febc87b24",
+        "019fdccd-768a-7f02-b79b-df579ecb4cf1",
+        "019fdd34-0d08-7442-bbe4-86a2760354c6",
+        "019fdd93-1e88-7161-8c63-e360bb02b195",
+        "019fdf0a-67c4-76d3-8276-8d20490bb0f7",
+        "019fec6f-7fe2-7411-b742-4c30fb7d951c",
+        "019ff24e-5cd4-7380-8b92-72c96b857a87",
+        "019ff6e9-57f8-7303-b742-0b36a8ac6a4b",
+        "019ff95b-6bbc-7522-9853-45569a9e45fd",
+        "019ff95c-0dcf-7ff2-a5c5-8842154d7841",
+        "019ffcc4-32d9-7421-a875-824118158ba5",
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "019ffdf0-2a92-7122-96c0-6449e4e844a2",
+        "019ffdf1-5574-7322-bfbd-a8f923f5d8d3",
+        "019ffdf7-9dd6-7603-8a94-097eb0813171",
+        "019ffe72-a633-7263-976a-ee31b1011eb6",
+        "01a000d8-a360-7582-9261-e2cd13e906fa",
+        "01a00105-51e4-7342-afce-cec07872450c",
+        "01a003d9-07bc-7083-939f-a0d103644300",
+        "01a00cc1-b678-7ba3-a91b-b8ea663e2447",
+        "01a00cc1-b68d-7392-877c-f982935d617e",
+        "01a00cc2-2044-71e0-aac5-60aed1c306e3",
+        "01a00cc2-2093-7c62-a290-bbc57224bb46",
+        "01a01118-caf5-78a3-b486-277e8eea0fa5",
+        "01a0114f-15fb-7ec0-a5d1-bca62a06a7e3",
+        "01a0122f-897e-7d71-ae31-0e59ff657fb2",
+        "01a0129d-af3c-7e10-b036-8ee4b2241ae4",
+        "01a01341-c05c-7a30-bea4-ca9b7178e707",
+        "01a01581-6d32-7122-9e0e-6e024941f027",
+        "01a0162d-16f5-7b70-bd53-31713939d193",
+        "01a01675-7794-7a22-a3ff-f8cdd2b89f0a",
+        "01a01b0f-5cca-7ce2-b22d-d69facd554bc",
+        "01a01cc5-52b0-79d1-b71d-7dc0d5214679",
+        "01a0207d-142d-7b02-99d5-493703d38c91",
+        "01a020e1-e5e3-7260-9306-9185c69de5ed",
+        "01a0216a-8eab-7d73-ae31-be77bf246add",
+        "01a021bb-6126-7401-856b-33fec52391b1",
+        "01a0259b-9e7e-7de0-aa8c-dfef1fb15fd8",
+        "01a0260a-267b-7723-ba04-c7a9e6f16e8a",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3",
+        "01a0345a-329d-73a1-ac46-e805692c5bd3",
+        "01a0355c-2c1b-7183-bcc9-64b2a9943e76",
+        "01a036b6-01cf-7083-99e8-b3fee71ba828",
+        "01a03a48-7cd9-7d01-b19d-9023a8384a57",
+        "01a03b7a-f2f2-7430-bb2c-7a08b787436a",
+        "01a03bc1-04ad-7751-a86b-b27980516a3d",
+        "01a03f0e-15c9-75b2-991e-34e0ccffe0a3",
+        "01a03f15-4349-77f0-a236-3a9196d2386b",
+        "01a03f1d-cd48-7d32-aa2b-583fe50edd93",
+        "01a03f1e-c57f-7861-b7e7-d54ddc491208",
+        "01a04001-c1d0-78c1-9d42-4baaf7ad9a8a",
+        "01a0450d-87ef-7d93-80f3-7b7c9064f5cc",
+        "01a049d4-55f8-7cb1-af3d-e290ea55f6f2",
+        "01a049e8-7ce6-71f2-ac30-8a39ab0a8607",
+        "01a04a13-551d-7691-b31a-7ab979191513",
+        "01a04a1a-a102-7a40-8705-b143175b7e8c",
+        "01a04a20-9d3e-7bd0-b36e-2787492e37d6",
+        "01a04a3b-7885-76b0-a929-8cb86a338f51",
+        "01a04a47-4c33-7ff2-b378-a5ff26b809af",
+        "01a04e99-3cb2-7300-9d92-b6929af2e360",
+        "01a062c5-8a83-7751-9501-acfeb154d04f",
+        "2548068d-7085-4f79-a1f5-08d94c8bfc62",
+        "48e3406c-5433-4245-bf7c-2be0b05951b0",
+        "4f750186-614c-40c2-9262-9909f1ac8374",
+        "b7db7f87-e2e2-48f3-85b4-4007ad968365",
+        "c1deea30-3e49-47bf-b46f-6bae65557fdc",
+        "edb362c7-1170-48a8-922e-8d7930b5ec6b"
+      ],
+      "observed_load_sessions_14d": [
+        "019ffcc4-32d9-7421-a875-824118158ba5",
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "01a00105-51e4-7342-afce-cec07872450c",
+        "01a021bb-6126-7401-856b-33fec52391b1",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3",
+        "01a0345a-329d-73a1-ac46-e805692c5bd3",
+        "01a0355c-2c1b-7183-bcc9-64b2a9943e76",
+        "01a036b6-01cf-7083-99e8-b3fee71ba828",
+        "01a03a48-7cd9-7d01-b19d-9023a8384a57",
+        "01a03b7a-f2f2-7430-bb2c-7a08b787436a",
+        "01a03bc1-04ad-7751-a86b-b27980516a3d",
+        "01a03f0e-15c9-75b2-991e-34e0ccffe0a3",
+        "01a03f15-4349-77f0-a236-3a9196d2386b",
+        "01a03f1d-cd48-7d32-aa2b-583fe50edd93",
+        "01a03f1e-c57f-7861-b7e7-d54ddc491208",
+        "01a04001-c1d0-78c1-9d42-4baaf7ad9a8a",
+        "01a0450d-87ef-7d93-80f3-7b7c9064f5cc",
+        "01a049d4-55f8-7cb1-af3d-e290ea55f6f2",
+        "01a049e8-7ce6-71f2-ac30-8a39ab0a8607",
+        "01a04a13-551d-7691-b31a-7ab979191513",
+        "01a04a1a-a102-7a40-8705-b143175b7e8c",
+        "01a04a20-9d3e-7bd0-b36e-2787492e37d6",
+        "01a04a3b-7885-76b0-a929-8cb86a338f51",
+        "01a04a47-4c33-7ff2-b378-a5ff26b809af",
+        "01a04e99-3cb2-7300-9d92-b6929af2e360",
+        "01a062c5-8a83-7751-9501-acfeb154d04f",
+        "2548068d-7085-4f79-a1f5-08d94c8bfc62",
+        "48e3406c-5433-4245-bf7c-2be0b05951b0",
+        "4f750186-614c-40c2-9262-9909f1ac8374"
+      ]
+    },
+    "unslop": {
+      "source": "agents/skills/unslop/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019ffcc4-32d9-7421-a875-824118158ba5",
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "01a00105-51e4-7342-afce-cec07872450c",
+        "01a0122f-897e-7d71-ae31-0e59ff657fb2",
+        "01a01b0f-5cca-7ce2-b22d-d69facd554bc",
+        "01a02039-8d10-7740-b2d1-340c3c8181ed",
+        "01a0207d-142d-7b02-99d5-493703d38c91",
+        "01a020e1-e5e3-7260-9306-9185c69de5ed",
+        "01a0216a-8eab-7d73-ae31-be77bf246add",
+        "01a021bb-6126-7401-856b-33fec52391b1",
+        "01a0259b-9e7e-7de0-aa8c-dfef1fb15fd8",
+        "01a027a4-c603-74a1-9833-be765a90510a",
+        "01a02abe-ac30-7260-89a6-17687b240eb6",
+        "01a02af2-a8a2-7b32-9600-6812fab53f4c",
+        "01a02b55-77cb-7962-b0d3-627be3f4a2dc",
+        "01a02c5d-8fab-7613-83b5-89e97451ceec",
+        "01a02c5d-a884-79a1-bc72-45fb926e6ec8",
+        "01a02caa-a7c5-75c3-a625-4a5c5206fc4f",
+        "01a02cad-7631-78b2-8a8e-a40713a8191f",
+        "01a02cad-992e-7281-818c-15e1e76d0db2",
+        "01a02cad-b56a-7131-bdd0-45a059954945",
+        "01a02cad-d3a4-7ef1-a150-106d50e94aeb",
+        "01a02cad-ec46-7ab2-bd43-c087a14e867a",
+        "01a02cae-3b19-7531-8963-82032dcec2b0",
+        "01a02cae-6d85-7ef2-a71c-9383c1ad4738",
+        "01a02efa-7aef-7ba1-9702-d5f8d1d886ff",
+        "01a02f01-b443-73a2-b7ea-6429ee7fe790",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3",
+        "01a0345a-329d-73a1-ac46-e805692c5bd3",
+        "01a0346c-f9b1-7eb0-9b42-f3693e80da74",
+        "01a0355c-2c1b-7183-bcc9-64b2a9943e76",
+        "01a036b6-01cf-7083-99e8-b3fee71ba828",
+        "01a03a16-00fc-7871-9699-38d89dc7a585",
+        "01a03a48-7cd9-7d01-b19d-9023a8384a57",
+        "01a03bc1-04ad-7751-a86b-b27980516a3d",
+        "01a03f1d-cd48-7d32-aa2b-583fe50edd93",
+        "01a03f1e-c57f-7861-b7e7-d54ddc491208",
+        "01a03f1e-d619-7090-a035-0edce40a6fd3",
+        "01a04001-c1d0-78c1-9d42-4baaf7ad9a8a",
+        "01a0450d-87ef-7d93-80f3-7b7c9064f5cc",
+        "01a049d4-55f8-7cb1-af3d-e290ea55f6f2",
+        "01a04a13-551d-7691-b31a-7ab979191513",
+        "01a04a1a-a102-7a40-8705-b143175b7e8c",
+        "01a04a3b-7885-76b0-a929-8cb86a338f51",
+        "01a04e99-3cb2-7300-9d92-b6929af2e360",
+        "01a04eef-f22c-7561-b5c4-72dd658b9fc5",
+        "01a05486-d85c-7241-88a2-de1ca9b5a73e",
+        "01a05486-e974-7000-87f1-9906f5ea2e69",
+        "01a059dc-bc59-7cd2-a62f-1b7af6ae87d1",
+        "01a062c5-8a83-7751-9501-acfeb154d04f",
+        "0330ca11-cbcb-4d6d-a046-1ff5b10b653f",
+        "38929124-8840-4a18-bac1-55def841f5a4",
+        "48e3406c-5433-4245-bf7c-2be0b05951b0",
+        "961abdbc-d032-4be7-bda9-91d88b347fdf",
+        "cddf8dc4-684f-4373-a4b2-087c08666f48"
+      ],
+      "observed_load_sessions_14d": [
+        "019ffcc4-32d9-7421-a875-824118158ba5",
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "01a02039-8d10-7740-b2d1-340c3c8181ed",
+        "01a021bb-6126-7401-856b-33fec52391b1",
+        "01a027a4-c603-74a1-9833-be765a90510a",
+        "01a02b55-77cb-7962-b0d3-627be3f4a2dc",
+        "01a02c5d-8fab-7613-83b5-89e97451ceec",
+        "01a02c5d-a884-79a1-bc72-45fb926e6ec8",
+        "01a02caa-a7c5-75c3-a625-4a5c5206fc4f",
+        "01a02cad-7631-78b2-8a8e-a40713a8191f",
+        "01a02cad-992e-7281-818c-15e1e76d0db2",
+        "01a02cad-b56a-7131-bdd0-45a059954945",
+        "01a02cad-d3a4-7ef1-a150-106d50e94aeb",
+        "01a02cad-ec46-7ab2-bd43-c087a14e867a",
+        "01a02cae-3b19-7531-8963-82032dcec2b0",
+        "01a02cae-6d85-7ef2-a71c-9383c1ad4738",
+        "01a02efa-7aef-7ba1-9702-d5f8d1d886ff",
+        "01a02f01-b443-73a2-b7ea-6429ee7fe790",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3",
+        "01a0345a-329d-73a1-ac46-e805692c5bd3",
+        "01a0346c-f9b1-7eb0-9b42-f3693e80da74",
+        "01a0355c-2c1b-7183-bcc9-64b2a9943e76",
+        "01a036b6-01cf-7083-99e8-b3fee71ba828",
+        "01a03a16-00fc-7871-9699-38d89dc7a585",
+        "01a03a48-7cd9-7d01-b19d-9023a8384a57",
+        "01a03bc1-04ad-7751-a86b-b27980516a3d",
+        "01a03f1d-cd48-7d32-aa2b-583fe50edd93",
+        "01a03f1e-c57f-7861-b7e7-d54ddc491208",
+        "01a03f1e-d619-7090-a035-0edce40a6fd3",
+        "01a04001-c1d0-78c1-9d42-4baaf7ad9a8a",
+        "01a0450d-87ef-7d93-80f3-7b7c9064f5cc",
+        "01a049d4-55f8-7cb1-af3d-e290ea55f6f2",
+        "01a04a13-551d-7691-b31a-7ab979191513",
+        "01a04a1a-a102-7a40-8705-b143175b7e8c",
+        "01a04a3b-7885-76b0-a929-8cb86a338f51",
+        "01a04e99-3cb2-7300-9d92-b6929af2e360",
+        "01a04eef-f22c-7561-b5c4-72dd658b9fc5",
+        "01a05486-d85c-7241-88a2-de1ca9b5a73e",
+        "01a05486-e974-7000-87f1-9906f5ea2e69",
+        "01a059dc-bc59-7cd2-a62f-1b7af6ae87d1",
+        "01a062c5-8a83-7751-9501-acfeb154d04f",
+        "38929124-8840-4a18-bac1-55def841f5a4",
+        "48e3406c-5433-4245-bf7c-2be0b05951b0"
+      ]
+    },
+    "tmux": {
+      "source": "agents/skills/tmux/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019ff6b5-7dbe-7b32-9d87-c62a0a8ee0d3",
+        "019ff95b-6bbc-7522-9853-45569a9e45fd",
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "01a02039-8d10-7740-b2d1-340c3c8181ed",
+        "01a021bb-6126-7401-856b-33fec52391b1",
+        "01a027a4-c603-74a1-9833-be765a90510a",
+        "01a02abe-ac30-7260-89a6-17687b240eb6",
+        "01a02caa-a7c5-75c3-a625-4a5c5206fc4f",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3",
+        "01a0345a-329d-73a1-ac46-e805692c5bd3",
+        "01a036b6-01cf-7083-99e8-b3fee71ba828",
+        "01a03f1d-cd48-7d32-aa2b-583fe50edd93",
+        "01a0450d-87ef-7d93-80f3-7b7c9064f5cc",
+        "01a049d4-55f8-7cb1-af3d-e290ea55f6f2",
+        "01a04e99-3cb2-7300-9d92-b6929af2e360",
+        "01a04eef-f22c-7561-b5c4-72dd658b9fc5",
+        "ae062c5f-ab81-4300-b869-7a9b2f388e34",
+        "d443951d-085e-47a9-9c14-29beaa773fd0"
+      ],
+      "observed_load_sessions_14d": [
+        "01a02039-8d10-7740-b2d1-340c3c8181ed",
+        "01a021bb-6126-7401-856b-33fec52391b1",
+        "01a02caa-a7c5-75c3-a625-4a5c5206fc4f",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3",
+        "01a0345a-329d-73a1-ac46-e805692c5bd3",
+        "01a036b6-01cf-7083-99e8-b3fee71ba828",
+        "01a03f1d-cd48-7d32-aa2b-583fe50edd93",
+        "01a0450d-87ef-7d93-80f3-7b7c9064f5cc",
+        "01a049d4-55f8-7cb1-af3d-e290ea55f6f2",
+        "01a04e99-3cb2-7300-9d92-b6929af2e360",
+        "01a04eef-f22c-7561-b5c4-72dd658b9fc5",
+        "d443951d-085e-47a9-9c14-29beaa773fd0"
+      ]
+    },
+    "html-plans": {
+      "source": "agents/skills/html-plans/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019fdd93-1e88-7161-8c63-e360bb02b195",
+        "019ffcc4-32d9-7421-a875-824118158ba5",
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "019ffe7a-e5cb-72b3-a759-4958da59522b",
+        "01a00294-1a51-78c0-aebe-b3411cdbd5ba",
+        "01a021bb-6126-7401-856b-33fec52391b1",
+        "01a027a4-c603-74a1-9833-be765a90510a",
+        "01a02abe-ac30-7260-89a6-17687b240eb6",
+        "01a02caa-a7c5-75c3-a625-4a5c5206fc4f",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3",
+        "01a0345a-329d-73a1-ac46-e805692c5bd3",
+        "01a03f1d-cd48-7d32-aa2b-583fe50edd93",
+        "01a04e99-3cb2-7300-9d92-b6929af2e360",
+        "01a05486-e974-7000-87f1-9906f5ea2e69",
+        "4caa11c2-73c9-4805-b6e7-717b3fd2ec91",
+        "ae062c5f-ab81-4300-b869-7a9b2f388e34",
+        "ae822177-5d59-40fc-b5af-5d9c79c3e306"
+      ],
+      "observed_load_sessions_14d": [
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "01a027a4-c603-74a1-9833-be765a90510a",
+        "01a02caa-a7c5-75c3-a625-4a5c5206fc4f",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3",
+        "01a0345a-329d-73a1-ac46-e805692c5bd3",
+        "01a03f1d-cd48-7d32-aa2b-583fe50edd93",
+        "01a04e99-3cb2-7300-9d92-b6929af2e360",
+        "01a05486-e974-7000-87f1-9906f5ea2e69",
+        "ae822177-5d59-40fc-b5af-5d9c79c3e306"
+      ]
+    },
+    "handoff": {
+      "source": "agents/skills/handoff/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019ff7c6-5a37-73d2-860f-938046abf809",
+        "019ffcc4-32d9-7421-a875-824118158ba5",
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "01a0122f-897e-7d71-ae31-0e59ff657fb2",
+        "01a0207d-142d-7b02-99d5-493703d38c91",
+        "01a021bb-6126-7401-856b-33fec52391b1",
+        "01a0259b-9e7e-7de0-aa8c-dfef1fb15fd8",
+        "01a0345a-329d-73a1-ac46-e805692c5bd3",
+        "01a03bc1-04ad-7751-a86b-b27980516a3d",
+        "01a04001-c1d0-78c1-9d42-4baaf7ad9a8a",
+        "01a0450d-87ef-7d93-80f3-7b7c9064f5cc",
+        "01a049d4-55f8-7cb1-af3d-e290ea55f6f2",
+        "01a049e8-7ce6-71f2-ac30-8a39ab0a8607",
+        "01a04e99-3cb2-7300-9d92-b6929af2e360",
+        "38929124-8840-4a18-bac1-55def841f5a4",
+        "ae062c5f-ab81-4300-b869-7a9b2f388e34"
+      ],
+      "observed_load_sessions_14d": [
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "01a021bb-6126-7401-856b-33fec52391b1",
+        "01a0345a-329d-73a1-ac46-e805692c5bd3",
+        "01a03bc1-04ad-7751-a86b-b27980516a3d",
+        "01a04001-c1d0-78c1-9d42-4baaf7ad9a8a",
+        "01a0450d-87ef-7d93-80f3-7b7c9064f5cc",
+        "01a049d4-55f8-7cb1-af3d-e290ea55f6f2",
+        "01a049e8-7ce6-71f2-ac30-8a39ab0a8607",
+        "01a04e99-3cb2-7300-9d92-b6929af2e360",
+        "38929124-8840-4a18-bac1-55def841f5a4"
+      ]
+    },
+    "executor-access-google": {
+      "source": "agents/skills/executor-access-google/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019fdcc2-6c6f-7f42-a65e-4025bf82a5bb",
+        "019fdd78-3fc9-7fa0-be02-d45b150c887d",
+        "019fecee-1826-75b3-bf04-12bce94652d9",
+        "019fed5b-062d-70f1-8354-b67a6b0f9d05",
+        "019feda0-2e94-7730-98aa-b115cfc7589c",
+        "019ff22f-198a-7c33-9e43-59f2c7a2e816",
+        "019ff6c3-6ff0-7972-b64f-1ab27ef7cb2d",
+        "019ff76f-b962-7ff2-b47b-d33d30e820ae",
+        "019ffc2c-d388-7183-8a33-83c7a4088781",
+        "019ffdee-52a0-7cc3-aa46-7e20fa9d319d",
+        "01a01068-175c-7300-920c-9e3154083204",
+        "01a010f3-bc3d-7f90-b989-f03f88c85dac",
+        "01a03f15-4349-77f0-a236-3a9196d2386b",
+        "48e3406c-5433-4245-bf7c-2be0b05951b0"
+      ],
+      "observed_load_sessions_14d": [
+        "01a03f15-4349-77f0-a236-3a9196d2386b",
+        "48e3406c-5433-4245-bf7c-2be0b05951b0"
+      ]
+    },
+    "helium-browser-use": {
+      "source": "agents/skills/helium-browser-use/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019fdef1-c62b-7b53-86cf-8e9288fc1ce0",
+        "019fdfdb-d941-7bf0-97a4-3475db5b3c9d",
+        "019fed5e-06cf-7443-a33a-bdc2310af923",
+        "019ff136-1555-7d13-80b8-a6368bba39a9",
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "01a0159e-0500-7281-94e7-faa7de1c5706",
+        "01a0159f-616a-7532-8808-7893d4d75427",
+        "01a01fea-453a-74b3-82e0-bcd2b86de954",
+        "01a0216a-8eab-7d73-ae31-be77bf246add",
+        "01a02206-053b-7732-94ce-430baa48f8ec",
+        "01a02abe-ac30-7260-89a6-17687b240eb6",
+        "48e3406c-5433-4245-bf7c-2be0b05951b0",
+        "4caa11c2-73c9-4805-b6e7-717b3fd2ec91",
+        "cddf8dc4-684f-4373-a4b2-087c08666f48"
+      ],
+      "observed_load_sessions_14d": [
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "48e3406c-5433-4245-bf7c-2be0b05951b0"
+      ]
+    },
+    "notify": {
+      "source": "agents/skills/notify/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019fec23-60ba-7bd0-897e-d80b54e3e39c",
+        "019ffcc4-32d9-7421-a875-824118158ba5",
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "019ffe7a-e5cb-72b3-a759-4958da59522b",
+        "01a027a4-c603-74a1-9833-be765a90510a",
+        "01a02b55-77cb-7962-b0d3-627be3f4a2dc",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3",
+        "01a03f1d-cd48-7d32-aa2b-583fe50edd93",
+        "01a0450d-87ef-7d93-80f3-7b7c9064f5cc",
+        "01a049e8-7ce6-71f2-ac30-8a39ab0a8607",
+        "01a05486-e974-7000-87f1-9906f5ea2e69",
+        "4caa11c2-73c9-4805-b6e7-717b3fd2ec91",
+        "8ee4ad0f-e074-4323-be4d-06454bc76325",
+        "ae822177-5d59-40fc-b5af-5d9c79c3e306"
+      ],
+      "observed_load_sessions_14d": [
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "01a027a4-c603-74a1-9833-be765a90510a",
+        "01a02b55-77cb-7962-b0d3-627be3f4a2dc",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3",
+        "01a03f1d-cd48-7d32-aa2b-583fe50edd93",
+        "01a0450d-87ef-7d93-80f3-7b7c9064f5cc",
+        "01a049e8-7ce6-71f2-ac30-8a39ab0a8607",
+        "01a05486-e974-7000-87f1-9906f5ea2e69",
+        "ae822177-5d59-40fc-b5af-5d9c79c3e306"
+      ]
+    },
+    "agent-browser": {
+      "source": "agents/skills/agent-browser/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019ffcc4-32d9-7421-a875-824118158ba5",
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "01a0122f-897e-7d71-ae31-0e59ff657fb2",
+        "01a0207d-142d-7b02-99d5-493703d38c91",
+        "01a021bb-6126-7401-856b-33fec52391b1",
+        "01a027a4-c603-74a1-9833-be765a90510a",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3",
+        "01a0450d-87ef-7d93-80f3-7b7c9064f5cc",
+        "01a04658-fcde-77c3-9d2a-db53115a47dc",
+        "01a04e99-3cb2-7300-9d92-b6929af2e360",
+        "01a04eef-f22c-7561-b5c4-72dd658b9fc5",
+        "4caa11c2-73c9-4805-b6e7-717b3fd2ec91",
+        "ae062c5f-ab81-4300-b869-7a9b2f388e34"
+      ],
+      "observed_load_sessions_14d": [
+        "01a021bb-6126-7401-856b-33fec52391b1",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3",
+        "01a0450d-87ef-7d93-80f3-7b7c9064f5cc",
+        "01a04658-fcde-77c3-9d2a-db53115a47dc",
+        "01a04e99-3cb2-7300-9d92-b6929af2e360",
+        "01a04eef-f22c-7561-b5c4-72dd658b9fc5"
+      ]
+    },
+    "pagebin": {
+      "source": "agents/skills/pagebin/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019ff6b5-7dbe-7b32-9d87-c62a0a8ee0d3",
+        "019ffcc4-32d9-7421-a875-824118158ba5",
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "01a027a4-c603-74a1-9833-be765a90510a",
+        "01a02abe-ac30-7260-89a6-17687b240eb6",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3",
+        "01a03f1d-cd48-7d32-aa2b-583fe50edd93",
+        "48e3406c-5433-4245-bf7c-2be0b05951b0",
+        "a9352b02-2423-4069-b643-720fa674e66e",
+        "ae062c5f-ab81-4300-b869-7a9b2f388e34",
+        "d443951d-085e-47a9-9c14-29beaa773fd0"
+      ],
+      "observed_load_sessions_14d": [
+        "019ffd88-be59-7442-8c05-396a482036ed",
+        "01a027a4-c603-74a1-9833-be765a90510a",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3",
+        "01a03f1d-cd48-7d32-aa2b-583fe50edd93",
+        "48e3406c-5433-4245-bf7c-2be0b05951b0",
+        "a9352b02-2423-4069-b643-720fa674e66e",
+        "d443951d-085e-47a9-9c14-29beaa773fd0"
+      ]
+    },
+    "fleet": {
+      "source": "agents/skills/fleet/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019fdef2-7a0c-7f82-bd4e-57dc44e451ea",
+        "019fdfdb-d941-7bf0-97a4-3475db5b3c9d",
+        "01a01cc5-52b0-79d1-b71d-7dc0d5214679",
+        "01a01fea-453a-74b3-82e0-bcd2b86de954",
+        "01a02039-8d10-7740-b2d1-340c3c8181ed",
+        "01a0216a-8eab-7d73-ae31-be77bf246add",
+        "01a027a4-c603-74a1-9833-be765a90510a"
+      ],
+      "observed_load_sessions_14d": [
+        "01a02039-8d10-7740-b2d1-340c3c8181ed",
+        "01a027a4-c603-74a1-9833-be765a90510a"
+      ]
+    },
+    "niri-computer-use": {
+      "source": "agents/skills/niri-computer-use/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019ff6b5-7dbe-7b32-9d87-c62a0a8ee0d3",
+        "019ff94b-1d57-7e83-b0cf-24326a67ae61",
+        "01a02b55-77cb-7962-b0d3-627be3f4a2dc",
+        "01a02efa-7aef-7ba1-9702-d5f8d1d886ff",
+        "01a03bc1-04ad-7751-a86b-b27980516a3d",
+        "8ee4ad0f-e074-4323-be4d-06454bc76325"
+      ],
+      "observed_load_sessions_14d": [
+        "01a02b55-77cb-7962-b0d3-627be3f4a2dc",
+        "01a02efa-7aef-7ba1-9702-d5f8d1d886ff",
+        "01a03bc1-04ad-7751-a86b-b27980516a3d"
+      ]
+    },
+    "tracer": {
+      "source": "agents/skills/tracer/SKILL.md",
+      "observed_load_sessions_30d": [
+        "01a0129d-af3c-7e10-b036-8ee4b2241ae4",
+        "01a020e1-e5e3-7260-9306-9185c69de5ed",
+        "01a02c5d-a884-79a1-bc72-45fb926e6ec8",
+        "01a03f1d-cd48-7d32-aa2b-583fe50edd93",
+        "961abdbc-d032-4be7-bda9-91d88b347fdf"
+      ],
+      "observed_load_sessions_14d": [
+        "01a02c5d-a884-79a1-bc72-45fb926e6ec8",
+        "01a03f1d-cd48-7d32-aa2b-583fe50edd93",
+        "961abdbc-d032-4be7-bda9-91d88b347fdf"
+      ]
+    },
+    "codex-implementation": {
+      "source": "agents/claude-skills/codex-implementation/SKILL.md",
+      "observed_load_sessions_30d": [
+        "0330ca11-cbcb-4d6d-a046-1ff5b10b653f",
+        "52d0f072-22d6-4308-844e-692a768e5ee9",
+        "ae822177-5d59-40fc-b5af-5d9c79c3e306",
+        "c1deea30-3e49-47bf-b46f-6bae65557fdc"
+      ],
+      "observed_load_sessions_14d": [
+        "52d0f072-22d6-4308-844e-692a768e5ee9",
+        "ae822177-5d59-40fc-b5af-5d9c79c3e306"
+      ]
+    },
+    "frontend-design": {
+      "source": "agents/skills/frontend-design/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019ff7c6-5a37-73d2-860f-938046abf809",
+        "01a0450d-87ef-7d93-80f3-7b7c9064f5cc",
+        "48e3406c-5433-4245-bf7c-2be0b05951b0",
+        "ae822177-5d59-40fc-b5af-5d9c79c3e306"
+      ],
+      "observed_load_sessions_14d": [
+        "01a0450d-87ef-7d93-80f3-7b7c9064f5cc",
+        "48e3406c-5433-4245-bf7c-2be0b05951b0",
+        "ae822177-5d59-40fc-b5af-5d9c79c3e306"
+      ]
+    },
+    "codex-computer-use": {
+      "source": "agents/claude-skills/codex-computer-use/SKILL.md",
+      "observed_load_sessions_30d": [
+        "0330ca11-cbcb-4d6d-a046-1ff5b10b653f",
+        "52d0f072-22d6-4308-844e-692a768e5ee9",
+        "c1deea30-3e49-47bf-b46f-6bae65557fdc"
+      ],
+      "observed_load_sessions_14d": [
+        "52d0f072-22d6-4308-844e-692a768e5ee9"
+      ]
+    },
+    "executor-access-slack": {
+      "source": "agents/skills/executor-access-slack/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019ffc5b-d630-79d1-baff-9400af802a59",
+        "01a01118-caf5-78a3-b486-277e8eea0fa5",
+        "01a03f0e-15c9-75b2-991e-34e0ccffe0a3"
+      ],
+      "observed_load_sessions_14d": [
+        "01a03f0e-15c9-75b2-991e-34e0ccffe0a3"
+      ]
+    },
+    "writing-for-agents": {
+      "source": "agents/skills/writing-for-agents/SKILL.md",
+      "observed_load_sessions_30d": [
+        "01a0162d-16f5-7b70-bd53-31713939d193",
+        "01a02b55-77cb-7962-b0d3-627be3f4a2dc",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3"
+      ],
+      "observed_load_sessions_14d": [
+        "01a02b55-77cb-7962-b0d3-627be3f4a2dc",
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3"
+      ]
+    },
+    "claude-review": {
+      "source": "agents/codex-skills/claude-review/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019ffcc4-32d9-7421-a875-824118158ba5",
+        "019ffd88-be59-7442-8c05-396a482036ed"
+      ],
+      "observed_load_sessions_14d": []
+    },
+    "codex-review": {
+      "source": "agents/claude-skills/codex-review/SKILL.md",
+      "observed_load_sessions_30d": [
+        "4caa11c2-73c9-4805-b6e7-717b3fd2ec91",
+        "52d0f072-22d6-4308-844e-692a768e5ee9"
+      ],
+      "observed_load_sessions_14d": [
+        "52d0f072-22d6-4308-844e-692a768e5ee9"
+      ]
+    },
+    "review-swarm": {
+      "source": "agents/skills/review-swarm/SKILL.md",
+      "observed_load_sessions_30d": [
+        "01a00cc1-b678-7ba3-a91b-b8ea663e2447",
+        "01a021bb-6126-7401-856b-33fec52391b1"
+      ],
+      "observed_load_sessions_14d": [
+        "01a021bb-6126-7401-856b-33fec52391b1"
+      ]
+    },
+    "terminal-control": {
+      "source": "agents/skills/terminal-control/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019ff7c6-5a37-73d2-860f-938046abf809",
+        "f5c47bb0-0567-4a4f-8cad-5614ca24f8e2"
+      ],
+      "observed_load_sessions_14d": []
+    },
+    "adversarial-probe-review": {
+      "source": "agents/claude-skills/adversarial-probe-review/SKILL.md",
+      "observed_load_sessions_30d": [
+        "ae822177-5d59-40fc-b5af-5d9c79c3e306"
+      ],
+      "observed_load_sessions_14d": [
+        "ae822177-5d59-40fc-b5af-5d9c79c3e306"
+      ]
+    },
+    "btca-local": {
+      "source": "agents/skills/btca-local/SKILL.md",
+      "observed_load_sessions_30d": [
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3"
+      ],
+      "observed_load_sessions_14d": [
+        "01a031cf-dbcd-7243-a9da-344a4f51acb3"
+      ]
+    },
+    "code-walkthrough": {
+      "source": "agents/skills/code-walkthrough/SKILL.md",
+      "observed_load_sessions_30d": [
+        "019fdd93-1e88-7161-8c63-e360bb02b195"
+      ],
+      "observed_load_sessions_14d": []
+    },
+    "milestone-delegation-loop": {
+      "source": "agents/claude-skills/milestone-delegation-loop/SKILL.md",
+      "observed_load_sessions_30d": [
+        "ae822177-5d59-40fc-b5af-5d9c79c3e306"
+      ],
+      "observed_load_sessions_14d": [
+        "ae822177-5d59-40fc-b5af-5d9c79c3e306"
+      ]
+    },
+    "bro": {
+      "source": "agents/skills/bro/SKILL.md",
+      "observed_load_sessions_30d": [],
+      "observed_load_sessions_14d": []
+    },
+    "learn": {
+      "source": "agents/skills/learn/SKILL.md",
+      "observed_load_sessions_30d": [],
+      "observed_load_sessions_14d": []
+    },
+    "learn-skill": {
+      "source": "agents/skills/learn-skill/SKILL.md",
+      "observed_load_sessions_30d": [],
+      "observed_load_sessions_14d": []
+    },
+    "review-bot-gate": {
+      "source": "agents/skills/review-bot-gate/SKILL.md",
+      "observed_load_sessions_30d": [],
+      "observed_load_sessions_14d": []
+    }
+  }
+}
