@@ -43,7 +43,7 @@
 
   home-manager.users.kabilan = {
     dotfiles.services = {
-      codex-remote-control.enable = true;
+      codex-remote-control.enable = false;
       moberg.devMaintenance.enable = true;
       t3-code.enable = true;
       wayvnc.enable = true;
