@@ -31,7 +31,7 @@ error() {
 }
 
 dry_run=false
-skill_host="$(hostname -s)"
+skill_host=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run) dry_run=true; shift ;;
@@ -40,6 +40,13 @@ while [[ $# -gt 0 ]]; do
     *) error "unexpected argument '$1'" ;;
   esac
 done
+
+# Home Manager activation has a minimal PATH. Read the Linux hostname using
+# Bash builtins, and only when --host did not already select one.
+if [[ -z "$skill_host" ]]; then
+  IFS= read -r skill_host < /proc/sys/kernel/hostname
+  skill_host="${skill_host%%.*}"
+fi
 
 case "$skill_host" in
   jacurutu|sietch|tleilax) ;;

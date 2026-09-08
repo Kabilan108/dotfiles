@@ -21,6 +21,20 @@ with tempfile.TemporaryDirectory() as temp:
         )
         assert p.returncode == code, p.stdout + p.stderr
 
+    # Activation must not depend on the external hostname utility.
+    fake_bin = root / "bin"
+    fake_bin.mkdir()
+    hostname = fake_bin / "hostname"
+    hostname.write_text("#!/bin/sh\nexit 127\n")
+    hostname.chmod(0o755)
+    env["PATH"] = str(fake_bin) + ":" + env["PATH"]
+    run("--help")
+    if Path("/proc/sys/kernel/hostname").read_text().strip().split(".")[0] in {
+        "jacurutu",
+        "sietch",
+        "tleilax",
+    }:
+        run("--dry-run")
     run("--host", "jacurtu", code=1)
     assert not list((agents / "codex/skills").iterdir())
     empty = agents / "skills/empty"
