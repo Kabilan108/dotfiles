@@ -11,6 +11,6 @@ Use self-contained HTML/CSS/SVG for small artifacts. When images, recordings, or
 
 For a requested live log, keep the current state, verification, outstanding dependency, and next action accurate. Checkpoint meaningful changes before long operations; reconstruct from the existing log and actual run state after a restart. A report is not a process completion signal.
 
-Use PageBin for publication. Load its version-matched instructions with `pagebin skill` for transport details. Update the existing artifact using its receipt or ID; create a second identity only when wanted. Explicit local-only requests stay local.
+Always upload the artifact to PageBin unless the user specifies otherwise. Load its version-matched instructions with `pagebin skill` for transport details. Update the existing artifact using its receipt or ID; create a second identity only when wanted. Explicit local-only requests stay local.
 
 Verify the changed behavior proportionally; see [artifact checks](references/verification.md). Return the stable viewer URL when published, otherwise the local file.
