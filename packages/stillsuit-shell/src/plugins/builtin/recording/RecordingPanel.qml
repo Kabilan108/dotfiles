@@ -124,6 +124,15 @@ Item {
         return result;
     }
 
+    function finishAsMeetingAndClose() {
+        if (!recording)
+            return "unavailable";
+        var result = recording.stopAsMeeting();
+        if (result === "started")
+            closeSurface();
+        return result;
+    }
+
     function runCompletedAction(action) {
         if (!recording)
             return "unavailable";
@@ -322,7 +331,8 @@ Item {
                                 theme: root.context.theme
                                 label: root.monitorName(modelData)
                                 description: root.monitorDescription(modelData)
-                                iconName: "record"
+                                iconName: ""
+                                reserveIconColumn: false
                                 trailingIconName: selected ? "check" : ""
                                 selected: root.selectedMonitor === root.monitorName(modelData)
                                 accessibleName: "Capture " + label
@@ -349,6 +359,8 @@ Item {
                     selectedTextColor: root.context.theme.semantic.accent.onAccent
                     font.family: root.context.theme.typography.bodyFamily
                     font.pixelSize: root.context.theme.typography.baseSize
+                    leftPadding: root.context.theme.metrics.spaceUnit * 3
+                    rightPadding: root.context.theme.metrics.spaceUnit * 3
                     onTextEdited: root.draftTitle = text
                     background: Rectangle {
                         radius: root.context.theme.metrics.radiusSmall
@@ -426,7 +438,7 @@ Item {
                     iconName: "agent"
                     accessibleName: "Finish as meeting"
                     busy: root.recording && root.recording.actionRunning
-                    onClicked: root.recording.stopAsMeeting()
+                    onClicked: root.finishAsMeetingAndClose()
                 }
                 RoundControl {
                     id: finishControl

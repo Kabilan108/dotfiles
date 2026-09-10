@@ -71,6 +71,8 @@ jq -e '.recordingPhase == "recording" and .recordingOpen == false' \
 [[ $(ipc cancelFromPanel) == started ]]
 jq -e '.recordingPhase == "idle" and .recordingOpen == false' \
   <<< "$(ipc state)" >/dev/null
+[[ $(ipc finishMeetingFromPanel) == started ]]
+jq -e '.recordingOpen == false' <<< "$(ipc state)" >/dev/null
 
 [[ $(ipc openRecording idle) == open ]]
 [[ $(ipc openRecording recording) == open ]]
@@ -112,6 +114,24 @@ jq -e '.recordingWidgetIcon == "record"
   and .recordingWidgetWidth < .standardPanelWidth' <<< "$state" >/dev/null
 [[ $(ipc setReducedMotion false) == ok ]]
 jq -e '.recordingWidgetIcon == "record"' <<< "$(ipc state)" >/dev/null
+
+# Once recording hands off to meeting-minutes, the same bar chip remains visible
+# and names the current processing step.
+[[ $(ipc setMeetingProcessing transcribing '') == ok ]]
+state=$(ipc state)
+jq -e '.recordingWidgetMeetingActive and .recordingWidgetIcon == "agent"
+  and .recordingWidgetMeetingLabel == "Transcribing meeting"' <<< "$state" >/dev/null
+[[ $(ipc setMeetingProcessing generating 'Drafting meeting minutes') == ok ]]
+jq -e '.recordingWidgetMeetingLabel == "Drafting meeting minutes"' \
+  <<< "$(ipc state)" >/dev/null
+[[ $(ipc setMeetingCompleted) == ok ]]
+jq -e '.recordingWidgetMeetingCompleted and .recordingWidgetIcon == "agent"' \
+  <<< "$(ipc state)" >/dev/null
+[[ $(ipc clickRecordingWidget) == '/tmp/meeting note.md' ]]
+jq -e '.recordingWidgetMeetingCompleted == false' <<< "$(ipc state)" >/dev/null
+[[ $(ipc setMeetingFailed) == ok ]]
+jq -e '.recordingWidgetMeetingFailed and .recordingWidgetIcon == "agent"' \
+  <<< "$(ipc state)" >/dev/null
 
 # A single click toggles pause after the double-click window. A double click
 # cancels that pending toggle and opens the recording panel instead.

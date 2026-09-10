@@ -23,6 +23,9 @@ Scope {
     readonly property bool active: _isProcessingPhase(phase) || phase === "staging" || phase === "queued"
     readonly property bool completed: phase === "completed"
     readonly property bool failed: phase === "error"
+    readonly property bool completionVisible: completed && !completionAcknowledged
+        && currentTime < visibleUntil
+    readonly property bool failureVisible: failed && currentTime < visibleUntil
     readonly property bool visible: jobs.length > 0 || active
         || ((completed || failed) && currentTime < visibleUntil)
     readonly property int actionableCount: jobs.filter(function(job) { return _isActionablePhase(job.phase) }).length
@@ -44,6 +47,8 @@ Scope {
     property string retryingJobId: ""
     property string discardingJobId: ""
     property string lastCommandJson: "[]"
+    property bool completionAcknowledged: false
+    property string copiedNotePath: ""
 
     function _siblingPath(path, filename) {
         var value = String(path || "")
@@ -97,7 +102,12 @@ Scope {
             _reset("unsupported", "meeting status schemaVersion must be 1")
             return
         }
-        phase = String(value.phase || "idle")
+        var nextPhase = String(value.phase || "idle")
+        var previousJobId = String(snapshot.job_id || "")
+        var nextJobId = String(value.job_id || "")
+        if (nextPhase !== phase || nextJobId !== previousJobId)
+            completionAcknowledged = false
+        phase = nextPhase
         label = String(value.label || "")
         notePath = String(value.note_path || "")
         errorMessage = String(value.error || "")
@@ -192,6 +202,16 @@ Scope {
                 || selectedPath.indexOf("\u0000") !== -1 || actionRunning)
             return "unavailable"
         return _runAction([openHelperPath, selectedPath], "")
+    }
+
+    function copyNotePath() {
+        if (!completionVisible || !notePath.startsWith("/")
+                || notePath.indexOf("\u0000") !== -1)
+            return "unavailable"
+        Quickshell.clipboardText = notePath
+        copiedNotePath = notePath
+        completionAcknowledged = true
+        return "copied"
     }
 
     function retry(jobId) {

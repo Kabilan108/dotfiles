@@ -22,6 +22,14 @@ ColumnLayout {
         return firstLine.length > 110 ? firstLine.slice(0, 107) + "..." : firstLine;
     }
 
+    function displayTitle(job) {
+        var title = String(job && job.title || "").trim();
+        var jobId = String(job && job.jobId || "");
+        return title === "" || title === jobId || /^[a-f0-9]{24,}$/i.test(title)
+            ? "Meeting processing failed"
+            : title;
+    }
+
     function _failed(jobs) {
         var rows = (Array.isArray(jobs) ? jobs : []).filter(function (job) {
             return job && String(job.phase || "") === "error";
@@ -80,7 +88,7 @@ ColumnLayout {
                                 Ui.ShellText {
                                     Layout.fillWidth: true
                                     theme: root.context.theme
-                                    text: modelData.title
+                                    text: root.displayTitle(modelData)
                                     sizeRole: "label"
                                     elide: Text.ElideRight
                                 }
@@ -92,11 +100,6 @@ ColumnLayout {
                                     role: "danger"
                                     elide: Text.ElideRight
                                 }
-                            }
-                            Ui.ShellStatus {
-                                theme: root.context.theme
-                                status: "danger"
-                                label: "Failed"
                             }
                         }
 
@@ -111,31 +114,37 @@ ColumnLayout {
                             }
                             Ui.ShellButton {
                                 theme: root.context.theme
-                                label: root.detailsJobId === modelData.jobId ? "Hide details" : "Details"
+                                label: ""
                                 iconName: "info"
                                 compact: true
                                 ghost: true
+                                foregroundColor: root.detailsJobId === modelData.jobId
+                                    ? root.context.theme.semantic.accent.primary
+                                    : "transparent"
+                                accessibleName: root.detailsJobId === modelData.jobId ? "Hide error details" : "Show error details"
                                 onClicked: root.detailsJobId = root.detailsJobId === modelData.jobId ? "" : modelData.jobId
                             }
                             Ui.ShellButton {
                                 theme: root.context.theme
-                                label: "Retry"
+                                label: ""
                                 iconName: "refresh"
                                 compact: true
+                                ghost: true
+                                accessibleName: "Retry " + root.displayTitle(modelData)
                                 busy: root.meeting && root.meeting.retryingJobId === modelData.jobId
                                 enabled: root.meeting && root.meeting.retryConfigured && !root.meeting.actionRunning
                                 onClicked: root.meeting.retry(modelData.jobId)
                             }
                             Ui.ShellButton {
                                 theme: root.context.theme
-                                label: "Discard"
+                                label: ""
                                 iconName: "delete"
                                 compact: true
                                 ghost: true
                                 destructive: true
                                 busy: root.meeting && root.meeting.discardingJobId === modelData.jobId
                                 enabled: root.meeting && root.meeting.retryConfigured && !root.meeting.actionRunning
-                                accessibleName: "Discard " + modelData.title
+                                accessibleName: "Discard " + root.displayTitle(modelData)
                                 onClicked: root.meeting.discard(modelData.jobId)
                             }
                         }

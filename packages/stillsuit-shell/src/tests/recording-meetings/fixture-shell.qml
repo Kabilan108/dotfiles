@@ -104,7 +104,14 @@ ShellRoot {
         property bool visible: true
         property bool active: false
         property bool failed: false
+        property bool completionVisible: false
+        property bool failureVisible: false
+        property string phase: "idle"
         property string label: ""
+        property int progress: 0
+        property int total: 0
+        property string notePath: "/tmp/meeting note.md"
+        property string copiedNotePath: ""
         property string jobsStateStatus: "ready"
         property bool retryConfigured: true
         property bool actionRunning: false
@@ -126,6 +133,11 @@ ShellRoot {
             return "started"
         }
         function openResult(jobId) { return "started" }
+        function copyNotePath() {
+            copiedNotePath = notePath
+            completionVisible = false
+            return "copied"
+        }
     }
 
     QtObject {
@@ -210,6 +222,11 @@ ShellRoot {
             recordingPanel.open("")
             return recordingPanel.cancelAndClose()
         }
+        function finishMeetingFromPanel(): string {
+            recordingModel.phase = "recording"
+            recordingPanel.open("")
+            return recordingPanel.finishAsMeetingAndClose()
+        }
         function renameFromPanel(requestedTitle: string): string {
             recordingModel.phase = "completed"
             recordingPanel.open("")
@@ -246,6 +263,32 @@ ShellRoot {
             recordingModel.phase = "recording"
             return "ok"
         }
+        function setMeetingProcessing(phase: string, label: string): string {
+            recordingModel.phase = "idle"
+            meetingModel.phase = phase
+            meetingModel.label = label
+            meetingModel.active = true
+            return "ok"
+        }
+        function setMeetingCompleted(): string {
+            recordingModel.phase = "idle"
+            meetingModel.active = false
+            meetingModel.phase = "completed"
+            meetingModel.label = "Meeting note ready"
+            meetingModel.completionVisible = true
+            return "ok"
+        }
+        function setMeetingFailed(): string {
+            recordingModel.phase = "idle"
+            meetingModel.active = false
+            meetingModel.phase = "error"
+            meetingModel.failureVisible = true
+            return "ok"
+        }
+        function clickRecordingWidget(): string {
+            recordingWidget.toggleRecording()
+            return meetingModel.copiedNotePath
+        }
         function singleClickRecordingWidget(): string {
             recordingWidget.queueSingleClick()
             return "queued"
@@ -256,6 +299,9 @@ ShellRoot {
             return "opened"
         }
         function resetInteractionCounts(): string {
+            recordingModel.phase = "recording"
+            meetingModel.active = false
+            meetingModel.phase = "idle"
             recordingModel.togglePauseCount = 0
             actions.surfaceToggleCount = 0
             actions.lastOpenPlugin = ""
@@ -285,6 +331,10 @@ ShellRoot {
                 recordingMeetingRows: recordingPanel.meetingQueueRowCount,
                 meetingRows: meetingModel.jobs.length,
                 recordingWidgetIcon: recordingWidget.indicatorIconName,
+                recordingWidgetMeetingActive: recordingWidget.activeMeeting,
+                recordingWidgetMeetingCompleted: recordingWidget.completedMeeting,
+                recordingWidgetMeetingFailed: recordingWidget.failedMeeting,
+                recordingWidgetMeetingLabel: recordingWidget.meetingLabel,
                 recordingWidgetOutputLabel: recordingWidget.outputLabel,
                 recordingWidgetWidth: recordingWidget.implicitWidth,
                 togglePauseCount: recordingModel.togglePauseCount,

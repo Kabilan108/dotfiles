@@ -223,6 +223,10 @@ for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_OPEN_LOG") -eq 2 ]] && br
 [[ $(ipc openResult) == started ]]
 for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_OPEN_LOG") -eq 3 ]] && break; sleep 0.02; done
 [[ $(sed -n '3p' "$STILLSUIT_FIXTURE_OPEN_LOG") == '/tmp/fixture-note.md' ]]
+[[ $(ipc copyMeetingPath) == copied ]]
+jq -e '.meeting.copiedNotePath == "/tmp/fixture-note.md"
+  and (.meeting.completionVisible | not)' >/dev/null <<<"$(ipc state)"
+[[ $(ipc copyMeetingPath) == unavailable ]]
 
 # Retry is manual, reuses the same identity, increments attempt, and rejects a
 # second dispatch while the first is pending.
@@ -244,7 +248,8 @@ wait_json '.queue.failedCount == 1 and (.queue.jobs | length) == 1
 
 printf '%s\n' '{"schemaVersion":1,"phase":"error","label":"fixture failed","error":"fixture error","visible_until":4102444800}' > "$STILLSUIT_FIXTURE_MEETING_STATE"
 [[ $(ipc refresh) == ok ]]
-wait_json '.meeting.failed and .meeting.visible and .meeting.label == "fixture failed" and .meeting.errorMessage == "fixture error"' >/dev/null
+wait_json '.meeting.failed and .meeting.visible and .meeting.failureVisible
+  and .meeting.label == "fixture failed" and .meeting.errorMessage == "fixture error"' >/dev/null
 
 # The previous meeting-minutes writer emitted this exact field family without
 # schemaVersion. The read-only service migrates it in memory until the producer
