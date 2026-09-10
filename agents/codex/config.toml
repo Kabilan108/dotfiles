@@ -8,7 +8,7 @@ sandbox_mode = "danger-full-access"
 personality = "pragmatic"
 service_tier = "default"
 approval_policy = "never"
-approvals_reviewer = "user"
+approvals_reviewer = "auto_review"
 
 [shell_environment_policy]
 inherit = "all"

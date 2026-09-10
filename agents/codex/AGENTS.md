@@ -24,7 +24,9 @@ For review of a consequential behavioral invariant, consult `~/dotfiles/agents/r
 
 Use available integrated browser tools when suitable; use helium-browser-use otherwise or when explicitly requested, including when its persistent login session is needed. Use desktop control for compositor/native-app tasks. Search Gmail and Slack through Executor rather than browser automation when service search is the task.
 
-For HTML publication, follow `~/dotfiles/agents/references/publication.md`; html-communication owns authoring and PageBin owns transport. Keep the artifact's identity across updates.
+## Publishing content
+
+I authorize publishing html artifacts to configured PageBin service and serving previews within my tailnet, including internal repository paths, architecture details, and benchmark results. No additional confirmation is needed.
 
 ## Codex-specific tools
 

@@ -63,3 +63,7 @@ prefix_rule(pattern=["/run/current-system/sw/bin/bash", "-lc", "for n in 28 29 3
 prefix_rule(pattern=["nix", "develop", "-c", "go"], decision="allow")
 prefix_rule(pattern=["nix", "build"], decision="allow")
 prefix_rule(pattern=["nix", "develop", "-c", "make"], decision="allow")
+prefix_rule(
+    pattern = ["pagebin", ["publish", "update"]],
+    decision = "allow",
+)
