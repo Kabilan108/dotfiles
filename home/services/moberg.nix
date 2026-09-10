@@ -6,15 +6,16 @@
 }:
 let
   cfg = config.dotfiles.services.moberg;
+  devServerCheckout = "/vault/work/moberg/dev-server";
+  eboostReviewerReportScript = "${devServerCheckout}/eboost-scripts/EBOOST/change-points/scripts/eboost-review-report.py";
 
   eboostReviewerReport = pkgs.writeShellScript "eboost-reviewer-report" ''
     set -euo pipefail
-    cd /vault/work/moberg/dev-server
+    cd ${lib.escapeShellArg devServerCheckout}
     source "$HOME/.bashenv"
 
-    ${pkgs.direnv}/bin/direnv exec . \
-      eboost-scripts/EBOOST/change-points/scripts/check-eboost-reviewer-progress.sh \
-      --share-w-kan
+    exec ${pkgs.direnv}/bin/direnv exec . \
+      ${lib.escapeShellArg eboostReviewerReportScript} preview --notify
   '';
 
   devMaintenance = pkgs.writeShellScript "moberg-dev-maintenance" ''
@@ -42,8 +43,9 @@ in
     (lib.mkIf cfg.eboostReviewerReport.enable {
       systemd.user.services.moberg-eboost-reviewer-report = {
         Unit = {
-          Description = "Generate EBOOST reviewer progress report";
+          Description = "Prepare EBOOST weekly reviewer report preview";
           After = [ "network-online.target" ];
+          ConditionPathExists = eboostReviewerReportScript;
         };
 
         Service = {
@@ -53,10 +55,10 @@ in
       };
 
       systemd.user.timers.moberg-eboost-reviewer-report = {
-        Unit.Description = "Weekly EBOOST reviewer progress report";
+        Unit.Description = "Prepare weekly EBOOST reviewer report preview";
         Timer = {
-          OnCalendar = "Mon 10:30";
-          RandomizedDelaySec = "10m";
+          OnCalendar = "Mon *-*-* 09:00:00 America/New_York";
+          RandomizedDelaySec = "5m";
           Persistent = true;
         };
         Install.WantedBy = [ "timers.target" ];

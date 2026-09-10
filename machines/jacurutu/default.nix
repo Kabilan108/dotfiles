@@ -24,7 +24,6 @@ in
     dotfiles.services = {
       codex-desktop.enable = true;
       mic-volume-enforce.enable = true;
-      moberg.eboostReviewerReport.enable = true;
       t3-code.enable = false;
       tracer-sync.enable = true;
     };

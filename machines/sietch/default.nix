@@ -45,6 +45,7 @@
     dotfiles.services = {
       codex-remote-control.enable = false;
       moberg.devMaintenance.enable = true;
+      moberg.eboostReviewerReport.enable = true;
       t3-code.enable = true;
       wayvnc.enable = true;
     };
