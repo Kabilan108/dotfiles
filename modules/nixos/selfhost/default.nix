@@ -12,6 +12,7 @@ in
     ./sera.nix
     ./cliproxyapi.nix
     ./executor.nix
+    ./hark.nix
     ./jellyfin.nix
     ./llamacpp.nix
     ./siren.nix
