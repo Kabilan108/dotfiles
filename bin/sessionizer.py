@@ -21,16 +21,24 @@ import socket
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, NoReturn
 
-VERSION = "0.6.1"
+VERSION = "0.7.0"
 
-MACHINE_COLUMN_WIDTH = 10
-SESSION_COLUMN_WIDTH = 32
+MACHINE_COLUMN_WIDTH = 9
+SESSION_COLUMN_WIDTH = 34
 DIRECTORY_COLOR = "#6c7086"
+MUTED_COLOR = "#9399b2"
 AGENT_COLOR = "#a6e3a1"
+FAVORITE_COLOR = "#f9e2af"
+ATTACHED_COLOR = "#89b4fa"
+SESSION_GLYPH = "●"
+DIRECTORY_GLYPH = "·"
+FAVORITE_GLYPH = "★"
+KIND_RANK = {"local": 0, "remote": 0, "directory": 1, "remote-directory": 1}
 AGENT_NAMES = ("opencode2", "opencode", "claude", "codex")
 PANE_SEPARATOR = "\x1f"
 PANE_FORMAT = PANE_SEPARATOR.join(
@@ -61,6 +69,11 @@ CACHE_DIR = (
 REMOTE_CACHE_DIR = CACHE_DIR / "remotes"
 FLEET_HOSTS_PATH = (
     Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "fleet" / "hosts"
+)
+FAVORITES_PATH = (
+    Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
+    / "sessionizer"
+    / "favorites.json"
 )
 SCRIPT_PATH = Path(__file__).resolve()
 
@@ -95,6 +108,37 @@ class Candidate:
     detail: str
     host: str = ""
     color: str = ""
+    path: str = ""
+    activity: int = 0
+    favorite: bool = False
+
+    def is_session(self) -> bool:
+        return KIND_RANK[self.kind] == 0
+
+    def favorite_key(self) -> str:
+        if self.is_session():
+            return f"session:{self.host}:{self.name}"
+        return f"path:{self.host}:{self.path}"
+
+    def favorite_keys(self) -> tuple[str, ...]:
+        keys = [self.favorite_key()]
+        if self.is_session() and self.path:
+            keys.append(f"path:{self.host}:{self.path}")
+        return tuple(dict.fromkeys(keys))
+
+    def with_favorite(self, favorite: bool) -> Candidate:
+        return Candidate(
+            identity=self.identity,
+            kind=self.kind,
+            name=self.name,
+            target=self.target,
+            detail=self.detail,
+            host=self.host,
+            color=self.color,
+            path=self.path,
+            activity=self.activity,
+            favorite=favorite,
+        )
 
     def token(self) -> str:
         payload = json.dumps(
@@ -106,6 +150,9 @@ class Candidate:
                 "detail": self.detail,
                 "host": self.host,
                 "color": self.color,
+                "path": self.path,
+                "activity": self.activity,
+                "favorite": self.favorite,
             },
             separators=(",", ":"),
         ).encode()
@@ -124,6 +171,9 @@ class Candidate:
                 detail=str(raw["detail"]),
                 host=str(raw.get("host", "")),
                 color=str(raw.get("color", "")),
+                path=str(raw.get("path", "")),
+                activity=int(raw.get("activity", 0)),
+                favorite=bool(raw.get("favorite", False)),
             )
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise SessionizerError("invalid picker row") from exc
@@ -182,6 +232,68 @@ def write_default_config() -> None:
     }
     CONFIG_PATH.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(f"wrote {CONFIG_PATH}")
+
+
+def load_favorites() -> set[str]:
+    try:
+        raw = json.loads(FAVORITES_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return set()
+    if not isinstance(raw, list):
+        return set()
+    return {str(value) for value in raw}
+
+
+def save_favorites(favorites: set[str]) -> None:
+    FAVORITES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    temporary = FAVORITES_PATH.with_suffix(f".{os.getpid()}.tmp")
+    temporary.write_text(
+        json.dumps(sorted(favorites), indent=2) + "\n", encoding="utf-8"
+    )
+    temporary.replace(FAVORITES_PATH)
+
+
+def toggle_favorite(candidate: Candidate) -> bool:
+    favorites = load_favorites()
+    keys = set(candidate.favorite_keys())
+    if favorites & keys:
+        favorites -= keys
+        favorited = False
+    else:
+        favorites.add(candidate.favorite_key())
+        favorited = True
+    save_favorites(favorites)
+    return favorited
+
+
+def apply_favorites(candidates: list[Candidate]) -> list[Candidate]:
+    favorites = load_favorites()
+    return [
+        candidate.with_favorite(bool(favorites.intersection(candidate.favorite_keys())))
+        for candidate in candidates
+    ]
+
+
+def sort_candidates(candidates: list[Candidate]) -> list[Candidate]:
+    return sorted(
+        candidates,
+        key=lambda item: (not item.favorite, KIND_RANK[item.kind], -item.activity),
+    )
+
+
+def relative_age(timestamp: int) -> str:
+    if timestamp <= 0:
+        return ""
+    seconds = max(0, int(time.time()) - timestamp)
+    if seconds < 60:
+        return "now"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes}m"
+    hours = minutes // 60
+    if hours < 48:
+        return f"{hours}h"
+    return f"{hours // 24}d"
 
 
 def run(
@@ -277,14 +389,15 @@ def local_session_inventory() -> list[dict[str, str]]:
                 "#{session_attached}",
                 "#{@sessionizer-path}",
                 "#{session_path}",
+                "#{session_last_attached}",
             )
         ),
         check=False,
     )
     result: list[dict[str, str]] = []
     for line in listing.splitlines():
-        fields = line.split(PANE_SEPARATOR, 6)
-        if len(fields) != 7:
+        fields = line.split(PANE_SEPARATOR, 7)
+        if len(fields) != 8:
             continue
         result.append(
             dict(
@@ -297,6 +410,7 @@ def local_session_inventory() -> list[dict[str, str]]:
                         "attached",
                         "registered_path",
                         "session_path",
+                        "last_attached",
                     ),
                     fields,
                     strict=True,
@@ -304,6 +418,18 @@ def local_session_inventory() -> list[dict[str, str]]:
             )
         )
     return result
+
+
+def session_recency(session: dict[str, str]) -> int:
+    values = []
+    for key in ("activity", "last_attached"):
+        with contextlib.suppress(ValueError):
+            values.append(int(session.get(key, "") or 0))
+    return max(values, default=0)
+
+
+def session_path(session: dict[str, str]) -> str:
+    return session.get("registered_path") or session.get("session_path") or ""
 
 
 def inventory_session_paths(inventory: list[dict[str, str]]) -> set[Path]:
@@ -325,31 +451,42 @@ def local_candidates(
         inventory = local_session_inventory()
     local_color = os.environ.get("FLEET_HOST_HEX", "")
     host = socket.gethostname()
-    candidates: list[tuple[int, Candidate]] = []
+    candidates: list[Candidate] = []
     for session in inventory:
         session_id = session["id"]
-        activity = session["activity"]
         name = session["name"]
         windows = session["windows"]
         attached = session["attached"]
-        detail = f"{windows} window{'s' if windows != '1' else ''}"
-        if session_id == origin_session:
-            detail += " (origin)"
-        elif attached != "0":
-            detail += " (attached)"
-        candidate = Candidate(
-            identity=f"local:{session_id}",
-            kind="local",
-            name=name,
-            target=session_id,
-            detail=detail,
-            host=host,
-            color=local_color,
+        detail = session_detail(
+            windows,
+            status="origin"
+            if session_id == origin_session
+            else "attached"
+            if attached != "0"
+            else "",
         )
-        with contextlib.suppress(ValueError):
-            candidates.append((int(activity), candidate))
-    candidates.sort(key=lambda item: (-item[0], item[1].name.casefold()))
-    return [candidate for _, candidate in candidates]
+        candidates.append(
+            Candidate(
+                identity=f"local:{session_id}",
+                kind="local",
+                name=name,
+                target=session_id,
+                detail=detail,
+                host=host,
+                color=local_color,
+                path=session_path(session),
+                activity=session_recency(session),
+            )
+        )
+    candidates.sort(key=lambda item: (-item.activity, item.name.casefold()))
+    return candidates
+
+
+def session_detail(windows: str, status: str = "") -> str:
+    parts = [f"{windows} win"]
+    if status:
+        parts.append(status)
+    return " · ".join(parts)
 
 
 def remote_cache_path(host: FleetHost) -> Path:
@@ -462,11 +599,16 @@ def remote_candidates(allowed_hosts: tuple[str, ...]) -> list[Candidate]:
                 session_id = str(raw["id"])
                 name = str(raw["name"])
                 windows = str(raw["windows"])
-            except (KeyError, TypeError):
+                activity = int(raw.get("activity", 0) or 0)
+                path = str(raw.get("path", "") or "")
+                attached = str(raw.get("attached", "0") or "0")
+            except (KeyError, TypeError, ValueError):
                 continue
-            detail = f"{windows} window{'s' if windows != '1' else ''}"
+            detail = session_detail(
+                windows, status="attached" if attached != "0" else ""
+            )
             if status != "online":
-                detail += f" ({status} cache)"
+                detail += f" · {status} cache"
             result.append(
                 Candidate(
                     identity=f"remote:{host.name}:{session_id}",
@@ -476,6 +618,8 @@ def remote_candidates(allowed_hosts: tuple[str, ...]) -> list[Candidate]:
                     detail=detail,
                     host=host.name,
                     color=host.color,
+                    path=path,
+                    activity=activity,
                 )
             )
         directories = cached.get("directories", [])
@@ -494,6 +638,7 @@ def remote_candidates(allowed_hosts: tuple[str, ...]) -> list[Candidate]:
                     detail=path,
                     host=host.name,
                     color=host.color,
+                    path=path,
                 )
             )
     return result
@@ -541,9 +686,10 @@ def directory_candidates(
                     kind="directory",
                     name=path.name or str(path),
                     target=str(path),
-                    detail=str(path),
+                    detail=abbreviated_path(str(path)),
                     host=host,
                     color=color,
+                    path=str(path),
                 )
             )
     return result
@@ -553,11 +699,12 @@ def all_candidates(
     config: Config, overrides: list[str], origin_session: str = ""
 ) -> list[Candidate]:
     inventory = local_session_inventory()
-    return [
+    candidates = [
         *local_candidates(origin_session, inventory),
         *remote_candidates(config.remote_hosts),
         *directory_candidates(config, overrides, inventory_session_paths(inventory)),
     ]
+    return sort_candidates(apply_favorites(candidates))
 
 
 def print_inventory(config: Config) -> None:
@@ -567,6 +714,9 @@ def print_inventory(config: Config) -> None:
             "id": session["id"],
             "name": session["name"],
             "windows": session["windows"],
+            "attached": session["attached"],
+            "activity": session_recency(session),
+            "path": session_path(session),
         }
         for session in inventory
         if re.fullmatch(r"\$\d+", session["id"])
@@ -581,15 +731,23 @@ def print_inventory(config: Config) -> None:
 
 
 def render_row(candidate: Candidate) -> str:
+    star = colorize(FAVORITE_GLYPH, FAVORITE_COLOR) if candidate.favorite else " "
     machine = colorize(
         fit_column(candidate.host, MACHINE_COLUMN_WIDTH), candidate.color
     )
     name = fit_column(candidate.name, SESSION_COLUMN_WIDTH)
     detail = sanitize_field(candidate.detail)
-    if candidate.kind in {"directory", "remote-directory"}:
+    if candidate.is_session():
+        glyph = colorize(SESSION_GLYPH, candidate.color)
+        age = relative_age(candidate.activity)
+        detail = colorize(detail, MUTED_COLOR)
+        if age:
+            detail += colorize(f"  {age}", DIRECTORY_COLOR)
+    else:
+        glyph = colorize(DIRECTORY_GLYPH, DIRECTORY_COLOR)
         name = colorize(name, DIRECTORY_COLOR)
         detail = colorize(detail, DIRECTORY_COLOR)
-    display = f"{machine} │ {name} │ {detail}"
+    display = f"{star} {glyph} {machine} {name} │ {detail}"
     return f"{candidate.identity}\t{candidate.token()}\t{display}"
 
 
@@ -599,12 +757,36 @@ def render_rows(candidates: list[Candidate]) -> str:
     return "\n".join(render_row(candidate) for candidate in candidates) + "\n"
 
 
-def picker_header(machine: str = "") -> str:
-    label = machine.upper() if machine else "ALL"
-    return (
-        f"{label:<{MACHINE_COLUMN_WIDTH}} │ "
-        f"{'SESSION':<{SESSION_COLUMN_WIDTH}} │ DETAILS  Tab and Shift-Tab cycle machine"
+KIND_FILTERS = ("", "sessions", "directories")
+
+
+@dataclass(frozen=True)
+class PickerFilter:
+    machine: str = ""
+    kind: str = ""
+
+    def accepts(self, candidate: Candidate) -> bool:
+        if self.machine and candidate.host != self.machine:
+            return False
+        if self.kind == "sessions":
+            return candidate.is_session()
+        if self.kind == "directories":
+            return not candidate.is_session()
+        return True
+
+
+def picker_header(state: PickerFilter | None = None) -> str:
+    state = state or PickerFilter()
+    machine = state.machine.upper() if state.machine else "ALL"
+    kind = {"sessions": "SESSIONS", "directories": "DIRECTORIES"}.get(
+        state.kind, "SESSION"
     )
+    columns = f"    {machine:<{MACHINE_COLUMN_WIDTH}} {kind:<{SESSION_COLUMN_WIDTH}} │ DETAILS"
+    hints = colorize(
+        "tab machine · ctrl-s kind · ctrl-f favorite · esc normal mode",
+        DIRECTORY_COLOR,
+    )
+    return f"{columns}\n{hints}"
 
 
 def snapshot_candidates(snapshot: Path) -> list[tuple[str, Candidate]]:
@@ -623,17 +805,25 @@ def snapshot_candidates(snapshot: Path) -> list[tuple[str, Candidate]]:
     return result
 
 
-def read_machine_filter(state: Path) -> str:
+def read_filter(state: Path) -> PickerFilter:
     try:
-        return state.read_text(encoding="utf-8").strip()
+        lines = state.read_text(encoding="utf-8").splitlines()
     except OSError:
-        return ""
+        return PickerFilter()
+    lines += ["", ""]
+    return PickerFilter(machine=lines[0].strip(), kind=lines[1].strip())
+
+
+def write_filter(state: Path, value: PickerFilter) -> None:
+    temporary = state.with_suffix(f".{os.getpid()}.tmp")
+    temporary.write_text(f"{value.machine}\n{value.kind}\n", encoding="utf-8")
+    temporary.replace(state)
 
 
 def print_machine_rows(snapshot_value: str, state_value: str) -> None:
-    machine = read_machine_filter(Path(state_value))
+    current = read_filter(Path(state_value))
     for row, candidate in snapshot_candidates(Path(snapshot_value)):
-        if not machine or candidate.host == machine:
+        if current.accepts(candidate):
             print(row)
 
 
@@ -657,9 +847,9 @@ def cycle_machine(snapshot_value: str, state_value: str, direction: str) -> None
         machines.insert(0, local_host)
 
     filters = ["", *machines]
-    current = read_machine_filter(state)
+    current = read_filter(state)
     try:
-        index = filters.index(current)
+        index = filters.index(current.machine)
     except ValueError:
         index = 0
     if direction == "forward":
@@ -668,10 +858,23 @@ def cycle_machine(snapshot_value: str, state_value: str, direction: str) -> None
         offset = -1
     else:
         raise SessionizerError(f"invalid machine cycle direction: {direction}")
-    selected = filters[(index + offset) % len(filters)]
-    temporary = state.with_suffix(f".{os.getpid()}.tmp")
-    temporary.write_text(selected + "\n", encoding="utf-8")
-    temporary.replace(state)
+    selected = PickerFilter(filters[(index + offset) % len(filters)], current.kind)
+    write_filter(state, selected)
+    print(
+        f"reload({machine_rows_command(snapshot, state)})"
+        f"+change-header({picker_header(selected)})+first"
+    )
+
+
+def cycle_kind(snapshot_value: str, state_value: str) -> None:
+    snapshot = Path(snapshot_value)
+    state = Path(state_value)
+    current = read_filter(state)
+    index = KIND_FILTERS.index(current.kind) if current.kind in KIND_FILTERS else 0
+    selected = PickerFilter(
+        current.machine, KIND_FILTERS[(index + 1) % len(KIND_FILTERS)]
+    )
+    write_filter(state, selected)
     print(
         f"reload({machine_rows_command(snapshot, state)})"
         f"+change-header({picker_header(selected)})+first"
@@ -698,6 +901,8 @@ SWITCH_NORMAL_KEYS = {
     "q": "abort",
     "i": "enter-insert",
     "/": "enter-insert",
+    "f": "toggle-favorite",
+    "s": "cycle-kind",
 }
 
 
@@ -719,7 +924,7 @@ def picker(
     )
     os.close(descriptor)
     state = Path(state_name)
-    state.write_text("\n", encoding="utf-8")
+    write_filter(state, PickerFilter())
 
     refresh_command = shlex.join(
         [
@@ -749,6 +954,15 @@ def picker(
             "backward",
         ]
     )
+    toggle_favorite_command = shlex.join(
+        [str(SCRIPT_PATH), "--toggle-favorite", str(snapshot), str(state), "{2}"]
+    )
+    toggle_favorite_action = "transform(" + toggle_favorite_command + ")"
+    cycle_kind_action = (
+        "transform("
+        + shlex.join([str(SCRIPT_PATH), "--cycle-kind", str(snapshot), str(state)])
+        + ")"
+    )
     modal_keys = sorted(set(SWITCH_TYPING_KEYS) | set(SWITCH_NORMAL_KEYS))
     edit_keys = ",".join(SWITCH_EDIT_KEYS)
     insert_action = (
@@ -769,10 +983,17 @@ def picker(
     bindings.extend(
         key + ":ignore" for key in SWITCH_TYPING_KEYS if key not in SWITCH_NORMAL_KEYS
     )
+    special_actions = {
+        "enter-insert": insert_action,
+        "toggle-favorite": toggle_favorite_action,
+        "cycle-kind": cycle_kind_action,
+    }
     bindings.extend(
-        key + ":" + (insert_action if action == "enter-insert" else action)
+        key + ":" + special_actions.get(action, action)
         for key, action in SWITCH_NORMAL_KEYS.items()
     )
+    bindings.append("ctrl-f:" + toggle_favorite_action)
+    bindings.append("ctrl-s:" + cycle_kind_action)
     bindings.append(
         'esc:transform:[ "$FZF_PROMPT" = "insert> " ] && echo '
         + shlex.quote(normal_action)
@@ -791,26 +1012,28 @@ def picker(
         "--cycle",
         "--exact",
         "--no-hscroll",
-        "--info=inline",
+        "--info=inline-right",
+        "--highlight-line",
         "--print-query",
         "--prompt",
         "insert> ",
         "--header",
         picker_header(),
+        "--header-border=bottom",
         "--delimiter",
-        "\t",
+        "\t|│",
         "--with-nth",
-        "3",
+        "3..",
         "--nth",
         "1",
-        "--scheme=default",
-        "--tiebreak=begin,length,index",
+        "--scheme=history",
+        "--tiebreak=index",
         "--id-nth",
         "1",
         "--preview",
         shlex.join([str(SCRIPT_PATH), "--preview-token", "{2}"]),
         "--preview-window",
-        "right,45%,border-left",
+        "right,45%,border-left,wrap",
     ]
     for binding in bindings:
         command.extend(["--bind", binding])
@@ -859,6 +1082,19 @@ def refresh_picker(
         return
     if rows == previous:
         return
+    temporary = snapshot.with_suffix(f".{os.getpid()}.tmp")
+    temporary.write_text(rows, encoding="utf-8")
+    temporary.replace(snapshot)
+    print("reload(" + machine_rows_command(snapshot, state) + ")")
+
+
+def toggle_favorite_row(snapshot_value: str, state_value: str, token: str) -> None:
+    snapshot = Path(snapshot_value)
+    state = Path(state_value)
+    selected = Candidate.from_token(token)
+    toggle_favorite(selected)
+    candidates = [candidate for _, candidate in snapshot_candidates(snapshot)]
+    rows = render_rows(sort_candidates(apply_favorites(candidates)))
     temporary = snapshot.with_suffix(f".{os.getpid()}.tmp")
     temporary.write_text(rows, encoding="utf-8")
     temporary.replace(snapshot)
@@ -974,6 +1210,28 @@ def session_panes(candidate: Candidate) -> tuple[list[Pane], bool]:
     return parse_panes(result.stdout), False
 
 
+BOLD = "\033[1m"
+RESET = "\033[0m"
+
+
+def bold(text: str) -> str:
+    return f"{BOLD}{text}{RESET}"
+
+
+def preview_title(candidate: Candidate, kind_label: str) -> None:
+    star = colorize(FAVORITE_GLYPH + " ", FAVORITE_COLOR) if candidate.favorite else ""
+    print(f"{star}{bold(colorize(candidate.name, candidate.color))}")
+    meta = [
+        colorize(kind_label, MUTED_COLOR),
+        colorize(candidate.host, candidate.color),
+    ]
+    print("  ".join(meta))
+
+
+def preview_field(label: str, value: str) -> None:
+    print(f"{colorize(label.ljust(9), DIRECTORY_COLOR)}{value}")
+
+
 def render_session_preview(candidate: Candidate) -> None:
     panes, inspect_processes = session_panes(candidate)
     agents_by_pane = {
@@ -989,53 +1247,96 @@ def render_session_preview(candidate: Candidate) -> None:
     )
     windows = len({pane.window_index for pane in panes})
 
-    print(colorize(candidate.name, candidate.color))
-    summary = f"{candidate.host} · {windows} window{'s' if windows != 1 else ''} · {len(panes)} pane{'s' if len(panes) != 1 else ''}"
-    if agents:
-        summary += " · agents: " + ", ".join(agents)
-    print(summary)
+    preview_title(candidate, "session")
     print()
+    if candidate.path:
+        preview_field("path", abbreviated_path(candidate.path))
+    preview_field(
+        "layout",
+        f"{windows} window{'s' if windows != 1 else ''}, "
+        f"{len(panes)} pane{'s' if len(panes) != 1 else ''}",
+    )
+    age = relative_age(candidate.activity)
+    if age:
+        preview_field("active", "just now" if age == "now" else f"{age} ago")
+    if agents:
+        preview_field("agents", colorize(", ".join(agents), AGENT_COLOR))
+    if "attached" in candidate.detail or "origin" in candidate.detail:
+        preview_field(
+            "status", colorize(candidate.detail.split(" · ")[-1], ATTACHED_COLOR)
+        )
 
     previous_window = ""
     for pane in panes:
         if pane.window_index != previous_window:
-            if previous_window:
-                print()
-            marker = "●" if pane.window_active else "○"
-            print(f"{marker} {pane.window_index}: {pane.window_name}")
+            print()
+            marker = (
+                colorize("●", candidate.color)
+                if pane.window_active
+                else colorize("○", DIRECTORY_COLOR)
+            )
+            label = f"{pane.window_index}  {pane.window_name}"
+            print(f"{marker} {bold(label) if pane.window_active else label}")
             previous_window = pane.window_index
-        marker = "›" if pane.pane_active else " "
+        marker = colorize("▎", candidate.color) if pane.pane_active else " "
         detected = agents_by_pane[(pane.window_index, pane.pane_index)]
-        agent_label = ""
-        if detected:
-            agent_label = " " + colorize("[" + ", ".join(detected) + "]", AGENT_COLOR)
         command = sanitize_field(pane.command) or "shell"
-        print(f"  {marker} {pane.pane_index}  {command}{agent_label}")
+        line = f"  {marker} {command}"
+        if detected:
+            line += "  " + colorize(" ".join(detected), AGENT_COLOR)
         path = abbreviated_path(sanitize_field(pane.path))
         if path:
-            print(f"      {path}")
+            line += "  " + colorize(path, DIRECTORY_COLOR)
+        print(line)
 
     if candidate.kind == "remote":
         print()
-        print("M-s returns to the origin picker · prefix+d returns to the origin session")
+        print(
+            colorize(
+                "M-s returns to this picker · prefix+d returns home", DIRECTORY_COLOR
+            )
+        )
 
 
 def print_directory_preview(path_value: str) -> None:
     path = Path(path_value)
     try:
-        entries = sorted(path.iterdir(), key=lambda entry: entry.name.casefold())[:30]
+        entries = sorted(
+            path.iterdir(),
+            key=lambda entry: (not entry.is_dir(), entry.name.casefold()),
+        )
     except OSError:
         return
-    for entry in entries:
-        suffix = "/" if entry.is_dir() else ""
-        print(entry.name + suffix)
+    git_head = path / ".git" / "HEAD"
+    with contextlib.suppress(OSError):
+        head = git_head.read_text(encoding="utf-8").strip()
+        branch = (
+            head.removeprefix("ref: refs/heads/")
+            if head.startswith("ref:")
+            else head[:7]
+        )
+        preview_field("branch", branch)
+    visible = [entry for entry in entries if not entry.name.startswith(".")]
+    hidden = len(entries) - len(visible)
+    preview_field(
+        "contents",
+        f"{len(visible)} item{'s' if len(visible) != 1 else ''}"
+        + (f", {hidden} hidden" if hidden else ""),
+    )
+    print()
+    for entry in visible[:40]:
+        if entry.is_dir():
+            print(colorize(entry.name + "/", ATTACHED_COLOR))
+        else:
+            print(entry.name)
+    if len(visible) > 40:
+        print(colorize(f"… {len(visible) - 40} more", DIRECTORY_COLOR))
 
 
-def preview(candidate: Candidate) -> None:
-    if candidate.kind in {"local", "remote"}:
-        render_session_preview(candidate)
-        return
-
+def render_directory_preview(candidate: Candidate) -> None:
+    preview_title(candidate, "new session")
+    print()
+    preview_field("path", abbreviated_path(candidate.target))
     if candidate.kind == "remote-directory":
         result = run(
             [
@@ -1052,8 +1353,14 @@ def preview(candidate: Candidate) -> None:
         )
         print(result.stdout, end="")
         return
-
     print_directory_preview(candidate.target)
+
+
+def preview(candidate: Candidate) -> None:
+    if candidate.is_session():
+        render_session_preview(candidate)
+        return
+    render_directory_preview(candidate)
 
 
 def marker_directory() -> Path:
@@ -1317,6 +1624,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--refresh-picker", nargs=4, help=argparse.SUPPRESS)
     parser.add_argument("--machine-rows", nargs=2, help=argparse.SUPPRESS)
     parser.add_argument("--cycle-machine", nargs=3, help=argparse.SUPPRESS)
+    parser.add_argument("--toggle-favorite", nargs=3, help=argparse.SUPPRESS)
+    parser.add_argument("--cycle-kind", nargs=2, help=argparse.SUPPRESS)
     parser.add_argument("--inventory", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--ensure-directory-session", help=argparse.SUPPRESS)
     parser.add_argument("--is-managed", help=argparse.SUPPRESS)
@@ -1347,6 +1656,12 @@ def main() -> int:
         return 0
     if args.cycle_machine:
         cycle_machine(*args.cycle_machine)
+        return 0
+    if args.toggle_favorite:
+        toggle_favorite_row(*args.toggle_favorite)
+        return 0
+    if args.cycle_kind:
+        cycle_kind(*args.cycle_kind)
         return 0
     if args.is_managed:
         return 0 if is_managed_client(args.is_managed) else 1
