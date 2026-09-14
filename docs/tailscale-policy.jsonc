@@ -21,6 +21,7 @@
 		"services": {
 			"svc:cliproxyapi": ["tag:server"],
 			"svc:executor":    ["tag:server"],
+			"svc:hark":        ["tag:server"],
 			"svc:jellyfin":    ["tag:server"],
 			"svc:llamacpp":    ["tag:server"],
 			"svc:siren":       ["tag:server"],
@@ -66,6 +67,7 @@
 			"dst": [
 				"svc:cliproxyapi",
 				"svc:executor",
+				"svc:hark",
 				"svc:jellyfin",
 				"svc:llamacpp",
 				"svc:siren",
@@ -79,7 +81,7 @@
 		// minimal - add services only when something on sietch needs them.
 		{
 			"src": ["tag:server"],
-			"dst": ["svc:cliproxyapi", "svc:siren", "svc:executor", "svc:vault"],
+			"dst": ["svc:cliproxyapi", "svc:siren", "svc:executor", "svc:vault", "svc:hark"],
 			"ip":  ["tcp:443"],
 		},
 
@@ -99,7 +101,7 @@
 		{"src": ["tag:media"], "dst": ["svc:jellyfin"], "ip": ["tcp:443"]},
 		{
 			"src": ["tag:agent"],
-			"dst": ["svc:siren", "svc:executor"],
+			"dst": ["svc:siren", "svc:executor", "svc:hark"],
 			"ip":  ["tcp:443"],
 		},
 	],
