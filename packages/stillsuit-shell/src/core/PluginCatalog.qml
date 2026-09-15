@@ -32,10 +32,15 @@ QtObject {
 
     readonly property bool loaded: internalLoaded
     readonly property bool ready: internalLoaded
+        && !internalReconciling
         && loadError === ""
         && pendingVisualLoads === 0
         && barState === "loaded"
     readonly property int revision: internalRevision
+    readonly property string activeProfile: internalActiveProfile
+    readonly property int profileRevision: internalProfileRevision
+    readonly property var availableProfiles: internalAvailableProfiles
+    readonly property bool reconciling: internalReconciling
     readonly property string selectedBarId: internalSelectedBarId
     readonly property string activeBarId: internalActiveBarId
     readonly property bool fallbackActive: internalActiveBarId === "stillsuit.builtin-bar"
@@ -47,6 +52,14 @@ QtObject {
 
     property bool internalLoaded: false
     property int internalRevision: 0
+    property string internalActiveProfile: "default"
+    property int internalProfileRevision: 0
+    property var internalAvailableProfiles: [({
+        id: "default",
+        name: "Default",
+        description: ""
+    })]
+    property bool internalReconciling: false
     property string internalSelectedBarId: ""
     property string internalActiveBarId: ""
     property string loadError: ""
@@ -73,6 +86,8 @@ QtObject {
     signal pluginReloaded(string pluginId)
     signal rescanFinished()
     signal pluginContained(string pluginId, string kind, string message)
+    signal reconciliationStarted(var changedIds, var removedIds)
+    signal reconciliationFinished(var changedIds, var addedIds, var removedIds)
 
     property FileView catalogFile: FileView {
         path: root.catalogPath
@@ -147,7 +162,8 @@ QtObject {
         _rejectMissingDependencies(candidates, failuresNext)
         _rejectDependencyCycles(candidates, failuresNext)
         _rejectMissingDependencies(candidates, failuresNext)
-        _installCatalog(document.selectedBar || "", candidates, failuresNext)
+        _installCatalog(document.selectedBar || "", candidates, failuresNext,
+            _profileMetadata(document))
         return true
     }
 
@@ -184,7 +200,8 @@ QtObject {
         if (kind === "bar-widget") {
             if (widgetClaims[key] === "loading")
                 return "loading"
-            return internalWidgetComponents[key] ? "loaded" : "unloaded"
+            return internalWidgetComponents[key]
+                && _widgetServicesReady(internalEntries[key]) ? "loaded" : "unloaded"
         }
         return "unloaded"
     }
@@ -196,7 +213,7 @@ QtObject {
         if (!component || !entry || !isEnabled(key))
             return null
         var ownsService = entry.manifest.kinds.indexOf("service") !== -1
-        if (ownsService && (!serviceRegistry || !serviceRegistry.has(key)))
+        if (!_widgetServicesReady(entry))
             return null
         var registration = {
             component: component,
@@ -218,6 +235,26 @@ QtObject {
         if (ownsService)
             registration.service = serviceRegistry.get(key)
         return registration
+    }
+
+    function _widgetServicesReady(entry) {
+        if (!entry || !entry.manifest)
+            return false
+        var key = String(entry.manifest.id)
+        if (entry.manifest.kinds.indexOf("service") !== -1
+                && (!serviceRegistry || !serviceRegistry.has(key)))
+            return false
+        var dependencies = entry.manifest.dependencies || []
+        for (var dependencyIndex = 0;
+                dependencyIndex < dependencies.length; dependencyIndex++) {
+            var dependencyId = dependencies[dependencyIndex]
+            if (!isEnabled(dependencyId))
+                return false
+            if (hasKind(dependencyId, "service")
+                    && (!serviceRegistry || !serviceRegistry.has(dependencyId)))
+                return false
+        }
+        return true
     }
 
     function widgetClaimed(pluginId) {
@@ -335,7 +372,8 @@ QtObject {
     function _validateCatalogDocument(document) {
         if (!ManifestValidator.isPlainObject(document))
             return "catalog must be an object"
-        if (!ManifestValidator.hasOnlyKeys(document, ["schemaVersion", "selectedBar", "plugins"]))
+        if (!ManifestValidator.hasOnlyKeys(document,
+                ["schemaVersion", "selectedBar", "plugins", "profile"]))
             return "catalog contains an unknown field"
         if (document.schemaVersion !== 1)
             return "catalog schemaVersion must be 1"
@@ -345,7 +383,46 @@ QtObject {
             return "selectedBar is not a valid plugin ID"
         if (!Array.isArray(document.plugins))
             return "catalog plugins must be an array"
+        if (document.profile !== undefined) {
+            if (!ManifestValidator.isPlainObject(document.profile)
+                    || !ManifestValidator.hasOnlyKeys(document.profile,
+                        ["active", "revision", "available"]))
+                return "catalog profile metadata is invalid"
+            if (typeof document.profile.active !== "string"
+                    || document.profile.active === "")
+                return "catalog profile active must be a non-empty string"
+            if (!Number.isInteger(document.profile.revision)
+                    || document.profile.revision < 0)
+                return "catalog profile revision must be a non-negative integer"
+            if (!Array.isArray(document.profile.available))
+                return "catalog profile available must be an array"
+            var availableIds = {}
+            for (var profileIndex = 0;
+                    profileIndex < document.profile.available.length; profileIndex++) {
+                var profile = document.profile.available[profileIndex]
+                if (!ManifestValidator.isPlainObject(profile)
+                        || !ManifestValidator.hasOnlyKeys(profile,
+                            ["id", "name", "description"])
+                        || typeof profile.id !== "string" || profile.id === ""
+                        || typeof profile.name !== "string"
+                        || typeof profile.description !== "string")
+                    return "catalog profile available entry is invalid"
+                if (availableIds[profile.id] === true)
+                    return "catalog profile IDs must be unique"
+                availableIds[profile.id] = true
+            }
+            if (availableIds[document.profile.active] !== true)
+                return "catalog active profile is not available"
+        }
         return ""
+    }
+
+    function _profileMetadata(document) {
+        return document.profile || {
+            active: "default",
+            revision: 0,
+            available: [{ id: "default", name: "Default", description: "" }]
+        }
     }
 
     function _validateCatalogEntry(value, index) {
@@ -495,22 +572,24 @@ QtObject {
         }
     }
 
-    function _installCatalog(selectedBar, candidates, failuresNext) {
+    function _installCatalog(selectedBar, candidates, failuresNext, profile) {
         var oldEntries = internalEntries
         var oldSelectedBar = internalSelectedBarId
+        var oldActiveProfile = internalActiveProfile
+        var oldProfileRevision = internalProfileRevision
         var wasLoaded = internalLoaded
         var oldIds = Object.keys(oldEntries)
         var nextIds = Object.keys(candidates)
         var changedIds = []
         var addedIds = []
+        var removedIds = []
         var selectedEntryChanged = false
 
         for (var oldIndex = 0; oldIndex < oldIds.length; oldIndex++) {
             var oldId = oldIds[oldIndex]
             if (!candidates[oldId] || candidates[oldId].signature !== oldEntries[oldId].signature) {
-                _unloadVisualContributions(oldId)
                 if (!candidates[oldId])
-                    entryRemoved(oldId)
+                    removedIds.push(oldId)
                 if (oldId === oldSelectedBar || oldId === selectedBar)
                     selectedEntryChanged = true
             }
@@ -528,13 +607,41 @@ QtObject {
                 selectedEntryChanged = true
         }
 
+        internalReconciling = true
+        reconciliationStarted(changedIds.slice(), removedIds.slice())
+        if (hostContext) {
+            var contextsToDrop = changedIds.concat(removedIds)
+            for (var contextIndex = 0;
+                    contextIndex < contextsToDrop.length; contextIndex++)
+                hostContext.dropContext(contextsToDrop[contextIndex])
+        }
+        for (var unloadIndex = 0; unloadIndex < oldIds.length; unloadIndex++) {
+            var unloadId = oldIds[unloadIndex]
+            if (changedIds.indexOf(unloadId) !== -1
+                    || removedIds.indexOf(unloadId) !== -1)
+                _unloadVisualContributions(unloadId)
+        }
+
         internalEntries = candidates
         internalFailures = failuresNext
         internalSelectedBarId = selectedBar
+        internalActiveProfile = profile.active
+        internalProfileRevision = profile.revision
+        internalAvailableProfiles = profile.available
         internalLoaded = true
         loadError = ""
         internalRevision++
 
+        var profileChanged = oldActiveProfile !== profile.active
+            || oldProfileRevision !== profile.revision
+        var selectedBarWasRuntimeDisabled = runtimeDisabled[selectedBar] === true
+        if (profileChanged)
+            runtimeDisabled = ({})
+
+        for (var removedIndex = 0; removedIndex < removedIds.length; removedIndex++) {
+            _clearRuntimeErrors(removedIds[removedIndex])
+            entryRemoved(removedIds[removedIndex])
+        }
         for (var changedIndex = 0; changedIndex < changedIds.length; changedIndex++) {
             _clearRuntimeErrors(changedIds[changedIndex])
             entryChanged(changedIds[changedIndex])
@@ -546,9 +653,12 @@ QtObject {
         }
         _loadUnclaimedWidgets()
         _syncBarInputs()
-        if (!wasLoaded || oldSelectedBar !== selectedBar || selectedEntryChanged)
+        if (!wasLoaded || oldSelectedBar !== selectedBar || selectedEntryChanged
+                || (profileChanged && selectedBarWasRuntimeDisabled))
             _reconcileBar()
         catalogChanged()
+        reconciliationFinished(changedIds.slice(), addedIds.slice(), removedIds.slice())
+        internalReconciling = false
         rescanFinished()
     }
 

@@ -81,6 +81,7 @@ QtObject {
   readonly property QtObject panels
   readonly property QtObject logger
   readonly property QtObject settings
+  readonly property QtObject profiles
   readonly property QtObject actions
   readonly property string instanceId
 }
@@ -186,6 +187,22 @@ The agent panel's command (an argv array) and working directory are the one
 v1 runtime configuration exception. Its helper reads
 `configRoot/agent-panel.json`; IPC still cannot change those values.
 
+### `profiles`
+
+`profiles` is a read-only view of plugin profile state:
+
+```text
+active: string
+available: [{ id: string, name: string, description: string }]
+revision: non-negative integer
+state: "ready" | "switching" | "degraded" | "error"
+error: string
+```
+
+`default` is the implicit base configuration. A plugin may read this facade to
+show profile state, but it changes the selection only through the typed action
+below. Profile definitions never enter a plugin context.
+
 ### `actions`
 
 `actions` exposes the same literal operations as the IPC facade:
@@ -198,6 +215,7 @@ surfaceToggle(id: string, payloadJson: string): string
 pluginUnload(id: string): string
 pluginReload(id: string): string
 pluginRescan(): string
+profileActivate(id: string): string
 shellPing(): string
 shellStatus(): string
 themeQuery(): string
@@ -214,6 +232,57 @@ shell command.
 
 The bar calls `surfaceDismissPanels()` for empty-background presses. It uses
 the same router dismissal as PanelHost's outside-click handler.
+
+## Profile lifecycle
+
+The runtime helper resolves the implicit `default` profile or one named
+profile into a complete catalog. A named profile is a delta over the Nix seed
+and global runtime preferences. It may change plugin enablement, settings, and
+bar placement, but never source-root order.
+
+The host treats the selected bar, notification owner, and configured required
+plugins as protected. Global runtime preferences and profiles cannot disable
+them. Profile definitions and the active selection live in separate mutable
+files. Activation validates the profile name, writes the active state
+atomically, and increments its revision. Invalid activation leaves the old
+state intact.
+
+Catalog profile metadata has this shape:
+
+```text
+profile: {
+  active: string,
+  revision: non-negative integer,
+  available: [{ id: string, name: string, description: string }]
+}
+```
+
+Older catalogs may omit `profile`; the host then uses `default` at revision
+zero. A new profile identity or revision clears session-only plugin disables.
+
+Profile-driven catalog changes reconcile as one batch. The host marks the
+catalog as reconciling, removes changed and deleted services and surfaces from
+its registries, installs the complete catalog, then loads eligible
+replacements. Dependency consumers do not construct between individual entry
+changes. A changed plugin gets a new context and settings snapshot. An open
+surface owned by a changed or disabled plugin closes rather than carrying its
+old configuration forward.
+
+The activation action returns `started` after the helper begins, `ok` when the
+requested profile is already active, `unknown` for an unavailable profile,
+`busy` while another switch runs, or `error`. Shell profile state remains
+`switching` until the catalog reports the requested profile at a newer revision
+and shell readiness returns. A helper failure or ten-second timeout changes the
+state to `error`; it does not report a successful switch. A profile that
+settles with a contained catalog, visual, service, or routed surface
+contribution becomes `degraded`. Its other contributions stay active, and the
+first available diagnostic appears in `error`.
+
+Ready means the shell registries have reconciled and pending QML component
+loads have settled. It does not guarantee completion of detached processes,
+process descendants, user services, or remote effects started by a plugin.
+Profile-owned services keep long-running work in direct, killable child
+processes and clean up on termination.
 
 ## Surface lifecycle
 
@@ -259,7 +328,7 @@ or whole-shell kill endpoint.
 | Target | Method | Arguments | Result |
 |---|---|---|---|
 | `stillsuit` | `ping` | none | literal `ok` when the registry is ready |
-| `stillsuit` | `status` | none | JSON with config ID, `instanceId`, readiness, catalog revision, and plugin states |
+| `stillsuit` | `status` | none | JSON with config ID, `instanceId`, readiness, catalog and profile state, and plugin states |
 | `stillsuit` | `theme` | none | public effective theme JSON without the raw palette |
 | `stillsuit-surface` | `open` | plugin ID, payload JSON | `ok`, `unknown`, `disabled`, or `error` |
 | `stillsuit-surface` | `close` | plugin ID | `ok`, `unknown`, or `error` |
@@ -267,6 +336,9 @@ or whole-shell kill endpoint.
 | `stillsuit-plugin` | `unload` | plugin ID | `ok`, `unknown`, or `error` |
 | `stillsuit-plugin` | `reload` | plugin ID | `ok`, `unknown`, or `error` |
 | `stillsuit-plugin` | `rescan` | none | `ok` |
+| `stillsuit-profile` | `list` | none | available profile JSON array |
+| `stillsuit-profile` | `current` | none | active, requested, revision, state, and error JSON |
+| `stillsuit-profile` | `activate` | profile ID | `started`, `ok`, `unknown`, `busy`, or `error` |
 | `stillsuit-agent-panel` | `open` | none | helper status |
 | `stillsuit-agent-panel` | `hide` | none | helper status |
 | `stillsuit-agent-panel` | `toggle` | none | helper status |

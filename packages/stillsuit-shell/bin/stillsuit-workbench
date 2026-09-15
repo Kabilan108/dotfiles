@@ -30,6 +30,8 @@ Commands against a running workbench:
   notify SUMMARY BODY present a notification
   actions             service calls plugins made since the last clear
   plugins             sandbox plugin catalog
+  profiles            available plugin profiles and active selection
+  profile ID          switch the active plugin profile
   stop                stop the running workbench
   call TARGET FN ...  raw quickshell ipc call
 USAGE
@@ -67,6 +69,11 @@ done
 fixture_root="$source_root/../design-lab/fixtures"
 [[ -d $fixture_root ]] || fixture_root="${STILLSUIT_WORKBENCH_FIXTURES:?no fixture directory}"
 schema_path="$source_root/../schemas/manifest.v1.json"
+plugin_helper="$source_root/../bin/stillsuit-plugins"
+if [[ ! -x $plugin_helper ]]; then
+  plugin_helper=$(command -v stillsuit-plugins || true)
+fi
+[[ -n $plugin_helper ]] || { printf 'stillsuit-plugins helper not found\n' >&2; exit 69; }
 config_id="stillsuit-workbench"
 pid_file="$sandbox_root/quickshell.pid"
 
@@ -95,12 +102,12 @@ ipc() {
 live_prefs_config="${XDG_CONFIG_HOME:-$HOME/.config}/stillsuit/runtime-discovery.json"
 steer_live_banners() {
   [[ -f $live_prefs_config ]] || return 0
-  stillsuit-plugins --config "$live_prefs_config" set stillsuit.notifications \
+  "$plugin_helper" --config "$live_prefs_config" set stillsuit.notifications \
     notifications.avoidOutputs "$(jq -cn --arg o "$1" '[$o]')" 2>/dev/null || true
 }
 restore_live_banners() {
   [[ -f $live_prefs_config ]] || return 0
-  stillsuit-plugins --config "$live_prefs_config" unset stillsuit.notifications \
+  "$plugin_helper" --config "$live_prefs_config" unset stillsuit.notifications \
     notifications.avoidOutputs 2>/dev/null || true
 }
 
@@ -120,7 +127,9 @@ case "$command_name" in
   close) ipc stillsuit-surface close "$(ipc stillsuit-workbench status | jq -r '.selectedPanel')" 2>/dev/null || true; exit ;;
   notify) [[ $# -eq 2 ]] || usage; ipc stillsuit-workbench notify "$1" "$2"; exit ;;
   actions) ipc stillsuit-workbench actions | jq .; exit ;;
-  plugins) exec stillsuit-plugins --config "$config_home/stillsuit/runtime-discovery.json" list ;;
+  plugins) exec "$plugin_helper" --config "$config_home/stillsuit/runtime-discovery.json" list ;;
+  profiles) ipc stillsuit-profile list | jq .; exit ;;
+  profile) [[ $# -eq 1 ]] || usage; ipc stillsuit-profile activate "$1"; exit ;;
   stop)
     pid=$(running_pid) || { restore_live_banners; printf 'workbench is not running\n' >&2; exit 0; }
     kill "$pid"; restore_live_banners; printf 'stopped %s\n' "$pid"; exit ;;
@@ -130,6 +139,7 @@ case "$command_name" in
       "workbench: " + (if .ready then "ready" else "starting" end)
       + "\noutput:    " + (.screens | join(", "))
       + "\nfixture:   " + .fixture
+      + "\nprofile:   " + .profile.active
       + "\npanel:     " + (if .selectedPanel == "" then "none" else .selectedPanel end)
       + "\nplugins:   " + ((.plugins | to_entries | map(select(.value.enabled)) | length) | tostring)
       + " enabled, " + ((.plugins | to_entries | map(select(.value.state == "error")) | length) | tostring) + " in error"
@@ -235,7 +245,10 @@ cat > "$config_home/stillsuit/runtime-discovery.json" <<JSON
   "state": "$state_home/stillsuit",
   "core": "$source_root",
   "schema": "$schema_path",
-  "preferences": "$config_home/stillsuit/plugins.json"
+  "preferences": "$config_home/stillsuit/plugins.json",
+  "profiles": "$config_home/stillsuit/profiles.json",
+  "activeProfile": "$state_home/stillsuit/active-profile.json",
+  "requiredPlugins": ["stillsuit.bar", "stillsuit.notifications"]
 }
 JSON
 
@@ -249,7 +262,7 @@ export STILLSUIT_CONFIG_ID="$config_id" \
   STILLSUIT_THEME_PATH="$theme_path" \
   STILLSUIT_ALLOW_LOCAL_PLUGINS=1 \
   STILLSUIT_PLUGIN_RUNTIME_CONFIG="$config_home/stillsuit/runtime-discovery.json" \
-  STILLSUIT_PLUGIN_HELPER="$(command -v stillsuit-plugins)" \
+  STILLSUIT_PLUGIN_HELPER="$plugin_helper" \
   STILLSUIT_WORKBENCH_FIXTURES="$fixture_root" \
   STILLSUIT_WORKBENCH_FIXTURE="$fixture_id" \
   STILLSUIT_WORKBENCH_STATE="$workflow_root" \

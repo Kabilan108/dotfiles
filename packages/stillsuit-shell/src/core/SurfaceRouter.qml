@@ -34,6 +34,7 @@ QtObject {
     property var sessionOpen: ({})
     property var placements: ({})
     property var panelHosts: ({})
+    property bool catalogReconciliationActive: false
 
     function registerPanelHost(outputId, host) {
         var next = _copy(panelHosts)
@@ -110,15 +111,18 @@ QtObject {
         ignoreUnknownSignals: true
 
         function onEntryAdded(pluginId) {
+            if (root.catalogReconciliationActive) return
             root._preloadIfNeeded(pluginId)
         }
 
         function onEntryChanged(pluginId) {
+            if (root.catalogReconciliationActive) return
             root.unload(pluginId)
             root._preloadIfNeeded(pluginId)
         }
 
         function onEntryRemoved(pluginId) {
+            if (root.catalogReconciliationActive) return
             root.unload(pluginId)
         }
 
@@ -131,6 +135,21 @@ QtObject {
         }
 
         function onCatalogChanged() {
+            if (root.catalogReconciliationActive) return
+            root._containUnavailable()
+            root._preloadAll()
+            root._retryQueuedOpenRoutes()
+        }
+
+        function onReconciliationStarted(changedIds, removedIds) {
+            root.catalogReconciliationActive = true
+            var affected = (changedIds || []).concat(removedIds || [])
+            for (var index = 0; index < affected.length; index++)
+                root.unload(affected[index])
+        }
+
+        function onReconciliationFinished(changedIds, addedIds, removedIds) {
+            root.catalogReconciliationActive = false
             root._containUnavailable()
             root._preloadAll()
             root._retryQueuedOpenRoutes()
@@ -142,6 +161,7 @@ QtObject {
         ignoreUnknownSignals: true
 
         function onRevisionChanged() {
+            if (root.catalogReconciliationActive) return
             root._containUnavailable()
             root._preloadAll()
             root._retryQueuedOpenRoutes()

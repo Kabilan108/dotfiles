@@ -50,6 +50,26 @@ production shell exposes (`stillsuit`, `stillsuit-surface`, `stillsuit-plugin`)
 works against the workbench through `stillsuit-workbench call TARGET FN ...`,
 the raw escape hatch behind the commands above.
 
+The sandbox also isolates plugin profiles. Its definitions, active selection,
+and global `plugins.json` live below the workbench's temporary XDG roots, so a
+profile experiment cannot switch or rewrite the live shell. `default` remains
+available when the sandbox has no named definitions. With the default sandbox,
+create a profile through its isolated runtime configuration, then use the
+workbench commands to inspect and switch it:
+
+```sh
+stillsuit-plugins \
+  --config ~/.local/state/stillsuit/workbench/config/stillsuit/runtime-discovery.json \
+  profile create work --name Work
+stillsuit-workbench profiles
+stillsuit-workbench profile work
+```
+
+Use the matching path below a custom `--sandbox` directory when supplied. The
+production Elephant picker is intentionally outside the workbench. Profile
+creation and editing remain command-line operations; the workbench commands
+exercise the same profile IPC used by the picker.
+
 Fixtures live in `fixtures/*.json` (`schemaVersion: 1`). Each one carries the
 compositor snapshot, per-service model documents keyed by plugin id,
 notifications to present, and recorder/meeting state. Add a scenario by adding

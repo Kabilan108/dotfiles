@@ -48,6 +48,7 @@ ShellRoot {
         compositor: niriService.adapter
         serviceRegistry: serviceRegistry
         surfaceRouter: surfaceRouter
+        profileSource: pluginCatalog
         actionsSource: ipcFacade
         instanceId: shell.processInstanceId
         configRoot: shell.xdgConfigRoot + "/stillsuit"

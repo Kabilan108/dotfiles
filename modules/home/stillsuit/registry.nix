@@ -56,6 +56,16 @@ let
       "stillsuit.bar"
     else
       selectedBarOwner;
+  selectedNotificationOwner =
+    if cfg.ownership.notificationOwners == [ ] then
+      "external"
+    else
+      lib.head cfg.ownership.notificationOwners;
+  requiredPlugins = lib.unique (
+    cfg.profiles.requiredPluginIds
+    ++ lib.optional (selectedBar != "") selectedBar
+    ++ lib.optional (selectedNotificationOwner != "external") selectedNotificationOwner
+  );
   catalogData = {
     schemaVersion = 1;
     inherit selectedBar;
@@ -99,6 +109,7 @@ in
           discoverySeed
           enabledPlugins
           indexedPlugins
+          requiredPlugins
           sortedPlugins
           ;
       };

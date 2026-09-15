@@ -46,6 +46,14 @@ jq -n --arg valid "$fixture_root/valid" \
     '{
         schemaVersion: 1,
         selectedBar: "stillsuit.broken-bar",
+        profile: {
+            active: "work",
+            revision: 7,
+            available: [
+                { id: "default", name: "Default", description: "Base plugins" },
+                { id: "work", name: "Work", description: "Work plugins" }
+            ]
+        },
         plugins: [
             {
                 packageRoot: $valid,
@@ -404,6 +412,8 @@ stop_fixture() {
 
 wait_for_ping "$host_pid"
 host_status=$(quickshell ipc --pid "$host_pid" call stillsuit status)
+profile_list=$(quickshell ipc --pid "$host_pid" call stillsuit-profile list)
+profile_current=$(quickshell ipc --pid "$host_pid" call stillsuit-profile current)
 public_theme=$(quickshell ipc --pid "$host_pid" call stillsuit theme)
 jq -e '
     .schemaVersion == 2
@@ -415,6 +425,10 @@ jq -e '
 jq -e '
     .configId == "stillsuit-lane-b-host"
     and .ready == true
+    and .profile.active == "work"
+    and .profile.revision == 7
+    and .profile.state == "degraded"
+    and .profile.available[1].id == "work"
     and .fallbackShadowMode == true
     and .bar.fallback == true
     and .bar.activeId == "stillsuit.builtin-bar"
@@ -441,6 +455,12 @@ jq -e '
     and .plugins["stillsuit.multi"].surface.contributions.overlay.instances == .screenCount
     and .plugins["stillsuit.multi-dependent"].service.state == "loaded"
 ' >/dev/null <<< "$host_status"
+jq -e 'length == 2 and .[1].id == "work"' >/dev/null <<< "$profile_list"
+jq -e '
+    .active == "work"
+    and .revision == 7
+    and .state == "degraded"
+' >/dev/null <<< "$profile_current"
 
 broken_open=$(quickshell ipc --pid "$host_pid" call stillsuit-surface open \
     stillsuit.broken-panel '{}')

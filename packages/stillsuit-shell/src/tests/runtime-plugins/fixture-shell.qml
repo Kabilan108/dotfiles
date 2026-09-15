@@ -11,7 +11,13 @@ ShellRoot {
     property var renderedBar: null
     QtObject {
         id: contexts
-        function contextFor(entry) { return ({theme: root.theme}) }
+        function contextFor(entry) {
+            return ({
+                theme: root.theme,
+                settings: entry && entry.settings ? entry.settings : ({})
+            })
+        }
+        function dropContext(pluginId) {}
     }
     Component {
         id: fallback
@@ -37,30 +43,52 @@ ShellRoot {
         id: catalog
         allowLocalPlugins: true
         hostContext: contexts
+        serviceRegistry: services
         fallbackContext: contexts
         fallbackBarComponent: fallback
+    }
+    ServiceRegistry {
+        id: services
+        catalog: catalog
+        hostContext: contexts
     }
     IpcHandler {
         target: "runtime-plugin-test"
         function unload(): string { return catalog.unload("stillsuit.example") }
+        function unloadBar(): string { return catalog.unload("stillsuit.test-bar") }
         function reload(): string { return catalog.reload("stillsuit.example") }
         function rescan(): string { return catalog.rescan() || "ok" }
         function inspect(): string {
             var entry = catalog.get("stillsuit.example")
+            var barEntry = catalog.get("stillsuit.test-bar")
             var result = {ready: catalog.ready, exists: !!entry,
-                enabled: catalog.isEnabled("stillsuit.example")}
+                enabled: catalog.isEnabled("stillsuit.example"),
+                activeProfile: catalog.activeProfile,
+                profileRevision: catalog.profileRevision,
+                runtimeDisabled: catalog.runtimeDisabled["stillsuit.example"] === true,
+                barRuntimeDisabled: catalog.runtimeDisabled["stillsuit.test-bar"] === true,
+                activeBarId: catalog.activeBarId,
+                fallbackActive: catalog.fallbackActive,
+                barSettings: barEntry ? barEntry.settings : ({}),
+                settings: entry ? entry.settings : ({}),
+                serviceCount: services.objectCount,
+                workServiceState: services.state("stillsuit.work-only")}
             result.rendered = []
-            if (root.renderedBar) {
-                for (var index = 0; index < root.renderedBar.slots.count; index++) {
-                    var slot = root.renderedBar.slots.itemAt(index)
+            var activeBar = catalog.barInstance
+            if (activeBar && activeBar.slots) {
+                for (var index = 0; index < activeBar.slots.count; index++) {
+                    var slot = activeBar.slots.itemAt(index)
                     if (slot && slot.createdWidget) result.rendered.push(slot.createdWidget.label)
                 }
             }
+            var workService = services.get("stillsuit.work-only")
+            result.workServiceLabel = workService ? workService.label : ""
             if (entry && result.enabled) {
                 var component = catalog.widgetComponents["stillsuit.example"]
                 if (component && component.status === Component.Ready) {
                     var widget = component.createObject(root, {
-                        context: {theme: root.theme}, outputId: "fixture"
+                        context: {theme: root.theme, settings: entry.settings},
+                        outputId: "fixture"
                     })
                     if (widget) { result.label = widget.label; widget.destroy() }
                 }

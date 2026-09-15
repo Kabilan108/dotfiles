@@ -41,6 +41,9 @@ let
       core = "${cfg.package}/share/stillsuit-shell/src";
       schema = "${cfg.package}/share/stillsuit-shell/schemas/manifest.v1.json";
       preferences = "${config.xdg.configHome}/stillsuit/plugins.json";
+      profiles = cfg.profiles.definitionsPath;
+      activeProfile = cfg.profiles.activeProfilePath;
+      requiredPlugins = stillsuitRegistry.requiredPlugins;
     }
   );
 in

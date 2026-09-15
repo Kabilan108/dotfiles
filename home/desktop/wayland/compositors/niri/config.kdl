@@ -500,6 +500,7 @@ binds {
     Mod+D hotkey-overlay-title="Run an Application: walker" { spawn "walker" "--set" "combi" "--width" "450"; }
     Mod+Tab hotkey-overlay-title="Switch Window: walker" { spawn "walker" "--provider" "windows" "--width" "400"; }
     Mod+Shift+E hotkey-overlay-title="Power Menu: walker" { spawn "walker" "--provider" "menus:power" "--width" "300" "--height" "400"; }
+    Mod+Alt+P hotkey-overlay-title="Plugin Profiles: walker" { spawn "walker" "--provider" "menus:profiles" "--width" "450" "--height" "360"; }
     Mod+V hotkey-overlay-title="Clipboard: walker" { spawn "walker" "--provider" "clipboard" "--width" "1000" "--height" "400"; }
 
     // quickshell panels

@@ -35,9 +35,26 @@ wait_for() {
     echo "timed out waiting for $description"; status | jq . ; exit 1
 }
 
-wait_for "workbench readiness" '.ready == true and .fixture == "default"'
+wait_for "workbench readiness" '.ready == true and .fixture == "default" and .profile.active == "default" and .profile.state == "ready"'
 status | jq -e '(.plugins | to_entries | map(select(.value.state == "error")) | length) == 0' > /dev/null
 status | jq -e '.modelsApplied | index("stillsuit.battery") != null and index("stillsuit.audio") != null' > /dev/null
+
+# Profiles use only workbench-owned config and state. The switch command goes
+# through the same narrow shell IPC action as the desktop profile picker.
+profile_config="$sandbox/config/stillsuit/runtime-discovery.json"
+"$package_dir/bin/stillsuit-plugins" --config "$profile_config" \
+    profile create work --name Work --description "Workbench profile"
+wait_for "work profile discovery" '.profile.available | map(.id) | index("work") != null'
+"${workbench[@]}" profiles | jq -e 'map(.id) == ["default", "work"]' > /dev/null
+[[ $("${workbench[@]}" profile work 2>/dev/null) == started ]]
+wait_for "work profile activation" '.profile.active == "work" and .profile.requested == "" and .profile.state == "ready"'
+jq -e '.active == "work" and .revision == 1' "$sandbox/state/stillsuit/active-profile.json" > /dev/null
+jq -e --arg sandbox "$sandbox" \
+    '.profiles == ($sandbox + "/config/stillsuit/profiles.json")
+        and .activeProfile == ($sandbox + "/state/stillsuit/active-profile.json")' \
+    "$profile_config" > /dev/null
+[[ $("${workbench[@]}" profile default 2>/dev/null) == started ]]
+wait_for "default profile restored" '.profile.active == "default" and .profile.state == "ready"'
 
 # The example plugins are the skill's templates; they must load cleanly.
 for example in stillsuit.example-widget stillsuit.example-panel stillsuit.example-counter; do

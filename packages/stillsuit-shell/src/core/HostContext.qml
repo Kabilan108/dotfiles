@@ -9,6 +9,7 @@ QtObject {
     property QtObject compositor: null
     property QtObject serviceRegistry: null
     property QtObject surfaceRouter: null
+    property QtObject profileSource: null
     property QtObject actionsSource: null
     property string instanceId: ""
     property string configRoot: ""
@@ -26,6 +27,7 @@ QtObject {
             required property QtObject _panels
             required property QtObject _logger
             required property QtObject _settings
+            required property QtObject _profiles
             required property QtObject _actions
             required property string _instanceId
 
@@ -36,6 +38,7 @@ QtObject {
                 readonly property QtObject panels: contextOwner._panels
                 readonly property QtObject logger: contextOwner._logger
                 readonly property QtObject settings: contextOwner._settings
+                readonly property QtObject profiles: contextOwner._profiles
                 readonly property QtObject actions: contextOwner._actions
                 readonly property string instanceId: contextOwner._instanceId
             }
@@ -146,6 +149,21 @@ QtObject {
         }
     }
 
+    property Component profilesFacadeComponent: Component {
+        QtObject {
+            readonly property string active: root.profileSource
+                ? root.profileSource.activeProfile : "default"
+            readonly property var available: root.profileSource
+                ? root.profileSource.availableProfiles : []
+            readonly property int revision: root.profileSource
+                ? root.profileSource.profileRevision : 0
+            readonly property string state: root.actionsSource
+                ? root.actionsSource.profileState : "ready"
+            readonly property string error: root.actionsSource
+                ? root.actionsSource.profileError : ""
+        }
+    }
+
     property Component actionsComponent: Component {
         QtObject {
             function surfaceDismissPanels() {
@@ -184,6 +202,12 @@ QtObject {
 
             function pluginRescan() {
                 return root.actionsSource ? root.actionsSource.pluginRescan() : "error"
+            }
+
+            function profileActivate(profileId) {
+                return root.actionsSource
+                    ? root.actionsSource.profileActivate(String(profileId))
+                    : "error"
             }
 
             function shellPing() {
@@ -250,6 +274,7 @@ QtObject {
             }
         })
         var settings = settingsOwner.facade
+        var profiles = profilesFacadeComponent.createObject(root)
         var actions = actionsComponent.createObject(root)
         var contextOwner = contextOwnerComponent.createObject(root, {
             _theme: _publicTheme(theme),
@@ -258,6 +283,7 @@ QtObject {
             _panels: panels,
             _logger: logger,
             _settings: settings,
+            _profiles: profiles,
             _actions: actions,
             _instanceId: instanceId
         })
@@ -268,7 +294,7 @@ QtObject {
             signature: entry.signature,
             owner: contextOwner,
             context: context,
-            owned: [servicesOwner, panels, loggerOwner, settingsOwner, actions]
+            owned: [servicesOwner, panels, loggerOwner, settingsOwner, profiles, actions]
         }
         contextCache = cacheNext
         return context

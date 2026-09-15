@@ -40,6 +40,135 @@ override; the value is JSON. The change re-constructs that plugin's service
 within about a second, which for notifications preserves history through the
 persisted state file.
 
+## Plugin profiles
+
+Profiles are named deltas over the normal plugin configuration. They do not
+select source directories and do not change root precedence. The helper still
+discovers every configured root as one trusted plugin inventory.
+
+The effective configuration order is:
+
+```text
+Nix seed defaults
+-> global plugins.json override
+-> active named profile override
+```
+
+The implicit `default` profile stops after the global override. It always
+exists, even when no profile files exist. Existing `enable`, `disable`,
+`place`, `set`, and `unset` commands continue to change the global base.
+Named profiles usually add work or project-specific plugins, but a profile may
+also disable or move an ordinary base plugin. Exactly one profile is active;
+profiles neither inherit from nor combine with other named profiles.
+
+Profile definitions follow `schemas/profiles.v1.json` and default to
+`~/.config/stillsuit/profiles.json`:
+
+```json
+{
+  "schemaVersion": 1,
+  "profiles": {
+    "work": {
+      "name": "Work",
+      "description": "Moberg development tools",
+      "plugins": {
+        "stillsuit.worktrees": {
+          "enabled": true,
+          "section": "left",
+          "order": 30
+        },
+        "stillsuit.t3": {
+          "enabled": true,
+          "settings": {
+            "projectFilter": ["moberg"]
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Each plugin delta may contain `enabled`, `section`, `order`, and `settings`.
+Omitted fields inherit the base. Settings merge one top-level key at a time,
+so a profile value for an object or array replaces that whole base value.
+Arrays never concatenate.
+
+Profile IDs match `[a-z][a-z0-9-]*`. `default` is reserved and cannot be
+created, deleted, or changed as a named profile. The selected profile is kept
+separately in `~/.local/state/stillsuit/active-profile.json`:
+
+```json
+{
+  "schemaVersion": 1,
+  "active": "work",
+  "revision": 4
+}
+```
+
+Use the CLI to create and change profiles programmatically:
+
+```sh
+stillsuit-plugins profile list
+stillsuit-plugins profile current
+stillsuit-plugins profile create work --name Work --description 'Moberg development tools'
+stillsuit-plugins profile enable work stillsuit.worktrees
+stillsuit-plugins profile disable work stillsuit.personal-example
+stillsuit-plugins profile place work stillsuit.worktrees left 30
+stillsuit-plugins profile set work stillsuit.t3 projectFilter '["moberg"]'
+stillsuit-plugins profile unset work stillsuit.t3 projectFilter
+stillsuit-plugins profile activate work
+stillsuit-plugins profile delete work
+```
+
+`list`, `current`, and `activate` print JSON. The other mutation commands are
+silent on success. Deleting the active profile is rejected. An unknown profile
+or invalid document leaves the active state unchanged.
+
+Home Manager supplies a protected plugin list in `runtime-discovery.json`.
+It includes the selected bar and notification owner in this configuration.
+Neither global preferences nor profiles may disable those plugins. Protection
+keeps shell authority available while profiles suppress ordinary plugins. A
+disabled plugin remains discoverable but the host destroys its service,
+widgets, and surfaces.
+Consumers of a disabled service do not register until that dependency is
+enabled again.
+
+`Mod+Alt+P` opens an Elephant picker that lists and activates profiles; it does
+not edit them and does not occupy the bar. The picker queries the shell each
+time it opens, so newly created profiles appear without a rebuild. A switch
+reports `switching` until the watcher publishes the new catalog and the host
+has reconciled it. Changed and disabled services, surfaces, and widgets leave
+their host registries as one catalog reconciliation before eligible
+replacements load. A profile revision change also clears session-only disables
+created by the `stillsuit-plugin unload` IPC action. Once settled, a contained
+catalog, visual, service, or surface contribution marks the profile `degraded`
+and keeps the rest of the profile active.
+
+The `stillsuit-profile` IPC target exposes only `list`, `current`, and
+`activate`. Shell status includes the active and requested profile, profile
+revision, available profiles, switch state, and error. If a helper call fails
+or the new catalog does not arrive within ten seconds, status reports `error`.
+The `error` field carries the first diagnostic for both `degraded` and `error`
+states. The last catalog keeps running when the watcher cannot parse profile
+state.
+
+Profiles do not namespace plugin data or state paths. Two profiles using the
+same plugin share its persisted state unless their settings explicitly select
+different files.
+
+Profile readiness covers the shell's QML registries and pending component
+loads. It does not wait for detached processes, grandchildren, user services,
+or work already started on a remote machine. Profile-owned services should keep
+long-running work as direct, killable child processes and handle termination
+without leaving detached work behind.
+
+The first deployment of profile support needs a Home Manager rebuild because
+the host API, picker key binding, helper environment, persistence paths, and
+protected plugin list are Nix-owned. Creating, editing, or activating profiles
+after that deployment is hot and does not need a rebuild or shell restart.
+Changing `programs.stillsuitShell.profiles` options still needs another rebuild.
+
 The `stillsuit-plugin` agent skill (`.agents/skills/stillsuit-plugin/`) walks
 this loop and points at `src/plugins/examples/` as starting templates.
 Develop against `stillsuit-workbench` first: it runs the same core and
@@ -49,7 +178,7 @@ See `../design-lab/README.md`.
 
 Promote an experiment by moving its whole directory into the tracked root,
 keeping its manifest ID, then reviewing and committing its source. Do not leave
-two divergent copies. This is a manual source operation, not a runtime deploy.
+two divergent copies. This is a manual source operation, not a profile change.
 Immutable generations are retained for now; garbage collection is future work.
 
 New plugins import `Stillsuit.Ui`. Public component names and properties are

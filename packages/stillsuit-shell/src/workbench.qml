@@ -79,6 +79,7 @@ ShellRoot {
         compositor: compositor
         serviceRegistry: serviceRegistry
         surfaceRouter: surfaceRouter
+        profileSource: pluginCatalog
         actionsSource: ipcFacade
         instanceId: Quickshell.instanceId
         configRoot: shell.xdgConfigRoot + "/stillsuit"
@@ -185,6 +186,14 @@ ShellRoot {
                 themeError: shell.themeError,
                 catalogRevision: pluginCatalog.revision,
                 catalogError: pluginCatalog.loadError,
+                profile: {
+                    active: pluginCatalog.activeProfile,
+                    requested: ipcFacade.requestedProfile,
+                    revision: pluginCatalog.profileRevision,
+                    available: pluginCatalog.availableProfiles,
+                    state: ipcFacade.profileState,
+                    error: ipcFacade.profileError
+                },
                 plugins: pluginCatalog.statusRecords(),
                 services: serviceRegistry.statusRecords(),
                 surfaces: surfaceRouter.statusRecords(),

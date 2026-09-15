@@ -86,6 +86,7 @@ in
       }
     )
     (builtinPlugin "clock")
+    ((builtinPlugin "moberg-demo") // { enable = false; })
     (
       (builtinPlugin "network")
       // {

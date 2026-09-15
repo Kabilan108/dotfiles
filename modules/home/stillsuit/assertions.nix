@@ -7,6 +7,7 @@
 let
   cfg = config.programs.stillsuitShell;
   inherit (stillsuitRegistry) enabledPlugins indexedPlugins;
+  requiredPlugins = stillsuitRegistry.requiredPlugins;
   allowedKinds = [
     "bar"
     "bar-widget"
@@ -175,6 +176,10 @@ in
       {
         assertion = lib.length ids == lib.length (lib.unique ids);
         message = "programs.stillsuitShell plugin IDs must be unique";
+      }
+      {
+        assertion = lib.all (pluginId: lib.elem pluginId ids) requiredPlugins;
+        message = "programs.stillsuitShell profile-required plugins must be enabled in the generated catalog";
       }
       {
         assertion = lib.all validBarOwner cfg.ownership.barOwners;

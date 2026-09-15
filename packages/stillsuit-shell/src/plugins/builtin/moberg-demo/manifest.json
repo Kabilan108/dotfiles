@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.moberg-demo",
+  "name": "Moberg profile demo",
+  "description": "A small bar chip used to verify profile-only plugin activation.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Widget.qml" },
+  "scope": { "barWidget": "per-output" },
+  "barWidget": { "defaultSection": "left", "allowMultiple": false, "order": 90 }
+}

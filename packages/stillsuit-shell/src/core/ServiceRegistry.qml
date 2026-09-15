@@ -9,7 +9,8 @@ QtObject {
     // fixture `model`. Production leaves this null so services bind to hardware.
     property var constructionProvider: null
     readonly property int revision: internalRevision
-    readonly property bool ready: catalog !== null && catalog.loaded && pendingLoads === 0
+    readonly property bool ready: catalog !== null && catalog.loaded
+        && !catalogReconciliationActive && pendingLoads === 0
     readonly property int objectCount: Object.keys(objects).length
 
     property int internalRevision: 0
@@ -20,6 +21,7 @@ QtObject {
     property var states: ({})
     property var errors: ({})
     property var tokens: ({})
+    property bool catalogReconciliationActive: false
     property QtObject serviceHost: QtObject {}
 
     signal dependencyContained(string pluginId)
@@ -30,15 +32,18 @@ QtObject {
         ignoreUnknownSignals: true
 
         function onEntryAdded(pluginId) {
+            if (root.catalogReconciliationActive) return
             root._loadEligibleServices()
         }
 
         function onEntryChanged(pluginId) {
+            if (root.catalogReconciliationActive) return
             root._prepareReload(pluginId)
             root._loadEligibleServices()
         }
 
         function onEntryRemoved(pluginId) {
+            if (root.catalogReconciliationActive) return
             root._containAndUnload(pluginId)
             if (root.hostContext)
                 root.hostContext.dropContext(pluginId)
@@ -59,7 +64,16 @@ QtObject {
         }
 
         function onCatalogChanged() {
+            if (root.catalogReconciliationActive) return
             root._loadEligibleServices()
+        }
+
+        function onReconciliationStarted(changedIds, removedIds) {
+            root._beginCatalogReconciliation(changedIds, removedIds)
+        }
+
+        function onReconciliationFinished(changedIds, addedIds, removedIds) {
+            root._finishCatalogReconciliation(changedIds, removedIds)
         }
     }
 
@@ -199,6 +213,38 @@ QtObject {
                 _unloadOne(affectedId)
             _clearError(affectedId)
         }
+    }
+
+    function _beginCatalogReconciliation(changedIds, removedIds) {
+        catalogReconciliationActive = true
+        var roots = (changedIds || []).concat(removedIds || [])
+        var affected = {}
+        for (var index = 0; index < roots.length; index++) {
+            var ids = _affectedIds(roots[index])
+            for (var affectedIndex = 0; affectedIndex < ids.length; affectedIndex++)
+                affected[ids[affectedIndex]] = true
+        }
+
+        var order = catalog ? catalog.topologicalOrder().reverse() : []
+        for (var orderIndex = 0; orderIndex < order.length; orderIndex++) {
+            var pluginId = order[orderIndex]
+            if (affected[pluginId] !== true)
+                continue
+            if (roots.indexOf(pluginId) === -1)
+                dependencyContained(pluginId)
+            if ((catalog && catalog.hasKind(pluginId, "service"))
+                    || state(pluginId) !== "unloaded")
+                _unloadOne(pluginId)
+            _clearError(pluginId)
+            delete affected[pluginId]
+        }
+    }
+
+    function _finishCatalogReconciliation(changedIds, removedIds) {
+        Qt.callLater(function() {
+            root.catalogReconciliationActive = false
+            root._loadEligibleServices()
+        })
     }
 
     function _affectedIds(pluginId) {

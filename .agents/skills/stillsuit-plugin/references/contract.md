@@ -57,9 +57,11 @@ services     revision, has(id), get(id), state(id)   — declared dependencies o
 panels       activeId, selectedId, selectedOutputId, focusedOutputId, isOpen(id), state(id)
 logger       debug/info/warn/error(message)
 settings     pluginId, values (from Nix + runtime preferences), paths {configRoot, dataRoot, stateRoot, packageRoot}
+profiles     active, available[], revision, state (ready/switching/degraded/error), error
 actions      surfaceOpen(id, payloadJson), surfaceClose(id), surfaceToggle(id, payloadJson),
              surfaceDismissPanels(), pluginUnload(id), pluginReload(id), pluginRescan(),
-             shellPing(), shellStatus(), themeQuery(), agentPanel{Open,Hide,Toggle,Status,Terminate}()
+             profileActivate(id), shellPing(), shellStatus(), themeQuery(),
+             agentPanel{Open,Hide,Toggle,Status,Terminate}()
 ```
 
 Payload JSON is surface data only; `{ "outputId": "..." }` places a panel.
@@ -100,6 +102,7 @@ id wins, even if that copy is broken.
 
 ## Settings and state
 
-`context.settings.values` merges Nix defaults with `~/.config/stillsuit/plugins.json`
-runtime preferences. Writable state belongs under `settings.paths.stateRoot`
-in a service-owned, versioned file. Never derive paths from `HOME`.
+`context.settings.values` merges Nix defaults, global preferences from
+`~/.config/stillsuit/plugins.json`, and the active named profile. Writable
+state belongs under `settings.paths.stateRoot` in a service-owned, versioned
+file. Never derive paths from `HOME`.

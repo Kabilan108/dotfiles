@@ -81,6 +81,29 @@ in
       '';
     };
 
+    profiles = {
+      definitionsPath = mkOption {
+        type = types.strMatching "^/.*";
+        default = "${config.xdg.configHome}/stillsuit/profiles.json";
+        description = "Mutable named plugin profile definitions read by the runtime helper.";
+      };
+
+      activeProfilePath = mkOption {
+        type = types.strMatching "^/.*";
+        default = "${config.xdg.stateHome}/stillsuit/active-profile.json";
+        description = "Mutable state file containing the selected plugin profile.";
+      };
+
+      requiredPluginIds = mkOption {
+        type = types.listOf (types.strMatching "^stillsuit(\\.[a-z][a-z0-9-]*)+$");
+        default = [ ];
+        description = ''
+          Enabled plugins that every profile must retain. The runtime also
+          protects the selected bar and notification owners.
+        '';
+      };
+    };
+
     ownership = {
       barOwners = mkOption {
         type = types.listOf types.str;

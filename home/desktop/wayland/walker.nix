@@ -1,5 +1,6 @@
 {
   pkgs,
+  lib,
   config,
   inputs,
   waylandCompositor,
@@ -9,6 +10,7 @@ let
   colors = config.lib.stylix.colors.withHashtag;
   themeName = "stylix";
   lockCmd = "lock-screen";
+  stillsuitProfileIpc = "qs ipc -c ${lib.escapeShellArg config.programs.stillsuitShell.configId} call stillsuit-profile";
   logoutCmd =
     if waylandCompositor == "niri" then
       "bash -lc 'systemctl --user stop waybar.service walker.service; niri msg action quit'"
@@ -161,6 +163,16 @@ in
           background: alpha(@overlay, 0.85);
           box-shadow: none;
           border: 2px solid alpha(@border, 0.75);
+        }
+
+        child:selected .item-box.menus-profiles.current {
+          border-color: @accent_alt;
+        }
+
+        .item-box.menus-profiles.current .item-text,
+        .item-box.menus-profiles.current .item-subtext,
+        .item-box.menus-profiles.current .item-icon {
+          color: @accent_alt;
         }
 
         .item-text {
@@ -491,6 +503,67 @@ in
           }
         ];
       };
+
+      provider.menus.lua.profiles = ''
+        Name = "profiles"
+        NamePretty = "Plugin profiles"
+        Description = "Switch the active Stillsuit plugin profile"
+        Icon = "preferences-system"
+        Action = "${stillsuitProfileIpc} activate %VALUE%"
+        Cache = false
+        FixedOrder = true
+        SearchName = true
+
+        local function commandOutput(command)
+            local handle = io.popen(command)
+            if not handle then
+                return nil
+            end
+
+            local output = handle:read("*a")
+            local ok = handle:close()
+            if not ok or output == "" then
+                return nil
+            end
+
+            return output
+        end
+
+        function GetEntries()
+            local profilesOutput = commandOutput(
+                "${stillsuitProfileIpc} list 2>/dev/null"
+            )
+            local currentOutput = commandOutput(
+                "${stillsuitProfileIpc} current 2>/dev/null"
+            )
+            if not profilesOutput or not currentOutput then
+                return {}
+            end
+
+            local profiles = jsonDecode(profilesOutput)
+            local current = jsonDecode(currentOutput)
+            local entries = {}
+
+            for _, profile in ipairs(profiles) do
+                local description = profile.description or ""
+                if profile.id == current.active then
+                    description = description == ""
+                        and "Active"
+                        or "Active · " .. description
+                end
+
+                table.insert(entries, {
+                    Text = profile.name or profile.id,
+                    Subtext = description,
+                    Value = profile.id,
+                    Keywords = { profile.id },
+                    State = profile.id == current.active and { "current" } or {},
+                })
+            end
+
+            return entries
+        end
+      '';
     };
   };
 }

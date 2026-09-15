@@ -7,6 +7,7 @@ containment and input shapes; it does not sandbox trusted QML.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import fcntl
 import hashlib
 import json
@@ -16,10 +17,19 @@ import shutil
 import sys
 import tempfile
 import time
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator
+
+PLUGIN_ID_PATTERN = r"stillsuit\.[a-z][a-z0-9.-]*"
+PROFILE_ID_PATTERN = r"[a-z][a-z0-9-]*"
+DEFAULT_PROFILE = {
+    "id": "default",
+    "name": "Default",
+    "description": "Base plugins",
+}
 
 
 def record(path: Path) -> dict[str, Any]:
@@ -106,13 +116,160 @@ def generation(folder: Path, manifest: dict[str, Any], state: Path, core: Path) 
     return destination / folder.name
 
 
+def profile_paths(configuration: dict[str, Any]) -> tuple[Path, Path]:
+    return Path(configuration["profiles"]), Path(configuration["activeProfile"])
+
+
+def validate_plugin_id(plugin_id: str) -> None:
+    if not re.fullmatch(PLUGIN_ID_PATTERN, plugin_id):
+        raise ValueError("invalid plugin ID")
+
+
+def validate_profile_id(profile_id: str, *, allow_default: bool = True) -> None:
+    if not re.fullmatch(PROFILE_ID_PATTERN, profile_id):
+        raise ValueError("invalid profile ID")
+    if not allow_default and profile_id == "default":
+        raise ValueError("default is an implicit profile")
+
+
+def validate_settings(settings: Any) -> dict[str, Any]:
+    if not isinstance(settings, dict):
+        raise TypeError("settings must be an object")
+    return settings
+
+
+def validate_profile_plugin(plugin_id: str, value: Any, required: set[str]) -> dict[str, Any]:
+    validate_plugin_id(plugin_id)
+    if not isinstance(value, dict):
+        raise TypeError(f"{plugin_id}: profile override must be an object")
+    unknown = set(value) - {"enabled", "section", "order", "settings"}
+    if unknown:
+        raise ValueError(f"{plugin_id}: unknown profile fields: {', '.join(sorted(unknown))}")
+    if "enabled" in value and not isinstance(value["enabled"], bool):
+        raise TypeError(f"{plugin_id}: enabled must be boolean")
+    if value.get("enabled") is False and plugin_id in required:
+        raise ValueError(f"{plugin_id}: required plugins cannot be disabled")
+    if "section" in value and value["section"] not in {"left", "center", "right"}:
+        raise ValueError(f"{plugin_id}: invalid bar section")
+    if "order" in value and type(value["order"]) is not int:
+        raise TypeError(f"{plugin_id}: bar order must be an integer")
+    if "settings" in value:
+        validate_settings(value["settings"])
+    return value
+
+
+def read_profiles(path: Path, required: set[str]) -> dict[str, dict[str, Any]]:
+    if not path.exists():
+        return {}
+    document = record(path)
+    if document.get("schemaVersion") != 1:
+        raise ValueError("profiles schemaVersion must be 1")
+    if set(document) != {"schemaVersion", "profiles"}:
+        raise ValueError("profiles document must contain only schemaVersion and profiles")
+    profiles = document["profiles"]
+    if not isinstance(profiles, dict):
+        raise TypeError("profiles must be an object")
+    for profile_id, profile in profiles.items():
+        validate_profile_id(profile_id, allow_default=False)
+        if not isinstance(profile, dict):
+            raise TypeError(f"{profile_id}: profile must be an object")
+        unknown = set(profile) - {"name", "description", "plugins"}
+        if unknown:
+            raise ValueError(f"{profile_id}: unknown profile fields: {', '.join(sorted(unknown))}")
+        if "name" in profile and (not isinstance(profile["name"], str) or not profile["name"].strip()):
+            raise ValueError(f"{profile_id}: name must be a nonempty string")
+        if "description" in profile and not isinstance(profile["description"], str):
+            raise TypeError(f"{profile_id}: description must be a string")
+        plugins = profile.get("plugins", {})
+        if not isinstance(plugins, dict):
+            raise TypeError(f"{profile_id}: plugins must be an object")
+        for plugin_id, value in plugins.items():
+            validate_profile_plugin(plugin_id, value, required)
+    return profiles
+
+
+def read_active_profile(path: Path, profiles: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    if not path.exists():
+        return {"schemaVersion": 1, "active": "default", "revision": 0}
+    state = record(path)
+    if set(state) != {"schemaVersion", "active", "revision"} or state.get("schemaVersion") != 1:
+        raise ValueError("active profile state must contain schemaVersion 1, active and revision")
+    active = state["active"]
+    revision = state["revision"]
+    if not isinstance(active, str):
+        raise TypeError("active profile must be a string")
+    validate_profile_id(active)
+    if active != "default" and active not in profiles:
+        raise ValueError(f"active profile does not exist: {active}")
+    if type(revision) is not int or revision < 0:
+        raise ValueError("profile revision must be a nonnegative integer")
+    return state
+
+
+def available_profiles(profiles: dict[str, dict[str, Any]]) -> list[dict[str, str]]:
+    available = [DEFAULT_PROFILE]
+    available.extend({
+        "id": profile_id,
+        "name": profile.get("name", profile_id),
+        "description": profile.get("description", ""),
+    } for profile_id, profile in sorted(profiles.items()))
+    return available
+
+
+def merge_preferences(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    merged.update({key: value for key, value in overlay.items() if key != "settings"})
+    if "settings" in base or "settings" in overlay:
+        settings = dict(validate_settings(base.get("settings", {})))
+        settings.update(validate_settings(overlay.get("settings", {})))
+        merged["settings"] = settings
+    return merged
+
+
+def required_plugins(configuration: dict[str, Any]) -> set[str]:
+    required_values = configuration["requiredPlugins"]
+    if not isinstance(required_values, list) or not all(isinstance(value, str) for value in required_values):
+        raise TypeError("requiredPlugins must be an array of plugin IDs")
+    required = set(required_values)
+    for plugin_id in required:
+        validate_plugin_id(plugin_id)
+    return required
+
+
+def profile_context(configuration: dict[str, Any]) -> tuple[dict[str, dict[str, Any]], dict[str, Any], set[str]]:
+    required = required_plugins(configuration)
+    profiles_path, active_path = profile_paths(configuration)
+    profiles = read_profiles(profiles_path, required)
+    state = read_active_profile(active_path, profiles)
+    return profiles, state, required
+
+
 def scan(configuration: dict[str, Any], overrides: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    if not isinstance(overrides, dict):
+        raise TypeError("plugin preferences must be an object")
+    profiles, profile_state, required = profile_context(configuration)
+    active_profile = profiles.get(profile_state["active"], {})
+    profile_plugins = active_profile.get("plugins", {})
     seed = record(Path(configuration["seed"]))
     validator = Draft202012Validator(record(Path(configuration["schema"])))
     defaults = {row["manifest"]["id"]: row for row in seed["plugins"]}
     # The bar frame stays in the core closure. Runtime plugins fill its slots.
     reserved = seed.get("selectedBar", "stillsuit.bar")
-    rows = [defaults[reserved]] if reserved in defaults else []
+    rows: list[dict[str, Any]] = []
+    if reserved in defaults:
+        default = defaults[reserved]
+        global_preference = overrides.get(reserved, {})
+        if not isinstance(global_preference, dict):
+            raise TypeError("plugin preferences must be an object")
+        preference = merge_preferences(global_preference, profile_plugins.get(reserved, {}))
+        settings = dict(default.get("settings", {}))
+        settings.update(preference.get("settings", {}))
+        enabled = True if reserved in required else preference.get("enabled", default.get("enabled", True))
+        if not isinstance(enabled, bool):
+            raise TypeError("enabled must be boolean")
+        reserved_row = dict(default)
+        reserved_row.update({"enabled": enabled, "settings": settings})
+        rows.append(reserved_row)
     seen = {reserved}
     problems: list[str] = []
     for root_text in configuration["roots"]:
@@ -136,9 +293,10 @@ def scan(configuration: dict[str, Any], overrides: dict[str, Any]) -> tuple[dict
                 error = next(validator.iter_errors(manifest), None)
                 if error is not None:
                     raise ValueError(error.message)
-                preference = overrides.get(plugin_id, {})
-                if not isinstance(preference, dict):
+                global_preference = overrides.get(plugin_id, {})
+                if not isinstance(global_preference, dict):
                     raise TypeError("plugin preferences must be an object")
+                preference = merge_preferences(global_preference, profile_plugins.get(plugin_id, {}))
                 default = defaults.get(plugin_id, {})
                 settings = dict(default.get("settings", {}))
                 settings.update(preference.get("settings", {}))
@@ -153,7 +311,7 @@ def scan(configuration: dict[str, Any], overrides: dict[str, Any]) -> tuple[dict
                             raise ValueError("bar order must be an integer")
                         bar["order"] = preference["order"]
                     manifest["barWidget"] = bar
-                enabled = preference.get("enabled", default.get("enabled", True))
+                enabled = True if plugin_id in required else preference.get("enabled", default.get("enabled", True))
                 if not isinstance(enabled, bool):
                     raise TypeError("enabled must be boolean")
                 package = generation(folder, manifest, Path(configuration["state"]), Path(configuration["core"]))
@@ -161,31 +319,54 @@ def scan(configuration: dict[str, Any], overrides: dict[str, Any]) -> tuple[dict
                     "enabled": enabled, "settings": settings})
             except (OSError, ValueError, TypeError, KeyError) as error:
                 problems.append(f"{folder.name}: {error}")
-    return {"schemaVersion": 1, "selectedBar": reserved, "plugins": rows}, problems
+    return {
+        "schemaVersion": 1,
+        "selectedBar": reserved,
+        "profile": {
+            "active": profile_state["active"],
+            "revision": profile_state["revision"],
+            "available": available_profiles(profiles),
+        },
+        "plugins": rows,
+    }, problems
 
 
-def set_preference(path: Path, plugin_id: str, changes: dict[str, Any]) -> None:
-    if not re.fullmatch(r"stillsuit\.[a-z][a-z0-9.-]*", plugin_id):
-        raise ValueError("invalid plugin ID")
+def atomic_write(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w") as stream:
+            stream.write(json.dumps(data, indent=2) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+@contextlib.contextmanager
+def locked(path: Path) -> Iterator[None]:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.with_suffix(".lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+def set_preference(path: Path, plugin_id: str, changes: dict[str, Any]) -> None:
+    validate_plugin_id(plugin_id)
+    with locked(path):
         data = record(path) if path.exists() else {}
         data[plugin_id] = dict(data.get(plugin_id, {})) | changes
-        temporary = path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(data, indent=2) + "\n")
-        temporary.replace(path)
+        atomic_write(path, data)
 
 
 def update_setting(path: Path, plugin_id: str, keys: list[str], value: Any, remove: bool) -> None:
     """Set or remove one dotted key under a plugin's runtime `settings` override."""
-    if not re.fullmatch(r"stillsuit\.[a-z][a-z0-9.-]*", plugin_id):
-        raise ValueError("invalid plugin ID")
+    validate_plugin_id(plugin_id)
     if not keys or any(not re.fullmatch(r"[A-Za-z][A-Za-z0-9]*", key) for key in keys):
         raise ValueError("settings keys are dotted identifiers")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.with_suffix(".lock").open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with locked(path):
         data = record(path) if path.exists() else {}
         plugin = dict(data.get(plugin_id, {}))
         settings = dict(plugin.get("settings", {}))
@@ -199,42 +380,271 @@ def update_setting(path: Path, plugin_id: str, keys: list[str], value: Any, remo
             node[keys[-1]] = value
         plugin["settings"] = settings
         data[plugin_id] = plugin
-        temporary = path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(data, indent=2) + "\n")
-        temporary.replace(path)
+        atomic_write(path, data)
+
+
+def write_profiles(path: Path, profiles: dict[str, dict[str, Any]], required: set[str]) -> None:
+    document = {"schemaVersion": 1, "profiles": profiles}
+    for profile_id, profile in profiles.items():
+        validate_profile_id(profile_id, allow_default=False)
+        plugins = profile.get("plugins", {})
+        for plugin_id, value in plugins.items():
+            validate_profile_plugin(plugin_id, value, required)
+    atomic_write(path, document)
+
+
+def create_profile(
+    path: Path,
+    profile_id: str,
+    name: str | None,
+    description: str | None,
+    required: set[str],
+) -> dict[str, Any]:
+    validate_profile_id(profile_id, allow_default=False)
+    if name is not None and not name.strip():
+        raise ValueError("profile name must not be empty")
+    with locked(path):
+        profiles = read_profiles(path, required)
+        if profile_id in profiles:
+            raise ValueError(f"profile already exists: {profile_id}")
+        profile: dict[str, Any] = {"plugins": {}}
+        if name is not None:
+            profile["name"] = name
+        if description is not None:
+            profile["description"] = description
+        profiles[profile_id] = profile
+        write_profiles(path, profiles, required)
+    return profile
+
+
+def delete_profile(
+    profiles_path: Path,
+    active_path: Path,
+    profile_id: str,
+    required: set[str],
+) -> None:
+    validate_profile_id(profile_id, allow_default=False)
+    with locked(profiles_path), locked(active_path):
+        profiles = read_profiles(profiles_path, required)
+        if profile_id not in profiles:
+            raise ValueError(f"profile does not exist: {profile_id}")
+        state = read_active_profile(active_path, profiles)
+        if state["active"] == profile_id:
+            raise ValueError("cannot delete the active profile")
+        del profiles[profile_id]
+        write_profiles(profiles_path, profiles, required)
+
+
+def activate_profile(
+    profiles_path: Path,
+    active_path: Path,
+    profile_id: str,
+    required: set[str],
+) -> dict[str, Any]:
+    validate_profile_id(profile_id)
+    with locked(profiles_path), locked(active_path):
+        profiles = read_profiles(profiles_path, required)
+        if profile_id != "default" and profile_id not in profiles:
+            raise ValueError(f"profile does not exist: {profile_id}")
+        state = read_active_profile(active_path, profiles)
+        if state["active"] == profile_id:
+            return state
+        state = {
+            "schemaVersion": 1,
+            "active": profile_id,
+            "revision": state["revision"] + 1,
+        }
+        atomic_write(active_path, state)
+    return state
+
+
+def edit_profile_plugin(
+    path: Path,
+    profile_id: str,
+    plugin_id: str,
+    required: set[str],
+    edit: Callable[[dict[str, Any]], dict[str, Any]],
+) -> None:
+    validate_profile_id(profile_id, allow_default=False)
+    validate_plugin_id(plugin_id)
+    with locked(path):
+        profiles = read_profiles(path, required)
+        if profile_id not in profiles:
+            raise ValueError(f"profile does not exist: {profile_id}")
+        profile = dict(profiles[profile_id])
+        plugins = dict(profile.get("plugins", {}))
+        plugin = edit(dict(plugins.get(plugin_id, {})))
+        validate_profile_plugin(plugin_id, plugin, required)
+        plugins[plugin_id] = plugin
+        profile["plugins"] = plugins
+        profiles[profile_id] = profile
+        write_profiles(path, profiles, required)
+
+
+def set_profile_preference(
+    path: Path,
+    profile_id: str,
+    plugin_id: str,
+    changes: dict[str, Any],
+    required: set[str],
+) -> None:
+    edit_profile_plugin(path, profile_id, plugin_id, required, lambda plugin: plugin | changes)
+
+
+def update_profile_setting(
+    path: Path,
+    profile_id: str,
+    plugin_id: str,
+    keys: list[str],
+    value: Any,
+    remove: bool,
+    required: set[str],
+) -> None:
+    if not keys or any(not re.fullmatch(r"[A-Za-z][A-Za-z0-9]*", key) for key in keys):
+        raise ValueError("settings keys are dotted identifiers")
+
+    def edit(plugin: dict[str, Any]) -> dict[str, Any]:
+        settings = dict(plugin.get("settings", {}))
+        node = settings
+        for key in keys[:-1]:
+            node[key] = dict(node.get(key, {}))
+            node = node[key]
+        if remove:
+            node.pop(keys[-1], None)
+        else:
+            node[keys[-1]] = value
+        plugin["settings"] = settings
+        return plugin
+
+    edit_profile_plugin(path, profile_id, plugin_id, required, edit)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    config_root = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=config_root / "stillsuit" / "runtime-discovery.json",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    for command in ("watch", "list", "validate"):
+        commands.add_parser(command)
+    for command in ("enable", "disable"):
+        commands.add_parser(command).add_argument("plugin_id")
+    place = commands.add_parser("place")
+    place.add_argument("plugin_id")
+    place.add_argument("section", choices=["left", "center", "right"])
+    place.add_argument("order", type=int)
+    for command in ("set", "unset"):
+        setting = commands.add_parser(command)
+        setting.add_argument("plugin_id")
+        setting.add_argument("key")
+        if command == "set":
+            setting.add_argument("value", type=json.loads)
+
+    profile = commands.add_parser("profile")
+    profile_commands = profile.add_subparsers(dest="profile_command", required=True)
+    profile_commands.add_parser("list")
+    profile_commands.add_parser("current")
+    create = profile_commands.add_parser("create")
+    create.add_argument("profile_id")
+    create.add_argument("--name")
+    create.add_argument("--description")
+    for command in ("delete", "activate"):
+        action = profile_commands.add_parser(command)
+        action.add_argument("profile_id")
+    for command in ("enable", "disable"):
+        action = profile_commands.add_parser(command)
+        action.add_argument("profile_id")
+        action.add_argument("plugin_id")
+    profile_place = profile_commands.add_parser("place")
+    profile_place.add_argument("profile_id")
+    profile_place.add_argument("plugin_id")
+    profile_place.add_argument("section", choices=["left", "center", "right"])
+    profile_place.add_argument("order", type=int)
+    for command in ("set", "unset"):
+        setting = profile_commands.add_parser(command)
+        setting.add_argument("profile_id")
+        setting.add_argument("plugin_id")
+        setting.add_argument("key")
+        if command == "set":
+            setting.add_argument("value", type=json.loads)
+    return parser
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    config_root = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
-    parser.add_argument("--config", type=Path,
-        default=config_root / "stillsuit" / "runtime-discovery.json")
-    parser.add_argument("command",
-        choices=["watch", "list", "validate", "enable", "disable", "place", "set", "unset"])
-    parser.add_argument("plugin_id", nargs="?")
-    parser.add_argument("section", nargs="?",
-        help="place: left|center|right; set/unset: dotted settings key such as notifications.avoidOutputs")
-    parser.add_argument("order", nargs="?",
-        help="place: integer order; set: JSON value")
+    parser = build_parser()
     args = parser.parse_args()
     configuration = record(args.config)
     preferences = Path(configuration["preferences"])
-    if args.command in {"enable", "disable", "place", "set", "unset"}:
-        if not args.plugin_id:
-            parser.error("plugin ID is required")
-        changes: dict[str, Any] = {"enabled": args.command == "enable"}
-        if args.command == "place":
-            if args.section not in {"left", "center", "right"} or args.order is None:
-                parser.error("place requires plugin ID, section and integer order")
-            changes = {"section": args.section, "order": int(args.order)}
-        elif args.command in {"set", "unset"}:
-            if not args.section or (args.command == "set" and args.order is None):
-                parser.error(f"{args.command} requires plugin ID and a settings key")
-            value = json.loads(args.order) if args.command == "set" else None
-            update_setting(preferences, args.plugin_id, args.section.split("."), value, args.command == "unset")
+    try:
+        if args.command in {"enable", "disable", "place", "set", "unset"}:
+            required = required_plugins(configuration)
+            if args.command == "disable" and args.plugin_id in required:
+                raise ValueError(f"{args.plugin_id}: required plugins cannot be disabled")
+            changes: dict[str, Any] = {"enabled": args.command == "enable"}
+            if args.command == "place":
+                changes = {"section": args.section, "order": args.order}
+            elif args.command in {"set", "unset"}:
+                update_setting(
+                    preferences,
+                    args.plugin_id,
+                    args.key.split("."),
+                    args.value if args.command == "set" else None,
+                    args.command == "unset",
+                )
+                return
+            set_preference(preferences, args.plugin_id, changes)
             return
-        set_preference(preferences, args.plugin_id, changes)
-        return
+        if args.command == "profile":
+            required = required_plugins(configuration)
+            profiles_path, active_path = profile_paths(configuration)
+            if args.profile_command in {"list", "current"}:
+                profiles = read_profiles(profiles_path, required)
+                state = read_active_profile(active_path, profiles)
+                if args.profile_command == "list":
+                    state = {
+                        "active": state["active"],
+                        "revision": state["revision"],
+                        "available": available_profiles(profiles),
+                    }
+                print(json.dumps(state, sort_keys=True))
+            elif args.profile_command == "create":
+                create_profile(
+                    profiles_path,
+                    args.profile_id,
+                    args.name,
+                    args.description,
+                    required,
+                )
+            elif args.profile_command == "delete":
+                delete_profile(profiles_path, active_path, args.profile_id, required)
+            elif args.profile_command == "activate":
+                print(json.dumps(activate_profile(
+                    profiles_path, active_path, args.profile_id, required
+                ), sort_keys=True))
+            elif args.profile_command in {"enable", "disable", "place"}:
+                changes = {"enabled": args.profile_command == "enable"}
+                if args.profile_command == "place":
+                    changes = {"section": args.section, "order": args.order}
+                set_profile_preference(
+                    profiles_path, args.profile_id, args.plugin_id, changes, required
+                )
+            elif args.profile_command in {"set", "unset"}:
+                update_profile_setting(
+                    profiles_path,
+                    args.profile_id,
+                    args.plugin_id,
+                    args.key.split("."),
+                    args.value if args.profile_command == "set" else None,
+                    args.profile_command == "unset",
+                    required,
+                )
+            return
+    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as error:
+        print(f"stillsuit-plugins: error: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
     previous = ""
     previous_errors = ""
     while True:

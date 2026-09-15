@@ -79,7 +79,7 @@ Details: `references/contract.md`. Source of truth: `docs/host-contract.md`.
 - Entry points receive `required property var context` and, per kind,
   `service` (when the plugin declares one), `screen`, `outputId`.
 - `context` has `theme`, `compositor`, `services.get(id)`, `panels`, `logger`,
-  `settings`, `actions`. Nothing else reaches a plugin.
+  `settings`, `profiles`, `actions`. Nothing else reaches a plugin.
 - A **service** is global and owns state, timers, processes. **Bar widgets and
   panels** are per-output views: no timers, sockets, or processes in them.
 - A **panel** is `Item` content with `hostedPanel: true`, `implicitWidth`,
