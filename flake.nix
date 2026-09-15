@@ -141,6 +141,7 @@
 
     hyprland.url = "github:hyprwm/Hyprland/v0.52.0";
     ghostty.url = "github:ghostty-org/ghostty/v1.3.1";
+    hark.url = "github:Kabilan108/hark";
     herdr = {
       url = "github:herdrdev/herdr/v0.8.2";
       inputs.nixpkgs.follows = "nixpkgs";

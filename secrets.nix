@@ -31,6 +31,8 @@ in
     sietch
     jacurutu
   ];
+  "secrets/hark/sietch-config.json.age".publicKeys = [ sietch ];
+  "secrets/hark/jacurutu-config.json.age".publicKeys = [ jacurutu ];
   "secrets/foobar.age".publicKeys = [
     sietch
   ];

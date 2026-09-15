@@ -2,12 +2,23 @@
   config,
   pkgs,
   inputs,
+  lib,
   displayServer,
   waylandCompositor,
   ...
 }:
 let
   home = config.users.users.kabilan.home;
+  hostName = config.networking.hostName;
+  isHarkHost = builtins.elem hostName [
+    "sietch"
+    "jacurutu"
+  ];
+  harkConfigFile =
+    if hostName == "sietch" then
+      ./secrets/hark/sietch-config.json.age
+    else
+      ./secrets/hark/jacurutu-config.json.age;
 in
 {
   users.users.kabilan = {
@@ -114,6 +125,14 @@ in
     secrets."secrets/moberg/vpn/ta.age" = {
       file = ./secrets/moberg/vpn/ta.age;
       path = "${home}/.config/moberg/vpn/ta.key";
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
+
+    secrets."secrets/hark/config.json.age" = lib.mkIf isHarkHost {
+      file = harkConfigFile;
+      path = "${home}/.config/hark/config.json";
       mode = "0600";
       owner = "kabilan";
       group = "users";
