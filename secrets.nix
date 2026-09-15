@@ -33,6 +33,14 @@ in
   ];
   "secrets/hark/sietch-config.json.age".publicKeys = [ sietch ];
   "secrets/hark/jacurutu-config.json.age".publicKeys = [ jacurutu ];
+  "secrets/hark/e-boost-automations.curl.age".publicKeys = [
+    sietch
+    jacurutu
+  ];
+  "secrets/hark/fleet-maintenance.curl.age".publicKeys = [
+    sietch
+    jacurutu
+  ];
   "secrets/foobar.age".publicKeys = [
     sietch
   ];

@@ -13,6 +13,7 @@ let
     set -euo pipefail
     cd ${lib.escapeShellArg devServerCheckout}
     source "$HOME/.bashenv"
+    export PATH="${lib.makeBinPath [ pkgs.curl ]}:$PATH"
 
     exec ${pkgs.direnv}/bin/direnv exec . \
       ${lib.escapeShellArg eboostReviewerReportScript} preview --notify

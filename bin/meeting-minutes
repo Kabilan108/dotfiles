@@ -51,6 +51,7 @@ CODEX_REASONING_EFFORT = os.environ.get(
     "MEETING_MINUTES_CODEX_REASONING_EFFORT", "high"
 )
 CODEX_SERVICE_TIER = os.environ.get("MEETING_MINUTES_CODEX_SERVICE_TIER", "default")
+HARKCTL = os.environ.get("MEETING_MINUTES_HARKCTL", "harkctl")
 COMPLETION_VISIBLE_SECONDS = 10
 ERROR_VISIBLE_SECONDS = 600
 # Siren's job phases are surfaced as-is; the indicator shows these labels.
@@ -1884,31 +1885,43 @@ def notify_job(job: dict[str, Any], *, success: bool) -> None:
     save_job(job)
     if success:
         title = "Meeting minutes ready"
-        severity = "success"
         body = f"{job.get('title', 'Meeting')} — {job.get('note_path', '')}"
+        outcome = "success"
     else:
         title = "Meeting minutes failed"
-        severity = "error"
         body = str(job.get("error") or "Unknown meeting pipeline error")[:1000]
+        outcome = "failure"
+    payload = json.dumps(
+        {
+            "body": body,
+            "title": title,
+            "project": "Meeting Minutes",
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    idempotency_key = f"meeting-minutes:{job['job_id']}:{outcome}"
     try:
         result = subprocess.run(
             [
-                "discord-notify",
-                "-t",
-                title,
-                "-s",
-                severity,
-                "--body",
-                body,
+                HARKCTL,
+                "notify",
+                "--stdin",
+                "--idempotency-key",
+                idempotency_key,
             ],
             check=False,
+            input=payload,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             text=True,
         )
         job["notification_sent"] = result.returncode == 0
         if result.returncode != 0:
-            job["notification_error"] = result.stderr.strip()[-1000:]
+            job["notification_error"] = (
+                result.stderr.strip()[-1000:]
+                or f"harkctl exited with status {result.returncode}"
+            )
     except OSError as error:
         job["notification_sent"] = False
         job["notification_error"] = str(error)

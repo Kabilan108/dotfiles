@@ -130,6 +130,22 @@ in
       group = "users";
     };
 
+    secrets."secrets/hark/e-boost-automations.curl.age" = lib.mkIf isHarkHost {
+      file = ./secrets/hark/e-boost-automations.curl.age;
+      path = "${home}/.config/hark/integrations/e-boost-automations.curl";
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
+
+    secrets."secrets/hark/fleet-maintenance.curl.age" = lib.mkIf isHarkHost {
+      file = ./secrets/hark/fleet-maintenance.curl.age;
+      path = "${home}/.config/hark/integrations/fleet-maintenance.curl";
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
+
     secrets."secrets/hark/config.json.age" = lib.mkIf isHarkHost {
       file = harkConfigFile;
       path = "${home}/.config/hark/config.json";

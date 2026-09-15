@@ -73,19 +73,26 @@ let
     name = "report-stale-direnvs";
     runtimeInputs = [
       pkgs.coreutils
+      pkgs.curl
       pkgs.findutils
       pkgs.gnugrep
+      pkgs.jq
     ];
     text = ''
       cutoff="$(date -d "90 days ago" +%s)"
-      active_cwds="$(
-        for process_cwd in /proc/[0-9]*/cwd; do
-          readlink -f "$process_cwd" 2>/dev/null || true
-        done | sort -u
-      )"
+      report_month="$(date +%Y-%m)"
+      curl_config="${homeDir}/.config/hark/integrations/fleet-maintenance.curl"
+
+      active_cwds=()
+      for process_cwd in /proc/[0-9]*/cwd; do
+        active_cwd="$(readlink -f "$process_cwd" 2>/dev/null || true)"
+        if [ -n "$active_cwd" ]; then
+          active_cwds+=("$active_cwd")
+        fi
+      done
 
       candidates=()
-      while IFS= read -r direnv_dir; do
+      while IFS= read -r -d "" direnv_dir; do
         project="''${direnv_dir%/.direnv}"
         profile_mtime="$(
           find "$direnv_dir" -maxdepth 1 -type l -name "flake-profile*" \
@@ -102,14 +109,14 @@ let
         fi
 
         active=false
-        while IFS= read -r active_cwd; do
+        for active_cwd in "''${active_cwds[@]}"; do
           case "$active_cwd" in
             "$project" | "$project"/*)
               active=true
               break
               ;;
           esac
-        done <<< "$active_cwds"
+        done
         if "$active"; then
           continue
         fi
@@ -117,29 +124,60 @@ let
         profile_date="$(date -d "@$profile_mtime" +%F)"
         candidates+=("- \`$project\` — $profile_date")
       done < <(
-        find "${homeDir}" /vault -xdev -type d -name .direnv -prune 2>/dev/null \
-          | sort -u
+        find "${homeDir}" /vault -xdev -type d -name .direnv -prune -print0 2>/dev/null \
+          | sort -zu
       )
 
-      notify_args=()
-      if [ "''${STALE_DIRENV_REPORT_DRY_RUN:-0}" = 1 ]; then
-        notify_args+=(--dry-run)
-      fi
+      build_payload() {
+        jq -cn \
+          --arg body "$2" \
+          --arg title "$1" \
+          --arg project "Dotfiles" \
+          '{body: $body, title: $title, project: $project}'
+      }
+
+      deliver_report() {
+        title="$1"
+        body="$2"
+        payload="$(build_payload "$title" "$body")"
+
+        if [ "''${STALE_DIRENV_REPORT_DRY_RUN:-0}" = 1 ]; then
+          jq . <<< "$payload"
+          return
+        fi
+
+        idempotency_key="stale-direnv:$report_month:$(printf '%s' "$payload" | sha256sum | cut -d ' ' -f 1)"
+        printf '%s' "$payload" | curl \
+          --config "$curl_config" \
+          --silent \
+          --show-error \
+          --fail \
+          --output /dev/null \
+          --header "Content-Type: application/json" \
+          --header "Idempotency-Key: $idempotency_key" \
+          --data-binary @-
+      }
 
       if [ "''${#candidates[@]}" -eq 0 ]; then
-        "${homeDir}/dotfiles/bin/discord-notify" \
-          --title "No stale direnv environments" \
-          --status success \
-          --body "No inactive direnv profiles older than 90 days were found." \
-          "''${notify_args[@]}"
+        deliver_report \
+          "No stale direnv environments" \
+          "No inactive direnv profiles older than 90 days were found."
         exit 0
       fi
 
-      printf "%s\n" "''${candidates[@]}" \
-        | "${homeDir}/dotfiles/bin/discord-notify" \
-          --title "''${#candidates[@]} stale direnv environments" \
-          --status warning \
-          "''${notify_args[@]}"
+      title="''${#candidates[@]} stale direnv environments"
+      body="$(printf "%s\n" "''${candidates[@]}")"
+      payload="$(build_payload "$title" "$body")"
+      if [ "$(printf '%s' "$body" | wc -m)" -gt 8000 ] \
+        || [ "$(printf '%s' "$payload" | wc -c)" -gt 16384 ]; then
+        report_path="${homeDir}/.local/state/storage-maintenance/stale-direnv-$report_month.txt"
+        if [ "''${STALE_DIRENV_REPORT_DRY_RUN:-0}" != 1 ]; then
+          mkdir -p "$(dirname "$report_path")"
+          printf '%s\n' "$body" > "$report_path"
+        fi
+        body="Found ''${#candidates[@]} inactive direnv profiles older than 90 days. Full report: $report_path"
+      fi
+      deliver_report "$title" "$body"
     '';
   };
 in

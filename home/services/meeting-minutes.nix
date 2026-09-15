@@ -23,6 +23,7 @@ in
       Service = {
         Type = "oneshot";
         EnvironmentFile = "/run/agenix/secrets/dictator-env";
+        Environment = "MEETING_MINUTES_HARKCTL=${config.home.profileDirectory}/bin/harkctl";
         ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p ${stateDir}/jobs";
         ExecStart = "${homeDir}/bin/meeting-minutes work";
       };
