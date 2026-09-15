@@ -25,6 +25,13 @@ Use an existing task note for updates; search title, project links and ticket ID
 
 When asked to create/manage tasks, write in the configured TaskNotes folder. A checkbox in a meeting note or legacy `tasks.md` is not automatically a TaskNotes task. Keep legacy context in place unless migration is requested; do not move lines out of Tony's logs as an automatic sweep.
 
+### Task bodies and outcomes
+
+- For Tony-facing work, use short actionable bullets and a clear completion condition. For agent handoffs, include the context, source links, expected output and next step needed to resume independently. Apply this by audience across personal and work projects; retain existing templates unless a template change is requested.
+- Keep drafts being reviewed immediately in the conversation. Persist drafts only when useful for deferred work. Link sent Gmail/Slack messages in the task rather than copying their bodies. Link substantial deliverables at their canonical location, including Google Drive.
+- Complete a task when its stated outcome is achieved. A send-inquiry task is done once sent; track awaiting the response in a separate follow-up task. Reuse an existing follow-up when available. Blocked tasks state what they await and carry a scheduled follow-up date.
+- Use `scheduled` for intended work or follow-up dates, `due` for actual deadlines or deliberate commitments, and the project overview for broader milestones. Record actual progress; planning or drafting alone does not complete a send task.
+
 ## Wiki tiers (04-projects/<project>/)
 
 - `tickets/MCP-XXXX.md` — one page per ticket: status, outcome, links (Jira/PRs/repo docs/sessions). Dedup key = ticket id.
