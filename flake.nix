@@ -105,63 +105,64 @@
     };
 
   inputs = {
+    # machine setup
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
-    codex-desktop-linux = {
-      url = "github:ilysenko/codex-desktop-linux";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
+    # 3rd party flakes
     agenix = {
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
-
+    codex-desktop-linux = {
+      url = "github:ilysenko/codex-desktop-linux";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    elephant.url = "github:abenz1267/elephant";
+    firefox-addons = {
+      url = "gitlab:rycee/nur-expressions?dir=pkgs/firefox-addons";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    ghostty.url = "github:ghostty-org/ghostty/v1.3.1";
+    herdr = {
+      url = "github:herdrdev/herdr/v0.8.2";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
+    hy3 = {
+      url = "github:outfoxxed/hy3?ref=hl0.52.0";
+      inputs.hyprland.follows = "hyprland";
+    };
+    hyprland.url = "github:hyprwm/Hyprland/v0.52.0";
+    llama-cpp = {
+      url = "github:ggml-org/llama.cpp/e85caa81ea2b65797396018c179b87ad61fa38ab";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    "niri-flake".url = "github:sodiboo/niri-flake";
+    stylix = {
+      url = "github:nix-community/stylix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    try.url = "github:tobi/try";
+    walker = {
+      url = "github:abenz1267/walker";
+      inputs.elephant.follows = "elephant";
+    };
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    firefox-addons = {
-      url = "gitlab:rycee/nur-expressions?dir=pkgs/firefox-addons";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    stylix = {
-      url = "github:nix-community/stylix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    hyprland.url = "github:hyprwm/Hyprland/v0.52.0";
-    ghostty.url = "github:ghostty-org/ghostty/v1.3.1";
-    hark.url = "github:Kabilan108/hark";
-    herdr = {
-      url = "github:herdrdev/herdr/v0.8.2";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    "niri-flake".url = "github:sodiboo/niri-flake";
-    elephant.url = "github:abenz1267/elephant";
-    walker = {
-      url = "github:abenz1267/walker";
-      inputs.elephant.follows = "elephant";
-    };
-
-    hy3 = {
-      url = "github:outfoxxed/hy3?ref=hl0.52.0";
-      inputs.hyprland.follows = "hyprland";
-    };
-
+    # tools i maintain
     atlas.url = "github:kabilan108/atlas";
     claude-bar.url = "github:kabilan108/claude-bar";
     dictator.url = "github:kabilan108/dictator";
     dump.url = "github:kabilan108/dump";
+    hark.url = "github:Kabilan108/hark";
     omasnap = {
       url = "github:Kabilan108/omasnap/niri-native";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -170,14 +171,8 @@
       url = "github:Kabilan108/pagebin";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    llama-cpp = {
-      url = "github:ggml-org/llama.cpp/e85caa81ea2b65797396018c179b87ad61fa38ab";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     raindrop.url = "github:kabilan108/raindrop";
     siren.url = "github:kabilan108/siren";
     tracer.url = "github:kabilan108/tracer";
-
-    try.url = "github:tobi/try";
   };
 }
