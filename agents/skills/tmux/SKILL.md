@@ -13,4 +13,4 @@ A detached tmux worker survives a coordinator restart but does not wake it. Afte
 
 Read the result and inspect the diff/verification before `agent-run acknowledge <id>`. File existence and text visible in scrollback do not prove successful exit. `agent-run status` reports worker exit separately from result consumption.
 
-For other persistent processes, use a named detached session/window and capture its logs and exit status. Reconnect to task-owned processes before starting duplicates. Stop only processes covered by the task's cleanup scope; do not terminate the user's terminal or coordinator.
+For other persistent processes, use a named detached session/window whose scrollback shows the launch command and streams live stdout/stderr; if logs also need to persist outside tmux, mirror them with `tee` while preserving the process exit status. Reconnect to task-owned processes before starting duplicates. Stop only processes covered by the task's cleanup scope; do not terminate the user's terminal or coordinator.
