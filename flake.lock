@@ -526,11 +526,11 @@
         "nixpkgs": "nixpkgs_7"
       },
       "locked": {
-        "lastModified": 1789445240,
-        "narHash": "sha256-lPB8kIdvjONzBgMLQRF7hLjk7avcK+1Dw5Cal81INco=",
+        "lastModified": 1789486574,
+        "narHash": "sha256-zgTcl3Kfk2bk0ugqPFw5hT/DD1FLy5sM5fkoAKaFa7g=",
         "owner": "Kabilan108",
         "repo": "hark",
-        "rev": "ae574d6fba1fca081cfb757edd4ce27af4f96580",
+        "rev": "0a3956e3039fc44461d5fed2a6e43cdff924ee97",
         "type": "github"
       },
       "original": {

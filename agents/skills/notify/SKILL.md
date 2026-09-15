@@ -44,9 +44,9 @@ Questions use the same project and machine connection:
 
 ```sh
 harkctl notify ask "Deploy reviewed commit abc123 to staging?" \
-  --project "Hark" --approval --wait --timeout 15m --json
+  --project "Hark" --approval --wait --timeout 15m
 harkctl notify ask "Which environment should I use?" \
-  --project "Hark" --text --wait --timeout 15m --json
+  --project "Hark" --text --wait --timeout 15m
 ```
 
 Keep the command's managed process handle and resume its wait until completion,
@@ -97,6 +97,6 @@ separate ownership, revocation, or sender defaults. They are not project
 identities. Read [fleet credentials](references/fleet.md) before provisioning
 one.
 
-For CLI installation, response modes, service callbacks, and activity details,
-read `~/experiments/hark/skills/hark/SKILL.md` on sietch or the skill in the Hark
-checkout. Use the fork's Nix package rather than the upstream npm client.
+For CLI installation, response modes, and activity details, run `harkctl skill`.
+For integration webhook instructions, run `harkctl skill services`. These
+references ship with the installed CLI and need no repository checkout.

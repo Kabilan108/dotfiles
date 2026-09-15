@@ -21,6 +21,8 @@ in
     };
   };
 
+  # TODO: Before enabling, replace discord-notify in bin/tracer-digest with
+  # harkctl notify --project "Tracer", using the host's existing agent credential.
   config = lib.mkIf cfg.enable {
     systemd.user.services.tracer-digest = {
       Unit.Description = "Weekly tracer learning digest";
