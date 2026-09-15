@@ -54,18 +54,14 @@ in
     jacurutu
   ];
 
-  "secrets/moberg/vpn/key.age".publicKeys = [
-    sietch
-    jacurutu
-  ];
+  "secrets/moberg/vpn/key.age".publicKeys = [ jacurutu ];
+  "secrets/moberg/vpn/sietch-key.age".publicKeys = [ sietch ];
   "secrets/moberg/vpn/ta.age".publicKeys = [
     sietch
     jacurutu
   ];
-  "secrets/moberg/vpn/cert.age".publicKeys = [
-    sietch
-    jacurutu
-  ];
+  "secrets/moberg/vpn/cert.age".publicKeys = [ jacurutu ];
+  "secrets/moberg/vpn/sietch-cert.age".publicKeys = [ sietch ];
   "secrets/moberg/vpn/ca.age".publicKeys = [
     sietch
     jacurutu

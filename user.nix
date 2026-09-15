@@ -10,6 +10,11 @@
 let
   home = config.users.users.kabilan.home;
   hostName = config.networking.hostName;
+  isSietch = hostName == "sietch";
+  mobergVpnCertFile =
+    if isSietch then ./secrets/moberg/vpn/sietch-cert.age else ./secrets/moberg/vpn/cert.age;
+  mobergVpnKeyFile =
+    if isSietch then ./secrets/moberg/vpn/sietch-key.age else ./secrets/moberg/vpn/key.age;
   isHarkHost = builtins.elem hostName [
     "sietch"
     "jacurutu"
@@ -109,14 +114,14 @@ in
       group = "users";
     };
     secrets."secrets/moberg/vpn/cert.age" = {
-      file = ./secrets/moberg/vpn/cert.age;
+      file = mobergVpnCertFile;
       path = "${home}/.config/moberg/vpn/tony.crt";
       mode = "0600";
       owner = "kabilan";
       group = "users";
     };
     secrets."secrets/moberg/vpn/key.age" = {
-      file = ./secrets/moberg/vpn/key.age;
+      file = mobergVpnKeyFile;
       path = "${home}/.config/moberg/vpn/tony.key";
       mode = "0600";
       owner = "kabilan";
