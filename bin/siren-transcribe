@@ -1,0 +1,681 @@
+#!/usr/bin/env -S uv --quiet run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "httpx>=0.28,<1",
+#   "typer>=0.16,<1",
+# ]
+# ///
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+import time
+import uuid
+from collections.abc import Callable
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Annotated, Any
+
+import httpx
+import typer
+
+DEFAULT_URL = "https://siren.sole-pierce.ts.net"
+DEFAULT_MODEL = "nvidia/parakeet-tdt-0.6b-v2"
+DEFAULT_ENV_FILE = Path("/run/agenix/secrets/dictator-env")
+DEFAULT_STATE_DIR = Path("~/.local/state/siren-transcribe")
+JOB_ID_PATTERN = re.compile(r"^job_[0-9a-f]{32}$")
+
+HELP = """Submit audio to Siren and keep a local record of every job.
+
+Siren accepts common audio and video formats and converts them to mono 16 kHz
+audio on the server. For long recordings or large video files, upload mono
+16 kHz FLAC to avoid transferring the video stream and a much larger WAV:
+
+  ffmpeg -i INPUT -map 0:a:0 -ac 1 -ar 16000 -c:a flac OUTPUT.flac
+
+The CLI uses ffprobe to reject inputs without an audio stream before upload.
+
+Use `run` for submit-and-wait, or `submit` when you intend to resume the
+job later. `list`, `show`, and `wait` use records under
+~/.local/state/siren-transcribe by default. Siren retains server jobs for 7
+days by default. A result fetched by `run`, `wait`, or `show` is kept locally.
+"""
+
+app = typer.Typer(
+    help=HELP,
+    add_completion=False,
+    invoke_without_command=True,
+    no_args_is_help=False,
+    rich_markup_mode=None,
+    pretty_exceptions_enable=True,
+    pretty_exceptions_show_locals=False,
+)
+
+
+class SirenError(RuntimeError):
+    pass
+
+
+def print_json(payload: object) -> None:
+    typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def fail(error: Exception) -> None:
+    typer.echo(f"Error: {error}", err=True)
+    raise typer.Exit(1) from error
+
+
+def now_iso() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def state_dir() -> Path:
+    return Path(
+        os.environ.get("SIREN_TRANSCRIBE_STATE_DIR", str(DEFAULT_STATE_DIR))
+    ).expanduser()
+
+
+def jobs_dir() -> Path:
+    return state_dir() / "jobs"
+
+
+def validate_job_id(job_id: str) -> str:
+    if not JOB_ID_PATTERN.fullmatch(job_id):
+        raise SirenError(f"Invalid Siren transcript job id: {job_id}")
+    return job_id
+
+
+def job_dir(job_id: str) -> Path:
+    return jobs_dir() / validate_job_id(job_id)
+
+
+def record_path(job_id: str) -> Path:
+    return job_dir(job_id) / "job.json"
+
+
+def result_path(job_id: str) -> Path:
+    return job_dir(job_id) / "result.json"
+
+
+def read_json_object(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as error:
+        raise SirenError(f"Local record does not exist: {path}") from error
+    except (OSError, json.JSONDecodeError) as error:
+        raise SirenError(f"Could not read {path}: {error}") from error
+    if not isinstance(payload, dict):
+        raise SirenError(f"Expected a JSON object in {path}")
+    return payload
+
+
+def atomic_write_json(path: Path, payload: object) -> None:
+    temporary: Path | None = None
+    try:
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+        temporary.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        temporary.chmod(0o600)
+        temporary.replace(path)
+    except OSError as error:
+        raise SirenError(f"Could not write {path}: {error}") from error
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def load_record(job_id: str) -> dict[str, Any] | None:
+    path = record_path(job_id)
+    if not path.is_file():
+        return None
+    return read_json_object(path)
+
+
+def save_record(record: dict[str, Any]) -> None:
+    record["updated_at"] = now_iso()
+    atomic_write_json(record_path(str(record["id"])), record)
+
+
+def save_result(job_id: str, result: dict[str, Any]) -> None:
+    atomic_write_json(result_path(job_id), result)
+    record = load_record(job_id)
+    if record is not None:
+        record["status"] = "completed"
+        record["result_saved"] = True
+        save_record(record)
+
+
+def load_result(job_id: str) -> dict[str, Any] | None:
+    path = result_path(job_id)
+    if not path.is_file():
+        return None
+    return read_json_object(path)
+
+
+def read_environment_value(path: Path, name: str) -> str | None:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (FileNotFoundError, PermissionError, OSError):
+        return None
+
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, separator, value = line.partition("=")
+        if separator and key.strip() == name:
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                value = value[1:-1]
+            return value or None
+    return None
+
+
+def resolve_api_key() -> str:
+    if api_key := os.environ.get("SIREN_API_KEY"):
+        return api_key
+
+    env_file = Path(
+        os.environ.get("SIREN_ENV_FILE", str(DEFAULT_ENV_FILE))
+    ).expanduser()
+    if api_key := read_environment_value(env_file, "SIREN_API_KEY"):
+        return api_key
+
+    raise SirenError(f"SIREN_API_KEY is not set and could not be read from {env_file}")
+
+
+def response_payload(response: httpx.Response, action: str) -> dict[str, Any]:
+    try:
+        payload = response.json()
+    except ValueError as error:
+        if response.is_error:
+            detail = response.text.strip()[-2000:] or "empty response"
+            raise SirenError(
+                f"Siren {action} failed with HTTP {response.status_code}: {detail}"
+            ) from error
+        raise SirenError(f"Siren {action} returned invalid JSON") from error
+
+    if response.is_error:
+        if isinstance(payload, dict):
+            detail = payload.get("detail", payload)
+        else:
+            detail = payload
+        raise SirenError(
+            f"Siren {action} failed with HTTP {response.status_code}: {detail}"
+        )
+    if not isinstance(payload, dict):
+        raise SirenError(f"Siren {action} returned a non-object JSON response")
+    return payload
+
+
+def request_json(
+    client: httpx.Client,
+    method: str,
+    url: str,
+    action: str,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    try:
+        response = client.request(method, url, **kwargs)
+    except httpx.HTTPError as error:
+        raise SirenError(f"Siren {action} request failed: {error}") from error
+    return response_payload(response, action)
+
+
+def api_client() -> httpx.Client:
+    headers = {"Authorization": f"Bearer {resolve_api_key()}"}
+    return httpx.Client(
+        headers=headers,
+        timeout=httpx.Timeout(600.0, connect=30.0),
+    )
+
+
+def transcript_endpoint(base_url: str) -> str:
+    return f"{base_url.rstrip('/')}/v1/jobs/transcripts"
+
+
+def require_audio_stream(path: Path) -> None:
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-select_streams",
+                "a:0",
+                "-show_entries",
+                "stream=index",
+                "-of",
+                "csv=p=0",
+                str(path),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except FileNotFoundError as error:
+        raise SirenError("ffprobe is required to inspect the input file") from error
+    except subprocess.TimeoutExpired as error:
+        raise SirenError(f"ffprobe did not finish within 30s for {path}") from error
+
+    if result.returncode != 0:
+        detail = result.stderr.strip()[-2000:] or "unknown ffprobe error"
+        raise SirenError(f"Could not inspect {path}: {detail}")
+    if not result.stdout.strip():
+        raise SirenError(f"Input contains no audio stream: {path}")
+
+
+def submit_job(
+    client: httpx.Client,
+    endpoint: str,
+    audio: Path,
+    model: str,
+    language: str | None,
+) -> dict[str, Any]:
+    fields = {"model": model}
+    if language is not None:
+        fields["language"] = language
+
+    try:
+        with audio.open("rb") as stream:
+            return request_json(
+                client,
+                "POST",
+                endpoint,
+                "submission",
+                data=fields,
+                files={"file": (audio.name, stream, "application/octet-stream")},
+            )
+    except OSError as error:
+        raise SirenError(f"Could not read {audio}: {error}") from error
+
+
+def record_submission(
+    accepted: dict[str, Any],
+    *,
+    audio: Path,
+    base_url: str,
+    model: str,
+    language: str | None,
+) -> dict[str, Any]:
+    job_id = accepted.get("id")
+    if not isinstance(job_id, str) or not JOB_ID_PATTERN.fullmatch(job_id):
+        raise SirenError("Siren did not return a valid transcript job id")
+    created_at = now_iso()
+    record: dict[str, Any] = {
+        "version": 1,
+        "id": job_id,
+        "status": str(accepted.get("status") or "queued"),
+        "position": accepted.get("position"),
+        "source": str(audio),
+        "server_url": base_url.rstrip("/"),
+        "model": model,
+        "language": language,
+        "created_at": created_at,
+        "updated_at": created_at,
+        "result_saved": False,
+    }
+    save_record(record)
+    return record
+
+
+def update_record_status(job_id: str, status: dict[str, Any]) -> None:
+    record = load_record(job_id)
+    if record is None:
+        return
+    record["status"] = status.get("status")
+    for name in ("phase", "progress", "position", "error"):
+        if name in status:
+            record[name] = status[name]
+        else:
+            record.pop(name, None)
+    save_record(record)
+
+
+def wait_for_job(
+    client: httpx.Client,
+    endpoint: str,
+    job_id: str,
+    poll_interval: float,
+    timeout: float,
+    on_status: Callable[[dict[str, Any]], None] | None = None,
+) -> None:
+    deadline = time.monotonic() + timeout
+    status_url = f"{endpoint}/{job_id}"
+
+    while True:
+        payload = request_json(client, "GET", status_url, "status check")
+        if on_status is not None:
+            on_status(payload)
+        status = payload.get("status")
+        if status == "completed":
+            return
+        if status == "failed":
+            detail = payload.get("error") or "no detail reported"
+            raise SirenError(f"Siren transcript job failed: {detail}")
+        if status not in {"queued", "running"}:
+            raise SirenError(f"Siren returned an invalid job status: {status!r}")
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise SirenError(
+                f"Siren transcript job {job_id} did not finish within {timeout:g}s. "
+                f"Resume it with: siren-transcribe wait {job_id}"
+            )
+        time.sleep(min(poll_interval, remaining))
+
+
+def fetch_and_save_result(
+    client: httpx.Client,
+    endpoint: str,
+    job_id: str,
+) -> dict[str, Any]:
+    result = request_json(
+        client,
+        "GET",
+        f"{endpoint}/{job_id}/result",
+        "result fetch",
+    )
+    save_result(job_id, result)
+    return result
+
+
+def submit_and_record(
+    audio: Path,
+    *,
+    base_url: str,
+    model: str,
+    language: str | None,
+) -> tuple[dict[str, Any], httpx.Client]:
+    require_audio_stream(audio)
+    client = api_client()
+    try:
+        accepted = submit_job(
+            client,
+            transcript_endpoint(base_url),
+            audio,
+            model,
+            language,
+        )
+        record = record_submission(
+            accepted,
+            audio=audio,
+            base_url=base_url,
+            model=model,
+            language=language,
+        )
+    except BaseException:
+        client.close()
+        raise
+    return record, client
+
+
+def resolve_job_server(job_id: str, url: str | None) -> tuple[dict[str, Any], str]:
+    validate_job_id(job_id)
+    record = load_record(job_id)
+    if record is None:
+        base_url = (url or os.environ.get("SIREN_URL") or DEFAULT_URL).rstrip("/")
+        created_at = now_iso()
+        record = {
+            "version": 1,
+            "id": job_id,
+            "status": "unknown",
+            "source": None,
+            "server_url": base_url,
+            "model": None,
+            "language": None,
+            "created_at": created_at,
+            "updated_at": created_at,
+            "result_saved": False,
+        }
+        save_record(record)
+    else:
+        base_url = str(url or record.get("server_url") or DEFAULT_URL).rstrip("/")
+        if url is not None and record.get("server_url") != base_url:
+            record["server_url"] = base_url
+            save_record(record)
+    return record, base_url
+
+
+AudioArgument = Annotated[
+    Path,
+    typer.Argument(
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="Audio or video file. Prefer mono 16 kHz FLAC for large inputs.",
+    ),
+]
+
+UrlOption = Annotated[
+    str,
+    typer.Option("--url", envvar="SIREN_URL", help="Siren base URL."),
+]
+
+ModelOption = Annotated[
+    str,
+    typer.Option("--model", envvar="SIREN_MODEL", help="ASR model id."),
+]
+
+LanguageOption = Annotated[
+    str | None,
+    typer.Option("--language", "-l", help="Optional ISO-639-1 input language."),
+]
+
+PollOption = Annotated[
+    float,
+    typer.Option(
+        "--poll-interval",
+        min=0.1,
+        help="Seconds between job status checks.",
+    ),
+]
+
+TimeoutOption = Annotated[
+    float,
+    typer.Option(
+        "--timeout",
+        min=0.1,
+        help="Maximum seconds to wait. The saved job can be resumed after timeout.",
+    ),
+]
+
+
+@app.callback()
+def root(ctx: typer.Context) -> None:
+    if ctx.invoked_subcommand is None:
+        typer.echo(ctx.get_help())
+
+
+@app.command()
+def run(
+    audio: AudioArgument,
+    url: UrlOption = DEFAULT_URL,
+    model: ModelOption = DEFAULT_MODEL,
+    language: LanguageOption = None,
+    poll_interval: PollOption = 5.0,
+    timeout: TimeoutOption = 7200.0,
+) -> None:
+    """Submit a file, wait for completion, and print the transcript JSON."""
+    client: httpx.Client | None = None
+    try:
+        record, client = submit_and_record(
+            audio,
+            base_url=url,
+            model=model,
+            language=language,
+        )
+        job_id = str(record["id"])
+        typer.echo(
+            f"Submitted {job_id}. Recover with: siren-transcribe wait {job_id}",
+            err=True,
+        )
+        endpoint = transcript_endpoint(url)
+        wait_for_job(
+            client,
+            endpoint,
+            job_id,
+            poll_interval,
+            timeout,
+            on_status=lambda status: update_record_status(job_id, status),
+        )
+        print_json(fetch_and_save_result(client, endpoint, job_id))
+    except SirenError as error:
+        fail(error)
+    finally:
+        if client is not None:
+            client.close()
+
+
+@app.command()
+def submit(
+    audio: AudioArgument,
+    url: UrlOption = DEFAULT_URL,
+    model: ModelOption = DEFAULT_MODEL,
+    language: LanguageOption = None,
+) -> None:
+    """Submit a file, save the job locally, and return without waiting."""
+    client: httpx.Client | None = None
+    try:
+        record, client = submit_and_record(
+            audio,
+            base_url=url,
+            model=model,
+            language=language,
+        )
+        print_json(record)
+    except SirenError as error:
+        fail(error)
+    finally:
+        if client is not None:
+            client.close()
+
+
+@app.command("list")
+def list_jobs() -> None:
+    """Print locally recorded transcript jobs, newest first."""
+    try:
+        records = [
+            read_json_object(path)
+            for path in jobs_dir().glob("job_*/job.json")
+            if path.is_file()
+        ]
+        records.sort(key=lambda record: str(record.get("created_at", "")), reverse=True)
+        print_json(records)
+    except SirenError as error:
+        fail(error)
+
+
+@app.command()
+def show(
+    job_id: Annotated[str, typer.Argument(help="Siren transcript job id.")],
+    url: Annotated[
+        str | None,
+        typer.Option("--url", help="Override the saved Siren base URL."),
+    ] = None,
+    local: Annotated[
+        bool,
+        typer.Option(
+            "--local",
+            help="Do not contact Siren. Show only the saved record and result.",
+        ),
+    ] = False,
+) -> None:
+    """Show a saved job, refreshing its status and result when possible."""
+    try:
+        saved_record = load_record(job_id)
+        if saved_record is None and local:
+            raise SirenError(f"No local record for transcript job {job_id}")
+        if local:
+            if saved_record is None:
+                raise SirenError(f"No local record for transcript job {job_id}")
+            record = saved_record
+            base_url = str(saved_record.get("server_url") or DEFAULT_URL)
+        else:
+            record, base_url = resolve_job_server(job_id, url)
+
+        result = load_result(job_id)
+        if not local and result is None:
+            endpoint = transcript_endpoint(base_url)
+            with api_client() as client:
+                status = request_json(
+                    client,
+                    "GET",
+                    f"{endpoint}/{job_id}",
+                    "status check",
+                )
+                update_record_status(job_id, status)
+                record = load_record(job_id) or record
+                if status.get("status") == "completed":
+                    result = fetch_and_save_result(client, endpoint, job_id)
+                    record = load_record(job_id) or record
+        print_json({"job": record, "result": result})
+    except SirenError as error:
+        fail(error)
+
+
+@app.command()
+def wait(
+    job_id: Annotated[str, typer.Argument(help="Siren transcript job id.")],
+    url: Annotated[
+        str | None,
+        typer.Option("--url", help="Override the saved Siren base URL."),
+    ] = None,
+    poll_interval: PollOption = 5.0,
+    timeout: TimeoutOption = 7200.0,
+) -> None:
+    """Resume waiting for a submitted job and print the transcript JSON."""
+    try:
+        cached = load_result(job_id)
+        if cached is not None:
+            print_json(cached)
+            return
+        _record, base_url = resolve_job_server(job_id, url)
+        endpoint = transcript_endpoint(base_url)
+        with api_client() as client:
+            wait_for_job(
+                client,
+                endpoint,
+                job_id,
+                poll_interval,
+                timeout,
+                on_status=lambda status: update_record_status(job_id, status),
+            )
+            print_json(fetch_and_save_result(client, endpoint, job_id))
+    except SirenError as error:
+        fail(error)
+
+
+@app.command()
+def models(
+    url: UrlOption = DEFAULT_URL,
+) -> None:
+    """List transcription models reported by Siren."""
+    try:
+        with api_client() as client:
+            print_json(
+                request_json(
+                    client,
+                    "GET",
+                    f"{url.rstrip('/')}/v1/models",
+                    "model listing",
+                )
+            )
+    except SirenError as error:
+        fail(error)
+
+
+if __name__ == "__main__":
+    app()
+
+# vim: syn=python ft=python
