@@ -93,6 +93,7 @@
         glibc
         stdenv.cc.cc.lib
         vulkan-loader
+        wayland
       ];
       nm-applet.enable = true;
     };
