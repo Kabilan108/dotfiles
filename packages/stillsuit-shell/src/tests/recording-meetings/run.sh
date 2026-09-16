@@ -106,6 +106,17 @@ jq -e '.recordingPhase == "idle" and .recordingOpen == false
   and .copyPathCount == 1 and .copiedPath == "/tmp/recordings/renamed fixture.mp4"
   and .dismissCount == 4' <<< "$(ipc state)" >/dev/null
 
+# Publishing keeps the panel open with its auto-close countdown suspended until
+# the upload finishes; the completion state is never dismissed by publishing.
+[[ $(ipc publishFromPanel) == started ]]
+jq -e '.recordingPhase == "completed" and .recordingOpen and .publishCount == 1
+  and .publishing and (.completionCountdownRunning | not)' <<< "$(ipc state)" >/dev/null
+[[ $(ipc finishPublish 'https://pagebin.example/v/fixture') == finished ]]
+jq -e '.recordingOpen and (.publishing | not) and .completionCountdownRunning
+  and .publishedUrl == "https://pagebin.example/v/fixture" and .dismissCount == 4' \
+  <<< "$(ipc state)" >/dev/null
+[[ $(ipc closeCompletedPanel) == closed ]]
+
 # Reduced motion no longer changes the static recording icon.
 [[ $(ipc setReducedMotion true) == ok ]]
 state=$(ipc state)

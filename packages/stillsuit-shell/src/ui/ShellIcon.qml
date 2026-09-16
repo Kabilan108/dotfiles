@@ -78,7 +78,7 @@ Item {
             "info", "lock", "memory", "microphone", "more", "network", "notifications",
             "notifications-off",
             "pause", "play", "power", "record", "refresh", "replay-10", "repeat", "search",
-            "settings", "shuffle", "skip-next", "skip-previous", "success", "unlock",
+            "settings", "shuffle", "skip-next", "skip-previous", "success", "unlock", "upload",
             "volume-down", "volume-mute", "volume-up", "vpn", "warning", "wifi", "wifi-off"
         ]
     }

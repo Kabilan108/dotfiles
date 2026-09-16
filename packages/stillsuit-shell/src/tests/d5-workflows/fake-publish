@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$*" >> "$STILLSUIT_FIXTURE_PUBLISH_LOG"
+case "$1" in
+  *reject*) printf 'upload rejected: fixture\n' >&2; exit 1 ;;
+esac
+printf '{"id":"fixture","url":"https://pagebin.example/v/fixture#k"}\n'

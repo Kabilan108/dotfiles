@@ -1,6 +1,7 @@
 {
   pkgs,
   config,
+  inputs,
   lib,
   ...
 }:
@@ -18,6 +19,13 @@ let
   };
   networkHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/network-helper.nix { };
   agentUsageHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/agent-usage-helper.nix { };
+  publishHelper = pkgs.writeShellApplication {
+    name = "stillsuit-publish";
+    runtimeInputs = [ inputs.pagebin.packages.${pkgs.stdenv.hostPlatform.system}.default ];
+    text = ''
+      exec pagebin publish --json --no-infer "$1"
+    '';
+  };
   openHelper = pkgs.writeShellApplication {
     name = "stillsuit-open";
     runtimeInputs = [
@@ -137,6 +145,7 @@ in
           meetingJobsPath = "${homeDir}/.local/state/meeting-minutes/jobs.json";
           meetingHelperPath = lib.getExe meetingEnqueueHelper;
           openHelperPath = lib.getExe openHelper;
+          publishHelperPath = lib.getExe publishHelper;
           dictatorSocketPath = "/run/user/1000/dictator/osd.sock";
         };
       }

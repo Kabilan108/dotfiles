@@ -133,6 +133,7 @@ def draw(name: str) -> str:
         for y in (5,12,19): D(12,y,1.5)
     elif name=='power': A(12,12,9,-55,235); L((12,2),(12,11))
     elif name=='search': A(10,10,6.5); L((15,15),(21,21))
+    elif name=='upload': L((12,16),(12,4.5)); L((7,9.5),(12,4.5),(17,9.5)); L((5,19.5),(19,19.5))
     else: raise ValueError(name)
     return g.svg()
 

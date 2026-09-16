@@ -56,7 +56,23 @@ ShellRoot {
         property int copyPathCount: 0
         property string copiedPath: ""
         property string errorMessage: ""
+        property bool publishConfigured: true
+        property bool publishing: false
+        property string publishedPath: ""
+        property string publishedUrl: ""
+        property string publishError: ""
+        property int publishCount: 0
         function defaultTitle() { return "fixture title" }
+        function publish() {
+            publishCount += 1
+            publishing = true
+            return "started"
+        }
+        function finishPublish(url) {
+            publishing = false
+            publishedPath = outputPath
+            publishedUrl = url
+        }
         function start(directory, monitor, title, desktopAudio, microphone) {
             phase = "recording"
             return "started"
@@ -244,6 +260,15 @@ ShellRoot {
             recordingPanel.open("")
             return recordingPanel.openRecordingAndClose()
         }
+        function publishFromPanel(): string {
+            recordingModel.phase = "completed"
+            recordingPanel.open("")
+            return recordingPanel.publishRecording()
+        }
+        function finishPublish(url: string): string {
+            recordingModel.finishPublish(url)
+            return "finished"
+        }
         function openFolderFromPanel(): string {
             recordingModel.phase = "completed"
             recordingPanel.open("")
@@ -326,6 +351,10 @@ ShellRoot {
                 copyPathCount: recordingModel.copyPathCount,
                 copiedPath: recordingModel.copiedPath,
                 actionRunning: recordingModel.actionRunning,
+                publishCount: recordingModel.publishCount,
+                publishing: recordingModel.publishing,
+                publishedUrl: recordingModel.publishedUrl,
+                completionCountdownRunning: recordingPanel.completionCountdownRunning,
                 recordingPanelWidth: recordingPanel.implicitWidth,
                 standardPanelWidth: fixture.theme.metrics.panelWidth,
                 recordingMeetingRows: recordingPanel.meetingQueueRowCount,

@@ -13,6 +13,8 @@ Scope {
     readonly property var settings: context.settings ? context.settings.values : ({})
     readonly property string helperPath: String(settings.recorderHelperPath || "")
     readonly property string openHelperPath: String(settings.openHelperPath || "")
+    readonly property string publishHelperPath: String(settings.publishHelperPath || "")
+    readonly property bool publishConfigured: publishHelperPath.charAt(0) === "/"
     readonly property string statePath: String(settings.recordingStatePath || "")
     readonly property string recordingDirectory: String(settings.recordingDirectory || "")
     readonly property bool configured: helperPath.charAt(0) === "/" && statePath.charAt(0) === "/"
@@ -51,6 +53,10 @@ Scope {
     property string actionKind: ""
     property string lastCommandJson: "[]"
     property string copiedPath: ""
+    property bool publishing: false
+    property string publishedPath: ""
+    property string publishedUrl: ""
+    property string publishError: ""
 
     function _finiteNumber(value, fallback) {
         var number = Number(value)
@@ -108,6 +114,7 @@ Scope {
         outputSizeBytes = 0
         errorMessage = String(message || "")
         stateStatus = status
+        _clearPublication()
         snapshot = ({ schemaVersion: 1, phase: "idle" })
     }
 
@@ -206,6 +213,38 @@ Scope {
         return _openPath(outputPath)
     }
 
+    function _clearPublication() {
+        publishedPath = ""
+        publishedUrl = ""
+        publishError = ""
+    }
+
+    onOutputPathChanged: if (!publishing) _clearPublication()
+
+    // Publishing runs on its own process so the helper-backed actions (rename,
+    // dismiss) stay available while the upload is in flight.
+    function publish() {
+        if (!completed || !outputPath.startsWith("/") || outputPath.indexOf("\u0000") !== -1)
+            return "unavailable"
+        if (publishing)
+            return "busy"
+        if (!publishConfigured) {
+            publishError = "Publishing is not configured"
+            return "unavailable"
+        }
+        if (publishedUrl !== "" && publishedPath === outputPath) {
+            Quickshell.clipboardText = publishedUrl
+            return "copied"
+        }
+        publishError = ""
+        publishedUrl = ""
+        publishedPath = outputPath
+        publishing = true
+        publisher.command = [publishHelperPath, outputPath]
+        publisher.running = true
+        return "started"
+    }
+
     function openFolder() {
         return _openPath(outputDirectory)
     }
@@ -249,6 +288,33 @@ Scope {
                 root.errorMessage = "recording helper exited " + exitCode
             root.actionKind = ""
             root.refresh()
+        }
+    }
+
+    Process {
+        id: publisher
+        stdout: StdioCollector { id: publisherOut; waitForEnd: true }
+        stderr: StdioCollector { id: publisherErr; waitForEnd: true }
+        onExited: function(exitCode) {
+            root.publishing = false
+            var url = ""
+            if (exitCode === 0) {
+                try {
+                    var parsed = JSON.parse(publisherOut.text)
+                    url = parsed && typeof parsed.url === "string" ? parsed.url : ""
+                } catch (error) {
+                    url = ""
+                }
+            }
+            if (url === "") {
+                var detail = publisherErr.text.trim().split("\n").filter(function(line) { return line !== "" }).pop() || ""
+                root.publishError = detail !== "" ? detail
+                    : exitCode === 0 ? "Publisher returned no URL" : "Publisher exited " + exitCode
+                root.publishedPath = ""
+                return
+            }
+            Quickshell.clipboardText = url
+            root.publishedUrl = url
         }
     }
 

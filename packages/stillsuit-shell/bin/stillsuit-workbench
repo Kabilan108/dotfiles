@@ -205,6 +205,18 @@ cleanup() {
 trap cleanup EXIT
 [[ $shadow -eq 1 ]] && steer_live_banners "$output_name"
 
+# The sandbox publisher stands in for pagebin: it waits like an upload, fails
+# for paths containing "fail", and otherwise prints a fake viewer URL.
+cat > "$workflow_root/publish" <<'SH'
+#!/usr/bin/env bash
+sleep 2
+case "$1" in
+  *fail*) printf 'upload rejected: 413 payload too large\n' >&2; exit 1 ;;
+esac
+printf '{"id":"wb-fixture","url":"https://pagebin.example/v/wb-fixture#k"}\n'
+SH
+chmod +x "$workflow_root/publish"
+
 # Seed: every builtin plugin with sandbox-safe settings. Nothing here reaches
 # real helpers, sockets, or the session bus.
 python3 - "$source_root" "$config_home/stillsuit/seed.json" "$workflow_root" "$shadow" <<'PY'
@@ -221,6 +233,7 @@ settings = {
         "meetingJobsPath": f"{workflow}/meeting-jobs.json",
         "meetingStatusPath": f"{workflow}/meeting-status.json",
         "recordingDirectory": f"{workflow}/recordings",
+        "publishHelperPath": f"{workflow}/publish",
     },
     "stillsuit.osd": {"brightnessPath": "", "brightnessMaxPath": ""},
     "stillsuit.agent-usage": {"includeDefaults": True, "accounts": []},

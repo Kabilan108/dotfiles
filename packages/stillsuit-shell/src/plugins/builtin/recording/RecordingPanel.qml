@@ -23,6 +23,7 @@ Item {
     readonly property var recording: workflows ? workflows.recording : null
     readonly property var meeting: workflows ? workflows.meeting : null
     readonly property int meetingQueueRowCount: meetingQueue.rowCount
+    readonly property bool completionCountdownRunning: completionCountdown.running
     readonly property var monitorRows: {
         var rows = context.compositor && Array.isArray(context.compositor.outputs) ? context.compositor.outputs : [];
         if (rows.length > 0)
@@ -153,6 +154,15 @@ Item {
         return runCompletedAction(function () { return recording.copyOutputPath(); });
     }
 
+    function publishRecording() {
+        if (!recording)
+            return "unavailable";
+        var result = recording.publish();
+        if (result === "started")
+            completionCountdown.stop();
+        return result;
+    }
+
     function closeSurface() {
         context.actions.surfaceClose("stillsuit.recording");
     }
@@ -215,6 +225,7 @@ Item {
         id: completionCountdown
         timeoutMs: 30000
         interactionActive: completionHover.hovered || completionFocus.activeFocus
+            || (root.recording && root.recording.publishing)
         onExpired: root.closeSurface()
     }
 
@@ -237,6 +248,11 @@ Item {
                 completionCountdown.stop();
                 root.dismissWhenActionCompletes = false;
             }
+        }
+        function onPublishingChanged() {
+            if (root.recording && !root.recording.publishing && root.opened
+                    && root.recording.completed)
+                completionCountdown.start();
         }
         function onActionRunningChanged() {
             if (!root.recording || root.recording.actionRunning
@@ -546,33 +562,62 @@ Item {
                         Layout.fillWidth: true
                         spacing: root.context.theme.metrics.spaceUnit
                         Ui.ShellButton {
+                            id: publishButton
+                            readonly property bool published: root.recording
+                                && root.recording.publishedUrl !== ""
+                                && root.recording.publishedPath === root.recording.outputPath
+                            Layout.fillWidth: true
                             theme: root.context.theme
-                            label: "Open recording"
+                            label: root.recording && root.recording.publishing ? "Publishing…" : published ? "Link copied" : "Publish link"
+                            iconName: published ? "check" : "upload"
+                            compact: true
+                            busy: root.recording && root.recording.publishing
+                            enabled: root.recording && root.recording.publishConfigured
+                            accessibleName: published ? "Copy published link again" : "Publish recording and copy link"
+                            onClicked: root.publishRecording()
+                        }
+                        Ui.ShellButton {
+                            theme: root.context.theme
                             iconName: "play"
+                            label: ""
                             compact: true
                             ghost: true
+                            accessibleName: "Open recording"
                             busy: root.recording && root.recording.actionRunning
                             onClicked: root.openRecordingAndClose()
                         }
                         Ui.ShellButton {
                             theme: root.context.theme
-                            label: "Open folder"
                             iconName: "folder"
+                            label: ""
                             compact: true
                             ghost: true
+                            accessibleName: "Open folder"
                             busy: root.recording && root.recording.actionRunning
                             onClicked: root.openFolderAndClose()
                         }
                         Ui.ShellButton {
                             id: copyPath
                             theme: root.context.theme
-                            label: root.recording && root.recording.copiedPath === root.recording.outputPath ? "Copied" : "Copy path"
-                            iconName: "copy"
+                            iconName: root.recording && root.recording.copiedPath === root.recording.outputPath ? "check" : "copy"
+                            label: ""
                             compact: true
                             ghost: true
-                            accessibleName: label
+                            accessibleName: root.recording && root.recording.copiedPath === root.recording.outputPath ? "Path copied" : "Copy path"
                             onClicked: root.copyOutputPathAndClose()
                         }
+                    }
+
+                    Ui.ShellText {
+                        visible: root.recording && root.recording.publishError !== ""
+                        Layout.fillWidth: true
+                        theme: root.context.theme
+                        text: root.recording ? root.recording.publishError : ""
+                        role: "danger"
+                        sizeRole: "caption"
+                        wrapMode: Text.Wrap
+                        maximumLineCount: 3
+                        elide: Text.ElideRight
                     }
                 }
             }

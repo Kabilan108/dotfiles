@@ -35,6 +35,8 @@ export STILLSUIT_FIXTURE_MEETING_HELPER="$fixture_dir/fake-meeting-control"
 export STILLSUIT_FIXTURE_MEETING_CONTROL_LOG="$tmp_dir/meeting-control.log"
 export STILLSUIT_FIXTURE_OPEN_HELPER="$fixture_dir/fake-open"
 export STILLSUIT_FIXTURE_OPEN_LOG="$tmp_dir/open.log"
+export STILLSUIT_FIXTURE_PUBLISH_HELPER="$fixture_dir/fake-publish"
+export STILLSUIT_FIXTURE_PUBLISH_LOG="$tmp_dir/publish.log"
 export STILLSUIT_FIXTURE_SOCKET="$tmp_dir/dictator.sock"
 export STILLSUIT_FIXTURE_MEETING_LOG="$tmp_dir/meeting-helper.log"
 # This fixture exercises services only; force the isolated renderer rather than
@@ -213,6 +215,23 @@ wait_json '.recording.completed and .recording.outputFilename == "original.mp4"'
 wait_json '.recording.outputFilename == "renamed fixture.mp4" and (.recording.actionRunning | not)' >/dev/null
 [[ $(ipc copyPath) == copied ]]
 jq -e '.recording.copiedPath == "/tmp/fixture-recordings/renamed fixture.mp4"' >/dev/null <<<"$(ipc state)"
+# Publishing runs outside the helper action slot and copies the returned URL.
+# A repeat publish of the same output re-copies without another upload, and a
+# failure surfaces the publisher's last stderr line.
+[[ $(ipc publish) == started ]]
+wait_json '(.recording.publishing | not) and .recording.publishedUrl == "https://pagebin.example/v/fixture#k"' >/dev/null
+[[ $(sed -n '1p' "$STILLSUIT_FIXTURE_PUBLISH_LOG") == '/tmp/fixture-recordings/renamed fixture.mp4' ]]
+[[ $(ipc publish) == copied ]]
+[[ $(wc -l < "$STILLSUIT_FIXTURE_PUBLISH_LOG") -eq 1 ]]
+printf '%s\n' '{"schemaVersion":1,"phase":"completed","output":"/tmp/fixture-recordings/reject.mp4","title":"reject","elapsed_seconds":1,"size_bytes":1}' > "$STILLSUIT_FIXTURE_RECORDING_STATE"
+[[ $(ipc refresh) == ok ]]
+wait_json '.recording.outputFilename == "reject.mp4" and .recording.publishedUrl == ""' >/dev/null
+[[ $(ipc publish) == started ]]
+wait_json '(.recording.publishing | not) and .recording.publishError == "upload rejected: fixture"' >/dev/null
+printf '%s\n' '{"schemaVersion":1,"phase":"completed","output":"/tmp/fixture-recordings/renamed fixture.mp4","title":"renamed fixture","elapsed_seconds":62,"size_bytes":2048}' > "$STILLSUIT_FIXTURE_RECORDING_STATE"
+[[ $(ipc refresh) == ok ]]
+wait_json '.recording.outputFilename == "renamed fixture.mp4" and .recording.publishError == ""' >/dev/null
+
 [[ $(ipc openRecording) == started ]]
 for _ in {1..100}; do [[ -s $STILLSUIT_FIXTURE_OPEN_LOG ]] && break; sleep 0.02; done
 [[ $(sed -n '1p' "$STILLSUIT_FIXTURE_OPEN_LOG") == '/tmp/fixture-recordings/renamed fixture.mp4' ]]

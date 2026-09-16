@@ -22,6 +22,7 @@ ShellRoot {
             meetingJobsPath: Quickshell.env("STILLSUIT_FIXTURE_MEETING_JOBS"),
             meetingHelperPath: Quickshell.env("STILLSUIT_FIXTURE_MEETING_HELPER"),
             openHelperPath: Quickshell.env("STILLSUIT_FIXTURE_OPEN_HELPER"),
+            publishHelperPath: Quickshell.env("STILLSUIT_FIXTURE_PUBLISH_HELPER"),
             dictatorSocketPath: Quickshell.env("STILLSUIT_FIXTURE_SOCKET")
         } })
         property var compositor: ({ focusedOutputId: "DP-1" })
@@ -57,7 +58,7 @@ ShellRoot {
                 overlays: overlayViews.length,
                 overlaySharesAggregate: overlayViews[0].workflows === overlayViews[1].workflows,
                 overlaySharesOsdService: overlayViews[0].service === overlayViews[1].service,
-                recording: { apiVersion: workflows.recording.apiVersion, phase: workflows.recording.phase, status: workflows.recording.stateStatus, active: workflows.recording.active, paused: workflows.recording.paused, elapsedSeconds: workflows.recording.elapsedSeconds, elapsedText: workflows.recording.elapsedText, completed: workflows.recording.completed, outputPath: workflows.recording.outputPath, outputFilename: workflows.recording.outputFilename, copiedPath: workflows.recording.copiedPath, errorMessage: workflows.recording.errorMessage, actionRunning: workflows.recording.actionRunning, command: workflows.recording.lastCommandJson },
+                recording: { apiVersion: workflows.recording.apiVersion, phase: workflows.recording.phase, status: workflows.recording.stateStatus, active: workflows.recording.active, paused: workflows.recording.paused, elapsedSeconds: workflows.recording.elapsedSeconds, elapsedText: workflows.recording.elapsedText, completed: workflows.recording.completed, outputPath: workflows.recording.outputPath, outputFilename: workflows.recording.outputFilename, copiedPath: workflows.recording.copiedPath, publishing: workflows.recording.publishing, publishedUrl: workflows.recording.publishedUrl, publishError: workflows.recording.publishError, errorMessage: workflows.recording.errorMessage, actionRunning: workflows.recording.actionRunning, command: workflows.recording.lastCommandJson },
                 meeting: { apiVersion: workflows.meeting.apiVersion, phase: workflows.meeting.phase, status: workflows.meeting.stateStatus, jobsStatus: workflows.meeting.jobsStateStatus, visible: workflows.meeting.visible, failed: workflows.meeting.failed, completed: workflows.meeting.completed, completionVisible: workflows.meeting.completionVisible, failureVisible: workflows.meeting.failureVisible, label: workflows.meeting.label, errorMessage: workflows.meeting.errorMessage, copiedNotePath: workflows.meeting.copiedNotePath, snapshotSchemaVersion: workflows.meeting.snapshot.schemaVersion, command: workflows.meeting.lastCommandJson, retryingJobId: workflows.meeting.retryingJobId, jobs: workflows.meeting.jobs },
                 queue: { failedCount: meetingQueue.failedCount, rowLimit: meetingQueue.rowLimit, jobs: meetingQueue.failedJobs },
                 completion: { remainingMs: completionCountdown.remainingMs, remainingSeconds: completionCountdown.remainingSeconds, running: completionCountdown.running, interactionActive: completionCountdown.interactionActive, expirationCount: completionCountdown.expirationCount },
@@ -73,6 +74,7 @@ ShellRoot {
         function cancel(): string { return workflows.recording.cancel() }
         function rename(title: string): string { return workflows.recording.rename(title) }
         function copyPath(): string { return workflows.recording.copyOutputPath() }
+        function publish(): string { return workflows.recording.publish() }
         function openRecording(): string { return workflows.recording.openRecording() }
         function openFolder(): string { return workflows.recording.openFolder() }
         function openResult(): string { return workflows.meeting.openResult() }
