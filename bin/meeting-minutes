@@ -28,6 +28,16 @@ STATE_DIR = Path(
 MEDIA_ROOT = Path(
     os.environ.get("MEETING_MINUTES_MEDIA_ROOT", HOME / "media/meetings")
 ).expanduser()
+MEDIA_REFERENCE_ROOT = Path(
+    os.environ.get(
+        "MEETING_MINUTES_MEDIA_REFERENCE_ROOT",
+        "/vault/userdata/media/meetings",
+    )
+).expanduser()
+ARTIFACT_SYNC_DESTINATION = os.environ.get(
+    "MEETING_MINUTES_SYNC_DESTINATION",
+    "sietch-agent:/vault/userdata/media/meetings/",
+)
 VAULT_ROOT = Path(
     os.environ.get("COPPERMIND_VAULT", "/vault/notes/coppermind")
 ).expanduser()
@@ -80,6 +90,7 @@ JOB_LOCKS_DIR = STATE_DIR / "job-locks"
 STATUS_PATH = STATE_DIR / "status.json"
 JOBS_SNAPSHOT_PATH = STATE_DIR / "jobs.json"
 LOCK_PATH = STATE_DIR / "worker.lock"
+ARTIFACT_SYNC_LOCK_PATH = STATE_DIR / "artifact-sync.lock"
 INBOX_DIR = MEDIA_ROOT / ".inbox"
 WORK_DIR = MEDIA_ROOT / ".work"
 ASSETS_DIR = VAULT_ROOT / "assets"
@@ -423,6 +434,25 @@ def kick_worker() -> bool:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+    return result.returncode == 0
+
+
+def kick_artifact_sync() -> bool:
+    try:
+        result = subprocess.run(
+            [
+                "systemctl",
+                "--user",
+                "start",
+                "--no-block",
+                "meeting-minutes-artifact-sync.service",
+            ],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        return False
     return result.returncode == 0
 
 
@@ -1166,6 +1196,75 @@ def render_transcript_for_prompt(transcript: dict[str, Any]) -> str:
     )
 
 
+def frontmatter_scalar(note_path: Path, key: str) -> str:
+    try:
+        text = note_path.read_text()
+    except OSError as error:
+        raise MeetingMinutesError(f"Could not read {note_path}: {error}") from error
+    if not text.startswith("---\n"):
+        raise MeetingMinutesError(f"Meeting note has no YAML frontmatter: {note_path}")
+    try:
+        frontmatter = text.split("---\n", 2)[1]
+    except IndexError as error:
+        raise MeetingMinutesError(
+            f"Meeting note has invalid frontmatter: {note_path}"
+        ) from error
+    match = re.search(rf"^{re.escape(key)}:\s*(.*?)\s*$", frontmatter, re.MULTILINE)
+    if match is None or not match.group(1):
+        return ""
+    value = match.group(1)
+    if value.startswith('"'):
+        try:
+            decoded = json.loads(value)
+        except json.JSONDecodeError as error:
+            raise MeetingMinutesError(
+                f"Meeting note has an invalid {key} value: {note_path}"
+            ) from error
+        return str(decoded)
+    if value.startswith("'") and value.endswith("'"):
+        return value[1:-1].replace("''", "'")
+    return value
+
+
+def resolve_meeting_note(value: str) -> Path:
+    supplied = Path(value).expanduser()
+    candidates = [supplied]
+    if not supplied.is_absolute():
+        candidates.append(VAULT_ROOT / "01-logs/meetings" / supplied)
+        if supplied.suffix != ".md":
+            candidates.append(VAULT_ROOT / "01-logs/meetings" / f"{supplied.name}.md")
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate.resolve()
+    raise MeetingMinutesError(f"Meeting note does not exist: {value}")
+
+
+def transcript_path_from_note(note_path: Path) -> Path:
+    transcript = frontmatter_scalar(note_path, "transcript")
+    if transcript:
+        return Path(transcript).expanduser()
+    recording = frontmatter_scalar(note_path, "recording")
+    if recording:
+        return Path(recording).expanduser().with_suffix(".json")
+    raise MeetingMinutesError(f"Meeting note has no transcript metadata: {note_path}")
+
+
+def print_transcript(note: str, *, raw_json: bool) -> None:
+    note_path = resolve_meeting_note(note)
+    transcript_path = transcript_path_from_note(note_path)
+    if not transcript_path.is_file():
+        raise MeetingMinutesError(
+            f"Transcript is not available on this host: {transcript_path}"
+        )
+    if raw_json:
+        content = transcript_path.read_text()
+        sys.stdout.write(content)
+        if content and not content.endswith("\n"):
+            sys.stdout.write("\n")
+        return
+    print(render_transcript_for_prompt(read_json(transcript_path)))
+
+
 def codex_prompt(transcript: dict[str, Any], calendar: dict[str, Any]) -> str:
     manifest = read_optional(VAULT_ROOT / "04-projects/manifest.md")
     people = all_people_rosters()
@@ -1701,10 +1800,19 @@ def format_timestamp(seconds: float) -> str:
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
+def media_reference(path: Path) -> Path:
+    try:
+        relative = path.relative_to(MEDIA_ROOT)
+    except ValueError:
+        return path
+    return MEDIA_REFERENCE_ROOT / relative
+
+
 def render_note(
     job: dict[str, Any],
     minutes: dict[str, Any],
     video_path: Path,
+    transcript_path: Path,
     screenshots: list[dict[str, Any]],
 ) -> str:
     attendees = minutes["attendees"]
@@ -1753,6 +1861,8 @@ def render_note(
     meeting_date = datetime.fromtimestamp(float(job["recording_started_at"])).date()
     summary = str(minutes["summary"])
     summary_block = f"## summary\n\n{summary}\n\n" if summary else ""
+    recording_reference = media_reference(video_path)
+    transcript_reference = media_reference(transcript_path)
     return (
         "---\n"
         f"date: {meeting_date.isoformat()}\n"
@@ -1760,7 +1870,8 @@ def render_note(
         f"{attendee_yaml}"
         f"summary: {yaml_scalar(summary)}\n"
         "source: pipeline\n"
-        f"recording: {yaml_scalar(str(video_path))}\n"
+        f"recording: {yaml_scalar(str(recording_reference))}\n"
+        f"transcript: {yaml_scalar(str(transcript_reference))}\n"
         f"pipeline_job: {yaml_scalar(str(job['job_id']))}\n"
         f"recording_identity: {yaml_scalar(str(job['recording_identity']))}\n"
         f"codex_session: {yaml_scalar(str(job['codex_session']))}\n"
@@ -1865,11 +1976,22 @@ def finalize_artifacts(
             temporary.unlink(missing_ok=True)
 
     atomic_write_text(
-        note_path, render_note(job, minutes, video_path, published_screenshots)
+        note_path,
+        render_note(
+            job,
+            minutes,
+            video_path,
+            final_transcript,
+            published_screenshots,
+        ),
     )
     reconcile_vault_paths(
         note_path,
-        *(Path(str(s["asset_path"])) for s in published_screenshots if "asset_path" in s),
+        *(
+            Path(str(s["asset_path"]))
+            for s in published_screenshots
+            if "asset_path" in s
+        ),
     )
     job["note_path"] = str(note_path)
     job["transcript_path"] = str(final_transcript)
@@ -1928,6 +2050,41 @@ def notify_job(job: dict[str, Any], *, success: bool) -> None:
     save_job(job)
 
 
+def sync_artifacts() -> None:
+    ensure_directories()
+    destination = ARTIFACT_SYNC_DESTINATION.rstrip("/") + "/"
+    common = [
+        "rsync",
+        "--archive",
+        "--checksum",
+        "--itemize-changes",
+        "--partial-dir=.rsync-partial",
+    ]
+    with ARTIFACT_SYNC_LOCK_PATH.open("a+") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        subprocess.run(
+            [
+                *common,
+                "--include=/*.json",
+                "--exclude=*",
+                f"{MEDIA_ROOT}/",
+                destination,
+            ],
+            check=True,
+        )
+        subprocess.run(
+            [
+                *common,
+                "--remove-source-files",
+                "--include=/*.mp4",
+                "--exclude=*",
+                f"{MEDIA_ROOT}/",
+                destination,
+            ],
+            check=True,
+        )
+
+
 def process_job(job: dict[str, Any]) -> None:
     with job_lock_path(str(job["job_id"])).open("a+") as job_lock:
         fcntl.flock(job_lock.fileno(), fcntl.LOCK_EX)
@@ -1953,6 +2110,7 @@ def process_job(job: dict[str, Any]) -> None:
             update_status(job, label="Meeting note ready")
             notify_job(job, success=True)
             shutil.rmtree(WORK_DIR / str(job["job_id"]), ignore_errors=True)
+            kick_artifact_sync()
         except (
             MeetingMinutesError,
             OSError,
@@ -2043,6 +2201,10 @@ def parser() -> argparse.ArgumentParser:
     discard.add_argument("job_id")
     commands.add_parser("jobs")
     commands.add_parser("status")
+    transcript = commands.add_parser("transcript")
+    transcript.add_argument("note")
+    transcript.add_argument("--json", action="store_true", dest="raw_json")
+    commands.add_parser("sync-artifacts")
     return root
 
 
@@ -2066,6 +2228,10 @@ def main() -> int:
                 if STATUS_PATH.is_file()
                 else '{"phase":"idle"}'
             )
+        elif args.command == "transcript":
+            print_transcript(args.note, raw_json=args.raw_json)
+        elif args.command == "sync-artifacts":
+            sync_artifacts()
     except (MeetingMinutesError, OSError, subprocess.SubprocessError) as error:
         print(json.dumps({"phase": "error", "error": str(error)}), file=sys.stderr)
         return 1
