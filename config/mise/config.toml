@@ -1,0 +1,11 @@
+[settings]
+lockfile = true
+minimum_release_age = "3d"
+# The npm release archive includes the native executable and matching CLI guides.
+aqua.registries = ["file:///home/kabilan/dotfiles/config/mise/registry.yaml"]
+
+[tool_alias]
+agent-browser = "aqua:vercel-labs/agent-browser"
+
+[tools]
+agent-browser = "0.38.1"

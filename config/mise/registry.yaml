@@ -1,0 +1,17 @@
+packages:
+  - name: vercel-labs/agent-browser
+    type: http
+    repo_owner: vercel-labs
+    repo_name: agent-browser
+    url: 'https://registry.npmjs.org/agent-browser/-/agent-browser-{{trimV .Version}}.tgz'
+    format: tar.gz
+    files:
+      - name: agent-browser
+        src: 'package/bin/agent-browser-linux-musl-x64'
+    checksum:
+      type: http
+      url: 'https://registry.npmjs.org/agent-browser/{{trimV .Version}}'
+      file_format: regexp
+      algorithm: sha1
+      pattern:
+        checksum: '"shasum":"([a-f0-9]+)"'
