@@ -100,7 +100,7 @@
           wayland
         ]
         ++ inputs.codex-desktop-linux.packages.${pkgs.stdenv.hostPlatform.system}.codex-desktop.passthru.workspaceRuntimeLibraries;
-      nm-applet.enable = true;
+      nm-applet.enable = false;
     };
 
     environment.systemPackages = with pkgs; [

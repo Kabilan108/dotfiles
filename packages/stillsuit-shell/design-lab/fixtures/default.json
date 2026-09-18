@@ -66,6 +66,14 @@
           "windows": [ { "id": "primary", "label": "5 hour", "used": 0.72, "resetsAt": "2030-01-01T05:00:00+00:00" } ] }
       ],
       "summary": { "accountCount": 2, "readyCount": 2, "maxUsed": 0.72 }
+    },
+    "stillsuit.tray": {
+      "items": [
+        { "id": "slack", "title": "Slack", "tooltipTitle": "Slack", "status": "active", "icon": "image://icon/btop", "hasMenu": true },
+        { "id": "chatgpt", "title": "ChatGPT", "status": "attention", "icon": "image://icon/codex-desktop", "hasMenu": true },
+        { "id": "spotify", "title": "Spotify", "status": "active", "icon": "image://icon/mpv", "hasMenu": true, "onlyMenu": true },
+        { "id": "hidden-helper", "title": "Passive helper", "status": "passive", "icon": "", "hasMenu": false }
+      ]
     }
   },
   "notifications": [

@@ -14,6 +14,14 @@ QtObject {
     property string focusedOutputId: ""
     property var workspaces: []
     property var windows: []
+    property var focusRequests: []
+
+    function focusWindow(windowId) {
+        var next = focusRequests.slice(-49)
+        next.push(Number(windowId))
+        focusRequests = next
+        return "ok"
+    }
 
     // The workbench draws on exactly the screens it was given, so focus
     // always lands there: a fixture's focusedOutputId only selects among

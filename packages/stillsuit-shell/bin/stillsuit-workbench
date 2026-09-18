@@ -69,10 +69,11 @@ done
 fixture_root="$source_root/../design-lab/fixtures"
 [[ -d $fixture_root ]] || fixture_root="${STILLSUIT_WORKBENCH_FIXTURES:?no fixture directory}"
 schema_path="$source_root/../schemas/manifest.v1.json"
-plugin_helper="$source_root/../bin/stillsuit-plugins"
-if [[ ! -x $plugin_helper ]]; then
-  plugin_helper=$(command -v stillsuit-plugins || true)
-fi
+# The packaged helper carries its Python dependencies (jsonschema); the raw
+# script under a --source checkout does not, so it is only a fallback.
+plugin_helper=$(command -v stillsuit-plugins || true)
+[[ -n $plugin_helper ]] || plugin_helper="$source_root/../bin/stillsuit-plugins"
+[[ -x $plugin_helper ]] || plugin_helper=""
 [[ -n $plugin_helper ]] || { printf 'stillsuit-plugins helper not found\n' >&2; exit 69; }
 config_id="stillsuit-workbench"
 pid_file="$sandbox_root/quickshell.pid"

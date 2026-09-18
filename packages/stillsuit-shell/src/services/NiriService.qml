@@ -313,6 +313,38 @@ Scope {
         return String(fallback || "")
     }
 
+    // The one compositor mutation the host offers. The argv is fixed apart
+    // from the window id, which is validated as an integer before it is used.
+    // A request that arrives while one is in flight replaces any earlier
+    // pending one and runs when the process exits: the last click wins.
+    property int _pendingFocusId: 0
+
+    function focusWindow(windowId) {
+        var id = Number(windowId)
+        if (!Number.isInteger(id) || id <= 0) return "invalid-window"
+        if (focusProcess.running) {
+            _pendingFocusId = id
+            return "ok"
+        }
+        _runFocus(id)
+        return "ok"
+    }
+
+    function _runFocus(id) {
+        focusProcess.command = ["niri", "msg", "action", "focus-window", "--id", String(id)]
+        focusProcess.running = true
+    }
+
+    Process {
+        id: focusProcess
+        command: ["niri", "msg", "action", "focus-window", "--id", "0"]
+        onExited: {
+            var next = root._pendingFocusId
+            root._pendingFocusId = 0
+            if (next > 0) root._runFocus(next)
+        }
+    }
+
     Process {
         id: eventStream
         command: ["niri", "msg", "--json", "event-stream"]

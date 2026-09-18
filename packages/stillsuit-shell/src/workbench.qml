@@ -122,6 +122,7 @@ ShellRoot {
         catalog: pluginCatalog
         serviceRegistry: serviceRegistry
         surfaceRouter: surfaceRouter
+        compositorControl: compositor
         theme: shell.publicTheme
         fallbackContext: pluginCatalog.fallbackContext
         configId: shell.configId
@@ -237,7 +238,7 @@ ShellRoot {
     // a fixture entry keeps whatever it would do in production.
     function applyModels() {
         var ids = ["stillsuit.battery", "stillsuit.power", "stillsuit.network",
-            "stillsuit.bluetooth", "stillsuit.audio", "stillsuit.agent-usage"]
+            "stillsuit.bluetooth", "stillsuit.audio", "stillsuit.agent-usage", "stillsuit.tray"]
         for (var index = 0; index < ids.length; index++) {
             var service = serviceRegistry.get(ids[index])
             var model = models.modelFor(ids[index])

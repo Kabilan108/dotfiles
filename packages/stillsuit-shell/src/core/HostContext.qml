@@ -188,6 +188,12 @@ QtObject {
                     : "error"
             }
 
+            function windowFocus(windowId) {
+                return root.actionsSource && typeof root.actionsSource.windowFocus === "function"
+                    ? root.actionsSource.windowFocus(windowId)
+                    : "unavailable"
+            }
+
             function pluginUnload(pluginId) {
                 return root.actionsSource
                     ? root.actionsSource.pluginUnload(String(pluginId))

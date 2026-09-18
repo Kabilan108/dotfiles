@@ -99,6 +99,7 @@ ShellRoot {
         catalog: pluginCatalog
         serviceRegistry: serviceRegistry
         surfaceRouter: surfaceRouter
+        compositorControl: niriService
         theme: shell.publicTheme
         fallbackContext: pluginCatalog.fallbackContext
         configId: shell.configId

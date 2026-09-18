@@ -8,6 +8,7 @@ QtObject {
     property QtObject catalog: null
     property QtObject serviceRegistry: null
     property QtObject surfaceRouter: null
+    property QtObject compositorControl: null
     property QtObject fallbackContext: null
     property var theme: ({})
     property string configId: "stillsuit"
@@ -154,6 +155,14 @@ QtObject {
         }
     }
 
+    property IpcHandler compositorHandler: IpcHandler {
+        target: "stillsuit-compositor"
+
+        function focusWindow(windowId: string): string {
+            return root.windowFocus(windowId)
+        }
+    }
+
     property IpcHandler pluginHandler: IpcHandler {
         target: "stillsuit-plugin"
 
@@ -290,6 +299,12 @@ QtObject {
         return surfaceRouter
             ? surfaceRouter.toggle(String(pluginId), String(payloadJson || ""))
             : "error"
+    }
+
+    function windowFocus(windowId) {
+        return compositorControl && typeof compositorControl.focusWindow === "function"
+            ? compositorControl.focusWindow(windowId)
+            : "unavailable"
     }
 
     function pluginUnload(pluginId) {

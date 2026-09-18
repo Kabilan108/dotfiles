@@ -183,6 +183,28 @@ QtObject {
         }
     }
 
+    property Component trayItemComponent: Component {
+        QtObject {
+            property string id: ""
+            property string title: ""
+            property string tooltipTitle: ""
+            property string status: "active"
+            property string icon: ""
+            property bool hasMenu: false
+            property bool onlyMenu: false
+            property var menu: null
+            function activate() { root.actionRecorded("stillsuit.tray", "activate", id) }
+            function secondaryActivate() { root.actionRecorded("stillsuit.tray", "secondaryActivate", id) }
+            function scroll(delta, horizontal) { root.actionRecorded("stillsuit.tray", "scroll", id + ":" + delta) }
+        }
+    }
+
+    property Component trayComponent: Component {
+        QtObject {
+            property var items: []
+        }
+    }
+
     property var built: ({})
 
     function rebuild() {
@@ -221,6 +243,14 @@ QtObject {
         }
         if (s["stillsuit.agent-usage"])
             next["stillsuit.agent-usage"] = agentUsageComponent.createObject(root, _plain(s["stillsuit.agent-usage"]))
+        if (s["stillsuit.tray"]) {
+            var tray = _plain(s["stillsuit.tray"])
+            var trayItems = []
+            for (var t = 0; t < (tray.items || []).length; t++)
+                trayItems.push(trayItemComponent.createObject(root, tray.items[t]))
+            tray.items = trayItems
+            next["stillsuit.tray"] = trayComponent.createObject(root, tray)
+        }
         built = next
         revision += 1
     }

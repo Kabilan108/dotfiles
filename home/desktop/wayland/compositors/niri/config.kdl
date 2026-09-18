@@ -302,8 +302,6 @@ spawn-at-startup "niriusd"
 // from their wrappers in home/default.nix).
 spawn-sh-at-startup "sleep 2 && busctl --user set-property org.a11y.Bus /org/a11y/bus org.a11y.Status ScreenReaderEnabled b true"
 spawn-at-startup "swayidle" "-w"
-spawn-at-startup "nm-applet" "--indicator"
-spawn-at-startup "blueman-applet"
 spawn-at-startup "obsidian"
 spawn-sh-at-startup "swaybg -i $HOME/dotfiles/wallpapers/shoggoth-001.png -m fill"
 

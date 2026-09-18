@@ -131,6 +131,7 @@ in
     (builtinPlugin "power")
     (builtinPlugin "recording")
     (builtinPlugin "resources")
+    (builtinPlugin "tray")
     (builtinPlugin "workspaces")
     (
       (builtinPlugin "workflows")
