@@ -11,6 +11,8 @@ let
   cfgLink = name: config.lib.file.mkOutOfStoreSymlink "${confDir}/${name}";
   agentLink = name: config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/agents/${name}";
 
+  # 3.2.0 makes cached shells repeatedly invalidate each other via profile timestamps.
+  # Keep 3.1.2 until a release includes https://github.com/nix-community/nix-direnv/pull/790.
   nixDirenvUnresholved = pkgs.nix-direnv.unresholved.overrideAttrs (_: rec {
     version = "3.1.2";
     src = pkgs.fetchFromGitHub {
@@ -42,6 +44,7 @@ in
     "${homeDir}/.bun/bin"
     "${homeDir}/.cargo/bin"
     "${homeDir}/.local/bin"
+    "${homeDir}/.local/share/pnpm"
     "${homeDir}/.local/share/pnpm/bin"
     "${homeDir}/.opencode/bin"
     "${homeDir}/bin"
@@ -90,7 +93,7 @@ in
     ".config/sessionizer".source = cfgLink "sessionizer";
     ".config/uv/uv.toml".source = cfgLink "uv/uv.toml";
     ".config/.bunfig.toml".source = cfgLink "bunfig.toml";
-    ".config/pnpm/rc".source = cfgLink "pnpm/rc";
+    ".config/pnpm/config.yaml".source = cfgLink "pnpm/config.yaml";
     ".config/nvim".source = cfgLink "nvim";
     ".config/worktrunk".source = cfgLink "worktrunk";
     ".npmrc".source = cfgLink "npm/npmrc";

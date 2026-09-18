@@ -6,7 +6,7 @@
 
   virtualisation.oci-containers.containers.executor = {
     # digest-pinned; bump with bin/image-pins or the update-image-pins skill
-    image = "ghcr.io/rhyssullivan/executor-selfhost:latest@sha256:c8dd83a5dba8ac992dfe1ded4aa65ae4e7f52ec31fddbe2af5b49ffebe5bbfa7";
+    image = "ghcr.io/rhyssullivan/executor-selfhost:latest@sha256:200315d519a8c19685de05e88aa9a3cf1e1cb9869a2b0aecf604f6ebf47c6ea1";
     ports = [ "127.0.0.1:8302:4788" ];
     volumes = [ "/var/lib/executor:/data" ];
     environment = {

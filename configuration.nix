@@ -5,6 +5,8 @@
 }:
 {
   config = {
+    networking.firewall.checkReversePath = "strict";
+
     boot.loader.systemd-boot.enable = true;
     boot.loader.systemd-boot.configurationLimit = 15;
     boot.loader.efi.canTouchEfiVariables = true;
@@ -89,12 +91,15 @@
       appimage.binfmt = true;
       solaar.enable = true;
       nix-ld.enable = true;
-      nix-ld.libraries = with pkgs; [
-        glibc
-        stdenv.cc.cc.lib
-        vulkan-loader
-        wayland
-      ];
+      nix-ld.libraries =
+        with pkgs;
+        [
+          glibc
+          stdenv.cc.cc.lib
+          vulkan-loader
+          wayland
+        ]
+        ++ inputs.codex-desktop-linux.packages.${pkgs.stdenv.hostPlatform.system}.codex-desktop.passthru.workspaceRuntimeLibraries;
       nm-applet.enable = true;
     };
 
@@ -151,11 +156,11 @@
       KeepFree = "10G";
     };
 
-    services.journald.extraConfig = ''
-      SystemMaxUse=1G
-      RuntimeMaxUse=256M
-      MaxRetentionSec=14day
-    '';
+    services.journald.settings.Journal = {
+      SystemMaxUse = "1G";
+      RuntimeMaxUse = "256M";
+      MaxRetentionSec = "14day";
+    };
 
     time.timeZone = "America/New_York";
     i18n.defaultLocale = "en_US.UTF-8";

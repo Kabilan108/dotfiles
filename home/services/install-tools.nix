@@ -11,14 +11,33 @@ let
 
   installTools = pkgs.writeShellScript "install-tools" ''
     set -euo pipefail
+    failures=()
 
-    ${pkgs.uv}/bin/uv tool install -U --with llm-cmd --with llm-openrouter --with llm-tmux-fragments llm
-    ${pkgs.uv}/bin/uv tool install -U --from git+https://github.com/kabilan108/viewh5 viewh5
+    update_tool() {
+      local name="$1"
+      shift
+      echo "Updating $name"
+      if "$@"; then
+        echo "Updated $name"
+      else
+        local status=$?
+        echo "Failed to update $name (exit $status)" >&2
+        failures+=("$name")
+      fi
+    }
 
-    ${pkgs.pnpm}/bin/pnpm add -g -y \
-      @steipete/summarize \
-      ccusage \
-      agent-browser
+    update_tool llm ${pkgs.uv}/bin/uv tool install -U --with llm-cmd --with llm-openrouter --with llm-tmux-fragments llm
+    # Trusted owner-maintained package: follow Git HEAD without a release-age hold.
+    update_tool viewh5 ${pkgs.uv}/bin/uv tool install -U --from git+https://github.com/kabilan108/viewh5 viewh5
+
+    for package in @steipete/summarize ccusage agent-browser @earendil-works/pi-coding-agent; do
+      update_tool "$package" ${pkgs.pnpm}/bin/pnpm add -g -y "$package"
+    done
+
+    if (( ''${#failures[@]} )); then
+      printf 'Tool updates failed: %s\n' "''${failures[*]}" >&2
+      exit 1
+    fi
   '';
 in
 {
@@ -41,10 +60,20 @@ in
               pkgs.pnpm
               pkgs.uv
             ]
-          }:${pnpmHome}/bin:${homeDir}/.local/bin"
+          }:${pnpmHome}:${pnpmHome}/bin:${homeDir}/.local/bin"
         ];
         ExecStart = "${installTools}";
       };
+    };
+
+    systemd.user.timers.install-tools = {
+      Unit.Description = "Weekly third-party tool refresh";
+      Timer = {
+        OnCalendar = "Mon *-*-* 04:00:00";
+        RandomizedDelaySec = "30m";
+        Persistent = true;
+      };
+      Install.WantedBy = [ "timers.target" ];
     };
   };
 }

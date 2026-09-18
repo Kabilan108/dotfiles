@@ -5,10 +5,10 @@
 }:
 let
   pname = "cursor";
-  version = "2.2.44";
+  version = "3.21.12";
   src = fetchurl {
-    url = "https://api2.cursor.sh/updates/download/golden/linux-x64/cursor/3.16";
-    hash = "sha256-I7qQxcbNBDiWPyh0WUEOwVfRVT8IjtVYsErZfr+NH6U=";
+    url = "https://downloads.cursor.com/production/05ddb9e824590e2c1db6bd2548dd71bf67ac9d2b/linux/x64/Cursor-3.21.12-x86_64.AppImage";
+    hash = "sha256-nB7j86GHAdwJw2591yxtu6v6xr0to0CyBK34vAUYncE=";
   };
 
   appimageContents = appimageTools.extract { inherit pname version src; };
