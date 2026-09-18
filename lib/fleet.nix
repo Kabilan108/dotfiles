@@ -101,6 +101,17 @@ rec {
     };
   };
 
+  # Non-SSH devices belong in the inventory without entering the access matrix.
+  devices = {
+    google-pixel-9 = {
+      role = "phone";
+      model = "Pixel 9";
+      os = "Android";
+      tailscaleIp = "100.126.253.59";
+      description = "Personal phone; Android app deployment over paired wireless ADB. Read the current connection port from Wireless debugging; pairing uses a separate temporary port.";
+    };
+  };
+
   # Extra authorized keys per host, outside the access matrix.
   extraAuthorizedKeys = { };
 
