@@ -22,16 +22,16 @@ let
         fi
       }
 
-      clean_contents "${homeDir}/.gradle/caches"
-      clean_contents "${homeDir}/.gradle/.tmp"
-      clean_contents "${homeDir}/.npm/_cacache"
-      clean_contents "${homeDir}/.npm/_npx"
-      clean_contents "${homeDir}/.cache/pnpm"
+      clean_contents "/vault/userdata/cache/gradle/caches"
+      clean_contents "/vault/userdata/cache/gradle/.tmp"
+      clean_contents "/vault/userdata/cache/npm/_cacache"
+      clean_contents "/vault/userdata/cache/npm/_npx"
+      clean_contents "/vault/userdata/cache/pnpm-cache"
+      clean_contents "/vault/userdata/cache/pnpm-store"
       clean_contents "${homeDir}/.cache/nix"
       clean_contents "${homeDir}/.cache/codex-runtimes"
       clean_contents "/vault/userdata/cache/bun-install"
       clean_contents "/vault/userdata/cache/uv"
-      clean_contents "/vault/.pnpm-store"
     '';
   };
 

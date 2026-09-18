@@ -56,6 +56,8 @@ in
 
     BUN_INSTALL_CACHE_DIR = "/vault/userdata/cache/bun-install";
 
+    GRADLE_USER_HOME = "/vault/userdata/cache/gradle";
+    NPM_CONFIG_CACHE = "/vault/userdata/cache/npm";
     PNPM_HOME = "${homeDir}/.local/share/pnpm";
 
     UV_CACHE_DIR = "/vault/userdata/cache/uv";
