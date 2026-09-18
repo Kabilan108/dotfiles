@@ -959,7 +959,7 @@
       "inputs": {
         "flake-parts": "flake-parts",
         "nixpkgs": [
-          "nixpkgs"
+          "llama-nixpkgs"
         ]
       },
       "locked": {
@@ -974,6 +974,22 @@
         "owner": "ggml-org",
         "repo": "llama.cpp",
         "rev": "e85caa81ea2b65797396018c179b87ad61fa38ab",
+        "type": "github"
+      }
+    },
+    "llama-nixpkgs": {
+      "locked": {
+        "lastModified": 1789546076,
+        "narHash": "sha256-zVxLZiSnmaaPLwnhj7pwmqe3axBg/C6nG5JZsJMh2g4=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "b1b875982b17dabde9b4a37f3e229e74913e6db3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "b1b875982b17dabde9b4a37f3e229e74913e6db3",
         "type": "github"
       }
     },
@@ -1507,6 +1523,7 @@
         "hy3": "hy3",
         "hyprland": "hyprland",
         "llama-cpp": "llama-cpp",
+        "llama-nixpkgs": "llama-nixpkgs",
         "niri-flake": "niri-flake",
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs_11",

@@ -138,9 +138,11 @@
       inputs.hyprland.follows = "hyprland";
     };
     hyprland.url = "github:hyprwm/Hyprland/v0.52.0";
+    # Update this dependency pin deliberately alongside llama.cpp, not system updates.
+    llama-nixpkgs.url = "github:NixOS/nixpkgs/b1b875982b17dabde9b4a37f3e229e74913e6db3";
     llama-cpp = {
       url = "github:ggml-org/llama.cpp/e85caa81ea2b65797396018c179b87ad61fa38ab";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs.follows = "llama-nixpkgs";
     };
     "niri-flake".url = "github:sodiboo/niri-flake";
     stylix = {

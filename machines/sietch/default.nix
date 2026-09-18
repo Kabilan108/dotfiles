@@ -12,6 +12,14 @@
 
   networking.hostName = "sietch";
 
+  # CUDA builds are not covered by cache.nixos.org.
+  nix.settings = {
+    substituters = [ "https://cache.nixos-cuda.org" ];
+    trusted-public-keys = [
+      "cache.nixos-cuda.org:74DUi4Ye579gUqzH4ziL9IyiJBlDpMRn9MBN8oNan9M="
+    ];
+  };
+
   # sietch uses its wired 2.5 GbE link as the LAN data plane. Keep the Wi-Fi
   # hardware available for manual recovery, but disable its radio on every
   # boot and whenever this configuration is activated.
