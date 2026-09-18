@@ -43,6 +43,7 @@ in
 
   programs.appimages.apps = {
     helium = heliumAppImage // {
+      autoUpdate = true;
       desktopName = "Helium";
       icon = "helium";
       startupWMClass = "Helium";
