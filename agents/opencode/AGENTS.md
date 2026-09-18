@@ -63,7 +63,7 @@ this project uses the `uv` package manager for dependency management:
 
 # Browser Tools
 
-- Use `agent-browser` for most interactive browser work. It is the default choice for agent-driven exploration, iterative UI interaction, screenshots, and stateful sessions. Prefer it when you want AI-friendly page discovery via `snapshot` and stable element refs like `@e1`.
+Use an integrated browser when one is available and suitable. Otherwise use agent-browser for isolated headless browsing. Use helium-browser-use when the task calls for an intentionally shared Helium session or its saved logins. Use agent-browser for Electron and other CDP targets.
 
 # Shell & CI discipline
 

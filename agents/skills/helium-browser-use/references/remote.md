@@ -20,12 +20,13 @@ Do not assume `http://127.0.0.1:<port>` means the remote host. In the browser, l
 First check whether the forwarded CDP endpoint already exists:
 
 ```bash
+session="<unique-task-worker-id>"
 remote_port="${HELIUM_REMOTE_CDP_PORT:-9223}"
 curl -fsS "http://127.0.0.1:${remote_port}/json/version"
-agent-browser --cdp "$remote_port" get cdp-url --json
+agent-browser --session "$session" --cdp "$remote_port" --pin-tab get cdp-url --json
 ```
 
-If this succeeds, use the normal `helium-browser-use` tab discipline with `agent-browser --cdp "$remote_port" ...`.
+If this succeeds, use the normal `helium-browser-use` tab discipline with `agent-browser --session "$session" --cdp "$remote_port" ...`.
 
 If this fails, do not try to launch Helium on the remote host. Ask the browser-host machine to start or repair the reverse tunnel.
 
@@ -65,7 +66,7 @@ Then verify from `sietch`:
 
 ```bash
 curl -fsS http://127.0.0.1:9223/json/version
-agent-browser --cdp 9223 get cdp-url --json
+agent-browser --session "$session" --cdp 9223 --pin-tab get cdp-url --json
 ```
 
 ## Safety

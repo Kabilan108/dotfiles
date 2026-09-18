@@ -22,7 +22,7 @@ For review of a consequential behavioral invariant, consult `~/dotfiles/agents/r
 
 ## Browser and artifacts
 
-Use available integrated browser tools when suitable; use helium-browser-use otherwise or when explicitly requested, including when its persistent login session is needed. Use desktop control for compositor/native-app tasks. Search Gmail and Slack through Executor rather than browser automation when service search is the task.
+Use an integrated browser when one is available and suitable. Otherwise use agent-browser for isolated headless browsing. Use helium-browser-use when the task calls for an intentionally shared Helium session or its saved logins. Use agent-browser for Electron and other CDP targets. Use desktop control for compositor/native-app tasks. Search Gmail and Slack through Executor rather than browser automation when service search is the task.
 
 ## Publishing content
 
