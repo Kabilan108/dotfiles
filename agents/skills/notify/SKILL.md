@@ -1,6 +1,6 @@
 ---
 name: notify
-description: Notify the user when background work finishes, ask for a phone reply or approval, or show ongoing task progress through Hark.
+description: Notify the user when background work finishes, ask for a phone reply or approval, show ongoing task progress through Hark, or to request him to run sudo.
 ---
 
 # Notify
