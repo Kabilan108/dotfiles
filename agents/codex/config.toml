@@ -302,10 +302,31 @@ trust_level = "trusted"
 [projects."/home/kabilan/downloads/Delta"]
 trust_level = "trusted"
 
-[projects."/home/kabilan/Documents/Codex/2026-09-16/k"]
+[projects."/vault/work/moberg/dev-server-4/python-modules/cns-utils"]
 trust_level = "trusted"
 
-[projects."/home/kabilan/Documents/Codex/2026-09-16/show"]
+[projects."/vault/work/moberg/checkouts/jump-to-time-fix/dev-server/dashboard"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server-1/iam"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/checkouts/mcp-6865-paging/dev-server"]
+trust_level = "trusted"
+
+[projects."/home/kabilan/experiments/hark"]
+trust_level = "trusted"
+
+[projects."/home/kabilan/.t3/worktrees/dev-server/t3code-02c8a9f5"]
+trust_level = "trusted"
+
+[projects."/home/kabilan/.t3/worktrees/dev-server/t3code-cab65a96"]
+trust_level = "trusted"
+
+[projects."/home/kabilan/experiments"]
+trust_level = "trusted"
+
+[projects."/home/kabilan/experiments/obsidian-mcp"]
 trust_level = "trusted"
 
 [tui.model_availability_nux]
