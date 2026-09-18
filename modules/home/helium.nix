@@ -37,6 +37,7 @@ in
 {
   home.sessionVariables = {
     BROWSER = "helium";
+    AGENT_BROWSER_EXECUTABLE_PATH = lib.getExe pkgs.google-chrome;
     HELIUM_AGENTS_PROFILE = heliumAgentsProfile;
     HELIUM_AGENTS_CDP_PORT = heliumAgentsDevtoolsPort;
   };
@@ -52,7 +53,6 @@ in
       desktopName = "Helium Agents";
       icon = "helium-agents";
       startupWMClass = "HeliumAgents";
-      executableSessionVariable = "AGENT_BROWSER_EXECUTABLE_PATH";
       preExec = ''
         mkdir -p ${lib.escapeShellArg heliumAgentsProfile}
       '';

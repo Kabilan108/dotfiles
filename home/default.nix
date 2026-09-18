@@ -44,6 +44,7 @@ in
     ./services
     ./shell.nix
 
+    ../modules/home/agent-browser.nix
     ../modules/home/appimages.nix
     ../modules/home/btop.nix
     ../modules/home/fleet.nix

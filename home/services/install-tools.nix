@@ -30,9 +30,15 @@ let
     # Trusted owner-maintained package: follow Git HEAD without a release-age hold.
     update_tool viewh5 ${pkgs.uv}/bin/uv tool install -U --from git+https://github.com/kabilan108/viewh5 viewh5
 
-    for package in @steipete/summarize ccusage agent-browser @earendil-works/pi-coding-agent; do
+    for package in @steipete/summarize ccusage @earendil-works/pi-coding-agent; do
       update_tool "$package" ${pkgs.pnpm}/bin/pnpm add -g -y "$package"
     done
+
+    # Replay the reviewed pin; new releases are selected with an explicit mise bump.
+    update_tool agent-browser ${pkgs.coreutils}/bin/env \
+      MISE_GLOBAL_CONFIG_FILE=${lib.escapeShellArg "${homeDir}/dotfiles/config/mise/config.toml"} \
+      MISE_CEILING_PATHS="$PWD" \
+      ${lib.getExe pkgs.mise} install --locked agent-browser
 
     if (( ''${#failures[@]} )); then
       printf 'Tool updates failed: %s\n' "''${failures[*]}" >&2
