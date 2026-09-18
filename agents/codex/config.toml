@@ -1,12 +1,12 @@
-model = "gpt-6-astra"
+model = "gpt-5.6-sol"
 
-model_reasoning_effort = "medium"
+model_reasoning_effort = "low"
 model_supports_reasoning_summaries = true
 
 sandbox_mode = "danger-full-access"
 
 personality = "pragmatic"
-service_tier = "default"
+service_tier = "priority"
 approval_policy = "never"
 approvals_reviewer = "auto_review"
 
@@ -51,23 +51,23 @@ approval_mode = "approve"
 
 [mcp_servers.node_repl]
 args = []
-command = "/nix/store/xhg4yx8c262m8xq90yvzz8lhknzns4f4-codex-desktop-frameless-titlebar-remote-control-ui-remote-mobile-control-26.901.41600/opt/codex-desktop/resources/cua_node/bin/node_repl"
+command = "/nix/store/0vx07b4ik4kl4m3kbv17j3c6gcx8ylfx-codex-desktop-frameless-titlebar-node-repl-reaper-remote-control-ui-remote-mobile-control-26.901.51231/opt/codex-desktop/resources/cua_node/bin/node_repl"
 startup_timeout_sec = 120
 
 [mcp_servers.node_repl.env]
 NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
-NODE_REPL_NODE_MODULE_DIRS = "/nix/store/xhg4yx8c262m8xq90yvzz8lhknzns4f4-codex-desktop-frameless-titlebar-remote-control-ui-remote-mobile-control-26.901.41600/opt/codex-desktop/resources/cua_node/lib/node_modules"
-NODE_REPL_NODE_PATH = "/nix/store/xhg4yx8c262m8xq90yvzz8lhknzns4f4-codex-desktop-frameless-titlebar-remote-control-ui-remote-mobile-control-26.901.41600/opt/codex-desktop/resources/cua_node/bin/node"
-NODE_REPL_TRUSTED_CODE_PATHS = "/home/kabilan/dotfiles/agents/codex:/nix/store/xhg4yx8c262m8xq90yvzz8lhknzns4f4-codex-desktop-frameless-titlebar-remote-control-ui-remote-mobile-control-26.901.41600/opt/codex-desktop/resources/cua_node/lib/node_modules"
+NODE_REPL_NODE_MODULE_DIRS = "/nix/store/0vx07b4ik4kl4m3kbv17j3c6gcx8ylfx-codex-desktop-frameless-titlebar-node-repl-reaper-remote-control-ui-remote-mobile-control-26.901.51231/opt/codex-desktop/resources/cua_node/lib/node_modules"
+NODE_REPL_NODE_PATH = "/nix/store/0vx07b4ik4kl4m3kbv17j3c6gcx8ylfx-codex-desktop-frameless-titlebar-node-repl-reaper-remote-control-ui-remote-mobile-control-26.901.51231/opt/codex-desktop/resources/cua_node/bin/node"
+NODE_REPL_TRUSTED_CODE_PATHS = "/home/kabilan/dotfiles/agents/codex:/nix/store/0vx07b4ik4kl4m3kbv17j3c6gcx8ylfx-codex-desktop-frameless-titlebar-node-repl-reaper-remote-control-ui-remote-mobile-control-26.901.51231/opt/codex-desktop/resources/cua_node/lib/node_modules"
 CODEX_HOME = "/home/kabilan/dotfiles/agents/codex"
 BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
 BROWSER_USE_TINYSKY_ENABLED = "1"
 NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = ""
 NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = ""
 BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
-BROWSER_USE_CODEX_APP_VERSION = "26.901.41600"
-NODE_REPL_TRUSTED_SERVICES = '{"browser":"/home/kabilan/dotfiles/agents/codex/plugins/cache/openai-bundled/browser/26.901.41600/scripts/browser-service.mjs"}'
-CODEX_CLI_PATH = "/nix/store/xhg4yx8c262m8xq90yvzz8lhknzns4f4-codex-desktop-frameless-titlebar-remote-control-ui-remote-mobile-control-26.901.41600/opt/codex-desktop/resources/codex"
+BROWSER_USE_CODEX_APP_VERSION = "26.901.51231"
+NODE_REPL_TRUSTED_SERVICES = '{"browser":"/home/kabilan/dotfiles/agents/codex/plugins/cache/openai-bundled/browser/26.901.51231/scripts/browser-service.mjs"}'
+CODEX_CLI_PATH = "/nix/store/0vx07b4ik4kl4m3kbv17j3c6gcx8ylfx-codex-desktop-frameless-titlebar-node-repl-reaper-remote-control-ui-remote-mobile-control-26.901.51231/opt/codex-desktop/resources/codex"
 
 [notice]
 hide_gpt5_1_migration_prompt = true
@@ -299,6 +299,15 @@ trust_level = "trusted"
 [projects."/home/kabilan/experiments/qeeg-insights"]
 trust_level = "trusted"
 
+[projects."/home/kabilan/downloads/Delta"]
+trust_level = "trusted"
+
+[projects."/home/kabilan/Documents/Codex/2026-09-16/k"]
+trust_level = "trusted"
+
+[projects."/home/kabilan/Documents/Codex/2026-09-16/show"]
+trust_level = "trusted"
+
 [tui.model_availability_nux]
 "gpt-5.5" = 4
 "gpt-5.6-sol" = 4
@@ -360,10 +369,11 @@ usePointerCursors = true
 followUpQueueMode = "steer"
 composerEnterBehavior = "cmdIfMultiline"
 reviewDelivery = "detached"
-conversationDetailMode = "STEPS_EXECUTION"
+conversationDetailMode = "STEPS_COMMANDS"
 show-context-window-usage = true
 enabled-reasoning-efforts = ["low", "medium", "high", "xhigh", "ultra", "max"]
 defaultTerminalLocation = "right"
+open-link-in-target-preference = "in-app-browser"
 
 [desktop.appearanceDarkChromeTheme]
 accent = "#006efe"

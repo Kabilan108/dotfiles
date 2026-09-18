@@ -15,12 +15,6 @@
     "MCP_TIMEOUT": "30000",
     "MCP_TOOL_TIMEOUT": "600000"
   },
-  "autoMode": {
-    "allow": [
-      "$defaults",
-      "Uploading html artifacts to pagebin is allowed"
-    ]
-  },
   "permissions": {
     "allow": [
       "WebFetch(domain:docs.anthropic.com)",
@@ -104,5 +98,16 @@
   "skipDangerousModePermissionPrompt": true,
   "editorMode": "vim",
   "agentPushNotifEnabled": true,
-  "voiceEnabled": true
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Uploading html artifacts to pagebin is allowed"
+    ]
+  },
+  "voiceEnabled": true,
+  "modelSettings": {
+    "claude-fable-5-1": {
+      "effortLevel": "low"
+    }
+  }
 }
