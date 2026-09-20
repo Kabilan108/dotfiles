@@ -34,6 +34,7 @@ in
       "wheel"
       "docker"
       "plugdev"
+      "input"
     ];
     shell = pkgs.bashInteractive;
     linger = true;
