@@ -19,6 +19,12 @@ in
     tleilax
   ];
 
+  "secrets/t3-openai-proxy-env.age".publicKeys = [
+    sietch
+    jacurutu
+    tleilax
+  ];
+
   # Future Pi-only secrets (create with: agenix -e secrets/<name>.age):
   # "secrets/tailscale-authkey.age".publicKeys = [ admin tleilax ];
   # "secrets/model-api-keys.age".publicKeys = [ admin tleilax ];

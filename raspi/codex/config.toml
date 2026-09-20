@@ -1,16 +1,28 @@
-model = "gpt-5.5"
+model = "gpt-5.6-sol"
+model_provider = "cliproxyapi_openai_only"
 model_reasoning_effort = "medium"
 model_supports_reasoning_summaries = true
+model_catalog_json = "/etc/t3-v2-preview-1887/codex-models.json"
 
 sandbox_mode = "workspace-write"
 approval_policy = "on-request"
 service_tier = "fast"
 
+# A loopback-only CLIProxyAPI sidecar owns the hard model allowlist. It forwards
+# only the OpenAI text models declared in the Tleilax T3 preview module.
+[model_providers.cliproxyapi_openai_only]
+name = "CLIProxyAPI (OpenAI only)"
+base_url = "http://127.0.0.1:8318/v1"
+env_key = "T3_OPENAI_GATEWAY_KEY"
+wire_api = "responses"
+requires_openai_auth = false
+supports_websockets = false
+
 [sandbox_workspace_write]
 network_access = true
 
 [shell_environment_policy]
-inherit = "all"
+inherit = "core"
 
 [features]
 skills = true
@@ -29,4 +41,3 @@ persistence = "save-all"
 
 [projects."/home/kabilan/dotfiles"]
 trust_level = "trusted"
-

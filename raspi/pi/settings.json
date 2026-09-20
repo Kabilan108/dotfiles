@@ -1,0 +1,15 @@
+{
+  "defaultThinkingLevel": "medium",
+  "defaultProvider": "cliproxyapi-openai-only",
+  "defaultModel": "gpt-5.6-sol",
+  "defaultProjectTrust": "never",
+  "enableInstallTelemetry": false,
+  "enabledModels": [
+    "cliproxyapi-openai-only/gpt-5.5",
+    "cliproxyapi-openai-only/gpt-5.6-luna",
+    "cliproxyapi-openai-only/gpt-5.6-sol",
+    "cliproxyapi-openai-only/gpt-5.6-terra",
+    "cliproxyapi-openai-only/gpt-6-astra"
+  ],
+  "theme": "dark"
+}

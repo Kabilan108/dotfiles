@@ -54,10 +54,22 @@
         };
     in
     {
-      packages = forAllSystems (pkgs: rec {
-        tleilax-remote = mkTleilaxRemote pkgs;
-        default = tleilax-remote;
-      });
+      packages = forAllSystems (
+        pkgs:
+        let
+          tleilaxRemote = mkTleilaxRemote pkgs;
+        in
+        {
+          tleilax-remote = tleilaxRemote;
+          default = tleilaxRemote;
+        }
+        // pkgs.lib.optionalAttrs pkgs.stdenv.isAarch64 {
+          codex-preview = pkgs.callPackage ./packages/codex-preview.nix { };
+          pi-coding-agent = pkgs.callPackage ./packages/pi-coding-agent { };
+          t3-preview = pkgs.callPackage ./packages/t3-preview.nix { };
+          cliproxyapi-openai-only = pkgs.callPackage ./packages/cliproxyapi-openai-only.nix { };
+        }
+      );
 
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
@@ -79,6 +91,7 @@
           ./modules/jellyfin-client.nix
           ./modules/network-security.nix
           ./modules/remote.nix
+          ./modules/t3-v2-preview.nix
         ];
       };
 
