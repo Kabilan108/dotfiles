@@ -10,6 +10,12 @@ order. Jacurutu uses the tracked `src/plugins/builtin` directory first, then
 restriction. Each immediate child directory contains a manifest and its QML.
 The selected bar frame remains reserved to the store. The retired meeting
 plugin has an explicit disabled seed default; recording owns the current UI.
+`stillsuit.dictation` owns the Dictator quick controls: its bar widget opens a
+panel with the record button, a live level meter fed by the shared Dictator
+OSD projection in `stillsuit.workflows`, recent transcripts with copy, and a
+launcher for the full `dictator-gui` app. It shells out to the configured
+`dictatorCliPath` (`toggle`, `cancel`, `transcripts -n N`) and never parses
+the daemon IPC socket itself. The fixture is `src/tests/d6-dictation/run.sh`.
 
 The watcher checks manifests against the schema, rejects symlinks and escaping
 entry points, and snapshots changed plugin trees into content-addressed state

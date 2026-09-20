@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$*" >> "$STILLSUIT_FIXTURE_DICTATOR_LOG"
+case ${1:-} in
+  transcripts)
+    cat <<'JSON'
+[
+  {"id": 42, "timestamp": "2026-09-20T14:51:24Z", "duration_ms": 21227, "text": "First line\n\nsecond paragraph", "audio_path": "/tmp/a.wav", "model": "fixture"},
+  {"id": 41, "timestamp": "2026-09-20T06:21:22Z", "duration_ms": 4973, "text": "Older transcript", "audio_path": "/tmp/b.wav", "model": "fixture"}
+]
+JSON
+    ;;
+  toggle|cancel)
+    if [[ -e ${STILLSUIT_FIXTURE_DICTATOR_FAIL:-/nonexistent} ]]; then
+      echo "error: daemon refused $1" >&2
+      exit 1
+    fi
+    ;;
+  *)
+    echo "unexpected: $*" >&2
+    exit 2
+    ;;
+esac

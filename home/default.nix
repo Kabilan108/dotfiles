@@ -179,6 +179,10 @@ in
       enable_osd = true;
       notifications = "errors_only";
       audio.max_duration_min = 30;
+      typing = {
+        shortcut = "ctrl_shift_v";
+        niri_app_shortcuts."com.t3tools.T3Code" = "ctrl_v";
+      };
     };
   };
 

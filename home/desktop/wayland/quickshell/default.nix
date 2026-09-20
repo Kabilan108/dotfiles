@@ -7,6 +7,7 @@
 }:
 let
   homeDir = "/home/kabilan";
+  dictatorPackages = inputs.dictator.packages.${pkgs.stdenv.hostPlatform.system};
   builtinPlugin = name: {
     source = ../../../../packages/stillsuit-shell/src;
     manifestFile = "plugins/builtin/${name}/manifest.json";
@@ -144,6 +145,19 @@ in
       }
     )
     (builtinPlugin "power")
+    (
+      (builtinPlugin "dictation")
+      // {
+        settings = {
+          dictatorCliPath = "${dictatorPackages.default}/bin/dictator";
+          # The gui package lands with the Rust port; until the input is bumped
+          # the panel simply hides its launcher button.
+          dictatorGuiPath =
+            if dictatorPackages ? gui then "${dictatorPackages.gui}/bin/dictator-gui" else "";
+          recentLimit = 5;
+        };
+      }
+    )
     (builtinPlugin "recording")
     (builtinPlugin "resources")
     (builtinPlugin "tray")

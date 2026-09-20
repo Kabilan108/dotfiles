@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.dictation",
+  "name": "Dictation",
+  "description": "Dictator recording controls, live level meter, and recent transcripts anchored under the bar.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["service", "bar-widget", "panel"],
+  "entryPoints": { "service": "Service.qml", "barWidget": "Widget.qml", "panel": "Panel.qml" },
+  "scope": { "service": "global", "barWidget": "per-output", "panel": "per-output" },
+  "dependencies": ["stillsuit.workflows"],
+  "capabilities": ["dictator-control", "workflow-state"],
+  "barWidget": { "defaultSection": "right", "allowMultiple": false, "order": 35 },
+  "keepLoaded": true
+}

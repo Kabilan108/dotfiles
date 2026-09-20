@@ -374,6 +374,24 @@ window-rule {
 }
 
 window-rule {
+    match app-id=r#"^org\.dictator\.Dictator$"#
+    open-floating true
+    default-column-width { fixed 924; }
+    default-window-height { fixed 740; }
+}
+
+window-rule {
+    match app-id=r#"^org\.dictator\.Dictator\.popup$"#
+    open-floating true
+    open-focused true
+    min-width 340
+    max-width 340
+    min-height 510
+    max-height 510
+    default-floating-position x=16 y=8 relative-to="top-right"
+}
+
+window-rule {
     match app-id=r#"^nm-connection-editor$"#
     open-floating true
     default-column-width { fixed 560; }
@@ -521,7 +539,6 @@ binds {
     // speech to text
     Mod+T { spawn "dictator" "toggle"; }
     F3 { spawn "dictator" "cancel"; }
-    Mod+Shift+T { spawn "dictator" "transcript" "last" "--clip"; }
 
     // Media keys
     XF86AudioPlay  allow-when-locked=true { spawn "playerctl" "play-pause"; }
