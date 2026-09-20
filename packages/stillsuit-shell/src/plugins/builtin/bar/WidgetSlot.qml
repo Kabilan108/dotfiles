@@ -11,6 +11,7 @@ Item {
     property var panelAnchors: null
     property real anchorOffset: 0
     property string anchoredPluginId: ""
+    property var anchorResolver: null
     readonly property string pluginId: activeRegistration && activeRegistration.manifest
         ? String(activeRegistration.manifest.id)
         : "unknown"
@@ -99,19 +100,21 @@ Item {
                 || pluginId === "unknown")
             return
         anchoredPluginId = pluginId
-        panelAnchors.set(anchoredPluginId, outputId, function() {
+        anchorResolver = function() {
             if (!root.visible || root.width <= 0)
                 return -1
             return root.anchorOffset + root.mapToItem(null, root.width / 2, 0).x
-        })
+        }
+        panelAnchors.set(anchoredPluginId, outputId, anchorResolver)
     }
 
     function clearAnchor() {
         if (anchoredPluginId === "")
             return
         if (panelAnchors && typeof panelAnchors.clear === "function")
-            panelAnchors.clear(anchoredPluginId, outputId)
+            panelAnchors.clear(anchoredPluginId, outputId, anchorResolver)
         anchoredPluginId = ""
+        anchorResolver = null
     }
 
     function invalidateConstruction() {

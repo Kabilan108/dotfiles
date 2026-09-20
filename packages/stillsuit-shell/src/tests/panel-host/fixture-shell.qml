@@ -296,6 +296,16 @@ ShellRoot {
                 verify(host.anchorCenterX === 640,
                     "router delivers the bar anchor to the presenting host")
                 testRouter.dismissPanels()
+                var oldResolver = function() { return 320 }
+                var replacementResolver = function() { return 960 }
+                testRouter.barAnchorFacade.set("a", testCompositor.focusedOutputId,
+                    oldResolver)
+                testRouter.barAnchorFacade.set("a", testCompositor.focusedOutputId,
+                    replacementResolver)
+                testRouter.barAnchorFacade.clear("a", testCompositor.focusedOutputId,
+                    oldResolver)
+                verify(testRouter.panelAnchorX("a", testCompositor.focusedOutputId) === 960,
+                    "retired slot cannot clear its replacement anchor")
                 testRouter.barAnchorFacade.set("a", testCompositor.focusedOutputId,
                     function() { throw new Error("broken resolver") })
                 testRouter.open("a", "")

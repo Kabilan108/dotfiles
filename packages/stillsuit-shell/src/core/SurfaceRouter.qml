@@ -62,9 +62,14 @@ QtObject {
             next[root._anchorKey(pluginId, outputId)] = resolver
             root.panelAnchors = next
         }
-        function clear(pluginId, outputId) {
+        function clear(pluginId, outputId, resolver) {
             var key = root._anchorKey(pluginId, outputId)
             if (root.panelAnchors[key] === undefined) return
+            // A replacement slot may register before the old slot finishes
+            // destruction. Do not let that old slot remove its replacement.
+            if (typeof resolver === "function"
+                    && root.panelAnchors[key] !== resolver)
+                return
             var next = root._copy(root.panelAnchors)
             delete next[key]
             root.panelAnchors = next
