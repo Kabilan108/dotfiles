@@ -6,7 +6,9 @@ import argparse
 import json
 import os
 import re
+import selectors
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -23,9 +25,19 @@ def runtime_dir() -> Path:
 
 STATE_PATH = runtime_dir() / "recording.json"
 LOG_PATH = runtime_dir() / "gpu-screen-recorder.log"
+OVERLAY_LOG_PATH = runtime_dir() / "omarecord-overlay.log"
+RELAY_LOG_PATH = runtime_dir() / "relay.log"
+EXPORT_LOG_PATH = runtime_dir() / "export.log"
+OVERLAY_SOCKET_PATH = runtime_dir() / "overlay.sock"
 MEETING_HELPER = Path.home() / "bin/meeting-minutes"
 ACTIVE_PHASES = frozenset({"recording", "paused", "stopping"})
 FINISHED_PHASES = frozenset({"completed", "meeting_queued"})
+TARGETS = ("monitor", "region", "window")
+EXPORT_FORMATS = ("gif", "webm")
+OVERLAY_READY_TIMEOUT = 3.0
+RELAY_POLL_INTERVAL = 0.25
+
+overlay_client: socket.socket | None = None
 
 
 def read_state() -> dict[str, Any]:
@@ -55,6 +67,63 @@ def process_alive(pid: int) -> bool:
     return True
 
 
+def terminate_process(pid: int, grace: float) -> None:
+    if pid <= 0 or pid == os.getpid() or not process_alive(pid):
+        return
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    deadline = time.monotonic() + grace
+    while process_alive(pid) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    if process_alive(pid):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+
+def encode_message(message: dict[str, Any]) -> bytes:
+    return json.dumps(message, separators=(",", ":")).encode() + b"\n"
+
+
+def overlay_send(state: dict[str, Any], message: dict[str, Any]) -> None:
+    line = encode_message(message)
+    if overlay_client is not None:
+        try:
+            overlay_client.sendall(line)
+        except OSError:
+            pass
+        return
+    if process_alive(int(state.get("relay_pid", 0))):
+        return
+    path = Path(str(state.get("overlay_socket", "")))
+    if not str(path) or not path.exists():
+        return
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+            client.settimeout(1.0)
+            client.connect(str(path))
+            client.sendall(line)
+    except OSError:
+        pass
+
+
+def release_overlay(state: dict[str, Any]) -> None:
+    overlay_pid = int(state.get("overlay_pid", 0))
+    relay_pid = int(state.get("relay_pid", 0))
+    if overlay_pid or relay_pid:
+        overlay_send(state, {"cmd": "quit"})
+        deadline = time.monotonic() + 1.0
+        while process_alive(overlay_pid) and time.monotonic() < deadline:
+            time.sleep(0.05)
+        terminate_process(overlay_pid, 1.0)
+        terminate_process(relay_pid, 1.0)
+    state.pop("overlay_pid", None)
+    state.pop("relay_pid", None)
+
+
 def elapsed_seconds(state: dict[str, Any]) -> int:
     started_at = float(state.get("started_at", 0))
     if started_at <= 0:
@@ -64,12 +133,37 @@ def elapsed_seconds(state: dict[str, Any]) -> int:
     return max(0, round(end - started_at - paused_total))
 
 
+def refreshed_export(state: dict[str, Any]) -> bool:
+    export = state.get("export")
+    if not isinstance(export, dict) or export.get("phase") != "running":
+        return False
+    if process_alive(int(export.get("pid", 0))):
+        return False
+    output = Path(str(export.get("output", "")))
+    if output.is_file():
+        export.update({"phase": "completed", "error": ""})
+    else:
+        details = ""
+        if EXPORT_LOG_PATH.exists():
+            details = EXPORT_LOG_PATH.read_text(errors="replace").strip()
+        export.update(
+            {
+                "phase": "error",
+                "error": details.splitlines()[-1] if details else "Export failed",
+            }
+        )
+    export.pop("pid", None)
+    return True
+
+
 def refreshed_state() -> dict[str, Any]:
     state = read_state()
     if state.get("phase") in FINISHED_PHASES:
         output = Path(str(state.get("output", "")))
         if output.is_file():
             state["size_bytes"] = output.stat().st_size
+        if refreshed_export(state):
+            write_state(state)
         return state
     if state.get("phase") not in ACTIVE_PHASES:
         return state
@@ -80,6 +174,11 @@ def refreshed_state() -> dict[str, Any]:
         return state
 
     output = Path(str(state.get("output", "")))
+    if state.get("cancelling"):
+        output.unlink(missing_ok=True)
+        release_overlay(state)
+        STATE_PATH.unlink(missing_ok=True)
+        return {"phase": "idle"}
     state.update(
         {
             "phase": "completed" if output.is_file() else "error",
@@ -91,6 +190,7 @@ def refreshed_state() -> dict[str, Any]:
         }
     )
     state.pop("pid", None)
+    release_overlay(state)
     write_state(state)
     return state
 
@@ -123,10 +223,137 @@ def require_active() -> dict[str, Any]:
     return state
 
 
+def geometry(rect: dict[str, int]) -> str:
+    return f"{rect['w']}x{rect['h']}+{rect['x']}+{rect['y']}"
+
+
+def select_rect(mode: str, monitor: str) -> dict[str, Any] | None:
+    result = subprocess.run(
+        ["omarecord", "select", "--mode", mode, "--output", monitor],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 1:
+        return None
+    if result.returncode != 0:
+        details = (result.stderr or result.stdout).strip()
+        raise RuntimeError(details or f"omarecord select exited {result.returncode}")
+    try:
+        parsed = json.loads(result.stdout)
+        return {
+            "output": str(parsed["output"]),
+            "x": int(parsed["x"]),
+            "y": int(parsed["y"]),
+            "w": int(parsed["w"]),
+            "h": int(parsed["h"]),
+        }
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+        raise RuntimeError("omarecord select returned invalid JSON") from error
+
+
+def spawn_logged(command: list[str], log_path: Path) -> subprocess.Popen[bytes]:
+    with log_path.open("wb") as log:
+        return subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+
+
+def self_command(*arguments: str) -> list[str]:
+    return [sys.executable, str(Path(__file__).resolve()), *arguments]
+
+
+def read_line(client: socket.socket, deadline: float) -> bytes:
+    buffer = b""
+    while b"\n" not in buffer:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError
+        client.settimeout(remaining)
+        chunk = client.recv(4096)
+        if not chunk:
+            raise ConnectionError
+        buffer += chunk
+    return buffer.split(b"\n", 1)[0]
+
+
+def await_overlay_ready(process: subprocess.Popen[bytes], path: Path) -> None:
+    deadline = time.monotonic() + OVERLAY_READY_TIMEOUT
+    while not path.exists():
+        if process.poll() is not None or time.monotonic() >= deadline:
+            raise RuntimeError("omarecord overlay did not open its socket")
+        time.sleep(0.05)
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+            client.settimeout(max(0.1, deadline - time.monotonic()))
+            client.connect(str(path))
+            event = json.loads(read_line(client, deadline))
+    except (OSError, ValueError) as error:
+        raise RuntimeError("omarecord overlay did not report ready") from error
+    if not isinstance(event, dict) or event.get("event") != "ready":
+        raise RuntimeError("omarecord overlay sent an unexpected first message")
+
+
+def start_overlay(rect: dict[str, Any]) -> subprocess.Popen[bytes]:
+    OVERLAY_SOCKET_PATH.unlink(missing_ok=True)
+    process = spawn_logged(
+        [
+            "omarecord",
+            "overlay",
+            "--output",
+            str(rect["output"]),
+            "--rect",
+            geometry(rect),
+            "--socket",
+            str(OVERLAY_SOCKET_PATH),
+        ],
+        OVERLAY_LOG_PATH,
+    )
+    try:
+        await_overlay_ready(process, OVERLAY_SOCKET_PATH)
+    except RuntimeError as error:
+        terminate_process(process.pid, 1.0)
+        details = OVERLAY_LOG_PATH.read_text(errors="replace").strip()
+        raise RuntimeError(f"{error}: {details}" if details else str(error)) from error
+    return process
+
+
+def abort_capture(pid: int, output: Path) -> None:
+    try:
+        os.kill(pid, signal.SIGINT)
+    except ProcessLookupError:
+        pass
+    deadline = time.monotonic() + 5
+    while process_alive(pid) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    terminate_process(pid, 2.0)
+    output.unlink(missing_ok=True)
+
+
 def start_recording(args: argparse.Namespace) -> None:
     current = refreshed_state()
     if current.get("phase") in ACTIVE_PHASES:
         raise RuntimeError("A Stillsuit recording is already active")
+
+    target = str(args.target)
+    annotate = target != "monitor" if args.annotate is None else bool(args.annotate)
+    default_audio = target == "monitor"
+    desktop_audio = (
+        default_audio if args.desktop_audio is None else bool(args.desktop_audio)
+    )
+    microphone = default_audio if args.microphone is None else bool(args.microphone)
+
+    rect: dict[str, Any] | None = None
+    if target != "monitor" or annotate:
+        rect = select_rect(target, args.monitor)
+        if rect is None:
+            STATE_PATH.unlink(missing_ok=True)
+            print_state({"phase": "idle"})
+            return
 
     directory = Path(args.directory).expanduser()
     directory.mkdir(parents=True, exist_ok=True)
@@ -134,7 +361,7 @@ def start_recording(args: argparse.Namespace) -> None:
     command = [
         "gpu-screen-recorder",
         "-w",
-        args.monitor,
+        args.monitor if target == "monitor" or rect is None else geometry(rect),
         "-f",
         "30",
         "-k",
@@ -147,35 +374,36 @@ def start_recording(args: argparse.Namespace) -> None:
         "yes",
     ]
     audio_sources = []
-    if args.desktop_audio:
+    if desktop_audio:
         audio_sources.append("default_output")
-    if args.microphone:
+    if microphone:
         audio_sources.append("default_input")
     if audio_sources:
         command.extend(["-a", "|".join(audio_sources)])
     command.extend(["-o", str(output)])
 
-    with LOG_PATH.open("wb") as log:
-        process = subprocess.Popen(
-            command,
-            stdin=subprocess.DEVNULL,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
-        )
+    process = spawn_logged(command, LOG_PATH)
 
     time.sleep(0.4)
     if process.poll() is not None:
         details = LOG_PATH.read_text(errors="replace").strip()
         raise RuntimeError(details or "GPU Screen Recorder failed to start")
 
+    overlay: subprocess.Popen[bytes] | None = None
+    if annotate and rect is not None:
+        try:
+            overlay = start_overlay(rect)
+        except RuntimeError:
+            abort_capture(process.pid, output)
+            raise
+
     now = time.time()
     state: dict[str, Any] = {
         "phase": "recording",
         "pid": process.pid,
         "monitor": args.monitor,
-        "desktop_audio": args.desktop_audio,
-        "microphone": args.microphone,
+        "desktop_audio": desktop_audio,
+        "microphone": microphone,
         "output": str(output),
         "title": output.stem,
         "started_at": now,
@@ -184,8 +412,18 @@ def start_recording(args: argparse.Namespace) -> None:
         "paused_total": 0,
         "elapsed_seconds": 0,
         "error": "",
+        "target": target,
+        "rect": rect,
+        "annotate": annotate,
+        "overlay_pid": overlay.pid if overlay else 0,
+        "relay_pid": 0,
+        "overlay_socket": str(OVERLAY_SOCKET_PATH) if overlay else "",
     }
     write_state(state)
+    if overlay:
+        relay = spawn_logged(self_command("relay"), RELAY_LOG_PATH)
+        state["relay_pid"] = relay.pid
+        write_state(state)
     print_state(state)
 
 
@@ -206,6 +444,7 @@ def toggle_pause() -> None:
         state["phase"] = "paused"
     state["elapsed_seconds"] = elapsed_seconds(state)
     write_state(state)
+    overlay_send(state, {"cmd": "paused", "value": bool(state["paused"])})
     print_state(state)
 
 
@@ -238,6 +477,7 @@ def stop_recording(*, meeting: bool = False) -> None:
     )
     state["size_bytes"] = output.stat().st_size if output.is_file() else 0
     state.pop("pid", None)
+    release_overlay(state)
     write_state(state)
     if meeting and output.is_file():
         result = subprocess.run(
@@ -285,6 +525,8 @@ def stop_recording(*, meeting: bool = False) -> None:
 def cancel_recording() -> None:
     state = require_active()
     pid = int(state["pid"])
+    state["cancelling"] = True
+    write_state(state)
     if state.get("paused"):
         os.kill(pid, signal.SIGUSR2)
     os.kill(pid, signal.SIGINT)
@@ -299,6 +541,7 @@ def cancel_recording() -> None:
             time.sleep(0.1)
 
     Path(str(state["output"])).unlink(missing_ok=True)
+    release_overlay(state)
     STATE_PATH.unlink(missing_ok=True)
     print_state({"phase": "idle"})
 
@@ -314,6 +557,156 @@ def rename_recording(title: str) -> None:
     source.rename(destination)
     state["output"] = str(destination)
     state["title"] = destination.stem
+    write_state(state)
+    print_state(state)
+
+
+def relay_handle_event(event: dict[str, Any]) -> None:
+    name = event.get("event")
+    if name == "pause":
+        toggle_pause()
+    elif name == "stop":
+        stop_recording()
+
+
+def run_relay() -> None:
+    global overlay_client
+    state = refreshed_state()
+    path = str(state.get("overlay_socket", ""))
+    if state.get("phase") not in ACTIVE_PHASES or not path:
+        return
+    client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    client.connect(path)
+    client.setblocking(False)
+    overlay_client = client
+    selector = selectors.DefaultSelector()
+    selector.register(client, selectors.EVENT_READ)
+    buffer = b""
+    last_tick = 0.0
+    last_paused: bool | None = None
+    try:
+        while True:
+            state = refreshed_state()
+            if state.get("phase") not in ACTIVE_PHASES:
+                overlay_send(state, {"cmd": "quit"})
+                return
+            paused = bool(state.get("paused"))
+            if paused != last_paused:
+                overlay_send(state, {"cmd": "paused", "value": paused})
+                last_paused = paused
+            if time.monotonic() - last_tick >= 1.0:
+                overlay_send(
+                    state, {"cmd": "elapsed", "seconds": elapsed_seconds(state)}
+                )
+                last_tick = time.monotonic()
+            if not selector.select(RELAY_POLL_INTERVAL):
+                continue
+            try:
+                chunk = client.recv(4096)
+            except BlockingIOError:
+                continue
+            if not chunk:
+                return
+            buffer += chunk
+            while b"\n" in buffer:
+                line, buffer = buffer.split(b"\n", 1)
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(event, dict):
+                    try:
+                        relay_handle_event(event)
+                    except (OSError, RuntimeError) as error:
+                        print(f"relay: {error}", file=sys.stderr)
+    except OSError as error:
+        print(f"relay: {error}", file=sys.stderr)
+    finally:
+        selector.close()
+        overlay_client = None
+        client.close()
+
+
+def run_ffmpeg(arguments: list[str]) -> None:
+    with EXPORT_LOG_PATH.open("ab") as log:
+        subprocess.run(
+            ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", *arguments],
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+        )
+
+
+def export_worker(fmt: str, source: Path, output: Path) -> None:
+    if fmt == "gif":
+        palette = output.with_name(f"{output.stem}.palette.png")
+        try:
+            run_ffmpeg(
+                [
+                    "-i",
+                    str(source),
+                    "-vf",
+                    "fps=15,scale=iw:-1:flags=lanczos,palettegen",
+                    str(palette),
+                ]
+            )
+            run_ffmpeg(
+                [
+                    "-i",
+                    str(source),
+                    "-i",
+                    str(palette),
+                    "-lavfi",
+                    "fps=15,scale=iw:-1:flags=lanczos[x];[x][1:v]paletteuse",
+                    str(output),
+                ]
+            )
+        finally:
+            palette.unlink(missing_ok=True)
+    else:
+        run_ffmpeg(
+            [
+                "-i",
+                str(source),
+                "-c:v",
+                "libvpx-vp9",
+                "-b:v",
+                "0",
+                "-crf",
+                "32",
+                "-row-mt",
+                "1",
+                "-an",
+                str(output),
+            ]
+        )
+
+
+def export_recording(fmt: str) -> None:
+    state = refreshed_state()
+    if state.get("phase") != "completed":
+        raise RuntimeError("There is no completed recording to export")
+    source = Path(str(state.get("output", "")))
+    if not source.is_file():
+        raise RuntimeError("The completed recording file no longer exists")
+    export = state.get("export")
+    if isinstance(export, dict) and export.get("phase") == "running":
+        raise RuntimeError("An export is already running")
+    output = source.with_suffix(f".{fmt}")
+    output.unlink(missing_ok=True)
+    EXPORT_LOG_PATH.write_bytes(b"")
+    process = spawn_logged(
+        self_command("export-worker", "--format", fmt, str(source), str(output)),
+        EXPORT_LOG_PATH,
+    )
+    state["export"] = {
+        "format": fmt,
+        "phase": "running",
+        "output": str(output),
+        "error": "",
+        "pid": process.pid,
+    }
     write_state(state)
     print_state(state)
 
@@ -335,12 +728,10 @@ def parser() -> argparse.ArgumentParser:
     start.add_argument("--directory", required=True)
     start.add_argument("--monitor", required=True)
     start.add_argument("--title", required=True)
-    start.add_argument(
-        "--desktop-audio", action=argparse.BooleanOptionalAction, default=True
-    )
-    start.add_argument(
-        "--microphone", action=argparse.BooleanOptionalAction, default=True
-    )
+    start.add_argument("--target", choices=TARGETS, default="monitor")
+    start.add_argument("--annotate", action=argparse.BooleanOptionalAction)
+    start.add_argument("--desktop-audio", action=argparse.BooleanOptionalAction)
+    start.add_argument("--microphone", action=argparse.BooleanOptionalAction)
 
     commands.add_parser("toggle-pause")
     stop = commands.add_parser("stop")
@@ -349,6 +740,13 @@ def parser() -> argparse.ArgumentParser:
     rename = commands.add_parser("rename")
     rename.add_argument("--title", required=True)
     commands.add_parser("dismiss")
+    export = commands.add_parser("export")
+    export.add_argument("--format", choices=EXPORT_FORMATS, required=True)
+    commands.add_parser("relay")
+    worker = commands.add_parser("export-worker")
+    worker.add_argument("--format", choices=EXPORT_FORMATS, required=True)
+    worker.add_argument("source")
+    worker.add_argument("output")
     return root
 
 
@@ -369,6 +767,14 @@ def main() -> int:
             rename_recording(args.title)
         elif args.command == "dismiss":
             dismiss()
+        elif args.command == "export":
+            export_recording(args.format)
+        elif args.command == "relay":
+            run_relay()
+            return 0
+        elif args.command == "export-worker":
+            export_worker(args.format, Path(args.source), Path(args.output))
+            return 0
     except (OSError, RuntimeError, subprocess.SubprocessError) as error:
         state = refreshed_state()
         state["error"] = str(error)

@@ -42,7 +42,28 @@ Item {
     property string renameTitle: ""
     property bool desktopAudio: true
     property bool microphone: false
+    property string captureTarget: "monitor"
+    property bool annotate: false
     property bool dismissWhenActionCompletes: false
+    readonly property var captureTargets: [
+        { id: "monitor", label: "Monitor" },
+        { id: "region", label: "Region" },
+        { id: "window", label: "Window" }
+    ]
+    readonly property bool monitorTarget: captureTarget === "monitor"
+    readonly property bool exporting: recording && recording.exportPhase === "running"
+    // The host owns this panel's visibility, so children report an effective
+    // visible of false. These flags are the bindings the setup and completed
+    // views use, exposed for fixtures.
+    readonly property bool annotateToggleVisible: monitorTarget
+    readonly property bool exportButtonsEnabled: gifButton.enabled && webmButton.enabled
+    readonly property bool gifExportBusy: gifButton.busy
+    readonly property bool webmExportBusy: webmButton.busy
+    readonly property bool exportResultVisible: recording && recording.phase === "completed"
+        && recording.exportPhase === "completed"
+    readonly property bool exportErrorVisible: recording && recording.phase === "completed"
+        && recording.exportPhase === "error"
+    readonly property string exportErrorText: exportErrorVisible ? recording.exportError : ""
 
     function open(payloadJson) {
         opened = true;
@@ -73,8 +94,32 @@ Item {
             return monitorName(row) === focused;
         }) ? focused : monitorRows.length > 0 ? monitorName(monitorRows[0]) : "";
         draftTitle = recording && typeof recording.defaultTitle === "function" ? recording.defaultTitle() : "Recording";
-        desktopAudio = recording ? recording.defaultDesktopAudio : true;
-        microphone = recording ? recording.defaultMicrophone : false;
+        captureTarget = "monitor";
+        annotate = false;
+        applyAudioDefaults();
+    }
+
+    // Monitor captures keep the configured audio defaults. Region and window
+    // captures are silent unless the user opts in for this recording.
+    function applyAudioDefaults() {
+        if (monitorTarget) {
+            desktopAudio = recording ? recording.defaultDesktopAudio : true;
+            microphone = recording ? recording.defaultMicrophone : false;
+        } else {
+            desktopAudio = false;
+            microphone = false;
+        }
+    }
+
+    function selectTarget(target) {
+        var value = String(target || "");
+        if (!captureTargets.some(function (row) { return row.id === value; }))
+            return "invalid";
+        if (value === captureTarget)
+            return "unchanged";
+        captureTarget = value;
+        applyAudioDefaults();
+        return "selected";
     }
 
     function monitorName(row) {
@@ -101,10 +146,27 @@ Item {
     function startCapture() {
         if (!recording)
             return "unavailable";
-        var result = recording.start(recording.recordingDirectory, selectedMonitor, draftTitle.trim(), desktopAudio, microphone);
+        var result = recording.start(recording.recordingDirectory, selectedMonitor, draftTitle.trim(),
+            desktopAudio, microphone, captureTarget, monitorTarget ? annotate : true);
+        // Region and window captures hand the screen to the selector, so the
+        // panel closes before the helper answers. A cancelled selector leaves
+        // the recorder idle and nothing else happens.
         if (result === "started")
             closeSurface();
         return result;
+    }
+
+    function exportRecording(format) {
+        if (!recording)
+            return "unavailable";
+        var result = recording.exportAs(format);
+        if (result === "started")
+            completionCountdown.stop();
+        return result;
+    }
+
+    function copyExportPathAndClose() {
+        return runCompletedAction(function () { return recording.copyExportPath(); });
     }
 
     function togglePauseAndClose() {
@@ -225,7 +287,7 @@ Item {
         id: completionCountdown
         timeoutMs: 30000
         interactionActive: completionHover.hovered || completionFocus.activeFocus
-            || (root.recording && root.recording.publishing)
+            || (root.recording && root.recording.publishing) || root.exporting
         onExpired: root.closeSurface()
     }
 
@@ -236,14 +298,30 @@ Item {
         onTriggered: completionCountdown.tick(interval)
     }
 
+    // A stop issued outside the panel (the omarecord overlay toolbar) still
+    // has to surface the completed view, but only on the recorded output.
+    property bool wasActive: recording ? recording.active : false
+    readonly property bool ownsRecording: recording
+        && String(recording.monitor || "") === root.outputId
+
+    function presentCompletion() {
+        if (opened || !ownsRecording)
+            return;
+        context.actions.surfaceOpen("stillsuit.recording", JSON.stringify({ outputId: root.outputId }));
+    }
+
     Connections {
         target: root.recording
         function onPhaseChanged() {
             if (!root.recording)
                 return;
+            var finishedNow = root.wasActive && root.recording.completed;
+            root.wasActive = root.recording.active;
             if (root.opened && root.recording.completed) {
                 root.renameTitle = root.recording.title;
                 completionCountdown.start();
+            } else if (finishedNow) {
+                root.presentCompletion();
             } else if (!root.recording.completed) {
                 completionCountdown.stop();
                 root.dismissWhenActionCompletes = false;
@@ -251,6 +329,11 @@ Item {
         }
         function onPublishingChanged() {
             if (root.recording && !root.recording.publishing && root.opened
+                    && root.recording.completed)
+                completionCountdown.start();
+        }
+        function onExportPhaseChanged() {
+            if (root.recording && root.recording.exportPhase !== "running" && root.opened
                     && root.recording.completed)
                 completionCountdown.start();
         }
@@ -318,7 +401,31 @@ Item {
 
                 Ui.ShellSectionLabel {
                     theme: root.context.theme
-                    text: "Capture output"
+                    text: "Capture"
+                }
+                RowLayout {
+                    id: captureRow
+                    Layout.fillWidth: true
+                    spacing: root.context.theme.metrics.spaceUnit
+
+                    Repeater {
+                        model: root.captureTargets
+                        Ui.ShellButton {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            theme: root.context.theme
+                            label: modelData.label
+                            compact: true
+                            active: root.captureTarget === modelData.id
+                            accessibleName: "Capture " + modelData.label.toLowerCase()
+                            onClicked: root.selectTarget(modelData.id)
+                        }
+                    }
+                }
+
+                Ui.ShellSectionLabel {
+                    theme: root.context.theme
+                    text: root.monitorTarget ? "Capture output" : "Selector output"
                 }
                 Ui.ShellScrollArea {
                     theme: root.context.theme
@@ -408,6 +515,24 @@ Item {
                     checked: root.microphone
                     onToggled: function (requestedChecked) {
                         root.microphone = requestedChecked;
+                    }
+                }
+
+                Ui.ShellSectionLabel {
+                    visible: root.annotateToggleVisible
+                    theme: root.context.theme
+                    text: "Annotation"
+                }
+                Ui.ShellToggle {
+                    id: annotateToggle
+                    visible: root.annotateToggleVisible
+                    Layout.fillWidth: true
+                    theme: root.context.theme
+                    label: "Annotate"
+                    description: "Select an area and draw on it while recording"
+                    checked: root.annotate
+                    onToggled: function (requestedChecked) {
+                        root.annotate = requestedChecked;
                     }
                 }
 
@@ -606,6 +731,79 @@ Item {
                             accessibleName: root.recording && root.recording.copiedPath === root.recording.outputPath ? "Path copied" : "Copy path"
                             onClicked: root.copyOutputPathAndClose()
                         }
+                    }
+
+                    RowLayout {
+                        id: exportActions
+                        visible: root.recording && root.recording.phase === "completed"
+                        Layout.fillWidth: true
+                        spacing: root.context.theme.metrics.spaceUnit
+
+                        Ui.ShellText {
+                            Layout.fillWidth: true
+                            theme: root.context.theme
+                            text: "Export"
+                            sizeRole: "caption"
+                            role: "muted"
+                        }
+                        Ui.ShellButton {
+                            id: gifButton
+                            theme: root.context.theme
+                            label: "GIF"
+                            compact: true
+                            busy: root.exporting && root.recording.exportFormat === "gif"
+                            enabled: root.recording && !root.exporting
+                            accessibleName: "Export as GIF"
+                            onClicked: root.exportRecording("gif")
+                        }
+                        Ui.ShellButton {
+                            id: webmButton
+                            theme: root.context.theme
+                            label: "WebM"
+                            compact: true
+                            busy: root.exporting && root.recording.exportFormat === "webm"
+                            enabled: root.recording && !root.exporting
+                            accessibleName: "Export as WebM"
+                            onClicked: root.exportRecording("webm")
+                        }
+                    }
+
+                    RowLayout {
+                        id: exportResult
+                        visible: root.exportResultVisible
+                        Layout.fillWidth: true
+                        spacing: root.context.theme.metrics.spaceUnit
+
+                        Ui.ShellText {
+                            Layout.fillWidth: true
+                            theme: root.context.theme
+                            text: root.recording ? root.recording.exportOutput : ""
+                            sizeRole: "caption"
+                            role: "muted"
+                            elide: Text.ElideMiddle
+                        }
+                        Ui.ShellButton {
+                            id: copyExportPath
+                            theme: root.context.theme
+                            iconName: root.recording && root.recording.copiedPath === root.recording.exportOutput ? "check" : "copy"
+                            label: ""
+                            compact: true
+                            ghost: true
+                            accessibleName: root.recording && root.recording.copiedPath === root.recording.exportOutput ? "Export path copied" : "Copy export path"
+                            onClicked: root.copyExportPathAndClose()
+                        }
+                    }
+
+                    Ui.ShellText {
+                        visible: root.exportErrorVisible
+                        Layout.fillWidth: true
+                        theme: root.context.theme
+                        text: root.exportErrorText
+                        role: "danger"
+                        sizeRole: "caption"
+                        wrapMode: Text.Wrap
+                        maximumLineCount: 3
+                        elide: Text.ElideRight
                     }
 
                     Ui.ShellText {

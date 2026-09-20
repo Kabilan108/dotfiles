@@ -20,7 +20,14 @@ Ui.ShellAction {
     readonly property string indicatorIconName: activeRecording
         ? paused ? "pause" : "record"
         : "agent"
-    readonly property string outputLabel: recording ? String(recording.monitor || "") : ""
+    readonly property string outputLabel: {
+        if (!recording)
+            return ""
+        var rect = recording.rect
+        if (String(recording.target || "monitor") !== "monitor" && rect && Number(rect.w) > 0 && Number(rect.h) > 0)
+            return "REC " + String(rect.output || recording.monitor || "") + " " + Number(rect.w) + "×" + Number(rect.h)
+        return String(recording.monitor || "")
+    }
     readonly property string meetingLabel: {
         if (!activeMeeting)
             return ""

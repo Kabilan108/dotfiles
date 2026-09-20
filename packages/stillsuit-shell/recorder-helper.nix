@@ -4,10 +4,16 @@
   makeWrapper,
   python3,
   gpu-screen-recorder,
+  ffmpeg,
   meetingEnqueueHelper,
+  omarecord ? null,
 }:
 let
-  runtimeInputs = [ gpu-screen-recorder ];
+  runtimeInputs = [
+    gpu-screen-recorder
+    ffmpeg
+  ]
+  ++ lib.optional (omarecord != null) omarecord;
 in
 stdenvNoCC.mkDerivation {
   pname = "stillsuit-recorder";
@@ -33,7 +39,7 @@ stdenvNoCC.mkDerivation {
   '';
 
   passthru = {
-    inherit meetingEnqueueHelper runtimeInputs;
+    inherit meetingEnqueueHelper omarecord runtimeInputs;
   };
 
   meta = {

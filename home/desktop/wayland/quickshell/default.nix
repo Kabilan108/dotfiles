@@ -16,6 +16,7 @@ let
       { };
   recorderHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/recorder-helper.nix {
     inherit meetingEnqueueHelper;
+    omarecord = inputs.omarecord.packages.${pkgs.stdenv.hostPlatform.system}.omarecord;
   };
   networkHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/network-helper.nix { };
   agentUsageHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/agent-usage-helper.nix { };
@@ -48,6 +49,20 @@ in
   programs.stillsuitShell.workbench.enable = true;
   programs.stillsuitShell.ownership.notificationOwners = [ "stillsuit.notifications" ];
   home.packages = [ pkgs.quickshell ];
+
+  # Stillsuit provides the network and Bluetooth controls. Keep the desktop
+  # packages available for their manager commands, but suppress their legacy
+  # XDG tray applets.
+  xdg.configFile."autostart/nm-applet.desktop".text = ''
+    [Desktop Entry]
+    Type=Application
+    Hidden=true
+  '';
+  xdg.configFile."autostart/blueman.desktop".text = ''
+    [Desktop Entry]
+    Type=Application
+    Hidden=true
+  '';
 
   programs.stillsuitShell.integrations.agentPanelHelperPackage =
     pkgs.callPackage ../../../../packages/stillsuit-shell/agent-panel-helper.nix

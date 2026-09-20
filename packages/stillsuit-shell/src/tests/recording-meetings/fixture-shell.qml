@@ -45,6 +45,15 @@ ShellRoot {
         property string outputSizeText: "2.0 KB"
         property string title: "fixture recording"
         property string monitor: "eDP-1"
+        property string target: "monitor"
+        property var rect: null
+        property bool annotate: false
+        property string exportPhase: ""
+        property string exportFormat: ""
+        property string exportOutput: ""
+        property string exportError: ""
+        property int exportCount: 0
+        property var lastStartArgs: []
         property string recordingDirectory: "/tmp/recordings"
         property bool defaultDesktopAudio: true
         property bool defaultMicrophone: false
@@ -73,9 +82,37 @@ ShellRoot {
             publishedPath = outputPath
             publishedUrl = url
         }
-        function start(directory, monitor, title, desktopAudio, microphone) {
-            phase = "recording"
+        function start(directory, monitor, title, desktopAudio, microphone, target, annotate) {
+            lastStartArgs = [
+                "--directory", directory, "--monitor", monitor, "--title", title,
+                "--target", target, annotate ? "--annotate" : "--no-annotate",
+                desktopAudio ? "--desktop-audio" : "--no-desktop-audio",
+                microphone ? "--microphone" : "--no-microphone"
+            ]
+            // The selector owns the screen for region and window captures; a
+            // cancelled selector leaves the recorder idle.
+            phase = target === "monitor" || !cancelSelector ? "recording" : "idle"
             return "started"
+        }
+        property bool cancelSelector: false
+        function exportAs(format) {
+            if (phase !== "completed" || exportPhase === "running")
+                return "busy"
+            exportCount += 1
+            exportFormat = format
+            exportPhase = "running"
+            exportOutput = outputPath.replace(/\.mp4$/, "." + format)
+            exportError = ""
+            return "started"
+        }
+        function finishExport(result) {
+            exportPhase = result
+            exportError = result === "error" ? "ffmpeg exited 1" : ""
+        }
+        function copyExportPath() {
+            copyPathCount += 1
+            copiedPath = exportOutput
+            return "copied"
         }
         function togglePause() {
             togglePauseCount += 1
@@ -222,11 +259,57 @@ ShellRoot {
     IpcHandler {
         target: "stillsuit-recording-meetings-fixture"
         function ready(): string { return Quickshell.screens.length > 0 ? "ready" : "loading" }
+        function outputId(): string { return fixture.outputId }
         function openRecording(phase: string): string { recordingModel.phase = phase; recordingPanel.open(""); return recordingPanel.opened ? "open" : "closed" }
         function startFromPanel(): string {
             recordingModel.phase = "idle"
             recordingPanel.open("")
             return recordingPanel.startCapture()
+        }
+        function selectTargetFromPanel(target: string): string {
+            recordingModel.phase = "idle"
+            if (!recordingPanel.opened)
+                recordingPanel.open("")
+            return recordingPanel.selectTarget(target)
+        }
+        function setAnnotateFromPanel(value: bool): string {
+            recordingModel.phase = "idle"
+            if (!recordingPanel.opened)
+                recordingPanel.open("")
+            recordingPanel.annotate = value
+            return "ok"
+        }
+        function startOpenPanel(): string { return recordingPanel.startCapture() }
+        function startTargetFromPanel(target: string, cancelSelector: bool): string {
+            recordingModel.phase = "idle"
+            recordingModel.cancelSelector = cancelSelector
+            recordingPanel.open("")
+            recordingPanel.selectTarget(target)
+            return recordingPanel.startCapture()
+        }
+        function setRegionRecording(output: string, width: int, height: int): string {
+            recordingModel.phase = "recording"
+            recordingModel.target = "region"
+            recordingModel.rect = { output: output, x: 10, y: 20, w: width, h: height }
+            return "ok"
+        }
+        function setMonitorRecording(): string {
+            recordingModel.phase = "recording"
+            recordingModel.target = "monitor"
+            recordingModel.rect = null
+            return "ok"
+        }
+        function exportFromPanel(format: string): string {
+            recordingModel.phase = "completed"
+            recordingPanel.open("")
+            return recordingPanel.exportRecording(format)
+        }
+        function finishExport(result: string): string {
+            recordingModel.finishExport(result)
+            return "finished"
+        }
+        function copyExportPathFromPanel(): string {
+            return recordingPanel.copyExportPathAndClose()
         }
         function togglePauseFromPanel(phase: string): string {
             recordingModel.phase = phase
@@ -248,6 +331,18 @@ ShellRoot {
             recordingPanel.open("")
             recordingPanel.renameTitle = requestedTitle
             return recordingModel.rename(requestedTitle)
+        }
+        function completeExternally(monitor: string): string {
+            var previousMonitor = recordingModel.monitor
+            recordingPanel.close()
+            recordingModel.monitor = monitor
+            recordingModel.phase = "recording"
+            recordingModel.phase = "completed"
+            var opened = recordingPanel.opened
+            recordingPanel.close()
+            recordingModel.monitor = previousMonitor
+            recordingModel.dismissCount = 0
+            return opened ? "opened" : "closed"
         }
         function closeCompletedPanel(): string {
             recordingModel.phase = "completed"
@@ -344,6 +439,20 @@ ShellRoot {
             return JSON.stringify({
                 recordingOpen: recordingPanel.opened,
                 recordingPhase: recordingModel.phase,
+                captureTarget: recordingPanel.captureTarget,
+                annotateVisible: recordingPanel.annotateToggleVisible,
+                annotate: recordingPanel.annotate,
+                desktopAudio: recordingPanel.desktopAudio,
+                microphone: recordingPanel.microphone,
+                lastStartArgs: recordingModel.lastStartArgs,
+                exportCount: recordingModel.exportCount,
+                exportPhase: recordingModel.exportPhase,
+                exportButtonsEnabled: recordingPanel.exportButtonsEnabled,
+                gifBusy: recordingPanel.gifExportBusy,
+                webmBusy: recordingPanel.webmExportBusy,
+                exportResultVisible: recordingPanel.exportResultVisible,
+                exportErrorVisible: recordingPanel.exportErrorVisible,
+                exportErrorText: recordingPanel.exportErrorText,
                 renameTitle: recordingPanel.renameTitle,
                 dismissCount: recordingModel.dismissCount,
                 openRecordingCount: recordingModel.openRecordingCount,

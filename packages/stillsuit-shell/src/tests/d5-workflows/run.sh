@@ -178,12 +178,12 @@ meeting_recording=$(jq -r '.output' "$tmp_dir/recorder-meeting.json")
 # The action uses only literal argv; the fake helper sees the exact reviewed order.
 [[ $(ipc start) == started ]]
 for _ in {1..100}; do [[ -s $STILLSUIT_FIXTURE_HELPER_LOG ]] && break; sleep 0.02; done
-[[ $(<"$STILLSUIT_FIXTURE_HELPER_LOG") == 'start --directory /tmp/fixture-recordings --monitor DP-1 --title fixture-title --desktop-audio --no-microphone' ]]
+[[ $(<"$STILLSUIT_FIXTURE_HELPER_LOG") == 'start --directory /tmp/fixture-recordings --monitor DP-1 --title fixture-title --target monitor --no-annotate --desktop-audio --no-microphone' ]]
 
 # The zero-argument D4 contract uses only reviewed configured defaults.
 [[ $(ipc d4Start) == started ]]
 for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 2 ]] && break; sleep 0.02; done
-[[ $(sed -n '2p' "$STILLSUIT_FIXTURE_HELPER_LOG") == 'start --directory /tmp/fixture-recordings --monitor DP-1 --title fixture-default-title --desktop-audio --no-microphone' ]]
+[[ $(sed -n '2p' "$STILLSUIT_FIXTURE_HELPER_LOG") == 'start --directory /tmp/fixture-recordings --monitor DP-1 --title fixture-default-title --target monitor --no-annotate --desktop-audio --no-microphone' ]]
 [[ $(ipc d4Finish) == started ]]
 for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 3 ]] && break; sleep 0.02; done
 [[ $(sed -n '3p' "$STILLSUIT_FIXTURE_HELPER_LOG") == 'stop' ]]
@@ -215,6 +215,38 @@ wait_json '.recording.completed and .recording.outputFilename == "original.mp4"'
 wait_json '.recording.outputFilename == "renamed fixture.mp4" and (.recording.actionRunning | not)' >/dev/null
 [[ $(ipc copyPath) == copied ]]
 jq -e '.recording.copiedPath == "/tmp/fixture-recordings/renamed fixture.mp4"' >/dev/null <<<"$(ipc state)"
+
+# Exports run through the helper action slot. The service then polls status
+# so the helper can settle the worker, and the export fields follow the state
+# file: running, then completed with the export path, or error with a message.
+[[ $(ipc exportAs gif) == started ]]
+wait_json '.recording.exportPhase == "running" and .recording.exporting and .recording.exportFormat == "gif"
+  and .recording.exportOutput == "/tmp/fixture-recordings/renamed fixture.gif"' >/dev/null
+[[ $(ipc exportAs webm) == busy ]]
+wait_json '.recording.exportPhase == "completed" and (.recording.exporting | not)
+  and .recording.exportOutput == "/tmp/fixture-recordings/renamed fixture.gif"' >/dev/null
+[[ $(grep -c '^export --format gif$' "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 1 ]]
+[[ $(grep -c '^status$' "$STILLSUIT_FIXTURE_HELPER_LOG") -ge 2 ]]
+[[ $(ipc copyExportPath) == copied ]]
+jq -e '.recording.copiedPath == "/tmp/fixture-recordings/renamed fixture.gif"' >/dev/null <<<"$(ipc state)"
+touch "$STILLSUIT_FIXTURE_RECORDING_STATE.export-fail"
+[[ $(ipc exportAs webm) == started ]]
+wait_json '.recording.exportPhase == "error" and .recording.exportFormat == "webm"
+  and .recording.exportError == "ffmpeg exited 1" and (.recording.exporting | not)' >/dev/null
+[[ $(ipc copyExportPath) == unavailable ]]
+rm -f -- "$STILLSUIT_FIXTURE_RECORDING_STATE.export-fail"
+# Non-monitor targets and their selector rectangle round-trip through the parser.
+[[ $(ipc startBadTarget) == invalid ]]
+[[ $(ipc startRegion) == started ]]
+wait_json '(.recording.actionRunning | not)' >/dev/null
+[[ $(tail -n 1 "$STILLSUIT_FIXTURE_HELPER_LOG") == 'start --directory /tmp/fixture-recordings --monitor DP-1 --title fixture-region --target region --annotate --no-desktop-audio --no-microphone' ]]
+printf '{"schemaVersion":1,"phase":"recording","pid":1,"monitor":"DP-1","target":"region","annotate":true,"rect":{"output":"DP-4","x":10,"y":20,"w":800,"h":400},"started_at":%s}\n' "$(date +%s)" > "$STILLSUIT_FIXTURE_RECORDING_STATE"
+[[ $(ipc refresh) == ok ]]
+wait_json '.recording.target == "region" and .recording.annotate and .recording.rect.output == "DP-4"
+  and .recording.rect.w == 800 and .recording.rect.h == 400 and .recording.exportPhase == ""' >/dev/null
+printf '%s\n' '{"schemaVersion":1,"phase":"completed","output":"/tmp/fixture-recordings/renamed fixture.mp4","title":"renamed fixture","elapsed_seconds":62,"size_bytes":2048}' > "$STILLSUIT_FIXTURE_RECORDING_STATE"
+[[ $(ipc refresh) == ok ]]
+wait_json '.recording.completed and .recording.target == "monitor" and .recording.rect == null' >/dev/null
 # Publishing runs outside the helper action slot and copies the returned URL.
 # A repeat publish of the same output re-copies without another upload, and a
 # failure surfaces the publisher's last stderr line.

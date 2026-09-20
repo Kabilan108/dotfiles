@@ -74,6 +74,41 @@ jq -e '.recordingPhase == "idle" and .recordingOpen == false' \
 [[ $(ipc finishMeetingFromPanel) == started ]]
 jq -e '.recordingOpen == false' <<< "$(ipc state)" >/dev/null
 
+# A stop from the overlay toolbar reaches the panel only through the state
+# file. The completed view presents itself, but only on the recorded output.
+[[ $(ipc completeExternally other-output) == closed ]]
+[[ $(ipc completeExternally "$(ipc outputId)") == opened ]]
+
+# The capture row defaults to the monitor target with the configured audio and
+# no annotation. Region and window captures start silent and always annotate;
+# the annotate toggle only exists for monitor captures.
+[[ $(ipc startFromPanel) == started ]]
+# The monitor argument is the headless screen's name and varies by backend.
+jq -e '.lastStartArgs[0:3] == ["--directory","/tmp/recordings","--monitor"]
+  and .lastStartArgs[4:] == ["--title","fixture title","--target","monitor","--no-annotate","--desktop-audio","--no-microphone"]' \
+  <<< "$(ipc state)" >/dev/null
+[[ $(ipc selectTargetFromPanel region) == selected ]]
+jq -e '.captureTarget == "region" and (.desktopAudio | not) and (.microphone | not)
+  and (.annotateVisible | not)' <<< "$(ipc state)" >/dev/null
+[[ $(ipc selectTargetFromPanel monitor) == selected ]]
+jq -e '.captureTarget == "monitor" and .desktopAudio and .annotateVisible' <<< "$(ipc state)" >/dev/null
+[[ $(ipc selectTargetFromPanel window) == selected ]]
+jq -e '.captureTarget == "window" and (.desktopAudio | not) and (.annotateVisible | not)' \
+  <<< "$(ipc state)" >/dev/null
+[[ $(ipc startTargetFromPanel region false) == started ]]
+jq -e '.recordingPhase == "recording" and .recordingOpen == false
+  and .lastStartArgs[4:] == ["--title","fixture title","--target","region","--annotate","--no-desktop-audio","--no-microphone"]' \
+  <<< "$(ipc state)" >/dev/null
+# A cancelled selector leaves the recorder idle and the panel closed.
+[[ $(ipc startTargetFromPanel window true) == started ]]
+jq -e '.recordingPhase == "idle" and .recordingOpen == false' <<< "$(ipc state)" >/dev/null
+# Reopening from idle resets the capture row so a monitor capture can opt into annotation.
+[[ $(ipc openRecording idle) == open ]]
+jq -e '.captureTarget == "monitor" and (.annotate | not)' <<< "$(ipc state)" >/dev/null
+[[ $(ipc setAnnotateFromPanel true) == ok ]]
+[[ $(ipc startOpenPanel) == started ]]
+jq -e '.recordingOpen == false and .lastStartArgs[7:9] == ["monitor","--annotate"]' <<< "$(ipc state)" >/dev/null
+
 [[ $(ipc openRecording idle) == open ]]
 [[ $(ipc openRecording recording) == open ]]
 state=$(ipc state)
@@ -117,6 +152,29 @@ jq -e '.recordingOpen and (.publishing | not) and .completionCountdownRunning
   <<< "$(ipc state)" >/dev/null
 [[ $(ipc closeCompletedPanel) == closed ]]
 
+# Exports keep the panel open like publishing. A running export shows a busy
+# GIF or WebM button and disables both; completion reveals the export path with
+# its own copy action, and a failure shows the helper's message.
+[[ $(ipc exportFromPanel gif) == started ]]
+jq -e '.recordingOpen and .exportCount == 1 and .exportPhase == "running"
+  and .gifBusy and (.webmBusy | not) and (.exportButtonsEnabled | not)
+  and (.completionCountdownRunning | not) and (.exportResultVisible | not)' <<< "$(ipc state)" >/dev/null
+[[ $(ipc exportFromPanel webm) == busy ]]
+jq -e '.exportCount == 1' <<< "$(ipc state)" >/dev/null
+[[ $(ipc finishExport completed) == finished ]]
+jq -e '.recordingOpen and .exportButtonsEnabled and (.gifBusy | not)
+  and .exportResultVisible and (.exportErrorVisible | not) and .completionCountdownRunning' \
+  <<< "$(ipc state)" >/dev/null
+[[ $(ipc copyExportPathFromPanel) == copied ]]
+jq -e '.recordingOpen == false and .copiedPath == "/tmp/recordings/renamed fixture.gif"' \
+  <<< "$(ipc state)" >/dev/null
+[[ $(ipc exportFromPanel webm) == started ]]
+jq -e '.webmBusy and (.gifBusy | not)' <<< "$(ipc state)" >/dev/null
+[[ $(ipc finishExport error) == finished ]]
+jq -e '.exportButtonsEnabled and (.exportResultVisible | not) and .exportErrorVisible
+  and .exportErrorText == "ffmpeg exited 1"' <<< "$(ipc state)" >/dev/null
+[[ $(ipc closeCompletedPanel) == closed ]]
+
 # Reduced motion no longer changes the static recording icon.
 [[ $(ipc setReducedMotion true) == ok ]]
 state=$(ipc state)
@@ -125,6 +183,13 @@ jq -e '.recordingWidgetIcon == "record"
   and .recordingWidgetWidth < .standardPanelWidth' <<< "$state" >/dev/null
 [[ $(ipc setReducedMotion false) == ok ]]
 jq -e '.recordingWidgetIcon == "record"' <<< "$(ipc state)" >/dev/null
+
+# Region and window captures replace the bar's monitor label with the selected
+# output and rectangle size.
+[[ $(ipc setRegionRecording DP-4 800 400) == ok ]]
+jq -e '.recordingWidgetOutputLabel == "REC DP-4 800×400"' <<< "$(ipc state)" >/dev/null
+[[ $(ipc setMonitorRecording) == ok ]]
+jq -e '.recordingWidgetOutputLabel == "eDP-1"' <<< "$(ipc state)" >/dev/null
 
 # Once recording hands off to meeting-minutes, the same bar chip remains visible
 # and names the current processing step.
@@ -176,6 +241,7 @@ if rg -n 'ERROR:|Failed to load configuration|Type .* unavailable|Cannot assign 
 fi
 
 rg -n 'FailedMeetingJobsView|Finish as meeting|Pause|Resume|Finish|Cancel|Copy path' "$source_root/plugins/builtin/recording/RecordingPanel.qml" >/dev/null
+rg -n 'Export as GIF|Export as WebM|Copy export path' "$source_root/plugins/builtin/recording/RecordingPanel.qml" >/dev/null
 if rg -n 'Recent meetings|Open in Obsidian|Previous|Next' \
   "$source_root/plugins/builtin/recording/RecordingPanel.qml" \
   "$source_root/plugins/builtin/recording/FailedMeetingJobsView.qml"; then

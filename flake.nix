@@ -169,6 +169,10 @@
       url = "github:Kabilan108/omasnap/niri-native";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    omarecord = {
+      url = "git+ssh://git@github.com/Kabilan108/omarecord";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     pagebin = {
       url = "github:Kabilan108/pagebin";
       inputs.nixpkgs.follows = "nixpkgs";

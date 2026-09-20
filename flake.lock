@@ -1424,6 +1424,26 @@
         "type": "github"
       }
     },
+    "omarecord": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1789929324,
+        "narHash": "sha256-8kWvD2WZLtPGpxTNKuGQYN7kHQhQfMtuxSWV4lkj89I=",
+        "ref": "refs/heads/main",
+        "rev": "9ccb5cc2e44cdd9c6215a551957fd5dd76c8032c",
+        "revCount": 11,
+        "type": "git",
+        "url": "ssh://git@github.com/Kabilan108/omarecord"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/Kabilan108/omarecord"
+      }
+    },
     "omasnap": {
       "inputs": {
         "nixpkgs": [
@@ -1527,6 +1547,7 @@
         "niri-flake": "niri-flake",
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs_11",
+        "omarecord": "omarecord",
         "omasnap": "omasnap",
         "pagebin": "pagebin",
         "raindrop": "raindrop",

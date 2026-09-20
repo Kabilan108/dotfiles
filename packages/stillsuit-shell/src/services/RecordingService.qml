@@ -35,11 +35,22 @@ Scope {
         ? true : Boolean(settings.desktopAudioDefault)
     readonly property bool defaultMicrophone: settings.microphoneDefault === undefined
         ? false : Boolean(settings.microphoneDefault)
+    readonly property var captureTargets: ["monitor", "region", "window"]
+    readonly property var exportFormats: ["gif", "webm"]
+    readonly property string exportPhase: String(exportState.phase || "")
+    readonly property string exportFormat: String(exportState.format || "")
+    readonly property string exportOutput: String(exportState.output || "")
+    readonly property string exportError: String(exportState.error || "")
+    readonly property bool exporting: exportPhase === "running"
 
     property string phase: "idle"
     property string outputPath: ""
     property string monitor: ""
     property string title: ""
+    property string target: "monitor"
+    property var rect: null
+    property bool annotate: false
+    property var exportState: ({ format: "", phase: "", output: "", error: "" })
     property int elapsedSeconds: 0
     property double startedAt: 0
     property double pausedAt: 0
@@ -106,6 +117,10 @@ Scope {
         outputPath = ""
         monitor = ""
         title = ""
+        target = "monitor"
+        rect = null
+        annotate = false
+        exportState = ({ format: "", phase: "", output: "", error: "" })
         elapsedSeconds = 0
         startedAt = 0
         pausedAt = 0
@@ -143,6 +158,10 @@ Scope {
         outputPath = String(value.output || "")
         monitor = String(value.monitor || "")
         title = String(value.title || "")
+        target = captureTargets.indexOf(String(value.target || "")) === -1 ? "monitor" : String(value.target)
+        rect = _parseRect(value.rect)
+        annotate = Boolean(value.annotate)
+        exportState = _parseExport(value["export"])
         startedAt = Math.max(0, _finiteNumber(value.started_at, 0))
         pausedAt = Math.max(0, _finiteNumber(value.paused_at, 0))
         pausedTotal = Math.max(0, _finiteNumber(value.paused_total, 0))
@@ -154,9 +173,51 @@ Scope {
         snapshot = value
     }
 
+    function _parseRect(value) {
+        if (!value || typeof value !== "object" || Array.isArray(value))
+            return null
+        var width = Math.round(_finiteNumber(value.w, 0))
+        var height = Math.round(_finiteNumber(value.h, 0))
+        if (width <= 0 || height <= 0)
+            return null
+        return {
+            output: String(value.output || ""),
+            x: Math.round(_finiteNumber(value.x, 0)),
+            y: Math.round(_finiteNumber(value.y, 0)),
+            w: width,
+            h: height
+        }
+    }
+
+    function _parseExport(value) {
+        var empty = { format: "", phase: "", output: "", error: "" }
+        if (!value || typeof value !== "object" || Array.isArray(value))
+            return empty
+        var nextPhase = String(value.phase || "")
+        if (["running", "completed", "error"].indexOf(nextPhase) === -1)
+            return empty
+        return {
+            format: String(value.format || ""),
+            phase: nextPhase,
+            output: String(value.output || ""),
+            error: String(value.error || "")
+        }
+    }
+
     function refresh() {
         if (configured)
             stateFile.reload()
+    }
+
+    // The helper only settles a running export when it is asked for status, so
+    // the service polls while one is in flight. Polling never occupies the
+    // action slot: user actions stay available and lastCommandJson is untouched.
+    function pollStatus() {
+        if (!configured || actionRunning || statusPoll.running)
+            return "busy"
+        statusPoll.command = [helperPath, "status"]
+        statusPoll.running = true
+        return "started"
     }
 
     function _run(argv, kind) {
@@ -172,7 +233,7 @@ Scope {
 
     // Every command starts with the configured immutable helper path. No shell
     // string is constructed and this service never starts or owns the recorder.
-    function start(directory, selectedMonitor, requestedTitle, desktopAudio, microphone) {
+    function start(directory, selectedMonitor, requestedTitle, desktopAudio, microphone, requestedTarget, requestedAnnotate) {
         if (arguments.length === 0) {
             directory = recordingDirectory
             selectedMonitor = context.compositor ? String(context.compositor.focusedOutputId || "") : ""
@@ -180,13 +241,34 @@ Scope {
             desktopAudio = defaultDesktopAudio
             microphone = defaultMicrophone
         }
-        if (!String(directory || "").startsWith("/") || !String(selectedMonitor || "") || !String(requestedTitle || ""))
+        var captureTarget = requestedTarget === undefined ? "monitor" : String(requestedTarget)
+        if (!String(directory || "").startsWith("/") || !String(selectedMonitor || "") || !String(requestedTitle || "")
+                || captureTargets.indexOf(captureTarget) === -1)
             return "invalid"
         return _run([
             helperPath, "start", "--directory", String(directory), "--monitor", String(selectedMonitor),
-            "--title", String(requestedTitle), desktopAudio ? "--desktop-audio" : "--no-desktop-audio",
+            "--title", String(requestedTitle), "--target", captureTarget,
+            Boolean(requestedAnnotate) ? "--annotate" : "--no-annotate",
+            desktopAudio ? "--desktop-audio" : "--no-desktop-audio",
             microphone ? "--microphone" : "--no-microphone"
         ], "start")
+    }
+
+    function exportAs(format) {
+        var value = String(format || "")
+        if (phase !== "completed" || exportFormats.indexOf(value) === -1)
+            return "invalid"
+        if (exporting)
+            return "busy"
+        return _run([helperPath, "export", "--format", value], "export")
+    }
+
+    function copyExportPath() {
+        if (exportPhase !== "completed" || !exportOutput.startsWith("/") || exportOutput.indexOf("\u0000") !== -1)
+            return "unavailable"
+        Quickshell.clipboardText = exportOutput
+        copiedPath = exportOutput
+        return "copied"
     }
 
     function togglePause() { return _run([helperPath, "toggle-pause"], "pause") }
@@ -273,6 +355,22 @@ Scope {
         running: root.active
         repeat: true
         onTriggered: root._updateElapsed()
+    }
+
+    Timer {
+        interval: 1000
+        running: root.configured && root.exporting
+        repeat: true
+        onTriggered: root.pollStatus()
+    }
+
+    Process {
+        id: statusPoll
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: if (text.trim() !== "") root._apply(text)
+        }
+        stderr: StdioCollector { waitForEnd: true }
     }
 
     Process {
