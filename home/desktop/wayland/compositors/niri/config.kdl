@@ -381,17 +381,6 @@ window-rule {
 }
 
 window-rule {
-    match app-id=r#"^org\.dictator\.Dictator\.popup$"#
-    open-floating true
-    open-focused true
-    min-width 340
-    max-width 340
-    min-height 510
-    max-height 510
-    default-floating-position x=16 y=8 relative-to="top-right"
-}
-
-window-rule {
     match app-id=r#"^nm-connection-editor$"#
     open-floating true
     default-column-width { fixed 560; }
