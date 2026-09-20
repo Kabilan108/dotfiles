@@ -101,7 +101,7 @@
 		{"src": ["tag:media"], "dst": ["svc:jellyfin"], "ip": ["tcp:443"]},
 		{
 			"src": ["tag:agent"],
-			"dst": ["svc:siren", "svc:executor", "svc:hark"],
+			"dst": ["svc:cliproxyapi", "svc:siren", "svc:executor", "svc:hark"],
 			"ip":  ["tcp:443"],
 		},
 	],
