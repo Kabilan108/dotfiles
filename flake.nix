@@ -170,7 +170,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     omarecord = {
-      url = "git+ssh://git@github.com/Kabilan108/omarecord";
+      url = "github:Kabilan108/omarecord";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     pagebin = {

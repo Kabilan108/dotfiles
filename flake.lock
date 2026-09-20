@@ -1431,17 +1431,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1789929324,
-        "narHash": "sha256-8kWvD2WZLtPGpxTNKuGQYN7kHQhQfMtuxSWV4lkj89I=",
-        "ref": "refs/heads/main",
-        "rev": "9ccb5cc2e44cdd9c6215a551957fd5dd76c8032c",
-        "revCount": 11,
-        "type": "git",
-        "url": "ssh://git@github.com/Kabilan108/omarecord"
+        "lastModified": 1789930665,
+        "narHash": "sha256-rSnhECEKdrsAyYvkyar1I68SJLMaeEQquX8qagh1m9o=",
+        "owner": "Kabilan108",
+        "repo": "omarecord",
+        "rev": "42036207942abb2352b10911dd898d5d97b9ddcd",
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "ssh://git@github.com/Kabilan108/omarecord"
+        "owner": "Kabilan108",
+        "repo": "omarecord",
+        "type": "github"
       }
     },
     "omasnap": {
