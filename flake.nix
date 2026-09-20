@@ -162,7 +162,7 @@
     # tools i maintain
     atlas.url = "github:kabilan108/atlas";
     claude-bar.url = "github:kabilan108/claude-bar";
-    dictator.url = "github:kabilan108/dictator";
+    dictator.url = "github:kabilan108/dictator/rust-port";
     dump.url = "github:kabilan108/dump";
     hark.url = "github:Kabilan108/hark";
     omasnap = {

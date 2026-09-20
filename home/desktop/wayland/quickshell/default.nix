@@ -150,10 +150,7 @@ in
       // {
         settings = {
           dictatorCliPath = "${dictatorPackages.default}/bin/dictator";
-          # The gui package lands with the Rust port; until the input is bumped
-          # the panel simply hides its launcher button.
-          dictatorGuiPath =
-            if dictatorPackages ? gui then "${dictatorPackages.gui}/bin/dictator-gui" else "";
+          dictatorGuiPath = "${dictatorPackages.gui}/bin/dictator-gui";
           recentLimit = 5;
         };
       }

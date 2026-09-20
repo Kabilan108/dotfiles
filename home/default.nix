@@ -156,6 +156,7 @@ in
   services.dictator = {
     enable = true;
     package = inputs.dictator.packages.${systemName}.default;
+    gui.enable = true;
     displayServer = displayServer; # "x11" | "wayland" | "auto"
     logLevel = "INFO";
     environmentFile = "/run/agenix/secrets/dictator-env";
@@ -187,7 +188,7 @@ in
   };
 
   systemd.user.services.dictator.Unit.X-Restart-Triggers = [
-    config.xdg.configFile."dictator/config.json".source
+    config.home.file."${config.xdg.configHome}/dictator/config.json".source
   ];
 
   services.claude-bar = {
