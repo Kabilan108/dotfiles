@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf 'launched%s\n' "${*:+ $*}" >> "$STILLSUIT_FIXTURE_DICTATOR_GUI_LOG"

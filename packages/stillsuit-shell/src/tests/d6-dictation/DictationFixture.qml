@@ -12,7 +12,7 @@ ShellRoot {
         id: fixtureContext
         property var settings: ({ values: {
             dictatorCliPath: Quickshell.env("STILLSUIT_FIXTURE_DICTATOR"),
-            dictatorGuiPath: "",
+            dictatorGuiPath: Quickshell.env("STILLSUIT_FIXTURE_DICTATOR_GUI"),
             recentLimit: 5,
             dictatorSocketPath: Quickshell.env("STILLSUIT_FIXTURE_SOCKET"),
             recorderHelperPath: "", recordingStatePath: "", meetingStatusPath: "",
@@ -40,12 +40,14 @@ ShellRoot {
                 errorMessage: dictation.errorMessage,
                 recentStatus: dictation.recentStatus,
                 recent: dictation.recent,
+                launchCount: dictation.launchCount,
                 socketConnections: workflows.dictator.socketConnections
             })
         }
         function toggle(): string { return dictation.toggle() }
         function cancel(): string { return dictation.cancel() }
         function refresh(): string { return dictation.refreshRecent() }
+        function openWindow(): string { return dictation.openWindow() }
         function copy(index: string): string { return dictation.copyText(dictation.recent[Number(index)].text) }
         function clipboard(): string { return String(Quickshell.clipboardText || "") }
     }

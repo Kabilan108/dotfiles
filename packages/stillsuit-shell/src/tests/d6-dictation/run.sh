@@ -25,6 +25,8 @@ export XDG_RUNTIME_DIR="$tmp_dir/runtime"
 export STILLSUIT_FIXTURE_DICTATOR="$fixture_dir/fake-dictator"
 export STILLSUIT_FIXTURE_DICTATOR_LOG="$tmp_dir/dictator.log"
 export STILLSUIT_FIXTURE_DICTATOR_FAIL="$tmp_dir/dictator.fail"
+export STILLSUIT_FIXTURE_DICTATOR_GUI="$fixture_dir/fake-dictator-gui"
+export STILLSUIT_FIXTURE_DICTATOR_GUI_LOG="$tmp_dir/dictator-gui.log"
 export STILLSUIT_FIXTURE_SOCKET="$tmp_dir/osd.sock"
 export QT_QPA_PLATFORM=offscreen
 mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME" "$XDG_RUNTIME_DIR"
@@ -88,6 +90,12 @@ for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_DICTATOR_LOG") -ge 4 ]] &
 touch "$STILLSUIT_FIXTURE_DICTATOR_FAIL"
 [[ $(ipc toggle) == started ]]
 wait_json '.errorMessage == "error: daemon refused toggle" and (.actionRunning | not)' >/dev/null
+
+# The launcher starts the configured GUI executable detached, with no arguments.
+[[ $(ipc openWindow) == started ]]
+for _ in {1..100}; do [[ -s $STILLSUIT_FIXTURE_DICTATOR_GUI_LOG ]] && break; sleep 0.02; done
+[[ $(<"$STILLSUIT_FIXTURE_DICTATOR_GUI_LOG") == 'launched' ]]
+jq -e '.launchCount == 1' >/dev/null <<<"$(ipc state)"
 
 # Copy puts the full transcript, newlines included, on the clipboard.
 [[ $(ipc copy 0) == copied ]]

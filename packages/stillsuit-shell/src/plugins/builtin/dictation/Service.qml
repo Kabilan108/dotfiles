@@ -28,6 +28,7 @@ Scope {
         && (state === "recording" || state === "transcribing")
     readonly property var latest: recent.length > 0 ? recent[0] : null
 
+    property int launchCount: 0
     property var recent: []
     property string recentStatus: "idle"
     property string errorMessage: ""
@@ -60,6 +61,7 @@ Scope {
     function openWindow() {
         if (guiPath.charAt(0) !== "/") return "unconfigured"
         Quickshell.execDetached([guiPath])
+        launchCount++
         return "started"
     }
 
