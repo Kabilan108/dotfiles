@@ -14,6 +14,11 @@
     hfHome = "/vault/userdata/huggingface";
   };
 
+  systemd.services.siren.environment = {
+    SIREN_PARAKEET_CLAUDE_HINT = "true";
+    TRITON_LIBCUDA_PATH = "/run/opengl-driver/lib";
+  };
+
   # grant exactly the siren user access to the kabilan-owned cache; the
   # default (d:) entries make files created by other tools inherit it
   systemd.tmpfiles.rules = [
