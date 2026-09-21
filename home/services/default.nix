@@ -5,7 +5,6 @@
     ./claude-keepalive.nix
     ./cliproxyapi.nix
     ./codex-desktop.nix
-    ./codex-remote-control.nix
     ./dictator.nix
     ./install-tools.nix
     ./meeting-minutes.nix
