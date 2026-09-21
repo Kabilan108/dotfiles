@@ -212,16 +212,15 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1789931911,
+        "lastModified": 1789952198,
         "narHash": "sha256-MEfkmfAUQjiSTmfmHaNfH96ldtdiTqRCBFUDUo2Nacw=",
         "owner": "kabilan108",
         "repo": "dictator",
-        "rev": "e17fd1d6d17fbecdd6df462d7caadc6ff4a232f7",
+        "rev": "08b7e62de2635d91ffcccf1cb6ba5405a3a155b2",
         "type": "github"
       },
       "original": {
         "owner": "kabilan108",
-        "ref": "rust-port",
         "repo": "dictator",
         "type": "github"
       }
