@@ -5,10 +5,12 @@
     ./cliproxyapi.nix
     ./codex-desktop.nix
     ./codex-remote-control.nix
+    ./dictator.nix
     ./install-tools.nix
     ./meeting-minutes.nix
     ./mic-volume-enforce.nix
     ./moberg.nix
+    ./parakeet-redux.nix
     ./storage-maintenance.nix
     ./t3-code.nix
     ./tracer-digest.nix

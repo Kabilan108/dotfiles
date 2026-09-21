@@ -1,5 +1,4 @@
 {
-  config,
   displayServer,
   inputs,
   lib,
@@ -62,7 +61,6 @@ in
     inputs.atlas.homeManagerModules.default
     inputs.claude-bar.homeManagerModules.default
     inputs.codex-desktop-linux.homeManagerModules.default
-    inputs.dictator.homeManagerModules.dictator
     inputs.raindrop.homeManagerModules.default
     inputs.tracer.homeManagerModules.default
   ]
@@ -152,44 +150,6 @@ in
       username = "tonykabilanokeke@gmail.com";
     };
   };
-
-  services.dictator = {
-    enable = true;
-    package = inputs.dictator.packages.${systemName}.default;
-    gui.enable = true;
-    displayServer = displayServer; # "x11" | "wayland" | "auto"
-    logLevel = "INFO";
-    environmentFile = "/run/agenix/secrets/dictator-env";
-    settings = {
-      api = {
-        active_provider = "siren";
-        timeout = 60;
-        providers = {
-          siren = {
-            endpoint = "https://siren.sole-pierce.ts.net/v1/audio/transcriptions";
-            key = "\${env:SIREN_API_KEY}";
-            model = "nvidia/parakeet-tdt-0.6b-v2";
-          };
-          openai = {
-            endpoint = "https://api.openai.com/v1/audio/transcriptions";
-            key = "\${env:OPENAI_API_KEY}";
-            model = "gpt-4o-transcribe";
-          };
-        };
-      };
-      enable_osd = true;
-      notifications = "errors_only";
-      audio.max_duration_min = 30;
-      typing = {
-        shortcut = "ctrl_shift_v";
-        niri_app_shortcuts."com.t3tools.T3Code" = "ctrl_v";
-      };
-    };
-  };
-
-  systemd.user.services.dictator.Unit.X-Restart-Triggers = [
-    config.home.file."${config.xdg.configHome}/dictator/config.json".source
-  ];
 
   services.claude-bar = {
     enable = false;

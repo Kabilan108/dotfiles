@@ -23,7 +23,12 @@ in
   home-manager.users.kabilan = {
     dotfiles.services = {
       codex-desktop.enable = true;
+      dictator = {
+        enable = true;
+        activeProvider = "siren";
+      };
       mic-volume-enforce.enable = true;
+      parakeet-redux.enable = true;
       t3-code.enable = false;
       tracer-sync.enable = true;
     };

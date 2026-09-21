@@ -146,14 +146,17 @@ in
     )
     (builtinPlugin "power")
     (
-      (builtinPlugin "dictation")
-      // {
-        settings = {
-          dictatorCliPath = "${dictatorPackages.default}/bin/dictator";
-          dictatorGuiPath = "${dictatorPackages.gui}/bin/dictator-gui";
-          recentLimit = 5;
-        };
-      }
+      if config.dotfiles.services.dictator.enable then
+        (builtinPlugin "dictation")
+        // {
+          settings = {
+            dictatorCliPath = "${dictatorPackages.default}/bin/dictator";
+            dictatorGuiPath = "${dictatorPackages.gui}/bin/dictator-gui";
+            recentLimit = 5;
+          };
+        }
+      else
+        (builtinPlugin "dictation") // { enable = false; }
     )
     (builtinPlugin "recording")
     (builtinPlugin "resources")
