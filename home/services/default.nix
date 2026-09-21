@@ -2,6 +2,7 @@
   imports = [
     ./backup.nix
     ./battery-watcher.nix
+    ./claude-keepalive.nix
     ./cliproxyapi.nix
     ./codex-desktop.nix
     ./codex-remote-control.nix
