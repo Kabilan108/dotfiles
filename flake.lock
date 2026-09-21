@@ -212,11 +212,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1789952198,
-        "narHash": "sha256-MEfkmfAUQjiSTmfmHaNfH96ldtdiTqRCBFUDUo2Nacw=",
+        "lastModified": 1789962556,
+        "narHash": "sha256-sDWObO3so1ab2bHTOVPXCuP3u90IC0duzoz0f5Q/DJc=",
         "owner": "kabilan108",
         "repo": "dictator",
-        "rev": "08b7e62de2635d91ffcccf1cb6ba5405a3a155b2",
+        "rev": "905975fad08b271f19fab34231b892b73f2407bf",
         "type": "github"
       },
       "original": {

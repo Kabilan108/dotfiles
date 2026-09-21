@@ -32,6 +32,10 @@
       };
       extraOptions = "trusted-users = root kabilan";
       settings = {
+        extra-substituters = [ "https://kabilan108.cachix.org" ];
+        extra-trusted-public-keys = [
+          "kabilan108.cachix.org-1:g8OqmhpqE1Bz9DjKTV17uQ3yzsfGcDB5fDgGfVC4t/o="
+        ];
         experimental-features = [
           "nix-command"
           "flakes"
