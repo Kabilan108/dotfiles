@@ -1,0 +1,4 @@
+interface:
+  display_name: "Blender"
+  short_description: "Headless Blender scenes, renders, and exports via the blend CLI"
+  default_prompt: "Use $blender to build and render a 3D scene."

@@ -41,6 +41,8 @@
       openrgb-with-all-plugins
       prismlauncher
       jdk25
+      # pkgsCuda (not blender.override) matches cache.nixos-cuda.org's build.
+      pkgsCuda.blender
     ];
   };
 

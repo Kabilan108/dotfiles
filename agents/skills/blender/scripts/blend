@@ -1,0 +1,664 @@
+#!/usr/bin/env -S uv --quiet run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["pillow>=11,<13", "httpx>=0.28,<1"]
+# ///
+"""blend: drive headless Blender for agents.
+
+A project is a directory holding scene.blend. Every command starts a fresh
+Blender process against it; `run` is the only command that saves.
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import contextlib
+import fcntl
+import json
+import os
+import secrets
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.parse
+from datetime import datetime
+from pathlib import Path
+
+SCRIPTS_DIR = Path(__file__).resolve().parent
+RUNTIME = SCRIPTS_DIR / "blend_runtime.py"
+SCENE_FILE = "scene.blend"
+CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "blend"
+POLYHAVEN_API = "https://api.polyhaven.com"
+USER_AGENT = "blend-cli/1 (agent tooling; kabilan)"
+ALL_VIEWS = ["iso", "front", "right", "top", "back", "left", "bottom"]
+DEFAULT_VIEWS = ["iso", "front", "right", "top"]
+
+HELP = """\
+Drive headless Blender (GPU rendering via OptiX/CUDA) for agent 3D work.
+
+A project is a directory holding scene.blend (or pass a .blend file directly).
+Each command launches a fresh Blender against it. `run` is the only command
+that writes the file, and only when the script succeeds.
+
+loop:
+  blend new ~/blender/robot                 create an empty project
+  blend run ~/blender/robot build.py        run bpy code, save on success
+  blend inspect ~/blender/robot             objects, transforms, bounds, materials
+  blend render ~/blender/robot              auto-framed iso/front/right/top + sheet.png
+  (look at sheet.png, adjust, repeat)
+
+scripts get these globals: bpy, bk (helpers: `blend kit`), C, D, Vector, math,
+PROJECT (project dir), ARGS (dict from `run --set KEY=VALUE`). print() output is
+shown; a raised exception prints the traceback, exits 1, and leaves scene.blend
+untouched.
+
+render/animate use the scene's engine, resolution (x percentage), and samples;
+a flag overrides the scene for that render only. New projects start at
+1920x1080 at 50% (960x540 previews), eevee 32 / cycles 128 samples.
+
+stdin works for scripts: blend run PROJECT - <<'PY' ... PY
+"""
+
+
+class BlendError(Exception):
+    pass
+
+
+def resolve_project(arg: str, must_exist: bool = True) -> tuple[Path, Path]:
+    path = Path(arg).expanduser().resolve()
+    if path.suffix == ".blend":
+        blend, project = path, path.parent
+    else:
+        blend, project = path / SCENE_FILE, path
+    if must_exist and not blend.exists():
+        hint = f"; create it with `blend new {arg}`" if blend.name == SCENE_FILE else ""
+        raise BlendError(f"no scene at {blend}{hint}")
+    return project, blend
+
+
+def blender_binary() -> str:
+    binary = os.environ.get("BLEND_BLENDER") or shutil.which("blender")
+    if not binary:
+        raise BlendError("blender is not on PATH (set BLEND_BLENDER to point at a binary)")
+    return binary
+
+
+@contextlib.contextmanager
+def project_lock(blend: Path):
+    lock_path = state_dir(blend.parent) / f"{blend.name}.lock"
+    with open(lock_path, "w") as handle:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print(f"waiting for another `blend run` on {blend} ...", file=sys.stderr)
+            fcntl.flock(handle, fcntl.LOCK_EX)
+        yield
+
+
+def state_dir(project: Path) -> Path:
+    directory = project / ".blend-cli"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def log_dir(project: Path) -> Path:
+    directory = state_dir(project) / "logs"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def stamp() -> str:
+    return f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(2)}"
+
+
+def invoke(op: str, project: Path, blend: Path | None, timeout: float, **fields) -> dict:
+    """Run one runtime op in a fresh Blender and return its result payload."""
+    with tempfile.TemporaryDirectory(prefix="blend-") as tmp:
+        request = Path(tmp) / "request.json"
+        result = Path(tmp) / "result.json"
+        request.write_text(json.dumps({"op": op, "result": str(result), "project": str(project),
+                                       "blend": str(blend) if blend else None, **fields}))
+        cmd = [blender_binary(), "-b", "--factory-startup", "-noaudio"]
+        if blend is not None and op != "new":
+            cmd.append(str(blend))
+        cmd += ["--python-exit-code", "3", "--python", str(RUNTIME), "--", str(request)]
+        log_path = log_dir(project) / f"{stamp()}-{op}.log"
+        with open(log_path, "w") as log:
+            proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+            try:
+                proc.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                os.killpg(proc.pid, signal.SIGKILL)
+                proc.wait()
+                raise BlendError(f"blender timed out after {timeout:.0f}s (raise --timeout); log: {log_path}")
+        if not result.exists():
+            tail = "\n".join(log_path.read_text(errors="replace").splitlines()[-25:])
+            raise BlendError(f"blender exited {proc.returncode} without a result; log: {log_path}\n{tail}")
+        payload = json.loads(result.read_text())
+        payload["log"] = str(log_path)
+        if not payload.get("ok"):
+            with open(log_path, "a") as log:
+                log.write(f"\n--- blend: {op} failed ---\n{payload.get('traceback') or payload.get('error')}\n")
+        return payload
+
+
+def fail_from(payload: dict) -> int:
+    if payload.get("stdout"):
+        sys.stdout.write(payload["stdout"])
+        sys.stdout.flush()
+    if payload.get("traceback"):
+        print(payload["traceback"], file=sys.stderr, end="")
+    print(f"error: {payload.get('error')}  (scene.blend unchanged; blender log: {payload['log']})", file=sys.stderr)
+    return 1
+
+
+def emit(args, payload: dict, text: str) -> int:
+    if not payload.get("ok"):
+        return fail_from(payload)
+    print(json.dumps(payload, indent=2) if args.json else text)
+    return 0
+
+
+def fmt(values) -> str:
+    return "(" + ", ".join(f"{v:g}" for v in values) + ")"
+
+
+# ---- commands --------------------------------------------------------------
+
+
+def cmd_new(args) -> int:
+    project, blend = resolve_project(args.project, must_exist=False)
+    if blend.exists() and not args.force:
+        raise BlendError(f"{blend} already exists (use --force to replace it with an empty scene)")
+    project.mkdir(parents=True, exist_ok=True)
+    payload = invoke("new", project, blend, args.timeout)
+    return emit(args, payload, f"created {blend}")
+
+
+def cmd_run(args) -> int:
+    project, blend = resolve_project(args.project)
+    if args.code is not None:
+        code, name = args.code, "<-c>"
+    elif args.script in (None, "-"):
+        if sys.stdin.isatty():
+            raise BlendError("pass a script path, -c CODE, or pipe the script on stdin")
+        code, name = sys.stdin.read(), "<stdin>"
+    else:
+        script = Path(args.script).expanduser()
+        code, name = script.read_text(), str(script)
+    if not code.strip():
+        raise BlendError("the script is empty")
+    script_args = {}
+    for item in args.set or []:
+        key, sep, value = item.partition("=")
+        if not sep:
+            raise BlendError(f"--set expects KEY=VALUE, got {item!r}")
+        try:
+            script_args[key] = json.loads(value)
+        except json.JSONDecodeError:
+            script_args[key] = value
+    with project_lock(blend):
+        payload = invoke("run", project, blend, args.timeout, code=code, script_name=name,
+                         save=not args.no_save, args=script_args)
+    if not payload.get("ok"):
+        return fail_from(payload)
+    if args.json:
+        print(json.dumps(payload, indent=2))
+        return 0
+    sys.stdout.write(payload["stdout"])
+    changes = []
+    for verb in ("added", "removed"):
+        names = payload[verb]
+        if len(names) > 12:
+            changes.append(f"{verb} {len(names)} objects")
+        elif names:
+            changes.append(f"{verb} " + ", ".join(names))
+    state = "saved" if payload.get("saved") else "not saved (--no-save)"
+    print(f"[blend] {state}; {payload['object_count']} objects" + (f"; {'; '.join(changes)}" if changes else ""))
+    return 0
+
+
+def describe_scene(scene: dict, only: list[str] | None) -> str:
+    lines = [
+        f"file: {scene['file']}",
+        f"frames: {scene['frame_range'][0]}-{scene['frame_range'][1]} @ {scene['fps']}fps   "
+        f"render: {scene['render']['engine']} {scene['render']['resolution'][0]}x{scene['render']['resolution'][1]}",
+        f"camera: {scene['active_camera'] or 'none'}   world: {json.dumps(scene['world'])}",
+        f"units: {scene['units']['system']} scale_length={scene['units']['scale_length']:g} "
+        f"({scene['units']['length_unit']})   colour: {scene['render']['view_transform']}   "
+        f"scale%: {scene['render']['percentage']}  samples: {json.dumps(scene['render']['samples'])}",
+    ]
+    if "bounds" in scene:
+        b = scene["bounds"]
+        lines.append(f"bounds: min {fmt(b['min'])} max {fmt(b['max'])} size {fmt(b['size'])}")
+    objects = [o for o in scene["objects"] if not only or o["name"] in only]
+    lines.append(f"objects ({len(objects)}):")
+    for o in objects:
+        parts = [f"  {o['name']} [{o['type']}]", f"loc={fmt(o['location'])}"]
+        if any(o["rotation_deg"]):
+            parts.append(f"rot°={fmt(o['rotation_deg'])}")
+        if o["scale"] != [1.0, 1.0, 1.0]:
+            parts.append(f"scale={fmt(o['scale'])}")
+        if "dimensions" in o:
+            parts.append(f"dims={fmt(o['dimensions'])}")
+        if "mesh" in o:
+            parts.append(f"{o['mesh']['verts']}v/{o['mesh']['faces']}f")
+        for key in ("materials", "modifiers"):
+            if o.get(key):
+                parts.append(f"{key}={o[key]}")
+        for key in ("light", "camera"):
+            if key in o:
+                parts.append(json.dumps(o[key]))
+        if o.get("parent"):
+            parts.append(f"parent={o['parent']}")
+        if o.get("hidden"):
+            parts.append("HIDDEN")
+        if o.get("animated"):
+            parts.append("animated")
+        lines.append(" ".join(parts))
+    if scene["materials"] and not only:
+        lines.append(f"materials ({len(scene['materials'])}):")
+        for m in scene["materials"]:
+            rest = {k: v for k, v in m.items() if k != "name"}
+            lines.append(f"  {m['name']}: {json.dumps(rest)}")
+    return "\n".join(lines)
+
+
+def cmd_inspect(args) -> int:
+    project, blend = resolve_project(args.project)
+    payload = invoke("inspect", project, blend, args.timeout)
+    if payload.get("ok") and args.object:
+        missing = set(args.object) - {o["name"] for o in payload["scene"]["objects"]}
+        if missing:
+            raise BlendError(f"no object named {', '.join(sorted(missing))}")
+    if payload.get("ok") and args.json:
+        print(json.dumps(payload["scene"], indent=2))
+        return 0
+    return emit(args, payload, describe_scene(payload.get("scene", {}), args.object) if payload.get("ok") else "")
+
+
+def parse_resolution(value: str) -> list[int]:
+    try:
+        width, height = (int(v) for v in value.lower().split("x"))
+    except ValueError:
+        raise argparse.ArgumentTypeError("resolution must look like 960x540") from None
+    return [width, height]
+
+
+def parse_views(value: str) -> list[str]:
+    views = ALL_VIEWS if value == "all" else [v.strip() for v in value.split(",") if v.strip()]
+    unknown = [v for v in views if v not in ALL_VIEWS and v != "camera"]
+    if unknown:
+        raise argparse.ArgumentTypeError(f"unknown view {unknown}; choose from camera,{','.join(ALL_VIEWS)},all")
+    return views
+
+
+def parse_frames(value: str) -> list[int]:
+    frames: list[int] = []
+    try:
+        for part in value.split(","):
+            start, sep, end = part.partition("-")
+            frames.extend(range(int(start), int(end) + 1) if sep else [int(start)])
+    except ValueError:
+        raise argparse.ArgumentTypeError("frames look like 12 or 1,17,19 or 1-5") from None
+    return frames
+
+
+SHEET_TILE_WIDTH = 960
+
+
+def contact_sheet(renders: list[dict], out: Path) -> Path:
+    from PIL import Image, ImageDraw, ImageFont
+
+    images = []
+    for render in renders:
+        image = Image.open(render["path"]).convert("RGBA")
+        if image.width > SHEET_TILE_WIDTH:
+            image = image.resize((SHEET_TILE_WIDTH, round(image.height * SHEET_TILE_WIDTH / image.width)))
+        images.append((render["label"], image))
+    width, height = images[0][1].size
+    columns = 1 if len(images) == 1 else 2
+    rows = -(-len(images) // columns)
+    sheet = Image.new("RGBA", (width * columns, height * rows), (24, 24, 28, 255))
+    try:
+        font = ImageFont.load_default(size=max(14, height // 22))
+    except TypeError:
+        font = ImageFont.load_default()
+    for index, (view, image) in enumerate(images):
+        x, y = (index % columns) * width, (index // columns) * height
+        sheet.alpha_composite(image, (x, y))
+        draw = ImageDraw.Draw(sheet)
+        draw.rectangle([x, y, x + width - 1, y + height - 1], outline=(90, 90, 100, 255))
+        draw.text((x + 10, y + 8), view, fill=(255, 220, 90, 255), font=font, stroke_width=2, stroke_fill=(0, 0, 0, 255))
+    sheet.convert("RGB").save(out)
+    return out
+
+
+def cmd_render(args) -> int:
+    project, blend = resolve_project(args.project)
+    out_dir = Path(args.out).expanduser().resolve() if args.out else project / "renders" / stamp()
+    payload = invoke(
+        "render", project, blend, args.timeout,
+        out_dir=str(out_dir), views=args.views, engine=args.engine, resolution=args.res,
+        samples=args.samples, frames=args.frame, targets=args.target, lighting=args.lighting,
+        transparent=args.transparent, camera=args.camera, hide=args.hide,
+    )
+    if not payload.get("ok"):
+        return fail_from(payload)
+    if len(payload["renders"]) > 1 and not args.no_sheet:
+        payload["sheet"] = str(contact_sheet(payload["renders"], out_dir / "sheet.png"))
+    if args.json:
+        print(json.dumps(payload, indent=2))
+        return 0
+    width, height = payload["resolution"]
+    notes = [f"engine={payload['engine']}", f"{width}x{height}"]
+    if payload["samples"]:
+        notes.append(f"samples={payload['samples']}")
+    if payload["engine"] == "cycles":
+        notes.append(f"device={payload['device']}")
+    if payload["studio_lighting"]:
+        notes.append("temporary studio lighting (scene has no lights/HDRI)")
+    if payload["hidden"]:
+        notes.append(f"hid {len(payload['hidden'])} object(s)")
+    print(f"[blend] rendered {len(payload['renders'])} image(s); {'; '.join(notes)}")
+    for render in payload["renders"]:
+        print(f"{render['label']}: {render['path']}")
+    if "sheet" in payload:
+        print(f"sheet: {payload['sheet']}")
+    return 0
+
+
+def cmd_animate(args) -> int:
+    project, blend = resolve_project(args.project)
+    out = Path(args.out).expanduser().resolve() if args.out else project / "renders" / f"{stamp()}.mp4"
+    frames = None
+    if args.frames:
+        start, _, end = args.frames.partition("-")
+        frames = [int(start), int(end or start)]
+    payload = invoke(
+        "animate", project, blend, args.timeout,
+        out=str(out), frames=frames, fps=args.fps, view=args.view, engine=args.engine,
+        resolution=args.res, samples=args.samples, lighting=args.lighting, camera=args.camera,
+    )
+    if not payload.get("ok"):
+        return fail_from(payload)
+    width, height = payload["resolution"]
+    lit = "; temporary studio lighting" if payload["studio_lighting"] else ""
+    return emit(args, payload, f"video: {payload['out']} (frames {payload['frames'][0]}-{payload['frames'][1]} "
+                f"@ {payload['fps']}fps, {payload['engine']} {width}x{height}{lit})")
+
+
+def cmd_export(args) -> int:
+    project, blend = resolve_project(args.project)
+    out = Path(args.out).expanduser().resolve()
+    payload = invoke("export", project, blend, args.timeout, out=str(out), objects=args.objects, scale=args.scale)
+    return emit(args, payload, f"exported {payload.get('out')} ({payload.get('bytes', 0) / 1024:.0f} KiB)")
+
+
+def cmd_doctor(args) -> int:
+    with tempfile.TemporaryDirectory(prefix="blend-doctor-") as tmp:
+        project = Path(tmp)
+        payload = invoke("doctor", project, None, args.timeout)
+        if not payload.get("ok"):
+            return fail_from(payload)
+        blend = project / SCENE_FILE
+        invoke("new", project, blend, args.timeout)
+        invoke("run", project, blend, args.timeout, save=True, script_name="<doctor>",
+               code="bpy.ops.mesh.primitive_monkey_add()")
+        started = time.monotonic()
+        render = invoke("render", project, blend, args.timeout, out_dir=str(project / "r"), views=["iso"],
+                        engine="eevee", resolution=[320, 180], samples=4, frames=None, targets=None,
+                        lighting="auto", transparent=False)
+        eevee = f"ok ({time.monotonic() - started:.1f}s)" if render.get("ok") else f"FAILED: {render.get('error')}"
+    print(f"blender: {payload['blender']} ({blender_binary()})")
+    print(f"cycles device: {payload['gpu_device']}  available: {payload['cycles_devices']}")
+    print(f"headless eevee render: {eevee}")
+    return 0 if render.get("ok") else 1
+
+
+def cmd_kit(args) -> int:
+    import ast
+
+    tree = ast.parse((SCRIPTS_DIR / "blendkit.py").read_text())
+    print("bk helpers (preloaded in `blend run`; source: " + str(SCRIPTS_DIR / "blendkit.py") + "):\n")
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and not node.name.startswith("_"):
+            signature = ast.unparse(node.args)
+            doc = (ast.get_docstring(node) or "").strip()
+            print(f"bk.{node.name}({signature})")
+            if doc:
+                print("    " + doc.replace("\n", "\n    "))
+    return 0
+
+
+# ---- poly haven --------------------------------------------------------------
+
+PH_TYPES = {"hdri": "hdris", "texture": "textures", "model": "models"}
+PH_TYPE_BY_CODE = {0: "hdri", 1: "texture", 2: "model"}
+PH_SKIP_MAPS = {"blend", "gltf", "mtlx", "nor_dx", "zip", "usd", "fbx"}
+
+
+def http_json(url: str):
+    import httpx
+
+    try:
+        response = httpx.get(url, headers={"User-Agent": USER_AGENT}, timeout=60, follow_redirects=True)
+        response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise BlendError(f"Poly Haven request failed: {exc}") from None
+    return response.json()
+
+
+def download(url: str, dest: Path) -> Path:
+    if dest.exists() and dest.stat().st_size > 0:
+        return dest
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    partial = dest.with_name(f".{dest.name}.{os.getpid()}.part")
+    import httpx
+
+    try:
+        with httpx.stream("GET", url, headers={"User-Agent": USER_AGENT}, timeout=300, follow_redirects=True) as response:
+            response.raise_for_status()
+            with open(partial, "wb") as handle:
+                for chunk in response.iter_bytes():
+                    handle.write(chunk)
+    except httpx.HTTPError as exc:
+        partial.unlink(missing_ok=True)
+        raise BlendError(f"download failed for {url}: {exc}") from None
+    os.replace(partial, dest)
+    return dest
+
+
+def cmd_ph_search(args) -> int:
+    kind = f"?t={PH_TYPES[args.type]}" if args.type else ""
+    assets = http_json(f"{POLYHAVEN_API}/assets{kind}")
+    terms = [t.lower() for t in args.query]
+    hits = []
+    for asset_id, meta in assets.items():
+        text = " ".join([asset_id, meta.get("name", ""), *meta.get("tags", []), *meta.get("categories", [])]).lower()
+        words = set(re.split(r"[^a-z0-9]+", text))
+        if all(term in words or term.rstrip("s") in words or f"{term}s" in words for term in terms):
+            hits.append((meta.get("download_count", 0), asset_id, meta))
+    hits.sort(reverse=True)
+    if args.json:
+        print(json.dumps([{"id": i, "type": PH_TYPE_BY_CODE.get(m.get("type")), "name": m.get("name"),
+                           "tags": m.get("tags", [])} for _, i, m in hits[: args.limit]], indent=2))
+        return 0
+    if not hits:
+        print("no matches")
+        return 1
+    for _, asset_id, meta in hits[: args.limit]:
+        tags = ", ".join(meta.get("tags", [])[:6])
+        print(f"{asset_id}  [{PH_TYPE_BY_CODE.get(meta.get('type'), '?')}]  {meta.get('name')}  ({tags})")
+    return 0
+
+
+def pick_file(variants: dict, res: str, formats: tuple[str, ...]) -> tuple[str, dict]:
+    chosen_res = res if res in variants else sorted(variants, key=lambda r: abs(int(r.rstrip("k")) - int(res.rstrip("k"))))[0]
+    for fmt_name in formats:
+        if fmt_name in variants[chosen_res]:
+            return chosen_res, variants[chosen_res][fmt_name]
+    fmt_name = next(iter(variants[chosen_res]))
+    return chosen_res, variants[chosen_res][fmt_name]
+
+
+def cmd_ph_get(args) -> int:
+    info = http_json(f"{POLYHAVEN_API}/info/{urllib.parse.quote(args.id)}")
+    kind = PH_TYPE_BY_CODE.get(info.get("type"))
+    files = http_json(f"{POLYHAVEN_API}/files/{urllib.parse.quote(args.id)}")
+    root = CACHE_DIR / "polyhaven" / args.id / args.res
+    result: dict = {"id": args.id, "type": kind, "dir": str(root)}
+    if kind == "hdri":
+        _, entry = pick_file(files["hdri"], args.res, ("hdr", "exr"))
+        path = download(entry["url"], root / Path(urllib.parse.urlparse(entry["url"]).path).name)
+        result["file"] = str(path)
+        usage = f"bk.hdri('{path}', strength=1.0)"
+    elif kind == "texture":
+        maps = {}
+        for name, variants in files.items():
+            if name.lower() in PH_SKIP_MAPS or not isinstance(variants, dict):
+                continue
+            _, entry = pick_file(variants, args.res, ("png", "jpg", "exr"))
+            maps[name] = str(download(entry["url"], root / Path(urllib.parse.urlparse(entry["url"]).path).name))
+        result["maps"] = maps
+        dims = info.get("dimensions")
+        size_m = max(dims) / 1000 if dims else None
+        result["real_size_m"] = size_m
+        repeats = f"{1 / size_m:.3g}" if size_m else "1.0"
+        usage = f"bk.assign(obj, bk.pbr_material('{args.id}', '{root}', scale={repeats}))"
+        if size_m:
+            usage += f"  # texture covers {size_m:g} m; scale = repeats per metre"
+    elif kind == "model":
+        fmt_key = next((k for k in ("gltf", "fbx", "blend", "usd") if k in files), None)
+        if fmt_key is None:
+            raise BlendError(f"{args.id} has no importable model format (available: {', '.join(files)})")
+        _, entry = pick_file(files[fmt_key], args.res, (fmt_key,))
+        path = download(entry["url"], root / Path(urllib.parse.urlparse(entry["url"]).path).name)
+        for rel, include in entry.get("include", {}).items():
+            download(include["url"], root / rel)
+        result["file"] = str(path)
+        usage = f"chair = bk.place('{path}', location=(0, 0, 0), rotation_deg=(0, 0, 0))"
+    else:
+        raise BlendError(f"unknown Poly Haven asset type for {args.id!r}")
+    result["usage"] = usage
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"{args.id} [{kind}] -> {root}")
+        print(f"use in a run script: {usage}")
+    return 0
+
+
+# ---- argument parsing ------------------------------------------------------------
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="blend", description=HELP, formatter_class=argparse.RawDescriptionHelpFormatter)
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--json", action="store_true", help="print the machine-readable result")
+    common.add_argument("--timeout", type=float, default=900, help="seconds before Blender is killed (default 900)")
+    sub = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
+
+    p = sub.add_parser("new", parents=[common], help="create a project with an empty scene")
+    p.add_argument("project")
+    p.add_argument("--force", action="store_true", help="replace an existing scene.blend")
+    p.set_defaults(func=cmd_new)
+
+    p = sub.add_parser("run", parents=[common], help="run a bpy script against the scene; saves on success",
+                       description="Run bpy code in the scene. Saves scene.blend only if the script finishes without raising.")
+    p.add_argument("project")
+    p.add_argument("script", nargs="?", help="script path, or - (default) to read stdin")
+    p.add_argument("-c", "--code", help="inline code instead of a script")
+    p.add_argument("--set", action="append", metavar="KEY=VALUE",
+                   help="add to the script's ARGS dict (value parsed as JSON when possible); repeatable")
+    p.add_argument("--no-save", action="store_true", help="query without writing the scene")
+    p.set_defaults(func=cmd_run)
+
+    p = sub.add_parser("inspect", parents=[common], help="summarise objects, transforms, bounds, materials")
+    p.add_argument("project")
+    p.add_argument("--object", nargs="+", help="limit to these object names")
+    p.set_defaults(func=cmd_inspect)
+
+    p = sub.add_parser("render", parents=[common], help="render auto-framed views (never saves the scene)",
+                       description="Render views into PROJECT/renders/<stamp>/; with more than one image, also a "
+                       "labelled sheet.png. Views other than `camera` use temporary cameras framed on the "
+                       "geometry (flat ground/backdrop planes are ignored for framing); front/back/left/right/"
+                       "top/bottom are orthographic, iso is perspective. Engine, resolution, and samples come "
+                       "from the scene unless overridden.")
+    p.add_argument("project")
+    p.add_argument("--views", type=parse_views, default=DEFAULT_VIEWS,
+                   help=f"comma list from camera,{','.join(ALL_VIEWS)} or all (default {','.join(DEFAULT_VIEWS)})")
+    p.add_argument("--engine", choices=["workbench", "eevee", "cycles"],
+                   help="default: the scene's. workbench: flat shading for geometry checks; eevee: fast "
+                   "realistic; cycles: path-traced, needed for glass/volumes/emissive transparency")
+    p.add_argument("--res", type=parse_resolution, help="WxH (default: scene resolution x percentage)")
+    p.add_argument("--samples", type=int, help="default: the scene's samples for the engine")
+    p.add_argument("--frame", type=parse_frames, help="frames to render, e.g. 1,17,19 or 1-5 (default: current)")
+    p.add_argument("--target", nargs="+", help="frame (zoom to) these objects; other objects still render")
+    p.add_argument("--camera", help="camera object for the `camera` view (default: the scene camera)")
+    p.add_argument("--hide", nargs="+", metavar="GLOB",
+                   help="hide objects whose names match (e.g. 'Wall*' Ceiling) for this render only")
+    p.add_argument("--lighting", choices=["auto", "studio", "scene"], default="auto",
+                   help="auto adds temporary studio lights only when the scene has no lights or HDRI")
+    p.add_argument("--transparent", action="store_true", help="transparent background")
+    p.add_argument("--out", help="output directory")
+    p.add_argument("--no-sheet", action="store_true", help="skip the combined sheet.png")
+    p.set_defaults(func=cmd_render)
+
+    p = sub.add_parser("animate", parents=[common], help="render the timeline to an mp4")
+    p.add_argument("project")
+    p.add_argument("--frames", help="START-END (default: scene frame range)")
+    p.add_argument("--fps", type=int, help="default: the scene's")
+    p.add_argument("--view", choices=["camera", "iso", "front", "right", "top"], default="camera",
+                   help="camera (default) uses the scene camera; others use a fixed auto-framed camera")
+    p.add_argument("--camera", help="camera object to use instead of the scene camera")
+    p.add_argument("--engine", choices=["workbench", "eevee", "cycles"], help="default: the scene's")
+    p.add_argument("--res", type=parse_resolution, help="WxH (default: scene resolution x percentage)")
+    p.add_argument("--samples", type=int, help="default: the scene's samples for the engine")
+    p.add_argument("--lighting", choices=["auto", "studio", "scene"], default="auto",
+                   help="auto adds temporary studio lights only when the scene has no lights or HDRI")
+    p.add_argument("--out", help="output .mp4 path")
+    p.set_defaults(func=cmd_animate)
+
+    p = sub.add_parser("export", parents=[common], help="export to glb/gltf/obj/fbx/stl/ply/usd")
+    p.add_argument("project")
+    p.add_argument("out", help="output file; format from extension")
+    p.add_argument("--objects", nargs="+", help="export only these objects")
+    p.add_argument("--scale", type=float, help="multiply coordinates (stl/obj/ply/fbx); 1000 turns metres into mm for slicers")
+    p.set_defaults(func=cmd_export)
+
+    p = sub.add_parser("polyhaven", help="search and download CC0 HDRIs, textures, models")
+    ph = p.add_subparsers(dest="ph_command", required=True, metavar="ACTION")
+    q = ph.add_parser("search", parents=[common], help="search assets by words in id/name/tags")
+    q.add_argument("query", nargs="+")
+    q.add_argument("--type", choices=list(PH_TYPES))
+    q.add_argument("--limit", type=int, default=15)
+    q.set_defaults(func=cmd_ph_search)
+    q = ph.add_parser("get", parents=[common], help="download an asset into the shared cache")
+    q.add_argument("id")
+    q.add_argument("--res", default="1k", help="1k (default, for iterating), 2k, 4k for finals")
+    q.set_defaults(func=cmd_ph_get)
+
+    p = sub.add_parser("kit", help="list the bk helper functions available in run scripts")
+    p.set_defaults(func=cmd_kit)
+
+    p = sub.add_parser("doctor", parents=[common], help="check Blender, GPU, and headless rendering")
+    p.set_defaults(func=cmd_doctor)
+    return parser
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    try:
+        return args.func(args)
+    except BlendError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
