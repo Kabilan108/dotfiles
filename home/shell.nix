@@ -110,7 +110,7 @@ in
   '';
 
   home.activation.syncAgentSkills = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    $DRY_RUN_CMD ${homeDir}/dotfiles/bin/sync-agent-skills
+    PATH="${pkgs.jq}/bin:$PATH" $DRY_RUN_CMD ${homeDir}/dotfiles/bin/sync-agent-skills
   '';
 
   programs.bash = {

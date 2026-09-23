@@ -8,6 +8,8 @@ description: Use when a task involves another machine in the fleet (jacurutu, si
 Read `~/.config/fleet/computers.md` first — it is generated from `lib/fleet.nix`
 in ~/dotfiles and describes every machine: role, tailnet address, repo roots,
 and which machines it may SSH into.
+Scripts read the same data from `~/.config/fleet/fleet.json` (`self`,
+`machines`, `devices`); use it instead of hardcoding host names or IPs.
 
 For work involving `dar-es-balat`, NAS services, or the boundary between LAN
 and tailnet access, also read

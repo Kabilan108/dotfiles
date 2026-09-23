@@ -65,6 +65,36 @@ let
     - OS: ${device.os}
   '';
 
+  # Machine-readable fleet registry for scripts (schema below is the contract; bump
+  # version on breaking changes). Keys are deliberately left out.
+  fleetJson = builtins.toJSON {
+    version = 1;
+    inherit (fleet) tailnet;
+    self = thisHost;
+    machines = lib.mapAttrs (name: host: {
+      inherit (host)
+        role
+        description
+        user
+        roots
+        canAccess
+        color
+        ;
+      hostname = "${name}.${fleet.tailnet}";
+      ip = host.tailscaleIp;
+    }) fleet.hosts;
+    devices = lib.mapAttrs (name: device: {
+      inherit (device)
+        role
+        description
+        model
+        os
+        ;
+      hostname = "${name}.${fleet.tailnet}";
+      ip = device.tailscaleIp;
+    }) fleet.devices;
+  };
+
   computersMd = ''
     # Fleet
 
@@ -128,6 +158,8 @@ in
   '';
 
   home.file.".config/fleet/computers.md".text = computersMd;
+
+  home.file.".config/fleet/fleet.json".text = fleetJson;
 
   home.file.".config/fleet/hosts".text =
     lib.concatStringsSep "\n" (
