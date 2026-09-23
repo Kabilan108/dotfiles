@@ -1,4 +1,4 @@
-model = "gpt-5.6-sol"
+model = "gpt-6-sol"
 
 model_reasoning_effort = "low"
 model_supports_reasoning_summaries = true
@@ -329,6 +329,15 @@ trust_level = "trusted"
 [projects."/home/kabilan/experiments/obsidian-mcp"]
 trust_level = "trusted"
 
+[projects."/home/kabilan/experiments/esp32"]
+trust_level = "trusted"
+
+[projects."/vault/repos/atlas"]
+trust_level = "trusted"
+
+[tui]
+screen_reader_detection_done = true
+
 [tui.model_availability_nux]
 "gpt-5.5" = 4
 "gpt-5.6-sol" = 4
@@ -364,9 +373,6 @@ enabled = true
 enabled = true
 
 [plugins."chrome@openai-bundled"]
-enabled = true
-
-[plugins."sites@openai-bundled"]
 enabled = true
 
 [plugins."visualize@openai-bundled"]
