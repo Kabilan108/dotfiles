@@ -115,7 +115,7 @@ in the build script or pass `--res 1920x1080`.
 
 ## Assets
 
-Poly Haven assets are CC0 and cached under `~/.cache/blend/polyhaven`, shared
+Poly Haven assets are CC0 and cached under `$BLEND_CACHE_DIR/polyhaven`, shared
 across projects. `blend polyhaven search WORDS --type hdri|texture|model`, then
 `blend polyhaven get ID`, which prints the exact `bk.*` line to paste into a
 script, texture scale included. It downloads 1k by default; pass `--res 2k` or

@@ -31,7 +31,10 @@ from pathlib import Path
 SCRIPTS_DIR = Path(__file__).resolve().parent
 RUNTIME = SCRIPTS_DIR / "blend_runtime.py"
 SCENE_FILE = "scene.blend"
-CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "blend"
+CACHE_DIR = Path(
+    os.environ.get("BLEND_CACHE_DIR")
+    or Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "blend"
+)
 POLYHAVEN_API = "https://api.polyhaven.com"
 USER_AGENT = "blend-cli/1 (agent tooling; kabilan)"
 ALL_VIEWS = ["iso", "front", "right", "top", "back", "left", "bottom"]
@@ -128,7 +131,9 @@ def invoke(op: str, project: Path, blend: Path | None, timeout: float, **fields)
         cmd += ["--python-exit-code", "3", "--python", str(RUNTIME), "--", str(request)]
         log_path = log_dir(project) / f"{stamp()}-{op}.log"
         with open(log_path, "w") as log:
-            proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+            # Blender (and the GPU driver's shader cache) follow XDG_CACHE_HOME.
+            env = {**os.environ, "XDG_CACHE_HOME": str(CACHE_DIR)}
+            proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, start_new_session=True, env=env)
             try:
                 proc.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
@@ -415,6 +420,7 @@ def cmd_doctor(args) -> int:
                         lighting="auto", transparent=False)
         eevee = f"ok ({time.monotonic() - started:.1f}s)" if render.get("ok") else f"FAILED: {render.get('error')}"
     print(f"blender: {payload['blender']} ({blender_binary()})")
+    print(f"cache: {CACHE_DIR} (BLEND_CACHE_DIR)")
     print(f"cycles device: {payload['gpu_device']}  available: {payload['cycles_devices']}")
     print(f"headless eevee render: {eevee}")
     return 0 if render.get("ok") else 1

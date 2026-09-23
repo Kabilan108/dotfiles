@@ -54,6 +54,7 @@ in
   home.sessionVariables = rec {
     FZF_DEFAULT_OPTS = "--reverse";
 
+    BLEND_CACHE_DIR = "/vault/userdata/cache/blender";
     BUN_INSTALL_CACHE_DIR = "/vault/userdata/cache/bun-install";
 
     GRADLE_USER_HOME = "/vault/userdata/cache/gradle";
