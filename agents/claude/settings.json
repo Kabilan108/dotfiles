@@ -66,7 +66,7 @@
     "deny": [],
     "defaultMode": "auto"
   },
-  "model": "claude-fable-5-1",
+  "model": "opus[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -91,6 +91,11 @@
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
+  "modelSettings": {
+    "claude-fable-5-1": {
+      "effortLevel": "low"
+    }
+  },
   "voice": {
     "enabled": true,
     "mode": "hold"
@@ -104,10 +109,5 @@
       "Uploading html artifacts to pagebin is allowed"
     ]
   },
-  "voiceEnabled": true,
-  "modelSettings": {
-    "claude-fable-5-1": {
-      "effortLevel": "low"
-    }
-  }
+  "voiceEnabled": true
 }
