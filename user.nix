@@ -159,7 +159,19 @@ in
       owner = "kabilan";
       group = "users";
     };
+
+    # Readable by kabilan because flake fetching runs in the unprivileged nix client.
+    secrets."secrets/nix-access-tokens.age" = {
+      file = ./secrets/nix-access-tokens.age;
+      mode = "0400";
+      owner = "kabilan";
+      group = "users";
+    };
   };
+
+  nix.extraOptions = ''
+    !include ${config.age.secrets."secrets/nix-access-tokens.age".path}
+  '';
 
   home-manager = {
     useGlobalPkgs = true;

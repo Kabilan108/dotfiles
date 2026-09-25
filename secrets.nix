@@ -31,6 +31,10 @@ in
     sietch
     jacurutu
   ];
+  "secrets/nix-access-tokens.age".publicKeys = [
+    sietch
+    jacurutu
+  ];
   "secrets/hark/sietch-config.json.age".publicKeys = [ sietch ];
   "secrets/hark/jacurutu-config.json.age".publicKeys = [ jacurutu ];
   "secrets/hark/e-boost-automations.curl.age".publicKeys = [
