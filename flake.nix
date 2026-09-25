@@ -17,19 +17,27 @@
         })
       ];
 
+      compositorModules = {
+        hyprland = [ ./modules/nixos/wayland/hyprland.nix ];
+        niri = [
+          inputs."niri-flake".nixosModules.niri
+          ./modules/nixos/wayland/niri.nix
+        ];
+      };
+
       makeSystem =
         {
           name,
           modules ? [ ],
           displayServer ? "x11",
-          waylandCompositor ? "hyprland",
+          waylandCompositors ? [ "hyprland" ],
         }:
         nixpkgs.lib.nixosSystem {
           specialArgs = {
             inherit
               inputs
               displayServer
-              waylandCompositor
+              waylandCompositors
               ;
           };
           modules = [
@@ -57,6 +65,7 @@
             else
               # Wayland compositor configs live in HM; niri uses niri-flake for packaging/caching while keeping manual config files.
               [ ./modules/nixos/desktop-wayland.nix ]
+              ++ nixpkgs.lib.concatMap (compositor: compositorModules.${compositor}) waylandCompositors
           )
           ++ modules;
         };
@@ -66,22 +75,20 @@
         sietch = makeSystem {
           name = "sietch";
           displayServer = "wayland";
-          waylandCompositor = "hyprland";
+          waylandCompositors = [
+            "niri"
+            "hyprland"
+          ];
           modules = [
             ./modules/nixos/nvidia.nix
             ./modules/nixos/xbox-controller.nix
             ./modules/nixos/mullvad-vpn.nix
-            ./modules/nixos/wayland/hyprland.nix
           ];
         };
         jacurutu = makeSystem {
           name = "jacurutu";
           displayServer = "wayland";
-          waylandCompositor = "niri";
-          modules = [
-            inputs."niri-flake".nixosModules.niri
-            ./modules/nixos/wayland/niri.nix
-          ];
+          waylandCompositors = [ "niri" ];
         };
       };
 

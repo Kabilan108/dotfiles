@@ -1,0 +1,13 @@
+// Run `niri msg outputs` inside niri to list outputs and their modes.
+// https://yalter.github.io/niri/Configuration:-Outputs
+
+// AOC CU34G2XP ultrawide on the RTX 3090. Without a refresh rate niri picks the
+// highest the panel offers (180 Hz). If that comes up black or flickers, add
+// `max-bpc 8` or pin a lower refresh rate from `niri msg outputs`.
+output "DP-1" {
+    mode "3440x1440@180.000"
+    scale 1
+    position x=0 y=0
+}
+
+spawn-sh-at-startup "swaybg -i $HOME/dotfiles/wallpapers/uwide/lucy.png -m fill"

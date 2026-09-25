@@ -69,65 +69,9 @@ input {
     focus-follows-mouse max-scroll-amount="0%"
 }
 
-// You can configure outputs by their name, which you can find
-// by running `niri msg outputs` while inside a niri instance.
-// The built-in laptop monitor is usually called "eDP-1".
-// Find more information on the wiki:
-// https://yalter.github.io/niri/Configuration:-Outputs
-// Remember to uncomment the node by removing "/-"!
-// TODO: determine if this should be different between sietch and jacurutu
-output "eDP-1" {
-    // Uncomment this line to disable this output.
-    // off
-
-    // Resolution and, optionally, refresh rate of the output.
-    // The format is "<width>x<height>" or "<width>x<height>@<refresh rate>".
-    // If the refresh rate is omitted, niri will pick the highest refresh rate
-    // for the resolution.
-    // If the mode is omitted altogether or is invalid, niri will pick one automatically.
-    // Run `niri msg outputs` while inside a niri instance to list all outputs and their modes.
-    mode "2256x1504@59.999"
-
-    // You can use integer or fractional scale, for example use 1.5 for 150% scale.
-    scale 1
-
-    // Transform allows to rotate the output counter-clockwise, valid values are:
-    // normal, 90, 180, 270, flipped, flipped-90, flipped-180 and flipped-270.
-    transform "normal"
-
-    // Position of the output in the global coordinate space.
-    // This affects directional monitor actions like "focus-monitor-left", and cursor movement.
-    // The cursor can only move between directly adjacent outputs.
-    // Output scale and rotation has to be taken into account for positioning:
-    // outputs are sized in logical, or scaled, pixels.
-    // For example, a 3840×2160 output with scale 2.0 will have a logical size of 1920×1080,
-    // so to put another output directly adjacent to it on the right, set its x to 1920.
-    // If the position is unset or results in an overlap, the output is instead placed
-    // automatically.
-    position x=0 y=0
-}
-
-// TODO: replace display name with output name from `niri msg outputs`
-// This expects my ultrawide monitor (connected to jacurutu)
-output "DP-4" {
-  mode "3440x1440@59.973"
-  scale 1
-  // position x=2256 y=0
-  position x=0 y=-1504
-}
-
-// This expects my 27" Dell (connected to jacurutu)
-output "DP-2" {
-  mode "1920x1080@60.000"
-  scale 1
-  position x=0 y=-1080
-}
-
-// output "Office Samsung" {
-//   mode "3840x2160@30.000"
-//   scale 2
-//   position x=2256 y=0
-// }
+// Outputs, wallpaper, and other per-machine settings live in hosts/<hostname>.kdl,
+// which home-manager links to ~/.config/niri/host.kdl.
+include optional=true "~/.config/niri/host.kdl"
 
 // Settings that influence how windows are positioned and sized.
 // Find more information on the wiki:
@@ -303,7 +247,6 @@ spawn-at-startup "niriusd"
 spawn-sh-at-startup "sleep 2 && busctl --user set-property org.a11y.Bus /org/a11y/bus org.a11y.Status ScreenReaderEnabled b true"
 spawn-at-startup "swayidle" "-w"
 spawn-at-startup "obsidian"
-spawn-sh-at-startup "swaybg -i $HOME/dotfiles/wallpapers/shoggoth-001.png -m fill"
 
 hotkey-overlay {
     // Uncomment this line to disable the "Important Hotkeys" pop-up at startup.

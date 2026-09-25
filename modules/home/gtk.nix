@@ -2,13 +2,14 @@
   config,
   lib,
   pkgs,
-  waylandCompositor,
+  waylandCompositors,
   ...
 }:
 let
   gtk-theme = "WhiteSur-Dark";
   gtk-icon-theme = "Adwaita";
   cursor-theme = "catppuccin-mocha-mauve-cursors";
+  hasHyprland = lib.elem "hyprland" waylandCompositors;
 
   # Libadwaita apps refuse to load named GTK themes, so the gresource at
   # resource:///org/gnome/theme/gtk.css is never registered and the CSS
@@ -37,7 +38,7 @@ in
 {
   home.sessionVariables.GTK_THEME = gtk-theme;
 
-  xdg.configFile."xdg-desktop-portal/portals.conf" = lib.mkIf (waylandCompositor == "hyprland") {
+  xdg.configFile."xdg-desktop-portal/hyprland-portals.conf" = lib.mkIf hasHyprland {
     text = ''
       [preferred]
       default=gtk

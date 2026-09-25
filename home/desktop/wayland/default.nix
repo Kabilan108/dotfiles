@@ -1,17 +1,16 @@
 {
   lib,
   pkgs,
-  waylandCompositor,
+  waylandCompositors,
   ...
 }:
 {
   imports = [
     ./screenshots.nix
-    ./waybar.nix
     ./walker.nix
-    (./compositors + "/${waylandCompositor}")
   ]
-  ++ lib.optionals (waylandCompositor == "niri") [ ./quickshell ];
+  ++ map (compositor: ./compositors + "/${compositor}") waylandCompositors
+  ++ lib.optionals (lib.elem "niri" waylandCompositors) [ ./quickshell ];
 
   home.packages = with pkgs; [
     wl-clipboard

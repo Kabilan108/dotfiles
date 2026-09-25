@@ -1,17 +1,12 @@
-{
-  config,
-  waylandCompositor,
-  ...
-}:
+{ config, ... }:
 let
   colors = config.lib.stylix.colors.withHashtag;
-  workspaceModule = if waylandCompositor == "niri" then "niri/workspaces" else "hyprland/workspaces";
-  workspaceFormat = if waylandCompositor == "niri" then "{value}" else "{name}";
+  workspaceModule = "hyprland/workspaces";
 in
 {
   programs.waybar = {
-    enable = waylandCompositor != "niri";
-    systemd.enable = waylandCompositor != "niri";
+    enable = true;
+    systemd.enable = true;
 
     settings = {
       mainBar = {
@@ -34,7 +29,7 @@ in
         ];
 
         "${workspaceModule}" = {
-          format = workspaceFormat;
+          format = "{name}";
           on-click = "activate";
           sort-by-number = false;
           sort-by = "id";

@@ -58,7 +58,6 @@ in
       tracer-sync.enable = true;
     };
 
-    programs.niri.config = null;
     services.spotifyd = {
       enable = true;
       settings.global = {

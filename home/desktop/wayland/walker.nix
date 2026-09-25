@@ -3,7 +3,6 @@
   lib,
   config,
   inputs,
-  waylandCompositor,
   ...
 }:
 let
@@ -17,11 +16,7 @@ let
   );
   lockCmd = "lock-screen";
   stillsuitProfileIpc = "qs ipc -c ${lib.escapeShellArg config.programs.stillsuitShell.configId} call stillsuit-profile";
-  logoutCmd =
-    if waylandCompositor == "niri" then
-      "bash -lc 'systemctl --user stop waybar.service walker.service; niri msg action quit'"
-    else
-      "bash -lc 'systemctl --user stop waybar.service walker.service; hyprctl dispatch exit'";
+  logoutCmd = "bash -lc 'systemctl --user stop waybar.service walker.service; case $XDG_CURRENT_DESKTOP in niri) niri msg action quit ;; *) hyprctl dispatch exit ;; esac'";
 in
 {
   imports = [ inputs.walker.homeManagerModules.default ];

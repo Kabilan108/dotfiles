@@ -14,9 +14,12 @@ let
     fi
 
     if [ -z "''${WAYLAND_DISPLAY:-}" ]; then
-      WAYLAND_DISPLAY="$(${pkgs.hyprland}/bin/hyprctl instances \
-        | ${pkgs.gawk}/bin/awk '/wl socket:/ { print $3; exit }')"
-      export WAYLAND_DISPLAY
+      for socket in "$XDG_RUNTIME_DIR"/wayland-*; do
+        if [ -S "$socket" ]; then
+          export WAYLAND_DISPLAY="''${socket##*/}"
+          break
+        fi
+      done
     fi
 
     exec ${pkgs.swaylock-effects}/bin/swaylock "$@"

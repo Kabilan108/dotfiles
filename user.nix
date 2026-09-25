@@ -4,7 +4,7 @@
   inputs,
   lib,
   displayServer,
-  waylandCompositor,
+  waylandCompositors,
   ...
 }:
 let
@@ -178,7 +178,7 @@ in
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
-    extraSpecialArgs = { inherit inputs displayServer waylandCompositor; };
+    extraSpecialArgs = { inherit inputs displayServer waylandCompositors; };
 
     users.kabilan.imports = [ ./home ];
   };
