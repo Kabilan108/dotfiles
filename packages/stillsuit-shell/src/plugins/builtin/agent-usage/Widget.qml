@@ -36,9 +36,9 @@ Ui.ShellBarCluster {
         ? "Agent usage unavailable"
         : reportingDefaultCount === 0
             ? "No default agent accounts reporting"
-            : (hasCodex ? "Codex " + codexRemaining + "% remaining" : "")
+            : (hasCodex ? "Codex weekly " + codexRemaining + "% remaining" : "")
                 + (hasCodex && hasClaude ? "; " : "")
-                + (hasClaude ? "Claude " + claudeRemaining + "% remaining" : "")
+                + (hasClaude ? "Claude weekly " + claudeRemaining + "% remaining" : "")
     onClicked: context.actions.surfaceToggle("stillsuit.agent-usage", JSON.stringify({outputId: root.outputId}))
 
     function _isReportingDefault(account) {
@@ -57,6 +57,19 @@ Ui.ShellBarCluster {
         return false
     }
 
+    function _weeklyUsed(account) {
+        var windows = account && account.windows ? account.windows : []
+        for (var index = 0; index < windows.length; index++) {
+            var window = windows[index]
+            if (!window || String(window.label || "") !== "Weekly")
+                continue
+            var used = Number(window.used)
+            if (isFinite(used))
+                return Math.max(0, Math.min(1, used))
+        }
+        return -1
+    }
+
     function _remaining(provider) {
         var accounts = service && service.accounts ? service.accounts : []
         var maximum = -1
@@ -64,11 +77,7 @@ Ui.ShellBarCluster {
             var account = accounts[index]
             if (!_isReportingDefault(account) || account.provider !== provider)
                 continue
-            for (var windowIndex = 0; windowIndex < account.windows.length; windowIndex++) {
-                var used = Number(account.windows[windowIndex].used)
-                if (isFinite(used))
-                    maximum = Math.max(maximum, Math.max(0, Math.min(1, used)))
-            }
+            maximum = Math.max(maximum, _weeklyUsed(account))
         }
         return maximum < 0 ? -1 : 100 - Math.round(maximum * 100)
     }
@@ -80,12 +89,7 @@ Ui.ShellBarCluster {
             var account = accounts[accountIndex]
             if (!_isReportingDefault(account))
                 continue
-            for (var windowIndex = 0; windowIndex < account.windows.length;
-                    windowIndex++) {
-                var used = Number(account.windows[windowIndex].used)
-                if (isFinite(used))
-                    maximum = Math.max(maximum, Math.max(0, Math.min(1, used)))
-            }
+            maximum = Math.max(maximum, _weeklyUsed(account))
         }
         return maximum
     }

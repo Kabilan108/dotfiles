@@ -69,10 +69,11 @@ does not poll on its own.
 
 ## Presentation
 
-The bar shows only reporting default Codex and Claude accounts, followed by the
-lowest remaining quota among them. Signed-out providers and shadow accounts do
-not add marks or affect the bar value. Refreshing keeps the last snapshot
-visible until its replacement arrives.
+The bar shows the overall Weekly quota remaining for each reporting default
+Codex and Claude account. Shorter windows and model-specific limits remain in
+the panel. Signed-out providers, shadow accounts, and accounts without an
+overall Weekly window do not add marks or affect the bar value. Refreshing
+keeps the last snapshot visible until its replacement arrives.
 
 The panel uses a flat account list with large provider marks, account names,
 plans, identities, and separators. Limit rows span the account width and use

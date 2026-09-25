@@ -37,7 +37,7 @@ ShellRoot {
                 status: "ready",
                 statusText: "",
                 windows: [
-                    { id: "primary", label: "5 hour", used: 0.42,
+                    { id: "primary", label: "5 hour", used: 0.96,
                         resetsAt: "2030-01-01T05:00:00+00:00" },
                     { id: "secondary", label: "Weekly", used: 0.91,
                         resetsAt: "2030-01-08T00:00:00+00:00" }
@@ -153,15 +153,19 @@ ShellRoot {
             var accounts = fakeModel.accounts.slice()
             accounts[2] = {
                 provider: "claude", source: "default", status: "ready",
-                windows: [{ used: 0.25 }]
+                windows: [
+                    { id: "session", label: "Session", used: 0.02 },
+                    { id: "weekly", label: "Weekly", used: 0.51 },
+                    { id: "scoped-fable-weekly", label: "Fable Weekly", used: 0.75 }
+                ]
             }
             fakeModel.accounts = accounts
-            verify(widget.label === "9%" && widget.secondaryLabel === "75%",
-                "default providers retain separate percentages")
+            verify(widget.label === "9%" && widget.secondaryLabel === "49%",
+                "default providers show overall weekly percentages")
             verify(String(widget.secondaryIconSource).endsWith("/assets/claude.svg"),
                 "Claude percentage has its own mark")
             fakeModel.accounts = [accounts[2]]
-            verify(widget.label === "75%" && widget.secondaryLabel === "",
+            verify(widget.label === "49%" && widget.secondaryLabel === "",
                 "Claude alone occupies the primary slot")
             console.log("AGENT_USAGE_FIXTURE_OK", checks)
             Qt.quit()
