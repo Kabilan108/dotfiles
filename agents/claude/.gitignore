@@ -31,3 +31,6 @@ jobs
 .last_inuse_sweep
 daemon-auth-cooldown
 daemon-auth-status.json
+uploads/
+state/
+plugins/
