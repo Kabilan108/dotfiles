@@ -163,6 +163,10 @@
     atlas.url = "github:kabilan108/atlas";
     claude-bar.url = "github:kabilan108/claude-bar";
     dictator.url = "github:kabilan108/dictator";
+    disktree = {
+      url = "github:Kabilan108/disktree";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     dump.url = "github:kabilan108/dump";
     hark.url = "github:Kabilan108/hark";
     omasnap = {

@@ -225,6 +225,26 @@
         "type": "github"
       }
     },
+    "disktree": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1790309910,
+        "narHash": "sha256-6z+KJHrK5AazgSyjMdJdXO0VQjlhwGwSImg1gVa/kbQ=",
+        "owner": "Kabilan108",
+        "repo": "disktree",
+        "rev": "59cfed5a3ede1f0a7b6316cc6cb65a057158b61f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Kabilan108",
+        "repo": "disktree",
+        "type": "github"
+      }
+    },
     "dump": {
       "inputs": {
         "nixpkgs": "nixpkgs_4"
@@ -1533,6 +1553,7 @@
         "claude-bar": "claude-bar",
         "codex-desktop-linux": "codex-desktop-linux",
         "dictator": "dictator",
+        "disktree": "disktree",
         "dump": "dump",
         "elephant": "elephant",
         "firefox-addons": "firefox-addons",
