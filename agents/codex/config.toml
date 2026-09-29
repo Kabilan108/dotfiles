@@ -1,7 +1,6 @@
 model = "gpt-6-sol"
 
-model_reasoning_effort = "high"
-model_supports_reasoning_summaries = true
+model_reasoning_effort = "medium"
 
 sandbox_mode = "danger-full-access"
 
@@ -15,7 +14,6 @@ inherit = "all"
 
 [features]
 hooks = true
-skills = true
 unified_exec = true
 shell_snapshot = true
 steer = true
@@ -37,7 +35,6 @@ max_concurrent_threads_per_session = 12
 persistence = "save-all"
 
 [mcp_servers.executor]
-type = "http"
 url = "https://executor.sole-pierce.ts.net/mcp"
 
 [mcp_servers.deepwiki]
@@ -345,6 +342,7 @@ screen_reader_detection_done = true
 "gpt-5.5" = 4
 "gpt-5.6-sol" = 4
 gpt-6-astra = 4
+"gpt-6.1-sol" = 2
 
 [marketplaces.openai-bundled]
 source_type = "local"
@@ -404,6 +402,7 @@ show-context-window-usage = true
 enabled-reasoning-efforts = ["low", "medium", "high", "xhigh", "ultra", "max"]
 defaultTerminalLocation = "right"
 open-link-in-target-preference = "in-app-browser"
+projectlessWorkspaceRoot = "/home/kabilan/experiments/codex-bin"
 
 [desktop.appearanceDarkChromeTheme]
 accent = "#006efe"
