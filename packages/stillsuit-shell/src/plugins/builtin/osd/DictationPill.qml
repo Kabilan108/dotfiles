@@ -28,7 +28,7 @@ Item {
         ? "Dictation error"
         : "Dictation " + dictator.visualizerState
 
-    implicitWidth: content.implicitWidth + 36
+    implicitWidth: 216
     implicitHeight: barMaxHeight + 22
 
     function clamp(value, minimum, maximum) { return Math.min(Math.max(value, minimum), maximum) }

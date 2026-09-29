@@ -305,10 +305,11 @@ ShellRoot {
                 osdViews: 2,
                 osdOutputIds: [primaryOsd.outputId, secondaryOsd.outputId],
                 sharedOsdService: primaryOsd.service === secondaryOsd.service,
-                compactOsdBar: audioBar.implicitWidth === 268
+                compactOsdBar: audioBar.implicitWidth === 216
                     && audioBar.implicitHeight === 44
-                    && brightnessBar.implicitWidth === 268
-                    && brightnessBar.implicitHeight === 44,
+                    && brightnessBar.implicitWidth === 216
+                    && brightnessBar.implicitHeight === 44
+                    && dictationPill.implicitWidth === 216,
                 osdPanelBackground: String(audioBar.backgroundColor) === String(context.theme.semantic.surface.panel),
                 osdMediumRadius: audioBar.surfaceRadius === context.theme.metrics.radiusMedium,
                 osdBorder: String(audioBar.borderColor) === String(context.theme.component.osd.border),

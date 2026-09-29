@@ -29,7 +29,7 @@ Item {
         ? context.theme.semantic.signal[signalRole]
         : configuredFillColor
 
-    implicitWidth: 268
+    implicitWidth: 216
     implicitHeight: 44
 
     Ui.ShellSurface {

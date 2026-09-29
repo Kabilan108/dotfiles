@@ -29,7 +29,7 @@ export XDG_STATE_HOME="$tmp_dir/state"
 export XDG_CACHE_HOME="$tmp_dir/cache"
 export XDG_RUNTIME_DIR="$tmp_dir/runtime"
 export QT_QPA_PLATFORM=wayland
-unset DBUS_SESSION_BUS_ADDRESS
+export DBUS_SESSION_BUS_ADDRESS="unix:path=$tmp_dir/no-session-bus"
 mkdir -p "$HOME" "$XDG_CONFIG_HOME/stillsuit-fixtures/bar-v2" \
     "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
