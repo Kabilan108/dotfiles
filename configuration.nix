@@ -103,7 +103,7 @@
           vulkan-loader
           wayland
         ]
-        ++ inputs.codex-desktop-linux.packages.${pkgs.stdenv.hostPlatform.system}.codex-desktop.passthru.workspaceRuntimeLibraries;
+        ++ pkgs.chatgpt-desktop.passthru.workspaceRuntimeLibraries;
       nm-applet.enable = false;
     };
 

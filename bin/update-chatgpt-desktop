@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd -- "$(dirname -- "$(readlink -f -- "$0")")/.." && pwd)"
+pin_file="$repo_root/packages/chatgpt-desktop-version.json"
+mode="${1:---check}"
+if [[ $# -gt 1 || ( "$mode" != --check && "$mode" != --write ) ]]; then
+  echo 'Usage: update-chatgpt-desktop [--check|--write]' >&2
+  exit 2
+fi
+
+# Resolve tools from this repository's pinned nixpkgs, without a system rebuild.
+if ! command -v dpkg-deb >/dev/null || ! command -v jq >/dev/null; then
+  tools_expr="let p = (builtins.getFlake \"git+file://$repo_root\").nixosConfigurations.jacurutu.pkgs; in p.buildEnv { name = \"chatgpt-update-tools\"; paths = [ p.dpkg p.jq ]; }"
+  exec direnv exec "$repo_root" nix shell --impure --expr "$tools_expr" --command "$0" "$mode"
+fi
+
+current_version="$(jq -er .version "$pin_file")"
+latest="$(nix store prefetch-file --refresh --json https://persistent.oaistatic.com/codex-app-prod/linux/deb/latest/chatgpt_amd64.deb)"
+store_path="$(jq -er .storePath <<< "$latest")"
+hash="$(jq -er .hash <<< "$latest")"
+version="$(dpkg-deb -f "$store_path" Version)"
+package="$(dpkg-deb -f "$store_path" Package)"
+architecture="$(dpkg-deb -f "$store_path" Architecture)"
+if [[ "$package" != chatgpt || "$architecture" != amd64 || ! "$version" =~ ^[0-9]{2}\.[0-9]{3,4}\.[0-9]+$ ]]; then
+  echo 'Unexpected official package metadata; pin was not changed.' >&2
+  exit 1
+fi
+if dpkg --compare-versions "$version" lt "$current_version"; then
+  echo "Published latest version $version is older than pinned $current_version; pin was not changed." >&2
+  exit 1
+fi
+printf 'Pinned: %s\nPublished: %s\n' "$current_version" "$version"
+if [[ "$version" == "$current_version" ]]; then
+  if [[ "$hash" != "$(jq -er .hash "$pin_file")" ]]; then
+    echo 'Published bytes differ for the same version; pin was not changed.' >&2
+    exit 1
+  fi
+  echo 'Already current.'
+  exit 0
+fi
+if [[ "$mode" == --check ]]; then
+  echo 'Run update-chatgpt-desktop --write to update the pin, then build and rebuild.'
+  exit 0
+fi
+
+# Pin an immutable version URL, and confirm it serves the same bytes as latest.
+version_url="https://persistent.oaistatic.com/codex-app-prod/linux/deb/pool/main/c/chatgpt/chatgpt_${version}_amd64.deb"
+nix store prefetch-file --json --expected-hash "$hash" "$version_url" >/dev/null
+candidate="$(mktemp "$pin_file.candidate.XXXXXX")"
+trap 'rm -f "$candidate"' EXIT
+jq --arg version "$version" --arg hash "$hash" '{version: $version, hash: $hash}' "$pin_file" > "$candidate"
+chmod --reference="$pin_file" "$candidate"
+mv -- "$candidate" "$pin_file"
+echo "Updated $pin_file. Review the diff and build before rebuilding."

@@ -13,6 +13,7 @@
         (final: prev: {
           ghostty = inputs.ghostty.packages.${final.stdenv.hostPlatform.system}.default;
           code-cursor = final.callPackage ./packages/cursor.nix { };
+          chatgpt-desktop = import ./packages/chatgpt-desktop.nix { pkgs = final; };
         })
       ];
 
@@ -114,10 +115,6 @@
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
-    };
-    codex-desktop-linux = {
-      url = "github:ilysenko/codex-desktop-linux";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
     elephant.url = "github:abenz1267/elephant";
     firefox-addons = {

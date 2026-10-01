@@ -60,7 +60,6 @@ in
 
     inputs.atlas.homeManagerModules.default
     inputs.claude-bar.homeManagerModules.default
-    inputs.codex-desktop-linux.homeManagerModules.default
     inputs.raindrop.homeManagerModules.default
     inputs.tracer.homeManagerModules.default
   ]

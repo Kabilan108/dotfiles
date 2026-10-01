@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd -- "$(dirname -- "$(readlink -f -- "$0")")/.." && pwd)"
+test_root="${XDG_STATE_HOME:-$HOME/.local/state}/chatgpt-official-test"
+mkdir -p "$test_root"
+
+package_expr="(builtins.getFlake \"git+file://$repo_root\").nixosConfigurations.jacurutu.pkgs.chatgpt-desktop"
+direnv exec "$repo_root" nix build --impure --expr "$package_expr" --out-link "$test_root/package"
+exec "$test_root/package/bin/chatgpt-desktop" "$@"

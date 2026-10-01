@@ -10,7 +10,7 @@ let
 in
 {
   options.dotfiles.services.codex-desktop = {
-    enable = lib.mkEnableOption "Codex Desktop Linux user-local install helpers";
+    enable = lib.mkEnableOption "the official ChatGPT desktop app";
 
     ydotool.enable = lib.mkOption {
       type = lib.types.bool;
@@ -20,17 +20,8 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    programs.codexDesktopLinux = {
-      enable = true;
-      linuxFeatures = [
-        "frameless-titlebar"
-        "node-repl-reaper"
-        "remote-control-ui"
-        "remote-mobile-control"
-      ];
-    };
-
     home.packages = with pkgs; [
+      chatgpt-desktop
       at-spi2-core
       grim
       ydotool
