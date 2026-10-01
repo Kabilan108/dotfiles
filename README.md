@@ -110,10 +110,7 @@ nix flake update
 ### Custom Packages
 All custom packages are integrated as flake inputs:
 - **atlas**: CLI for bitbucket and confluence
-- **claude-bar**: System tray popup for tracking usage across Claude COde, and Codex. 
 - **dictator**: Voice dictation tool
-- **dump**: Data dump utility
-- **raindrop**: CLI for managing raindrop bookmarks
 
 ### Secrets Management
 - **Encryption**: agenix for secret management

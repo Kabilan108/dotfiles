@@ -335,6 +335,12 @@ trust_level = "trusted"
 [projects."/vault/experiments/parakeet-redux"]
 trust_level = "trusted"
 
+[projects."/vault/work/moberg/checkouts/mcp-7353/dev-server/moberg-data-query-api"]
+trust_level = "trusted"
+
+[projects."/vault/work/moberg/dev-server/ci-cd-pipeline"]
+trust_level = "trusted"
+
 [tui]
 screen_reader_detection_done = true
 

@@ -158,13 +158,11 @@
 
     # tools i maintain
     atlas.url = "github:kabilan108/atlas";
-    claude-bar.url = "github:kabilan108/claude-bar";
     dictator.url = "github:kabilan108/dictator";
     disktree = {
       url = "github:Kabilan108/disktree";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    dump.url = "github:kabilan108/dump";
     hark.url = "github:Kabilan108/hark";
     omasnap = {
       url = "github:Kabilan108/omasnap/niri-native";
@@ -178,7 +176,6 @@
       url = "github:Kabilan108/pagebin";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    raindrop.url = "github:kabilan108/raindrop";
     siren.url = "github:kabilan108/siren";
     tracer.url = "github:kabilan108/tracer";
   };

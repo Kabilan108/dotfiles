@@ -86,7 +86,7 @@ This is a complete NixOS + Home Manager-based development workstation configurat
 - Machine-specific settings isolated in `machines/{hostname}/`
 - Development dependencies managed through Home Manager
 - Secrets encrypted with agenix and machine-specific SSH keys
-- Custom packages (dictator, dump, atlas, raindrop) integrated as flake inputs
+- Custom packages (dictator, atlas) integrated as flake inputs
 - Local packages defined in `packages/`
 
 ### Development Workflow

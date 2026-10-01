@@ -111,7 +111,6 @@
       inputs.agenix.packages.${pkgs.stdenv.hostPlatform.system}.default
 
       inputs.atlas.packages.${pkgs.stdenv.hostPlatform.system}.default
-      inputs.dump.packages.${pkgs.stdenv.hostPlatform.system}.default
 
       # file system support
       gvfs

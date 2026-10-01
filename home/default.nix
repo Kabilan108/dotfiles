@@ -59,8 +59,6 @@ in
     ../modules/home/zen
 
     inputs.atlas.homeManagerModules.default
-    inputs.claude-bar.homeManagerModules.default
-    inputs.raindrop.homeManagerModules.default
     inputs.tracer.homeManagerModules.default
   ]
   ++ (if displayServer == "x11" then [ ./desktop/x11 ] else [ ./desktop/wayland ]);
@@ -147,34 +145,6 @@ in
     settings = {
       workspace = "moberg-analytics";
       username = "tonykabilanokeke@gmail.com";
-    };
-  };
-
-  services.claude-bar = {
-    enable = false;
-    package = inputs.claude-bar.packages.${systemName}.default;
-    theme.mode = "dark";
-    settings = {
-      providers = {
-        claude.enabled = true;
-        codex.enabled = true;
-        merge_icons = false;
-      };
-      notifications = {
-        enabled = true;
-        threshold = 0.9;
-      };
-      popup = {
-        display_timeout_ms = 2000;
-      };
-    };
-  };
-
-  programs.raindrop = {
-    enable = true;
-    package = inputs.raindrop.packages.${systemName}.default;
-    settings = {
-      token = "\${env:RAINDROP_TOKEN}";
     };
   };
 
