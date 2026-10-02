@@ -367,6 +367,10 @@ QtObject {
     }
 
     function _setState(pluginId, nextState) {
+        // Containment sweeps unload every affected id, most of which never
+        // loaded; a revision for those wakes every listener for nothing.
+        if (nextState === "unloaded" && states[pluginId] === undefined)
+            return
         var statesNext = _copy(states)
         if (nextState === "unloaded")
             delete statesNext[pluginId]

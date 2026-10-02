@@ -62,7 +62,8 @@ ShellRoot {
                 trackedCount: notificationService.trackedCount,
                 unreadCount: notificationService.unreadCount,
                 unreadBadgeText: notificationService.unreadBadgeText,
-                liveRefCount: Object.keys(notificationService.liveRefs).length
+                liveRefCount: Object.keys(notificationService.liveRefs).length,
+                stateWrites: notificationService.stateWrites
             })
         }
 
@@ -97,6 +98,17 @@ ShellRoot {
 
         function closeCenter(): string {
             return notificationService.closeCenter("output-a")
+        }
+
+        function dismissPopups(): string {
+            var writesBefore = notificationService.stateWrites
+            var keys = notificationService.popups.map(function(row) { return row.key })
+            for (var index = 0; index < keys.length; index++)
+                notificationService.dismiss(keys[index])
+            return JSON.stringify({
+                dismissed: keys.length,
+                synchronousWrites: notificationService.stateWrites - writesBefore
+            })
         }
 
         function dismissAll(): string {

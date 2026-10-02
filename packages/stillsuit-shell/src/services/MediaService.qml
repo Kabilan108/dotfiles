@@ -56,14 +56,28 @@ QtObject {
         ? player.loopState
         : "none")
 
+    property int positionTrackingRefs: 0
+    readonly property bool positionTracking: positionTrackingRefs > 0
+
+    // MPRIS only signals position on seeks, so a visible position readout
+    // needs a ticker; it runs only while some view holds a tracking ref.
     property Timer positionTimer: Timer {
         interval: 500
         repeat: true
-        running: root.model === null && root.isPlaying
+        triggeredOnStart: true
+        running: root.model === null && root.isPlaying && root.positionTracking
         onTriggered: {
             if (root.player && typeof root.player.positionChanged === "function")
                 root.player.positionChanged()
         }
+    }
+
+    function acquirePositionTracking() {
+        positionTrackingRefs++
+    }
+
+    function releasePositionTracking() {
+        positionTrackingRefs = Math.max(0, positionTrackingRefs - 1)
     }
 
     function selectPlayer(id) {

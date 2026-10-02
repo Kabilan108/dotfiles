@@ -11,7 +11,11 @@ Scope {
     id: root
 
     property bool enabled: true
-    property int reconciliationIntervalMs: 2500
+    // Niri's event stream is authoritative and resends full workspace and
+    // window snapshots on connect. Reconciliation fills in outputs (which the
+    // stream does not carry) on stream start, on screen changes, and after an
+    // event the parser cannot apply; this interval is only a safety net.
+    property int reconciliationIntervalMs: 60000
     property int reconciliationTimeoutMs: 5000
     property int reconnectDelayMs: 1000
     property int reconnectMaxDelayMs: 30000
@@ -30,7 +34,17 @@ Scope {
     property int _lastAcceptedGeneration: 0
     property int _lastTimedOutGeneration: 0
     property bool _reconciliationRunning: false
+    property bool _reconciliationPending: false
     property int _reconnectAttempts: 0
+    // Collections the event stream changed while the current reconciliation
+    // was in flight. Its snapshot of those collections may predate the event.
+    property var _streamTouched: ({})
+    property string _screenSignature: ""
+
+    readonly property var _ignoredEvents: [
+        "KeyboardLayoutsChanged", "KeyboardLayoutSwitched", "OverviewOpenedOrClosed",
+        "ConfigLoaded", "ScreenshotCaptured", "CastsChanged", "CastStartedOrChanged", "CastStopped"
+    ]
 
     CompositorAdapter { id: compositorAdapter }
 
@@ -39,55 +53,93 @@ Scope {
         if (line === "") return false
         try {
             var event = JSON.parse(line)
-            var nextOutputs = compositorAdapter.outputs
-            var nextWorkspaces = compositorAdapter.workspaces
-            var nextWindows = compositorAdapter.windows
-            var nextFocused = compositorAdapter.focusedOutputId
-            var changed = false
-            if (event.OutputsChanged && event.OutputsChanged.outputs !== undefined) {
-                nextOutputs = _normalizeOutputs(event.OutputsChanged.outputs)
-                if (nextOutputs === null) throw new Error("OutputsChanged.outputs is not an output map or array")
-                changed = true
-            } else if (event.WorkspacesChanged && Array.isArray(event.WorkspacesChanged.workspaces)) {
-                nextWorkspaces = event.WorkspacesChanged.workspaces
-                nextFocused = _focusedOutputId(nextWorkspaces, nextFocused)
-                changed = true
-            } else if (event.WorkspaceActivated) {
-                nextWorkspaces = _workspaceActivated(nextWorkspaces, event.WorkspaceActivated)
-                nextFocused = _focusedOutputId(nextWorkspaces, nextFocused)
-                changed = true
-            } else if (event.WorkspaceActiveWindowChanged) {
-                nextWorkspaces = _workspaceActiveWindow(nextWorkspaces, event.WorkspaceActiveWindowChanged)
-                changed = true
-            } else if (event.WindowsChanged && Array.isArray(event.WindowsChanged.windows)) {
-                nextWindows = event.WindowsChanged.windows
-                changed = true
-            } else if (event.WindowOpenedOrChanged && event.WindowOpenedOrChanged.window) {
-                nextWindows = _upsertWindow(nextWindows, event.WindowOpenedOrChanged.window)
-                changed = true
-            } else if (event.WindowClosed) {
-                nextWindows = _removeWindow(nextWindows, event.WindowClosed.id)
-                changed = true
-            } else if (event.WindowFocusChanged) {
-                nextWindows = _focusedWindow(nextWindows, event.WindowFocusChanged.id)
-                changed = true
-            }
-            if (!changed) return false
-            compositorAdapter.replace(nextOutputs, nextFocused, nextWorkspaces, nextWindows)
+            if (!event || typeof event !== "object" || Array.isArray(event))
+                throw new Error("event is not an object")
+            var kind = Object.keys(event)[0]
             _reconnectAttempts = 0
-            return true
+            if (_ignoredEvents.indexOf(kind) >= 0) return false
+            var changes = _eventChanges(kind, event[kind])
+            if (changes === null) {
+                console.warn("stillsuit niri: reconciling after unhandled event " + kind)
+                refresh()
+                return false
+            }
+            if (_reconciliationRunning) {
+                for (var key in changes) _streamTouched[key] = true
+            }
+            return compositorAdapter.update(changes)
         } catch (error) {
-            console.warn("stillsuit niri: ignored malformed event: " + error)
+            console.warn("stillsuit niri: reconciling after malformed event: " + error)
+            refresh()
             return false
         }
     }
 
+    // Returns the adapter collections an event changes, or null when the
+    // event is unknown or its payload cannot be applied. Collections that the
+    // event leaves untouched are passed back as the same array, so the adapter
+    // skips them.
+    function _eventChanges(kind, payload) {
+        if (!payload || typeof payload !== "object") return null
+        var workspaces = compositorAdapter.workspaces
+        var windows = compositorAdapter.windows
+        var focusedOutputId = compositorAdapter.focusedOutputId
+        switch (kind) {
+        case "OutputsChanged":
+            var outputs = payload.outputs === undefined ? null : _normalizeOutputs(payload.outputs)
+            return outputs === null ? null : { outputs: outputs }
+        case "WorkspacesChanged":
+            if (!Array.isArray(payload.workspaces)) return null
+            return { workspaces: payload.workspaces, focusedOutputId: _focusedOutputId(payload.workspaces, focusedOutputId) }
+        case "WorkspaceActivated":
+            var activated = _workspaceActivated(workspaces, payload)
+            return { workspaces: activated, focusedOutputId: _focusedOutputId(activated, focusedOutputId) }
+        case "WorkspaceActiveWindowChanged":
+            return { workspaces: _workspaceActiveWindow(workspaces, payload) }
+        case "WorkspaceUrgencyChanged":
+            return { workspaces: _patchRows(workspaces, function(workspace) {
+                return workspace.id === payload.id ? { is_urgent: payload.urgent === true } : null
+            }) }
+        case "WindowsChanged":
+            return Array.isArray(payload.windows) ? { windows: payload.windows } : null
+        case "WindowOpenedOrChanged":
+            return payload.window && payload.window.id !== undefined
+                ? { windows: _upsertWindow(windows, payload.window) } : null
+        case "WindowClosed":
+            return { windows: _removeWindow(windows, payload.id) }
+        case "WindowFocusChanged":
+            return { windows: _focusedWindow(windows, payload.id) }
+        case "WindowFocusTimestampChanged":
+            return { windows: _patchRows(windows, function(window) {
+                return window.id === payload.id ? { focus_timestamp: payload.focus_timestamp } : null
+            }) }
+        case "WindowUrgencyChanged":
+            return { windows: _patchRows(windows, function(window) {
+                return window.id === payload.id ? { is_urgent: payload.urgent === true } : null
+            }) }
+        case "WindowLayoutsChanged":
+            return Array.isArray(payload.changes) ? { windows: _windowLayouts(windows, payload.changes) } : null
+        }
+        return null
+    }
+
     function reconcile(outputsJson, workspacesJson, windowsJson) {
+        return _applyReconciliation(outputsJson, workspacesJson, windowsJson, {})
+    }
+
+    function _applyReconciliation(outputsJson, workspacesJson, windowsJson, streamTouched) {
         try {
             var nextOutputs = _parseOutputs(outputsJson)
             var nextWorkspaces = _parseSnapshotArray(workspacesJson, "workspaces")
             var nextWindows = _parseSnapshotArray(windowsJson, "windows")
-            compositorAdapter.replace(nextOutputs, _focusedOutputId(nextWorkspaces, compositorAdapter.focusedOutputId), nextWorkspaces, nextWindows)
+            var changes = {}
+            if (!streamTouched.outputs) changes.outputs = nextOutputs
+            if (!streamTouched.workspaces) {
+                changes.workspaces = nextWorkspaces
+                changes.focusedOutputId = _focusedOutputId(nextWorkspaces, compositorAdapter.focusedOutputId)
+            }
+            if (!streamTouched.windows) changes.windows = nextWindows
+            compositorAdapter.update(changes)
             return true
         } catch (error) {
             console.warn("stillsuit niri: ignored malformed reconciliation: " + error)
@@ -95,11 +147,19 @@ Scope {
         }
     }
 
+    // A request that arrives while a generation is in flight runs once that
+    // generation and its processes have finished.
     function refresh() {
-        if (!enabled || _reconciliationRunning || outputsProcess.running
-                || workspacesProcess.running || windowsProcess.running) return
+        if (!enabled) return
+        if (_reconciliationRunning || outputsProcess.running
+                || workspacesProcess.running || windowsProcess.running) {
+            _reconciliationPending = true
+            return
+        }
+        _reconciliationPending = false
         _reconciliationGeneration += 1
         _reconciliationRunning = true
+        _streamTouched = {}
         _prepareResult(outputsResult, _reconciliationGeneration)
         _prepareResult(workspacesResult, _reconciliationGeneration)
         _prepareResult(windowsResult, _reconciliationGeneration)
@@ -110,6 +170,24 @@ Scope {
         workspacesProcess.running = true
         windowsProcess.running = true
         reconciliationTimeout.restart()
+    }
+
+    function _runPendingReconciliation() {
+        if (_reconciliationPending) refresh()
+    }
+
+    function _screenNames() {
+        var names = []
+        for (var index = 0; index < Quickshell.screens.length; index++)
+            names.push(String(Quickshell.screens[index].name))
+        return names.join("\n")
+    }
+
+    function _screensChanged() {
+        var signature = _screenNames()
+        if (signature === _screenSignature) return
+        _screenSignature = signature
+        refresh()
     }
 
     function _prepareResult(result, generation) {
@@ -149,7 +227,7 @@ Scope {
             if (results[resultIndex].exitCode !== 0 || results[resultIndex].exitStatus !== 0) successful = false
         }
         if (successful)
-            successful = reconcile(outputsResult.text, workspacesResult.text, windowsResult.text)
+            successful = _applyReconciliation(outputsResult.text, workspacesResult.text, windowsResult.text, _streamTouched)
         else
             console.warn("stillsuit niri: ignored failed reconciliation generation " + generation)
 
@@ -157,6 +235,7 @@ Scope {
         if (successful) _lastAcceptedGeneration = generation
         _reconciliationRunning = false
         reconciliationTimeout.stop()
+        Qt.callLater(root._runPendingReconciliation)
     }
 
     function _reconciliationTimedOut(generation) {
@@ -168,6 +247,7 @@ Scope {
         outputsProcess.running = false
         workspacesProcess.running = false
         windowsProcess.running = false
+        Qt.callLater(root._runPendingReconciliation)
     }
 
     function _reconnectDelay(attempt) {
@@ -211,7 +291,7 @@ Scope {
             if (!rows[index] || typeof rows[index] !== "object" || Array.isArray(rows[index]))
                 throw new Error("niri " + label + " result contains a non-object snapshot")
         }
-        return _plain(rows)
+        return rows
     }
 
     function _normalizeOutputs(value) {
@@ -257,6 +337,33 @@ Scope {
         try { return JSON.parse(JSON.stringify(value)) } catch (error) { return null }
     }
 
+    // Copies only the rows whose fields actually change, so unchanged rows keep
+    // their identity. `patchFor` returns the fields to set on a row, or null.
+    function _patchRows(rows, patchFor) {
+        var next = null
+        for (var index = 0; index < rows.length; index++) {
+            var row = rows[index]
+            if (!row || typeof row !== "object") continue
+            var patch = patchFor(row)
+            if (!patch || !_patchChanges(row, patch)) continue
+            if (next === null) next = rows.slice()
+            next[index] = Object.assign({}, row, patch)
+        }
+        return next === null ? rows : next
+    }
+
+    function _patchChanges(row, patch) {
+        for (var key in patch) {
+            var value = patch[key]
+            if (value !== null && typeof value === "object") {
+                if (JSON.stringify(value) !== JSON.stringify(row[key])) return true
+            } else if (row[key] !== value) {
+                return true
+            }
+        }
+        return false
+    }
+
     function _upsertWindow(rows, window) {
         if (!window || window.id === undefined) return rows
         var next = rows.slice()
@@ -268,16 +375,23 @@ Scope {
     }
 
     function _removeWindow(rows, windowId) {
-        return rows.filter(function(window) { return window && window.id !== windowId })
+        var next = rows.filter(function(window) { return window && window.id !== windowId })
+        return next.length === rows.length ? rows : next
     }
 
     function _focusedWindow(rows, windowId) {
-        return rows.map(function(window) {
-            if (!window) return window
-            var next = _plain(window)
-            if (!next) return window
-            next.is_focused = next.id === windowId
-            return next
+        return _patchRows(rows, function(window) { return { is_focused: window.id === windowId } })
+    }
+
+    function _windowLayouts(rows, changes) {
+        var layouts = {}
+        for (var index = 0; index < changes.length; index++) {
+            var change = changes[index]
+            if (Array.isArray(change) && change.length === 2) layouts[String(change[0])] = change[1]
+        }
+        return _patchRows(rows, function(window) {
+            var key = String(window.id)
+            return layouts.hasOwnProperty(key) ? { layout: layouts[key] } : null
         })
     }
 
@@ -287,22 +401,17 @@ Scope {
         for (var index = 0; index < rows.length; index++) {
             if (rows[index] && rows[index].id === activatedId) { output = String(rows[index].output || ""); break }
         }
-        return rows.map(function(workspace) {
-            if (!workspace) return workspace
-            var next = _plain(workspace)
-            if (!next) return workspace
-            if (String(next.output || "") === output) next.is_active = next.id === activatedId
-            if (event.focused) next.is_focused = next.id === activatedId
-            return next
+        return _patchRows(rows, function(workspace) {
+            var patch = {}
+            if (String(workspace.output || "") === output) patch.is_active = workspace.id === activatedId
+            if (event.focused) patch.is_focused = workspace.id === activatedId
+            return patch
         })
     }
 
     function _workspaceActiveWindow(rows, event) {
-        return rows.map(function(workspace) {
-            if (!workspace || workspace.id !== event.workspace_id) return workspace
-            var next = _plain(workspace)
-            if (next) next.active_window_id = event.active_window_id
-            return next || workspace
+        return _patchRows(rows, function(workspace) {
+            return workspace.id === event.workspace_id ? { active_window_id: event.active_window_id } : null
         })
     }
 
@@ -349,6 +458,7 @@ Scope {
         id: eventStream
         command: ["niri", "msg", "--json", "event-stream"]
         stdout: SplitParser { splitMarker: "\n"; onRead: function(line) { root.parseEvent(line) } }
+        onStarted: root.refresh()
         onRunningChanged: if (!running) root._scheduleReconnect()
     }
 
@@ -374,6 +484,7 @@ Scope {
             onStreamFinished: function() { root._collectorFinished(outputsResult, outputsProcess.requestGeneration, text) }
         }
         onExited: function(exitCode, exitStatus) { root._processExited(outputsResult, outputsProcess.requestGeneration, exitCode, exitStatus) }
+        onRunningChanged: if (!running) Qt.callLater(root._runPendingReconciliation)
     }
     Process {
         id: workspacesProcess
@@ -384,6 +495,7 @@ Scope {
             onStreamFinished: function() { root._collectorFinished(workspacesResult, workspacesProcess.requestGeneration, text) }
         }
         onExited: function(exitCode, exitStatus) { root._processExited(workspacesResult, workspacesProcess.requestGeneration, exitCode, exitStatus) }
+        onRunningChanged: if (!running) Qt.callLater(root._runPendingReconciliation)
     }
     Process {
         id: windowsProcess
@@ -394,6 +506,7 @@ Scope {
             onStreamFinished: function() { root._collectorFinished(windowsResult, windowsProcess.requestGeneration, text) }
         }
         onExited: function(exitCode, exitStatus) { root._processExited(windowsResult, windowsProcess.requestGeneration, exitCode, exitStatus) }
+        onRunningChanged: if (!running) Qt.callLater(root._runPendingReconciliation)
     }
     Timer { id: reconnectTimer; repeat: false; onTriggered: if (root.enabled) eventStream.running = true }
     Timer {
@@ -402,8 +515,15 @@ Scope {
         repeat: false
         onTriggered: root._reconciliationTimedOut(root._reconciliationGeneration)
     }
-    Timer { interval: root.reconciliationIntervalMs; running: root.enabled; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
+    Timer { interval: Math.max(1, root.reconciliationIntervalMs); running: root.enabled; repeat: true; onTriggered: root.refresh() }
+    Connections {
+        target: Quickshell
+        function onScreensChanged() { root._screensChanged() }
+    }
 
     onEnabledChanged: root._setEnabled(enabled)
-    Component.onCompleted: root._setEnabled(enabled)
+    Component.onCompleted: {
+        root._screenSignature = root._screenNames()
+        root._setEnabled(enabled)
+    }
 }

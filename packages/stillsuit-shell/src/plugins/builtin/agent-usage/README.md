@@ -61,11 +61,24 @@ deduplicated. Explicit IDs use lowercase letters, numbers, dots, and hyphens.
   token is not refreshed by the plugin. Opening Claude Code refreshes the
   CLI-owned sign-in.
 
-The service requests a snapshot when it starts and every five minutes after
-that. Opening the panel requests another snapshot; the helper reuses provider
-results younger than 30 seconds. The panel refresh button forces a provider
-request and bypasses that cache. The bar reads the shared service snapshot and
-does not poll on its own.
+The service requests a snapshot when it starts and about every five minutes
+after that. Each interval is randomized by up to 10% in either direction, so
+machines polling the same account drift apart. Opening the panel requests
+another snapshot; the helper reuses provider results younger than 180 seconds.
+The panel refresh button forces a provider request and bypasses that cache.
+The bar reads the shared service snapshot and does not poll on its own.
+
+When a provider request fails (rate limiting, another HTTP error, a timeout, or
+no network) after an earlier successful read, the helper keeps returning the
+last good windows with `status: "ready"`, `stale: true`, a `staleReason`, and
+the `fetchedAt` time of that last success. The bar keeps its percentages and
+the panel shows the reason and the age of the data. An HTTP 429 from Claude
+also starts a per-account backoff: the helper honours `Retry-After` (seconds or
+an HTTP date), and otherwise waits 300 seconds, doubling on each further 429 up
+to an hour. Polls during the backoff reuse the last result without a network
+request, and `retryAt` reports when the next request may go out. The panel
+refresh button skips the doubling backoff but never a `Retry-After` window. A
+successful read clears the backoff.
 
 ## Presentation
 

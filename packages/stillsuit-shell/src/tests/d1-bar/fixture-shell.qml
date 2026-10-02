@@ -137,6 +137,7 @@ ShellRoot {
 
     Timer {
         property int phase: 0
+        property var retainedWidget: null
 
         interval: 50
         running: true
@@ -147,7 +148,7 @@ ShellRoot {
                     "required-property widget was not constructed exactly once")
                 fixture.assert(testedSlot.createdWidget !== null && !testedSlot.failed,
                     "valid widget instance is not retained by its slot")
-                fixture.assert(testedSlot.children.length === 1,
+                fixture.assert(fixture.visualInstances(testedSlot) === 1,
                     "valid slot retained duplicate visual instances")
                 testedSlot.registration = fixture.staleBuildRegistration
                 testedSlot.registration = fixture.staleFailureRegistration
@@ -169,10 +170,21 @@ ShellRoot {
                     "stale scheduled construction reached the failure path")
                 fixture.assert(testedSlot.createdWidget !== null && !testedSlot.failed,
                     "replacement widget was not retained")
-                fixture.assert(testedSlot.children.length === 1,
+                fixture.assert(fixture.visualInstances(testedSlot) === 1,
                     "rapid replacement retained duplicate visual instances")
-                testedSlot.registration = fixture.failingRegistration
+                retainedWidget = testedSlot.createdWidget
+                testedSlot.registration = fixture.replacementRegistration
                 phase = 2
+                return
+            }
+
+            if (phase === 2) {
+                fixture.assert(tracker.constructionCount === 2
+                        && tracker.destructionCount === 1
+                        && testedSlot.createdWidget === retainedWidget,
+                    "reassigning the same registration rebuilt the widget")
+                testedSlot.registration = fixture.failingRegistration
+                phase = 3
                 return
             }
 
@@ -198,6 +210,15 @@ ShellRoot {
             console.log("d1 qml fixture: ok")
             Qt.quit()
         }
+    }
+
+    function visualInstances(slot) {
+        var count = 0
+        for (var index = 0; index < slot.children.length; index++) {
+            if ("outputId" in slot.children[index])
+                count++
+        }
+        return count
     }
 
     function assert(condition, message) {

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 
 import QtQuick
-import Quickshell.Io
 
 Item {
     id: root
@@ -21,16 +20,12 @@ Item {
     readonly property bool ready: symbolic.status === Image.Ready
     readonly property string _fill: String(color)
 
-    FileView {
-        id: file
-        path: root.symbolicSource
-        blockLoading: true
-    }
-
     implicitWidth: pixelSize
     implicitHeight: pixelSize
     Accessible.name: accessibleName !== "" ? accessibleName : name.replace(/-/g, " ")
 
+    // sourceSize decodes at display size, so there is no minification for a
+    // mipmap chain to smooth; it would only cost texture memory.
     Image {
         id: brand
         anchors.fill: parent
@@ -38,35 +33,27 @@ Item {
         sourceSize.width: Math.ceil(width)
         sourceSize.height: Math.ceil(height)
         fillMode: Image.PreserveAspectFit
-        mipmap: true
     }
 
-    // Qt SVG has no currentColor support, so the fill is written into the
-    // markup before decoding instead of tinting pixels afterwards.
     Image {
         id: symbolic
         anchors.fill: parent
         visible: brand.status !== Image.Ready
-        source: root._tinted(file.text(), root._fill)
+        source: IconCache.tinted(root.symbolicSource, root._fill)
         sourceSize.width: Math.ceil(width)
         sourceSize.height: Math.ceil(height)
         fillMode: Image.PreserveAspectFit
         smooth: true
     }
 
-    function _tinted(markup, fill) {
-        if (!markup)
-            return ""
-        var svg = markup.replace(/<svg\b/, '<svg fill="' + fill + '"')
-        return "data:image/svg+xml;utf8," + encodeURIComponent(svg)
-    }
-
+    // The markup read and tinting are shared per engine in IconCache, so a bar
+    // full of icons reads each file once instead of once per instance.
     function _symbolicSource(iconName) {
-        var known = _catalog()
-        var key = known.indexOf(iconName) >= 0 ? iconName : "circle"
-        return Qt.resolvedUrl("icons/" + key + ".svg")
+        return IconCache.symbolicSource(iconName, _catalog)
     }
 
+    // icons/README.md and the icon-pack generator read this list as the source
+    // of truth; IconCache evaluates it once per engine.
     function _catalog() {
         return [
             "add", "agent", "audio", "battery", "battery-alert", "battery-charging",

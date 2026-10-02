@@ -62,6 +62,14 @@ Dynamic construction must handle `QQmlComponent.Loading`. The registry keeps
 the `QQmlComponent` alive for as long as a registered widget can create visual
 instances. A component is not registered until it reaches `Ready`.
 
+The catalog hands the bar one registration object per plugin. It keeps that
+same object for as long as the plugin's component, context, service, and
+manifest signature stay the same. The bar compares registrations by identity,
+and `WidgetSlot` ignores being handed its current registration again, so a
+service state change or a catalog re-sync leaves existing widget instances in
+place. Removals and replacements reach the bar immediately. Additions are
+coalesced into the next event-loop turn.
+
 Every `barWidget` entry point declares `required property string outputId` in
 addition to its required `context` property and any required service. The bar
 passes the owning window's output identity to `WidgetSlot`, and `WidgetSlot`
@@ -379,17 +387,18 @@ labels, persistence paths, or mutation methods.
 
 ## Process replacement
 
-Quickshell 0.3.0 returns from `quickshell kill` before the selected process has
-exited. No Stillsuit code may assume synchronous kill or use a fixed sleep as a
-barrier.
+Since Quickshell 0.3.1, `quickshell kill` waits for the selected process to
+exit. In 0.3.0 it returned immediately. Never use a fixed sleep as a barrier,
+and never treat an exited process as a ready replacement.
 
 Production process replacement belongs to the systemd user unit. Its ordered
 stop and start must finish the old process before launching the replacement.
 Any standalone recovery helper must instead:
 
 1. Resolve the exact old PID.
-2. Request termination.
-3. Wait with a bounded timeout for that PID to disappear.
+2. Request termination with `quickshell kill --pid`, or a signal.
+3. Wait with a bounded timeout for that PID to disappear. This also covers
+   termination by signal and any 0.3.0 hosts that remain.
 4. If notifications are in scope, wait for
    `org.freedesktop.Notifications` to have no owner.
 5. Start the canonical config.

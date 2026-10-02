@@ -29,7 +29,9 @@ QtObject {
     readonly property bool low: present && discharging && percentage <= 20
     readonly property string timeText: _timeText()
     readonly property var normalizedDetails: _normalizeDetails(
-        model && model.details !== undefined ? model.details : details)
+        model && model.details !== undefined
+            ? model.details
+            : _mergeLiveDetails(physicalDevice, details))
     readonly property var healthPercent: normalizedDetails.healthPercent
     readonly property var capacityWh: normalizedDetails.capacityWh
     readonly property var designCapacityWh: normalizedDetails.designCapacityWh
@@ -49,6 +51,9 @@ QtObject {
     property var details: ({})
     property int detailRevision: 0
     property string detailError: ""
+    property bool detailRefreshQueued: false
+    property var detailBattery: null
+    readonly property var laptopBattery: model ? null : _laptopBattery()
 
     property Process detailProcess: Process {
         id: detailProcess
@@ -60,20 +65,48 @@ QtObject {
         }
         onExited: function(exitCode) {
             root._finishDetailsRefresh(exitCode, detailOutput.text)
+            if (root.detailRefreshQueued) {
+                root.detailRefreshQueued = false
+                root.refreshDetails()
+            }
         }
     }
 
-    property Timer detailTimer: Timer {
-        interval: 30000
-        running: root.model === null
-        repeat: true
-        triggeredOnStart: true
+    // Design capacity, cycle count and charge thresholds are not exposed by
+    // UPowerDevice, so they are read when the battery appears or changes
+    // state instead of on a timer; the delay coalesces state flapping.
+    property Timer detailRefreshDelay: Timer {
+        interval: 2000
+        repeat: false
         onTriggered: root.refreshDetails()
     }
 
-    function refreshDetails() {
-        if (model || detailProcess.running)
+    property Connections laptopBatteryConnections: Connections {
+        target: root.laptopBattery
+        ignoreUnknownSignals: true
+
+        function onStateChanged() {
+            root.detailRefreshDelay.restart()
+        }
+    }
+
+    onLaptopBatteryChanged: _watchLaptopBattery()
+    Component.onCompleted: _watchLaptopBattery()
+
+    function _watchLaptopBattery() {
+        if (laptopBattery === detailBattery)
             return
+        detailBattery = laptopBattery
+        refreshDetails()
+    }
+
+    function refreshDetails() {
+        if (model || !laptopBattery)
+            return
+        if (detailProcess.running) {
+            detailRefreshQueued = true
+            return
+        }
         detailProcess.running = true
     }
 
@@ -149,6 +182,10 @@ QtObject {
     }
 
     function _physicalBattery() {
+        return laptopBattery || device
+    }
+
+    function _laptopBattery() {
         var devices = UPower.devices && UPower.devices.values
             ? UPower.devices.values
             : []
@@ -157,7 +194,25 @@ QtObject {
             if (candidate && candidate.isLaptopBattery)
                 return candidate
         }
-        return device
+        return null
+    }
+
+    function _mergeLiveDetails(source, raw) {
+        var merged = ({})
+        var base = raw || ({})
+        for (var key in base)
+            merged[key] = base[key]
+        if (!source)
+            return merged
+        if (source.healthSupported) {
+            var health = Number(source.healthPercentage)
+            if (isFinite(health) && health > 0)
+                merged.healthPercent = health + "%"
+        }
+        var capacity = Number(source.energyCapacity)
+        if (isFinite(capacity) && capacity > 0)
+            merged.capacityWh = capacity
+        return merged
     }
 
     function _livePowerDraw() {

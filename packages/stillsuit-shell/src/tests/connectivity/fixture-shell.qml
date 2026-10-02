@@ -1,6 +1,8 @@
 import QtQuick
 import Quickshell
+import Quickshell.Networking
 import "services" as Services
+import "tests/FixtureTheme.js" as FixtureTheme
 import "ui" as Ui
 
 ShellRoot {
@@ -145,6 +147,64 @@ ShellRoot {
         model: root.fakeNetwork
     }
 
+    property var viewContext: QtObject {
+        property var theme: FixtureTheme.create()
+        property var panels: QtObject {
+            property string selectedId: ""
+            property string selectedOutputId: ""
+        }
+        property var actions: QtObject {
+            function surfaceToggle(id, payload) { return "ok" }
+            function surfaceClose(id) { return "ok" }
+        }
+    }
+    property Component networkWidget: Qt.createComponent("plugins/builtin/network/Widget.qml")
+    property Component networkPanel: Qt.createComponent("plugins/builtin/network/Panel.qml")
+
+    property var liveWired: QtObject {
+        property int type: DeviceType.Wired
+        property string name: "enp4s0"
+        property bool connected: true
+        property bool hasLink: true
+        property int state: ConnectionState.Connected
+    }
+    property var liveWiredDown: QtObject {
+        property int type: DeviceType.Wired
+        property string name: "enp5s0"
+        property bool connected: false
+        property bool hasLink: false
+        property int state: ConnectionState.Disconnected
+    }
+    property var liveWifi: QtObject {
+        property int type: DeviceType.Wifi
+        property string name: "wlan0"
+        property bool connected: true
+        property int state: ConnectionState.Connected
+        property var networks: QtObject {
+            property var values: [
+                { name: "Home", known: true, connected: true, signalStrength: 0.81,
+                    security: WifiSecurityType.Wpa2Psk },
+                { name: "Cafe", known: false, connected: false, signalStrength: 0.4,
+                    security: WifiSecurityType.Open },
+                { name: "Corp", known: false, connected: false, signalStrength: 0.9,
+                    security: WifiSecurityType.Wpa2Eap },
+                { name: "Cafe", known: false, connected: false, signalStrength: 0.6,
+                    security: WifiSecurityType.Open },
+                { name: "", known: false, connected: false, signalStrength: 0.99,
+                    security: WifiSecurityType.Sae }
+            ]
+        }
+    }
+    property var helperSnapshot: ({
+        wiredConnections: [{ device: "enp4s0", name: "Wired connection 1",
+            addresses: ["192.0.2.10/24"], carrier: "on" }],
+        networks: [{ name: "Home", uuid: "home-uuid", profileName: "Home profile" }],
+        vpns: [root.mobergVpn],
+        tailscale: ({ available: true, status: "running", ip: "100.64.0.8",
+            hostName: "fixture-host", dnsName: "fixture-host.fixture.ts.net",
+            services: [] })
+    })
+
     property var connectedDevice: QtObject {
         property string address: "AA:00:00:00:00:01"
         property string name: "Connected headset"
@@ -288,6 +348,79 @@ ShellRoot {
             }
             expect(network.available && network.wifiEnabled && network.wiredConnected,
                 "network owner state was not exposed")
+            expect(!network.networkingBackend && !network.networkingActive
+                    && !network.refreshTimer.running && !network.sanityTimer.running,
+                "an injected model must not reach Quickshell.Networking or poll")
+
+            var live = network.liveSnapshot([liveWired, liveWiredDown, liveWifi],
+                true, helperSnapshot)
+            expect(live.wifiEnabled && live.wifiConnected && live.wiredConnected
+                    && live.wiredName === "Wired connection 1"
+                    && live.wiredConnections.length === 1
+                    && live.wiredConnections[0].device === "enp4s0"
+                    && live.wiredConnections[0].addresses[0] === "192.0.2.10/24",
+                "live wired devices did not map onto the snapshot shape")
+            expect(live.networks.map(function(row) { return row.name }).join(",")
+                    === "Home,Corp,Cafe",
+                "live Wi-Fi networks were not deduplicated and ordered")
+            expect(live.networks[0].connected && live.networks[0].known
+                    && live.networks[0].uuid === "home-uuid"
+                    && live.networks[0].id === "home-uuid"
+                    && live.networks[0].kind === "personal"
+                    && live.networks[0].signal === 81
+                    && network.signalPercentage(live.networks[0]) === 81,
+                "saved live network lost its helper profile or signal")
+            expect(live.networks[1].kind === "enterprise"
+                    && live.networks[2].kind === "open"
+                    && live.networks[2].signal === 60
+                    && live.networks[2].uuid === "" && live.networks[2].id === "Cafe",
+                "live network security kinds are incorrect")
+            expect(live.vpns.length === 1 && live.tailscale.ip === "100.64.0.8",
+                "helper VPN and Tailscale data were not merged into live state")
+            var bare = network.liveSnapshot([liveWired, liveWifi], false, null)
+            expect(bare.wiredName === "enp4s0" && bare.wiredConnections[0].carrier === "on"
+                    && bare.wiredConnections[0].addresses.length === 0
+                    && bare.networks.length === 0 && bare.wifiConnected
+                    && !bare.tailscale.available && bare.vpns.length === 0,
+                "live state without a helper snapshot is incorrect")
+            expect(network.summaryMatches({ wiredActive: true, wifiActive: true }, live)
+                    && !network.summaryMatches({ wiredActive: true, wifiActive: false }, live)
+                    && !network.summaryMatches({ wiredActive: false, wifiActive: true }, live),
+                "stale-backend summary comparison is incorrect")
+
+            var widget = networkWidget.createObject(root, {
+                context: viewContext, service: network, outputId: "fixture-output"
+            })
+            expect(widget && !widget.busy, "network widget failed to load idle")
+            expect(network._begin("scan", "wifi") && !widget.busy,
+                "a Wi-Fi scan must not mark the bar chip busy")
+            network._finishModel("ok", "scan")
+            expect(network._begin("join", "saved-uuid") && widget.busy,
+                "a join must mark the bar chip busy")
+            network._finishModel("ok", "join")
+            expect(network._begin("wifi-enabled", "wifi") && widget.busy,
+                "a Wi-Fi toggle must mark the bar chip busy")
+            network._finishModel("ok", "wifi-enabled")
+            expect(!widget.busy, "network widget stayed busy after the operation")
+            widget.destroy()
+
+            var panel = networkPanel.createObject(root, {
+                context: viewContext, service: network, screen: null,
+                outputId: "fixture-output"
+            })
+            expect(panel && panel.connectedRows.length === 0
+                    && panel.availableRows.length === 0 && panel.savedRows.length === 0
+                    && panel.allowlistedVpns.length === 0,
+                "a closed network panel must not derive network rows")
+            panel.open("{}")
+            expect(panel.availableRows.length === 2 && panel.savedRows.length === 2
+                    && panel.allowlistedVpns.length === 1
+                    && panel.activeReadOnlyVpns.length === 1,
+                "an opened network panel did not derive its rows")
+            panel.close()
+            expect(panel.availableRows.length === 0 && panel.allowlistedVpns.length === 0,
+                "a closed network panel kept deriving rows")
+            panel.destroy()
             expect(network.scan() === "ok" && fakeNetwork.scans === 1,
                 "scan did not reach the fake NetworkManager owner")
             expect(network._begin("scan", "wifi") && network.scanning,
@@ -357,6 +490,8 @@ ShellRoot {
                 "Bluetooth battery state is incorrect")
             expect(bluetooth.scan() === "ok" && bluetooth.scanning,
                 "Bluetooth scan did not reach BlueZ owner")
+            expect(bluetooth.operation === "idle",
+                "Bluetooth discovery must not mark the bar chip busy")
             expect(bluetooth.stopScan() === "ok" && !bluetooth.scanning,
                 "Bluetooth scan stop did not reconcile")
 

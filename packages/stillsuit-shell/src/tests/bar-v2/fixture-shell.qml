@@ -11,6 +11,45 @@ ShellRoot {
 
     property int clockServiceInstances: 0
     property int workspaceConstructionCount: 0
+    property int clockConstructionCount: 0
+    property var markersBuilt: ({ a: 0, b: 0, c: 0 })
+    property var markersLive: ({ a: 0, b: 0, c: 0 })
+    readonly property var markerRegistrations: ["a", "b", "c"].map(function(label, index) {
+        return {
+            component: markerComponent,
+            context: context,
+            service: { label: label },
+            manifest: { id: "stillsuit.marker-" + label },
+            defaultSection: "right",
+            order: index + 1,
+            allowMultiple: false
+        }
+    })
+
+    function recordMarker(label, built) {
+        var nextBuilt = Object.assign({}, markersBuilt)
+        var nextLive = Object.assign({}, markersLive)
+        if (built)
+            nextBuilt[label]++
+        nextLive[label] += built ? 1 : -1
+        markersBuilt = nextBuilt
+        markersLive = nextLive
+    }
+    readonly property var workspaceRegistration: ({
+        component: workspaceComponent,
+        context: context,
+        manifest: { id: "stillsuit.workspaces" },
+        defaultSection: "left",
+        allowMultiple: false
+    })
+    readonly property var clockRegistration: ({
+        component: clockComponent,
+        context: context,
+        service: clockService,
+        manifest: { id: "stillsuit.clock" },
+        defaultSection: "center",
+        allowMultiple: false
+    })
     property var productionWorkspaceCounts: ({})
     readonly property string primaryOutputId: Quickshell.screens.length > 0
         ? String(Quickshell.screens[0].name)
@@ -189,9 +228,25 @@ ShellRoot {
     }
 
     Component {
+        id: markerComponent
+
+        Item {
+            required property var context
+            required property var service
+            required property string outputId
+            implicitWidth: 4
+            implicitHeight: 4
+            Component.onCompleted: fixture.recordMarker(service.label, true)
+            Component.onDestruction: fixture.recordMarker(service.label, false)
+        }
+    }
+
+    Component {
         id: clockComponent
 
-        Clock.ClockWidget {}
+        Clock.ClockWidget {
+            Component.onCompleted: fixture.clockConstructionCount++
+        }
     }
 
     Bar.Bar {
@@ -199,20 +254,7 @@ ShellRoot {
 
         context: context
         outputScreens: Quickshell.screens
-        widgetRegistrations: [{
-            component: workspaceComponent,
-            context: context,
-            manifest: { id: "stillsuit.workspaces" },
-            defaultSection: "left",
-            allowMultiple: false
-        }, {
-            component: clockComponent,
-            context: context,
-            service: clockService,
-            manifest: { id: "stillsuit.clock" },
-            defaultSection: "center",
-            allowMultiple: false
-        }]
+        widgetRegistrations: [fixture.workspaceRegistration, fixture.clockRegistration]
     }
 
     Item {
@@ -329,6 +371,55 @@ ShellRoot {
                     && dictationPill.accessibleName !== ""
                     && primaryWorkspaces.accessibleName !== ""
                     && clockView.accessibleName !== ""
+            })
+        }
+
+        // A re-sync hands the bar a fresh array of the same records, as the
+        // host does after an unrelated service or catalog revision.
+        function resync(): string {
+            productionBar.widgetRegistrations = [
+                fixture.workspaceRegistration, fixture.clockRegistration
+            ]
+            return "ok"
+        }
+
+        function addMarkers(): string {
+            productionBar.widgetRegistrations = [
+                fixture.workspaceRegistration, fixture.clockRegistration,
+                fixture.markerRegistrations[0], fixture.markerRegistrations[1],
+                fixture.markerRegistrations[2]
+            ]
+            return "ok"
+        }
+
+        // ScriptModel must reconcile by record identity, not by position: the
+        // slots after a removed entry keep their own widget.
+        function removeMiddleMarker(): string {
+            productionBar.widgetRegistrations = [
+                fixture.workspaceRegistration, fixture.clockRegistration,
+                fixture.markerRegistrations[0], fixture.markerRegistrations[2]
+            ]
+            return "ok"
+        }
+
+        function replaceClock(): string {
+            productionBar.widgetRegistrations = [fixture.workspaceRegistration, {
+                component: clockComponent,
+                context: context,
+                service: clockService,
+                manifest: { id: "stillsuit.clock" },
+                defaultSection: "center",
+                allowMultiple: false
+            }]
+            return "ok"
+        }
+
+        function constructions(): string {
+            return JSON.stringify({
+                workspaces: fixture.workspaceConstructionCount,
+                clocks: fixture.clockConstructionCount,
+                markersBuilt: fixture.markersBuilt,
+                markersLive: fixture.markersLive
             })
         }
 

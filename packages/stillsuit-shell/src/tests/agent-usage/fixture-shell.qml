@@ -167,6 +167,48 @@ ShellRoot {
             fakeModel.accounts = [accounts[2]]
             verify(widget.label === "49%" && widget.secondaryLabel === "",
                 "Claude alone occupies the primary slot")
+            verify(!widget.stale && widget.accessibleName.indexOf("stale") < 0,
+                "fresh data is not marked stale")
+
+            var staleClaude = {
+                provider: "claude", source: "default", status: "ready",
+                statusText: "", stale: true, staleReason: "Rate limited",
+                fetchedAt: "2030-01-01T00:00:00+00:00",
+                retryAt: "2030-01-01T01:30:00+00:00",
+                windows: [{ id: "weekly", label: "Weekly", used: 0.25 }]
+            }
+            fakeModel.accounts = [accounts[0], staleClaude]
+            verify(widget.hasClaude && widget.secondaryLabel === "75%",
+                "stale Claude data keeps its bar percentage")
+            verify(widget.stale && widget.accessibleName.indexOf("(stale)") > 0,
+                "stale bar data is announced")
+            verify(usage.statusRole(staleClaude) === "warning", "stale status role")
+
+            var panelComponent = Qt.createComponent(
+                "plugins/builtin/agent-usage/Panel.qml", Component.PreferSynchronous)
+            verify(panelComponent.status === Component.Ready,
+                "panel: " + panelComponent.errorString())
+            var panel = panelComponent.createObject(root, {
+                context: fakeContext,
+                service: usage,
+                screen: null,
+                outputId: "fixture-output"
+            })
+            verify(panel !== null, "panel construction")
+            panel.nowMs = Date.parse("2030-01-01T01:12:00+00:00")
+            verify(panel._staleText(staleClaude)
+                    === "Rate limited · showing data from 1h 12m ago · retry in 18m",
+                "panel stale text: " + panel._staleText(staleClaude))
+            verify(panel._statusText({ statusText: "Rate limited",
+                    retryAt: "2030-01-01T01:15:00+00:00" })
+                    === "Rate limited · retry in 3m",
+                "panel retry text without cached data")
+            verify(panel._statusText({ statusText: "Rate limited",
+                    retryAt: "2030-01-01T01:00:00+00:00" }) === "Rate limited",
+                "elapsed retry time is hidden")
+            verify(panel._updatedText("2030-01-01T01:11:30+00:00") === "Updated just now",
+                "updated text")
+            panel.destroy()
             console.log("AGENT_USAGE_FIXTURE_OK", checks)
             Qt.quit()
         } catch (error) {

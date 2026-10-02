@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Io
+import Quickshell.Networking
 
 QtObject {
     id: root
@@ -27,6 +28,8 @@ QtObject {
     property string lastError: ""
     property string lastResult: ""
     property int localRevision: 0
+    property bool networkingStale: false
+    property int staleStrikes: 0
 
     readonly property string apiVersion: "1"
     readonly property string helperPath: String(context && context.settings
@@ -38,20 +41,36 @@ QtObject {
         : operation + (operationTarget !== "" ? ":" + operationTarget : "")
     readonly property bool helperReady: model === null && helperPath.charAt(0) === "/"
         && helper.running
-    readonly property bool available: !forceUnavailable && (model !== null || helperReady)
+    // Networking is only touched when no model is injected, so fixtures and the
+    // workbench never instantiate the D-Bus backend.
+    readonly property bool networkingBackend: model === null && !forceUnavailable
+        && Networking.backend === NetworkBackendType.NetworkManager
+    readonly property bool networkingActive: networkingBackend && !networkingStale
+    readonly property bool panelOpen: Boolean(context && context.panels
+        && context.panels.selectedId === "stillsuit.network")
+    readonly property var liveDevices: networkingActive && Networking.devices
+        ? Networking.devices.values : []
+    readonly property var effectiveSnapshot: networkingActive
+        ? liveSnapshot(liveDevices, Networking.wifiEnabled, snapshot)
+        : snapshot
+    readonly property string linkSignature: networkingActive
+        ? _linkSignature(liveDevices, Networking.wifiEnabled) : ""
+    readonly property bool available: !forceUnavailable
+        && (model !== null || helperReady || networkingActive)
     readonly property bool wifiEnabled: model
         ? Boolean(model.wifiEnabled)
-        : Boolean(snapshot.wifiEnabled)
+        : Boolean(effectiveSnapshot.wifiEnabled)
     readonly property bool wiredConnected: model
         ? Boolean(model.wiredConnected)
-        : Boolean(snapshot.wiredConnected)
+        : Boolean(effectiveSnapshot.wiredConnected)
     readonly property string wiredName: model
         ? String(model.wiredName || "")
-        : String(snapshot.wiredName || "")
-    readonly property var networks: model ? model.networks || [] : snapshot.networks || []
+        : String(effectiveSnapshot.wiredName || "")
+    readonly property var networks: model
+        ? model.networks || [] : effectiveSnapshot.networks || []
     readonly property var wiredConnections: model
-        ? model.wiredConnections || [] : snapshot.wiredConnections || []
-    readonly property var vpns: model ? model.vpns || [] : snapshot.vpns || []
+        ? model.wiredConnections || [] : effectiveSnapshot.wiredConnections || []
+    readonly property var vpns: model ? model.vpns || [] : effectiveSnapshot.vpns || []
     readonly property var tailscale: model ? model.tailscale || ({
         available: false,
         status: "unavailable",
@@ -59,7 +78,7 @@ QtObject {
         hostName: "",
         dnsName: "",
         services: []
-    }) : snapshot.tailscale || ({
+    }) : effectiveSnapshot.tailscale || ({
         available: false,
         status: "unavailable",
         ip: "",
@@ -95,11 +114,188 @@ QtObject {
         }
     }
 
+    onLinkSignatureChanged: if (networkingActive) linkDebounce.restart()
+
+    // Helper-only mode polls as before. With the Networking backend the full
+    // snapshot (IP addresses, VPNs, Tailscale) is only refreshed while the
+    // panel is shown.
     property Timer refreshTimer: Timer {
         interval: 10000
         repeat: true
-        running: root.helperReady
+        running: root.helperReady && (!root.networkingActive || root.panelOpen)
         onTriggered: if (root.operation === "idle") root.refresh()
+    }
+
+    property Timer linkDebounce: Timer {
+        interval: 2000
+        onTriggered: if (root.networkingActive && root.operation === "idle") root.refresh()
+    }
+
+    // Quickshell 0.3.1 does not recover after a NetworkManager restart. A cheap
+    // one-nmcli summary keeps the VPN chip fresh and, after two consecutive
+    // disagreements with the live devices, drops back to helper polling.
+    property Timer sanityTimer: Timer {
+        interval: root.staleStrikes > 0 ? 5000 : 60000
+        repeat: true
+        running: root.helperReady && root.networkingActive
+        onTriggered: if (root.operation === "idle")
+            root.helper.write('{"operation":"summary"}\n')
+    }
+
+    function liveSnapshot(devices, liveWifiEnabled, helperSnapshot) {
+        var base = helperSnapshot || {}
+        var helperWired = base.wiredConnections || []
+        var helperNetworks = base.networks || []
+        var wired = []
+        var wifiConnected = false
+        var byName = {}
+        for (var index = 0; index < (devices ? devices.length : 0); index++) {
+            var device = devices[index]
+            if (!device)
+                continue
+            if (device.type === DeviceType.Wired) {
+                if (!device.connected)
+                    continue
+                var deviceName = String(device.name || "")
+                var details = _findBy(helperWired, "device", deviceName)
+                wired.push({
+                    device: deviceName,
+                    name: details ? String(details.name || deviceName) : deviceName,
+                    addresses: details ? details.addresses || [] : [],
+                    carrier: details ? String(details.carrier || "")
+                        : device.hasLink ? "on" : "off"
+                })
+                continue
+            }
+            if (device.type !== DeviceType.Wifi)
+                continue
+            if (device.connected)
+                wifiConnected = true
+            if (!liveWifiEnabled || !device.networks)
+                continue
+            var visible = device.networks.values || []
+            for (var networkIndex = 0; networkIndex < visible.length; networkIndex++) {
+                var candidate = _liveNetwork(visible[networkIndex], helperNetworks)
+                if (!candidate)
+                    continue
+                var previous = byName[candidate.name]
+                if (!previous || candidate.connected || candidate.signal > previous.signal)
+                    byName[candidate.name] = candidate
+            }
+        }
+        var liveNetworks = Object.keys(byName).map(function(name) { return byName[name] })
+        liveNetworks.sort(function(left, right) {
+            if (left.connected !== right.connected)
+                return left.connected ? -1 : 1
+            if (left.known !== right.known)
+                return left.known ? -1 : 1
+            if (left.signal !== right.signal)
+                return right.signal - left.signal
+            var leftName = left.name.toLowerCase()
+            var rightName = right.name.toLowerCase()
+            return leftName < rightName ? -1 : leftName > rightName ? 1 : 0
+        })
+        return {
+            wifiEnabled: Boolean(liveWifiEnabled),
+            wifiConnected: wifiConnected,
+            wiredConnected: wired.length > 0,
+            wiredName: wired.length > 0 ? wired[0].name : "",
+            wiredConnections: wired,
+            networks: liveNetworks,
+            vpns: base.vpns || [],
+            tailscale: base.tailscale || ({
+                available: false,
+                status: "unavailable",
+                ip: "",
+                hostName: "",
+                dnsName: "",
+                services: []
+            })
+        }
+    }
+
+    function _liveNetwork(network, helperNetworks) {
+        if (!network)
+            return null
+        var name = String(network.name || "")
+        if (name === "")
+            return null
+        var known = Boolean(network.known)
+        var saved = known ? _findBy(helperNetworks, "name", name) : null
+        var uuid = saved ? String(saved.uuid || "") : ""
+        var signal = Math.max(0, Math.min(100,
+            Math.round(Number(network.signalStrength || 0) * 100)))
+        return {
+            id: uuid !== "" ? uuid : name,
+            name: name,
+            uuid: uuid,
+            profileName: saved ? String(saved.profileName || "") : "",
+            connected: Boolean(network.connected),
+            known: known,
+            kind: securityKind(network.security),
+            security: WifiSecurityType.toString(network.security),
+            signal: signal,
+            signalStrength: signal / 100
+        }
+    }
+
+    function securityKind(security) {
+        switch (security) {
+        case WifiSecurityType.Open:
+        case WifiSecurityType.Owe:
+            return "open"
+        case WifiSecurityType.Wpa3SuiteB192:
+        case WifiSecurityType.Wpa2Eap:
+        case WifiSecurityType.WpaEap:
+        case WifiSecurityType.Leap:
+        case WifiSecurityType.DynamicWep:
+            return "enterprise"
+        default:
+            return "personal"
+        }
+    }
+
+    function _findBy(rows, key, value) {
+        for (var index = 0; index < rows.length; index++) {
+            if (rows[index] && String(rows[index][key] || "") === value)
+                return rows[index]
+        }
+        return null
+    }
+
+    function _linkSignature(devices, liveWifiEnabled) {
+        var parts = [liveWifiEnabled ? "wifi" : "no-wifi"]
+        for (var index = 0; index < (devices ? devices.length : 0); index++) {
+            if (devices[index])
+                parts.push(String(devices[index].name) + ":" + devices[index].state)
+        }
+        return parts.join("|")
+    }
+
+    function summaryMatches(summary, live) {
+        return Boolean(summary && live)
+            && Boolean(summary.wiredActive) === Boolean(live.wiredConnected)
+            && Boolean(summary.wifiActive) === Boolean(live.wifiConnected)
+    }
+
+    function _applySummary(summary) {
+        var next = Object.assign({}, snapshot)
+        next.vpns = summary.vpns || []
+        snapshot = next
+        if (!networkingActive)
+            return
+        if (summaryMatches(summary, effectiveSnapshot)) {
+            staleStrikes = 0
+            return
+        }
+        staleStrikes++
+        if (staleStrikes < 2)
+            return
+        staleStrikes = 0
+        networkingStale = true
+        if (context && context.logger)
+            context.logger.warn("Networking backend disagrees with NetworkManager; using helper polling")
+        refresh()
     }
 
     function _connected() {
@@ -212,6 +408,11 @@ QtObject {
             localRevision++
             return
         }
+        if (response.operation === "summary") {
+            if (response.ok && response.summary)
+                _applySummary(response.summary)
+            return
+        }
         if (response.snapshot)
             snapshot = response.snapshot
         if (response.operation === "snapshot") {
@@ -282,7 +483,11 @@ QtObject {
             return _finishModel("unavailable", action)
         }
         if (network.connected)
-            return _send({ operation: "disconnect", uuid: _networkId(network) })
+            return _send({
+                operation: "disconnect",
+                uuid: String(network.uuid || ""),
+                name: String(network.name || "")
+            })
         var requestKind = network.known ? "saved" : kind
         var request = {
             operation: "join",

@@ -92,6 +92,10 @@ rg -F 'command: root.managerPath !== "" ? [root.managerPath] : []' "$audio_servi
 rg -F 'onClicked: root.openManager()' \
     "$audio_plugin/Panel.qml" >/dev/null
 rg -F 'readonly property var player: _selectedPlayer()' "$media_service" >/dev/null
+rg -F 'running: root.model === null && root.isPlaying && root.positionTracking' \
+    "$media_service" >/dev/null
+rg -F 'source: root.opened && root.media ? root.media.artUrl : ""' \
+    "$audio_plugin/Panel.qml" >/dev/null
 rg -F 'context.actions.surfaceToggle("stillsuit.audio", JSON.stringify({outputId: root.outputId}))' \
     "$audio_plugin/Widget.qml" >/dev/null
 rg -F 'root.media.playerSummaries.length > 1' \

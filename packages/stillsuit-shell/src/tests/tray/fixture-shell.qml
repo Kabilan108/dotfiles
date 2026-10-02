@@ -17,6 +17,18 @@ ShellRoot {
         console.log("TRAY_FIXTURE_FAIL " + label)
     }
 
+    function trayDelegates() {
+        var result = []
+        for (var rowIndex = 0; rowIndex < widget.children.length; rowIndex++) {
+            var row = widget.children[rowIndex]
+            for (var index = 0; index < row.children.length; index++) {
+                if (row.children[index].modelData !== undefined)
+                    result.push(row.children[index])
+            }
+        }
+        return result
+    }
+
     function makeItem(spec) {
         return itemComponent.createObject(root, spec)
     }
@@ -195,6 +207,23 @@ ShellRoot {
             panel.open(JSON.stringify({ itemId: "Slack_status_icon_1" }))
             panel.close()
             root.check(panel.activeItem === null && panel.submenuDepth === 0, "close clears state")
+
+            var delegatesBefore = root.trayDelegates()
+            root.telegram.status = "passive"
+            var delegatesAfter = root.trayDelegates()
+            var itemsBefore = delegatesBefore.map(function(delegate) { return delegate.modelData })
+            root.check(service.count === 3 && delegatesAfter.length === 3
+                    && delegatesAfter.every(function(delegate) {
+                        var index = delegatesBefore.indexOf(delegate)
+                        return index >= 0 && delegate.modelData === itemsBefore[index]
+                    })
+                    && delegatesAfter.every(function(delegate) { return delegate.modelData !== root.telegram }),
+                "hiding one tray item rebuilt or reassigned the remaining icons")
+            root.telegram.status = "active"
+            var delegatesRestored = root.trayDelegates()
+            root.check(service.count === 4 && delegatesRestored.length === 4
+                    && delegatesAfter.every(function(delegate) { return delegatesRestored.indexOf(delegate) >= 0 }),
+                "showing one tray item rebuilt the existing icons")
 
             root.model.items = [root.passive]
             root.check(service.count === 0 && widget.visible === false && widget.implicitWidth === 0,

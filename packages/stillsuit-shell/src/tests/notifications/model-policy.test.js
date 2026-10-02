@@ -99,6 +99,12 @@ assert.equal(
     1,
     "an arrival after the center-open snapshot remains unread"
 )
+assert.equal(
+    Model.unreadIn(Model.centerRows([], [arrivedAfterOpen, ...readAtOpen], 100)),
+    Model.unreadCount([], [arrivedAfterOpen, ...readAtOpen], 100),
+    "counting unread over shared center rows matches the standalone count"
+)
+assert.equal(Model.unreadIn(null), 0)
 assert.equal(Policy.viewState(readAtOpen[0]), "info")
 assert.equal(Policy.viewState({ ...readAtOpen[0], urgency: 2 }), "danger")
 assert.equal(Policy.viewState({ ...readAtOpen[0], urgency: 0 }), "muted")

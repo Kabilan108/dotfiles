@@ -32,7 +32,12 @@ if [[ $* == 'msg --json event-stream' ]]; then
     printf '%s\n' '{"WorkspacesChanged":{"workspaces":[{"id":1,"idx":1,"output":"DP-2","is_active":true,"is_focused":true}]}}'
     printf '%s\n' '{"WindowsChanged":{"windows":[{"id":10,"workspace_id":1,"title":"generation-1","is_focused":true}]}}'
     printf '%s\n' 'not-json'
-    sleep 0.2
+    # The first stream stays connected until the harness releases it, so the
+    # harness can observe steady state with no reconnects.
+    for _ in {1..2400}; do
+      if [[ ! -d $STILLSUIT_D2_FIXTURE_STATE || -f $STILLSUIT_D2_FIXTURE_STATE/release-stream ]]; then break; fi
+      sleep 0.05
+    done
   else
     sleep 0.2
   fi
@@ -51,7 +56,7 @@ case "$*" in
         ;;
       4)
         wait_for_gate allow-recovery
-        sleep 2
+        sleep 8
         printf '%s\n' '{"HDMI-A-1":{"make":"must-time-out"}}'
         ;;
       *)
@@ -71,7 +76,7 @@ case "$*" in
         ;;
       4)
         wait_for_gate allow-recovery
-        sleep 2
+        sleep 8
         printf '%s\n' '[{"id":400,"idx":1,"output":"TIMEOUT","is_active":true,"is_focused":true}]'
         ;;
       *)
@@ -91,7 +96,7 @@ case "$*" in
         ;;
       4)
         wait_for_gate allow-recovery
-        sleep 2
+        sleep 8
         printf '%s\n' '[{"id":400,"workspace_id":400,"title":"must-time-out","is_focused":true}]'
         ;;
       *)

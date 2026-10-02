@@ -21,6 +21,7 @@ Item {
 
     function open(payloadJson) {
         root.opened = true;
+        root.nowMs = Date.now();
         service.refresh(false);
     }
 
@@ -246,7 +247,17 @@ Item {
                                             Layout.fillWidth: true
                                             visible: String(accountRow.account.status || "") !== "ready"
                                             theme: root.context.theme
-                                            text: String(accountRow.account.statusText || "Unavailable")
+                                            text: root._statusText(accountRow.account)
+                                            sizeRole: "caption"
+                                            color: root._statusColor(accountRow.account)
+                                            elide: Text.ElideRight
+                                        }
+
+                                        Ui.ShellText {
+                                            Layout.fillWidth: true
+                                            visible: String(accountRow.account.status || "") === "ready" && accountRow.account.stale === true
+                                            theme: root.context.theme
+                                            text: root._staleText(accountRow.account)
                                             sizeRole: "caption"
                                             color: root._statusColor(accountRow.account)
                                             elide: Text.ElideRight
@@ -366,14 +377,44 @@ Item {
         return "Resets in " + rest + "m";
     }
 
-    function _updatedText(value) {
-        var updated = Date.parse(String(value || ""));
-        if (!isFinite(updated))
+    function _ageText(value) {
+        var then = Date.parse(String(value || ""));
+        if (!isFinite(then))
             return "";
-        var seconds = Math.max(0, Math.floor((nowMs - updated) / 1000));
-        if (seconds < 60)
-            return "Updated just now";
-        var minutes = Math.floor(seconds / 60);
-        return "Updated " + minutes + "m ago";
+        var minutes = Math.floor(Math.max(0, nowMs - then) / 60000);
+        if (minutes < 1)
+            return "just now";
+        if (minutes < 60)
+            return minutes + "m ago";
+        return Math.floor(minutes / 60) + "h " + (minutes % 60) + "m ago";
+    }
+
+    function _retryText(value) {
+        var retryMs = Date.parse(String(value || ""));
+        if (!isFinite(retryMs) || retryMs <= nowMs)
+            return "";
+        return "retry in " + Math.ceil((retryMs - nowMs) / 60000) + "m";
+    }
+
+    function _statusText(account) {
+        var text = String(account.statusText || "Unavailable");
+        var retry = _retryText(account.retryAt);
+        return retry === "" ? text : text + " · " + retry;
+    }
+
+    function _staleText(account) {
+        var parts = [String(account.staleReason || "Refresh failed")];
+        var age = _ageText(account.fetchedAt);
+        if (age !== "")
+            parts.push("showing data from " + age);
+        var retry = _retryText(account.retryAt);
+        if (retry !== "")
+            parts.push(retry);
+        return parts.join(" · ");
+    }
+
+    function _updatedText(value) {
+        var age = _ageText(value);
+        return age === "" ? "" : "Updated " + age;
     }
 }

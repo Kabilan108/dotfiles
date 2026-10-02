@@ -15,6 +15,8 @@ QtObject {
     property bool refreshQueued: false
     property string lastError: ""
     property int localRevision: 0
+    // Spread polls from several machines sharing one account by ±10%.
+    property real refreshJitter: _nextRefreshJitter()
 
     readonly property string apiVersion: "1"
     readonly property var values: context && context.settings
@@ -66,10 +68,17 @@ QtObject {
     }
 
     property Timer refreshTimer: Timer {
-        interval: root.refreshIntervalSec * 1000
+        interval: Math.round(root.refreshIntervalSec * 1000 * root.refreshJitter)
         repeat: true
         running: root.helperReady
-        onTriggered: root.refresh(false)
+        onTriggered: {
+            root.refreshJitter = root._nextRefreshJitter()
+            root.refresh(false)
+        }
+    }
+
+    function _nextRefreshJitter() {
+        return 0.9 + Math.random() * 0.2
     }
 
     function _request(force) {
@@ -141,7 +150,7 @@ QtObject {
     function statusRole(account) {
         var status = statusFor(account)
         if (status === "ready")
-            return "success"
+            return account.stale === true ? "warning" : "success"
         if (status === "refresh-required" || status === "signed-out"
                 || status === "empty")
             return "warning"

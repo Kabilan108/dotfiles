@@ -11,6 +11,8 @@ Ui.ShellBarCluster {
     readonly property int signalPercentage: service && service.connectedNetwork
         ? service.signalPercentage(service.connectedNetwork)
         : 0
+    readonly property bool userOperationBusy: Boolean(service)
+        && ["join", "disconnect", "wifi-enabled", "vpn-toggle"].indexOf(service.operation) !== -1
     readonly property bool vpnConnected: service ? service.vpns.some(function(vpn) {
         return vpn && vpn.active
     }) : false
@@ -20,7 +22,7 @@ Ui.ShellBarCluster {
     secondaryIconName: vpnConnected ? "vpn" : ""
     selected: context.panels && context.panels.selectedId === "stillsuit.network"
         && context.panels.selectedOutputId === outputId
-    busy: Boolean(service && service.operation !== "idle")
+    busy: userOperationBusy
     accessibleName: (!service || !service.available ? "Network unavailable"
         : service.wiredConnected ? "Wired network connected"
         : service.connectedNetwork

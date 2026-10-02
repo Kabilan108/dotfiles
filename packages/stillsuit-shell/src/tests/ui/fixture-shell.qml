@@ -252,6 +252,15 @@ ShellRoot {
     }
 
     Component {
+        id: wifiIconComponent
+
+        Ui.ShellIcon {
+            theme: fixture.theme
+            name: "wifi"
+        }
+    }
+
+    Component {
         id: busyComponent
 
         Ui.ShellBusyIndicator {
@@ -411,6 +420,24 @@ ShellRoot {
             var icon = _create(iconComponent, objects)
             _assert(String(icon.symbolicSource).endsWith("/icons/circle.svg"),
                 "unknown icon did not use the stable fallback glyph")
+
+            var firstWifi = _create(wifiIconComponent, objects)
+            var secondWifi = _create(wifiIconComponent, objects)
+            var wifiUrl = String(firstWifi.symbolicSource)
+            var tinted = Ui.IconCache.tinted(firstWifi.symbolicSource, firstWifi._fill)
+            _assert(wifiUrl.endsWith("/icons/wifi.svg")
+                    && tinted.indexOf("data:image/svg+xml;utf8,") === 0
+                    && tinted.indexOf(encodeURIComponent('fill="' + firstWifi._fill + '"')) !== -1,
+                "icon cache did not tint the catalog glyph with the role color")
+            _assert(Ui.IconCache.store.markupByUrl[wifiUrl] !== undefined
+                    && Object.keys(Ui.IconCache.store.markupByUrl).filter(function(url) {
+                        return url.endsWith("/icons/wifi.svg")
+                    }).length === 1,
+                "icon instances did not share one cached markup read")
+            secondWifi.color = "#123456"
+            _assert(Ui.IconCache.store.tintedByKey[wifiUrl + "|" + secondWifi._fill] !== undefined
+                    && Ui.IconCache.store.tintedByKey[wifiUrl + "|" + firstWifi._fill] === tinted,
+                "icon cache did not key tinted sources by name and fill")
 
             var busy = _create(busyComponent, objects)
             _assert(busy.motionDuration === 0,

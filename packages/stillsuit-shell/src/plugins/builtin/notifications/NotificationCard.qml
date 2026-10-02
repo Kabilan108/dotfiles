@@ -39,6 +39,7 @@ Ui.ShellSurface {
     readonly property real dismissThreshold: Math.min(width * 0.25, 80)
     readonly property real flickVelocity: 420
     readonly property bool hovered: hoverMouse.containsMouse
+    readonly property string snapshotKey: String((snapshot || {}).key || "")
 
     kind: "notification"
     implicitWidth: theme.metrics.panelWidth - theme.metrics.panelPadding * 2
@@ -83,8 +84,19 @@ Ui.ShellSurface {
     function dismissWithSlide(direction) {
         if (!root.dismissGesturesEnabled || slideAwayAnimation.running) return
         slideAwayAnimation.targetOffset = direction * (root.width + 56)
+        slideAwayAnimation.dismissedKey = root.snapshotKey
         slideAwayAnimation.start()
     }
+
+    // A toast deck's front card outlives the notification it shows, so drag and
+    // overflow state must not carry over to the next notification.
+    function resetInteraction() {
+        snapBackAnimation.stop()
+        dragOffset = 0
+        showOverflow = false
+    }
+
+    onSnapshotKeyChanged: if (!slideAwayAnimation.running) resetInteraction()
 
     function snapBack() {
         snapBackAnimation.stop()
@@ -104,6 +116,9 @@ Ui.ShellSurface {
     SequentialAnimation {
         id: slideAwayAnimation
         property real targetOffset: 0
+        property string dismissedKey: ""
+
+        onFinished: if (root.snapshotKey !== dismissedKey) root.resetInteraction()
 
         NumberAnimation {
             target: root

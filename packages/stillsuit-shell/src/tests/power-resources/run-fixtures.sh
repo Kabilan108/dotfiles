@@ -76,7 +76,13 @@ if rg -n 'text: "(CPU|MEM):"' \
 fi
 rg -F 'readonly property var detailHelperArgv: ["upower", "--dump"]' \
   "$source_root/services/BatteryService.qml" >/dev/null
-rg -F 'interval: 15000' "$source_root/services/PowerService.qml" >/dev/null
+if rg -n 'repeat: true|powerprofilesctl", "(get|set)' \
+    "$source_root/services/BatteryService.qml" \
+    "$source_root/services/PowerService.qml"; then
+  printf 'power services poll instead of following UPower and power-profiles-daemon\n' >&2
+  exit 1
+fi
+rg -F 'PowerProfiles.profile = requested' "$source_root/services/PowerService.qml" >/dev/null
 if rg -n 'bash -lc|command:.*\+|command:.*\$\{' \
     "$source_root/services/BatteryService.qml" \
     "$source_root/services/PowerService.qml"; then

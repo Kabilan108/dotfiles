@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import email.utils
 import http.client
 import json
 import math
@@ -24,13 +25,28 @@ from typing import IO, Any, TextIO
 SCHEMA_VERSION = 1
 ANTHROPIC_USAGE_ENDPOINT = "https://api.anthropic.com/api/oauth/usage"
 BLOCKED_CODEX_REFRESH_ENDPOINT = "http://127.0.0.1:0/token"
-CACHE_SECONDS = 30
+CACHE_SECONDS = 180
+RATE_LIMIT_BACKOFF_SECONDS = 300
+MAX_RATE_LIMIT_BACKOFF_SECONDS = 3600
+MAX_RETRY_AFTER_SECONDS = 86400
+FAILURE_KEY = "_failure"
 ACCOUNT_ID_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:[-.][a-z0-9]+)*$")
 
 Account = dict[str, Any]
 Snapshot = dict[str, Any]
 
-_snapshot_cache: dict[str, tuple[float, Account]] = {}
+
+class _AccountState:
+    def __init__(self) -> None:
+        self.checked: float = 0
+        self.result: Account | None = None
+        self.last_ready: Account | None = None
+        self.backoff_seconds: float = 0
+        self.backoff_until: float = 0
+        self.retry_after_until: float = 0
+
+
+_account_states: dict[str, _AccountState] = {}
 
 
 def _utc_now() -> dt.datetime:
@@ -187,7 +203,40 @@ def _empty_result(account: Account) -> Account:
         "statusText": "Usage unavailable",
         "windows": [],
         "fetchedAt": _iso_now(),
+        "stale": False,
+        "staleReason": "",
+        "retryAt": "",
     }
+
+
+def _fetch_failed(
+    result: Account,
+    status: str,
+    status_text: str,
+    rate_limited: bool = False,
+    retry_after: float | None = None,
+) -> Account:
+    """Mark a provider request failure, which may fall back to the last ready result."""
+    result.update(status=status, statusText=status_text)
+    result[FAILURE_KEY] = {"rateLimited": rate_limited, "retryAfter": retry_after}
+    return result
+
+
+def _retry_after_seconds(value: str | None) -> float | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    if raw.isdigit():
+        seconds = float(raw)
+    else:
+        try:
+            when = email.utils.parsedate_to_datetime(raw)
+        except (TypeError, ValueError):
+            return None
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=dt.timezone.utc)
+        seconds = (when - _utc_now()).total_seconds()
+    return max(0.0, min(float(MAX_RETRY_AFTER_SECONDS), seconds))
 
 
 def _number(value: Any) -> float:
@@ -383,19 +432,22 @@ def _collect_claude(account: Account) -> Account:
         with _open_usage_request(request, timeout=12) as response:
             payload = json.loads(response.read().decode("utf-8", errors="replace"))
     except urllib.error.HTTPError as error:
-        status_text = (
-            "Rate limited"
-            if error.code == 429
-            else f"Usage request failed ({error.code})"
-        )
-        result.update(status="error", statusText=status_text)
-        return result
+        if error.code == 429:
+            headers = error.headers
+            return _fetch_failed(
+                result,
+                "error",
+                "Rate limited",
+                rate_limited=True,
+                retry_after=_retry_after_seconds(
+                    headers.get("Retry-After") if headers is not None else None
+                ),
+            )
+        return _fetch_failed(result, "error", f"Usage request failed ({error.code})")
     except (OSError, TimeoutError, urllib.error.URLError):
-        result.update(status="offline", statusText="Claude usage is unreachable")
-        return result
+        return _fetch_failed(result, "offline", "Claude usage is unreachable")
     except json.JSONDecodeError:
-        result.update(status="error", statusText="Claude returned invalid usage data")
-        return result
+        return _fetch_failed(result, "error", "Claude returned invalid usage data")
 
     windows = _claude_windows(payload if isinstance(payload, dict) else {})
     result["windows"] = windows
@@ -532,8 +584,7 @@ def _collect_codex(account: Account) -> Account:
                 env=environment,
             )
         except OSError:
-            result.update(status="unavailable", statusText="Codex could not start")
-            return result
+            return _fetch_failed(result, "unavailable", "Codex could not start")
         try:
             initialized = _rpc_request(
                 process,
@@ -596,25 +647,73 @@ def _collect_codex(account: Account) -> Account:
             )
             return result
         except TimeoutError:
-            result.update(status="error", statusText="Codex usage timed out")
-            return result
+            return _fetch_failed(result, "error", "Codex usage timed out")
         except (BrokenPipeError, OSError, RuntimeError):
-            result.update(status="error", statusText="Codex usage is unavailable")
-            return result
+            return _fetch_failed(result, "error", "Codex usage is unavailable")
         finally:
             _terminate(process)
 
 
+def _stale_result(last_ready: Account, failed: Account) -> Account:
+    stale = dict(last_ready)
+    stale.update(
+        id=failed["id"],
+        label=failed["label"],
+        source=failed["source"],
+        stale=True,
+        staleReason=failed["statusText"],
+        retryAt=failed["retryAt"],
+    )
+    return stale
+
+
 def _collect_account(account: Account, force: bool) -> Account:
-    cache_key = f"{account['provider']}:{account['configDir']}"
-    cached = _snapshot_cache.get(cache_key)
-    if not force and cached and time.monotonic() - cached[0] < CACHE_SECONDS:
-        return cached[1]
+    """Collect one account, honouring the response cache and 429 backoff.
+
+    A forced refresh skips the cache and exponential backoff but never an
+    explicit Retry-After window.
+    """
+    state = _account_states.setdefault(
+        f"{account['provider']}:{account['configDir']}", _AccountState()
+    )
+    now = time.monotonic()
+    if state.result is not None:
+        if now < state.retry_after_until:
+            return state.result
+        if not force and (
+            now < state.backoff_until or now - state.checked < CACHE_SECONDS
+        ):
+            return state.result
     if account["provider"] == "claude":
         result = _collect_claude(account)
     else:
         result = _collect_codex(account)
-    _snapshot_cache[cache_key] = (time.monotonic(), result)
+    failure = result.pop(FAILURE_KEY, None)
+    now = time.monotonic()
+    if failure is None:
+        state.last_ready = result if result["status"] == "ready" else None
+        state.backoff_seconds = 0
+        state.backoff_until = 0
+        state.retry_after_until = 0
+    else:
+        if failure["rateLimited"]:
+            retry_after = failure["retryAfter"]
+            if retry_after is None:
+                state.backoff_seconds = (
+                    min(MAX_RATE_LIMIT_BACKOFF_SECONDS, state.backoff_seconds * 2)
+                    if state.backoff_seconds
+                    else RATE_LIMIT_BACKOFF_SECONDS
+                )
+                wait = state.backoff_seconds
+            else:
+                wait = retry_after
+                state.retry_after_until = now + wait
+            state.backoff_until = now + wait
+            result["retryAt"] = (_utc_now() + dt.timedelta(seconds=wait)).isoformat()
+        if state.last_ready is not None:
+            result = _stale_result(state.last_ready, result)
+    state.checked = now
+    state.result = result
     return result
 
 

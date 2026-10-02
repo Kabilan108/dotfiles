@@ -1,5 +1,6 @@
 module Stillsuit.Ui
 CursorSurface 1.0 CursorSurface.qml
+singleton IconCache 1.0 IconCache.qml
 Panel 1.0 Panel.qml
 PanelKeyCatcher 1.0 PanelKeyCatcher.qml
 PointerMoveGate 1.0 PointerMoveGate.qml

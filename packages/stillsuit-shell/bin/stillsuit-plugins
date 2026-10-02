@@ -244,14 +244,27 @@ def profile_context(configuration: dict[str, Any]) -> tuple[dict[str, dict[str, 
     return profiles, state, required
 
 
-def scan(configuration: dict[str, Any], overrides: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+class Sources:
+    """The seed and manifest validator, which are immutable store paths in production."""
+
+    def __init__(self, configuration: dict[str, Any]) -> None:
+        self.seed = record(Path(configuration["seed"]))
+        self.validator = Draft202012Validator(record(Path(configuration["schema"])))
+
+
+def scan(
+    configuration: dict[str, Any],
+    overrides: dict[str, Any],
+    sources: Sources | None = None,
+) -> tuple[dict[str, Any], list[str]]:
     if not isinstance(overrides, dict):
         raise TypeError("plugin preferences must be an object")
     profiles, profile_state, required = profile_context(configuration)
     active_profile = profiles.get(profile_state["active"], {})
     profile_plugins = active_profile.get("plugins", {})
-    seed = record(Path(configuration["seed"]))
-    validator = Draft202012Validator(record(Path(configuration["schema"])))
+    sources = sources or Sources(configuration)
+    seed = sources.seed
+    validator = sources.validator
     defaults = {row["manifest"]["id"]: row for row in seed["plugins"]}
     # The bar frame stays in the core closure. Runtime plugins fill its slots.
     reserved = seed.get("selectedBar", "stillsuit.bar")
@@ -329,6 +342,80 @@ def scan(configuration: dict[str, Any], overrides: dict[str, Any]) -> tuple[dict
         },
         "plugins": rows,
     }, problems
+
+
+StatKey = tuple[str | int, ...]
+
+
+def stat_key(path: str, *, follow: bool = True) -> StatKey:
+    try:
+        status = os.stat(path, follow_symlinks=follow)
+    except OSError:
+        return (path,)
+    return (path, status.st_ino, status.st_size, status.st_mtime_ns, status.st_ctime_ns, status.st_mode)
+
+
+def tree_keys(root: str) -> list[StatKey]:
+    keys = [stat_key(root)]
+    pending = [root]
+    while pending:
+        try:
+            with os.scandir(pending.pop()) as entries:
+                children = list(entries)
+        except OSError:
+            continue
+        for entry in children:
+            keys.append(stat_key(entry.path, follow=False))
+            if entry.is_dir(follow_symlinks=False):
+                pending.append(entry.path)
+            elif entry.is_symlink():
+                # scan() follows symlinked plugin folders far enough to read
+                # their manifest ID before rejecting them.
+                keys.append(stat_key(entry.path))
+                keys.append(stat_key(os.path.join(entry.path, "manifest.json")))
+    return keys
+
+
+class Watcher:
+    """Rescan only when a stat of any scan input or published generation changes.
+
+    Inode, size, mtime and ctime together catch atomic replaces and
+    same-second edits without hashing plugin trees on every tick.
+    """
+
+    def __init__(self, configuration: dict[str, Any]) -> None:
+        self.configuration = configuration
+        self.preferences = Path(configuration["preferences"])
+        self.inputs: list[StatKey] | None = None
+        self.outputs: list[StatKey] = []
+        self.package_roots: list[str] = []
+        self.sources: Sources | None = None
+        self.sources_key: list[StatKey] = []
+
+    def file_keys(self, *names: str) -> list[StatKey]:
+        return [stat_key(str(self.configuration[name])) for name in names]
+
+    def output_keys(self) -> list[StatKey]:
+        return [stat_key(path) for path in self.package_roots]
+
+    def poll(self) -> tuple[dict[str, Any], list[str]] | None:
+        sources_key = self.file_keys("seed", "schema")
+        inputs = sources_key + self.file_keys("preferences", "profiles", "activeProfile")
+        for root in self.configuration["roots"]:
+            inputs.extend(tree_keys(str(root)))
+        if inputs == self.inputs and self.output_keys() == self.outputs:
+            return None
+        # A failed scan leaves inputs unset so the next tick retries it.
+        self.inputs = None
+        if self.sources is None or sources_key != self.sources_key:
+            self.sources = Sources(self.configuration)
+            self.sources_key = sources_key
+        overrides = record(self.preferences) if self.preferences.exists() else {}
+        document, problems = scan(self.configuration, overrides, self.sources)
+        self.package_roots = [str(row["packageRoot"]) for row in document["plugins"] if "packageRoot" in row]
+        self.outputs = self.output_keys()
+        self.inputs = inputs
+        return document, problems
 
 
 def atomic_write(path: Path, data: dict[str, Any]) -> None:
@@ -647,18 +734,20 @@ def main() -> None:
         raise SystemExit(1) from error
     previous = ""
     previous_errors = ""
+    watcher = Watcher(configuration)
     while True:
         try:
-            overrides = record(preferences) if preferences.exists() else {}
-            document, problems = scan(configuration, overrides)
-            encoded = json.dumps(document, sort_keys=True)
-            errors = "\n".join(problems)
-            if errors != previous_errors and errors:
-                print(errors, file=sys.stderr, flush=True)
-            previous_errors = errors
-            if encoded != previous:
-                print(encoded, flush=True)
-                previous = encoded
+            result = watcher.poll()
+            if result is not None:
+                document, problems = result
+                encoded = json.dumps(document, sort_keys=True)
+                errors = "\n".join(problems)
+                if errors != previous_errors and errors:
+                    print(errors, file=sys.stderr, flush=True)
+                previous_errors = errors
+                if encoded != previous:
+                    print(encoded, flush=True)
+                    previous = encoded
         except (OSError, ValueError, TypeError, KeyError) as error:
             print(f"plugin scan failed: {error}", file=sys.stderr, flush=True)
             if args.command != "watch":

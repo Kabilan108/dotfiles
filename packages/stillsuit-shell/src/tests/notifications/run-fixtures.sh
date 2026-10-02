@@ -180,6 +180,23 @@ jq -e '.history[0].closeReason == "dismissed"' >/dev/null <<<"$archive_state"
 wait_for_json '.trackedCount == 1' >/dev/null
 ipc dismissAll >/dev/null
 
+# Toast dismissals share the persist() debounce: a burst writes state once,
+# after the handlers return, and the archived rows still reach disk.
+for index in {1..3}; do
+  send_notification -a "debounce-$index" -t 60000 "debounce-$index"
+done
+wait_for_json '(.popups | length) == 3' >/dev/null
+sleep 0.3
+writes_before=$(ipc state | jq '.stateWrites')
+burst=$(ipc dismissPopups)
+jq -e '.dismissed == 3 and .synchronousWrites == 0' >/dev/null <<<"$burst"
+wait_for_json "(.popups | length) == 0 and .stateWrites == $((writes_before + 1))" >/dev/null
+sleep 0.3
+jq -e ".stateWrites == $((writes_before + 1))" >/dev/null <<<"$(ipc state)"
+wait_for_state_file '(.popups | length) == 0
+  and ([.history[] | select(.closeReason == "dismissed" and (.summary | startswith("debounce-")))] | length) == 3'
+ipc dismissAll >/dev/null
+
 # Requested timeout is milliseconds, and expiry archives before closing.
 send_notification -a lane-e -t 350 "requested-timeout"
 wait_for_json '.popups | length == 1' >/dev/null

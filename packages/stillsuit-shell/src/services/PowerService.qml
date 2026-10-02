@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Io
+import Quickshell.Services.UPower
 
 QtObject {
     id: root
@@ -14,42 +15,59 @@ QtObject {
     property bool busy: false
     property string errorMessage: ""
     property bool refreshQueued: false
+    property bool daemonAvailable: false
     property int internalRevision: 0
     readonly property string displayProfile: pendingProfile !== ""
         ? pendingProfile
         : activeProfile
     readonly property bool available: !forceUnavailable
-        && (model !== null || activeProfile !== "")
+        && (model !== null || (daemonAvailable && activeProfile !== ""))
     readonly property int revision: model && model.revision !== undefined
         ? Number(model.revision)
         : internalRevision
-    readonly property var helperArgv: ["powerprofilesctl", "get"]
+    // PowerProfiles reports Balanced even when power-profiles-daemon is absent,
+    // so a one-shot read decides availability; live changes then come from the
+    // singleton's PropertiesChanged tracking.
+    readonly property var probeArgv: ["powerprofilesctl", "list"]
 
-    property Process getProfile: Process {
-        id: getProfile
+    property Process daemonProbe: Process {
+        id: daemonProbe
 
-        command: root.helperArgv
+        command: root.probeArgv
         stdout: StdioCollector {
-            id: profileOutput
+            id: probeOutput
             waitForEnd: true
         }
         onExited: function(exitCode) {
-            root._finishRefresh(exitCode, profileOutput.text)
+            root._finishProbe(exitCode, probeOutput.text)
         }
     }
 
-    property Process setProfileProcess: Process {
-        onExited: function(exitCode) {
-            root._finishProfileSet(exitCode)
-        }
-    }
-
-    property Timer reconcileTimer: Timer {
-        interval: 15000
-        running: root.model === null
-        repeat: true
-        triggeredOnStart: true
+    // Quickshell writes the profile optimistically and only logs a rejected
+    // D-Bus Set, so a later read confirms what the daemon kept.
+    property Timer confirmTimer: Timer {
+        interval: 750
+        repeat: false
         onTriggered: root.refresh()
+    }
+
+    property Connections daemonConnections: Connections {
+        target: root.model === null && root.daemonAvailable ? PowerProfiles : null
+        ignoreUnknownSignals: true
+
+        function onProfileChanged() {
+            var profile = root._profileName(PowerProfiles.profile)
+            if (profile !== "" && profile !== root.activeProfile) {
+                root.activeProfile = profile
+                root.internalRevision++
+            }
+        }
+
+        function onHasPerformanceProfileChanged() {
+            root.profiles = root._withPerformance(root.profiles,
+                PowerProfiles.hasPerformanceProfile)
+            root.internalRevision++
+        }
     }
 
     property Connections modelConnections: Connections {
@@ -69,21 +87,18 @@ QtObject {
         }
     }
 
-    Component.onCompleted: {
-        if (model)
-            _syncModel()
-    }
+    Component.onCompleted: refresh()
 
     function refresh() {
         if (model) {
             _syncModel()
             return
         }
-        if (getProfile.running) {
+        if (daemonProbe.running) {
             refreshQueued = true
             return
         }
-        getProfile.running = true
+        daemonProbe.running = true
     }
 
     function setProfile(profile) {
@@ -112,8 +127,13 @@ QtObject {
             return result
         }
 
-        setProfileProcess.command = ["powerprofilesctl", "set", next]
-        setProfileProcess.running = true
+        var requested = _profileEnum(next)
+        PowerProfiles.profile = requested
+        if (PowerProfiles.profile !== requested) {
+            _rollback("Could not change the power profile.")
+            return "error"
+        }
+        confirmTimer.restart()
         return "ok"
     }
 
@@ -133,49 +153,92 @@ QtObject {
         }
     }
 
-    function _finishProfileSet(exitCode) {
-        if (Number(exitCode) !== 0) {
-            _rollback("Could not change the power profile.")
-            refresh()
+    function _finishProbe(exitCode, text) {
+        if (refreshQueued) {
+            refreshQueued = false
+            Qt.callLater(refresh)
             return
         }
-        refresh()
-    }
-
-    function _finishRefresh(exitCode, text) {
-        var runQueuedRefresh = refreshQueued
-        refreshQueued = false
-        if (Number(exitCode) !== 0) {
-            if (busy && !setProfileProcess.running && !runQueuedRefresh)
+        if (model)
+            return
+        var state = Number(exitCode) === 0 ? _parseProbe(text) : null
+        if (!state) {
+            daemonAvailable = false
+            activeProfile = ""
+            profiles = []
+            internalRevision++
+            if (busy)
                 _rollback("Could not confirm the power profile.")
-            if (runQueuedRefresh)
-                Qt.callLater(refresh)
             return
         }
-        var authoritative = _normalizeProfile(text)
-        if (authoritative === "") {
-            if (busy && !setProfileProcess.running && !runQueuedRefresh)
-                _rollback("Could not confirm the power profile.")
-            if (runQueuedRefresh)
-                Qt.callLater(refresh)
-            return
-        }
-        activeProfile = authoritative
-        profiles = ["power-saver", "balanced", "performance"]
+        activeProfile = state.activeProfile
+        profiles = state.profiles
+        daemonAvailable = true
         internalRevision++
-        if (pendingProfile !== "" && !setProfileProcess.running
-                && !runQueuedRefresh) {
-            if (pendingProfile !== authoritative)
-                errorMessage = "The daemon kept " + _profileLabel(authoritative) + "."
+        if (pendingProfile !== "") {
+            if (pendingProfile !== state.activeProfile)
+                errorMessage = "The daemon kept " + _profileLabel(state.activeProfile) + "."
             else
                 errorMessage = ""
             pendingProfile = ""
-            busy = false
         }
-        if (pendingProfile === "")
-            busy = false
-        if (runQueuedRefresh)
-            Qt.callLater(refresh)
+        busy = false
+    }
+
+    function _parseProbe(raw) {
+        var lines = String(raw || "").split("\n")
+        var active = ""
+        var listed = []
+        for (var index = 0; index < lines.length; index++) {
+            var match = /^([* ]) ([a-z-]+):$/.exec(lines[index])
+            if (!match)
+                continue
+            var profile = _normalizeProfile(match[2])
+            if (profile === "")
+                continue
+            listed.push(profile)
+            if (match[1] === "*")
+                active = profile
+        }
+        if (active === "")
+            return null
+        return {
+            activeProfile: active,
+            profiles: _canonicalOrder(listed)
+        }
+    }
+
+    function _withPerformance(values, present) {
+        var next = values.filter(function(profile) {
+            return profile !== "performance"
+        })
+        if (present)
+            next.push("performance")
+        return _canonicalOrder(next)
+    }
+
+    function _canonicalOrder(values) {
+        return ["power-saver", "balanced", "performance"].filter(function(profile) {
+            return values.indexOf(profile) !== -1
+        })
+    }
+
+    function _profileName(value) {
+        if (value === PowerProfile.PowerSaver)
+            return "power-saver"
+        if (value === PowerProfile.Balanced)
+            return "balanced"
+        if (value === PowerProfile.Performance)
+            return "performance"
+        return ""
+    }
+
+    function _profileEnum(profile) {
+        if (profile === "power-saver")
+            return PowerProfile.PowerSaver
+        if (profile === "performance")
+            return PowerProfile.Performance
+        return PowerProfile.Balanced
     }
 
     function _rollback(message) {

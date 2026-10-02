@@ -111,7 +111,18 @@ assert.match(
     /readonly property bool hovered:\s*hoverMouse\.containsMouse/,
 )
 assert.match(cardSource, /id:\s*gestureMouse[\s\S]*hoverEnabled:\s*true/)
-assert.match(deckSource, /model:\s*root\.rows\.slice\(1\)/)
+assert.match(deckSource, /ScriptModel \{[\s\S]*values:\s*root\.rows\.slice\(1\)\.map\(function\(row\) \{ return row\.key \}\)/,
+    "expanded cards are keyed by notification so a revision keeps their instances")
+assert.match(deckSource, /model:\s*expandedRowKeys/)
+assert.match(toastsSource, /ScriptModel \{[\s\S]*values:\s*root\.decks\.map\(function\(deck\) \{ return deck\.key \}\)/,
+    "toast decks are keyed by source so a revision keeps their instances")
+assert.match(toastsSource, /model:\s*deckKeys/)
+assert.match(toastsSource, /visible:\s*deckRepeater\.count > 0/)
+assert.doesNotMatch(toastsSource, /toastsForOutput/,
+    "the toast window derives visibility from its deck model instead of a second query")
+assert.match(centerSource, /readonly property var rows:\s*service && presented \? service\.centerRows\(\) : \[\]/)
+assert.match(centerSource, /readonly property var sections:\s*service && presented \? service\.centerSections\(\) : \[\]/)
+assert.match(cardSource, /onSnapshotKeyChanged:/)
 assert.match(cardSource, /duration:\s*root\.dismissMotionDuration/)
 assert.match(cardSource, /easing\.type:\s*Easing\.OutCubic/)
 assert.match(deckSource, /property bool entered:\s*false/)
@@ -121,6 +132,11 @@ assert.match(deckSource, /opacity:\s*root\.expanded \? 1 : 0/)
 assert.match(deckSource, /id:\s*expandedColumn[\s\S]*visible:\s*true/)
 assert.match(deckSource, /function syncHovered\(\)/)
 assert.match(deckSource, /service\.setDeckHovered\(deck\.key, hovered\)/)
+for (const name of ["archiveAndClose", "invokeAction"]) {
+    const body = serviceSource.split(`function ${name}(`)[1].split(/\n    function /)[0]
+    assert.doesNotMatch(body, /flushState\(\)/, `${name} goes through the persist() debounce`)
+    assert.match(body, /persist\(\)/)
+}
 assert.doesNotMatch(serviceSource, /function\s+(dismiss|snooze|wake|clearHistory)\s*\([^)]*\):\s*string/,
     "production notification IPC exposes no mutation methods")
 

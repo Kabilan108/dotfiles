@@ -65,6 +65,24 @@ Scope {
         return records
     }
 
+    // ScriptModel requires unique values. The host hands out one record per
+    // plugin, so the same record object listed twice is collapsed to one slot.
+    function registrationsFor(section) {
+        var records = recordsFor(section)
+        var registrations = []
+        for (var index = 0; index < records.length; index++) {
+            if (registrations.indexOf(records[index].registration) === -1)
+                registrations.push(records[index].registration)
+        }
+        return registrations
+    }
+
+    // Computed once per registration change instead of per output, and diffed
+    // by ScriptModel so an unchanged registration keeps its slot and widget.
+    readonly property var leftRegistrations: registrationsFor("left")
+    readonly property var centerRegistrations: registrationsFor("center")
+    readonly property var rightRegistrations: registrationsFor("right")
+
     Variants {
         model: root.outputScreens
 
@@ -140,10 +158,13 @@ Scope {
                         spacing: root.context.theme.metrics.spaceUnit
                         Layout.alignment: Qt.AlignVCenter
                         Repeater {
-                            model: root.recordsFor("left")
+                            model: ScriptModel {
+                                values: root.leftRegistrations
+                                comparisonMode: ObjectComparison.Identity
+                            }
                             WidgetSlot {
                                 required property var modelData
-                                registration: modelData.registration
+                                registration: modelData
                                 outputId: barWindow.outputId
                                 panelAnchors: root.panelAnchors
                                 anchorOffset: root.outerGap
@@ -159,10 +180,13 @@ Scope {
                         spacing: root.context.theme.metrics.spaceUnit
                         Layout.alignment: Qt.AlignVCenter
                         Repeater {
-                            model: root.recordsFor("right")
+                            model: ScriptModel {
+                                values: root.rightRegistrations
+                                comparisonMode: ObjectComparison.Identity
+                            }
                             WidgetSlot {
                                 required property var modelData
-                                registration: modelData.registration
+                                registration: modelData
                                 outputId: barWindow.outputId
                                 panelAnchors: root.panelAnchors
                                 anchorOffset: root.outerGap
@@ -179,10 +203,13 @@ Scope {
                     z: 1
 
                     Repeater {
-                        model: root.recordsFor("center")
+                        model: ScriptModel {
+                            values: root.centerRegistrations
+                            comparisonMode: ObjectComparison.Identity
+                        }
                         WidgetSlot {
                             required property var modelData
-                            registration: modelData.registration
+                            registration: modelData
                             outputId: barWindow.outputId
                         }
                     }
@@ -190,7 +217,7 @@ Scope {
 
                 Ui.ShellText {
                     anchors.centerIn: parent
-                    visible: root.recordsFor("center").length === 0
+                    visible: root.centerRegistrations.length === 0
                     theme: root.context.theme
                     text: "Stillsuit"
                     role: "muted"

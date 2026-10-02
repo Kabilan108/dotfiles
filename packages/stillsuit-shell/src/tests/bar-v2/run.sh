@@ -108,6 +108,34 @@ jq -e '
     and .dictationErrorSignal and .dictationSurface and .accessible
 ' >/dev/null <<<"$contracts"
 
+# Polls until the expression holds, then re-checks after a settle delay so a
+# rebuild scheduled with Qt.callLater cannot slip past the assertion.
+wait_for_constructions() {
+    local expression=$1
+    for _ in {1..40}; do
+        jq -e "$expression" >/dev/null <<<"$(ipc constructions)" && break
+        sleep 0.05
+    done
+    sleep 0.2
+    jq -e "$expression" >/dev/null <<<"$(ipc constructions)"
+}
+[[ $(ipc resync) == ok ]]
+wait_for_constructions '.workspaces == 2 and .clocks == 2'
+# Adding widgets builds only those widgets, removing one from the middle of a
+# section destroys only its slots, and replacing a record rebuilds only its
+# own slots. None of these touch the other widgets.
+[[ $(ipc addMarkers) == ok ]]
+wait_for_constructions '.workspaces == 2 and .clocks == 2
+    and .markersBuilt == {"a": 2, "b": 2, "c": 2}
+    and .markersLive == {"a": 2, "b": 2, "c": 2}'
+[[ $(ipc removeMiddleMarker) == ok ]]
+wait_for_constructions '.workspaces == 2 and .clocks == 2
+    and .markersBuilt == {"a": 2, "b": 2, "c": 2}
+    and .markersLive == {"a": 2, "b": 0, "c": 2}'
+[[ $(ipc replaceClock) == ok ]]
+wait_for_constructions '.workspaces == 2 and .clocks == 4
+    and .markersLive == {"a": 0, "b": 0, "c": 0}'
+
 reduced=$(ipc reducedMotion)
 jq -e '.workspaceDuration == 0 and .osdDuration == 0 and .dictationReduced' \
     >/dev/null <<<"$reduced"

@@ -295,10 +295,16 @@ function markRead(rows, keys, timestamp) {
     return changed ? result : source
 }
 
+function unreadIn(rows) {
+    var source = Array.isArray(rows) ? rows : []
+    var count = 0
+    for (var index = 0; index < source.length; index++)
+        if (source[index] && source[index].read !== true) count++
+    return count
+}
+
 function unreadCount(popups, history, limit) {
-    return centerRows(popups, history, limit).filter(function(row) {
-        return row && row.read !== true
-    }).length
+    return unreadIn(centerRows(popups, history, limit))
 }
 
 function historyKeysRemoved(previous, next) {
@@ -354,6 +360,7 @@ if (typeof module !== "undefined") {
         pruneHistory: pruneHistory,
         retainedHistory: retainedHistory,
         markRead: markRead,
+        unreadIn: unreadIn,
         unreadCount: unreadCount,
         historyKeysRemoved: historyKeysRemoved,
         centerRows: centerRows,

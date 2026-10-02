@@ -410,14 +410,18 @@ QtObject {
         profileError = String(message)
     }
 
+    // Qt.callLater collapses repeated calls only for the same function object,
+    // so a burst of registry and router revisions schedules one refresh.
     function _queueSettledProfileRefresh() {
-        Qt.callLater(function() {
-            if (!root.ready || root.requestedProfile !== ""
-                    || root.profileState === "switching"
-                    || root.profileState === "error")
-                return
-            root._setSettledProfileState()
-        })
+        Qt.callLater(root._refreshSettledProfileState)
+    }
+
+    function _refreshSettledProfileState() {
+        if (!ready || requestedProfile !== ""
+                || profileState === "switching"
+                || profileState === "error")
+            return
+        _setSettledProfileState()
     }
 
     function _profileFailureSummary() {

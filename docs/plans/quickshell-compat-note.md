@@ -1,5 +1,7 @@
 # Quickshell 0.3.0 compatibility audit for the Omarchy Quattro port
 
+> Status, 2026-10-02: Stillsuit now runs Quickshell 0.3.1, where `quickshell kill` waits for the process to exit. The one incompatibility described below no longer applies. The rest of this note is a record of the 0.3.0 audit.
+
 Audited upstream tag `v4.0.0`, commit `f0020448ca87329199de7cb12f2015ebc4a3e5e7`, against local `Quickshell 0.3.0 (revision tag-v0.3.0, distributed by Nixpkgs)`. The installed executable is `/nix/store/ryfyyhn3xnx3nwbknjl6kihxfkzc6w5m-quickshell-0.3.0/bin/quickshell`. All installed metadata citations below are under that store path.
 
 ## 1. Verdict
