@@ -284,7 +284,7 @@ in
     fzf
     gh
     ghostty
-    inputs.herdr.packages.${systemName}.default
+    # inputs.herdr.packages.${systemName}.default
     inputs.hark.packages.${systemName}.harkctl
     inputs.pagebin.packages.${systemName}.default
     kitty.kitten

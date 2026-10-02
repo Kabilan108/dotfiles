@@ -122,10 +122,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     ghostty.url = "github:ghostty-org/ghostty/v1.3.1";
-    herdr = {
-      url = "github:herdrdev/herdr/v0.8.2";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # herdr = {
+    #   url = "github:herdrdev/herdr/v0.8.2";
+    #   inputs.nixpkgs.follows = "nixpkgs";
+    # };
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
