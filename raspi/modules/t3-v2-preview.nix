@@ -391,6 +391,9 @@ in
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
+      # tailscaled can start before its backend is ready to accept Serve commands.
+      Restart = "on-failure";
+      RestartSec = 5;
     };
     script = ''
       tailscale serve --bg --yes --https=443 http://127.0.0.1:${toString t3Port}
