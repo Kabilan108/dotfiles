@@ -352,7 +352,9 @@ for line in sys.stdin:
         until_future = helper._retry_after_seconds(email.utils.format_datetime(future, usegmt=True))
         assert until_future is not None and 590 <= until_future <= 600
         assert helper._retry_after_seconds("Wed, 21 Oct 2015 07:28:00 GMT") == 0
-        assert helper._retry_after_seconds("999999999") == helper.MAX_RETRY_AFTER_SECONDS
+        assert helper._retry_after_seconds("172800") == 172800
+        assert helper._retry_after_seconds("9" * 400) == float("inf")
+        assert helper._retry_at(float("inf")).startswith("9999-12-31")
 
         clock = [1000.0]
         responses: list[Any] = []
@@ -423,6 +425,18 @@ for line in sys.stdin:
             clock[0] += 899
             assert helper._collect_account(claude_account, True) is explicit
             assert len(requests) == requested, "a forced refresh honours Retry-After"
+
+            clock[0] += 2
+            responses.append(rate_limited("172800"))
+            two_days = helper._collect_account(claude_account, True)
+            requested = len(requests)
+            retry_at = helper.dt.datetime.fromisoformat(two_days["retryAt"])
+            retry_in = (retry_at - helper._utc_now()).total_seconds()
+            assert 172790 <= retry_in <= 172800, "a long Retry-After is not shortened"
+            for elapsed in (86401, 172799 - 86401):
+                clock[0] += elapsed
+                assert helper._collect_account(claude_account, True) is two_days
+            assert len(requests) == requested, "a forced refresh honours a 2-day Retry-After"
 
             clock[0] += 2
             responses.append(usage)

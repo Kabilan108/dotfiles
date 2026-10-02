@@ -175,10 +175,51 @@ ShellRoot {
         property bool hasLink: false
         property int state: ConnectionState.Disconnected
     }
+    Services.NetworkService {
+        id: staleProbe
+        context: root.fakeContext
+        model: root.fakeNetwork
+    }
+
+    property var liveWifiKnownOnly: QtObject {
+        property int type: DeviceType.Wifi
+        property string name: "wlan0"
+        property bool connected: true
+        property bool scannerEnabled: false
+        property int state: ConnectionState.Connected
+        property var networks: QtObject {
+            property var values: [
+                { name: "Home", known: true, connected: true, signalStrength: 0.81,
+                    security: WifiSecurityType.Wpa2Psk }
+            ]
+        }
+    }
+    property var liveWifiOld: QtObject {
+        property int type: DeviceType.Wifi
+        property string name: "wlan0"
+        property bool connected: true
+        property int state: ConnectionState.Connected
+        property var networks: QtObject {
+            property var values: [
+                { name: "Old", known: true, connected: true, signalStrength: 0.7,
+                    security: WifiSecurityType.Wpa2Psk }
+            ]
+        }
+    }
+    property var scanSnapshot: ({
+        networks: [
+            { id: "home-uuid", name: "Home", uuid: "home-uuid", known: true,
+                connected: false, kind: "personal", signal: 20, signalStrength: 0.2 },
+            { id: "Library", name: "Library", uuid: "", known: false,
+                connected: true, kind: "open", security: "--", signal: 55,
+                signalStrength: 0.55 }
+        ]
+    })
     property var liveWifi: QtObject {
         property int type: DeviceType.Wifi
         property string name: "wlan0"
         property bool connected: true
+        property bool scannerEnabled: false
         property int state: ConnectionState.Connected
         property var networks: QtObject {
             property var values: [
@@ -349,6 +390,7 @@ ShellRoot {
             expect(network.available && network.wifiEnabled && network.wiredConnected,
                 "network owner state was not exposed")
             expect(!network.networkingBackend && !network.networkingActive
+                    && !network.scannerWanted
                     && !network.refreshTimer.running && !network.sanityTimer.running,
                 "an injected model must not reach Quickshell.Networking or poll")
 
@@ -377,6 +419,43 @@ ShellRoot {
                 "live network security kinds are incorrect")
             expect(live.vpns.length === 1 && live.tailscale.ip === "100.64.0.8",
                 "helper VPN and Tailscale data were not merged into live state")
+            var scanned = network.liveSnapshot([liveWifiKnownOnly], true, scanSnapshot)
+            expect(scanned.networks.map(function(row) { return row.name }).join(",")
+                    === "Home,Library",
+                "an unsaved SSID from the helper scan is missing from the live list")
+            expect(scanned.networks[0].signal === 81 && scanned.networks[0].connected
+                    && scanned.networks[1].kind === "open" && !scanned.networks[1].known
+                    && !scanned.networks[1].connected,
+                "live rows must win over helper rows, and helper-only rows are never connected")
+            expect(network.liveSnapshot([liveWifiKnownOnly], false, scanSnapshot)
+                    .networks.length === 0,
+                "helper rows leaked into the list with the Wi-Fi radio off")
+
+            network.applyScanner([liveWired, liveWifiKnownOnly], true)
+            expect(liveWifiKnownOnly.scannerEnabled,
+                "the Wi-Fi scanner was not enabled for the open panel")
+            network.applyScanner([liveWired, liveWifiKnownOnly], false)
+            expect(!liveWifiKnownOnly.scannerEnabled, "the Wi-Fi scanner was left running")
+
+            var oldSsid = network.liveSnapshot([liveWired, liveWifiOld], true, null)
+            expect(oldSsid.wifiSsid === "Old"
+                    && oldSsid.wiredDevices.join(",") === "enp4s0",
+                "live connected SSID or wired devices were not exposed")
+            var newSummary = { wiredActive: true, wiredDevices: ["enp4s0"],
+                wifiActive: true, wifiSsid: "New" }
+            expect(!network.summaryMatches(newSummary, oldSsid)
+                    && network.summaryMatches({ wiredActive: true,
+                        wiredDevices: ["enp4s0"], wifiActive: true, wifiSsid: "Old" }, oldSsid)
+                    && !network.summaryMatches({ wiredActive: true,
+                        wiredDevices: ["enp5s0"], wifiActive: true, wifiSsid: "Old" }, oldSsid),
+                "summary comparison ignored the SSID or wired device")
+            expect(!staleProbe.checkBackend(newSummary, oldSsid)
+                    && staleProbe.staleStrikes === 1 && !staleProbe.networkingStale,
+                "one SSID disagreement must only record a strike")
+            expect(staleProbe.checkBackend(newSummary, oldSsid)
+                    && staleProbe.networkingStale && staleProbe.staleStrikes === 0,
+                "a second SSID disagreement must fall back to helper polling")
+
             var bare = network.liveSnapshot([liveWired, liveWifi], false, null)
             expect(bare.wiredName === "enp4s0" && bare.wiredConnections[0].carrier === "on"
                     && bare.wiredConnections[0].addresses.length === 0

@@ -123,6 +123,8 @@ assert.doesNotMatch(toastsSource, /toastsForOutput/,
 assert.match(centerSource, /readonly property var rows:\s*service && presented \? service\.centerRows\(\) : \[\]/)
 assert.match(centerSource, /readonly property var sections:\s*service && presented \? service\.centerSections\(\) : \[\]/)
 assert.match(cardSource, /onSnapshotKeyChanged:/)
+assert.match(cardSource, /ScriptAction \{\s*script:\s*root\.dismissSwiped\(\)/,
+    "a swipe dismisses the key captured when it started, not the card's current snapshot")
 assert.match(cardSource, /duration:\s*root\.dismissMotionDuration/)
 assert.match(cardSource, /easing\.type:\s*Easing\.OutCubic/)
 assert.match(deckSource, /property bool entered:\s*false/)

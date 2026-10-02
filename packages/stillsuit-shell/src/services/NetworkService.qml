@@ -53,6 +53,8 @@ QtObject {
     readonly property var effectiveSnapshot: networkingActive
         ? liveSnapshot(liveDevices, Networking.wifiEnabled, snapshot)
         : snapshot
+    readonly property bool scannerWanted: networkingActive
+        && (panelOpen || operation === "scan")
     readonly property string linkSignature: networkingActive
         ? _linkSignature(liveDevices, Networking.wifiEnabled) : ""
     readonly property bool available: !forceUnavailable
@@ -115,6 +117,10 @@ QtObject {
     }
 
     onLinkSignatureChanged: if (networkingActive) linkDebounce.restart()
+    // Quickshell lists unsaved networks only while a device's scanner is on, and
+    // the scanner keeps requesting scans, so it runs only while it is needed.
+    onScannerWantedChanged: applyScanner(_backendDevices(), scannerWanted)
+    onLiveDevicesChanged: applyScanner(_backendDevices(), scannerWanted)
 
     // Helper-only mode polls as before. With the Networking backend the full
     // snapshot (IP addresses, VPNs, Tailscale) is only refreshed while the
@@ -147,7 +153,9 @@ QtObject {
         var helperWired = base.wiredConnections || []
         var helperNetworks = base.networks || []
         var wired = []
+        var wiredDevices = []
         var wifiConnected = false
+        var wifiSsid = ""
         var byName = {}
         for (var index = 0; index < (devices ? devices.length : 0); index++) {
             var device = devices[index]
@@ -157,6 +165,7 @@ QtObject {
                 if (!device.connected)
                     continue
                 var deviceName = String(device.name || "")
+                wiredDevices.push(deviceName)
                 var details = _findBy(helperWired, "device", deviceName)
                 wired.push({
                     device: deviceName,
@@ -171,17 +180,33 @@ QtObject {
                 continue
             if (device.connected)
                 wifiConnected = true
-            if (!liveWifiEnabled || !device.networks)
+            if (!device.networks)
                 continue
             var visible = device.networks.values || []
             for (var networkIndex = 0; networkIndex < visible.length; networkIndex++) {
                 var candidate = _liveNetwork(visible[networkIndex], helperNetworks)
                 if (!candidate)
                     continue
+                if (candidate.connected && wifiSsid === "")
+                    wifiSsid = candidate.name
+                if (!liveWifiEnabled)
+                    continue
                 var previous = byName[candidate.name]
                 if (!previous || candidate.connected || candidate.signal > previous.signal)
                     byName[candidate.name] = candidate
             }
+        }
+        // The helper's last scan fills in SSIDs Quickshell hides while its
+        // scanner is off; live rows always win.
+        for (var helperIndex = 0; liveWifiEnabled && helperIndex < helperNetworks.length;
+                helperIndex++) {
+            var scanned = helperNetworks[helperIndex]
+            var scannedName = scanned ? String(scanned.name || "") : ""
+            if (scannedName === "" || byName[scannedName])
+                continue
+            var merged = Object.assign({}, scanned)
+            merged.connected = false
+            byName[scannedName] = merged
         }
         var liveNetworks = Object.keys(byName).map(function(name) { return byName[name] })
         liveNetworks.sort(function(left, right) {
@@ -198,6 +223,8 @@ QtObject {
         return {
             wifiEnabled: Boolean(liveWifiEnabled),
             wifiConnected: wifiConnected,
+            wifiSsid: wifiSsid,
+            wiredDevices: wiredDevices,
             wiredConnected: wired.length > 0,
             wiredName: wired.length > 0 ? wired[0].name : "",
             wiredConnections: wired,
@@ -272,30 +299,60 @@ QtObject {
         return parts.join("|")
     }
 
+    function _backendDevices() {
+        return networkingBackend && Networking.devices ? Networking.devices.values : []
+    }
+
+    function applyScanner(devices, enabled) {
+        for (var index = 0; index < (devices ? devices.length : 0); index++) {
+            var device = devices[index]
+            if (device && device.type === DeviceType.Wifi && device.scannerEnabled !== enabled)
+                device.scannerEnabled = enabled
+        }
+    }
+
+    function _sortedNames(names) {
+        return (names || []).map(String).sort().join("\n")
+    }
+
     function summaryMatches(summary, live) {
-        return Boolean(summary && live)
-            && Boolean(summary.wiredActive) === Boolean(live.wiredConnected)
-            && Boolean(summary.wifiActive) === Boolean(live.wifiConnected)
+        if (!summary || !live)
+            return false
+        if (Boolean(summary.wiredActive) !== Boolean(live.wiredConnected)
+                || Boolean(summary.wifiActive) !== Boolean(live.wifiConnected))
+            return false
+        if (Array.isArray(summary.wiredDevices)
+                && _sortedNames(summary.wiredDevices) !== _sortedNames(live.wiredDevices))
+            return false
+        // A hidden network has no live SSID, so only named SSIDs are compared.
+        var liveSsid = String(live.wifiSsid || "")
+        var activeSsid = String(summary.wifiSsid || "")
+        return !summary.wifiActive || liveSsid === "" || activeSsid === ""
+            || activeSsid === liveSsid
+    }
+
+    function checkBackend(summary, live) {
+        if (summaryMatches(summary, live)) {
+            staleStrikes = 0
+            return false
+        }
+        staleStrikes++
+        if (staleStrikes < 2)
+            return false
+        staleStrikes = 0
+        networkingStale = true
+        if (context && context.logger)
+            context.logger.warn("Networking backend disagrees with NetworkManager; using helper polling")
+        refresh()
+        return true
     }
 
     function _applySummary(summary) {
         var next = Object.assign({}, snapshot)
         next.vpns = summary.vpns || []
         snapshot = next
-        if (!networkingActive)
-            return
-        if (summaryMatches(summary, effectiveSnapshot)) {
-            staleStrikes = 0
-            return
-        }
-        staleStrikes++
-        if (staleStrikes < 2)
-            return
-        staleStrikes = 0
-        networkingStale = true
-        if (context && context.logger)
-            context.logger.warn("Networking backend disagrees with NetworkManager; using helper polling")
-        refresh()
+        if (networkingActive)
+            checkBackend(summary, effectiveSnapshot)
     }
 
     function _connected() {

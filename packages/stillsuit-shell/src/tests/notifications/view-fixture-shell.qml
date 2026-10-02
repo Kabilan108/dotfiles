@@ -90,6 +90,41 @@ ShellRoot {
         }
     }
 
+    function frontCardOf(deck) {
+        return descendants(deck, function(node) {
+            return node.parent === deck && node.snapshot !== undefined
+                && node.dismissGesturesEnabled !== undefined
+        }, { seen: [], items: [] }).items[0] || null
+    }
+
+    function deckByKey(key) {
+        var view = toastViews.filter(function(candidate) {
+            return candidate.outputId === firstOutputId()
+        })[0]
+        return (view ? decksOf(view) : []).filter(function(deck) { return deck.deck.key === key })[0] || null
+    }
+
+    function swipeReport(sourceKey) {
+        var deck = deckByKey(sourceKey)
+        var card = deck ? frontCardOf(deck) : null
+        return {
+            deckAlive: deck !== null && deck === fixture.capturedDeck,
+            frontKey: card ? card.snapshotKey : "",
+            frontDragOffset: card ? card.dragOffset : -1,
+            popups: notificationService.popups.map(function(row) { return row.key }),
+            dismissed: notificationService.history.filter(function(row) {
+                return row.closeReason === "dismissed"
+            }).map(function(row) { return row.key })
+        }
+    }
+
+    Timer {
+        id: arrivalDuringSwipe
+        interval: 30
+        repeat: false
+        onTriggered: notificationService.insertPopup(fixture.toastRow("new-arrival", "app:other", 2000))
+    }
+
     function centerReport() {
         return fixture.centerViews.map(function(view) {
             return { outputId: view.outputId, presented: view.presented, rows: view.rows.length,
@@ -273,6 +308,19 @@ ShellRoot {
         function addToast(key: string, sourceKey: string): string {
             notificationService.insertPopup(fixture.toastRow(key, sourceKey, 1000))
             return JSON.stringify(fixture.deckReport())
+        }
+        function swipeWithArrival(sourceKey: string): string {
+            var deck = fixture.deckByKey(sourceKey)
+            var card = deck ? fixture.frontCardOf(deck) : null
+            if (!card) return "unknown"
+            fixture.capturedDeck = deck
+            var swipedKey = card.snapshotKey
+            card.dismissWithSlide(1)
+            arrivalDuringSwipe.start()
+            return swipedKey
+        }
+        function swipeState(sourceKey: string): string {
+            return JSON.stringify(fixture.swipeReport(sourceKey))
         }
         function centers(): string {
             return JSON.stringify({ trackedCount: notificationService.trackedCount,

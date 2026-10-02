@@ -28,7 +28,6 @@ BLOCKED_CODEX_REFRESH_ENDPOINT = "http://127.0.0.1:0/token"
 CACHE_SECONDS = 180
 RATE_LIMIT_BACKOFF_SECONDS = 300
 MAX_RATE_LIMIT_BACKOFF_SECONDS = 3600
-MAX_RETRY_AFTER_SECONDS = 86400
 FAILURE_KEY = "_failure"
 ACCOUNT_ID_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:[-.][a-z0-9]+)*$")
 
@@ -236,7 +235,7 @@ def _retry_after_seconds(value: str | None) -> float | None:
         if when.tzinfo is None:
             when = when.replace(tzinfo=dt.timezone.utc)
         seconds = (when - _utc_now()).total_seconds()
-    return max(0.0, min(float(MAX_RETRY_AFTER_SECONDS), seconds))
+    return max(0.0, seconds)
 
 
 def _number(value: Any) -> float:
@@ -654,6 +653,13 @@ def _collect_codex(account: Account) -> Account:
             _terminate(process)
 
 
+def _retry_at(wait: float) -> str:
+    try:
+        return (_utc_now() + dt.timedelta(seconds=wait)).isoformat()
+    except OverflowError:
+        return dt.datetime.max.replace(tzinfo=dt.timezone.utc).isoformat()
+
+
 def _stale_result(last_ready: Account, failed: Account) -> Account:
     stale = dict(last_ready)
     stale.update(
@@ -709,7 +715,7 @@ def _collect_account(account: Account, force: bool) -> Account:
                 wait = retry_after
                 state.retry_after_until = now + wait
             state.backoff_until = now + wait
-            result["retryAt"] = (_utc_now() + dt.timedelta(seconds=wait)).isoformat()
+            result["retryAt"] = _retry_at(wait)
         if state.last_ready is not None:
             result = _stale_result(state.last_ready, result)
     state.checked = now

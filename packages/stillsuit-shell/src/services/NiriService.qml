@@ -76,11 +76,13 @@ Scope {
     }
 
     // Returns the adapter collections an event changes, or null when the
-    // event is unknown or its payload cannot be applied. Collections that the
-    // event leaves untouched are passed back as the same array, so the adapter
-    // skips them.
+    // event is unknown or its payload fails validation; either way the caller
+    // reconciles instead of applying it. Collections that the event leaves
+    // untouched are passed back as the same array, so the adapter skips them.
+    // References to a workspace or window the state does not contain are
+    // treated as invalid, as niri-ipc's own reducer asserts they exist.
     function _eventChanges(kind, payload) {
-        if (!payload || typeof payload !== "object") return null
+        if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null
         var workspaces = compositorAdapter.workspaces
         var windows = compositorAdapter.windows
         var focusedOutputId = compositorAdapter.focusedOutputId
@@ -89,38 +91,100 @@ Scope {
             var outputs = payload.outputs === undefined ? null : _normalizeOutputs(payload.outputs)
             return outputs === null ? null : { outputs: outputs }
         case "WorkspacesChanged":
-            if (!Array.isArray(payload.workspaces)) return null
+            if (!_validRows(payload.workspaces, _workspaceFields)) return null
             return { workspaces: payload.workspaces, focusedOutputId: _focusedOutputId(payload.workspaces, focusedOutputId) }
         case "WorkspaceActivated":
+            if (!_hasRow(workspaces, payload.id) || typeof payload.focused !== "boolean") return null
             var activated = _workspaceActivated(workspaces, payload)
             return { workspaces: activated, focusedOutputId: _focusedOutputId(activated, focusedOutputId) }
         case "WorkspaceActiveWindowChanged":
+            if (!_hasRow(workspaces, payload.workspace_id)
+                    || !(payload.active_window_id === null || _isNumber(payload.active_window_id))) return null
             return { workspaces: _workspaceActiveWindow(workspaces, payload) }
         case "WorkspaceUrgencyChanged":
+            if (!_isNumber(payload.id) || typeof payload.urgent !== "boolean") return null
             return { workspaces: _patchRows(workspaces, function(workspace) {
-                return workspace.id === payload.id ? { is_urgent: payload.urgent === true } : null
+                return workspace.id === payload.id ? { is_urgent: payload.urgent } : null
             }) }
         case "WindowsChanged":
-            return Array.isArray(payload.windows) ? { windows: payload.windows } : null
+            return _validRows(payload.windows, _windowFields) ? { windows: payload.windows } : null
         case "WindowOpenedOrChanged":
-            return payload.window && payload.window.id !== undefined
+            return _validRow(payload.window, _windowFields)
                 ? { windows: _upsertWindow(windows, payload.window) } : null
         case "WindowClosed":
-            return { windows: _removeWindow(windows, payload.id) }
+            return _hasRow(windows, payload.id) ? { windows: _removeWindow(windows, payload.id) } : null
         case "WindowFocusChanged":
+            if (!(payload.id === null || _isNumber(payload.id))) return null
             return { windows: _focusedWindow(windows, payload.id) }
         case "WindowFocusTimestampChanged":
+            if (!_isNumber(payload.id) || typeof payload.focus_timestamp !== "object") return null
             return { windows: _patchRows(windows, function(window) {
                 return window.id === payload.id ? { focus_timestamp: payload.focus_timestamp } : null
             }) }
         case "WindowUrgencyChanged":
+            if (!_isNumber(payload.id) || typeof payload.urgent !== "boolean") return null
             return { windows: _patchRows(windows, function(window) {
-                return window.id === payload.id ? { is_urgent: payload.urgent === true } : null
+                return window.id === payload.id ? { is_urgent: payload.urgent } : null
             }) }
         case "WindowLayoutsChanged":
-            return Array.isArray(payload.changes) ? { windows: _windowLayouts(windows, payload.changes) } : null
+            if (!_validLayoutChanges(windows, payload.changes)) return null
+            return { windows: _windowLayouts(windows, payload.changes) }
         }
         return null
+    }
+
+    // Field types checked when present. Every row needs a numeric `id`.
+    readonly property var _workspaceFields: ({
+        idx: "number", output: "string", name: "string", active_window_id: "number",
+        is_active: "boolean", is_focused: "boolean", is_urgent: "boolean"
+    })
+    readonly property var _windowFields: ({
+        workspace_id: "number", title: "string", app_id: "string", layout: "object",
+        is_focused: "boolean", is_floating: "boolean", is_urgent: "boolean"
+    })
+
+    function _isNumber(value) {
+        return typeof value === "number" && isFinite(value)
+    }
+
+    function _validRow(row, fieldTypes) {
+        if (!row || typeof row !== "object" || Array.isArray(row) || !_isNumber(row.id)) return false
+        for (var key in fieldTypes) {
+            var value = row[key]
+            if (value === undefined || value === null) continue
+            if (fieldTypes[key] === "number" ? !_isNumber(value) : typeof value !== fieldTypes[key]) return false
+        }
+        return true
+    }
+
+    function _validRows(rows, fieldTypes) {
+        if (!Array.isArray(rows)) return false
+        var seen = {}
+        for (var index = 0; index < rows.length; index++) {
+            if (!_validRow(rows[index], fieldTypes)) return false
+            var key = String(rows[index].id)
+            if (seen[key]) return false
+            seen[key] = true
+        }
+        return true
+    }
+
+    function _hasRow(rows, id) {
+        if (!_isNumber(id)) return false
+        for (var index = 0; index < rows.length; index++) {
+            if (rows[index] && rows[index].id === id) return true
+        }
+        return false
+    }
+
+    function _validLayoutChanges(windows, changes) {
+        if (!Array.isArray(changes)) return false
+        for (var index = 0; index < changes.length; index++) {
+            var change = changes[index]
+            if (!Array.isArray(change) || change.length !== 2 || !_hasRow(windows, change[0])
+                    || !change[1] || typeof change[1] !== "object" || Array.isArray(change[1])) return false
+        }
+        return true
     }
 
     function reconcile(outputsJson, workspacesJson, windowsJson) {
@@ -130,8 +194,8 @@ Scope {
     function _applyReconciliation(outputsJson, workspacesJson, windowsJson, streamTouched) {
         try {
             var nextOutputs = _parseOutputs(outputsJson)
-            var nextWorkspaces = _parseSnapshotArray(workspacesJson, "workspaces")
-            var nextWindows = _parseSnapshotArray(windowsJson, "windows")
+            var nextWorkspaces = _parseSnapshotArray(workspacesJson, "workspaces", _workspaceFields)
+            var nextWindows = _parseSnapshotArray(windowsJson, "windows", _windowFields)
             var changes = {}
             if (!streamTouched.outputs) changes.outputs = nextOutputs
             if (!streamTouched.workspaces) {
@@ -282,15 +346,13 @@ Scope {
         return outputs
     }
 
-    function _parseSnapshotArray(raw, label) {
+    function _parseSnapshotArray(raw, label, fieldTypes) {
         var text = String(raw || "").trim()
         if (text === "") throw new Error("niri " + label + " result is empty")
         var rows = JSON.parse(text)
         if (!Array.isArray(rows)) throw new Error("niri " + label + " result is not an array")
-        for (var index = 0; index < rows.length; index++) {
-            if (!rows[index] || typeof rows[index] !== "object" || Array.isArray(rows[index]))
-                throw new Error("niri " + label + " result contains a non-object snapshot")
-        }
+        if (!_validRows(rows, fieldTypes))
+            throw new Error("niri " + label + " result contains an invalid or duplicate snapshot row")
         return rows
     }
 
@@ -364,14 +426,20 @@ Scope {
         return false
     }
 
+    // Mirrors niri-ipc's reducer: a focused opened or changed window takes
+    // focus from every other window, since niri need not send a separate
+    // WindowFocusChanged.
     function _upsertWindow(rows, window) {
-        if (!window || window.id === undefined) return rows
         var next = rows.slice()
+        var replaced = false
         for (var index = 0; index < next.length; index++) {
-            if (next[index] && next[index].id === window.id) { next[index] = window; return next }
+            if (next[index] && next[index].id === window.id) { next[index] = window; replaced = true; break }
         }
-        next.push(window)
-        return next
+        if (!replaced) next.push(window)
+        if (window.is_focused !== true) return next
+        return _patchRows(next, function(other) {
+            return other.id !== window.id && other.is_focused === true ? { is_focused: false } : null
+        })
     }
 
     function _removeWindow(rows, windowId) {

@@ -38,7 +38,20 @@ ln -s "$source_root/services" "$config_dir/services"
 ln -s "$source_root/plugins" "$config_dir/plugins"
 ln -s "$source_root/tests/FixtureTheme.js" "$config_dir/FixtureTheme.js"
 
-ipc() { qs ipc --pid "$shell_pid" call stillsuit-d2-compositor-fixture "$@"; }
+# qs ipc occasionally answers "Not ready" without running the call, so that
+# reply is retried; it never means the call took effect.
+ipc() {
+  local reply
+  for _ in {1..40}; do
+    reply=$(qs ipc --pid "$shell_pid" call stillsuit-d2-compositor-fixture "$@") || return
+    if [[ $reply != 'Not ready to accept queries yet.' ]]; then
+      printf '%s\n' "$reply"
+      return 0
+    fi
+    sleep 0.05
+  done
+  printf '%s\n' "$reply"
+}
 argv_count() { grep -cxF -- "$1" "$STILLSUIT_D2_FIXTURE_STATE/argv.log" || true; }
 
 wait_for() {
@@ -229,6 +242,18 @@ jq -e '
   and ([.windows[] | .layout.pos_in_scrolling_layout[0]] == [1,3])
 ' >/dev/null <<<"$activated"
 
+# A focused opened or changed window takes focus from every other window, as
+# in niri-ipc's reducer; only the rows whose focus changes are replaced.
+ipc markRows >/dev/null
+ipc inject '{"WindowOpenedOrChanged":{"window":{"id":42,"workspace_id":4,"title":"third","is_focused":true,"layout":{"pos_in_scrolling_layout":[4,1]}}}}' >/dev/null
+jq -e '.revisionDelta == 1 and .workspacesArraySame and .windowRowsReused == {"40":false,"41":true,"42":false}' \
+  >/dev/null <<<"$(ipc rowIdentity)"
+jq -e '[.windows[] | select(.is_focused) | .id] == [42]' >/dev/null <<<"$(ipc state)"
+ipc inject '{"WindowOpenedOrChanged":{"window":{"id":40,"workspace_id":4,"title":"stream-newer","is_focused":true,"layout":{"pos_in_scrolling_layout":[1,1]}}}}' >/dev/null
+jq -e '[.windows[] | select(.is_focused) | .id] == [40]' >/dev/null <<<"$(ipc state)"
+ipc inject '{"WindowOpenedOrChanged":{"window":{"id":41,"workspace_id":4,"title":"renamed","is_focused":false,"layout":{"pos_in_scrolling_layout":[3,1]}}}}' >/dev/null
+jq -e '[.windows[] | select(.is_focused) | .id] == [40] and ([.windows[].id] == [40,41,42])' >/dev/null <<<"$(ipc state)"
+
 # Removing a middle workspace in the same update that changes the row before
 # it keeps every surviving cell bound to its own workspace: the cell that
 # showed workspace 6 still shows 6, rather than the removed cell for 5 being
@@ -243,13 +268,34 @@ jq -e '
   and .delegateStates == [{"id":4,"active":true},{"id":6,"active":false}]
 ' >/dev/null <<<"$(ipc rowIdentity)"
 
-# An event the parser does not know queues a reconciliation.
-[[ $(ipc inject '{"SomeFutureEvent":{}}') == false ]]
-wait_for_reconciliation '.completedGeneration == 6 and .acceptedGeneration == 6 and .running == false' >/dev/null
+# Known events whose payloads fail validation, and events the parser does not
+# know, are never applied. The first queues generation 6, which the fake holds
+# so the unchanged state can be observed; the rest collapse into generation 7.
+: >"$STILLSUIT_D2_FIXTURE_STATE/hold-reconcile"
+before_invalid=$(ipc state)
+for invalid in \
+  '{"WindowsChanged":{"windows":[null]}}' \
+  '{"WindowsChanged":{"windows":[{"id":"40","title":"string-id"}]}}' \
+  '{"WindowsChanged":{"windows":[{"id":40},{"id":40}]}}' \
+  '{"WorkspacesChanged":{"workspaces":[{"id":4,"is_active":"yes"}]}}' \
+  '{"WindowOpenedOrChanged":{"window":{"title":"no-id"}}}' \
+  '{"WorkspaceActivated":{"id":999,"focused":true}}' \
+  '{"WorkspaceActiveWindowChanged":{"workspace_id":4,"active_window_id":"41"}}' \
+  '{"WindowClosed":{"id":999}}' \
+  '{"WindowFocusChanged":{"id":"40"}}' \
+  '{"WindowLayoutsChanged":{"changes":[[41,null]]}}' \
+  '{"WindowUrgencyChanged":{"id":41}}' \
+  '{"SomeFutureEvent":{}}'; do
+  [[ $(ipc inject "$invalid") == false ]]
+done
+[[ $(ipc state) == "$before_invalid" ]]
+wait_for_reconciliation '.completedGeneration == 5 and .running == true' >/dev/null
+rm -f -- "$STILLSUIT_D2_FIXTURE_STATE/hold-reconcile"
+wait_for_reconciliation '.completedGeneration == 7 and .acceptedGeneration == 7 and .running == false' >/dev/null
 
 # Reconnecting the stream reconciles again.
 : >"$STILLSUIT_D2_FIXTURE_STATE/release-stream"
-wait_for_reconciliation '.completedGeneration >= 7 and .acceptedGeneration >= 7' >/dev/null
+wait_for_reconciliation '.completedGeneration >= 8 and .acceptedGeneration >= 8' >/dev/null
 [[ $(<"$STILLSUIT_D2_FIXTURE_STATE/stream-count") -ge 2 ]]
 
 # The fake stream exits repeatedly without the live Niri socket. After the

@@ -206,6 +206,12 @@ ShellRoot {
             verify(panel._statusText({ statusText: "Rate limited",
                     retryAt: "2030-01-01T01:00:00+00:00" }) === "Rate limited",
                 "elapsed retry time is hidden")
+            verify(panel._statusText({ statusText: "Rate limited",
+                    retryAt: "2030-01-03T01:12:00+00:00" })
+                    === "Rate limited · retry in 2d 0h",
+                "multi-day retry text")
+            verify(panel._resetText("2030-01-01T03:42:00+00:00") === "Resets in 2h 30m",
+                "reset text")
             verify(panel._updatedText("2030-01-01T01:11:30+00:00") === "Updated just now",
                 "updated text")
             panel.destroy()

@@ -25,6 +25,14 @@ wait_for_gate() {
   return 70
 }
 
+wait_while_held() {
+  for _ in {1..400}; do
+    if [[ ! -f $STILLSUIT_D2_FIXTURE_STATE/hold-reconcile ]]; then return 0; fi
+    sleep 0.01
+  done
+  return 70
+}
+
 if [[ $* == 'msg --json event-stream' ]]; then
   count=$(next_count stream)
   if (( count == 1 )); then
@@ -61,6 +69,7 @@ case "$*" in
         ;;
       *)
         wait_for_gate allow-final-recovery
+        wait_while_held
         printf '%s\n' '{"HDMI-A-1":{"make":"Recovered"}}'
         ;;
     esac
@@ -81,6 +90,7 @@ case "$*" in
         ;;
       *)
         wait_for_gate allow-final-recovery
+        wait_while_held
         printf '%s\n' '[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":true,"is_focused":true}]'
         ;;
     esac
@@ -101,6 +111,7 @@ case "$*" in
         ;;
       *)
         wait_for_gate allow-final-recovery
+        wait_while_held
         printf '%s\n' '[{"id":40,"workspace_id":4,"title":"generation-5","is_focused":true}]'
         ;;
     esac

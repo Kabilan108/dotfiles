@@ -366,15 +366,19 @@ Item {
         var remaining = Math.max(0, resetMs - nowMs);
         if (remaining === 0)
             return "Resetting now";
-        var minutes = Math.ceil(remaining / 60000);
+        return "Resets in " + _durationText(remaining);
+    }
+
+    function _durationText(milliseconds) {
+        var minutes = Math.ceil(milliseconds / 60000);
         var days = Math.floor(minutes / 1440);
         var hours = Math.floor((minutes % 1440) / 60);
         var rest = minutes % 60;
         if (days > 0)
-            return "Resets in " + days + "d " + hours + "h";
+            return days + "d " + hours + "h";
         if (hours > 0)
-            return "Resets in " + hours + "h " + rest + "m";
-        return "Resets in " + rest + "m";
+            return hours + "h " + rest + "m";
+        return rest + "m";
     }
 
     function _ageText(value) {
@@ -393,7 +397,7 @@ Item {
         var retryMs = Date.parse(String(value || ""));
         if (!isFinite(retryMs) || retryMs <= nowMs)
             return "";
-        return "retry in " + Math.ceil((retryMs - nowMs) / 60000) + "m";
+        return "retry in " + _durationText(retryMs - nowMs);
     }
 
     function _statusText(account) {

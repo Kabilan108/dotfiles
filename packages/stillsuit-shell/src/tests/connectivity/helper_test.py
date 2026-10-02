@@ -43,13 +43,14 @@ def main() -> None:
                 "IP6.ADDRESS[1]:2001\\:db8\\:\\:1/64\nWIRED-PROPERTIES.CARRIER:on\n")
         if "--get-values" in command and "802-11-wireless.ssid" in command:
             return completed(command, "Home\\:WiFi\n")
-        if "UUID,NAME,TYPE,ACTIVE,STATE" in command:
+        if "UUID,NAME,TYPE,ACTIVE,STATE,DEVICE" in command:
             return completed(
                 command,
-                "saved:Apartment Wi-Fi:802-11-wireless:yes:activated\n"
-                "wired:Fixture Ethernet:802-3-ethernet:yes:activating\n"
-                "moberg:MobergAnalytics:vpn:no:\n"
-                "other:Other VPN:vpn:yes:activated\n",
+                "saved:Apartment Wi-Fi:802-11-wireless:yes:activated:wlan0\n"
+                "wired:Fixture Ethernet:802-3-ethernet:yes:activating:eth1\n"
+                "dock:Dock Ethernet:802-3-ethernet:yes:activated:eth0\n"
+                "moberg:MobergAnalytics:vpn:no::\n"
+                "other:Other VPN:vpn:yes:activated:wlan0\n",
             )
         if command[-2:] == ["connection", "show"]:
             return completed(
@@ -123,11 +124,38 @@ def main() -> None:
         "operation": "summary",
         "summary": {
             "vpns": response["snapshot"]["vpns"],
-            "wiredActive": False,
+            "wiredActive": True,
+            "wiredName": "Dock Ethernet",
+            "wiredDevices": ["eth0"],
             "wifiActive": True,
+            "wifiSsid": "Home:WiFi",
         },
     }
-    assert [call["command"][0] for call in calls] == ["nmcli"]
+    assert len(calls) == 2
+    assert all(call["command"][0] == "nmcli" for call in calls)
+    assert "--get-values" in calls[1]["command"]
+    assert calls[1]["command"][-1] == "saved"
+
+    def wired_only_run(
+        command: list[str],
+        *,
+        input_text: str | None = None,
+        timeout: int = 25,
+    ) -> subprocess.CompletedProcess[str]:
+        if "UUID,NAME,TYPE,ACTIVE,STATE,DEVICE" in command:
+            calls.append({"command": command, "input": input_text, "timeout": timeout})
+            return completed(
+                command, "dock:Dock Ethernet:802-3-ethernet:yes:activated:eth0\n"
+            )
+        return fake_run(command, input_text=input_text, timeout=timeout)
+
+    calls.clear()
+    setattr(helper, "_run", wired_only_run)  # noqa: B010
+    wired_summary = helper._dispatch({"operation": "summary"})["summary"]
+    assert wired_summary["wiredDevices"] == ["eth0"]
+    assert wired_summary["wifiActive"] is False and wired_summary["wifiSsid"] == ""
+    assert len(calls) == 1
+    setattr(helper, "_run", fake_run)  # noqa: B010
 
     calls.clear()
     copied_dns = helper._dispatch({"operation": "copy-tailscale", "field": "dns"})
