@@ -251,7 +251,11 @@ in
     seahorse
     signal-desktop
     (withElectronA11y slack [ "slack" ])
-    zotero
+    # Temporary pin until Zotero's Firefox 153 build is fixed.
+    (import inputs.zotero-nixpkgs {
+      system = systemName;
+      config.allowUnfree = true;
+    }).zotero
 
     # media/file handling
     baobab
