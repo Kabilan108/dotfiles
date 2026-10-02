@@ -79,6 +79,9 @@ Scope {
         else if (event.type === "meter") _applyMeter(event)
     }
     function _reconnect() {
+        visualizerState = "idle"
+        durationText = ""
+        _resetLevels()
         if (!configured || reconnectTimer.running) return
         reconnectTimer.interval = Math.min(8000, Math.round(1000 * Math.pow(1.35, reconnectAttempts)))
         reconnectAttempts++
@@ -88,7 +91,14 @@ Scope {
     Timer {
         id: reconnectTimer
         repeat: false
-        onTriggered: socket.connected = root.configured
+        onTriggered: {
+            // A failed Quickshell Socket retains its internal QLocalSocket.
+            // Writing connected=true again cannot initiate another attempt.
+            // Recreate the client so each retry starts with a fresh socket.
+            socketLoader.active = false
+            root.connectionState = root.configured ? "connecting" : "unconfigured"
+            socketLoader.active = root.configured
+        }
     }
     Timer {
         interval: 500
@@ -102,25 +112,31 @@ Scope {
         running: root.visualizerState === "transcribing"
         onTriggered: root.scanPos = (root.scanPos + 0.2) % (root.barCount + 5)
     }
-    Socket {
-        id: socket
-        path: root.socketPath
-        connected: root.configured
-        onConnectedChanged: {
-            if (connected) {
-                root.connectionState = "connected"
-                root.socketConnections++
-                root.reconnectAttempts = 0
-            } else if (root.configured) {
-                root.connectionState = "disconnected"
-                root._reconnect()
+    Loader {
+        id: socketLoader
+        active: root.configured
+        sourceComponent: Component {
+            Socket {
+                path: root.socketPath
+                connected: true
+                onConnectedChanged: {
+                    if (connected) {
+                        reconnectTimer.stop()
+                        root.connectionState = "connected"
+                        root.socketConnections++
+                        root.reconnectAttempts = 0
+                    } else if (root.configured) {
+                        root.connectionState = "disconnected"
+                        root._reconnect()
+                    }
+                }
+                onError: function(error) {
+                    root.connectionState = "error"
+                    root._reconnect()
+                }
+                parser: SplitParser { splitMarker: "\n"; onRead: function(data) { root.applyLine(data) } }
             }
         }
-        onError: function(error) {
-            root.connectionState = "error"
-            root._reconnect()
-        }
-        parser: SplitParser { splitMarker: "\n"; onRead: function(data) { root.applyLine(data) } }
     }
     Component.onCompleted: _resetLevels()
 }

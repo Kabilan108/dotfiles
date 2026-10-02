@@ -64,10 +64,17 @@ jq -n '{schemaVersion:1, jobs:[
   {job_id:("2"*32),phase:"completed",title:"Completed older",label:"Meeting note ready",note_path:"/tmp/completed-2.md",attempt:1,updated_at:800,completed_at:800,created_at:40},
   {job_id:("3"*32),phase:"completed",title:"Completed oldest",label:"Meeting note ready",note_path:"/tmp/completed-3.md",attempt:1,updated_at:700,completed_at:700,created_at:30}
 ]}' > "$STILLSUIT_FIXTURE_MEETING_JOBS"
-python3 "$fixture_dir/socket-server.py" "$STILLSUIT_FIXTURE_SOCKET" >"$tmp_dir/socket.log" 2>&1 &
-socket_pid=$!
-for _ in {1..100}; do [[ -S $STILLSUIT_FIXTURE_SOCKET ]] && break; sleep 0.02; done
-[[ -S $STILLSUIT_FIXTURE_SOCKET ]]
+start_socket_server() {
+  python3 "$fixture_dir/socket-server.py" "$STILLSUIT_FIXTURE_SOCKET" >"$tmp_dir/socket.log" 2>&1 &
+  socket_pid=$!
+  for _ in {1..100}; do [[ -S $STILLSUIT_FIXTURE_SOCKET ]] && break; sleep 0.02; done
+  [[ -S $STILLSUIT_FIXTURE_SOCKET ]]
+}
+stop_socket_server() {
+  kill "$socket_pid"
+  wait "$socket_pid" 2>/dev/null || true
+  socket_pid=""
+}
 
 config_dir="$tmp_dir/quickshell"
 mkdir -p "$config_dir/plugins/builtin" "$config_dir/services"
@@ -95,7 +102,7 @@ wait_json() {
 start_shell() {
   qs --no-color -p "$config_dir" >"$tmp_dir/quickshell.log" 2>&1 &
   shell_pid=$!
-  wait_json '.aggregateApiVersion == "1" and .dictator.socketConnections == 1' >/dev/null
+  wait_json '.aggregateApiVersion == "1"' >/dev/null
 }
 stop_shell() {
   local pid=$shell_pid
@@ -104,7 +111,26 @@ stop_shell() {
   shell_pid=""
 }
 
+# Start the shell before the daemon. Repeated failed attempts must continue
+# until a server appears, without reloading either service.
 start_shell
+wait_json '.dictator.reconnectAttempts >= 2 and .dictator.connectionState == "error"' >/dev/null
+start_socket_server
+wait_json '.dictator.socketConnections == 1 and .dictator.state == "recording" and .dictator.reconnectAttempts == 0' >/dev/null
+
+# A daemon crash leaves a stale socket path. Recover after connection refused.
+stop_socket_server
+wait_json '.dictator.connectionState == "error" and .dictator.reconnectAttempts >= 2 and (.dictator.visible | not) and .dictator.duration == ""' >/dev/null
+rm -- "$STILLSUIT_FIXTURE_SOCKET"
+start_socket_server
+wait_json '.dictator.socketConnections == 2 and .dictator.state == "recording" and .dictator.reconnectAttempts == 0' >/dev/null
+
+# Also recover when the daemon removes its socket during a clean shutdown.
+stop_socket_server
+rm -- "$STILLSUIT_FIXTURE_SOCKET"
+wait_json '.dictator.connectionState == "error" and .dictator.reconnectAttempts >= 2 and (.dictator.visible | not)' >/dev/null
+start_socket_server
+wait_json '.dictator.socketConnections == 3 and .dictator.state == "recording" and .dictator.reconnectAttempts == 0' >/dev/null
 wait_json '.recording.status == "ready" and .meeting.jobsStatus == "ready"' >/dev/null
 state=$(ipc state)
 jq -e '.serviceObjects == 1 and .osdServiceObjects == 1 and .overlays == 2 and .overlaySharesAggregate and .overlaySharesOsdService and .dictator.levels == 23 and .dictator.state == "recording" and .meeting.visible and .meeting.completed and .meeting.label == "fixture"' >/dev/null <<<"$state"
