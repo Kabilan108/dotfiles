@@ -1,6 +1,10 @@
-{ pkgs, ... }:
+{ inputs, pkgs, ... }:
 let
   spotifyAudioCacheBytes = 2 * 1000 * 1000 * 1000;
+  bootPkgs = import inputs.jacurutu-boot-nixpkgs {
+    system = pkgs.stdenv.hostPlatform.system;
+    config.allowUnfree = true;
+  };
 in
 {
   imports = [
@@ -9,6 +13,19 @@ in
   ];
 
   networking.hostName = "jacurutu";
+
+  # Retain the boot stack from working generation 1141 while testing the
+  # userspace graphics fix. The disk-unlock freeze had no persistent journal.
+  boot.kernelPackages = bootPkgs.linuxPackages;
+  nixpkgs.overlays = [
+    (_final: _prev: { linux-firmware = bootPkgs.linux-firmware; })
+  ];
+  # External GUI flakes still use glibc 2.42 and cannot load the new Mesa.
+  # Keep their working driver until those applications also use system pkgs.
+  hardware.graphics = {
+    package = bootPkgs.mesa;
+    package32 = bootPkgs.pkgsi686Linux.mesa;
+  };
 
   services.pipewire.wireplumber.extraConfig."50-mic-volume" = {
     "wireplumber.settings" = {

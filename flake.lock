@@ -831,6 +831,22 @@
         "type": "github"
       }
     },
+    "jacurutu-boot-nixpkgs": {
+      "locked": {
+        "lastModified": 1789546076,
+        "narHash": "sha256-zVxLZiSnmaaPLwnhj7pwmqe3axBg/C6nG5JZsJMh2g4=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "b1b875982b17dabde9b4a37f3e229e74913e6db3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "b1b875982b17dabde9b4a37f3e229e74913e6db3",
+        "type": "github"
+      }
+    },
     "llama-cpp": {
       "inputs": {
         "flake-parts": "flake-parts",
@@ -1349,6 +1365,7 @@
         "home-manager": "home-manager_2",
         "hy3": "hy3",
         "hyprland": "hyprland",
+        "jacurutu-boot-nixpkgs": "jacurutu-boot-nixpkgs",
         "llama-cpp": "llama-cpp",
         "llama-nixpkgs": "llama-nixpkgs",
         "niri-flake": "niri-flake",

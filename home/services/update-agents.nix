@@ -6,6 +6,25 @@
 }:
 let
   cfg = config.dotfiles.services.update-agents;
+  homeDir = config.home.homeDirectory;
+  agentPath = lib.concatStringsSep ":" [
+    "${homeDir}/.local/bin"
+    "${homeDir}/.opencode/bin"
+    "${homeDir}/.local/share/pnpm"
+    "${homeDir}/.local/share/pnpm/bin"
+    "${homeDir}/.bun/bin"
+    "${homeDir}/.cargo/bin"
+    "${homeDir}/bin"
+    (lib.makeBinPath [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.curl
+      pkgs.git
+      pkgs.nodejs_24
+      pkgs.pnpm
+    ])
+    "/run/current-system/sw/bin"
+  ];
 
   updateAgents = pkgs.writeShellScript "update-agents" ''
     set -euo pipefail
@@ -55,6 +74,7 @@ in
       };
       Service = {
         Type = "oneshot";
+        Environment = [ "PATH=${agentPath}" ];
         ExecStart = updateAgents;
       };
       Install.WantedBy = [ "default.target" ];

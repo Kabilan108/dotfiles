@@ -9,6 +9,12 @@
 let
   colors = config.lib.stylix.colors.withHashtag;
   themeName = "stylix";
+  elephantProviders = pkgs.linkFarm "elephant-service-providers" (
+    map (name: {
+      name = "${name}.so";
+      path = "${config.programs.elephant.package}/lib/elephant/providers/${name}.so";
+    }) config.programs.elephant.providers
+  );
   lockCmd = "lock-screen";
   stillsuitProfileIpc = "qs ipc -c ${lib.escapeShellArg config.programs.stillsuitShell.configId} call stillsuit-profile";
   logoutCmd =
@@ -19,6 +25,12 @@ let
 in
 {
   imports = [ inputs.walker.homeManagerModules.default ];
+
+  # Cached user units may outlive Home Manager's provider symlink updates.
+  # Keep plugins tied to the executable in the same service definition.
+  systemd.user.services.elephant.Service.Environment = [
+    "ELEPHANT_PROVIDER_DIR=${elephantProviders}"
+  ];
 
   programs.walker = {
     enable = true;

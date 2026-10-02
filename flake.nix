@@ -109,6 +109,9 @@
     # machine setup
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
+    # Jacurutu's working boot stack before the October 2 display freezes.
+    # Advance after kernel and AMD firmware have passed a boot test.
+    jacurutu-boot-nixpkgs.url = "github:NixOS/nixpkgs/b1b875982b17dabde9b4a37f3e229e74913e6db3";
 
     # 3rd party flakes
     agenix = {
