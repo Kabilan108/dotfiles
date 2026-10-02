@@ -18,13 +18,9 @@ let
       '';
   launcher = pkgs.writeShellScript "chatgpt-desktop-launch" ''
     set -euo pipefail
-    # Retain the successful test profile, including its sign-in and Dots setup.
-    test_root="''${XDG_STATE_HOME:-$HOME/.local/state}/chatgpt-official-test"
-    export XDG_CONFIG_HOME="$test_root/config"
-    export XDG_CACHE_HOME="$test_root/cache"
-    export XDG_DATA_HOME="$test_root/data"
-    export CODEX_HOME="$test_root/codex"
-    mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$CODEX_HOME"
+    # Use the normal Electron profile and the intentional ~/.codex configuration.
+    unset CODEX_HOME CODEX_ELECTRON_USER_DATA_PATH
+    unset XDG_CONFIG_HOME XDG_CACHE_HOME XDG_DATA_HOME
     unset CODEX_CLI_PATH NIX_LD_LIBRARY_PATH LD_LIBRARY_PATH
     unset CODEX_REMOTE_CONTROL_APP_SERVER_MODE CODEX_REMOTE_CONTROL_APP_SERVER_PROXY_SOCKET
     if [ "''${1:-}" = --check ]; then
@@ -40,8 +36,6 @@ let
       exit 0
     fi
     exec /usr/lib/chatgpt/ChatGPT \
-      --user-data-dir="$test_root/electron" \
-      --class=chatgpt-official-test \
       --ozone-platform=x11 "$@"
   '';
   fhs = pkgs.buildFHSEnv {
@@ -105,7 +99,6 @@ pkgs.symlinkJoin {
     cp ${payload}/usr/share/applications/chatgpt.desktop "$out/share/applications/chatgpt.desktop"
     substituteInPlace "$out/share/applications/chatgpt.desktop" \
       --replace-fail 'Exec=chatgpt %U' "Exec=$out/bin/chatgpt-desktop %U"
-    printf '\nStartupWMClass=chatgpt-official-test\n' >> "$out/share/applications/chatgpt.desktop"
   '';
   passthru = {
     inherit payload deb version;
