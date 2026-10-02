@@ -30,6 +30,7 @@ QtObject {
     property int localRevision: 0
     property bool networkingStale: false
     property int staleStrikes: 0
+    property var scannerDevices: []
 
     readonly property string apiVersion: "1"
     readonly property string helperPath: String(context && context.settings
@@ -53,8 +54,8 @@ QtObject {
     readonly property var effectiveSnapshot: networkingActive
         ? liveSnapshot(liveDevices, Networking.wifiEnabled, snapshot)
         : snapshot
-    readonly property bool scannerWanted: networkingActive
-        && (panelOpen || operation === "scan")
+    readonly property bool scannerRequested: panelOpen || operation === "scan"
+    readonly property bool scannerWanted: networkingActive && scannerRequested
     readonly property string linkSignature: networkingActive
         ? _linkSignature(liveDevices, Networking.wifiEnabled) : ""
     readonly property bool available: !forceUnavailable
@@ -121,6 +122,7 @@ QtObject {
     // the scanner keeps requesting scans, so it runs only while it is needed.
     onScannerWantedChanged: applyScanner(_backendDevices(), scannerWanted)
     onLiveDevicesChanged: applyScanner(_backendDevices(), scannerWanted)
+    Component.onDestruction: releaseScanners()
 
     // Helper-only mode polls as before. With the Networking backend the full
     // snapshot (IP addresses, VPNs, Tailscale) is only refreshed while the
@@ -154,8 +156,8 @@ QtObject {
         var helperNetworks = base.networks || []
         var wired = []
         var wiredDevices = []
-        var wifiConnected = false
-        var wifiSsid = ""
+        var wifiConnectedCount = 0
+        var wifiSsids = []
         var byName = {}
         for (var index = 0; index < (devices ? devices.length : 0); index++) {
             var device = devices[index]
@@ -179,7 +181,8 @@ QtObject {
             if (device.type !== DeviceType.Wifi)
                 continue
             if (device.connected)
-                wifiConnected = true
+                wifiConnectedCount++
+            var deviceSsid = ""
             if (!device.networks)
                 continue
             var visible = device.networks.values || []
@@ -187,8 +190,10 @@ QtObject {
                 var candidate = _liveNetwork(visible[networkIndex], helperNetworks)
                 if (!candidate)
                     continue
-                if (candidate.connected && wifiSsid === "")
-                    wifiSsid = candidate.name
+                if (candidate.connected && deviceSsid === "") {
+                    deviceSsid = candidate.name
+                    wifiSsids.push(deviceSsid)
+                }
                 if (!liveWifiEnabled)
                     continue
                 var previous = byName[candidate.name]
@@ -222,8 +227,10 @@ QtObject {
         })
         return {
             wifiEnabled: Boolean(liveWifiEnabled),
-            wifiConnected: wifiConnected,
-            wifiSsid: wifiSsid,
+            wifiConnected: wifiConnectedCount > 0,
+            wifiConnectedCount: wifiConnectedCount,
+            wifiSsids: wifiSsids,
+            wifiSsid: wifiSsids.length > 0 ? wifiSsids[0] : "",
             wiredDevices: wiredDevices,
             wiredConnected: wired.length > 0,
             wiredName: wired.length > 0 ? wired[0].name : "",
@@ -303,11 +310,31 @@ QtObject {
         return networkingBackend && Networking.devices ? Networking.devices.values : []
     }
 
+    // Only devices this service switched on are tracked, so a scanner enabled
+    // elsewhere is left alone and every one switched on here is switched off on
+    // panel close, scan end, fallback or destruction.
     function applyScanner(devices, enabled) {
+        if (!enabled) {
+            releaseScanners()
+            return
+        }
+        var tracked = scannerDevices.filter(function(device) { return Boolean(device) })
         for (var index = 0; index < (devices ? devices.length : 0); index++) {
             var device = devices[index]
-            if (device && device.type === DeviceType.Wifi && device.scannerEnabled !== enabled)
-                device.scannerEnabled = enabled
+            if (!device || device.type !== DeviceType.Wifi || device.scannerEnabled)
+                continue
+            device.scannerEnabled = true
+            tracked.push(device)
+        }
+        scannerDevices = tracked
+    }
+
+    function releaseScanners() {
+        var tracked = scannerDevices
+        scannerDevices = []
+        for (var index = 0; index < tracked.length; index++) {
+            if (tracked[index] && tracked[index].scannerEnabled)
+                tracked[index].scannerEnabled = false
         }
     }
 
@@ -321,14 +348,27 @@ QtObject {
         if (Boolean(summary.wiredActive) !== Boolean(live.wiredConnected)
                 || Boolean(summary.wifiActive) !== Boolean(live.wifiConnected))
             return false
+        if (typeof summary.wifiEnabled === "boolean"
+                && summary.wifiEnabled !== Boolean(live.wifiEnabled))
+            return false
         if (Array.isArray(summary.wiredDevices)
                 && _sortedNames(summary.wiredDevices) !== _sortedNames(live.wiredDevices))
             return false
-        // A hidden network has no live SSID, so only named SSIDs are compared.
-        var liveSsid = String(live.wifiSsid || "")
-        var activeSsid = String(summary.wifiSsid || "")
-        return !summary.wifiActive || liveSsid === "" || activeSsid === ""
-            || activeSsid === liveSsid
+        if (!Array.isArray(summary.wifiSsids))
+            return true
+        if (summary.wifiSsids.length !== Number(live.wifiConnectedCount || 0))
+            return false
+        // A hidden network has no live SSID, so every live SSID must be active in
+        // NetworkManager, but an active one may be missing from the live list.
+        var remaining = summary.wifiSsids.map(String)
+        var liveSsids = live.wifiSsids || []
+        for (var index = 0; index < liveSsids.length; index++) {
+            var position = remaining.indexOf(String(liveSsids[index]))
+            if (position === -1)
+                return false
+            remaining.splice(position, 1)
+        }
+        return true
     }
 
     function checkBackend(summary, live) {
@@ -341,6 +381,7 @@ QtObject {
             return false
         staleStrikes = 0
         networkingStale = true
+        releaseScanners()
         if (context && context.logger)
             context.logger.warn("Networking backend disagrees with NetworkManager; using helper polling")
         refresh()

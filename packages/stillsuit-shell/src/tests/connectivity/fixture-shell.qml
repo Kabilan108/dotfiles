@@ -194,6 +194,33 @@ ShellRoot {
             ]
         }
     }
+    Services.NetworkService {
+        id: radioProbe
+        context: root.fakeContext
+        model: root.fakeNetwork
+    }
+    property Component networkServiceComponent: Component {
+        Services.NetworkService {
+            context: root.fakeContext
+            model: root.fakeNetwork
+        }
+    }
+    property var destroyedOwnerScanner: QtObject {
+        property int type: DeviceType.Wifi
+        property bool scannerEnabled: false
+    }
+    property var externalScanner: QtObject {
+        property int type: DeviceType.Wifi
+        property bool scannerEnabled: true
+    }
+    function connectedWifi(deviceName, ssid) {
+        return {
+            type: DeviceType.Wifi, name: deviceName, connected: true,
+            state: ConnectionState.Connected,
+            networks: { values: ssid === "" ? [] : [{ name: ssid, known: true,
+                connected: true, signalStrength: 0.5, security: WifiSecurityType.Wpa2Psk }] }
+        }
+    }
     property var liveWifiOld: QtObject {
         property int type: DeviceType.Wifi
         property string name: "wlan0"
@@ -375,6 +402,21 @@ ShellRoot {
     }
 
     Timer {
+        id: finishTimer
+        interval: 50
+        onTriggered: {
+            try {
+                expect(!destroyedOwnerScanner.scannerEnabled,
+                    "a destroyed network service left the Wi-Fi scanner running")
+                console.log("CONNECTIVITY_FIXTURE_OK checks=" + checks)
+            } catch (error) {
+                console.error("CONNECTIVITY_FIXTURE_FAIL " + error)
+            }
+            Qt.quit()
+        }
+    }
+
+    Timer {
         interval: 50
         running: true
         repeat: false
@@ -436,25 +478,70 @@ ShellRoot {
                 "the Wi-Fi scanner was not enabled for the open panel")
             network.applyScanner([liveWired, liveWifiKnownOnly], false)
             expect(!liveWifiKnownOnly.scannerEnabled, "the Wi-Fi scanner was left running")
+            network.applyScanner([externalScanner], true)
+            network.applyScanner([externalScanner], false)
+            expect(externalScanner.scannerEnabled && network.scannerDevices.length === 0,
+                "a scanner enabled elsewhere was switched off")
+            expect(network._begin("scan", "wifi") && network.scannerRequested,
+                "a scan operation did not request the scanner")
+            network._finishModel("ok", "scan")
+            expect(!network.scannerRequested, "a finished scan kept the scanner requested")
+            expect(network._begin("scan", "wifi") && network.scannerRequested,
+                "a second scan operation did not request the scanner")
+            network._handleResponse(JSON.stringify({ operation: "scan", ok: false,
+                error: "scan failed" }))
+            expect(!network.scannerRequested && network.operation === "idle",
+                "a failed scan kept the scanner requested")
 
             var oldSsid = network.liveSnapshot([liveWired, liveWifiOld], true, null)
             expect(oldSsid.wifiSsid === "Old"
                     && oldSsid.wiredDevices.join(",") === "enp4s0",
                 "live connected SSID or wired devices were not exposed")
-            var newSummary = { wiredActive: true, wiredDevices: ["enp4s0"],
-                wifiActive: true, wifiSsid: "New" }
+            function summaryFor(ssids, radio, wiredDevices) {
+                return { wifiEnabled: radio, wiredActive: wiredDevices.length > 0,
+                    wiredDevices: wiredDevices, wifiActive: ssids.length > 0,
+                    wifiSsids: ssids, wifiSsid: ssids.length > 0 ? ssids[0] : "" }
+            }
+            var newSummary = summaryFor(["New"], true, ["enp4s0"])
             expect(!network.summaryMatches(newSummary, oldSsid)
-                    && network.summaryMatches({ wiredActive: true,
-                        wiredDevices: ["enp4s0"], wifiActive: true, wifiSsid: "Old" }, oldSsid)
-                    && !network.summaryMatches({ wiredActive: true,
-                        wiredDevices: ["enp5s0"], wifiActive: true, wifiSsid: "Old" }, oldSsid),
+                    && network.summaryMatches(summaryFor(["Old"], true, ["enp4s0"]), oldSsid)
+                    && !network.summaryMatches(summaryFor(["Old"], true, ["enp5s0"]), oldSsid),
                 "summary comparison ignored the SSID or wired device")
+            staleProbe.applyScanner([liveWifiKnownOnly], true)
             expect(!staleProbe.checkBackend(newSummary, oldSsid)
                     && staleProbe.staleStrikes === 1 && !staleProbe.networkingStale,
                 "one SSID disagreement must only record a strike")
             expect(staleProbe.checkBackend(newSummary, oldSsid)
                     && staleProbe.networkingStale && staleProbe.staleStrikes === 0,
                 "a second SSID disagreement must fall back to helper polling")
+            expect(!liveWifiKnownOnly.scannerEnabled && staleProbe.scannerDevices.length === 0,
+                "fallback to helper polling left the Wi-Fi scanner running")
+
+            var radioOff = summaryFor(["Old"], false, ["enp4s0"])
+            expect(!network.summaryMatches(radioOff, oldSsid),
+                "summary comparison ignored the Wi-Fi radio state")
+            expect(!radioProbe.checkBackend(radioOff, oldSsid) && radioProbe.staleStrikes === 1,
+                "one radio disagreement must only record a strike")
+            expect(radioProbe.checkBackend(radioOff, oldSsid) && radioProbe.networkingStale,
+                "a second radio disagreement must fall back to helper polling")
+
+            var twoAdapters = network.liveSnapshot([connectedWifi("wlan1", "Beta"),
+                connectedWifi("wlan0", "Alpha")], true, null)
+            expect(network.summaryMatches(summaryFor(["Alpha", "Beta"], true, []), twoAdapters)
+                    && network.summaryMatches(summaryFor(["Beta", "Alpha"], true, []), twoAdapters)
+                    && !network.summaryMatches(summaryFor(["Alpha"], true, []), twoAdapters)
+                    && !network.summaryMatches(summaryFor(["Alpha", "Gamma"], true, []),
+                        twoAdapters),
+                "two connected adapters were not compared as a set")
+            var hidden = network.liveSnapshot([connectedWifi("wlan0", "")], true, null)
+            expect(network.summaryMatches(summaryFor(["Hidden"], true, []), hidden),
+                "a hidden network without a live SSID caused a mismatch")
+
+            var doomed = networkServiceComponent.createObject(root)
+            doomed.applyScanner([destroyedOwnerScanner], true)
+            expect(doomed._begin("scan", "wifi") && destroyedOwnerScanner.scannerEnabled,
+                "the destruction probe did not enable its scanner")
+            doomed.destroy()
 
             var bare = network.liveSnapshot([liveWired, liveWifi], false, null)
             expect(bare.wiredName === "enp4s0" && bare.wiredConnections[0].carrier === "on"
@@ -602,8 +689,7 @@ ShellRoot {
             expect(bluetooth.statusFor(failedDevice) === "connecting",
                 "Bluetooth transition state was not exposed")
 
-            console.log("CONNECTIVITY_FIXTURE_OK checks=" + checks)
-            Qt.quit()
+            finishTimer.start()
           } catch (error) {
               console.error("CONNECTIVITY_FIXTURE_FAIL " + error)
               Qt.quit()

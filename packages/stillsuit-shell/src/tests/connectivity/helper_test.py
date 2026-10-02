@@ -42,10 +42,13 @@ def main() -> None:
             return completed(command, "IP4.ADDRESS[1]:192.0.2.10/24\n"
                 "IP6.ADDRESS[1]:2001\\:db8\\:\\:1/64\nWIRED-PROPERTIES.CARRIER:on\n")
         if "--get-values" in command and "802-11-wireless.ssid" in command:
+            if command[-1] == "travel":
+                return completed(command, "Hotspot\n")
             return completed(command, "Home\\:WiFi\n")
         if "UUID,NAME,TYPE,ACTIVE,STATE,DEVICE" in command:
             return completed(
                 command,
+                "travel:Travel:802-11-wireless:yes:activated:wlan1\n"
                 "saved:Apartment Wi-Fi:802-11-wireless:yes:activated:wlan0\n"
                 "wired:Fixture Ethernet:802-3-ethernet:yes:activating:eth1\n"
                 "dock:Dock Ethernet:802-3-ethernet:yes:activated:eth0\n"
@@ -127,14 +130,17 @@ def main() -> None:
             "wiredActive": True,
             "wiredName": "Dock Ethernet",
             "wiredDevices": ["eth0"],
+            "wifiEnabled": True,
             "wifiActive": True,
+            "wifiSsids": ["Home:WiFi", "Hotspot"],
             "wifiSsid": "Home:WiFi",
         },
     }
-    assert len(calls) == 2
+    assert len(calls) == 4
     assert all(call["command"][0] == "nmcli" for call in calls)
-    assert "--get-values" in calls[1]["command"]
-    assert calls[1]["command"][-1] == "saved"
+    assert sorted(
+        call["command"][-1] for call in calls if "--get-values" in call["command"]
+    ) == ["saved", "travel"]
 
     def wired_only_run(
         command: list[str],
@@ -147,6 +153,9 @@ def main() -> None:
             return completed(
                 command, "dock:Dock Ethernet:802-3-ethernet:yes:activated:eth0\n"
             )
+        if "general" in command:
+            calls.append({"command": command, "input": input_text, "timeout": timeout})
+            return completed(command, "disabled\n")
         return fake_run(command, input_text=input_text, timeout=timeout)
 
     calls.clear()
@@ -154,7 +163,8 @@ def main() -> None:
     wired_summary = helper._dispatch({"operation": "summary"})["summary"]
     assert wired_summary["wiredDevices"] == ["eth0"]
     assert wired_summary["wifiActive"] is False and wired_summary["wifiSsid"] == ""
-    assert len(calls) == 1
+    assert wired_summary["wifiSsids"] == [] and wired_summary["wifiEnabled"] is False
+    assert len(calls) == 2
     setattr(helper, "_run", fake_run)  # noqa: B010
 
     calls.clear()

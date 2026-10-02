@@ -37,8 +37,8 @@ if [[ $* == 'msg --json event-stream' ]]; then
   count=$(next_count stream)
   if (( count == 1 )); then
     printf '%s\n' '{"OutputsChanged":{"outputs":{"eDP-1":{"logical":{"x":0}},"DP-2":{"id":"desk-output"}}}}'
-    printf '%s\n' '{"WorkspacesChanged":{"workspaces":[{"id":1,"idx":1,"output":"DP-2","is_active":true,"is_focused":true}]}}'
-    printf '%s\n' '{"WindowsChanged":{"windows":[{"id":10,"workspace_id":1,"title":"generation-1","is_focused":true}]}}'
+    printf '%s\n' '{"WorkspacesChanged":{"workspaces":[{"id":1,"idx":1,"output":"DP-2","is_active":true,"is_focused":true,"is_urgent":false}]}}'
+    printf '%s\n' '{"WindowsChanged":{"windows":[{"id":10,"workspace_id":1,"title":"generation-1","is_focused":true,"is_floating":false,"is_urgent":false,"layout":{"pos_in_scrolling_layout":[1,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]}}]}}'
     printf '%s\n' 'not-json'
     # The first stream stays connected until the harness releases it, so the
     # harness can observe steady state with no reconnects.
@@ -77,42 +77,42 @@ case "$*" in
   'msg -j workspaces')
     generation=$(next_count workspaces)
     case "$generation" in
-      1) printf '%s\n' '[{"id":1,"idx":1,"output":"DP-2","is_active":true,"is_focused":true}]' ;;
+      1) printf '%s\n' '[{"id":1,"idx":1,"output":"DP-2","is_active":true,"is_focused":true,"is_urgent":false}]' ;;
       2) exit 23 ;;
       3)
         wait_for_gate allow-malformed
-        printf '%s\n' '[{"id":300,"idx":1,"output":"MALFORMED","is_active":true,"is_focused":true}]'
+        printf '%s\n' '[{"id":300,"idx":1,"output":"MALFORMED","is_active":true,"is_focused":true,"is_urgent":false}]'
         ;;
       4)
         wait_for_gate allow-recovery
         sleep 8
-        printf '%s\n' '[{"id":400,"idx":1,"output":"TIMEOUT","is_active":true,"is_focused":true}]'
+        printf '%s\n' '[{"id":400,"idx":1,"output":"TIMEOUT","is_active":true,"is_focused":true,"is_urgent":false}]'
         ;;
       *)
         wait_for_gate allow-final-recovery
         wait_while_held
-        printf '%s\n' '[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":true,"is_focused":true}]'
+        printf '%s\n' '[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":true,"is_focused":true,"is_urgent":false}]'
         ;;
     esac
     ;;
   'msg -j windows')
     generation=$(next_count windows)
     case "$generation" in
-      1) printf '%s\n' '[{"id":10,"workspace_id":1,"title":"generation-1","is_focused":true}]' ;;
-      2) printf '%s\n' '[{"id":20,"workspace_id":2,"title":"must-not-commit","is_focused":true}]' ;;
+      1) printf '%s\n' '[{"id":10,"workspace_id":1,"title":"generation-1","is_focused":true,"is_floating":false,"is_urgent":false,"layout":{"pos_in_scrolling_layout":[1,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]}}]' ;;
+      2) printf '%s\n' '[{"id":20,"workspace_id":2,"title":"must-not-commit","is_focused":true,"is_floating":false,"is_urgent":false,"layout":{"pos_in_scrolling_layout":[1,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]}}]' ;;
       3)
         wait_for_gate allow-malformed
-        printf '%s\n' '[{"id":300,"workspace_id":300,"title":"must-not-commit","is_focused":true}]'
+        printf '%s\n' '[{"id":300,"workspace_id":300,"title":"must-not-commit","is_focused":true,"is_floating":false,"is_urgent":false,"layout":{"pos_in_scrolling_layout":[1,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]}}]'
         ;;
       4)
         wait_for_gate allow-recovery
         sleep 8
-        printf '%s\n' '[{"id":400,"workspace_id":400,"title":"must-time-out","is_focused":true}]'
+        printf '%s\n' '[{"id":400,"workspace_id":400,"title":"must-time-out","is_focused":true,"is_floating":false,"is_urgent":false,"layout":{"pos_in_scrolling_layout":[1,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]}}]'
         ;;
       *)
         wait_for_gate allow-final-recovery
         wait_while_held
-        printf '%s\n' '[{"id":40,"workspace_id":4,"title":"generation-5","is_focused":true}]'
+        printf '%s\n' '[{"id":40,"workspace_id":4,"title":"generation-5","is_focused":true,"is_floating":false,"is_urgent":false,"layout":{"pos_in_scrolling_layout":[1,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]}}]'
         ;;
     esac
     ;;

@@ -216,10 +216,16 @@ def _tailscale() -> dict[str, Any]:
     return tailscale
 
 
-def _summary() -> dict[str, Any]:
-    """VPN rows and the activated wired/Wi-Fi links, for the shell's stale-backend check.
+def _wifi_enabled() -> bool:
+    general = _nmcli_rows("WIFI", "general")
+    return bool(general and general[0][0].lower() == "enabled")
 
-    One nmcli call, plus an SSID lookup only while Wi-Fi is activated.
+
+def _summary() -> dict[str, Any]:
+    """VPN rows, the radio state and the activated links, for the stale-backend check.
+
+    Two nmcli calls (`connection show` cannot report the radio), plus one SSID
+    lookup per activated Wi-Fi connection.
     """
     rows = [
         row
@@ -228,22 +234,25 @@ def _summary() -> dict[str, Any]:
     ]
     activated = [row for row in rows if row[4] == "activated"]
     wired = [row for row in activated if row[2] == "802-3-ethernet"]
-    wifi = next(
-        (row for row in activated if row[2] in {"802-11-wireless", "wifi"}), None
+    wifi_ssids = sorted(
+        _connection_ssid(row[0]) or row[1]
+        for row in activated
+        if row[2] in {"802-11-wireless", "wifi"}
     )
     return {
         "vpns": _vpns([row[:4] for row in rows]),
+        "wifiEnabled": _wifi_enabled(),
         "wiredActive": bool(wired),
         "wiredName": wired[0][1] if wired else "",
         "wiredDevices": sorted(row[5] for row in wired if row[5]),
-        "wifiActive": wifi is not None,
-        "wifiSsid": (_connection_ssid(wifi[0]) or wifi[1]) if wifi else "",
+        "wifiActive": bool(wifi_ssids),
+        "wifiSsids": wifi_ssids,
+        "wifiSsid": wifi_ssids[0] if wifi_ssids else "",
     }
 
 
 def _snapshot() -> dict[str, Any]:
-    general = _nmcli_rows("WIFI", "general")
-    wifi_enabled = bool(general and general[0][0].lower() == "enabled")
+    wifi_enabled = _wifi_enabled()
 
     device_rows = _nmcli_rows("DEVICE,TYPE,STATE,CONNECTION", "device", "status")
     wired_connected = any(

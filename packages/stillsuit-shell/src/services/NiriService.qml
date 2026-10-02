@@ -91,7 +91,7 @@ Scope {
             var outputs = payload.outputs === undefined ? null : _normalizeOutputs(payload.outputs)
             return outputs === null ? null : { outputs: outputs }
         case "WorkspacesChanged":
-            if (!_validRows(payload.workspaces, _workspaceFields)) return null
+            if (!_validRows(payload.workspaces, _workspaceSchema)) return null
             return { workspaces: payload.workspaces, focusedOutputId: _focusedOutputId(payload.workspaces, focusedOutputId) }
         case "WorkspaceActivated":
             if (!_hasRow(workspaces, payload.id) || typeof payload.focused !== "boolean") return null
@@ -102,27 +102,28 @@ Scope {
                     || !(payload.active_window_id === null || _isNumber(payload.active_window_id))) return null
             return { workspaces: _workspaceActiveWindow(workspaces, payload) }
         case "WorkspaceUrgencyChanged":
-            if (!_isNumber(payload.id) || typeof payload.urgent !== "boolean") return null
+            if (!_hasRow(workspaces, payload.id) || typeof payload.urgent !== "boolean") return null
             return { workspaces: _patchRows(workspaces, function(workspace) {
                 return workspace.id === payload.id ? { is_urgent: payload.urgent } : null
             }) }
         case "WindowsChanged":
-            return _validRows(payload.windows, _windowFields) ? { windows: payload.windows } : null
+            return _validRows(payload.windows, _windowSchema) ? { windows: payload.windows } : null
         case "WindowOpenedOrChanged":
-            return _validRow(payload.window, _windowFields)
+            return _validRow(payload.window, _windowSchema)
                 ? { windows: _upsertWindow(windows, payload.window) } : null
         case "WindowClosed":
             return _hasRow(windows, payload.id) ? { windows: _removeWindow(windows, payload.id) } : null
         case "WindowFocusChanged":
-            if (!(payload.id === null || _isNumber(payload.id))) return null
+            if (payload.id !== null && !_hasRow(windows, payload.id)) return null
             return { windows: _focusedWindow(windows, payload.id) }
         case "WindowFocusTimestampChanged":
-            if (!_isNumber(payload.id) || typeof payload.focus_timestamp !== "object") return null
+            if (!_hasRow(windows, payload.id)
+                    || !(payload.focus_timestamp === null || _validTimestamp(payload.focus_timestamp))) return null
             return { windows: _patchRows(windows, function(window) {
                 return window.id === payload.id ? { focus_timestamp: payload.focus_timestamp } : null
             }) }
         case "WindowUrgencyChanged":
-            if (!_isNumber(payload.id) || typeof payload.urgent !== "boolean") return null
+            if (!_hasRow(windows, payload.id) || typeof payload.urgent !== "boolean") return null
             return { windows: _patchRows(windows, function(window) {
                 return window.id === payload.id ? { is_urgent: payload.urgent } : null
             }) }
@@ -133,35 +134,58 @@ Scope {
         return null
     }
 
-    // Field types checked when present. Every row needs a numeric `id`.
-    readonly property var _workspaceFields: ({
-        idx: "number", output: "string", name: "string", active_window_id: "number",
-        is_active: "boolean", is_focused: "boolean", is_urgent: "boolean"
+    // Mirrors the niri-ipc Workspace, Window and WindowLayout structs: required
+    // fields must be present with the right type; Option<T> fields may be null
+    // or absent.
+    readonly property var _workspaceSchema: ({
+        required: { id: "number", idx: "number", is_urgent: "boolean", is_active: "boolean", is_focused: "boolean" },
+        optional: { name: "string", output: "string", active_window_id: "number" }
     })
-    readonly property var _windowFields: ({
-        workspace_id: "number", title: "string", app_id: "string", layout: "object",
-        is_focused: "boolean", is_floating: "boolean", is_urgent: "boolean"
+    readonly property var _windowSchema: ({
+        required: { id: "number", is_focused: "boolean", is_floating: "boolean", is_urgent: "boolean", layout: "layout" },
+        optional: { title: "string", app_id: "string", pid: "number", workspace_id: "number", focus_timestamp: "timestamp" }
+    })
+    readonly property var _layoutSchema: ({
+        required: { tile_size: "pair", window_size: "pair", window_offset_in_tile: "pair" },
+        optional: { pos_in_scrolling_layout: "pair", tile_pos_in_workspace_view: "pair" }
     })
 
     function _isNumber(value) {
         return typeof value === "number" && isFinite(value)
     }
 
-    function _validRow(row, fieldTypes) {
-        if (!row || typeof row !== "object" || Array.isArray(row) || !_isNumber(row.id)) return false
-        for (var key in fieldTypes) {
+    function _validValue(value, type) {
+        switch (type) {
+        case "number": return _isNumber(value)
+        case "pair": return Array.isArray(value) && value.length === 2 && _isNumber(value[0]) && _isNumber(value[1])
+        case "layout": return _validRow(value, _layoutSchema)
+        case "timestamp": return _validTimestamp(value)
+        }
+        return typeof value === type
+    }
+
+    function _validTimestamp(value) {
+        return !!value && typeof value === "object" && _isNumber(value.secs) && _isNumber(value.nanos)
+    }
+
+    function _validRow(row, schema) {
+        if (!row || typeof row !== "object" || Array.isArray(row)) return false
+        var key
+        for (key in schema.required) {
+            if (!_validValue(row[key], schema.required[key])) return false
+        }
+        for (key in schema.optional) {
             var value = row[key]
-            if (value === undefined || value === null) continue
-            if (fieldTypes[key] === "number" ? !_isNumber(value) : typeof value !== fieldTypes[key]) return false
+            if (value !== undefined && value !== null && !_validValue(value, schema.optional[key])) return false
         }
         return true
     }
 
-    function _validRows(rows, fieldTypes) {
+    function _validRows(rows, schema) {
         if (!Array.isArray(rows)) return false
         var seen = {}
         for (var index = 0; index < rows.length; index++) {
-            if (!_validRow(rows[index], fieldTypes)) return false
+            if (!_validRow(rows[index], schema)) return false
             var key = String(rows[index].id)
             if (seen[key]) return false
             seen[key] = true
@@ -182,7 +206,7 @@ Scope {
         for (var index = 0; index < changes.length; index++) {
             var change = changes[index]
             if (!Array.isArray(change) || change.length !== 2 || !_hasRow(windows, change[0])
-                    || !change[1] || typeof change[1] !== "object" || Array.isArray(change[1])) return false
+                    || !_validRow(change[1], _layoutSchema)) return false
         }
         return true
     }
@@ -194,8 +218,8 @@ Scope {
     function _applyReconciliation(outputsJson, workspacesJson, windowsJson, streamTouched) {
         try {
             var nextOutputs = _parseOutputs(outputsJson)
-            var nextWorkspaces = _parseSnapshotArray(workspacesJson, "workspaces", _workspaceFields)
-            var nextWindows = _parseSnapshotArray(windowsJson, "windows", _windowFields)
+            var nextWorkspaces = _parseSnapshotArray(workspacesJson, "workspaces", _workspaceSchema)
+            var nextWindows = _parseSnapshotArray(windowsJson, "windows", _windowSchema)
             var changes = {}
             if (!streamTouched.outputs) changes.outputs = nextOutputs
             if (!streamTouched.workspaces) {
@@ -346,12 +370,12 @@ Scope {
         return outputs
     }
 
-    function _parseSnapshotArray(raw, label, fieldTypes) {
+    function _parseSnapshotArray(raw, label, schema) {
         var text = String(raw || "").trim()
         if (text === "") throw new Error("niri " + label + " result is empty")
         var rows = JSON.parse(text)
         if (!Array.isArray(rows)) throw new Error("niri " + label + " result is not an array")
-        if (!_validRows(rows, fieldTypes))
+        if (!_validRows(rows, schema))
             throw new Error("niri " + label + " result contains an invalid or duplicate snapshot row")
         return rows
     }

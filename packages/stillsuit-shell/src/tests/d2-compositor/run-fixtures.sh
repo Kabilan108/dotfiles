@@ -186,7 +186,7 @@ jq -e '
 # generation's outputs and workspaces commit.
 ipc reconcile >/dev/null
 wait_for_reconciliation '.running == true' >/dev/null
-ipc inject '{"WindowsChanged":{"windows":[{"id":40,"workspace_id":4,"title":"stream-newer","is_focused":true}]}}' >/dev/null
+ipc inject '{"WindowsChanged":{"windows":[{"id":40,"workspace_id":4,"title":"stream-newer","is_focused":true,"is_floating":false,"is_urgent":false,"layout":{"pos_in_scrolling_layout":[1,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]}}]}}' >/dev/null
 : >"$STILLSUIT_D2_FIXTURE_STATE/allow-final-recovery"
 wait_for_reconciliation '.completedGeneration == 5 and .acceptedGeneration == 5 and .timedOutGeneration == 4' >/dev/null
 recovered=$(wait_for '
@@ -204,13 +204,13 @@ jq -e '
 # Incremental events replace only the rows they change. Unchanged rows and
 # untouched collections keep their identity, the revision bumps once per real
 # change, and the workspace strip updates its existing cells in place.
-ipc inject '{"WorkspacesChanged":{"workspaces":[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":true,"is_focused":true,"active_window_id":40},{"id":5,"idx":2,"output":"HDMI-A-1","is_active":false,"is_focused":false}]}}' >/dev/null
-ipc inject '{"WindowsChanged":{"windows":[{"id":40,"workspace_id":4,"title":"stream-newer","is_focused":true,"layout":{"pos_in_scrolling_layout":[1,1]}},{"id":41,"workspace_id":4,"title":"second","is_focused":false,"layout":{"pos_in_scrolling_layout":[2,1]}}]}}' >/dev/null
+ipc inject '{"WorkspacesChanged":{"workspaces":[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":true,"is_focused":true,"active_window_id":40,"is_urgent":false},{"id":5,"idx":2,"output":"HDMI-A-1","is_active":false,"is_focused":false,"is_urgent":false}]}}' >/dev/null
+ipc inject '{"WindowsChanged":{"windows":[{"id":40,"workspace_id":4,"title":"stream-newer","is_focused":true,"layout":{"pos_in_scrolling_layout":[1,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]},"is_floating":false,"is_urgent":false},{"id":41,"workspace_id":4,"title":"second","is_focused":false,"layout":{"pos_in_scrolling_layout":[2,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]},"is_floating":false,"is_urgent":false}]}}' >/dev/null
 ipc markRows >/dev/null
 jq -e '.delegateStates == [{"id":4,"active":true},{"id":5,"active":false}] and .columns == 2 and .focusedColumn == 1' \
   >/dev/null <<<"$(ipc rowIdentity)"
 
-ipc inject '{"WindowLayoutsChanged":{"changes":[[41,{"pos_in_scrolling_layout":[3,1]}]]}}' >/dev/null
+ipc inject '{"WindowLayoutsChanged":{"changes":[[41,{"pos_in_scrolling_layout":[3,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]}]]}}' >/dev/null
 jq -e '
   .revisionDelta == 1 and .workspacesArraySame and (.windowsArraySame | not)
   and .windowRowsReused == {"40":true,"41":false}
@@ -227,7 +227,7 @@ jq -e '
 
 ipc markRows >/dev/null
 [[ $(ipc inject '{"WindowFocusChanged":{"id":40}}') == false ]]
-[[ $(ipc inject '{"WorkspacesChanged":{"workspaces":[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":true,"is_focused":true,"active_window_id":41},{"id":5,"idx":2,"output":"HDMI-A-1","is_active":false,"is_focused":false}]}}') == false ]]
+[[ $(ipc inject '{"WorkspacesChanged":{"workspaces":[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":true,"is_focused":true,"active_window_id":41,"is_urgent":false},{"id":5,"idx":2,"output":"HDMI-A-1","is_active":false,"is_focused":false,"is_urgent":false}]}}') == false ]]
 jq -e '.revisionDelta == 0 and .workspacesArraySame and .windowsArraySame' >/dev/null <<<"$(ipc rowIdentity)"
 
 ipc inject '{"WorkspaceActivated":{"id":5,"focused":true}}' >/dev/null
@@ -245,23 +245,35 @@ jq -e '
 # A focused opened or changed window takes focus from every other window, as
 # in niri-ipc's reducer; only the rows whose focus changes are replaced.
 ipc markRows >/dev/null
-ipc inject '{"WindowOpenedOrChanged":{"window":{"id":42,"workspace_id":4,"title":"third","is_focused":true,"layout":{"pos_in_scrolling_layout":[4,1]}}}}' >/dev/null
+ipc inject '{"WindowOpenedOrChanged":{"window":{"id":42,"workspace_id":4,"title":"third","is_focused":true,"layout":{"pos_in_scrolling_layout":[4,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]},"is_floating":false,"is_urgent":false}}}' >/dev/null
 jq -e '.revisionDelta == 1 and .workspacesArraySame and .windowRowsReused == {"40":false,"41":true,"42":false}' \
   >/dev/null <<<"$(ipc rowIdentity)"
 jq -e '[.windows[] | select(.is_focused) | .id] == [42]' >/dev/null <<<"$(ipc state)"
-ipc inject '{"WindowOpenedOrChanged":{"window":{"id":40,"workspace_id":4,"title":"stream-newer","is_focused":true,"layout":{"pos_in_scrolling_layout":[1,1]}}}}' >/dev/null
+ipc inject '{"WindowOpenedOrChanged":{"window":{"id":40,"workspace_id":4,"title":"stream-newer","is_focused":true,"layout":{"pos_in_scrolling_layout":[1,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]},"is_floating":false,"is_urgent":false}}}' >/dev/null
 jq -e '[.windows[] | select(.is_focused) | .id] == [40]' >/dev/null <<<"$(ipc state)"
-ipc inject '{"WindowOpenedOrChanged":{"window":{"id":41,"workspace_id":4,"title":"renamed","is_focused":false,"layout":{"pos_in_scrolling_layout":[3,1]}}}}' >/dev/null
+ipc inject '{"WindowOpenedOrChanged":{"window":{"id":41,"workspace_id":4,"title":"renamed","is_focused":false,"layout":{"pos_in_scrolling_layout":[3,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]},"is_floating":false,"is_urgent":false}}}' >/dev/null
 jq -e '[.windows[] | select(.is_focused) | .id] == [40] and ([.windows[].id] == [40,41,42])' >/dev/null <<<"$(ipc state)"
+
+# Urgency, focus timestamps, and a null focus apply to known rows.
+ipc inject '{"WindowUrgencyChanged":{"id":41,"urgent":true}}' >/dev/null
+ipc inject '{"WorkspaceUrgencyChanged":{"id":4,"urgent":true}}' >/dev/null
+ipc inject '{"WindowFocusTimestampChanged":{"id":40,"focus_timestamp":{"secs":5,"nanos":7}}}' >/dev/null
+ipc inject '{"WindowFocusChanged":{"id":null}}' >/dev/null
+jq -e '
+  ([.windows[] | select(.is_urgent) | .id] == [41])
+  and ([.workspaces[] | select(.is_urgent) | .id] == [4])
+  and (.windows[0].focus_timestamp == {"secs":5,"nanos":7})
+  and ([.windows[] | select(.is_focused)] == [])
+' >/dev/null <<<"$(ipc state)"
 
 # Removing a middle workspace in the same update that changes the row before
 # it keeps every surviving cell bound to its own workspace: the cell that
 # showed workspace 6 still shows 6, rather than the removed cell for 5 being
 # handed workspace 6 by position.
-ipc inject '{"WorkspacesChanged":{"workspaces":[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":false,"is_focused":false,"active_window_id":41},{"id":5,"idx":2,"output":"HDMI-A-1","is_active":true,"is_focused":true},{"id":6,"idx":3,"output":"HDMI-A-1","is_active":false,"is_focused":false}]}}' >/dev/null
+ipc inject '{"WorkspacesChanged":{"workspaces":[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":false,"is_focused":false,"active_window_id":41,"is_urgent":false},{"id":5,"idx":2,"output":"HDMI-A-1","is_active":true,"is_focused":true,"is_urgent":false},{"id":6,"idx":3,"output":"HDMI-A-1","is_active":false,"is_focused":false,"is_urgent":false}]}}' >/dev/null
 ipc markRows >/dev/null
 jq -e '.delegateStates == [{"id":4,"active":false},{"id":5,"active":true},{"id":6,"active":false}]' >/dev/null <<<"$(ipc rowIdentity)"
-ipc inject '{"WorkspacesChanged":{"workspaces":[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":true,"is_focused":true,"active_window_id":41},{"id":6,"idx":2,"output":"HDMI-A-1","is_active":false,"is_focused":false}]}}' >/dev/null
+ipc inject '{"WorkspacesChanged":{"workspaces":[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":true,"is_focused":true,"active_window_id":41,"is_urgent":false},{"id":6,"idx":2,"output":"HDMI-A-1","is_active":false,"is_focused":false,"is_urgent":false}]}}' >/dev/null
 jq -e '
   .revisionDelta == 1
   and .delegateKept == {"4":true,"6":true}
@@ -285,6 +297,16 @@ for invalid in \
   '{"WindowFocusChanged":{"id":"40"}}' \
   '{"WindowLayoutsChanged":{"changes":[[41,null]]}}' \
   '{"WindowUrgencyChanged":{"id":41}}' \
+  '{"WindowFocusChanged":{"id":999}}' \
+  '{"WindowFocusChanged":{}}' \
+  '{"WindowsChanged":{"windows":[{"id":22}]}}' \
+  '{"WindowOpenedOrChanged":{"window":{"id":43,"is_focused":false,"is_floating":false,"is_urgent":false,"layout":{"pos_in_scrolling_layout":[1,1]}}}}' \
+  '{"WindowLayoutsChanged":{"changes":[[41,{"pos_in_scrolling_layout":[2,1]}]]}}' \
+  '{"WorkspacesChanged":{"workspaces":[{"id":4,"idx":1,"is_active":true,"is_focused":true}]}}' \
+  '{"WindowUrgencyChanged":{"id":999,"urgent":true}}' \
+  '{"WorkspaceUrgencyChanged":{"id":999,"urgent":true}}' \
+  '{"WindowFocusTimestampChanged":{"id":999,"focus_timestamp":null}}' \
+  '{"WindowFocusTimestampChanged":{"id":40,"focus_timestamp":{"secs":"5"}}}' \
   '{"SomeFutureEvent":{}}'; do
   [[ $(ipc inject "$invalid") == false ]]
 done
