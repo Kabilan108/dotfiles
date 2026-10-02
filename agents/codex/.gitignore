@@ -7,6 +7,7 @@ skills/*
 !skills/.gitignore
 tmp/
 auth.json
+.credentials.json
 history.jsonl
 internal_storage.json
 models_cache.json
