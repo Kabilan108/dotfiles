@@ -73,7 +73,7 @@ while (( SECONDS < deadline )); do
     sleep 0.05
 done
 
-if ! jq -e '.ok == true and .checks >= 46' >/dev/null <<<"$result"; then
+if ! jq -e '.ok == true and .checks >= 49' >/dev/null <<<"$result"; then
     printf 'UI contract fixture failed: %s\n' "$result" >&2
     sed -n '1,240p' "$fixture_log" >&2
     exit 1

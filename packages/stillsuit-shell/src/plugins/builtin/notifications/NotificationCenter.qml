@@ -16,9 +16,12 @@ Item {
     required property var service
 
     property string outputId: String(screen.name || "")
-    readonly property var rows: service ? service.centerRows() : []
-    readonly property var sections: service ? service.centerSections() : []
-    readonly property var sourceSnoozes: service ? service.activeSnoozes() : []
+    // The panel is keepLoaded on every output; only the presented one derives
+    // rows, so hidden centers do no work per notification revision.
+    readonly property bool presented: opened || (!!service && service.centerOutputId === outputId)
+    readonly property var rows: service && presented ? service.centerRows() : []
+    readonly property var sections: service && presented ? service.centerSections() : []
+    readonly property var sourceSnoozes: service && presented ? service.activeSnoozes() : []
     readonly property var theme: context.theme
     property var collapsedSources: ({})
 

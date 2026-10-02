@@ -11,10 +11,25 @@ Scope {
     required property var service
 
     property string outputId: String(screen.name || "")
+    readonly property var decks: service ? service.toastDecksForOutput(outputId) : []
+    readonly property alias deckInstances: deckRepeater
+    readonly property var decksByKey: {
+        var index = {}
+        for (var position = 0; position < decks.length; position++)
+            index[decks[position].key] = decks[position]
+        return index
+    }
+
+    // Keyed by source so a revision updates existing decks in place; only a
+    // genuinely new source creates a delegate and plays the entry animation.
+    ScriptModel {
+        id: deckKeys
+        values: root.decks.map(function(deck) { return deck.key })
+    }
 
     PanelWindow {
         screen: root.screen
-        visible: root.service && root.service.toastsForOutput(root.outputId).length > 0
+        visible: deckRepeater.count > 0
         anchors {
             top: true
             right: true
@@ -45,13 +60,14 @@ Scope {
             spacing: root.context.theme.metrics.spaceUnit * 2
 
             Repeater {
-                model: root.service ? root.service.toastDecksForOutput(root.outputId) : []
+                id: deckRepeater
+                model: deckKeys
 
                 NotificationDeck {
-                    required property var modelData
+                    required property string modelData
                     context: root.context
                     service: root.service
-                    deck: modelData
+                    deck: root.decksByKey[modelData] || ({ key: modelData, label: "", rows: [] })
                 }
             }
         }

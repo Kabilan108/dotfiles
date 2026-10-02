@@ -93,6 +93,42 @@ for _ in {1..120}; do
       and .toastViews == .outputs and .centerViews == .outputs
       and .widgetViews == .outputs and .rowsSeeded
       and .centerRows == 2 and .toastRows == 1' >/dev/null <<<"$topology"
+    view_ipc() { qs ipc --pid "$shell_pid" call stillsuit-notification-view-fixture "$@"; }
+
+    # Hidden keepLoaded centers derive nothing; the presented one sees every row.
+    jq -e '.trackedCount == 2 and (.views | all(.rows == 0 and .sections == 0))' \
+      >/dev/null <<<"$(view_ipc centers)"
+    first_output=$(jq -r '.views[0].outputId' <<<"$(view_ipc centers)")
+    jq -e --arg output "$first_output" '.views | map(select(.outputId == $output))
+      | all(.presented and .rows == 2 and .sections == 1)' >/dev/null <<<"$(view_ipc openCenter)"
+    jq -e '.views | all(.rows == 0)' >/dev/null <<<"$(view_ipc closeCenter)"
+
+    # A revision updates toast decks in place; only a new source adds a deck.
+    jq -e '.deckKeys == ["app:fixture"] and .capturedDeckAlive' >/dev/null <<<"$(view_ipc captureDeck)"
+    sleep 0.1
+    jq -e '.capturedDeckAlive and .capturedSummaries == ["Toast row (updated)"] and .enteredAll' \
+      >/dev/null <<<"$(view_ipc touchToast toast-row)"
+    jq -e '.capturedDeckAlive and .capturedRows == ["same-source", "toast-row"]
+      and .expandedCards == 1' >/dev/null <<<"$(view_ipc addToast same-source app:fixture)"
+    jq -e '.capturedDeckAlive and .expandedCards == 1' >/dev/null <<<"$(view_ipc captureDeck)"
+    jq -e '.capturedDeckAlive and .capturedCardAlive and .capturedRead == [false, true]' \
+      >/dev/null <<<"$(view_ipc decks)"
+    jq -e '.capturedDeckAlive and .capturedCardAlive and .capturedRead == [true, true]' \
+      >/dev/null <<<"$(view_ipc markToastsRead)"
+    jq -e '.deckKeys == ["app:other", "app:fixture"] and .capturedDeckAlive
+      and .capturedCardAlive' >/dev/null <<<"$(view_ipc addToast other-source app:other)"
+    sleep 0.1
+    jq -e '.enteredAll' >/dev/null <<<"$(view_ipc decks)"
+
+    # A same-source arrival that takes over the front card mid-swipe is not the
+    # one dismissed: the swipe archives the notification it started on, and
+    # the arrival shows in place with no leftover drag offset.
+    [[ $(view_ipc swipeWithArrival app:other) == other-source ]]
+    sleep 0.6
+    jq -e '.deckAlive and .frontKey == "new-arrival" and .frontDragOffset == 0
+      and (.popups | index("new-arrival")) != null and (.popups | index("other-source")) == null
+      and (.dismissed | index("other-source")) != null
+      and (.dismissed | index("new-arrival")) == null' >/dev/null <<<"$(view_ipc swipeState app:other)"
     if grep -E ' ERROR| FATAL|Cannot create delegate|Required property theme' \
         "$tmp_dir/quickshell.log"; then
       echo "view fixture logged a QML error" >&2

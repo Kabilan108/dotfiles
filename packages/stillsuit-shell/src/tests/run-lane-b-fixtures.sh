@@ -672,6 +672,22 @@ if ! jq -e '.ok == true and .checks >= 24' >/dev/null <<< "$repair_result"; then
 fi
 printf 'host-core repair fixture ok: %s checks\n' \
     "$(jq -r '.checks' <<< "$repair_result")"
+
+stability_deadline=$((SECONDS + 20))
+stability_result="pending"
+while (( SECONDS < stability_deadline )); do
+    stability_result=$(quickshell ipc --pid "$repair_pid" call \
+        stillsuit-host-core-repair widgetStability 2>/dev/null || printf 'pending')
+    [[ "$stability_result" != "pending" ]] && break
+    sleep 0.05
+done
+if ! jq -e '.ok == true and .checks >= 7' >/dev/null <<< "$stability_result"; then
+    printf 'widget registration stability fixture failed: %s\n' "$stability_result" >&2
+    sed -n '1,240p' "$repair_log" >&2
+    exit 1
+fi
+printf 'widget registration stability fixture ok: %s checks\n' \
+    "$(jq -r '.checks' <<< "$stability_result")"
 if rg -n 'Binding loop|TypeError|ReferenceError|Cannot assign|Failed to load configuration' \
         "$repair_log"; then
     printf 'host-core repair fixture logged an unexpected QML failure\n' >&2

@@ -14,7 +14,9 @@ corner overlay on the first icon.
 `ShellIcon` renders a generated SVG from `icons/` (see `icons/README.md`) tinted
 with the requested theme role. Setting `source` renders that image with its own
 colors instead, falling back to the named icon while it is unavailable. `ShellEmptyRow` supplies the compact
-icon-and-caption empty treatment used by the media section.
+icon-and-caption empty treatment used by the media section. The `IconCache`
+singleton backs `ShellIcon`: it reads each glyph once and keeps one tinted
+source per name and color. It is an implementation detail, not plugin API.
 
 `ShellPanelHeader` supplies `title`, optional `subtitle`, the divider, and a
 default trailing action slot. Actions remain caller-owned. `ShellScrollArea`

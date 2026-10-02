@@ -142,9 +142,117 @@ def _connection_ssid(uuid: str) -> str:
     return _split_terse(line, 1)[0] if line else ""
 
 
-def _snapshot() -> dict[str, Any]:
+def _saved_wifi(connection_rows: list[list[str]]) -> dict[str, dict[str, str]]:
+    saved_wifi: dict[str, dict[str, str]] = {}
+    for row in connection_rows:
+        if len(row) != 4 or row[2] not in {"802-11-wireless", "wifi"}:
+            continue
+        ssid = _connection_ssid(row[0]) or row[1]
+        if ssid:
+            saved_wifi[ssid] = {"uuid": row[0], "profileName": row[1]}
+    return saved_wifi
+
+
+def _saved_uuid(request: dict[str, Any]) -> str:
+    uuid = str(request.get("uuid", ""))
+    name = str(request.get("name", ""))
+    if uuid or not name:
+        return uuid
+    rows = _nmcli_rows("UUID,NAME,TYPE,ACTIVE", "connection", "show")
+    return _saved_wifi(rows).get(name, {}).get("uuid", "")
+
+
+def _vpns(connection_rows: list[list[str]]) -> list[dict[str, Any]]:
+    vpns: list[dict[str, Any]] = []
+    for row in connection_rows:
+        if len(row) != 4 or row[2] not in {"vpn", "wireguard"}:
+            continue
+        active = row[3] == "yes"
+        allowlisted = row[1] == VPN_NAME
+        if not allowlisted and not active:
+            continue
+        vpns.append(
+            {
+                "uuid": row[0],
+                "name": row[1],
+                "type": row[2],
+                "active": active,
+                "toggleAllowed": allowlisted,
+                "readOnly": not allowlisted,
+            }
+        )
+    vpns.sort(
+        key=lambda row: (not row["toggleAllowed"], not row["active"], row["name"])
+    )
+    return vpns
+
+
+def _tailscale() -> dict[str, Any]:
+    tailscale: dict[str, Any] = {
+        "available": False,
+        "status": "unavailable",
+        "ip": "",
+        "hostName": "",
+        "dnsName": "",
+        "services": [],
+    }
+    tailscale_result = _run(["tailscale", "status", "--json"], timeout=8)
+    if tailscale_result.returncode == 0:
+        try:
+            status = json.loads(tailscale_result.stdout)
+            self_status = status.get("Self", {})
+            if not isinstance(self_status, dict):
+                self_status = {}
+            tailscale = {
+                "available": True,
+                "status": str(status.get("BackendState", "unknown")).lower(),
+                "ip": _tailscale_ipv4(self_status.get("TailscaleIPs", [])),
+                "hostName": str(self_status.get("HostName", "")),
+                "dnsName": str(self_status.get("DNSName", "")).rstrip("."),
+                "services": _tailscale_services(status.get("ExtraRecords", [])),
+            }
+        except (TypeError, ValueError, KeyError):
+            tailscale["status"] = "invalid status"
+    return tailscale
+
+
+def _wifi_enabled() -> bool:
     general = _nmcli_rows("WIFI", "general")
-    wifi_enabled = bool(general and general[0][0].lower() == "enabled")
+    return bool(general and general[0][0].lower() == "enabled")
+
+
+def _summary() -> dict[str, Any]:
+    """VPN rows, the radio state and the activated links, for the stale-backend check.
+
+    Two nmcli calls (`connection show` cannot report the radio), plus one SSID
+    lookup per activated Wi-Fi connection.
+    """
+    rows = [
+        row
+        for row in _nmcli_rows("UUID,NAME,TYPE,ACTIVE,STATE,DEVICE", "connection", "show")
+        if len(row) == 6
+    ]
+    activated = [row for row in rows if row[4] == "activated"]
+    wired = [row for row in activated if row[2] == "802-3-ethernet"]
+    wifi_ssids = sorted(
+        _connection_ssid(row[0]) or row[1]
+        for row in activated
+        if row[2] in {"802-11-wireless", "wifi"}
+    )
+    return {
+        "vpns": _vpns([row[:4] for row in rows]),
+        "wifiEnabled": _wifi_enabled(),
+        "wiredActive": bool(wired),
+        "wiredName": wired[0][1] if wired else "",
+        "wiredDevices": sorted(row[5] for row in wired if row[5]),
+        "wifiActive": bool(wifi_ssids),
+        "wifiSsids": wifi_ssids,
+        "wifiSsid": wifi_ssids[0] if wifi_ssids else "",
+    }
+
+
+def _snapshot() -> dict[str, Any]:
+    wifi_enabled = _wifi_enabled()
 
     device_rows = _nmcli_rows("DEVICE,TYPE,STATE,CONNECTION", "device", "status")
     wired_connected = any(
@@ -183,13 +291,7 @@ def _snapshot() -> dict[str, Any]:
         })
 
     connection_rows = _nmcli_rows("UUID,NAME,TYPE,ACTIVE", "connection", "show")
-    saved_wifi: dict[str, dict[str, str]] = {}
-    for row in connection_rows:
-        if len(row) != 4 or row[2] not in {"802-11-wireless", "wifi"}:
-            continue
-        ssid = _connection_ssid(row[0]) or row[1]
-        if ssid:
-            saved_wifi[ssid] = {"uuid": row[0], "profileName": row[1]}
+    saved_wifi = _saved_wifi(connection_rows)
 
     networks_by_name: dict[str, dict[str, Any]] = {}
     if wifi_enabled:
@@ -233,69 +335,21 @@ def _snapshot() -> dict[str, Any]:
         ),
     )
 
-    vpns: list[dict[str, Any]] = []
-    for row in connection_rows:
-        if len(row) != 4 or row[2] not in {"vpn", "wireguard"}:
-            continue
-        active = row[3] == "yes"
-        allowlisted = row[1] == VPN_NAME
-        if not allowlisted and not active:
-            continue
-        vpns.append(
-            {
-                "uuid": row[0],
-                "name": row[1],
-                "type": row[2],
-                "active": active,
-                "toggleAllowed": allowlisted,
-                "readOnly": not allowlisted,
-            }
-        )
-    vpns.sort(
-        key=lambda row: (not row["toggleAllowed"], not row["active"], row["name"])
-    )
-
-    tailscale: dict[str, Any] = {
-        "available": False,
-        "status": "unavailable",
-        "ip": "",
-        "hostName": "",
-        "dnsName": "",
-        "services": [],
-    }
-    tailscale_result = _run(["tailscale", "status", "--json"], timeout=8)
-    if tailscale_result.returncode == 0:
-        try:
-            status = json.loads(tailscale_result.stdout)
-            self_status = status.get("Self", {})
-            if not isinstance(self_status, dict):
-                self_status = {}
-            tailscale = {
-                "available": True,
-                "status": str(status.get("BackendState", "unknown")).lower(),
-                "ip": _tailscale_ipv4(self_status.get("TailscaleIPs", [])),
-                "hostName": str(self_status.get("HostName", "")),
-                "dnsName": str(self_status.get("DNSName", "")).rstrip("."),
-                "services": _tailscale_services(status.get("ExtraRecords", [])),
-            }
-        except (TypeError, ValueError, KeyError):
-            tailscale["status"] = "invalid status"
-
     return {
         "wifiEnabled": wifi_enabled,
         "wiredConnected": wired_connected,
         "wiredName": wired_name,
         "wiredConnections": wired_connections,
         "networks": networks,
-        "vpns": vpns,
-        "tailscale": tailscale,
+        "vpns": _vpns(connection_rows),
+        "tailscale": _tailscale(),
     }
 
 
 def _join(request: dict[str, Any]) -> None:
     kind = str(request.get("kind", ""))
     name = str(request.get("name", ""))
-    uuid = str(request.get("uuid", ""))
+    uuid = _saved_uuid(request) if kind == "saved" else ""
     password = str(request.get("password", ""))
     if kind == "saved" and uuid:
         _checked(["nmcli", "--wait", "25", "connection", "up", "uuid", uuid])
@@ -346,6 +400,8 @@ def _dispatch(request: dict[str, Any]) -> dict[str, Any]:
     try:
         if operation == "snapshot":
             pass
+        elif operation == "summary":
+            return {"ok": True, "operation": operation, "summary": _summary()}
         elif operation == "scan":
             _checked(["nmcli", "device", "wifi", "rescan"])
         elif operation == "wifi-enabled":
@@ -362,7 +418,7 @@ def _dispatch(request: dict[str, Any]) -> dict[str, Any]:
                     "connection",
                     "down",
                     "uuid",
-                    str(request.get("uuid", "")),
+                    _saved_uuid(request),
                 ]
             )
         elif operation == "vpn-toggle":
@@ -371,19 +427,19 @@ def _dispatch(request: dict[str, Any]) -> dict[str, Any]:
             field = str(request.get("field", ""))
             if field not in {"dns", "ip", "service"}:
                 raise RuntimeError("unsupported Tailscale copy field")
-            snapshot = _snapshot()
+            tailscale = _tailscale()
             if field == "service":
                 service_name = str(request.get("serviceName", "")).rstrip(".")
-                if service_name not in snapshot["tailscale"].get("services", []):
+                if service_name not in tailscale.get("services", []):
                     raise RuntimeError("Tailscale service is unavailable")
                 copy_value = f"https://{service_name}"
             else:
                 key = "dnsName" if field == "dns" else "ip"
-                copy_value = str(snapshot["tailscale"].get(key, ""))
+                copy_value = str(tailscale.get(key, ""))
             if not copy_value:
                 raise RuntimeError("Tailscale value is unavailable")
             _checked(["wl-copy"], input_text=copy_value)
-            return {"ok": True, "operation": operation, "snapshot": snapshot}
+            return {"ok": True, "operation": operation}
         elif operation == "open-editor":
             _open_editor(request)
             return {"ok": True, "operation": operation, "handoff": True}
@@ -399,6 +455,8 @@ def _dispatch(request: dict[str, Any]) -> dict[str, Any]:
             "operation": operation,
             "error": message or "operation failed",
         }
+        if operation in {"summary", "copy-tailscale"}:
+            return response
         try:
             response["snapshot"] = _snapshot()
         except (OSError, RuntimeError, subprocess.SubprocessError):

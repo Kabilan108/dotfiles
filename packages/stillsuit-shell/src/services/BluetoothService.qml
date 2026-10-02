@@ -65,8 +65,16 @@ QtObject {
         ? Number(model.revision)
         : 0) + localRevision
 
+    // Node properties (api.bluez5.address) are only populated on bound
+    // nodes, so sinks are bound just while a connect selects its audio output.
+    readonly property var audioCandidateNodes: operation === "audio-default"
+        ? pipewireNodes.filter(function(node) {
+            return node && node.isSink && !node.isStream
+        })
+        : []
+
     property PwObjectTracker pipewireTracker: PwObjectTracker {
-        objects: root.pipewireNodes
+        objects: root.audioCandidateNodes
     }
 
     property Connections pendingDeviceConnections: Connections {
@@ -338,10 +346,8 @@ QtObject {
             return false
         }
         var address = _normalizeAddress(pendingDevice.address || "")
-        for (var index = 0; index < pipewireNodes.length; index++) {
-            var node = pipewireNodes[index]
-            if (!node || !node.isSink)
-                continue
+        for (var index = 0; index < audioCandidateNodes.length; index++) {
+            var node = audioCandidateNodes[index]
             var properties = node.properties || ({})
             var candidates = [
                 properties["api.bluez5.address"],

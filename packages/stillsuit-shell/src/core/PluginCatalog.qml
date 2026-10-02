@@ -77,6 +77,11 @@ QtObject {
     property int barToken: 0
     property var barComponent: null
     property var barInstance: null
+    // Bar slots compare registrations by identity, so an unchanged widget must
+    // keep handing out the same record or every revision rebuilds it.
+    property var registrationCache: ({})
+    property var topologicalCache: null
+    property var topologicalCacheEntries: null
 
     signal catalogChanged()
     signal entryAdded(string pluginId)
@@ -102,7 +107,7 @@ QtObject {
         ignoreUnknownSignals: true
 
         function onRevisionChanged() {
-            root._syncBarInputs()
+            root._syncWidgetRegistrations()
         }
     }
 
@@ -210,14 +215,21 @@ QtObject {
         var key = String(pluginId)
         var component = internalWidgetComponents[key]
         var entry = get(key)
-        if (!component || !entry || !isEnabled(key))
+        if (!component || !entry || !isEnabled(key) || !_widgetServicesReady(entry)) {
+            delete registrationCache[key]
             return null
+        }
         var ownsService = entry.manifest.kinds.indexOf("service") !== -1
-        if (!_widgetServicesReady(entry))
-            return null
+        var context = hostContext ? hostContext.contextFor(entry) : null
+        var service = ownsService ? serviceRegistry.get(key) : undefined
+        var cached = registrationCache[key]
+        if (cached && cached.component === component && cached.context === context
+                && cached.service === service && cached.signature === entry.signature)
+            return cached.registration
+
         var registration = {
             component: component,
-            context: hostContext ? hostContext.contextFor(entry) : null,
+            context: context,
             manifest: entry.manifest,
             defaultSection: entry.manifest.barWidget
                 ? entry.manifest.barWidget.defaultSection || "center"
@@ -233,7 +245,14 @@ QtObject {
             }
         }
         if (ownsService)
-            registration.service = serviceRegistry.get(key)
+            registration.service = service
+        registrationCache[key] = {
+            component: component,
+            context: context,
+            service: service,
+            signature: entry.signature,
+            registration: registration
+        }
         return registration
     }
 
@@ -288,7 +307,18 @@ QtObject {
         return ""
     }
 
+    // Every service and surface revision walks this order; entries are replaced
+    // wholesale on install, so the object identity is the cache key. Callers
+    // receive a copy because some reverse it in place.
     function topologicalOrder() {
+        if (topologicalCacheEntries !== internalEntries) {
+            topologicalCache = _computeTopologicalOrder()
+            topologicalCacheEntries = internalEntries
+        }
+        return topologicalCache.slice()
+    }
+
+    function _computeTopologicalOrder() {
         var visited = {}
         var result = []
         var ids = Object.keys(internalEntries).sort()
@@ -316,7 +346,7 @@ QtObject {
         _setRuntimeDisabled(key, true)
         _unloadVisualContributions(key)
         pluginUnloaded(key)
-        _syncBarInputs()
+        _syncWidgetRegistrations()
         if (internalSelectedBarId === key)
             _reconcileBar()
         return "ok"
@@ -652,7 +682,7 @@ QtObject {
             _loadVisualContributions(addedIds[addedIndex])
         }
         _loadUnclaimedWidgets()
-        _syncBarInputs()
+        _syncWidgetRegistrations()
         if (!wasLoaded || oldSelectedBar !== selectedBar || selectedEntryChanged
                 || (profileChanged && selectedBarWasRuntimeDisabled))
             _reconcileBar()
@@ -726,7 +756,7 @@ QtObject {
                 var readyClaims = _copy(widgetClaims)
                 readyClaims[pluginId] = "loaded"
                 widgetClaims = readyClaims
-                _syncBarInputs()
+                _syncWidgetRegistrations()
                 return
             }
 
@@ -891,7 +921,7 @@ QtObject {
             component.destroy()
         _releaseWidgetClaim(key)
         _recordRuntimeError(key, "bar-widget", message)
-        _syncBarInputs()
+        _syncWidgetRegistrations()
     }
 
     function _widgetRegistrations() {
@@ -905,18 +935,66 @@ QtObject {
             if (registration)
                 registrations.push(registration)
         }
+        for (var cachedId in registrationCache) {
+            if (internalEntries[cachedId] === undefined)
+                delete registrationCache[cachedId]
+        }
         return registrations
     }
 
     function _syncBarInputs() {
         if (!barInstance)
             return
-        if ("widgetRegistrations" in barInstance)
-            barInstance.widgetRegistrations = _widgetRegistrations()
         if ("outputScreens" in barInstance)
             barInstance.outputScreens = outputScreens
-        if ("panelAnchors" in barInstance)
+        if ("panelAnchors" in barInstance && barInstance.panelAnchors !== panelAnchors)
             barInstance.panelAnchors = panelAnchors
+        _syncWidgetRegistrations()
+    }
+
+    // Withdrawn or replaced registrations are pushed at once, so a widget never
+    // outlives the component, context, or service it was built from. Pure
+    // additions are batched: a startup burst of widget and service loads
+    // becomes one bar update instead of one per load.
+    function _syncWidgetRegistrations() {
+        if (!barInstance || !("widgetRegistrations" in barInstance))
+            return
+        var current = barInstance.widgetRegistrations
+        var next = _widgetRegistrations()
+        if (_sameItems(current, next))
+            return
+        if (_containsAll(next, current))
+            Qt.callLater(root._flushWidgetRegistrations)
+        else
+            barInstance.widgetRegistrations = next
+    }
+
+    function _flushWidgetRegistrations() {
+        if (!barInstance || !("widgetRegistrations" in barInstance))
+            return
+        var next = _widgetRegistrations()
+        if (!_sameItems(barInstance.widgetRegistrations, next))
+            barInstance.widgetRegistrations = next
+    }
+
+    function _sameItems(left, right) {
+        if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length)
+            return false
+        for (var index = 0; index < left.length; index++) {
+            if (left[index] !== right[index])
+                return false
+        }
+        return true
+    }
+
+    function _containsAll(container, items) {
+        if (!Array.isArray(items))
+            return true
+        for (var index = 0; index < items.length; index++) {
+            if (container.indexOf(items[index]) === -1)
+                return false
+        }
+        return true
     }
 
     function _invalidateBarLoad() {

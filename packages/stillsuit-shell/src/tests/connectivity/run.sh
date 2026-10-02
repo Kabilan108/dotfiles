@@ -52,6 +52,16 @@ rg -F 'stdinEnabled: true' "$source_root/services/NetworkService.qml" >/dev/null
 rg -F 'helper.write(JSON.stringify(request) + "\n")' "$source_root/services/NetworkService.qml" >/dev/null
 rg -F 'name === "MobergAnalytics"' "$source_root/plugins/builtin/network/Panel.qml" >/dev/null
 rg -F 'read-only' "$source_root/plugins/builtin/network/Panel.qml" >/dev/null
+rg -F 'running: root.helperReady && (!root.networkingActive || root.panelOpen)' \
+    "$source_root/services/NetworkService.qml" >/dev/null
+if rg -x '\s*running: root\.helperReady' "$source_root/services/NetworkService.qml"; then
+    printf 'network helper snapshot polling is unconditional\n' >&2
+    exit 1
+fi
+if [ "$(rg -c -F 'opened && service ? service.' "$source_root/plugins/builtin/network/Panel.qml")" != 5 ]; then
+    printf 'network panel derives rows while closed\n' >&2
+    exit 1
+fi
 rg -F 'preferredDefaultAudioSink = node' "$source_root/services/BluetoothService.qml" >/dev/null
 rg -F 'onClicked: root.service.forgetDevice(row.device)' "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null
 rg -F 'onClicked: root.openManager()' "$source_root/plugins/builtin/bluetooth/Panel.qml" >/dev/null

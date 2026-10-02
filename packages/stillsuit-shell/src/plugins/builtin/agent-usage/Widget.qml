@@ -17,6 +17,7 @@ Ui.ShellBarCluster {
     readonly property bool hasClaude: claudeRemaining >= 0
     readonly property int reportingDefaultCount:
         (hasCodex ? 1 : 0) + (hasClaude ? 1 : 0)
+    readonly property bool stale: _hasStaleDefault()
 
     theme: context.theme
     visible: reportingDefaultCount > 0
@@ -39,6 +40,7 @@ Ui.ShellBarCluster {
             : (hasCodex ? "Codex weekly " + codexRemaining + "% remaining" : "")
                 + (hasCodex && hasClaude ? "; " : "")
                 + (hasClaude ? "Claude weekly " + claudeRemaining + "% remaining" : "")
+                + (stale ? " (stale)" : "")
     onClicked: context.actions.surfaceToggle("stillsuit.agent-usage", JSON.stringify({outputId: root.outputId}))
 
     function _isReportingDefault(account) {
@@ -52,6 +54,15 @@ Ui.ShellBarCluster {
         for (var index = 0; index < accounts.length; index++) {
             if (_isReportingDefault(accounts[index])
                     && String(accounts[index].provider || "") === provider)
+                return true
+        }
+        return false
+    }
+
+    function _hasStaleDefault() {
+        var accounts = service && service.accounts ? service.accounts : []
+        for (var index = 0; index < accounts.length; index++) {
+            if (_isReportingDefault(accounts[index]) && accounts[index].stale === true)
                 return true
         }
         return false

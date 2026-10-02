@@ -215,6 +215,62 @@ ShellRoot {
         function destroy() {}
     }
 
+    QtObject {
+        id: stabilityHostContext
+
+        function contextFor(entry) {
+            return fixtureContext
+        }
+
+        function dropContext(pluginId) {}
+    }
+
+    QtObject {
+        id: stableServiceA
+    }
+
+    QtObject {
+        id: stableServiceB
+    }
+
+    QtObject {
+        id: stabilityServices
+        property int revision: 0
+        property var instances: ({ "stillsuit.stable-service-widget": stableServiceA })
+
+        function has(pluginId) {
+            return instances[String(pluginId)] !== undefined
+        }
+
+        function get(pluginId) {
+            return instances[String(pluginId)] || null
+        }
+    }
+
+    Component {
+        id: registrationRecordingBar
+
+        QtObject {
+            property var context: null
+            property var widgetRegistrations: []
+            property int assignments: 0
+            onWidgetRegistrationsChanged: assignments++
+        }
+    }
+
+    PluginCatalog {
+        id: widgetCatalog
+        allowLocalPlugins: true
+        hostContext: stabilityHostContext
+        serviceRegistry: stabilityServices
+        outputScreens: [screenA]
+        fallbackBarUrl: ""
+        fallbackBarComponent: registrationRecordingBar
+        fallbackContext: fixtureContext
+    }
+
+    property int stabilityPhase: 0
+
     SurfaceRouter {
         id: screenRouter
         catalog: screenCatalog
@@ -237,6 +293,10 @@ ShellRoot {
 
         function run(): string {
             return fixture.runContracts()
+        }
+
+        function widgetStability(): string {
+            return fixture.runWidgetStability()
         }
     }
 
@@ -432,6 +492,114 @@ ShellRoot {
                 && !perOutputAfter[0].opened
                 && !perOutputAfter[1].opened,
             "global surface rehome disturbed the per-output route")
+    }
+
+    // Polled: widget components load asynchronously and pure additions reach
+    // the bar on a later event-loop turn, so this answers "pending" until the
+    // two fixture widgets are registered.
+    function runWidgetStability() {
+        if (stabilityPhase === 0) {
+            stabilityPhase = 1
+            if (!widgetCatalog.applyDocument(_stabilityDocument()))
+                return JSON.stringify({ ok: false, checks: 0, errors: ["stability catalog rejected"] })
+            return "pending"
+        }
+        var bar = widgetCatalog.barInstance
+        if (!bar || !bar.widgetRegistrations || bar.widgetRegistrations.length !== 2)
+            return "pending"
+
+        checks = 0
+        var failures = []
+        try {
+            _checkWidgetRegistrationStability(bar)
+        } catch (error) {
+            failures.push(String(error))
+        }
+        return JSON.stringify({ ok: failures.length === 0, checks: checks, errors: failures })
+    }
+
+    function _checkWidgetRegistrationStability(bar) {
+        var plainId = "stillsuit.stable-widget"
+        var serviceId = "stillsuit.stable-service-widget"
+        var initial = bar.widgetRegistrations.slice()
+        var plain = widgetCatalog.widgetRegistration(plainId)
+        var serviced = widgetCatalog.widgetRegistration(serviceId)
+        var assignments = bar.assignments
+        _assert(initial.indexOf(plain) !== -1 && initial.indexOf(serviced) !== -1,
+            "catalog lookups did not return the records the bar holds")
+
+        stabilityServices.revision++
+        stabilityServices.revision++
+        _assert(_sameRecords(bar.widgetRegistrations, initial)
+                && bar.assignments === assignments,
+            "an unrelated service revision replaced the bar's widget registrations")
+
+        _assert(widgetCatalog.applyDocument(_stabilityDocument()),
+            "no-op catalog re-sync was rejected")
+        _assert(_sameRecords(bar.widgetRegistrations, initial)
+                && bar.assignments === assignments,
+            "a no-op catalog re-sync replaced the bar's widget registrations")
+        _assert(widgetCatalog.widgetRegistration(plainId) === plain,
+            "a no-op catalog re-sync minted a new registration record")
+
+        stabilityServices.instances = ({ "stillsuit.stable-service-widget": stableServiceB })
+        stabilityServices.revision++
+        var replaced = widgetCatalog.widgetRegistration(serviceId)
+        _assert(replaced !== serviced && replaced.service === stableServiceB,
+            "a replaced service instance kept its stale registration")
+        _assert(bar.widgetRegistrations.indexOf(replaced) !== -1
+                && bar.widgetRegistrations.indexOf(serviced) === -1
+                && bar.widgetRegistrations.indexOf(plain) !== -1,
+            "a replaced service did not reach the bar synchronously")
+    }
+
+    function _sameRecords(left, right) {
+        if (left.length !== right.length)
+            return false
+        for (var index = 0; index < left.length; index++) {
+            if (left[index] !== right[index])
+                return false
+        }
+        return true
+    }
+
+    function _stabilityDocument() {
+        var packageRoot = Quickshell.env("STILLSUIT_REPAIR_FIXTURE_ROOT")
+            + "/plugins/stable-widget"
+        return {
+            schemaVersion: 1,
+            selectedBar: "stillsuit.absent-bar",
+            plugins: [
+                _stableWidgetEntry(packageRoot, "stillsuit.stable-widget", false),
+                _stableWidgetEntry(packageRoot, "stillsuit.stable-service-widget", true)
+            ]
+        }
+    }
+
+    function _stableWidgetEntry(packageRoot, pluginId, ownsService) {
+        var entryPoints = { barWidget: "Widget.qml" }
+        var scope = { barWidget: "per-output" }
+        if (ownsService) {
+            entryPoints.service = "Service.qml"
+            scope.service = "global"
+        }
+        return {
+            packageRoot: packageRoot,
+            enabled: true,
+            settings: {},
+            manifest: {
+                schemaVersion: 1,
+                id: pluginId,
+                name: "Stable widget fixture",
+                version: "1.0.0",
+                apiVersion: "1",
+                kinds: ownsService ? ["service", "bar-widget"] : ["bar-widget"],
+                entryPoints: entryPoints,
+                scope: scope,
+                dependencies: [],
+                barWidget: { defaultSection: "right", allowMultiple: false }
+            }
+        }
     }
 
     function _assert(condition, message) {

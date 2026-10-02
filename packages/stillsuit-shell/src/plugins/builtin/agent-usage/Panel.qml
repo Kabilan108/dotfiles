@@ -21,6 +21,7 @@ Item {
 
     function open(payloadJson) {
         root.opened = true;
+        root.nowMs = Date.now();
         service.refresh(false);
     }
 
@@ -246,7 +247,17 @@ Item {
                                             Layout.fillWidth: true
                                             visible: String(accountRow.account.status || "") !== "ready"
                                             theme: root.context.theme
-                                            text: String(accountRow.account.statusText || "Unavailable")
+                                            text: root._statusText(accountRow.account)
+                                            sizeRole: "caption"
+                                            color: root._statusColor(accountRow.account)
+                                            elide: Text.ElideRight
+                                        }
+
+                                        Ui.ShellText {
+                                            Layout.fillWidth: true
+                                            visible: String(accountRow.account.status || "") === "ready" && accountRow.account.stale === true
+                                            theme: root.context.theme
+                                            text: root._staleText(accountRow.account)
                                             sizeRole: "caption"
                                             color: root._statusColor(accountRow.account)
                                             elide: Text.ElideRight
@@ -355,25 +366,59 @@ Item {
         var remaining = Math.max(0, resetMs - nowMs);
         if (remaining === 0)
             return "Resetting now";
-        var minutes = Math.ceil(remaining / 60000);
+        return "Resets in " + _durationText(remaining);
+    }
+
+    function _durationText(milliseconds) {
+        var minutes = Math.ceil(milliseconds / 60000);
         var days = Math.floor(minutes / 1440);
         var hours = Math.floor((minutes % 1440) / 60);
         var rest = minutes % 60;
         if (days > 0)
-            return "Resets in " + days + "d " + hours + "h";
+            return days + "d " + hours + "h";
         if (hours > 0)
-            return "Resets in " + hours + "h " + rest + "m";
-        return "Resets in " + rest + "m";
+            return hours + "h " + rest + "m";
+        return rest + "m";
+    }
+
+    function _ageText(value) {
+        var then = Date.parse(String(value || ""));
+        if (!isFinite(then))
+            return "";
+        var minutes = Math.floor(Math.max(0, nowMs - then) / 60000);
+        if (minutes < 1)
+            return "just now";
+        if (minutes < 60)
+            return minutes + "m ago";
+        return Math.floor(minutes / 60) + "h " + (minutes % 60) + "m ago";
+    }
+
+    function _retryText(value) {
+        var retryMs = Date.parse(String(value || ""));
+        if (!isFinite(retryMs) || retryMs <= nowMs)
+            return "";
+        return "retry in " + _durationText(retryMs - nowMs);
+    }
+
+    function _statusText(account) {
+        var text = String(account.statusText || "Unavailable");
+        var retry = _retryText(account.retryAt);
+        return retry === "" ? text : text + " · " + retry;
+    }
+
+    function _staleText(account) {
+        var parts = [String(account.staleReason || "Refresh failed")];
+        var age = _ageText(account.fetchedAt);
+        if (age !== "")
+            parts.push("showing data from " + age);
+        var retry = _retryText(account.retryAt);
+        if (retry !== "")
+            parts.push(retry);
+        return parts.join(" · ");
     }
 
     function _updatedText(value) {
-        var updated = Date.parse(String(value || ""));
-        if (!isFinite(updated))
-            return "";
-        var seconds = Math.max(0, Math.floor((nowMs - updated) / 1000));
-        if (seconds < 60)
-            return "Updated just now";
-        var minutes = Math.floor(seconds / 60);
-        return "Updated " + minutes + "m ago";
+        var age = _ageText(value);
+        return age === "" ? "" : "Updated " + age;
     }
 }

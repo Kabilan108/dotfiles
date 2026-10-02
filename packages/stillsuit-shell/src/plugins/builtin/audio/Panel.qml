@@ -17,7 +17,17 @@ Item {
     required property string outputId
     readonly property var media: service ? service.media : null
     readonly property var panelWindow: root.QsWindow.window
+    readonly property int artSize: 64
+    readonly property real artPixelRatio: root.screen && root.screen.devicePixelRatio > 0 ? root.screen.devicePixelRatio : 1
     property bool opened: false
+    property var positionTrackedMedia: null
+
+    onOpenedChanged: _syncPositionTracking()
+    onMediaChanged: _syncPositionTracking()
+    Component.onDestruction: {
+        if (positionTrackedMedia)
+            positionTrackedMedia.releasePositionTracking();
+    }
 
     component RoundControl: Ui.ShellAction {
         id: control
@@ -140,16 +150,20 @@ Item {
                         spacing: root.context.theme.metrics.spaceUnit * 3
 
                         Ui.ShellSurface {
-                            Layout.preferredWidth: 64
-                            Layout.preferredHeight: 64
+                            Layout.preferredWidth: root.artSize
+                            Layout.preferredHeight: root.artSize
                             theme: root.context.theme
                             kind: "raised"
 
                             Image {
                                 id: albumArt
 
+                                objectName: "audio-album-art"
                                 anchors.fill: parent
-                                source: root.media ? root.media.artUrl : ""
+                                source: root.opened && root.media ? root.media.artUrl : ""
+                                sourceSize.width: Math.ceil(root.artSize * root.artPixelRatio)
+                                sourceSize.height: Math.ceil(root.artSize * root.artPixelRatio)
+                                asynchronous: true
                                 fillMode: Image.PreserveAspectCrop
                                 visible: status === Image.Ready
                             }
@@ -480,6 +494,17 @@ Item {
 
     function close() {
         opened = false;
+    }
+
+    function _syncPositionTracking() {
+        var next = opened ? media : null;
+        if (next === positionTrackedMedia)
+            return;
+        if (positionTrackedMedia)
+            positionTrackedMedia.releasePositionTracking();
+        positionTrackedMedia = next;
+        if (next)
+            next.acquirePositionTracking();
     }
 
     function formatTime(seconds) {

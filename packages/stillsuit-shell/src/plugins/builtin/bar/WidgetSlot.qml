@@ -157,7 +157,7 @@ Item {
         destroyWidget()
     }
     onRegistrationChanged: {
-        if (componentComplete)
+        if (componentComplete && registration !== activeRegistration)
             loadRegistration()
     }
     onPanelAnchorsChanged: {

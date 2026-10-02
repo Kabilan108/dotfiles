@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import email.utils
+import http.client
 import importlib.machinery
 import importlib.util
 import json
 import os
 import tempfile
 import threading
+import time
+import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Self
 
 
@@ -336,6 +341,144 @@ for line in sys.stdin:
         assert rpc_error_result["statusText"] == "Codex usage is unavailable"
         assert [path.name for path in codex_dir.iterdir()] == ["auth.json"]
         assert (codex_dir / "auth.json").read_text() == auth_contents
+
+        assert helper._retry_after_seconds("120") == 120
+        assert helper._retry_after_seconds(" 0 ") == 0
+        assert helper._retry_after_seconds("") is None
+        assert helper._retry_after_seconds(None) is None
+        assert helper._retry_after_seconds("soon") is None
+        assert helper._retry_after_seconds("-5") is None
+        future = helper._utc_now() + helper.dt.timedelta(minutes=10)
+        until_future = helper._retry_after_seconds(email.utils.format_datetime(future, usegmt=True))
+        assert until_future is not None and 590 <= until_future <= 600
+        assert helper._retry_after_seconds("Wed, 21 Oct 2015 07:28:00 GMT") == 0
+        assert helper._retry_after_seconds("172800") == 172800
+        assert helper._retry_after_seconds("9" * 400) == float("inf")
+        assert helper._retry_at(float("inf")).startswith("9999-12-31")
+
+        clock = [1000.0]
+        responses: list[Any] = []
+        requests: list[str] = []
+
+        def scripted_urlopen(request: Any, timeout: int = 0) -> FakeResponse:
+            requests.append(request.full_url)
+            response = responses.pop(0)
+            if isinstance(response, BaseException):
+                raise response
+            return FakeResponse(response)
+
+        def rate_limited(retry_after: str | None = None) -> urllib.error.HTTPError:
+            headers = http.client.HTTPMessage()
+            if retry_after is not None:
+                headers["Retry-After"] = retry_after
+            return urllib.error.HTTPError(
+                helper.ANTHROPIC_USAGE_ENDPOINT, 429, "Too Many Requests", headers, None
+            )
+
+        usage = {"seven_day": {"utilization": 40, "resets_at": "2030-01-08T03:04:05Z"}}
+        claude_account = helper._account("claude", "Default", claude_dir, "default")
+        original_time = helper.time
+        helper.time = SimpleNamespace(monotonic=lambda: clock[0], time=time.time)
+        helper._open_usage_request = scripted_urlopen
+        helper._account_states.clear()
+        try:
+            responses.append(usage)
+            fresh = helper._collect_account(claude_account, False)
+            assert fresh["status"] == "ready" and fresh["stale"] is False
+            assert helper.FAILURE_KEY not in fresh
+
+            clock[0] += 60
+            assert helper._collect_account(claude_account, False) is fresh
+            assert len(requests) == 1, "panel opens within the cache window reuse the result"
+
+            clock[0] += helper.CACHE_SECONDS
+            responses.append(rate_limited())
+            stale = helper._collect_account(claude_account, False)
+            assert len(requests) == 2
+            assert stale["status"] == "ready" and stale["stale"] is True
+            assert stale["staleReason"] == "Rate limited"
+            assert stale["windows"] == fresh["windows"]
+            assert stale["fetchedAt"] == fresh["fetchedAt"]
+            assert stale["retryAt"] != ""
+            assert helper.FAILURE_KEY not in stale
+            state = next(iter(helper._account_states.values()))
+            assert state.backoff_seconds == helper.RATE_LIMIT_BACKOFF_SECONDS
+
+            clock[0] += helper.CACHE_SECONDS + 1
+            assert helper._collect_account(claude_account, False) is stale
+            assert len(requests) == 2, "exponential backoff skips the network"
+
+            responses.append(rate_limited())
+            assert helper._collect_account(claude_account, True)["stale"] is True
+            assert len(requests) == 3, "a forced refresh bypasses exponential backoff"
+            assert state.backoff_seconds == 2 * helper.RATE_LIMIT_BACKOFF_SECONDS
+
+            for _ in range(5):
+                responses.append(rate_limited())
+                helper._collect_account(claude_account, True)
+            assert state.backoff_seconds == helper.MAX_RATE_LIMIT_BACKOFF_SECONDS
+
+            responses.append(rate_limited("900"))
+            explicit = helper._collect_account(claude_account, True)
+            assert explicit["stale"] is True
+            requested = len(requests)
+            clock[0] += 899
+            assert helper._collect_account(claude_account, True) is explicit
+            assert len(requests) == requested, "a forced refresh honours Retry-After"
+
+            clock[0] += 2
+            responses.append(rate_limited("172800"))
+            two_days = helper._collect_account(claude_account, True)
+            requested = len(requests)
+            retry_at = helper.dt.datetime.fromisoformat(two_days["retryAt"])
+            retry_in = (retry_at - helper._utc_now()).total_seconds()
+            assert 172790 <= retry_in <= 172800, "a long Retry-After is not shortened"
+            for elapsed in (86401, 172799 - 86401):
+                clock[0] += elapsed
+                assert helper._collect_account(claude_account, True) is two_days
+            assert len(requests) == requested, "a forced refresh honours a 2-day Retry-After"
+
+            clock[0] += 2
+            responses.append(usage)
+            recovered = helper._collect_account(claude_account, True)
+            assert recovered["stale"] is False and recovered["retryAt"] == ""
+            assert state.backoff_seconds == 0 and state.backoff_until == 0
+
+            clock[0] += helper.CACHE_SECONDS
+            responses.append(urllib.error.URLError("offline"))
+            offline = helper._collect_account(claude_account, False)
+            assert offline["status"] == "ready" and offline["stale"] is True
+            assert offline["staleReason"] == "Claude usage is unreachable"
+            assert offline["retryAt"] == "" and state.backoff_until == 0
+
+            helper._account_states.clear()
+            responses.append(rate_limited("60"))
+            first_failure = helper._collect_account(claude_account, False)
+            assert first_failure["status"] == "error"
+            assert first_failure["statusText"] == "Rate limited"
+            assert first_failure["windows"] == [] and first_failure["stale"] is False
+            assert first_failure["retryAt"] != ""
+            assert responses == []
+        finally:
+            helper.time = original_time
+            helper._open_usage_request = original_open_usage_request
+            helper._account_states.clear()
+
+        helper.shutil.which = lambda name: str(fake_codex) if name == "codex" else None
+        codex_account = helper._account("codex", "Default", codex_dir, "default")
+        try:
+            codex_fresh = helper._collect_account(codex_account, True)
+            os.environ["STILLSUIT_TEST_CODEX_RPC_ERROR"] = "1"
+            codex_stale = helper._collect_account(codex_account, True)
+        finally:
+            os.environ.pop("STILLSUIT_TEST_CODEX_RPC_ERROR", None)
+            helper.shutil.which = original_which
+            helper._account_states.clear()
+        assert codex_fresh["status"] == "ready" and codex_fresh["stale"] is False
+        assert codex_stale["status"] == "ready" and codex_stale["stale"] is True
+        assert codex_stale["staleReason"] == "Codex usage is unavailable"
+        assert codex_stale["windows"] == codex_fresh["windows"]
+        assert codex_stale["identity"] == "fixture@example.test"
 
         original_collect = helper._collect_account
 

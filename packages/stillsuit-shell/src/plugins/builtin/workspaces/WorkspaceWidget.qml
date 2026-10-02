@@ -3,6 +3,7 @@
 // no Omarchy Quattro code.
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 
 Item {
     id: root
@@ -11,9 +12,11 @@ Item {
     required property string outputId
 
     readonly property var workspaces: workspacesForOutput(context.compositor.workspaces || [], outputId)
+    readonly property var workspaceKeys: workspaceKeysFor(workspaces)
     readonly property var activeWorkspace: activeWorkspaceForOutput(workspaces)
-    readonly property int columns: columnCount(context.compositor.windows || [], activeWorkspace)
-    readonly property int focusedColumn: focusedColumnForWorkspace(context.compositor.windows || [], activeWorkspace)
+    readonly property var columnState: columnStateForWorkspace(context.compositor.windows || [], activeWorkspace)
+    readonly property int columns: columnState.count
+    readonly property int focusedColumn: columnState.focused
     readonly property bool reducedMotion: context.settings
         && context.settings.values
         && context.settings.values.reducedMotion === true
@@ -38,14 +41,22 @@ Item {
 
             spacing: 2
 
+            // The model holds plain string keys, so a compositor event keeps
+            // each workspace's cell instead of recreating every cell. Rows are
+            // not used as values: with objectProp, Quickshell 0.3.1's
+            // ScriptModel rewrites positions after a changed row without
+            // checking keys, handing a removed cell to its neighbour.
             Repeater {
-                model: root.workspaces
+                model: ScriptModel {
+                    values: root.workspaceKeys.keys
+                }
 
                 Item {
                     required property var modelData
-                    readonly property bool active: modelData && modelData.is_active
-                    readonly property bool urgent: modelData && modelData.is_urgent
-                    readonly property int workspaceNumber: Number(modelData && modelData.idx || 0)
+                    readonly property var workspace: root.workspaceKeys.rows[modelData] || null
+                    readonly property bool active: !!workspace && workspace.is_active === true
+                    readonly property bool urgent: !!workspace && workspace.is_urgent === true
+                    readonly property int workspaceNumber: Number(workspace && workspace.idx || 0)
 
                     width: 16
                     height: 18
@@ -133,6 +144,18 @@ Item {
         return result
     }
 
+    function workspaceKeysFor(rows) {
+        var keys = []
+        var byKey = {}
+        for (var index = 0; index < rows.length; index++) {
+            var workspace = rows[index]
+            var key = workspace.id !== undefined ? "id:" + String(workspace.id) : "index:" + index
+            keys.push(key)
+            byKey[key] = workspace
+        }
+        return { keys: keys, rows: byKey }
+    }
+
     function activeWorkspaceForOutput(rows) {
         for (var index = 0; index < rows.length; index++) {
             if (rows[index] && rows[index].is_active)
@@ -141,39 +164,32 @@ Item {
         return rows.length > 0 ? rows[0] : null
     }
 
-    function windowsForWorkspace(rows, workspace) {
-        if (!workspace)
-            return []
-        var result = []
-        for (var index = 0; index < rows.length; index++) {
-            var window = rows[index]
-            if (window && String(window.workspace_id) === String(workspace.id) && !window.is_floating)
-                result.push(window)
-        }
-        return result
-    }
-
     function columnIndex(window) {
         var position = window && window.layout ? window.layout.pos_in_scrolling_layout : null
         return Array.isArray(position) && position.length > 0 ? Math.max(1, Number(position[0] || 1)) : 1
     }
 
-    function columnCount(rows, workspace) {
-        var windows = windowsForWorkspace(rows, workspace)
+    // One pass over the windows yields both the column count and the focused
+    // column of the active workspace.
+    function columnStateForWorkspace(rows, workspace) {
         if (!workspace)
-            return 0
+            return { count: 0, focused: 1 }
+        var workspaceId = String(workspace.id)
+        var activeWindowId = String(workspace.active_window_id)
         var count = 1
-        for (var index = 0; index < windows.length; index++)
-            count = Math.max(count, columnIndex(windows[index]))
-        return count
-    }
-
-    function focusedColumnForWorkspace(rows, workspace) {
-        var windows = windowsForWorkspace(rows, workspace)
-        for (var index = 0; index < windows.length; index++) {
-            if (windows[index].is_focused || String(windows[index].id) === String(workspace.active_window_id))
-                return columnIndex(windows[index])
+        var firstColumn = 0
+        var focused = 0
+        for (var index = 0; index < rows.length; index++) {
+            var window = rows[index]
+            if (!window || String(window.workspace_id) !== workspaceId || window.is_floating)
+                continue
+            var column = columnIndex(window)
+            count = Math.max(count, column)
+            if (firstColumn === 0)
+                firstColumn = column
+            if (focused === 0 && (window.is_focused || String(window.id) === activeWindowId))
+                focused = column
         }
-        return windows.length > 0 ? columnIndex(windows[0]) : 1
+        return { count: count, focused: focused || firstColumn || 1 }
     }
 }

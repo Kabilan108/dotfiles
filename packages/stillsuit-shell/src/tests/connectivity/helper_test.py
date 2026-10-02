@@ -42,7 +42,19 @@ def main() -> None:
             return completed(command, "IP4.ADDRESS[1]:192.0.2.10/24\n"
                 "IP6.ADDRESS[1]:2001\\:db8\\:\\:1/64\nWIRED-PROPERTIES.CARRIER:on\n")
         if "--get-values" in command and "802-11-wireless.ssid" in command:
+            if command[-1] == "travel":
+                return completed(command, "Hotspot\n")
             return completed(command, "Home\\:WiFi\n")
+        if "UUID,NAME,TYPE,ACTIVE,STATE,DEVICE" in command:
+            return completed(
+                command,
+                "travel:Travel:802-11-wireless:yes:activated:wlan1\n"
+                "saved:Apartment Wi-Fi:802-11-wireless:yes:activated:wlan0\n"
+                "wired:Fixture Ethernet:802-3-ethernet:yes:activating:eth1\n"
+                "dock:Dock Ethernet:802-3-ethernet:yes:activated:eth0\n"
+                "moberg:MobergAnalytics:vpn:no::\n"
+                "other:Other VPN:vpn:yes:activated:wlan0\n",
+            )
         if command[-2:] == ["connection", "show"]:
             return completed(
                 command,
@@ -108,8 +120,58 @@ def main() -> None:
         "dnsName": "fixture-host.fixture.ts.net",
         "services": ["siren.fixture.ts.net", "vault.fixture.ts.net"],
     }
+    calls.clear()
+    summary = helper._dispatch({"operation": "summary"})
+    assert summary == {
+        "ok": True,
+        "operation": "summary",
+        "summary": {
+            "vpns": response["snapshot"]["vpns"],
+            "wiredActive": True,
+            "wiredName": "Dock Ethernet",
+            "wiredDevices": ["eth0"],
+            "wifiEnabled": True,
+            "wifiActive": True,
+            "wifiSsids": ["Home:WiFi", "Hotspot"],
+            "wifiSsid": "Home:WiFi",
+        },
+    }
+    assert len(calls) == 4
+    assert all(call["command"][0] == "nmcli" for call in calls)
+    assert sorted(
+        call["command"][-1] for call in calls if "--get-values" in call["command"]
+    ) == ["saved", "travel"]
+
+    def wired_only_run(
+        command: list[str],
+        *,
+        input_text: str | None = None,
+        timeout: int = 25,
+    ) -> subprocess.CompletedProcess[str]:
+        if "UUID,NAME,TYPE,ACTIVE,STATE,DEVICE" in command:
+            calls.append({"command": command, "input": input_text, "timeout": timeout})
+            return completed(
+                command, "dock:Dock Ethernet:802-3-ethernet:yes:activated:eth0\n"
+            )
+        if "general" in command:
+            calls.append({"command": command, "input": input_text, "timeout": timeout})
+            return completed(command, "disabled\n")
+        return fake_run(command, input_text=input_text, timeout=timeout)
+
+    calls.clear()
+    setattr(helper, "_run", wired_only_run)  # noqa: B010
+    wired_summary = helper._dispatch({"operation": "summary"})["summary"]
+    assert wired_summary["wiredDevices"] == ["eth0"]
+    assert wired_summary["wifiActive"] is False and wired_summary["wifiSsid"] == ""
+    assert wired_summary["wifiSsids"] == [] and wired_summary["wifiEnabled"] is False
+    assert len(calls) == 2
+    setattr(helper, "_run", fake_run)  # noqa: B010
+
+    calls.clear()
     copied_dns = helper._dispatch({"operation": "copy-tailscale", "field": "dns"})
     assert copied_dns["ok"] is True
+    assert "snapshot" not in copied_dns
+    assert not any(call["command"][0] == "nmcli" for call in calls)
     dns_copy_call = next(call for call in calls if call["command"] == ["wl-copy"])
     assert dns_copy_call["input"] == "fixture-host.fixture.ts.net"
     calls.clear()
@@ -133,6 +195,10 @@ def main() -> None:
         }
     )
     assert rejected_service["ok"] is False
+    assert not any(call["command"][0] == "nmcli" for call in calls)
+
+    calls.clear()
+    helper._dispatch({"operation": "snapshot"})
     list_call = next(
         call
         for call in calls
@@ -153,6 +219,30 @@ def main() -> None:
     assert any(
         call["command"] == [
             "nmcli", "--wait", "25", "connection", "up", "uuid", "saved"
+        ]
+        for call in calls
+    )
+
+    calls.clear()
+    resolved_join = helper._dispatch(
+        {"operation": "join", "kind": "saved", "name": "Home:WiFi", "uuid": ""}
+    )
+    assert resolved_join["ok"] is True
+    assert any(
+        call["command"] == [
+            "nmcli", "--wait", "25", "connection", "up", "uuid", "saved"
+        ]
+        for call in calls
+    )
+
+    calls.clear()
+    resolved_disconnect = helper._dispatch(
+        {"operation": "disconnect", "uuid": "", "name": "Home:WiFi"}
+    )
+    assert resolved_disconnect["ok"] is True
+    assert any(
+        call["command"] == [
+            "nmcli", "--wait", "20", "connection", "down", "uuid", "saved"
         ]
         for call in calls
     )

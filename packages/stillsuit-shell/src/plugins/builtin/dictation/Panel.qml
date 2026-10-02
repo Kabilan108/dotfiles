@@ -45,6 +45,10 @@ Item {
                             ? "Last recording failed"
                             : "Ready"
     property bool opened: false
+    // keepLoaded panels exist on every output; only the opened one follows
+    // the meter so hidden panels do no work per scan tick.
+    readonly property var levels: opened && dictator ? dictator.levels || [] : []
+    readonly property real scanPos: opened && dictator ? dictator.scanPos : 0
 
     function open(payloadJson) {
         opened = true
@@ -64,8 +68,17 @@ Item {
         return service ? service.copyText(row ? row.text : "") : "unavailable"
     }
     function levelAt(index) {
-        var values = dictator ? dictator.levels || [] : []
-        return index < values.length && typeof values[index] === "number" ? values[index] : 0
+        return index < levels.length && typeof levels[index] === "number" ? levels[index] : 0
+    }
+    function meterBarHeight(index) {
+        if (state === "transcribing" && dictator && !reducedMotion) {
+            var pulse = clamp(1 - Math.abs(index - scanPos) / 4, 0, 1)
+            return barMinHeight + Math.pow(pulse, 0.8) * (barMaxHeight - barMinHeight) * 0.7
+        }
+        var level = state === "recording"
+            ? Math.pow(clamp((levelAt(index) - 0.15) / 0.85, 0, 1), 1.2)
+            : 0
+        return barMinHeight + level * (barMaxHeight - barMinHeight)
     }
     function clamp(value, minimum, maximum) { return Math.min(Math.max(value, minimum), maximum) }
     function timeLabel(timestamp) {
@@ -79,29 +92,8 @@ Item {
         var rest = seconds - minutes * 60
         return minutes + ":" + (rest < 10 ? "0" : "") + rest.toFixed(1)
     }
-    function roundedBar(ctx, x, y, width, barHeight, radius) {
-        ctx.beginPath()
-        ctx.moveTo(x + radius, y)
-        ctx.lineTo(x + width - radius, y)
-        ctx.quadraticCurveTo(x + width, y, x + width, y + radius)
-        ctx.lineTo(x + width, y + barHeight - radius)
-        ctx.quadraticCurveTo(x + width, y + barHeight, x + width - radius, y + barHeight)
-        ctx.lineTo(x + radius, y + barHeight)
-        ctx.quadraticCurveTo(x, y + barHeight, x, y + barHeight - radius)
-        ctx.lineTo(x, y + radius)
-        ctx.quadraticCurveTo(x, y, x + radius, y)
-        ctx.closePath()
-    }
     function singleLine(text) {
         return String(text || "").split(/\s+/).filter(function(part) { return part !== "" }).join(" ")
-    }
-
-    Connections {
-        target: root.dictator
-        ignoreUnknownSignals: true
-        function onLevelsChanged() { meter.requestPaint() }
-        function onVisualizerStateChanged() { meter.requestPaint() }
-        function onScanPosChanged() { meter.requestPaint() }
     }
 
     Ui.ShellSurface {
@@ -172,36 +164,29 @@ Item {
                     }
                 }
 
-                Canvas {
+                Item {
                     id: meter
+                    readonly property real gap: 3
+                    readonly property real barWidth: Math.max(2, (width - gap * (root.barCount - 1)) / root.barCount)
+
                     Layout.fillWidth: true
                     Layout.preferredHeight: root.barMaxHeight
-                    antialiasing: true
-                    onWidthChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.clearRect(0, 0, width, height)
-                        ctx.fillStyle = root.meterColor
-                        var gap = 3
-                        var barWidth = Math.max(2, (width - gap * (root.barCount - 1)) / root.barCount)
-                        var active = root.state === "recording"
-                        for (var index = 0; index < root.barCount; index++) {
-                            var level = active
-                                ? Math.pow(root.clamp((root.levelAt(index) - 0.15) / 0.85, 0, 1), 1.2)
-                                : 0
-                            var barHeight = root.barMinHeight + level * (root.barMaxHeight - root.barMinHeight)
-                            if (root.state === "transcribing" && root.dictator && !root.reducedMotion) {
-                                var pulse = root.clamp(1 - Math.abs(index - root.dictator.scanPos) / 4, 0, 1)
-                                barHeight = root.barMinHeight + Math.pow(pulse, 0.8) * (root.barMaxHeight - root.barMinHeight) * 0.7
-                            }
-                            var x = index * (barWidth + gap)
-                            var y = (root.barMaxHeight - barHeight) / 2
-                            var radius = Math.min(barWidth / 2, barHeight / 2)
-                            ctx.globalAlpha = active || root.state === "transcribing" ? 0.95 : 0.5
-                            root.roundedBar(ctx, x, y, barWidth, barHeight, radius)
-                            ctx.fill()
+                    opacity: root.state === "recording" || root.state === "transcribing" ? 0.95 : 0.5
+
+                    Repeater {
+                        model: root.barCount
+
+                        Rectangle {
+                            required property int index
+
+                            x: index * (meter.barWidth + meter.gap)
+                            y: (root.barMaxHeight - height) / 2
+                            width: meter.barWidth
+                            height: root.meterBarHeight(index)
+                            radius: Math.min(width, height) / 2
+                            antialiasing: true
+                            color: root.meterColor
                         }
-                        ctx.globalAlpha = 1
                     }
                 }
 

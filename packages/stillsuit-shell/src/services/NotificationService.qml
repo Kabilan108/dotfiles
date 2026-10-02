@@ -24,8 +24,8 @@ Scope {
         && !(settings && settings.claimNotificationBus === false)
     readonly property string statePath: context.settings.paths.stateRoot + "/notifications-v1.json"
     readonly property bool serverActive: serverLoader.item !== null
-    readonly property int trackedCount: NotificationModel.centerRows(popups, history, policy.historyLimit).length
-    readonly property int unreadCount: NotificationModel.unreadCount(popups, history, policy.historyLimit)
+    readonly property int trackedCount: trackedRows.length
+    readonly property int unreadCount: NotificationModel.unreadIn(trackedRows)
     readonly property string unreadBadgeText: unreadCount > 9 ? "9+" : unreadCount > 0 ? String(unreadCount) : ""
 
     property bool ready: false
@@ -34,6 +34,10 @@ Scope {
     property var popups: []
     property var history: []
     property int revision: 0
+    // Derived once per revision so the badge counts and every center view
+    // share one sort instead of re-running it per binding and per screen.
+    property var trackedRows: []
+    property int stateWrites: 0
     property int sequence: 0
     property var liveRefs: ({})
     property var liveKeysById: ({})
@@ -97,9 +101,12 @@ Scope {
         return heldIndex >= 0 ? heldArrivals[heldIndex] : null
     }
 
+    function refreshTrackedRows() {
+        trackedRows = NotificationModel.centerRows(popups, history, policy.historyLimit)
+    }
+
     function centerRows() {
-        void(revision)
-        return NotificationModel.centerRows(popups, history, policy.historyLimit)
+        return trackedRows
     }
 
     function centerSections() {
@@ -186,6 +193,7 @@ Scope {
     }
 
     function flushState() {
+        stateWrites += 1
         stateFile.setText(JSON.stringify({
             schemaVersion: 2,
             snoozes: snoozes,
@@ -328,7 +336,7 @@ Scope {
         var snapshot = snapshotByKey(key)
         if (!snapshot) return "unknown"
 
-        // Ordering matters. Persist the plain snapshot before a server close can
+        // Ordering matters. Archive the plain snapshot before a server close can
         // destroy its live QObject or sender-scoped image references.
         archiveSnapshot(snapshot, reason)
         removePopupSnapshot(key)
@@ -336,7 +344,7 @@ Scope {
             endDeckInteraction()
         enforceRetention(Date.now())
         revision += 1
-        flushState()
+        persist()
 
         var ref = releaseLive(key)
         if (ref) {
@@ -398,7 +406,7 @@ Scope {
             endDeckInteraction()
         enforceRetention(Date.now())
         revision += 1
-        flushState()
+        persist()
         try {
             action.invoke()
             actionInvoked(key, selected)
@@ -846,6 +854,9 @@ Scope {
         repeat: false
         onTriggered: root.flushState()
     }
+
+    onRevisionChanged: refreshTrackedRows()
+    onPolicyChanged: refreshTrackedRows()
 
     Timer {
         id: deadlineTimer

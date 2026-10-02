@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Stillsuit.Ui as Ui
 
 Item {
@@ -42,8 +43,15 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 0
 
+        // service.items is a fresh filtered array whenever any item's status
+        // changes. Live items are unique SystemTrayItem objects, but their
+        // app-chosen `id` strings are not guaranteed unique, so the diff keys
+        // on object identity to keep each icon's delegate and decoded image.
         Repeater {
-            model: root.items
+            model: ScriptModel {
+                values: root.items
+                comparisonMode: ObjectComparison.Identity
+            }
 
             Item {
                 id: entry
@@ -75,7 +83,6 @@ Item {
                     sourceSize.width: Math.round(width * Screen.devicePixelRatio)
                     sourceSize.height: Math.round(height * Screen.devicePixelRatio)
                     smooth: true
-                    mipmap: true
                 }
 
                 Ui.ShellIcon {

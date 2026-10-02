@@ -36,7 +36,10 @@ assert.match(bar, /exclusiveZone: root\.shadowMode \? 0 : root\.exclusionZone/);
 assert.match(bar, /Ui\.ShellSurface/);
 assert.match(bar, /kind: "bar"\s*\n\s*radius: 0/);
 assert.match(bar, /id: centerSlot[\s\S]*anchors\.centerIn: parent/);
-assert.match(bar, /visible: root\.recordsFor\("center"\)\.length === 0/);
+assert.match(bar, /visible: root\.centerRegistrations\.length === 0/);
+assert.match(bar, /readonly property var centerRegistrations: registrationsFor\("center"\)/);
+assert.doesNotMatch(bar, /model: root\.recordsFor\(/);
+assert.match(bar, /values: root\.leftRegistrations\s*\n\s*comparisonMode: ObjectComparison\.Identity/);
 
 const workspaces = sources["plugins/builtin/workspaces/WorkspaceWidget.qml"];
 assert.match(workspaces, /id: contentRow[\s\S]*id: workspaceStrip[\s\S]*id: separator[\s\S]*id: columnStrip/);

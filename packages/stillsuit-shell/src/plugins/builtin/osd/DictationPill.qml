@@ -36,27 +36,15 @@ Item {
         var values = dictator.levels || []
         return index < values.length && typeof values[index] === "number" ? values[index] : 0
     }
-    function rounded(ctx, x, y, width, barHeight) {
-        var radius = Math.min(barWidth / 2, width / 2, barHeight / 2)
-        ctx.beginPath(); ctx.moveTo(x + radius, y); ctx.lineTo(x + width - radius, y)
-        ctx.quadraticCurveTo(x + width, y, x + width, y + radius)
-        ctx.lineTo(x + width, y + barHeight - radius); ctx.quadraticCurveTo(x + width, y + barHeight, x + width - radius, y + barHeight)
-        ctx.lineTo(x + radius, y + barHeight); ctx.quadraticCurveTo(x, y + barHeight, x, y + barHeight - radius)
-        ctx.lineTo(x, y + radius); ctx.quadraticCurveTo(x, y, x + radius, y); ctx.closePath()
-    }
-    function drawBar(ctx, index, barHeight, alpha) {
-        ctx.globalAlpha = alpha
-        rounded(ctx, index * (barWidth + barGap), (barMaxHeight - barHeight) / 2, barWidth, barHeight)
-        ctx.fill()
-    }
-    function repaint() { waveform.requestPaint() }
-    onDictatorChanged: repaint()
-
-    Connections {
-        target: root.dictator
-        function onLevelsChanged() { root.repaint() }
-        function onVisualizerStateChanged() { root.repaint() }
-        function onScanPosChanged() { root.repaint() }
+    function barHeightAt(index) {
+        if (dictator.visualizerState === "error") return barMinHeight
+        var level = Math.pow(clamp((levelAt(index) - 0.2) / 0.8, 0, 1), 1.35)
+        var barHeight = barMinHeight + level * (barMaxHeight - barMinHeight)
+        if (dictator.visualizerState === "transcribing" && !root.reducedMotion) {
+            var pulse = clamp(1 - Math.abs(index - dictator.scanPos) / 4, 0, 1)
+            barHeight = Math.max(barHeight * 0.34, barMinHeight + Math.pow(pulse, 0.8) * (barMaxHeight - barMinHeight))
+        }
+        return barHeight
     }
     Ui.ShellSurface {
         anchors.fill: parent
@@ -69,27 +57,29 @@ Item {
             anchors.centerIn: parent
             spacing: root.context.theme.metrics.spaceUnit * 3
 
-            Canvas {
+            // Scene-graph rectangles need no JS repaint or texture upload per
+            // scan tick, unlike a Canvas.
+            Item {
                 id: waveform
 
                 Layout.preferredWidth: root.waveformWidth
                 Layout.preferredHeight: root.barMaxHeight
-                antialiasing: true
-                onPaint: {
-                    var ctx = getContext("2d")
-                    ctx.clearRect(0, 0, width, height)
-                    ctx.fillStyle = root.activeColor
-                    for (var index = 0; index < root.barCount; index++) {
-                        var level = Math.pow(root.clamp((root.levelAt(index) - 0.2) / 0.8, 0, 1), 1.35)
-                        var barHeight = root.barMinHeight + level * (root.barMaxHeight - root.barMinHeight)
-                        if (root.dictator.visualizerState === "error") barHeight = root.barMinHeight
-                        if (root.dictator.visualizerState === "transcribing" && !root.reducedMotion) {
-                            var pulse = root.clamp(1 - Math.abs(index - root.dictator.scanPos) / 4, 0, 1)
-                            barHeight = Math.max(barHeight * 0.34, root.barMinHeight + Math.pow(pulse, 0.8) * (root.barMaxHeight - root.barMinHeight))
-                        }
-                        root.drawBar(ctx, index, barHeight, root.dictator.visualizerState === "typing" ? 0.45 : 0.9)
+                opacity: root.dictator.visualizerState === "typing" ? 0.45 : 0.9
+
+                Repeater {
+                    model: root.barCount
+
+                    Rectangle {
+                        required property int index
+
+                        x: index * (root.barWidth + root.barGap)
+                        y: (root.barMaxHeight - height) / 2
+                        width: root.barWidth
+                        height: root.barHeightAt(index)
+                        radius: Math.min(width, height) / 2
+                        antialiasing: true
+                        color: root.activeColor
                     }
-                    ctx.globalAlpha = 1
                 }
             }
             Rectangle {

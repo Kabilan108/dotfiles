@@ -18,19 +18,19 @@ Item {
     property var credentialNetwork: null
     property bool tailscaleExpanded: false
 
-    readonly property var connectedRows: service ? service.networks.filter(function (network) {
+    readonly property var connectedRows: opened && service ? service.networks.filter(function (network) {
         return network && network.connected;
     }) : []
-    readonly property var availableRows: service ? service.networks.filter(function (network) {
+    readonly property var availableRows: opened && service ? service.networks.filter(function (network) {
         return network && !network.connected && !network.known;
     }) : []
-    readonly property var savedRows: service ? service.networks.filter(function (network) {
+    readonly property var savedRows: opened && service ? service.networks.filter(function (network) {
         return network && !network.connected && network.known;
     }) : []
-    readonly property var allowlistedVpns: service ? service.vpns.filter(function (vpn) {
+    readonly property var allowlistedVpns: opened && service ? service.vpns.filter(function (vpn) {
         return vpn && vpn.name === "MobergAnalytics" && vpn.toggleAllowed !== false;
     }) : []
-    readonly property var activeReadOnlyVpns: service ? service.vpns.filter(function (vpn) {
+    readonly property var activeReadOnlyVpns: opened && service ? service.vpns.filter(function (vpn) {
         return vpn && vpn.active && (vpn.name !== "MobergAnalytics" || vpn.readOnly === true);
     }) : []
 

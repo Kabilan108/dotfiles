@@ -39,6 +39,7 @@ Ui.ShellSurface {
     readonly property real dismissThreshold: Math.min(width * 0.25, 80)
     readonly property real flickVelocity: 420
     readonly property bool hovered: hoverMouse.containsMouse
+    readonly property string snapshotKey: String((snapshot || {}).key || "")
 
     kind: "notification"
     implicitWidth: theme.metrics.panelWidth - theme.metrics.panelPadding * 2
@@ -72,18 +73,49 @@ Ui.ShellSurface {
         return Qt.rgba(parsed.r, parsed.g, parsed.b, Math.max(0, Math.min(1, alpha)))
     }
 
-    function dismissCard() {
-        if (!root.service || !root.snapshot.key) return
+    function dismissKey(key) {
+        if (!root.service || !key) return
         if (root.inline)
-            root.service.deleteHistory(root.snapshot.key)
+            root.service.deleteHistory(key)
         else
-            root.service.dismiss(root.snapshot.key)
+            root.service.dismiss(key)
+    }
+
+    // The swipe dismisses the notification it started on, even if a newer
+    // one from the same source has taken over this card in the meantime.
+    function dismissSwiped() {
+        var key = slideAwayAnimation.dismissedKey
+        slideAwayAnimation.dismissedKey = ""
+        dismissKey(key)
     }
 
     function dismissWithSlide(direction) {
         if (!root.dismissGesturesEnabled || slideAwayAnimation.running) return
         slideAwayAnimation.targetOffset = direction * (root.width + 56)
+        slideAwayAnimation.dismissedKey = root.snapshotKey
         slideAwayAnimation.start()
+    }
+
+    // A toast deck's front card outlives the notification it shows, so no
+    // gesture, press, or menu begun on one notification may act on the next.
+    // Toggling enabled drops any in-flight pointer grab, so a release that
+    // lands after the swap produces no click.
+    function resetInteraction() {
+        gestureMouse.enabled = false
+        gestureMouse.enabled = true
+        contentColumn.enabled = false
+        contentColumn.enabled = true
+        snapBackAnimation.stop()
+        dragOffset = 0
+        showOverflow = false
+    }
+
+    onSnapshotKeyChanged: {
+        if (slideAwayAnimation.running && slideAwayAnimation.dismissedKey !== "") {
+            slideAwayAnimation.stop()
+            dismissSwiped()
+        }
+        resetInteraction()
     }
 
     function snapBack() {
@@ -104,6 +136,7 @@ Ui.ShellSurface {
     SequentialAnimation {
         id: slideAwayAnimation
         property real targetOffset: 0
+        property string dismissedKey: ""
 
         NumberAnimation {
             target: root
@@ -114,7 +147,7 @@ Ui.ShellSurface {
         }
 
         ScriptAction {
-            script: root.dismissCard()
+            script: root.dismissSwiped()
         }
     }
 

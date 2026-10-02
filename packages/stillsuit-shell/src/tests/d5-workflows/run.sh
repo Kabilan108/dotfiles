@@ -365,7 +365,11 @@ if rg -n '(^|[^[:alnum:]_])(Timer|FileView|PwObjectTracker|Socket|Process|IpcHan
   echo "presentational OSD files own workflow authority" >&2
   exit 1
 fi
-rg -n 'function onScanPosChanged\(\) \{ root\.repaint\(\) \}' "$package_dir/src/plugins/builtin/osd/DictationPill.qml" >/dev/null
+rg -n 'Repeater[[:space:]]*\{' "$package_dir/src/plugins/builtin/osd/DictationPill.qml" >/dev/null
+if rg -n 'Canvas[[:space:]]*\{|requestPaint' "$package_dir/src/plugins/builtin/osd/DictationPill.qml"; then
+  echo "dictation pill repaints a Canvas per scan tick" >&2
+  exit 1
+fi
 rg -n 'running: root\.visible && \(root\.completed \|\| root\.failed\)' "$package_dir/src/services/MeetingService.qml" >/dev/null
 if rg -n 'ERROR:|Failed to load configuration|Type .* unavailable' "$tmp_dir/quickshell.log"; then
   echo "fixture log contains a QML load error" >&2

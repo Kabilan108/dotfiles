@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import importlib.machinery
 import json
+import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Any
 
 
 def main() -> None:
@@ -65,6 +68,50 @@ def main() -> None:
         changed, _ = helper.scan(configuration, {})
         assert changed["plugins"][0]["packageRoot"] != str(path)
         assert "20" in (path / "Widget.qml").read_text()
+
+        generations: list[Path] = []
+        original_generation = helper.generation
+
+        def counting_generation(*arguments: Any) -> Path:
+            package_root = original_generation(*arguments)
+            generations.append(package_root)
+            return package_root
+
+        helper.generation = counting_generation
+        try:
+            watcher = helper.Watcher(configuration)
+            watched = watcher.poll()
+            assert watched is not None and watched[0] == changed and len(generations) == 1
+            assert watcher.poll() is None and len(generations) == 1, "an idle tick must not rescan or re-hash"
+            (plugin / "Widget.qml").write_text('import QtQuick\nItem { implicitWidth: 60 }\n')
+            edited = watcher.poll()
+            assert edited is not None, "a same-size edit within the same second must be detected"
+            assert "60" in (Path(edited[0]["plugins"][0]["packageRoot"]) / "Widget.qml").read_text()
+            assert watcher.poll() is None
+            replacement = plugin / ".Widget.qml.swp"
+            replacement.write_text('import QtQuick\nItem { implicitWidth: 40 }\n')
+            os.replace(replacement, plugin / "Widget.qml")
+            replaced = watcher.poll()
+            assert replaced is not None and replaced[0] == changed, "an atomic replace must be detected"
+            shutil.rmtree(Path(replaced[0]["plugins"][0]["packageRoot"]).parent)
+            regenerated = watcher.poll()
+            assert regenerated is not None and Path(regenerated[0]["plugins"][0]["packageRoot"]).is_dir()
+            hashed = len(generations)
+            (plugin / "Extra.qml").write_text("import QtQuick\nItem {}\n")
+            added = watcher.poll()
+            assert added is not None and len(generations) == hashed + 1
+            (plugin / "Extra.qml").unlink()
+            assert watcher.poll() is not None
+            helper.set_preference(root / "prefs.json", "stillsuit.example", {"order": 3})
+            preferred = watcher.poll()
+            assert preferred is not None and preferred[0]["plugins"][0]["manifest"]["barWidget"]["order"] == 3
+            (root / "prefs.json").unlink()
+            assert watcher.poll() is not None and watcher.poll() is None
+            cached_sources = watcher.sources
+            seed.write_text(seed.read_text())
+            assert watcher.poll() is not None and watcher.sources is not cached_sources
+        finally:
+            helper.generation = original_generation
         placed, _ = helper.scan(configuration, {"stillsuit.example": {"enabled": False, "section": "left", "order": 7}})
         assert not placed["plugins"][0]["enabled"]
         assert placed["plugins"][0]["manifest"]["barWidget"]["order"] == 7

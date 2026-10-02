@@ -91,6 +91,22 @@ ShellRoot {
         model: root.fakePowerModel
     }
 
+    Services.PowerService {
+        id: livePower
+        context: root.fakeContext
+    }
+
+    Services.BatteryService {
+        id: liveBattery
+        context: root.fakeContext
+    }
+
+    property var fakeLiveBatteryDevice: QtObject {
+        property bool healthSupported: true
+        property real healthPercentage: 91.24
+        property real energyCapacity: 50.04
+    }
+
     Resources.ResourceService {
         id: resources
         context: root.fakeContext
@@ -219,6 +235,61 @@ ShellRoot {
             fakePowerModel.revision++
             verify(!power.busy && power.activeProfile === "performance",
                 "pending action reconciled")
+
+            var merged = battery._normalizeDetails(battery._mergeLiveDetails(
+                fakeLiveBatteryDevice, {
+                    healthPercent: "80%",
+                    capacityWh: "44 Wh",
+                    designCapacityWh: "55 Wh",
+                    cycleCount: "12"
+                }))
+            verify(merged.healthPercent === 91.2, "live health overrides dump")
+            verify(merged.capacityWh === 50, "live capacity overrides dump")
+            verify(merged.designCapacityWh === 55 && merged.cycleCount === 12,
+                "dump-only fields retained")
+            fakeLiveBatteryDevice.healthSupported = false
+            fakeLiveBatteryDevice.energyCapacity = 0
+            merged = battery._normalizeDetails(battery._mergeLiveDetails(
+                fakeLiveBatteryDevice, { healthPercent: "80%", capacityWh: "44 Wh" }))
+            verify(merged.healthPercent === 80 && merged.capacityWh === 44,
+                "unsupported live values fall back to dump")
+            verify(!liveBattery.detailRefreshDelay.repeat,
+                "battery details are not polled")
+            if (liveBattery.laptopBattery === null) {
+                liveBattery.refreshDetails()
+                verify(!liveBattery.detailProcess.running,
+                    "no battery runs no detail helper")
+            }
+
+            livePower._finishProbe(1, "Failed to communicate with power-profiles-daemon")
+            verify(!livePower.available && livePower.profiles.length === 0
+                    && livePower.displayProfile === "",
+                "absent daemon reports unavailable without a profile")
+            verify(livePower.setProfile("balanced") === "unavailable",
+                "absent daemon rejects profile changes")
+            livePower._finishProbe(0, "  balanced:\n"
+                + "    CpuDriver:\tamd_pstate\n"
+                + "    PlatformDriver:\tplaceholder\n\n"
+                + "* power-saver:\n"
+                + "    CpuDriver:\tamd_pstate\n"
+                + "    PlatformDriver:\tplaceholder\n")
+            verify(livePower.available && livePower.activeProfile === "power-saver"
+                    && JSON.stringify(livePower.profiles)
+                        === '["power-saver","balanced"]',
+                "daemon probe without performance profile")
+            var withPerformance = livePower._parseProbe("* performance:\n"
+                + "    CpuDriver:\tintel_pstate\n"
+                + "    Degraded:   no\n\n"
+                + "  balanced:\n    CpuDriver:\tintel_pstate\n\n"
+                + "  power-saver:\n    CpuDriver:\tintel_pstate\n")
+            verify(withPerformance.activeProfile === "performance"
+                    && JSON.stringify(withPerformance.profiles)
+                        === '["power-saver","balanced","performance"]',
+                "daemon probe orders profiles")
+            verify(livePower._parseProbe("garbage") === null,
+                "malformed probe output is unavailable")
+            livePower._finishProbe(1, "")
+            verify(!livePower.available, "daemon loss reports unavailable")
 
             resources.updateCpu("cpu 100 0 100 800 0 0 0 0\n")
             resources.updateCpu("cpu 150 0 150 900 0 0 0 0\n")

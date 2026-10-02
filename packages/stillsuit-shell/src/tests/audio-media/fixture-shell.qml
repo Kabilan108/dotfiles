@@ -370,6 +370,35 @@ ShellRoot {
             "long playback duration uses hours minutes and seconds")
         _assert(panel.formatTime(147) === "2:27",
             "short playback duration uses minutes and seconds")
+        var tracked = audio.media
+        var albumArt = _findObject(panel, "audio-album-art")
+        _assert(albumArt !== null, "album art image is addressable")
+        _assert(albumArt.asynchronous === true, "album art decodes off the GUI thread")
+        var artPixels = Math.ceil(panel.artSize * panel.artPixelRatio)
+        _assert(albumArt.sourceSize.width === artPixels
+            && albumArt.sourceSize.height === artPixels,
+            "album art decodes at displayed size")
+        _assert(String(albumArt.source) === "", "closed panel does not load album art")
+        _assert(!tracked.positionTracking && !tracked.positionTimer.running,
+            "position ticker idle while the panel is closed")
+        var secondPanel = viewComponents[1].createObject(root, {
+            context: fakeContext,
+            service: audio,
+            screen: outputScreen,
+            outputId: outputId + "-second"
+        })
+        panel.open("{}")
+        secondPanel.open("{}")
+        _assert(tracked.positionTrackingRefs === 2 && tracked.positionTracking,
+            "each open panel holds a position tracking ref")
+        panel.open("{}")
+        _assert(tracked.positionTrackingRefs === 2, "reopening does not double count")
+        secondPanel.close()
+        _assert(tracked.positionTrackingRefs === 1, "closing releases its ref")
+        panel.close()
+        _assert(tracked.positionTrackingRefs === 0 && !tracked.positionTracking,
+            "position tracking stops when every panel closes")
+        secondPanel.destroy()
         panel.destroy()
         _assert(audio.apiVersion === "1", "audio API version")
         _assert(audio.volume === 1, "read volume clamp")
@@ -457,6 +486,20 @@ ShellRoot {
 
         console.log("AUDIO_MEDIA_FIXTURE_OK checks=" + checks)
         Qt.quit()
+    }
+
+    function _findObject(item, name) {
+        if (!item)
+            return null
+        if (item.objectName === name)
+            return item
+        var children = item.children || []
+        for (var index = 0; index < children.length; index++) {
+            var found = _findObject(children[index], name)
+            if (found)
+                return found
+        }
+        return null
     }
 
     function _assert(condition, name) {

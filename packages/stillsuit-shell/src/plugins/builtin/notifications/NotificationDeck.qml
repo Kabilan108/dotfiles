@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 
 Item {
     id: root
@@ -10,6 +11,12 @@ Item {
 
     readonly property bool expanded: service && service.activeDeckKey === deck.key
     readonly property var rows: deck && deck.rows ? deck.rows : []
+    readonly property var rowsByKey: {
+        var index = {}
+        for (var position = 0; position < rows.length; position++)
+            index[rows[position].key] = rows[position]
+        return index
+    }
     readonly property int peekCount: Math.min(2, Math.max(0, rows.length - 1))
     readonly property bool reducedMotion: context.settings
         && context.settings.values
@@ -50,6 +57,11 @@ Item {
                 easing.type: Easing.OutCubic
             }
         }
+    }
+
+    ScriptModel {
+        id: expandedRowKeys
+        values: root.rows.slice(1).map(function(row) { return row.key })
     }
 
     Repeater {
@@ -145,13 +157,13 @@ Item {
 
         Repeater {
             id: expandedCards
-            model: root.rows.slice(1)
+            model: expandedRowKeys
             NotificationCard {
-                required property var modelData
+                required property string modelData
                 Layout.fillWidth: true
                 context: root.context
                 service: root.service
-                snapshot: modelData
+                snapshot: root.rowsByKey[modelData] || ({})
                 onHoveredChanged: Qt.callLater(root.syncHovered)
             }
         }
