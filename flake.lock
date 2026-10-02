@@ -1362,7 +1362,8 @@
         "tracer": "tracer",
         "try": "try",
         "walker": "walker",
-        "zen-browser": "zen-browser"
+        "zen-browser": "zen-browser",
+        "zotero-nixpkgs": "zotero-nixpkgs"
       }
     },
     "siren": {
@@ -1757,6 +1758,22 @@
         "owner": "jcollie",
         "repo": "zon2nix",
         "rev": "c28e93f3ba133d4c1b1d65224e2eebede61fd071",
+        "type": "github"
+      }
+    },
+    "zotero-nixpkgs": {
+      "locked": {
+        "lastModified": 1789546076,
+        "narHash": "sha256-zVxLZiSnmaaPLwnhj7pwmqe3axBg/C6nG5JZsJMh2g4=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "b1b875982b17dabde9b4a37f3e229e74913e6db3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "b1b875982b17dabde9b4a37f3e229e74913e6db3",
         "type": "github"
       }
     }
