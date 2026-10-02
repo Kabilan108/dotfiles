@@ -12,6 +12,9 @@
 
   networking.hostName = "sietch";
 
+  # Leave Bluetooth available for deliberate use, but keep its radio off on boot.
+  hardware.bluetooth.powerOnBoot = lib.mkForce false;
+
   # CUDA builds are not covered by cache.nixos.org.
   nix.settings = {
     substituters = [ "https://cache.nixos-cuda.org" ];
