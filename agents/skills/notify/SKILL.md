@@ -1,6 +1,6 @@
 ---
 name: notify
-description: Notify the user when background work finishes, ask for a phone reply or approval, show ongoing task progress through Hark, or to request him to run sudo.
+description: Use when Tony is AFK, when background work finishes, to ask for a phone reply or approval, to show ongoing task progress through Hark, or to request him to run sudo.
 ---
 
 # Notify
