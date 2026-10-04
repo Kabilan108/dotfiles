@@ -1,0 +1,360 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
+"""Preview or prepare Clara's shared notebook home in a rootless user namespace."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import stat
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+def run(
+    arguments: list[str],
+    *,
+    input_text: str | None = None,
+    pass_fds: tuple[int, ...] = (),
+) -> str:
+    result = subprocess.run(
+        arguments,
+        input=input_text,
+        text=True,
+        capture_output=True,
+        check=True,
+        pass_fds=pass_fds,
+    )
+    return result.stdout
+
+
+def mapped_uid(mapping: str, uid: int) -> int:
+    for line in mapping.splitlines():
+        inside, outside, length = map(int, line.split())
+        if inside <= uid < inside + length:
+            return outside + uid - inside
+    raise ValueError(f"UID {uid} is absent from the rootless mapping")
+
+
+def intersection(permissions: str, mask: str) -> str:
+    return "".join(p if p != "-" and p in mask else "-" for p in permissions)
+
+
+def union(left: str, right: str) -> str:
+    return "".join(p if p in left or p in right else "-" for p in "rwx")
+
+
+def shared_acl(text: str, *, directory: bool) -> str:
+    entries: dict[str, str] = {}
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if line:
+            key, permissions = line.rsplit(":", 1)
+            entries[key] = permissions.strip()
+    owner_permissions = entries["user:"]
+    for prefix in ("", "default:"):
+        if prefix and not directory:
+            continue
+        if prefix and "default:user:" not in entries:
+            entries.update(
+                {
+                    "default:user:": "rwx",
+                    "default:group:": intersection(
+                        entries["group:"], entries.get("mask:", entries["group:"])
+                    ),
+                    "default:other:": entries["other:"],
+                }
+            )
+        mask_key = prefix + "mask:"
+        old_mask = entries.get(mask_key, entries[prefix + "group:"])
+        permissions = "rwx" if prefix else owner_permissions
+        missing = [
+            key
+            for key in (prefix + "user:0", prefix + "user:1000")
+            if key not in entries
+        ]
+        new_mask = union(old_mask, permissions) if missing else old_mask
+        if new_mask != old_mask:
+            # Expanding a mask must not revive an existing principal's masked rights.
+            for key in list(entries):
+                if key.startswith(prefix + "group:") or (
+                    key.startswith(prefix + "user:") and key != prefix + "user:"
+                ):
+                    entries[key] = intersection(entries[key], old_mask)
+        for key in missing:
+            entries[key] = permissions
+        entries[mask_key] = new_mask
+    return (
+        "\n".join(f"{key}:{permissions}" for key, permissions in entries.items()) + "\n"
+    )
+
+
+def prepare_in_namespace(notebook_home: Path, host_uid: int, jovyan_uid: int) -> None:
+    mapping = Path("/proc/self/uid_map").read_text()
+    if (
+        os.getuid() != 0
+        or mapped_uid(mapping, 0) != host_uid
+        or mapped_uid(mapping, 1000) != jovyan_uid
+    ):
+        raise ValueError(
+            "helper namespace does not match the active Docker UID mapping"
+        )
+    required = [
+        "work/Analyses",
+        ".local/share/jupyter/runtime",
+        ".local/share/moberg-research",
+        ".jupyter/lab/user-settings",
+        ".jupyter/lab/workspaces",
+        ".cache",
+    ]
+
+    def walk_error(error: OSError) -> None:
+        raise error
+
+    def inspect_fd(fd: int, display: Path) -> tuple[os.stat_result, str]:
+        metadata = os.fstat(fd)
+        if metadata.st_uid not in {0, 1000}:
+            raise ValueError(f"refusing unfamiliar owner in notebook home: {display}")
+        if not (stat.S_ISREG(metadata.st_mode) or stat.S_ISDIR(metadata.st_mode)):
+            raise ValueError(f"refusing special file in notebook home: {display}")
+        acl = run(["getfacl", "-cpn", "--", f"/proc/self/fd/{fd}"], pass_fds=(fd,))
+        if any(":65534:" in line for line in acl.splitlines()):
+            raise ValueError(f"refusing an unmapped ACL identity: {display}")
+        return metadata, acl
+
+    for relative in required:
+        target = notebook_home / relative
+        if any(parent.is_symlink() for parent in [target, *target.parents]):
+            raise ValueError(f"refusing symlink in required writable path: {target}")
+    notebook_home.mkdir(parents=True, exist_ok=True, mode=0o700)
+    root_fd = os.open(notebook_home, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+
+        def entries() -> list[tuple[Path, tuple[int, int]]]:
+            found: list[tuple[Path, tuple[int, int]]] = []
+            for parent, directories, files, directory_fd in os.fwalk(
+                ".", dir_fd=root_fd, follow_symlinks=False, onerror=walk_error
+            ):
+                directories[:] = [
+                    name
+                    for name in directories
+                    if not stat.S_ISLNK(
+                        os.stat(
+                            name, dir_fd=directory_fd, follow_symlinks=False
+                        ).st_mode
+                    )
+                ]
+                for name in [".", *files]:
+                    metadata = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+                    if stat.S_ISLNK(metadata.st_mode):
+                        continue
+                    relative = Path(parent) / name
+                    fd = os.open(
+                        name,
+                        os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                        dir_fd=directory_fd,
+                    )
+                    try:
+                        checked, _ = inspect_fd(fd, notebook_home / relative)
+                        if (checked.st_dev, checked.st_ino) != (
+                            metadata.st_dev,
+                            metadata.st_ino,
+                        ):
+                            raise ValueError(
+                                f"entry changed during validation: {relative}"
+                            )
+                        found.append((relative, (checked.st_dev, checked.st_ino)))
+                    finally:
+                        os.close(fd)
+            return found
+
+        entries()  # Fail before ACL mutations if any existing owner/identity is unfamiliar.
+        for relative in required:
+            current_fd = os.dup(root_fd)
+            try:
+                for part in Path(relative).parts:
+                    try:
+                        os.mkdir(part, mode=0o700, dir_fd=current_fd)
+                    except FileExistsError:
+                        pass
+                    next_fd = os.open(
+                        part,
+                        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                        dir_fd=current_fd,
+                    )
+                    os.close(current_fd)
+                    current_fd = next_fd
+            finally:
+                os.close(current_fd)
+        validated = entries()
+        count = 0
+        for relative, identity in validated:
+            current_fd = os.dup(root_fd)
+            try:
+                for part in relative.parts:
+                    next_fd = os.open(
+                        part,
+                        os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                        dir_fd=current_fd,
+                    )
+                    os.close(current_fd)
+                    current_fd = next_fd
+                metadata, acl = inspect_fd(current_fd, notebook_home / relative)
+                if (metadata.st_dev, metadata.st_ino) != identity:
+                    raise ValueError(f"entry changed before ACL mutation: {relative}")
+                updated = shared_acl(acl, directory=stat.S_ISDIR(metadata.st_mode))
+                # The inherited descriptor pins the checked inode; path replacements
+                # cannot redirect getfacl/setfacl to a symlink's target.
+                run(
+                    ["setfacl", "--set-file=-", "--", f"/proc/self/fd/{current_fd}"],
+                    input_text=updated,
+                    pass_fds=(current_fd,),
+                )
+                count += 1
+            finally:
+                os.close(current_fd)
+    finally:
+        os.close(root_fd)
+    print(
+        json.dumps(
+            {
+                "prepared_home": str(notebook_home),
+                "entries": count,
+                "host_uid": host_uid,
+                "jovyan_host_uid": jovyan_uid,
+            }
+        )
+    )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("checkout", type=Path)
+    parser.add_argument(
+        "--apply", action="store_true", help="Apply scoped ACLs; default is preview"
+    )
+    parser.add_argument(
+        "--writers-stopped",
+        action="store_true",
+        help="Confirm notebook processes are stopped before applying",
+    )
+    parser.add_argument("--docker-host", default="unix:///run/user/1000/docker.sock")
+    parser.add_argument(
+        "--image", default="busybox:latest", help="Existing local mapping-probe image"
+    )
+    parser.add_argument("--rootlesskit", default=shutil.which("rootlesskit"))
+    parser.add_argument("--namespace-host-uid", type=int, help=argparse.SUPPRESS)
+    parser.add_argument("--namespace-jovyan-uid", type=int, help=argparse.SUPPRESS)
+    args = parser.parse_args()
+    checkout = args.checkout.resolve()
+    notebook_home = checkout / "moberg-jupyterhub/research-agent/.local/home"
+    if (
+        not (checkout / "docker-compose.yaml").is_file()
+        or not (checkout / ".git").exists()
+    ):
+        parser.error("checkout must be a dev-server Git checkout")
+    if not (checkout / "moberg-jupyterhub/research-agent").is_dir():
+        parser.error("this checkout has no Clara research-agent directory")
+    if notebook_home.is_symlink() or notebook_home.parent.is_symlink():
+        parser.error("notebook home and its parent must not be symlinks")
+    if args.namespace_host_uid is not None:
+        prepare_in_namespace(
+            notebook_home, args.namespace_host_uid, args.namespace_jovyan_uid
+        )
+        return
+    if not args.docker_host.startswith("unix:///"):
+        parser.error("Docker host must be an absolute local Unix socket")
+    environment = dict(os.environ)
+    for key in [
+        "DOCKER_CONTEXT",
+        "DOCKER_HOST",
+        "DOCKER_TLS_VERIFY",
+        "DOCKER_TLS",
+        "DOCKER_CERT_PATH",
+    ]:
+        environment.pop(key, None)
+    os.environ.update(environment)
+    for key in set(os.environ) - set(environment):
+        os.environ.pop(key)
+    docker = ["docker", "--host", args.docker_host]
+    security = json.loads(
+        run([*docker, "info", "--format", "{{json .SecurityOptions}}"])
+    )
+    if "name=rootless" not in security:
+        parser.error("refusing a rootful Docker daemon")
+    mapping = run(
+        [
+            *docker,
+            "run",
+            "--rm",
+            "--pull=never",
+            "--network=none",
+            "--entrypoint",
+            "cat",
+            args.image,
+            "/proc/self/uid_map",
+        ]
+    )
+    host_uid = mapped_uid(mapping, 0)
+    jovyan_uid = mapped_uid(mapping, 1000)
+    if host_uid != os.getuid():
+        parser.error("Docker's container root must map to the invoking host user")
+    if not args.apply:
+        print(
+            json.dumps(
+                {
+                    "home": str(notebook_home),
+                    "host_uid": host_uid,
+                    "jovyan_host_uid": jovyan_uid,
+                    "apply": False,
+                }
+            )
+        )
+        return
+    if not args.writers_stopped:
+        parser.error("stop notebook writers, then apply with --writers-stopped")
+    running_ids = run([*docker, "ps", "-q"]).split()
+    if running_ids:
+        for container in json.loads(run([*docker, "inspect", *running_ids])):
+            for mount in container.get("Mounts", []):
+                source = Path(mount.get("Source", "/")).resolve()
+                if mount.get("RW") and (
+                    source == notebook_home
+                    or source in notebook_home.parents
+                    or notebook_home in source.parents
+                ):
+                    parser.error(
+                        "a running container has writable access to the notebook home"
+                    )
+    if not args.rootlesskit:
+        parser.error(
+            "rootlesskit is required; enter nix-shell -p rootlesskit or pass --rootlesskit"
+        )
+    runtime = Path(os.environ.get("XDG_RUNTIME_DIR", tempfile.gettempdir()))
+    with tempfile.TemporaryDirectory(prefix="notebook-acl-", dir=runtime) as state:
+        output = run(
+            [
+                args.rootlesskit,
+                "--net=host",
+                "--state-dir=" + state,
+                sys.executable,
+                str(Path(__file__).resolve()),
+                str(checkout),
+                "--namespace-host-uid",
+                str(host_uid),
+                "--namespace-jovyan-uid",
+                str(jovyan_uid),
+            ]
+        )
+        print(output, end="")
+
+
+if __name__ == "__main__":
+    main()

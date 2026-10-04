@@ -61,6 +61,18 @@ directories and access/default ACLs for the mapped `jovyan` UID and host owner.
 Derive the mapping from the active rootless namespace. Do not widen permissions
 on the entire repository or archive tree. Test read-only sources and archives.
 
+Use `bin/moberg-rootless-notebook-home CHECKOUT` to preview the specific home and
+live UID mapping. Stop notebook processes and any containers with writable access
+to that home on both daemons. Then use `--apply --writers-stopped`; pass
+`--rootlesskit` when its executable is outside PATH. The helper rejects running
+rootless containers with overlapping writable mounts. The operator must also
+check system Docker and non-container writers before applying.
+
+The helper preserves inode ownership and existing principals' effective access.
+It refuses unfamiliar owners and unmapped ACL identities. It skips incidental
+symlinks, rejects symlinks in required writable directories, and applies ACLs
+through checked open file descriptors so path replacement cannot redirect writes.
+
 Inherited ACLs permit ordinary shared files, but explicit `chmod 600`/`700` can
 mask peer entries. Keep intentional private permissions and provide deliberate
 rootless repair when needed. Container root maps to the host development user,
