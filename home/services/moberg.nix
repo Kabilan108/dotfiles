@@ -23,6 +23,11 @@ let
     set -euo pipefail
     cd ${lib.escapeShellArg cfg.devMaintenance.checkout}
     source "$HOME/.bashenv"
+    ${lib.optionalString (cfg.devMaintenance.dockerHost != null) ''
+      export DEV_DOCKER_HOST=${lib.escapeShellArg cfg.devMaintenance.dockerHost}
+      export DOCKER_HOST="$DEV_DOCKER_HOST"
+      unset DOCKER_CONTEXT
+    ''}
     exec ${pkgs.direnv}/bin/direnv exec . "$@"
   '';
 in
@@ -36,6 +41,11 @@ in
         type = lib.types.str;
         default = "/vault/work/moberg/dev-server";
         description = "Primary dev-server checkout used to invoke the maintenance CLI";
+      };
+      dockerHost = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = "Explicit rootless Docker endpoint for development maintenance";
       };
     };
   };
@@ -71,6 +81,8 @@ in
           Unit = {
             Description = "Stop idle Moberg development containers";
             ConditionPathExists = cfg.devMaintenance.checkout;
+            Requires = lib.mkIf (cfg.devMaintenance.dockerHost != null) [ "docker.service" ];
+            After = lib.mkIf (cfg.devMaintenance.dockerHost != null) [ "docker.service" ];
           };
           Service = {
             Type = "oneshot";

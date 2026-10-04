@@ -266,11 +266,28 @@ already runs as `kabilan`: membership in the `docker` group remains root-equival
 can bypass a project filesystem sandbox through the Docker socket.
 
 Removing ambient docker-group access is intentionally separate from the port guard.
-The replacement must keep the established `dev` workflows usable through a constrained
-boundary without exposing the unrestricted socket to ordinary shells, agents, or
-containers. That boundary is tracked in the
+The approved first stage uses a separate rootless development daemon for the
+established `dev` workflows. Its socket grants the development user's permissions;
+it is not a project-only filesystem boundary. The rootful socket must become
+inaccessible to `kabilan` after the migration and a fresh-session boundary. This work is tracked in the
 [dev-server implementation plan](https://page-bin.com/p/sQpI4fsbcg-ZeTQ5OXYLRg/KLC805VgyXe4jRhuIvpJoGaqdDROrHXJX2yIYbdVQd0)
-as WI-14 and requires its own review before group membership changes.
+as WI-14. Do not put a privileged wrapper around user-editable Compose files.
+
+The additive Sietch configuration enables a user-owned daemon at
+`unix:///run/user/1000/docker.sock`, with `/vault/userdata/docker-rootless` as its
+separate data root and loopback publishing by default. System Docker keeps its
+existing data root and Executor. Home Manager pins the dev CLI endpoint in
+`~/.config/moberg/docker.toml`; the maintenance wrapper selects it explicitly.
+The CLI verifies rootless mode before its first Docker operation and never falls
+back to system Docker when this endpoint is configured.
+
+Activation, full-stack validation, checkout rebases, data transfer, and group
+removal are separate checkpoints. See [the migration runbook](docker-rootless-migration.md).
+The vulnerability remains open until the installed configuration and fresh
+agent sessions demonstrate that rootful access is denied. Credential isolation,
+the same-user filesystem boundary, and unrestricted system-libvirt access remain
+separate work; this change does not establish that agents lack every route to
+elevated host access.
 
 ---
 

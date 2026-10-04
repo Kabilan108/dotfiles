@@ -12,6 +12,8 @@
 
   networking.hostName = "sietch";
 
+  dotfiles.docker.rootlessDevelopment.enable = true;
+
   # Leave Bluetooth available for deliberate use, but keep its radio off on boot.
   hardware.bluetooth.powerOnBoot = lib.mkForce false;
 
