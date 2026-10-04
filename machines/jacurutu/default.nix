@@ -14,9 +14,10 @@ in
 
   networking.hostName = "jacurutu";
 
-  # Retain the boot stack from working generation 1141 while testing the
-  # userspace graphics fix. The disk-unlock freeze had no persistent journal.
-  boot.kernelPackages = bootPkgs.linuxPackages;
+  # Test the main package set's kernel for the security update. The earlier
+  # disk-unlock freeze remains unresolved; retain generation 1141 for recovery.
+  boot.kernelPackages = pkgs.linuxPackages;
+  # Keep the working firmware from generation 1141 during the kernel boot test.
   nixpkgs.overlays = [
     (_final: _prev: { linux-firmware = bootPkgs.linux-firmware; })
   ];
