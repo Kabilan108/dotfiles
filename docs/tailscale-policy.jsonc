@@ -34,6 +34,7 @@
 		"jacurutu": "100.108.28.4",
 		"tleilax":  "100.73.84.103",
 		"pixel-9":  "100.126.253.59",
+		"moberg-demo": "100.79.75.43"
 	},
 
 	"grants": [
@@ -48,6 +49,9 @@
 		// Wireless ADB uses randomized pairing and connection ports. Allow
 		// sietch to initiate TCP connections to the Pixel, but nothing else.
 		{"src": ["sietch"], "dst": ["pixel-9"], "ip": ["tcp:*"]},
+
+		// allow sietch to access `moberg-demo` while its still part of the tailnet
+		{"src": ["sietch"], "dst": ["moberg-demo"], "ip": ["tcp:22"]},
 
 		// Uncomment if syncthing stops syncing after the allow-all removal:
 		// jacurutu-side dialing usually suffices, but if sietch must
@@ -142,4 +146,15 @@
 			"deny": ["sietch:22", "jacurutu:22", "tleilax:22"],
 		},
 	],
+	"nodeAttrs": [
+		{
+			// Funnel policy, which lets tailnet members control Funnel
+			// for their own devices.
+			// Learn more at https://tailscale.com/docs/features/tailscale-funnel
+			"target": ["autogroup:member"],
+			"attr":   ["funnel"],
+		},
+		{"target": ["sietch"], "attr": ["funnel"]},
+	],
 }
+
