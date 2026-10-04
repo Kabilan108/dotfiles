@@ -2,3 +2,5 @@ sessions/
 auth.json
 models-store.json
 trust.json
+agent/bin
+agent/install
