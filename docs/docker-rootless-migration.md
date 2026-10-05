@@ -145,9 +145,12 @@ These SQL copies contain pre-startup state; recovery restores them and reruns th
 component migrations captured by application validation. They are not backups of
 subsequent development writes.
 
-The final configuration removes Docker-group membership only on Sietch. Activation,
-reboot, and fresh-process socket-denial verification remain mandatory before this
-Docker privilege boundary is complete. Jacurutu's membership is unchanged.
+The final configuration is activated and Sietch has rebooted. Installed and booted
+systems match the reviewed build. A fresh agent has no Docker group and receives
+`PermissionError` when connecting to the system socket. All eight checkout CLIs
+select rootless Docker; actual maintenance and primary Dashboard/IAM/Query startup,
+doctor, and HTTP checks passed. The primary stack was paused again. Executor is
+healthy. Jacurutu's membership is unchanged.
 
 The same activation closes a persisted-state path replacement risk. Sietch's
 `/vault` and `/vault/userdata` become root-owned sticky directories with a named
@@ -156,7 +159,19 @@ files remain writable and removable. Root-owned immediate children require root
 for rename or deletion. System Docker checks this protected path at startup and
 waits for its mount and tmpfiles setup. Its changed unit is not restarted merely
 because of this definition change, preserving Executor until the planned reboot.
+Post-reboot checks confirm the original directory inodes, exact ACLs, root
+ownership, sticky protection, and mount dependency are present.
 
 Use the reviewed Git revision in the final rebuild command. Other workers have
 unrelated Nix changes in this checkout; a dirty-tree rebuild would include those
 changes without this migration's review or validation.
+
+The reboot also exposed a pre-existing tmux `PATH` override that omitted
+`/run/wrappers/bin`. This selected the unprivileged system `sudo` binary in tmux
+while SSH selected the working wrapper. The tmux configuration and live server
+environment now include the wrappers directory before Nix profile binaries. A
+fresh tmux pane selects the wrapper and its startup succeeds. Already-open shells
+need `export PATH="/run/wrappers/bin:$PATH"`; this does not require another rebuild.
+
+The separate credential-hardening planning thread is running. It has planning
+scope only; credential rotation and access changes require separate authorization.

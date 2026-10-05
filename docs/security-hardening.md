@@ -262,8 +262,9 @@ a single choke point for what agents may invoke.
 The declarative host configuration defaults new Docker port publications to loopback
 and applies an IPv4/IPv6 `DOCKER-USER` guard against new connections from physical
 interfaces. This limits accidental LAN exposure. It does not constrain code that
-already runs as `kabilan`: membership in the `docker` group remains root-equivalent and
-can bypass a project filesystem sandbox through the Docker socket.
+already runs as `kabilan`: membership in the `docker` group is root-equivalent and
+can bypass a project filesystem sandbox through the Docker socket. Sietch has
+removed that membership after completing the rootless migration.
 
 Removing ambient docker-group access is intentionally separate from the port guard.
 The approved first stage uses a separate rootless development daemon for the
@@ -293,8 +294,9 @@ the existing daemon during activation.
 
 Activation, full-stack validation, checkout rebases, data transfer, and group
 removal are separate checkpoints. See [the migration runbook](docker-rootless-migration.md).
-The vulnerability remains open until the installed configuration and fresh
-agent sessions demonstrate that rootful access is denied. Credential isolation,
+Post-reboot verification confirms the reviewed installed and booted configuration,
+fresh agent socket denial, working development workflows, and healthy Executor.
+Credential isolation,
 the same-user filesystem boundary, and unrestricted system-libvirt access remain
 separate work; this change does not establish that agents lack every route to
 elevated host access.
