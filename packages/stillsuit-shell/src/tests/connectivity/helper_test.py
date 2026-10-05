@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.machinery
 import subprocess
+import tempfile
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -22,6 +23,23 @@ def completed(
 def main() -> None:
     helper_path = Path(__file__).resolve().parents[3] / "bin" / "stillsuit-network"
     helper = load_helper(helper_path)
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        assert not helper._airplane_state(root)["airplaneAvailable"]
+        for name in ("rfkill0", "rfkill1"):
+            radio = root / name
+            radio.mkdir()
+            (radio / "soft").write_text("1")
+            (radio / "hard").write_text("0")
+        assert helper._airplane_state(root)["airplaneEnabled"]
+        (root / "rfkill1" / "soft").write_text("0")
+        assert not helper._airplane_state(root)["airplaneEnabled"]
+        (root / "rfkill1" / "hard").write_text("1")
+        assert helper._airplane_state(root)["airplaneEnabled"]
+        assert helper._airplane_state(root)["airplaneHardBlocked"]
+    setattr(helper, "_airplane_state", lambda: {
+        "airplaneAvailable": True, "airplaneEnabled": False, "airplaneHardBlocked": False
+    })
     calls: list[dict[str, Any]] = []
     secret = "helper-secret-value"
 
@@ -82,6 +100,19 @@ def main() -> None:
         return completed(command)
 
     setattr(helper, "_run", fake_run)  # noqa: B010
+    for enabled, expected in (
+        (True, [["nmcli", "radio", "all", "off"], ["rfkill", "block", "all"]]),
+        (False, [["rfkill", "unblock", "all"], ["nmcli", "radio", "all", "on"]]),
+    ):
+        calls.clear()
+        result = helper._dispatch({"operation": "airplane-enabled", "enabled": enabled})
+        assert result["ok"], result
+        assert [call["command"] for call in calls[:2]] == expected
+    calls.clear()
+    assert not helper._dispatch({"operation": "airplane-enabled", "enabled": "false"})["ok"]
+    assert not any(call["command"][0] == "rfkill" for call in calls)
+    calls.clear()
+
     response = helper._dispatch(
         {
             "operation": "join",

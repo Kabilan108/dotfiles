@@ -11,6 +11,7 @@ import ipaddress
 import json
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
 VPN_NAME = "MobergAnalytics"
@@ -251,6 +252,21 @@ def _summary() -> dict[str, Any]:
     }
 
 
+def _airplane_state(root: Path = Path("/sys/class/rfkill")) -> dict[str, bool]:
+    radios = list(root.glob("rfkill*"))
+    return {
+        "airplaneAvailable": bool(radios),
+        "airplaneEnabled": bool(radios) and all(
+            (radio / "soft").read_text().strip() == "1"
+            or (radio / "hard").read_text().strip() == "1"
+            for radio in radios
+        ),
+        "airplaneHardBlocked": any(
+            (radio / "hard").read_text().strip() == "1" for radio in radios
+        ),
+    }
+
+
 def _snapshot() -> dict[str, Any]:
     wifi_enabled = _wifi_enabled()
 
@@ -336,6 +352,7 @@ def _snapshot() -> dict[str, Any]:
     )
 
     return {
+        **_airplane_state(),
         "wifiEnabled": wifi_enabled,
         "wiredConnected": wired_connected,
         "wiredName": wired_name,
@@ -407,6 +424,17 @@ def _dispatch(request: dict[str, Any]) -> dict[str, Any]:
         elif operation == "wifi-enabled":
             state = "on" if bool(request.get("enabled")) else "off"
             _checked(["nmcli", "radio", "wifi", state])
+        elif operation == "airplane-enabled":
+            if not isinstance(request.get("enabled"), bool):
+                raise RuntimeError("Airplane mode requires a boolean enabled value")
+            if request["enabled"]:
+                _checked(["nmcli", "radio", "all", "off"])
+                _checked(["rfkill", "block", "all"])
+            else:
+                _checked(["rfkill", "unblock", "all"])
+                _checked(["nmcli", "radio", "all", "on"])
+                if _airplane_state()["airplaneHardBlocked"]:
+                    raise RuntimeError("A hardware switch is still blocking wireless radios")
         elif operation == "join":
             _join(request)
         elif operation == "disconnect":

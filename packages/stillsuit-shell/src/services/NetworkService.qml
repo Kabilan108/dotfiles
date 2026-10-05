@@ -63,6 +63,11 @@ QtObject {
     readonly property bool wifiEnabled: model
         ? Boolean(model.wifiEnabled)
         : Boolean(effectiveSnapshot.wifiEnabled)
+    readonly property bool airplaneAvailable: model
+        ? Boolean(model.airplaneAvailable) : Boolean(snapshot.airplaneAvailable) && helperReady
+    readonly property bool airplaneEnabled: model
+        ? Boolean(model.airplaneEnabled) : Boolean(snapshot.airplaneEnabled)
+    readonly property bool airplaneChanging: operation === "airplane-enabled"
     readonly property bool wiredConnected: model
         ? Boolean(model.wiredConnected)
         : Boolean(effectiveSnapshot.wiredConnected)
@@ -551,6 +556,15 @@ QtObject {
         if (model && typeof model.scan === "function")
             return _finishModel(model.scan(), "scan")
         return _send({ operation: "scan" })
+    }
+
+    function setAirplaneEnabled(enabled) {
+        if (!_begin("airplane-enabled", "radios"))
+            return forceUnavailable ? "unavailable" : "busy"
+        var requested = Boolean(enabled)
+        if (model && typeof model.setAirplaneEnabled === "function")
+            return _finishModel(model.setAirplaneEnabled(requested), "airplane-enabled")
+        return _send({ operation: "airplane-enabled", enabled: requested })
     }
 
     function setWifiEnabled(enabled) {

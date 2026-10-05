@@ -115,7 +115,8 @@ Item {
                 description: root.service && root.service.wifiEnabled ? "NetworkManager radio is enabled" : "NetworkManager radio is disabled"
                 checked: Boolean(root.service && root.service.wifiEnabled)
                 busy: Boolean(root.service && root.service.wifiChanging)
-                interactive: Boolean(root.service && root.service.available)
+                interactive: Boolean(root.service && root.service.available
+                    && !root.service.airplaneEnabled && root.service.operation === "idle")
                 onToggled: function (requested) {
                     root.service.setWifiEnabled(requested);
                 }
@@ -143,368 +144,388 @@ Item {
                 iconName: "wifi-off"
             }
 
-            Flickable {
+            ColumnLayout {
+                id: panelBody
+
                 Layout.fillWidth: true
-                implicitHeight: Math.min(panelBody.implicitHeight, 430)
                 visible: root.service && root.service.available
-                clip: true
-                contentWidth: width
-                contentHeight: panelBody.implicitHeight
-                boundsBehavior: Flickable.StopAtBounds
-                interactive: contentHeight > height
+                spacing: 6
 
-                ColumnLayout {
-                    id: panelBody
+                GridLayout {
+                    Layout.fillWidth: true
+                    visible: root.service && root.service.tailscale.available
+                    columns: 2
+                    columnSpacing: 12
+                    rowSpacing: 0
 
-                    width: parent.width
-                    spacing: 6
+                    Ui.ShellText {
+                        Layout.rowSpan: 2
+                        theme: root.context.theme
+                        text: "tailscale"
+                        sizeRole: "label"
+                    }
 
-                    GridLayout {
+                    Ui.ShellAction {
                         Layout.fillWidth: true
-                        visible: root.service && root.service.tailscale.available
-                        columns: 2
-                        columnSpacing: 12
-                        rowSpacing: 0
+                        implicitHeight: 16
+                        accessibleName: "Copy Tailscale DNS name"
+                        onActivated: root.service.copyTailscale("dns")
 
                         Ui.ShellText {
-                            Layout.rowSpan: 2
+                            anchors.fill: parent
                             theme: root.context.theme
-                            text: "tailscale"
-                            sizeRole: "label"
+                            text: String(root.service.tailscale.dnsName || "")
+                            sizeRole: "caption"
+                            role: "muted"
+                            elide: Text.ElideLeft
+                            horizontalAlignment: Text.AlignRight
                         }
 
-                        Ui.ShellAction {
-                            Layout.fillWidth: true
-                            implicitHeight: 16
-                            accessibleName: "Copy Tailscale DNS name"
-                            onActivated: root.service.copyTailscale("dns")
-
-                            Ui.ShellText {
-                                anchors.fill: parent
-                                theme: root.context.theme
-                                text: String(root.service.tailscale.dnsName || "")
-                                sizeRole: "caption"
-                                role: "muted"
-                                elide: Text.ElideLeft
-                                horizontalAlignment: Text.AlignRight
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.service.copyTailscale("dns")
-                            }
-                        }
-
-                        Ui.ShellAction {
-                            Layout.fillWidth: true
-                            implicitHeight: 16
-                            accessibleName: "Copy Tailscale IPv4 address"
-                            onActivated: root.service.copyTailscale("ip")
-
-                            Ui.ShellText {
-                                anchors.fill: parent
-                                theme: root.context.theme
-                                text: String(root.service.tailscale.ip || "")
-                                sizeRole: "caption"
-                                role: "muted"
-                                monospace: true
-                                elide: Text.ElideLeft
-                                horizontalAlignment: Text.AlignRight
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.service.copyTailscale("ip")
-                            }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.service.copyTailscale("dns")
                         }
                     }
 
                     Ui.ShellAction {
                         Layout.fillWidth: true
-                        implicitHeight: 14
-                        visible: root.service && root.service.tailscale.available && root.service.tailscale.services.length > 0
-                        accessibleName: root.tailscaleExpanded ? "Collapse Tailscale services" : "Expand Tailscale services"
-                        onActivated: root.tailscaleExpanded = !root.tailscaleExpanded
-
-                        Ui.ShellIcon {
-                            anchors.centerIn: parent
-                            theme: root.context.theme
-                            name: "chevron-right"
-                            sizeRole: "small"
-                            role: "muted"
-                            rotation: root.tailscaleExpanded ? -90 : 90
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        visible: root.tailscaleExpanded && root.service.tailscale.services.length > 0
-                        Layout.leftMargin: 0
-                        Layout.rightMargin: 12
-                        spacing: 8
-
-                        Rectangle {
-                            Layout.fillHeight: true
-                            Layout.preferredWidth: 1
-                            color: root.context.theme.semantic.outline.subtle
-                        }
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 2
-
-                            Repeater {
-                                model: root.service.tailscale.services
-
-                                delegate: Ui.ShellAction {
-                                    required property var modelData
-                                    Layout.fillWidth: true
-                                    implicitHeight: 16
-                                    accessibleName: "Copy Tailscale service URL " + String(modelData)
-                                    onActivated: root.service.copyTailscale("service", String(modelData))
-
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        spacing: 0
-
-                                        Ui.ShellText {
-                                            theme: root.context.theme
-                                            text: root.tailscaleServiceName(modelData)
-                                            sizeRole: "caption"
-                                            role: "secondary"
-                                        }
-
-                                        Ui.ShellText {
-                                            Layout.fillWidth: true
-                                            theme: root.context.theme
-                                            text: root.tailscaleServiceSuffix(modelData)
-                                            sizeRole: "caption"
-                                            role: "muted"
-                                            elide: Text.ElideRight
-                                        }
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.service.copyTailscale("service", String(modelData))
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Ui.ShellSectionLabel {
-                        visible: root.connectedRows.length > 0
-                        Layout.fillWidth: true
-                        theme: root.context.theme
-                        text: "Connected"
-                    }
-
-                    Repeater {
-                        model: root.connectedRows
-
-                        delegate: NetworkRow {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            network: modelData
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        visible: root.service && root.service.wifiEnabled
-
-                        Ui.ShellSectionLabel {
-                            Layout.fillWidth: true
-                            theme: root.context.theme
-                            text: "Available"
-                        }
-
-                        Ui.ShellButton {
-                            theme: root.context.theme
-                            label: "Scan"
-                            iconName: "refresh"
-                            compact: true
-                            ghost: true
-                            busy: Boolean(root.service && root.service.scanning)
-                            accessibleName: "Scan for Wi-Fi networks"
-                            onClicked: root.service.scan()
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.alignment: Qt.AlignHCenter
-                        visible: root.availableRows.length === 0
-                        spacing: 8
-
-                        Ui.ShellBusyIndicator {
-                            visible: root.service && root.service.scanning
-                            theme: root.context.theme
-                            sizeRole: "small"
-                            role: "muted"
-                        }
-
-                        Ui.ShellIcon {
-                            visible: !root.service || !root.service.scanning
-                            theme: root.context.theme
-                            name: "wifi"
-                            sizeRole: "small"
-                            role: "muted"
-                        }
+                        implicitHeight: 16
+                        accessibleName: "Copy Tailscale IPv4 address"
+                        onActivated: root.service.copyTailscale("ip")
 
                         Ui.ShellText {
+                            anchors.fill: parent
                             theme: root.context.theme
-                            text: root.service && root.service.scanning ? "Scanning" : "No available networks"
+                            text: String(root.service.tailscale.ip || "")
                             sizeRole: "caption"
                             role: "muted"
+                            monospace: true
+                            elide: Text.ElideLeft
+                            horizontalAlignment: Text.AlignRight
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.service.copyTailscale("ip")
                         }
                     }
+                }
 
-                    Repeater {
-                        model: root.availableRows
+                Ui.ShellAction {
+                    Layout.fillWidth: true
+                    implicitHeight: 14
+                    visible: root.service && root.service.tailscale.available && root.service.tailscale.services.length > 0
+                    accessibleName: root.tailscaleExpanded ? "Collapse Tailscale services" : "Expand Tailscale services"
+                    onActivated: root.tailscaleExpanded = !root.tailscaleExpanded
 
-                        delegate: NetworkRow {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            network: modelData
-                        }
-                    }
-
-                    Ui.ShellSectionLabel {
-                        visible: root.savedRows.length > 0
-                        Layout.fillWidth: true
+                    Ui.ShellIcon {
+                        anchors.centerIn: parent
                         theme: root.context.theme
-                        text: "Saved"
+                        name: "chevron-right"
+                        sizeRole: "small"
+                        role: "muted"
+                        rotation: root.tailscaleExpanded ? -90 : 90
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: root.tailscaleExpanded && root.service.tailscale.services.length > 0
+                    Layout.leftMargin: 0
+                    Layout.rightMargin: 12
+                    spacing: 8
+
+                    Rectangle {
+                        Layout.fillHeight: true
+                        Layout.preferredWidth: 1
+                        color: root.context.theme.semantic.outline.subtle
                     }
 
-                    Repeater {
-                        model: root.savedRows
-
-                        delegate: NetworkRow {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            network: modelData
-                        }
-                    }
-
-                    Ui.ShellSurface {
-                        visible: root.credentialNetwork !== null
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        implicitHeight: credentialColumn.implicitHeight + 20
-                        theme: root.context.theme
-                        kind: "raised"
+                        spacing: 2
 
-                        ColumnLayout {
-                            id: credentialColumn
+                        Repeater {
+                            model: root.service.tailscale.services
 
-                            anchors {
-                                left: parent.left
-                                right: parent.right
-                                verticalCenter: parent.verticalCenter
-                                margins: 10
-                            }
-                            spacing: 7
-
-                            Ui.ShellText {
+                            delegate: Ui.ShellAction {
+                                required property var modelData
                                 Layout.fillWidth: true
-                                theme: root.context.theme
-                                text: "Password for " + (root.credentialNetwork ? root.credentialNetwork.name || "network" : "network")
-                                sizeRole: "label"
-                            }
+                                implicitHeight: 16
+                                accessibleName: "Copy Tailscale service URL " + String(modelData)
+                                onActivated: root.service.copyTailscale("service", String(modelData))
 
-                            Rectangle {
-                                Layout.fillWidth: true
-                                implicitHeight: 34
-                                radius: root.context.theme.metrics.radiusSmall
-                                color: root.context.theme.component.control.background
-                                border.width: 1
-                                border.color: root.context.theme.component.control.outline
-
-                                TextInput {
-                                    id: passwordInput
-
+                                RowLayout {
                                     anchors.fill: parent
-                                    anchors.margins: 8
-                                    color: root.context.theme.semantic.content.primary
-                                    selectionColor: root.context.theme.semantic.accent.primary
-                                    selectedTextColor: root.context.theme.semantic.accent.onAccent
-                                    font.family: root.context.theme.typography.bodyFamily
-                                    font.pixelSize: root.context.theme.typography.baseSize
-                                    echoMode: TextInput.Password
-                                    passwordCharacter: "•"
-                                    clip: true
-                                    Keys.onReturnPressed: root.submitPassword()
-                                    Keys.onEnterPressed: root.submitPassword()
-                                }
-                            }
+                                    spacing: 0
 
-                            RowLayout {
-                                Layout.alignment: Qt.AlignRight
+                                    Ui.ShellText {
+                                        theme: root.context.theme
+                                        text: root.tailscaleServiceName(modelData)
+                                        sizeRole: "caption"
+                                        role: "secondary"
+                                    }
 
-                                Ui.ShellButton {
-                                    theme: root.context.theme
-                                    label: "Cancel"
-                                    compact: true
-                                    ghost: true
-                                    onClicked: {
-                                        passwordInput.text = "";
-                                        root.credentialNetwork = null;
+                                    Ui.ShellText {
+                                        Layout.fillWidth: true
+                                        theme: root.context.theme
+                                        text: root.tailscaleServiceSuffix(modelData)
+                                        sizeRole: "caption"
+                                        role: "muted"
+                                        elide: Text.ElideRight
                                     }
                                 }
 
-                                Ui.ShellButton {
-                                    theme: root.context.theme
-                                    label: "Connect"
-                                    iconName: "lock"
-                                    compact: true
-                                    active: true
-                                    interactive: passwordInput.text.length > 0
-                                    onClicked: root.submitPassword()
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.service.copyTailscale("service", String(modelData))
                                 }
                             }
                         }
                     }
+                }
+
+                Ui.ShellSectionLabel {
+                    visible: root.connectedRows.length > 0
+                    Layout.fillWidth: true
+                    theme: root.context.theme
+                    text: "Connected"
+                }
+
+                Repeater {
+                    model: root.connectedRows
+
+                    delegate: NetworkRow {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        network: modelData
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: root.service && root.service.wifiEnabled
 
                     Ui.ShellSectionLabel {
-                        visible: root.allowlistedVpns.length > 0 || root.activeReadOnlyVpns.length > 0
                         Layout.fillWidth: true
                         theme: root.context.theme
-                        text: "VPN"
+                        text: "Available"
                     }
 
-                    Repeater {
-                        model: root.allowlistedVpns
+                    Ui.ShellButton {
+                        theme: root.context.theme
+                        label: "Scan"
+                        iconName: "refresh"
+                        compact: true
+                        ghost: true
+                        busy: Boolean(root.service && root.service.scanning)
+                        accessibleName: "Scan for Wi-Fi networks"
+                        onClicked: root.service.scan()
+                    }
+                }
 
-                        delegate: Ui.ShellToggle {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            theme: root.context.theme
-                            label: modelData.name
-                            description: modelData.active ? "Connected" : "Disconnected"
-                            checked: Boolean(modelData.active)
-                            busy: root.service.operation === "vpn-toggle" && root.service.operationTarget === String(modelData.uuid || modelData.name)
-                            onToggled: root.service.toggleVpn(modelData)
+                RowLayout {
+                    Layout.alignment: Qt.AlignHCenter
+                    visible: root.availableRows.length === 0
+                    spacing: 8
+
+                    Ui.ShellBusyIndicator {
+                        visible: root.service && root.service.scanning
+                        theme: root.context.theme
+                        sizeRole: "small"
+                        role: "muted"
+                    }
+
+                    Ui.ShellIcon {
+                        visible: !root.service || !root.service.scanning
+                        theme: root.context.theme
+                        name: "wifi"
+                        sizeRole: "small"
+                        role: "muted"
+                    }
+
+                    Ui.ShellText {
+                        theme: root.context.theme
+                        text: root.service && root.service.scanning ? "Scanning" : "No available networks"
+                        sizeRole: "caption"
+                        role: "muted"
+                    }
+                }
+
+                Ui.ShellScrollArea {
+                    id: availableList
+                    theme: root.context.theme
+                    Layout.fillWidth: true
+                    maximumHeight: 300
+                    visible: root.availableRows.length > 0
+                    contentHeight: availableContent.implicitHeight
+
+                    ColumnLayout {
+                        id: availableContent
+                        width: availableList.width
+                        spacing: 6
+
+                        Repeater {
+                            model: root.availableRows
+
+                            delegate: NetworkRow {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                network: modelData
+                            }
                         }
                     }
+                }
 
-                    Repeater {
-                        model: root.activeReadOnlyVpns
+                Ui.ShellSectionLabel {
+                    visible: root.savedRows.length > 0
+                    Layout.fillWidth: true
+                    theme: root.context.theme
+                    text: "Saved"
+                }
 
-                        delegate: Ui.ShellRow {
-                            required property var modelData
+                Repeater {
+                    model: root.savedRows
+
+                    delegate: NetworkRow {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        network: modelData
+                    }
+                }
+
+                Ui.ShellSurface {
+                    visible: root.credentialNetwork !== null
+                    Layout.fillWidth: true
+                    implicitHeight: credentialColumn.implicitHeight + 20
+                    theme: root.context.theme
+                    kind: "raised"
+
+                    ColumnLayout {
+                        id: credentialColumn
+
+                        anchors {
+                            left: parent.left
+                            right: parent.right
+                            verticalCenter: parent.verticalCenter
+                            margins: 10
+                        }
+                        spacing: 7
+
+                        Ui.ShellText {
                             Layout.fillWidth: true
                             theme: root.context.theme
-                            label: modelData.name
-                            description: "Active " + String(modelData.type || "VPN") + ", managed outside Stillsuit"
-                            iconName: "vpn"
-                            trailingText: "read-only"
-                            selected: true
-                            interactive: false
+                            text: "Password for " + (root.credentialNetwork ? root.credentialNetwork.name || "network" : "network")
+                            sizeRole: "label"
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 34
+                            radius: root.context.theme.metrics.radiusSmall
+                            color: root.context.theme.component.control.background
+                            border.width: 1
+                            border.color: root.context.theme.component.control.outline
+
+                            TextInput {
+                                id: passwordInput
+
+                                anchors.fill: parent
+                                anchors.margins: 8
+                                color: root.context.theme.semantic.content.primary
+                                selectionColor: root.context.theme.semantic.accent.primary
+                                selectedTextColor: root.context.theme.semantic.accent.onAccent
+                                font.family: root.context.theme.typography.bodyFamily
+                                font.pixelSize: root.context.theme.typography.baseSize
+                                echoMode: TextInput.Password
+                                passwordCharacter: "•"
+                                clip: true
+                                Keys.onReturnPressed: root.submitPassword()
+                                Keys.onEnterPressed: root.submitPassword()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.alignment: Qt.AlignRight
+
+                            Ui.ShellButton {
+                                theme: root.context.theme
+                                label: "Cancel"
+                                compact: true
+                                ghost: true
+                                onClicked: {
+                                    passwordInput.text = "";
+                                    root.credentialNetwork = null;
+                                }
+                            }
+
+                            Ui.ShellButton {
+                                theme: root.context.theme
+                                label: "Connect"
+                                iconName: "lock"
+                                compact: true
+                                active: true
+                                interactive: passwordInput.text.length > 0
+                                onClicked: root.submitPassword()
+                            }
                         }
                     }
+                }
+
+            }
+
+            Ui.ShellSectionLabel {
+                visible: root.allowlistedVpns.length > 0 || root.activeReadOnlyVpns.length > 0
+                Layout.fillWidth: true
+                theme: root.context.theme
+                text: "VPN"
+            }
+
+            Repeater {
+                model: root.allowlistedVpns
+
+                delegate: Ui.ShellToggle {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    theme: root.context.theme
+                    label: modelData.name
+                    description: modelData.active ? "Connected" : "Disconnected"
+                    checked: Boolean(modelData.active)
+                    busy: root.service.operation === "vpn-toggle" && root.service.operationTarget === String(modelData.uuid || modelData.name)
+                    onToggled: root.service.toggleVpn(modelData)
+                }
+            }
+
+            Repeater {
+                model: root.activeReadOnlyVpns
+
+                delegate: Ui.ShellRow {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    theme: root.context.theme
+                    label: modelData.name
+                    description: "Active " + String(modelData.type || "VPN") + ", managed outside Stillsuit"
+                    iconName: "vpn"
+                    trailingText: "read-only"
+                    selected: true
+                    interactive: false
+                }
+            }
+
+            Ui.ShellToggle {
+                Layout.fillWidth: true
+                theme: root.context.theme
+                label: "Airplane mode"
+                description: "Disable Wi-Fi, Bluetooth and cellular radios"
+                checked: Boolean(root.service && root.service.airplaneEnabled)
+                busy: Boolean(root.service && root.service.airplaneChanging)
+                interactive: Boolean(root.service && root.service.airplaneAvailable
+                    && root.service.operation === "idle")
+                onToggled: function (requested) {
+                    root.service.setAirplaneEnabled(requested);
                 }
             }
         }

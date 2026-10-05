@@ -39,6 +39,12 @@ QtObject {
     property Component networkComponent: Component {
         QtObject {
             property int revision: 0
+            property bool airplaneAvailable: true
+            property bool airplaneEnabled: false
+            function setAirplaneEnabled(value) {
+                airplaneEnabled = Boolean(value); wifiEnabled = !airplaneEnabled; revision += 1
+                root.actionRecorded("stillsuit.network", "setAirplaneEnabled", value); return "ok"
+            }
             property bool wifiEnabled: true
             property bool wiredConnected: false
             property string wiredName: ""

@@ -370,6 +370,29 @@ ShellRoot {
             "long playback duration uses hours minutes and seconds")
         _assert(panel.formatTime(147) === "2:27",
             "short playback duration uses minutes and seconds")
+        var panelItems = _descendants(panel)
+        var scrollAreas = panelItems.filter(function(item) {
+            return item.contentY !== undefined && item.contentHeight !== undefined
+        })
+        _assert(scrollAreas.length === 1, "only the output device list scrolls")
+        var outputScroll = scrollAreas[0]
+        _assert(outputScroll.maximumHeight === fixtureTheme.metrics.rowHeight * 4,
+            "output device list height is bounded")
+        var scrollingItems = _descendants(outputScroll)
+        var fixedControls = panelItems.filter(function(item) {
+            return item.title === "Audio" || item.text === "Now playing"
+                || item.accessibleName === "Output volume"
+                || item.accessibleName === "Microphone level"
+        })
+        _assert(fixedControls.length >= 4, "audio header, playback and level controls exist")
+        var fixedPositions = fixedControls.map(function(item) { return item.mapToItem(panel, 0, 0).y })
+        outputScroll.contentY = 30
+        for (var fixedIndex = 0; fixedIndex < fixedControls.length; fixedIndex++) {
+            _assert(scrollingItems.indexOf(fixedControls[fixedIndex]) === -1
+                && fixedControls[fixedIndex].mapToItem(panel, 0, 0).y === fixedPositions[fixedIndex],
+                "scrolling output devices keeps audio controls fixed")
+        }
+        outputScroll.contentY = 0
         var tracked = audio.media
         var albumArt = _findObject(panel, "audio-album-art")
         _assert(albumArt !== null, "album art image is addressable")
@@ -486,6 +509,14 @@ ShellRoot {
 
         console.log("AUDIO_MEDIA_FIXTURE_OK checks=" + checks)
         Qt.quit()
+    }
+
+    function _descendants(item) {
+        var result = [item]
+        var children = item.children || []
+        for (var i = 0; i < children.length; i++)
+            result = result.concat(_descendants(children[i]))
+        return result
     }
 
     function _findObject(item, name) {

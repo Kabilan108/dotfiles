@@ -100,6 +100,13 @@ ShellRoot {
             return "ok"
         }
 
+        property bool airplaneAvailable: true
+        property bool airplaneEnabled: false
+        function setAirplaneEnabled(value) {
+            airplaneEnabled = value
+            wifiEnabled = !value
+            return "ok"
+        }
         function setWifiEnabled(value) {
             wifiEnabled = value
             return "ok"
@@ -395,6 +402,13 @@ ShellRoot {
             viewComponents.push(Qt.createComponent(urls[index], Component.Asynchronous))
     }
 
+    function descendants(item) {
+        var result = [item]
+        for (var i = 0; i < item.children.length; i++)
+            result = result.concat(descendants(item.children[i]))
+        return result
+    }
+
     function expect(condition, message) {
         checks++
         if (!condition)
@@ -583,10 +597,43 @@ ShellRoot {
                     && panel.allowlistedVpns.length === 1
                     && panel.activeReadOnlyVpns.length === 1,
                 "an opened network panel did not derive its rows")
+            var panelItems = descendants(panel)
+            var scrollAreas = panelItems.filter(function(item) {
+                return item.contentY !== undefined && item.contentHeight !== undefined
+            })
+            expect(scrollAreas.length === 1, "network panel must have one list scroll area")
+            var availableScroll = scrollAreas[0]
+            var scrollingItems = descendants(availableScroll)
+            var fixedItems = panelItems.filter(function(item) {
+                return item.text === "tailscale" || item.text === "Connected"
+                    || item.text === "VPN" || item.label === "Airplane mode"
+            })
+            expect(fixedItems.length >= 4, "fixed network sections were not instantiated")
+            var fixedPositions = fixedItems.map(function(item) { return item.mapToItem(panel, 0, 0).y })
+            availableScroll.contentY = 30
+            for (var fixedIndex = 0; fixedIndex < fixedItems.length; fixedIndex++) {
+                expect(scrollingItems.indexOf(fixedItems[fixedIndex]) === -1
+                    && fixedItems[fixedIndex].mapToItem(panel, 0, 0).y === fixedPositions[fixedIndex],
+                    "scrolling available networks moved a fixed section")
+            }
+            availableScroll.contentY = 0
             panel.close()
             expect(panel.availableRows.length === 0 && panel.allowlistedVpns.length === 0,
                 "a closed network panel kept deriving rows")
             panel.destroy()
+            expect(network.airplaneAvailable && !network.airplaneEnabled,
+                "airplane mode initial state is wrong")
+            expect(network.setAirplaneEnabled(true) === "ok" && network.airplaneEnabled
+                    && !network.wifiEnabled, "airplane mode did not block radios")
+            expect(network.setAirplaneEnabled(false) === "ok" && !network.airplaneEnabled
+                    && network.wifiEnabled, "airplane mode did not unblock radios")
+            expect(network._begin("airplane-enabled", "radios") && network.airplaneChanging,
+                "airplane mode busy state missing")
+            expect(network.setAirplaneEnabled(true) === "busy",
+                "overlapping airplane operation was accepted")
+            network._finishModel("error", "airplane-enabled")
+            expect(!network.airplaneChanging && !network.airplaneEnabled && network.lastError !== "",
+                "failed airplane operation changed radio truth")
             expect(network.scan() === "ok" && fakeNetwork.scans === 1,
                 "scan did not reach the fake NetworkManager owner")
             expect(network._begin("scan", "wifi") && network.scanning,

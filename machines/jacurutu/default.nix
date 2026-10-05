@@ -17,6 +17,13 @@ in
   # Temporary additive stage. Remove after verified rootless data restoration.
   dotfiles.docker.rootlessDevelopment.allowRootfulUserAccess = true;
 
+  # The Framework airplane key emits KEY_RFKILL directly to the kernel.
+  # Disable its measured HID scan code without changing the other hotkeys.
+  services.udev.extraHwdb = ''
+    evdev:input:b0018v32ACp0006*
+     KEYBOARD_KEY_100c6=reserved
+  '';
+
   # Test the main package set's kernel for the security update. The earlier
   # disk-unlock freeze remains unresolved; retain generation 1141 for recovery.
   boot.kernelPackages = pkgs.linuxPackages;

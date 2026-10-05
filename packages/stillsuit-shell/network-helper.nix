@@ -4,6 +4,7 @@
   networkmanagerapplet,
   python3,
   tailscale,
+  util-linux,
   wl-clipboard,
   writeShellApplication,
 }:
@@ -16,6 +17,7 @@ writeShellApplication {
     networkmanagerapplet
     python3
     tailscale
+    util-linux
     wl-clipboard
   ];
   text = ''

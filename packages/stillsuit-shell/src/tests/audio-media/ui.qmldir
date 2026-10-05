@@ -4,6 +4,7 @@ ShellBusyIndicator 1.0 ShellBusyIndicator.qml
 ShellButton 1.0 ShellButton.qml
 ShellIcon 1.0 ShellIcon.qml
 ShellRow 1.0 ShellRow.qml
+ShellScrollArea 1.0 ShellScrollArea.qml
 ShellSectionLabel 1.0 ShellSectionLabel.qml
 ShellSlider 1.0 ShellSlider.qml
 ShellStateView 1.0 ShellStateView.qml
