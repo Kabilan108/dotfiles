@@ -32,7 +32,9 @@ I authorize publishing html artifacts to configured PageBin service and serving 
 
 Use available LSP navigation for unfamiliar call paths and reference searches before refactors. Verify types with the project's checks; hover alone is not a type check.
 
-Use codex-review when I request a Codex/Sol review or Astra consultation. Run the watcher through Bash with `run_in_background: true`; retain the task handle and read its completion notification. The durable worker runs in tmux, while the watcher is owned by this Claude session.
+Use review-loop when I request a Codex/Sol review. For an Astra consultation, call `delegate_task` with the `codex` provider and `gpt-6-astra` at the effort I name.
+
+For an `agent-run` worker, run the `agent-run wait` watcher through Bash with `run_in_background: true`; retain the task handle and read its completion notification. The durable worker runs in tmux, while the watcher is owned by this Claude session.
 
 ## Dev server networking
 
