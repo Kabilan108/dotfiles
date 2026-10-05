@@ -102,8 +102,8 @@ logs, and a separate 14-step checkpoint workflow. Reset removed a table written
 after saving the test checkpoint. The test checkpoint was deleted; the checkout
 returned to paused/default with its metadata and current lockfile bytes preserved.
 Evidence is retained under `post-reboot/` in the protected migration directory.
-The data and privilege cutover is complete. The independent networking follow-up
-remains deferred as described below.
+The data and privilege cutover is complete. The independent physical-LAN
+follow-up also passed as described below.
 
 Scoped preparation repaired 30,792 root-owned shared UV cache entries and 13,084
 untracked generated entries across 17 component repositories. The component
@@ -112,13 +112,26 @@ preserved modes, and excluded tracked source and notebook checkpoints. Two
 tracked/source-like exceptions were retained unchanged. Original component
 branches, local work, and lockfile bytes remain preserved.
 
-Physical-LAN firewall verification is deferred at the user's request until
-Jacurutu and Sietch share a LAN. Local loopback and Tailscale-address publishing
-checks passed. Sietch's remote TCP probes timed out because Jacurutu's compiled
-Tailscale policy permits the Pixel but excludes Sietch as an inbound source.
-Those timeouts do not establish a rootless firewall result. Tailnet policy was
-left unchanged; a remote positive control needs an authorized peer such as the
-Pixel. The exact network fixtures were removed.
+Independent physical-LAN checks passed after both machines joined the same LAN.
+Sietch routed from `10.0.0.71` through `enp4s0` to Jacurutu's `10.0.0.60`, while
+Jacurutu used `wlp1s0`. The IPv4 fixtures bound loopback, Tailscale, wildcard, and
+the explicit LAN address. IPv6 fixtures bound loopback, wildcard, and the LAN
+address in the shared global IPv6 prefix. All seven remote TCP probes timed out,
+including both wildcard and explicit LAN publications. Sietch's direct-LAN ping
+controls succeeded before and after each set of probes. Each fixture served its
+known HTTP marker locally before and after the probes, including the wildcard
+fixture through Jacurutu's LAN address. All seven exact test containers were
+removed, with labels rechecked before deletion. No firewall or tailnet policy
+was changed. These results cover the tested IPv4/IPv6 TCP bindings; system
+Docker's `DOCKER-USER` guard remains separate from rootless host listeners.
+Evidence is in `physical-lan-verification.json` and
+`physical-lan-ipv6-verification.json` under the protected migration directory.
+
+A remote tailnet-positive control remains separate: the live compiled Tailscale
+policy still permits the Pixel but excludes Sietch as an inbound source. Earlier
+Sietch tailnet TCP timeouts therefore do not establish a rootless forwarding or
+firewall result. Local Tailscale-address HTTP checks passed; an independent
+remote positive needs an authorized peer such as the Pixel.
 
 
 ## Additive activation
@@ -169,7 +182,7 @@ does not restart an existing system daemon during activation.
    configuration, request human activation and reboot, then verify fresh socket
    denial, plain Docker rootless selection, booted/running configuration, real
    checkout smoke/checkpoint checks, and retained services.
-6. Complete the deferred networking check separately from `DOCKER-USER`, using an independent peer,
+6. Keep networking verification separate from `DOCKER-USER`, using an independent peer,
    a successful positive control, explicit bind fixtures, and tailnet-positive /
    physical-LAN-negative checks. Remove exact fixtures.
 7. Prepare an exact source cleanup allowlist only after restore and application
