@@ -179,7 +179,14 @@ outputs: OutputSnapshot[]
 focusedOutputId: string
 workspaces: WorkspaceSnapshot[]
 windows: WindowSnapshot[]
+lastFocusedWindowId: number | null
 ```
+
+`lastFocusedWindowId` is the id of the window niri most recently flagged
+focused. It is kept while keyboard focus is on a layer surface (a Stillsuit
+menu or panel) or on no window, when no `windows[]` row has `is_focused`, and
+becomes null once that window closes. The adapter derives it from the event
+stream and reconciliation snapshots; nothing polls for it.
 
 Snapshots contain plain data and no process handles. Plugin-specific view code
 may filter or bind these records. Compositor mutations, when added, go through

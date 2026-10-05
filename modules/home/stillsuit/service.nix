@@ -11,7 +11,11 @@ let
   agentPanelHelper = cfg.integrations.agentPanelHelperPackage;
   exactRuntimeInputs =
     cfg.runtimeInputs
-    ++ [ pkgs.wl-clipboard ]
+    # wl-copy and wl-paste exec `cat` to move clipboard data.
+    ++ [
+      pkgs.coreutils
+      pkgs.wl-clipboard
+    ]
     ++ lib.optional (agentPanelHelper != null) agentPanelHelper;
   localMode = cfg.development.sourceMode == "local";
   localSource = toString cfg.development.localSource;

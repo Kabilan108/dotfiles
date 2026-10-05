@@ -2,6 +2,7 @@
   lib,
   stdenvNoCC,
   makeWrapper,
+  coreutils,
   python3,
   gpu-screen-recorder,
   ffmpeg,
@@ -9,7 +10,10 @@
   omarecord ? null,
 }:
 let
+  # omarecord saves and restores the clipboard with wl-copy and wl-paste,
+  # which exec `cat`; the wrapper's PATH replaces the shell's.
   runtimeInputs = [
+    coreutils
     gpu-screen-recorder
     ffmpeg
   ]

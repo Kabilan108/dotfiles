@@ -52,7 +52,8 @@ services come from `context.services.get(id)`.
 
 ```
 theme        read-only theme.v2 view: semantic, component, typography, metrics, motion, effects
-compositor   apiVersion, name, revision, outputs[], focusedOutputId, workspaces[], windows[]
+compositor   apiVersion, name, revision, outputs[], focusedOutputId, workspaces[], windows[],
+             lastFocusedWindowId (last niri-focused window, kept while a layer surface holds focus; null once closed)
 services     revision, has(id), get(id), state(id)   — declared dependencies only
 panels       activeId, selectedId, selectedOutputId, focusedOutputId, isOpen(id), state(id)
 logger       debug/info/warn/error(message)
