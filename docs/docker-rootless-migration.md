@@ -91,3 +91,72 @@ Changing recipients does not revoke the existing key's access to encrypted copie
 in Git history. Re-encrypting unchanged values leaves those historical values
 recoverable; rotate relevant credentials when retiring that access. A broker must
 perform the authorized operation rather than return the privileged credential.
+
+## Implementation record, 2026-10-04
+
+The additive configuration is activated on Sietch. The live user daemon runs as
+UID 1000 at the intended socket and data root. Executor remains on system Docker,
+and its `/api/health` endpoint returns HTTP 200.
+
+Dev CLI commit `0ae5f102438537a9071f25e9e83ade2e13004b10` is integrated into all eight
+registered checkouts. The Cleveland linked worktree also includes it, with its
+explicit demo-data mount preserved. Local commits, staged documentation, dirty
+configuration, and component repository work were preserved. A disposable native
+bundle passed source builds, startup, migrations, exec, logs, checkpoint
+save/restore, pause/resume, doctor, and teardown checks.
+
+All 24 rootful PostgreSQL checkpoint volumes were transferred through protected
+SQL dumps. Verification covers every non-template database, table data, schema,
+sequences, large objects, roles, memberships, database metadata, settings, and
+host authentication configuration. Separate rootless volume identities and
+recovery-file checks bind the transfer proofs to the restored resources.
+
+All eight existing checkout stacks passed source builds, startup and migrations,
+doctor checks, database queries, and 24 HTTP checks. They were returned to their
+paused state. After final restoration and application verification, cleanup
+removed the explicit allowlist of 39 old checkout containers and 50 old volumes:
+24 database volumes, eight dependency volumes, and 18 attached anonymous volumes.
+Executor and unrelated containers, volumes, images, and archives were retained.
+The rootless maintenance timer is running again.
+
+Publishing tests passed for loopback and Sietch's Tailscale address, including
+browser access through the tailnet. Those listeners did not bind the LAN address.
+A remote LAN IPv6 firewall test passed with a working SSH control. The independent
+LAN IPv4 attempt was inconclusive because its SSH control also failed. Rootless
+publications use host listeners; system Docker's `DOCKER-USER` guard remains
+separate and does not establish rootless protection.
+
+Clara remains `jovyan`. Its existing notebook home received scoped ACLs for host
+UID 1000 and mapped UID 100999. Actual notebook writes and host read/write access
+passed; case/archive sources remained readable and the archive remained
+unwritable. No other checkout had an existing notebook home requiring preparation.
+
+Rootful development left root-owned generated build artifacts. One-time ownership
+preparation covered the shared UV cache and 8,874 untracked generated entries or
+empty mount directories across component and Python-package repositories. It
+preserved source contents, modes, and inode identities, excluded tracked files,
+symlinks, regular hard links, and notebook checkpoints, and used checked file
+descriptors for mutation. New rootless builds create ordinary container-root files
+as the host development user.
+
+Protected operator scripts, SQL recovery points, inventories, and verification
+records are retained under `/vault/userdata/moberg-rootless-migration/2026-10-04`.
+These SQL copies contain pre-startup state; recovery restores them and reruns the
+component migrations captured by application validation. They are not backups of
+subsequent development writes.
+
+The final configuration removes Docker-group membership only on Sietch. Activation,
+reboot, and fresh-process socket-denial verification remain mandatory before this
+Docker privilege boundary is complete. Jacurutu's membership is unchanged.
+
+The same activation closes a persisted-state path replacement risk. Sietch's
+`/vault` and `/vault/userdata` become root-owned sticky directories with a named
+write ACL for `kabilan`. Their children keep their ownership, so normal user-owned
+files remain writable and removable. Root-owned immediate children require root
+for rename or deletion. System Docker checks this protected path at startup and
+waits for its mount and tmpfiles setup. Its changed unit is not restarted merely
+because of this definition change, preserving Executor until the planned reboot.
+
+Use the reviewed Git revision in the final rebuild command. Other workers have
+unrelated Nix changes in this checkout; a dirty-tree rebuild would include those
+changes without this migration's review or validation.

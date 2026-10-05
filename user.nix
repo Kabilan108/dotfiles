@@ -29,13 +29,15 @@ in
   users.users.kabilan = {
     isNormalUser = true;
     description = "Tony Kabilan Okeke";
+    # Sietch development uses the unprivileged user daemon. Keep rootful
+    # Docker membership on other hosts until their workflows are migrated.
     extraGroups = [
       "networkmanager"
       "wheel"
-      "docker"
       "plugdev"
       "input"
-    ];
+    ]
+    ++ lib.optionals (!isSietch) [ "docker" ];
     shell = pkgs.bashInteractive;
     linger = true;
   };

@@ -55,7 +55,11 @@
   ];
 
   systemd.tmpfiles.rules = [
-    "d /vault 0755 kabilan users - -"
+    # Protect root-owned entries without changing ownership of their contents.
+    "d /vault 1755 root root - -"
+    "a /vault - - - - u::rwx,u:kabilan:rwx,g::r-x,m::rwx,o::r-x"
+    "d /vault/userdata 1755 root root - -"
+    "a /vault/userdata - - - - u::rwx,u:kabilan:rwx,g::r-x,m::rwx,o::r-x"
     "d /library 2775 kabilan users - -"
     "A+ /library - - - - g:users:rwX,d:g:users:rwx"
   ];

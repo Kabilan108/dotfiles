@@ -281,6 +281,16 @@ existing data root and Executor. Home Manager pins the dev CLI endpoint in
 The CLI verifies rootless mode before its first Docker operation and never falls
 back to system Docker when this endpoint is configured.
 
+Sietch also protects system Docker's persisted state from path replacement.
+`/vault` and `/vault/userdata` are root-owned sticky directories with a named
+write ACL for `kabilan`; their contents keep their existing ownership. This
+prevents that user from renaming the root-owned `userdata` or `docker` entries.
+Docker waits for the backing mount and tmpfiles setup, then checks every path
+component for root ownership, real directories, sticky parents, and a data root
+without non-root write access. The final activation updates these permissions;
+the startup checks take effect on the daemon's next start. Executor remains on
+the existing daemon during activation.
+
 Activation, full-stack validation, checkout rebases, data transfer, and group
 removal are separate checkpoints. See [the migration runbook](docker-rootless-migration.md).
 The vulnerability remains open until the installed configuration and fresh

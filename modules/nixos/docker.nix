@@ -12,6 +12,9 @@ let
     runtimeInputs = [ pkgs.iptables ];
     text = builtins.readFile ./docker-user-firewall.sh;
   };
+  rootfulStorageGuard = pkgs.writeText "docker-storage-guard.py" (
+    builtins.readFile ./docker-storage-guard.py
+  );
 in
 {
   options.dotfiles.docker.rootlessDevelopment.enable =
@@ -43,6 +46,13 @@ in
     ];
     users.users.kabilan.uid = lib.mkIf cfg.enable (lib.mkDefault 1000);
     systemd.user.services.docker.unitConfig.ConditionUser = lib.mkIf cfg.enable (lib.mkForce "kabilan");
+    systemd.services.docker = lib.mkIf cfg.enable {
+      # Load the new checks on the next start without restarting live Executor.
+      restartIfChanged = false;
+      unitConfig.RequiresMountsFor = "/vault/userdata/docker";
+      after = [ "systemd-tmpfiles-setup.service" ];
+      preStart = "${pkgs.python3}/bin/python -I -S ${rootfulStorageGuard}";
+    };
     home-manager.users.kabilan = lib.mkIf cfg.enable {
       xdg.configFile."moberg/docker.toml".text = ''
         host = "${developmentSocket}"
