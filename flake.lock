@@ -1376,6 +1376,7 @@
         "pagebin": "pagebin",
         "siren": "siren",
         "stylix": "stylix",
+        "t3-dot-bridge": "t3-dot-bridge",
         "tracer": "tracer",
         "try": "try",
         "walker": "walker",
@@ -1512,6 +1513,22 @@
         "type": "github"
       }
     },
+    "t3-dot-bridge": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "path": "./packages/t3-dot-bridge",
+        "type": "path"
+      },
+      "original": {
+        "path": "./packages/t3-dot-bridge",
+        "type": "path"
+      },
+      "parent": []
+    },
     "tinted-kitty": {
       "flake": false,
       "locked": {
@@ -1581,11 +1598,11 @@
         "nixpkgs": "nixpkgs_12"
       },
       "locked": {
-        "lastModified": 1784668831,
-        "narHash": "sha256-eBWyasP4ghkbEDBgi8HO7uzOGVo8IfrHgfw8c/C+Kko=",
+        "lastModified": 1791215555,
+        "narHash": "sha256-y0bR7eqmu+iJshgkQmWgrJ4bb383Xz+7qh2QRkwBvTg=",
         "owner": "kabilan108",
         "repo": "tracer",
-        "rev": "09a5c3155969127d0a4c9dd529edaeac3735fbfc",
+        "rev": "17de88f4720315ec6f1bcc8f9974d7d1983016c8",
         "type": "github"
       },
       "original": {

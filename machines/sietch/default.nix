@@ -73,8 +73,6 @@
     # so tag/outcome writes here (e.g. wiki:compiled from tracer-digest)
     # survive re-pushes. Only safe while nothing rsyncs into this root.
     programs.tracer.settings.archive.annotatable_roots = [ "/vault/userdata/tracer-ingest" ];
-    # Keep the watcher installed, but start it only when requested.
-    systemd.user.services.tracer-watch.Install.WantedBy = lib.mkForce [ ];
 
     dotfiles.wallpaper.desktop = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
   };
