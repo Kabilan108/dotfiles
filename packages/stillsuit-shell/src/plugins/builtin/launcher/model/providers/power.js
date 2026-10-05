@@ -1,14 +1,14 @@
 // Entries and keywords mirror the Walker power menu in
 // home/desktop/wayland/walker.nix.
 
-var meta = { id: "power", label: "Power", icon: "system-shutdown" }
+var meta = { id: "power", label: "Power", icon: "shell:power" }
 
 var ENTRIES = [
-    { action: "lock", text: "Lock", icon: "system-lock-screen", keywords: ["lock", "sleep"] },
-    { action: "suspend", text: "Suspend", icon: "system-suspend", keywords: ["sleep", "suspend"] },
-    { action: "logout", text: "Logout", icon: "system-log-out", keywords: ["logout", "quit"] },
-    { action: "reboot", text: "Reboot", icon: "system-reboot", keywords: ["reboot", "restart"] },
-    { action: "poweroff", text: "Shutdown", icon: "system-shutdown", keywords: ["shutdown", "poweroff"] }
+    { action: "lock", text: "Lock", icon: "shell:lock", keywords: ["lock", "sleep"] },
+    { action: "suspend", text: "Suspend", icon: "shell:sleep", keywords: ["sleep", "suspend"] },
+    { action: "logout", text: "Logout", icon: "shell:logout", keywords: ["logout", "quit"] },
+    { action: "reboot", text: "Reboot", icon: "shell:refresh", keywords: ["reboot", "restart"] },
+    { action: "poweroff", text: "Shutdown", icon: "shell:power", keywords: ["shutdown", "poweroff"] }
 ]
 
 var ACTIONS = ["lock", "suspend", "logout", "reboot", "poweroff"]

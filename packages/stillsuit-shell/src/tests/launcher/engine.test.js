@@ -189,6 +189,83 @@ const texts = rows => rows.map(row => row.text)
     assert.deepEqual(engine.run("$helium", "combi", env).rows.map(row => row.windowId), [2, 3, 1])
 }
 
+// While the launcher holds keyboard focus niri flags no window focused; the
+// newest focus timestamp then names the current window
+{
+    const engine = L.createEngine()
+    const stamped = (id, title, secs, nanos) =>
+        Object.assign(L.windowOf(id, title, "app" + id, secs), { focus_timestamp: { secs, nanos } })
+    const windows = [
+        stamped(1, "Mousepad", 269, 716000000),
+        stamped(2, "Foot", 272, 292000000),
+        stamped(3, "Firefox", 270, 996000000)
+    ]
+    const empty = engine.run("", "windows", baseEnv({ windows })).rows
+    assert.deepEqual(texts(empty), ["Firefox", "Mousepad", "Foot"], "newest stamp last with nothing focused")
+    assert.deepEqual(empty.map(row => row.current), [false, false, true])
+    assert.deepEqual(texts(engine.run("$", "combi", baseEnv({ windows })).rows), ["Firefox", "Mousepad", "Foot"])
+    const searched = engine.run("app", "windows", baseEnv({ windows })).rows
+    assert.deepEqual(texts(searched), ["Foot", "Firefox", "Mousepad"], "a query keeps strict recency")
+    assert.equal(searched[0].current, true)
+
+    const flagged = windows.map(window => window.id === 1 ? Object.assign({}, window, { is_focused: true }) : window)
+    assert.deepEqual(texts(engine.run("", "windows", baseEnv({ windows: flagged })).rows), ["Foot", "Firefox", "Mousepad"],
+        "a flagged window goes last even when another has a newer stamp")
+
+    const tied = [
+        L.windowOf(1, "Older", "a", 100),
+        L.windowOf(2, "Tie first", "b", 300),
+        L.windowOf(3, "Tie second", "c", 300)
+    ]
+    assert.deepEqual(texts(engine.run("", "windows", baseEnv({ windows: tied })).rows), ["Tie second", "Older", "Tie first"],
+        "among tied stamps the first listed counts as current")
+
+    const unstamped = [
+        L.windowOf(1, "Never A", "a", null),
+        L.windowOf(2, "Stamped", "b", 50),
+        L.windowOf(3, "Never B", "c", null)
+    ]
+    assert.deepEqual(texts(engine.run("", "windows", baseEnv({ windows: unstamped })).rows), ["Never A", "Never B", "Stamped"],
+        "never-focused windows are not current")
+    const none = [L.windowOf(1, "Never A", "a", null), L.windowOf(2, "Never B", "b", null)]
+    const noneRows = engine.run("", "windows", baseEnv({ windows: none })).rows
+    assert.deepEqual(texts(noneRows), ["Never A", "Never B"], "with no stamps nothing moves")
+    assert.equal(noneRows.some(row => row.current), false)
+
+    const single = engine.run("", "windows", baseEnv({ windows: [L.windowOf(7, "Only", "a", 10)] })).rows
+    assert.deepEqual(texts(single), ["Only"])
+    assert.equal(single[0].current, true)
+}
+
+// niri debounces focus stamps, so right after a focus change the newest stamp
+// can belong to the previous window; the window captured when the launcher
+// opened wins over both stamps and the flag
+{
+    const engine = L.createEngine()
+    const windows = [
+        L.windowOf(1, "Revisited", "a", 100),
+        L.windowOf(2, "Previous", "b", 300),
+        L.windowOf(3, "Older", "c", 200)
+    ]
+    const captured = engine.run("", "windows", baseEnv({ windows, currentWindowId: 1 })).rows
+    assert.deepEqual(texts(captured), ["Previous", "Older", "Revisited"], "the captured window goes last")
+    assert.deepEqual(captured.map(row => row.current), [false, false, true])
+    const searched = engine.run("e", "windows", baseEnv({ windows, currentWindowId: 1 })).rows
+    assert.equal(searched.find(row => row.windowId === 1).current, true)
+    assert.equal(searched.find(row => row.windowId === 2).current, false)
+
+    const flagged = windows.map(window => window.id === 3 ? Object.assign({}, window, { is_focused: true }) : window)
+    assert.deepEqual(texts(engine.run("", "windows", baseEnv({ windows: flagged, currentWindowId: 1 })).rows),
+        ["Previous", "Older", "Revisited"], "the captured window beats a later flag")
+
+    const gone = engine.run("", "windows", baseEnv({ windows, currentWindowId: 9 })).rows
+    assert.deepEqual(texts(gone), ["Older", "Revisited", "Previous"], "a closed captured window falls back to the newest stamp")
+    assert.deepEqual(texts(engine.run("", "windows", baseEnv({ windows: flagged, currentWindowId: 9 })).rows),
+        ["Previous", "Revisited", "Older"], "a closed captured window falls back to the flag")
+    assert.deepEqual(texts(engine.run("", "windows", baseEnv({ windows, currentWindowId: null })).rows),
+        ["Older", "Revisited", "Previous"], "no captured window falls back to the newest stamp")
+}
+
 // Empty combi -> apps by usage, then alphabetical
 {
     const engine = L.createEngine()
@@ -210,7 +287,7 @@ const texts = rows => rows.map(row => row.text)
     const power = engine.run("", "power", baseEnv()).rows
     assert.deepEqual(texts(power), ["Lock", "Suspend", "Logout", "Reboot", "Shutdown"])
     assert.deepEqual(power.map(row => row.icon), [
-        "system-lock-screen", "system-suspend", "system-log-out", "system-reboot", "system-shutdown"])
+        "shell:lock", "shell:sleep", "shell:logout", "shell:refresh", "shell:power"])
     assert.deepEqual(power.map(row => engine.activate(row, "").action),
         ["lock", "suspend", "logout", "reboot", "poweroff"])
     assert.deepEqual(texts(engine.run("sleep", "power", baseEnv()).rows), ["Suspend", "Lock"])
@@ -268,7 +345,7 @@ const texts = rows => rows.map(row => row.text)
         "/etc/notes.conf", "/home/tony/notes/", "/home/tony/relative/notes.txt", "/home/tony/work/notes.md"])
     assert.equal(byPath["/home/tony/work/notes.md"].text, "work/notes.md")
     assert.deepEqual(byPath["/home/tony/work/notes.md"].positions, [5, 6, 7, 8, 9])
-    assert.equal(byPath["/home/tony/notes/"].icon, "folder")
+    assert.equal(byPath["/home/tony/notes/"].icon, "shell:folder")
     assert.equal(byPath["/etc/notes.conf"].text, "/etc/notes.conf")
     const row = byPath["/home/tony/work/notes.md"]
     assert.deepEqual(row.actions.map(action => action.id), ["open", "reveal", "copy"])
@@ -489,6 +566,47 @@ const texts = rows => rows.map(row => row.text)
         for (let index = 0; index < maxResults; index++) expected.push("apps:a" + index)
         assert.deepEqual(rows.map(row => row.key), expected, `maxResults ${maxResults}`)
     }
+}
+
+// Non-app rows name glyphs from Stillsuit's icon pack, which icon themes
+// without non-symbolic names cannot break; app and window rows keep the theme
+{
+    const fs = require("node:fs")
+    const path = require("node:path")
+    const iconDir = path.join(__dirname, "../../ui/icons")
+    const engine = L.createEngine()
+    const env = baseEnv({
+        clipboardItems: [
+            { id: "t", kind: "text", preview: "hello", mime: "text/plain", bytes: 5, createdAt: 2, lastUsed: 2 },
+            { id: "i", kind: "image", preview: "", mime: "image/png", bytes: 9, createdAt: 1, lastUsed: 1, path: "/tmp/i.png" }
+        ],
+        calcResult: { text: "2+2*3", value: "8", error: "" },
+        filesResult: { text: "notes", paths: ["/home/tony/notes/", "/home/tony/notes.md"] }
+    })
+    const iconsOf = (text, mode) => engine.run(text, mode, env).rows.map(row => row.provider + "=" + row.icon)
+    assert.deepEqual(iconsOf("", "power"), [
+        "power=shell:lock", "power=shell:sleep", "power=shell:logout", "power=shell:refresh", "power=shell:power"])
+    assert.deepEqual(iconsOf("", "profiles"), ["profiles=shell:settings", "profiles=shell:settings", "profiles=shell:settings"])
+    assert.deepEqual(iconsOf(":", "combi"), ["clipboard=shell:copy", "clipboard=shell:image"])
+    assert.deepEqual(iconsOf("/notes", "combi").sort(), ["files=shell:file", "files=shell:folder"])
+    assert.equal(iconsOf("2+2*3", "combi")[0], "calc=shell:calculator")
+    assert.deepEqual(iconsOf("example.com", "combi"), ["web=shell:search", "web=shell:search"])
+
+    const shellNames = new Set()
+    for (const [text, mode] of [["", "power"], ["", "profiles"], [":", "combi"], ["/notes", "combi"],
+        ["2+2*3", "combi"], ["example.com", "combi"]]) {
+        for (const row of engine.run(text, mode, env).rows) shellNames.add(row.icon.slice("shell:".length))
+    }
+    for (const name of shellNames)
+        assert.equal(fs.existsSync(path.join(iconDir, name + ".svg")), true, `ui/icons/${name}.svg exists`)
+    const shellIconQml = fs.readFileSync(path.join(__dirname, "../../ui/ShellIcon.qml"), "utf8")
+    for (const name of shellNames)
+        assert.equal(shellIconQml.includes(`"${name}"`), true, `${name} is in the ShellIcon catalog`)
+
+    const themed = engine.run("", "combi", env).rows.concat(engine.run("", "windows", env).rows)
+        .filter(row => row.provider === "apps" || row.provider === "windows")
+    assert.equal(themed.length > 0, true)
+    assert.equal(themed.some(row => row.icon.indexOf("shell:") === 0), false, "app and window rows use theme icons")
 }
 
 console.log("engine: ok")

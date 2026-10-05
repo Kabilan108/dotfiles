@@ -5,7 +5,7 @@
 // follow by score. The start offset is not penalised: where a match sits in a
 // long clip says little about relevance.
 
-var meta = { id: "clipboard", label: "Clipboard", icon: "edit-paste", snapshot: "clipboardItems" }
+var meta = { id: "clipboard", label: "Clipboard", icon: "shell:copy", snapshot: "clipboardItems" }
 
 var MAX_TITLE_LENGTH = 200
 var ACTIONS = [
@@ -126,7 +126,7 @@ function query(text, env) {
             provider: meta.id,
             text: entry.item.text,
             subtext: entry.item.subtext,
-            icon: entry.item.image ? "image-x-generic" : "edit-paste",
+            icon: entry.item.image ? "shell:image" : "shell:copy",
             score: ordered.length - rowIndex,
             positions: entry.positions,
             actions: ACTIONS,

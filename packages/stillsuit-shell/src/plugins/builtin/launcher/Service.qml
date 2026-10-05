@@ -124,6 +124,11 @@ Scope {
     property var _iconCache: ({})
     property var _windows: []
     property int _windowsRevision: -1
+    // The window niri flagged focused when the menu opened, else the
+    // compositor's last focused window if it is still open, else null. Once
+    // the menu (or a panel opened before it) holds keyboard focus niri flags
+    // none, and its debounced focus stamps can still name the previous window.
+    property var _currentWindowId: null
     property var _profiles: ({ active: "", available: [] })
     property int _profilesRevision: 0
     property string _profilesKey: ""
@@ -152,6 +157,11 @@ Scope {
         var request = _request(payload)
         _finishWarmup()
         _ensureHistory()
+        // A mode switch reopens the menu while it holds focus; keep what the
+        // first open saw.
+        var focusedId = _focusedWindowId()
+        if (focusedId !== null || !opened)
+            _currentWindowId = focusedId !== null ? focusedId : _lastFocusedWindowId()
         mode = request.mode
         query = request.query
         selectedIndex = 0
@@ -299,6 +309,20 @@ Scope {
         return status === "ok" || (intent.type === "profile.activate" && status === "started")
     }
 
+    function _focusedWindowId() {
+        var windows = context && context.compositor ? context.compositor.windows || [] : []
+        for (var index = 0; index < windows.length; index++) {
+            if (windows[index] && windows[index].is_focused === true)
+                return windows[index].id === undefined ? null : windows[index].id
+        }
+        return null
+    }
+
+    function _lastFocusedWindowId() {
+        var windowId = context && context.compositor ? context.compositor.lastFocusedWindowId : null
+        return windowId !== undefined && windowId !== null && _windowExists(windowId) ? windowId : null
+    }
+
     function _windowExists(windowId) {
         var windows = context && context.compositor ? context.compositor.windows || [] : []
         for (var index = 0; index < windows.length; index++) {
@@ -442,6 +466,7 @@ Scope {
         return {
             apps: _apps,
             windows: _windows,
+            currentWindowId: _currentWindowId,
             profiles: _profiles,
             clipboardItems: _clipboardItems,
             filesResult: filesResult,
@@ -613,8 +638,9 @@ Scope {
         var icons = []
         for (var index = 0; index < rows.length && icons.length < warmupIconCount; index++) {
             var icon = String(rows[index].icon || "")
-            // Paths load without a theme lookup.
-            if (icon !== "" && icon.charAt(0) !== "/" && icons.indexOf(icon) === -1)
+            // Paths and shell glyphs load without a theme lookup.
+            if (icon !== "" && icon.charAt(0) !== "/" && icon.indexOf("shell:") !== 0
+                    && icons.indexOf(icon) === -1)
                 icons.push(icon)
         }
         _warmupIcons = icons

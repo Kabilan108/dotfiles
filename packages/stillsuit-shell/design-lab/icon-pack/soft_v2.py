@@ -172,6 +172,40 @@ def draw_soft(name: str, g: Glyph) -> bool:
         # Letter cutouts remain transparent and follow ShellIcon's inherited fill.
         g.polygons[holes:]=[list(reversed(polygon)) for polygon in g.polygons[holes:]]
         rounded([(10.9,9.3),(12.7,9.3),(12.7,11.5),(10.9,11.5)],.3,True)
+    elif name == 'sleep':
+        # Crescent: the outer disc minus a bite disc at the upper right,
+        # traced as one closed outline between the two intersections.
+        (x1,y1,r1),(x2,y2,r2)=(12,12.5,8.5),(17,7.5,7)
+        d=math.hypot(x2-x1,y2-y1); a=(r1*r1-r2*r2+d*d)/(2*d); h=math.sqrt(r1*r1-a*a)
+        ux,uy=(x2-x1)/d,(y2-y1)/d; mx,my=x1+a*ux,y1+a*uy
+        tips=[(mx-h*uy,my+h*ux),(mx+h*uy,my-h*ux)]
+        angle=lambda cx,cy,p: math.degrees(math.atan2(p[1]-cy,p[0]-cx))
+        outer_start,outer_end=angle(x1,y1,tips[0]),angle(x1,y1,tips[1])%360
+        inner_start,inner_end=angle(x2,y2,tips[1])%360,angle(x2,y2,tips[0])
+        points=[]
+        for start,end,cx,cy,r in ((outer_start,outer_end,x1,y1,r1),(inner_start,inner_end,x2,y2,r2)):
+            steps=max(2,int(abs(end-start)/12))
+            points+=[(cx+r*math.cos(math.radians(start+(end-start)*i/steps)),cy+r*math.sin(math.radians(start+(end-start)*i/steps))) for i in range(steps+1)]
+        line(*points,points[0])
+    elif name == 'logout':
+        # Open door frame on the left, arrow leaving to the right.
+        line((11,3.5),(7,3.5)); arc(7,5.7,2.2,180,270); line((4.8,5.7),(4.8,18.3))
+        arc(7,18.3,2.2,90,180); line((7,20.5),(11,20.5))
+        line((10,12),(20,12)); line((16,8),(20,12),(16,16))
+    elif name == 'calculator':
+        box(4.5,2.5,15,19)
+        rounded([(8,6),(16,6),(16,9.6),(8,9.6)],.8)
+        for x in (8.6,12,15.4):
+            for y in (13.6,17.4): disk(x,y,1.05)
+    elif name == 'image':
+        box(3,4,18,16)
+        disk(8.5,9.3,1.7)
+        line((3.6,17.2),(9,12.2),(15,18.2))
+        line((12.6,15.8),(15.8,12.8),(20.4,17.2))
+    elif name == 'file':
+        rounded([(5,2.5),(13.5,2.5),(19,8),(19,21.5),(5,21.5)],2.2)
+        line((13.5,3),(13.5,8),(18.5,8))
+        line((8.5,13),(15.5,13)); line((8.5,17),(13,17))
     else:
         return False
     return True

@@ -152,6 +152,13 @@ FocusScope {
         return row.provider === "windows" ? service.iconForAppId(row.appId) : String(row.icon || "")
     }
 
+    // "shell:<name>" rows show a glyph from Stillsuit's icon pack; app and
+    // window rows keep the icon theme.
+    function shellIconName(row) {
+        var icon = row ? String(row.icon || "") : ""
+        return icon.indexOf("shell:") === 0 ? icon.slice(6) : ""
+    }
+
     function emptyText() {
         if (service.busy)
             return service.filesBusy ? "Searching files…" : "Calculating…"
@@ -473,6 +480,7 @@ FocusScope {
             readonly property var row: root.keyedRows.rows[modelData] || null
             readonly property bool selected: modelData === root.selectedKey
             readonly property bool current: !!row && row.current === true
+            readonly property string shellIcon: root.shellIconName(row)
             width: ListView.view ? ListView.view.width : 0
             height: root.rowHeight
 
@@ -484,15 +492,33 @@ FocusScope {
                 border.color: root.theme.semantic.outline.focus
             }
 
-            Ui.ShellAppIcon {
+            Item {
                 id: icon
                 anchors.left: parent.left
                 anchors.leftMargin: root.unit * 2
                 anchors.verticalCenter: parent.verticalCenter
-                theme: root.theme
-                icon: root.rowIcon(rowItem.row)
-                fallbackLabel: rowItem.row ? String(rowItem.row.text || "") : ""
-                sizeRole: "large"
+                width: appIcon.implicitWidth
+                height: appIcon.implicitHeight
+
+                Ui.ShellAppIcon {
+                    id: appIcon
+                    objectName: "launcher-row-app-icon"
+                    anchors.fill: parent
+                    visible: rowItem.shellIcon === ""
+                    theme: root.theme
+                    icon: visible ? root.rowIcon(rowItem.row) : ""
+                    fallbackLabel: rowItem.row ? String(rowItem.row.text || "") : ""
+                    sizeRole: "large"
+                }
+
+                Ui.ShellIcon {
+                    objectName: "launcher-row-shell-icon"
+                    anchors.centerIn: parent
+                    visible: rowItem.shellIcon !== ""
+                    theme: root.theme
+                    name: visible ? rowItem.shellIcon : "circle"
+                    role: rowItem.current ? "accent" : "secondary"
+                }
             }
 
             Column {

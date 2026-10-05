@@ -1,8 +1,16 @@
 // Ordering is most recently focused first, windows that were never focused
-// last. The empty query is alt-tab style: the focused window moves to the end
+// last. The empty query is alt-tab style: the current window moves to the end
 // so the first row is the previous window. With a query, matches within
 // Matcher.STRONG_MATCH_RATIO of the best one keep strict recency order, the
-// focused window included; weaker matches follow by score.
+// current window included; weaker matches follow by score.
+//
+// The current window is env.currentWindowId when that window still exists,
+// else the one niri flags focused, else the one with the newest focus
+// timestamp. While the launcher's layer surface holds keyboard focus niri flags
+// no window at all, and it debounces stamp updates, so right after a focus
+// change the newest stamp can still be the previous window's. The service
+// captures the flagged window as it opens, before the menu takes focus, or the
+// compositor's lastFocusedWindowId when a layer surface already holds focus.
 
 var meta = { id: "windows", label: "Windows", icon: "preferences-system-windows", snapshot: "windows" }
 
@@ -79,12 +87,24 @@ function itemsOf(env) {
     return env.prepared && env.prepared.windows ? env.prepared.windows : prepare(env.windows, env.matcher)
 }
 
-function focusedLast(entries) {
-    if (entries.length < 2) return entries
+// Items arrive in recency order, so the first one holds the newest stamp.
+function currentOf(items, currentWindowId) {
+    var captured = currentWindowId === undefined || currentWindowId === null || currentWindowId === ""
+        ? NaN : Number(currentWindowId)
+    for (var capturedIndex = 0; isFinite(captured) && capturedIndex < items.length; capturedIndex++) {
+        if (items[capturedIndex].windowId === captured) return items[capturedIndex]
+    }
+    for (var index = 0; index < items.length; index++) {
+        if (items[index].focused) return items[index]
+    }
+    return items.length > 0 && items[0].timestamp !== null ? items[0] : null
+}
+
+function currentLast(entries, current) {
+    if (entries.length < 2 || current === null) return entries
     for (var index = 0; index < entries.length - 1; index++) {
-        if (entries[index].item.focused) {
-            var focused = entries.splice(index, 1)[0]
-            entries.push(focused)
+        if (entries[index].item === current) {
+            entries.push(entries.splice(index, 1)[0])
             break
         }
     }
@@ -93,6 +113,7 @@ function focusedLast(entries) {
 
 function query(text, env) {
     var items = itemsOf(env)
+    var current = currentOf(items, env.currentWindowId)
     var strong = []
     var weak = []
     if (text === "") {
@@ -121,7 +142,7 @@ function query(text, env) {
             return b.score - a.score || compareRecency(a.item, b.item)
         })
     }
-    var ordered = (text === "" ? focusedLast(strong) : strong).concat(weak)
+    var ordered = (text === "" ? currentLast(strong, current) : strong).concat(weak)
     var rows = []
     for (var rowIndex = 0; rowIndex < ordered.length; rowIndex++) {
         var entry = ordered[rowIndex]
@@ -135,7 +156,7 @@ function query(text, env) {
             score: ordered.length - rowIndex,
             positions: entry.positions,
             actions: [{ id: "focus", label: "Focus" }],
-            current: item.focused,
+            current: item === current,
             windowId: item.windowId,
             appId: item.appId
         })

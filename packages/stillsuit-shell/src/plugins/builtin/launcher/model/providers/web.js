@@ -11,7 +11,7 @@
 // An explicit URL ranks near the top; an inferred one ranks below every other
 // match, just above the trailing search row.
 
-var meta = { id: "web", label: "Web", icon: "web-browser" }
+var meta = { id: "web", label: "Web", icon: "shell:search" }
 
 var DEFAULT_ENGINE = "https://unduck.link?q=%TERM%"
 var URL_SCORE = 800000

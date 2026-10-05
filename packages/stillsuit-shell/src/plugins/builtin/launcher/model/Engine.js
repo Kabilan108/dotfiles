@@ -20,6 +20,9 @@
 //   windows: niri window JSON [{id, title, app_id, pid, workspace_id,
 //            is_focused, focus_timestamp: {secs, nanos} | null, ...,
 //            workspaceName?, outputName?}]
+//   currentWindowId: id of the window focused when the launcher opened, or
+//                    null; names the current window ahead of is_focused and
+//                    focus_timestamp while that window is still listed
 //   profiles: {active: id, available: [{id, name, description}]}
 //   clipboardItems: [{id, kind: "text"|"image", preview, mime, bytes,
 //                     createdAt, lastUsed, path?}]   (times in ms)
@@ -39,7 +42,9 @@
 // [{id, label}], preview?, current?, trailing?, generation} plus provider
 // fields (desktopId, windowId, url, path, relativePath, itemId, profileId,
 // action, value, sortKey). actions[0] is the default action. generation
-// identifies the run() that produced the row.
+// identifies the run() that produced the row. icon is a freedesktop icon name
+// or path for app and window rows, and "shell:<name>" for a glyph from
+// Stillsuit's own icon pack (ui/icons) on every other row.
 //
 // Returned rows are deeply frozen copies (V4 still lets push() and index
 // writes through on frozen arrays). activate() only accepts rows from
@@ -370,6 +375,7 @@ function create(modules) {
             prepared: prepare(source),
             apps: source.apps,
             windows: source.windows,
+            currentWindowId: source.currentWindowId,
             profiles: source.profiles,
             clipboardItems: source.clipboardItems,
             filesResult: source.filesResult,
