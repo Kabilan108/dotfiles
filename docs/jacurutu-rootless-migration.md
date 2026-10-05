@@ -3,8 +3,12 @@
 ## Current checkpoint
 
 Prepared on 2026-10-05 from `/tmp/jacurutu-rootless-docker-handoff.md`, copied
-from Sietch and checksum verified. Rootless Docker is not yet activated on
-Jacurutu. Rebuilds and reboot are human-operated under `AGENTS.md`.
+from Sietch and checksum verified. The additive system was activated and its
+rootless daemon is running on Jacurutu. Home Manager failed to link Docker's
+configuration because its existing `~/.config/moberg` parent was root-owned.
+The repair declares ownership of that parent directory and orders Home Manager
+after tmpfiles setup/resetup; it preserves secret-file ownership and contents.
+Rebuilds and reboot are human-operated under `AGENTS.md`.
 
 The root flake covers Sietch and Jacurutu. The separate `raspi` flake is outside
 this migration. Shared development defaults enable rootless Docker and deny
@@ -44,9 +48,9 @@ remain in place. Preserve the original lifecycle state and `last_used` value
 | `dev-server_dashboard-node-modules` | Recreate dependencies rootless after successful pilot; preserve source until application validation |
 | Anonymous volume `adc3aeb7c171e96ddc4ced8fcb3be607dfd04eff38e7969af4f0062161233aad` | Read-only inventory found no files, 4 KiB; retain until scoped cleanup decision |
 | Anonymous volume `cc62d305ca07226c81913a28f84c499cb5a4b5bdeb6891fb5b9b979337a8c643` | Read-only inventory found no files, 4 KiB; retain until scoped cleanup decision |
-| Stopped `moberg-clara-local` | Existing `jovyan` notebook home and read-only archive/source binds; migration decision pending |
-| Stopped `hungry_brown` | Connect-client experiment with a writable layer; retain unchanged pending user decision |
-| Stopped `hardcore_dirac` | Jupyter experiment with a writable layer; retain unchanged pending user decision |
+| `moberg-clara-local` | Deleted at explicit user request; notebook home, archives, and image retained |
+| `hungry_brown` | Deleted at explicit user request; image retained |
+| `hardcore_dirac` | Deleted at explicit user request; image retained |
 | Four dev-server images | Rebuild Dashboard, IAM, Query, and export-worker from preserved component revisions; retain source images |
 | `moberg-clara-local:dev` | Unique local image; retain and transfer/rebuild if Clara is migrated |
 | `jupyterhub-singleuser-dev:latest` | Local image used by stopped experiment; retain unchanged |
@@ -58,10 +62,11 @@ remain in place. Preserve the original lifecycle state and `last_used` value
 | LazyDocker and interactive Docker/Compose | New sessions inherit the UID-derived rootless endpoint |
 | Moberg maintenance CLI | Configured rootless endpoint; maintenance timers are disabled on Jacurutu |
 
-All three standalone containers are stopped, unprivileged, have no devices or
-Docker socket mounts, and need no demonstrated privileged runtime behavior.
-Preserve their writable layers until disposition is settled. Nothing has been
-deleted or globally pruned.
+All three standalone containers were stopped, unprivileged, and had no devices
+or Docker socket mounts. The user explicitly requested deletion of all three.
+Their exact IDs were revalidated immediately before removal without force or
+volume deletion. Image IDs and the five-volume inventory remained unchanged.
+No global prune was run; no standalone container migration is required.
 
 ## Additive activation
 

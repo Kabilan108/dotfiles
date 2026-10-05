@@ -57,6 +57,9 @@ in
 
     systemd.tmpfiles.rules = lib.mkIf cfg.enable [
       "d /vault/userdata/docker-rootless 0700 kabilan users -"
+      # Agenix can create this parent as root before Home Manager links Docker's
+      # user configuration. Set the directory owner without touching secrets.
+      "d ${config.users.users.kabilan.home}/.config/moberg 0755 kabilan users -"
     ];
     users.users.kabilan.uid = lib.mkIf cfg.enable (lib.mkDefault 1000);
     systemd.user.services.docker.unitConfig.ConditionUser = lib.mkIf cfg.enable (lib.mkForce "kabilan");
@@ -67,6 +70,10 @@ in
       after = [ "systemd-tmpfiles-setup.service" ];
       preStart = "${pkgs.python3}/bin/python -I -S ${rootfulStorageGuard}";
     };
+    systemd.services.home-manager-kabilan.after = lib.mkIf cfg.enable [
+      "systemd-tmpfiles-setup.service"
+      "systemd-tmpfiles-resetup.service"
+    ];
     home-manager.users.kabilan = lib.mkIf cfg.enable {
       xdg.configFile."moberg/docker.toml".text = ''
         host = "${developmentSocket}"
