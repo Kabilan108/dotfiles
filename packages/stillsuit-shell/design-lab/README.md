@@ -16,7 +16,9 @@ other output for as long as it runs (a `notifications.avoidOutputs` runtime
 preference, cleared on stop). With a single output the two bars stack on it. Real plugin
 QML runs unchanged; only the inputs are synthetic:
 
-- services receive fixture `model` objects instead of hardware and helpers;
+- services receive fixture `model` objects instead of hardware and helpers
+  (every fixture gets a clipboard model, empty unless it lists items, so the
+  workbench never runs the clipboard collector);
 - the compositor snapshot comes from the fixture, not Niri;
 - notifications are injected through the real notification service without
   claiming the D-Bus name;
@@ -66,9 +68,9 @@ stillsuit-workbench profile work
 ```
 
 Use the matching path below a custom `--sandbox` directory when supplied. The
-production Elephant picker is intentionally outside the workbench. Profile
-creation and editing remain command-line operations; the workbench commands
-exercise the same profile IPC used by the picker.
+production profile picker (the launcher's profiles mode, Mod+Alt+P) is outside
+the workbench. Profile creation and editing remain command-line operations; the
+workbench commands exercise the same profile IPC used by the picker.
 
 Fixtures live in `fixtures/*.json` (`schemaVersion: 1`). Each one carries the
 compositor snapshot, per-service model documents keyed by plugin id,

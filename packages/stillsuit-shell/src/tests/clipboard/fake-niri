@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""Canned `niri msg --json windows` (and `focused-window`) for collector tests.
+
+Each call appends its argv to $FAKE_CLIP_DIR/niri.log, appends `niri <argv>`
+to calls.log (the fake wl-paste's log, so tests see the order of the two) and
+counts itself in niri-count. Call N reads each control file below as <name>.N
+when that exists, else as <name>, so a test can script one answer per call.
+niri-windows holds a JSON list of windows in which `focus_age_ms` becomes a
+`focus_timestamp` that many milliseconds before the first call's
+CLOCK_MONOTONIC (kept in niri-epoch), the clock niri stamps focus with; a
+window's stamp therefore stays put across calls. Without it, niri-reply holds
+the bytes to print (absent: `[]`). niri-exit holds an exit status and
+niri-sleep a delay in seconds before replying. `focused-window` answers with
+the focused window of the same list.
+"""
+
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+root = Path(os.environ["FAKE_CLIP_DIR"])
+with open(root / "niri.log", "a", encoding="utf-8") as log:
+    log.write(" ".join(sys.argv[1:]) + "\n")
+with open(root / "calls.log", "a", encoding="utf-8") as log:
+    log.write(" ".join(["niri", *sys.argv[1:]]) + "\n")
+request = sys.argv[1:]
+if request not in (["msg", "--json", "windows"], ["msg", "--json", "focused-window"]):
+    print("fake niri: unexpected arguments", file=sys.stderr)
+    sys.exit(64)
+counter = root / "niri-count"
+call = int(counter.read_text()) + 1 if counter.exists() else 1
+counter.write_text(str(call))
+epoch = root / "niri-epoch"
+if not epoch.exists():
+    epoch.write_text(str(time.clock_gettime_ns(time.CLOCK_MONOTONIC)))
+epoch_ns = int(epoch.read_text())
+
+
+def control(name: str) -> Path:
+    numbered = root / f"{name}.{call}"
+    return numbered if numbered.exists() else root / name
+
+
+if control("niri-sleep").exists():
+    time.sleep(float(control("niri-sleep").read_text()))
+spec = control("niri-windows")
+if spec.exists():
+    windows = json.loads(spec.read_text())
+    for window in windows:
+        if "focus_age_ms" in window:
+            stamp = epoch_ns - int(window.pop("focus_age_ms") * 1_000_000)
+            window["focus_timestamp"] = {"secs": stamp // 1_000_000_000, "nanos": stamp % 1_000_000_000}
+    if request[-1] == "focused-window":
+        windows = next((window for window in windows if window.get("is_focused")), None)
+    reply = (json.dumps(windows) + "\n").encode()
+else:
+    path = control("niri-reply")
+    reply = path.read_bytes() if path.exists() else b"[]\n"
+sys.stdout.buffer.write(reply)
+sys.exit(int(control("niri-exit").read_text()) if control("niri-exit").exists() else 0)

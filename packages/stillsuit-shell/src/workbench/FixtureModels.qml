@@ -189,6 +189,19 @@ QtObject {
         }
     }
 
+    property Component clipboardComponent: Component {
+        QtObject {
+            property int revision: 0
+            property var items: []
+            function copy(id) { root.actionRecorded("stillsuit.clipboard", "copy", id); return "ok" }
+            function remove(id) {
+                items = items.filter(function(item) { return item.id !== id }); revision += 1
+                root.actionRecorded("stillsuit.clipboard", "remove", id); return "ok"
+            }
+            function clear() { items = []; revision += 1; root.actionRecorded("stillsuit.clipboard", "clear", ""); return "ok" }
+        }
+    }
+
     property Component trayItemComponent: Component {
         QtObject {
             property string id: ""
@@ -249,6 +262,10 @@ QtObject {
         }
         if (s["stillsuit.agent-usage"])
             next["stillsuit.agent-usage"] = agentUsageComponent.createObject(root, _plain(s["stillsuit.agent-usage"]))
+        // Every fixture gets a clipboard model, empty unless it lists items:
+        // without one the service would start the collector on the session.
+        next["stillsuit.clipboard"] = clipboardComponent.createObject(root,
+            _plain(s["stillsuit.clipboard"] || { items: [] }))
         if (s["stillsuit.tray"]) {
             var tray = _plain(s["stillsuit.tray"])
             var trayItems = []
