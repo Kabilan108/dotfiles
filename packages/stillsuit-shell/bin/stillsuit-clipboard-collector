@@ -1,0 +1,1015 @@
+#!/usr/bin/env python3
+"""Clipboard collector for the stillsuit.clipboard service.
+
+`watch` supervises `wl-paste --watch <collector> emit ...` in its own process
+group and kills the whole group when it stops or its parent dies. wl-paste runs
+`emit` once per selection change and waits for it, so emits never overlap.
+`emit` classifies the offer, stores an accepted payload as a content-addressed
+blob and prints exactly one JSON event line. Nothing here prints or logs
+clipboard content or source URLs, except the preview of a recorded text item.
+
+`init` prepares the private state directory, `gc` deletes old unreferenced
+blobs, `rm` deletes named blobs and `copy` re-offers a verified blob through
+wl-copy with a fixed argv. `copy` exits with BLOB_GONE when the blob is
+missing or does not hold its content, so the service can drop the entry.
+
+Every state path is opened without following symlinks, and files are reached
+relative to those directory descriptors. Replacing a blob and rm/gc's
+check-then-unlink hold an exclusive flock on <state>/.lock, so a removal never
+deletes a blob that a capture replaced after the check.
+"""
+
+from __future__ import annotations
+
+import argparse
+import contextlib
+import ctypes
+import dataclasses
+import errno
+import fcntl
+import functools
+import hashlib
+import json
+import math
+import os
+import re
+import secrets
+import selectors
+import signal
+import stat
+import subprocess
+import sys
+import threading
+import time
+from collections.abc import Callable, Iterator, Mapping
+from pathlib import Path
+
+HISTORY_NAME = "history.v1.json"
+BLOBS_NAME = "blobs"
+LOCK_NAME = ".lock"
+EMPTY_HISTORY = b'{"schemaVersion":1,"entries":[]}\n'
+SHA_RE = re.compile(r"^[0-9a-f]{64}$")
+TEMP_PREFIX = ".tmp-"
+# A MIME type or an X11-style atom such as UTF8_STRING; never starts with "-".
+MIME_RE = re.compile(
+    r"^(?:[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}"
+    r"(?:;[ ]?[A-Za-z0-9_.-]{1,64}=[A-Za-z0-9_.-]{1,64})?"
+    r"|[A-Z][A-Z0-9_]{0,63})$"
+)
+
+PASSWORD_HINT = "x-kde-passwordManagerHint"
+CHROMIUM_SOURCE = "chromium/x-source-url"
+FIREFOX_SOURCE = "text/x-moz-url-priv"
+SOURCE_MARKERS = (CHROMIUM_SOURCE, FIREFOX_SOURCE)
+GECKO_TEXT = "text/plain;charset=utf-8"
+GECKO_ONLY_TARGETS = ("SAVE_TARGETS", "COMPOUND_TEXT")
+UNATTRIBUTED_FIREFOX_MODES = ("skip", "record")
+DEFAULT_GECKO_APP_IDS = (r"^(zen|zen-beta|zen-browser|zen-alpha|zen-twilight|app\.zen_browser\.zen"
+                         r"|firefox|firefox-esr|firefox-nightly|librewolf|org\.mozilla\.firefox)$")
+NIRI_TIMEOUT_SEC = 0.3
+# Separate wl-paste calls cannot be tied to one offer, so a text copy is kept
+# only when its whole classification (types, markers, two payload reads and,
+# for GTK3-shaped offers, two niri samples) fits in this bound. It normally
+# takes 20-40 ms, but a VM encoding a screen recording in software measured
+# 250-280 ms, so the bound leaves room for load. Mixing another offer's
+# metadata with a secret's payload, or hiding a browser visit between
+# identical niri samples, still needs several human actions inside it.
+TEXT_GATE_SEC = 1.0
+NIRI_REPLY_BYTES = 1024 * 1024
+DEFAULT_FOCUS_SETTLE_MS = 2000
+TEXT_TYPES = ("text/plain;charset=utf-8", "UTF8_STRING", "text/plain")
+# Image preference order after image/png follows Omarchy's clipboard capture.sh
+# (basecamp/omarchy, MIT License).
+IMAGE_TYPES = ("image/png", "image/jpeg", "image/webp", "image/gif", "image/bmp", "image/tiff")
+# Bitwarden's extension clears with "\u0000" (Chromium), "" (Firefox) or " "
+# (legacy fallback). Only Firefox's clear offers text, with the unattributed
+# Gecko shape, so only an offer of that shape is a clear; any other app's
+# empty text, such as a failed sender's zero bytes, is just empty.
+CLEAR_PAYLOADS = (b"", b"\x00", b" ")
+
+PREVIEW_BYTES = 2048
+MARKER_BYTES = 8192
+READ_TIMEOUT_SEC = 5.0
+LOCK_TIMEOUT_SEC = 5.0
+# A capture stages its payload in a temp file before taking the lock, so gc
+# leaves temp files this young alone whatever its grace period.
+TEMP_MIN_AGE_SEC = 600.0
+BLOB_GONE = 3
+DEFAULT_MAX_TEXT = 1024 * 1024
+DEFAULT_MAX_IMAGE = 20 * 1024 * 1024
+PR_SET_PDEATHSIG = 1
+# `watch` exports its pid to wl-paste, and so to every emit wl-paste starts.
+WATCH_PID_ENV = "STILLSUIT_CLIPBOARD_WATCH_PID"
+WL_PASTE_COMM = "wl-paste"
+STOP_SIGNALS = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
+OPEN_DIR = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+# O_NONBLOCK keeps a planted FIFO from blocking the open; S_ISREG rejects it.
+OPEN_READ = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
+
+
+def _text_gate_sec() -> float:
+    """The QML fixture's fake wl-paste is a Python script whose many startups
+    alone approach the bound, so its runner raises it through the environment.
+    Values outside (0, 5] fall back to the production bound."""
+    try:
+        value = float(os.environ.get("STILLSUIT_CLIPBOARD_TEXT_GATE_SEC", ""))
+    except ValueError:
+        return TEXT_GATE_SEC
+    return value if 0 < value <= 5 else TEXT_GATE_SEC
+
+
+class CollectorError(Exception):
+    pass
+
+
+class TooLarge(Exception):
+    pass
+
+
+class NotRegular(CollectorError):
+    pass
+
+
+@dataclasses.dataclass(frozen=True)
+class Offer:
+    """What one selection advertises, read before its payload.
+
+    `markers` maps each source marker type to its first line: None when the
+    type is not offered, "" when it is offered and empty. A marker type that is
+    offered but unreadable, oversize or undecodable is in `unreadable` and
+    never treated as empty.
+    """
+
+    types: tuple[str, ...]
+    markers: Mapping[str, str | None]
+    unreadable: frozenset[str]
+
+    @property
+    def unattributed_gecko(self) -> bool:
+        """GTK3's plain-text clipboard with no page origin.
+
+        Firefox and Zen offer SAVE_TARGETS, COMPOUND_TEXT and a second
+        text/plain;charset=utf-8 on every text copy; a web page copy adds
+        text/x-moz-url-priv with its origin. Probed on Firefox 157 with the
+        Bitwarden extension 2026.9.3, the extension's password copy, an
+        address-bar copy and the extension's clear all offer this shape with no
+        origin, so they cannot be told apart. Firefox gets these targets from
+        GTK3's gtk_clipboard_set_text(), so every GTK3 app's text copy has the
+        same shape; only niri's focus history tells them apart.
+        """
+        return (all(target in self.types for target in GECKO_ONLY_TARGETS)
+                and self.types.count(GECKO_TEXT) >= 2
+                and not self.markers[FIREFOX_SOURCE])
+
+
+def _is_secret_source(marker: str | None, prefixes: list[str]) -> bool:
+    if not marker:
+        return False
+    lowered = marker.lower()
+    return any(prefix and lowered.startswith(prefix.lower()) for prefix in prefixes)
+
+
+def _focus_stamp(window: dict) -> float | None:
+    """A window's focus_timestamp in seconds; raises ValueError when malformed."""
+    stamp = window.get("focus_timestamp")
+    if stamp is None:
+        return None
+    if not isinstance(stamp, dict):
+        raise ValueError("focus_timestamp")
+    secs, nanos = stamp.get("secs"), stamp.get("nanos")
+    if type(secs) is not int or type(nanos) is not int or secs < 0 or not 0 <= nanos < 1_000_000_000:
+        raise ValueError("focus_timestamp")
+    return secs + nanos / 1e9
+
+
+def _settled_focus(policy: argparse.Namespace) -> tuple[int, float] | None:
+    """The focused window's id and focus stamp when one `niri msg --json
+    windows` shows a settled focus on a window that is not a Gecko browser.
+    None, so the copy is skipped, in every other case.
+
+    niri stamps a window's `focus_timestamp` from CLOCK_MONOTONIC when it gains
+    focus (niri 26.04, src/utils/mod.rs get_monotonic_time). A refocused
+    window's stamp is only committed after `recent-windows` debounce (750 ms by
+    default) or its first key press; until then the focused window has no stamp
+    or an older one than the window it replaced. A focus is settled when its
+    committed stamp is the newest and at least `focus_settle_ms` old. Which
+    windows were focused before it is never consulted.
+    """
+    if not policy.niri:
+        return None
+    now = time.clock_gettime(time.CLOCK_MONOTONIC)
+    try:
+        raw = _read_capped([policy.niri, "msg", "--json", "windows"], NIRI_REPLY_BYTES, NIRI_TIMEOUT_SEC)
+    except TooLarge:
+        return None
+    if raw is None:
+        return None
+    try:
+        windows = json.loads(raw)
+        if not isinstance(windows, list) or not all(isinstance(window, dict) for window in windows):
+            return None
+        stamped = [(window, _focus_stamp(window)) for window in windows]
+    except ValueError:
+        return None
+    focused = [(window, stamp) for window, stamp in stamped if window.get("is_focused") is True]
+    if len(focused) != 1:
+        return None
+    window, focused_at = focused[0]
+    window_id = window.get("id")
+    if type(window_id) is not int or focused_at is None or _is_gecko(window, policy):
+        return None
+    if now - focused_at < policy.focus_settle_ms / 1000:
+        return None
+    if any(stamp is not None and stamp >= focused_at for other, stamp in stamped if other is not window):
+        return None
+    return window_id, focused_at
+
+
+def _is_gecko(window: dict, policy: argparse.Namespace) -> bool:
+    """True also when the window has no app_id to judge by."""
+    app_id = window.get("app_id")
+    return not isinstance(app_id, str) or policy.gecko_app_ids.search(app_id) is not None
+
+
+# Offers matching a rule are dropped before their payload is read; the first
+# match names the skip reason. `policy` is the parsed emit arguments.
+SKIP_RULES: tuple[tuple[str, Callable[[Offer, argparse.Namespace], bool]], ...] = (
+    ("hint", lambda offer, policy: PASSWORD_HINT in offer.types),
+    ("source", lambda offer, policy: bool(offer.unreadable)),
+    ("source", lambda offer, policy: any(
+        _is_secret_source(offer.markers[mime], policy.secret_source_prefix or []) for mime in SOURCE_MARKERS)),
+)
+
+
+def _emit(event: dict) -> None:
+    try:
+        sys.stdout.write(json.dumps(event, ensure_ascii=True, separators=(",", ":")) + "\n")
+        sys.stdout.flush()
+    except BrokenPipeError:
+        pass
+
+
+def _error_text(error: Exception) -> str:
+    if isinstance(error, OSError) and error.strerror:
+        return error.strerror
+    return str(error)
+
+
+@contextlib.contextmanager
+def _opened(fd: int) -> Iterator[int]:
+    try:
+        yield fd
+    finally:
+        os.close(fd)
+
+
+def _open_private_dir(name: str | Path, dir_fd: int | None = None, *, create: bool = False,
+                      tighten: bool = True) -> int:
+    """Open a directory owned by us and writable only by us, never via a symlink."""
+    if create:
+        try:
+            os.mkdir(name, 0o700, dir_fd=dir_fd)
+        except FileExistsError:
+            pass
+    try:
+        fd = os.open(name, OPEN_DIR, dir_fd=dir_fd)
+    except NotADirectoryError:
+        raise CollectorError(f"{name} is not a directory") from None
+    except OSError as error:
+        if error.errno == errno.ELOOP:
+            raise CollectorError(f"{name} is a symlink") from None
+        raise
+    try:
+        info = os.fstat(fd)
+        if info.st_uid != os.geteuid():
+            raise CollectorError(f"{name} is not owned by the current user")
+        if info.st_mode & 0o022:
+            raise CollectorError(f"{name} is writable by other users")
+        if tighten and stat.S_IMODE(info.st_mode) != 0o700:
+            os.fchmod(fd, 0o700)
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
+def _open_state(state_dir: Path, create: bool = False) -> int:
+    if not state_dir.is_absolute():
+        raise CollectorError("state directory must be absolute")
+    if create:
+        os.makedirs(state_dir.parent, exist_ok=True)
+    return _open_private_dir(state_dir, create=create)
+
+
+@contextlib.contextmanager
+def _state_lock(state_fd: int) -> Iterator[None]:
+    """Hold the exclusive state lock, waiting at most LOCK_TIMEOUT_SEC."""
+    fd = os.open(
+        LOCK_NAME,
+        os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC,
+        0o600,
+        dir_fd=state_fd,
+    )
+    with _opened(fd):
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise CollectorError(f"{LOCK_NAME} is not a regular file")
+        deadline = time.monotonic() + LOCK_TIMEOUT_SEC
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise CollectorError("clipboard state is locked") from None
+                time.sleep(0.01)
+        yield
+
+
+@contextlib.contextmanager
+def _blob_dir(state_dir: Path, create: bool = False, lock: bool = False) -> Iterator[int]:
+    with _opened(_open_state(state_dir, create)) as state_fd, \
+            _opened(_open_private_dir(BLOBS_NAME, state_fd, create=create)) as blobs_fd, \
+            (_state_lock(state_fd) if lock else contextlib.nullcontext()):
+        yield blobs_fd
+
+
+def _store_blob(state_dir: Path, sha: str, payload: bytes) -> None:
+    with _opened(_open_state(state_dir, create=True)) as state_fd, \
+            _opened(_open_private_dir(BLOBS_NAME, state_fd, create=True)) as blobs_fd:
+        _write_atomic(blobs_fd, sha, payload, guard=lambda: _state_lock(state_fd))
+
+
+def _write_all(fd: int, data: bytes) -> None:
+    view = memoryview(data)
+    while view:
+        written = os.write(fd, view)
+        view = view[written:]
+
+
+def _write_atomic(dir_fd: int, name: str, data: bytes,
+                  guard: Callable[[], contextlib.AbstractContextManager] = contextlib.nullcontext) -> None:
+    """Replace dir_fd/name with a fresh 0600 file; never writes through a link.
+
+    The file's mtime is the moment of the replace, taken under `guard`: `rm
+    --before-ms` keeps a blob replaced at or after its decision time.
+    """
+    temp = f"{TEMP_PREFIX}{os.getpid()}-{secrets.token_hex(6)}"
+    fd = os.open(
+        temp,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+        0o600,
+        dir_fd=dir_fd,
+    )
+    try:
+        os.fchmod(fd, 0o600)
+        _write_all(fd, data)
+        os.fsync(fd)
+        with guard():
+            os.utime(fd)
+            os.rename(temp, name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+    except BaseException:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(temp, dir_fd=dir_fd)
+        raise
+    finally:
+        os.close(fd)
+
+
+def _open_regular(dir_fd: int, name: str) -> int:
+    fd = os.open(name, OPEN_READ, dir_fd=dir_fd)
+    if not stat.S_ISREG(os.fstat(fd).st_mode):
+        os.close(fd)
+        raise NotRegular("not a regular file")
+    os.set_blocking(fd, True)
+    return fd
+
+
+def _hash_fd(fd: int) -> str:
+    digest = hashlib.sha256()
+    while chunk := os.read(fd, 1024 * 1024):
+        digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _unlink_regular(dir_fd: int, name: str, before: float | None = None) -> bool:
+    """Delete a regular file, only when its mtime is older than `before` if given."""
+    try:
+        info = os.stat(name, dir_fd=dir_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        return False
+    if not stat.S_ISREG(info.st_mode) or (before is not None and info.st_mtime >= before):
+        return False
+    try:
+        os.unlink(name, dir_fd=dir_fd)
+    except FileNotFoundError:
+        return False
+    return True
+
+
+def _read_capped(argv: list[str], cap: int, timeout: float = READ_TIMEOUT_SEC) -> bytes | None:
+    """Return stdout of argv, None on failure; raise TooLarge past cap bytes."""
+    try:
+        proc = subprocess.Popen(
+            argv,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+        )
+    except OSError:
+        return None
+    assert proc.stdout is not None
+    chunks: list[bytes] = []
+    total = 0
+    deadline = time.monotonic() + timeout
+    selector = selectors.DefaultSelector()
+    selector.register(proc.stdout, selectors.EVENT_READ)
+    try:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not selector.select(remaining):
+                proc.kill()
+                proc.wait()
+                return None
+            chunk = os.read(proc.stdout.fileno(), 65536)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > cap:
+                proc.kill()
+                proc.wait()
+                raise TooLarge()
+            chunks.append(chunk)
+        try:
+            status = proc.wait(timeout=max(0.1, deadline - time.monotonic()))
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+            return None
+        return b"".join(chunks) if status == 0 else None
+    finally:
+        selector.close()
+        proc.stdout.close()
+
+
+def _list_types(wl_paste: str) -> list[str] | None:
+    try:
+        raw = _read_capped([wl_paste, "--list-types"], 256 * 1024)
+    except TooLarge:
+        return None
+    if raw is None:
+        return None
+    return [line for line in raw.decode("utf-8", errors="replace").splitlines() if line]
+
+
+def _paste(wl_paste: str, mime: str, cap: int) -> bytes | None:
+    return _read_capped([wl_paste, "--no-newline", "--type", mime], cap)
+
+
+def _decode_marker(raw: bytes) -> str | None:
+    """First line of a marker, None when undecodable.
+
+    Firefox writes its x-moz flavors as UTF-16; Chromium writes UTF-8.
+    """
+    try:
+        if raw.startswith(b"\xff\xfe"):
+            text = raw[2:].decode("utf-16-le")
+        elif raw.startswith(b"\xfe\xff"):
+            text = raw[2:].decode("utf-16-be")
+        elif len(raw) >= 2 and len(raw) % 2 == 0 and raw[1::2].count(0) * 2 >= len(raw) // 2:
+            text = raw.decode("utf-16-le")
+        else:
+            text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    text = text.replace("\x00", "")
+    first = text.splitlines()[0] if text.strip() else ""
+    return first.strip()
+
+
+def _read_offer(wl_paste: str) -> Offer | None:
+    types = _list_types(wl_paste)
+    if not types:
+        return None
+    markers: dict[str, str | None] = {}
+    unreadable = set()
+    for mime in SOURCE_MARKERS:
+        if mime not in types:
+            markers[mime] = None
+            continue
+        try:
+            raw = _paste(wl_paste, mime, MARKER_BYTES)
+        except TooLarge:
+            raw = None
+        markers[mime] = _decode_marker(raw) if raw is not None else None
+        if markers[mime] is None:
+            unreadable.add(mime)
+    return Offer(tuple(types), markers, frozenset(unreadable))
+
+
+def _skip_reason(offer: Offer, policy: argparse.Namespace) -> str | None:
+    for reason, matches in SKIP_RULES:
+        if matches(offer, policy):
+            return reason
+    return None
+
+
+def _pick(types: tuple[str, ...], candidates: tuple[str, ...], prefix: str = "") -> str | None:
+    lowered = {t.lower(): t for t in types}
+    for candidate in candidates:
+        found = lowered.get(candidate.lower())
+        if found is not None:
+            return found
+    if prefix:
+        for t in types:
+            if t.lower().startswith(prefix):
+                return t
+    return None
+
+
+def _shape(types: tuple[str, ...]) -> str:
+    """Names the offered types, duplicates and order kept.
+
+    An owner that offers text and then sends no bytes reads as an empty
+    payload, because wl-paste ignores its reader's exit status. Only a
+    Gecko-shaped empty offer is a clear, and the service lets it purge the
+    newest entry only when this matches that entry's capture: Bitwarden's
+    Firefox clear offers the types of its copy.
+    """
+    return hashlib.sha256("\n".join(types).encode("utf-8")).hexdigest()[:16]
+
+
+def _preview(data: bytes) -> str:
+    cut = len(data)
+    if cut > PREVIEW_BYTES:
+        cut = PREVIEW_BYTES
+        while cut > 0 and (data[cut] & 0xC0) == 0x80:
+            cut -= 1
+    return data[:cut].decode("utf-8", errors="replace")
+
+
+def _drain_stdin() -> threading.Thread | None:
+    """Consume what wl-paste piped in so the source never sees EPIPE."""
+    try:
+        fd = sys.stdin.fileno()
+    except (AttributeError, ValueError, OSError):
+        return None
+
+    def run() -> None:
+        try:
+            while os.read(fd, 65536):
+                pass
+        except OSError:
+            pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return thread
+
+
+def _classify(args: argparse.Namespace) -> dict:
+    state = os.environ.get("CLIPBOARD_STATE", "")
+    if state == "sensitive":
+        return {"kind": "skipped", "reason": "hint"}
+    if state in ("nil", "clear"):
+        return {"kind": "skipped", "reason": "empty"}
+
+    started = time.monotonic()
+    offer = _read_offer(args.wl_paste)
+    if offer is None:
+        return {"kind": "skipped", "reason": "empty"}
+    reason = _skip_reason(offer, args)
+    if reason is not None:
+        return {"kind": "skipped", "reason": reason}
+    # A GTK3-shaped copy is kept only when niri shows the same settled
+    # non-Gecko focus before the first payload read and after the last: a
+    # switch to Zen and a copy between the two keeps the offer's shape.
+    gated = args.unattributed_firefox == "skip" and offer.unattributed_gecko
+    focus = _settled_focus(args) if gated else None
+    if gated and focus is None:
+        return {"kind": "skipped", "reason": "unattributed"}
+
+    text_mime = _pick(offer.types, TEXT_TYPES)
+    image_mime = None if text_mime else _pick(offer.types, IMAGE_TYPES, "image/")
+    mime = text_mime or image_mime
+    if mime is None:
+        return {"kind": "skipped", "reason": "unsupported"}
+    cap = args.max_text_bytes if text_mime else args.max_image_bytes
+    try:
+        payload = _paste(args.wl_paste, mime, cap)
+    except TooLarge:
+        return {"kind": "skipped", "reason": "too-large"}
+    if payload is None:
+        return {"kind": "skipped", "reason": "error"}
+
+    # Each read may hit a different offer. Re-reading the types and markers
+    # catches a change that stuck; re-reading the payload catches one that
+    # came back (A, then secret B, then A again), where the first payload came
+    # from B under A's markers. B's own event classifies B.
+    if _read_offer(args.wl_paste) != offer:
+        return {"kind": "skipped", "reason": "changed"}
+    try:
+        again = _paste(args.wl_paste, mime, cap)
+    except TooLarge:
+        again = None
+    if again != payload:
+        return {"kind": "skipped", "reason": "changed"}
+    if gated and _settled_focus(args) != focus:
+        return {"kind": "skipped", "reason": "unattributed"}
+    if text_mime and time.monotonic() - started > _text_gate_sec():
+        return {"kind": "skipped", "reason": "unattributed" if gated else "changed"}
+
+    if text_mime:
+        # Only record mode keeps Firefox/Zen extension copies, so only there
+        # can a Bitwarden clear need to purge one; elsewhere a same-shaped
+        # empty offer from a GTK3 app would delete that app's last copy.
+        if payload in CLEAR_PAYLOADS and offer.unattributed_gecko and args.unattributed_firefox == "record":
+            return {"kind": "clear", "shape": _shape(offer.types)}
+        if payload in CLEAR_PAYLOADS or not payload.strip():
+            return {"kind": "skipped", "reason": "empty"}
+    elif not payload:
+        return {"kind": "skipped", "reason": "empty"}
+
+    sha = hashlib.sha256(payload).hexdigest()
+    _store_blob(Path(args.state_dir), sha, payload)
+    event = {
+        "kind": "text" if text_mime else "image",
+        "sha": sha,
+        "mime": mime,
+        "bytes": len(payload),
+        "preview": _preview(payload) if text_mime else "",
+    }
+    if text_mime:
+        event["shape"] = _shape(offer.types)
+    return event
+
+
+@functools.cache
+def _libc() -> ctypes.CDLL:
+    return ctypes.CDLL(None, use_errno=True)
+
+
+def _set_death_signal(signum: int) -> bool:
+    """Also runs in a forked child, where the cached handle avoids a dlopen."""
+    try:
+        return _libc().prctl(PR_SET_PDEATHSIG, signum, 0, 0, 0) == 0
+    except (OSError, AttributeError):
+        return False
+
+
+def _die_with_parent(signum: int) -> bool:
+    """Ask for `signum` when the parent exits; False if it already has."""
+    parent = os.getppid()
+    if not _set_death_signal(signum):
+        print("stillsuit-clipboard-collector: cannot set a parent-death signal", file=sys.stderr)
+        return False
+    return os.getppid() == parent
+
+
+def _parent_and_comm(pid: int) -> tuple[int, str] | None:
+    try:
+        stat_line = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8", errors="replace")
+        comm = Path(f"/proc/{pid}/comm").read_text(encoding="utf-8", errors="replace").rstrip("\n")
+    except OSError:
+        return None
+    # The comm field is parenthesized and may hold spaces or ")"; state and
+    # ppid follow the last ")".
+    fields = stat_line[stat_line.rfind(")") + 1:].split()
+    try:
+        return int(fields[1]), comm
+    except (IndexError, ValueError):
+        return None
+
+
+def _started_by_watch() -> bool:
+    """True when our parent is the wl-paste that this emit's `watch` started.
+
+    Checked once the death signal is armed. An emit whose wl-paste died
+    before that was reparented, so its parent is no longer a wl-paste whose
+    parent is the watch pid. An emit run by hand has no watch pid to check.
+    """
+    watch = os.environ.get(WATCH_PID_ENV)
+    if watch is None:
+        return True
+    try:
+        watch_pid = int(watch)
+    except ValueError:
+        return False
+    return _parent_and_comm(os.getppid()) == (watch_pid, WL_PASTE_COMM)
+
+
+def cmd_emit(args: argparse.Namespace) -> int:
+    # Once wl-paste is gone nothing reads the event, and a payload collected
+    # after that must not reach disk.
+    if not _die_with_parent(signal.SIGKILL):
+        return 1
+    if not _started_by_watch():
+        print("stillsuit-clipboard-collector: emit is not running under its watcher", file=sys.stderr)
+        return 1
+    drain = _drain_stdin()
+    try:
+        event = _classify(args)
+    except Exception as error:  # noqa: BLE001 - one event line per change, always
+        print(f"stillsuit-clipboard-collector: emit failed: {type(error).__name__}", file=sys.stderr)
+        event = {"kind": "skipped", "reason": "error"}
+    _emit(event)
+    if drain is not None:
+        drain.join(timeout=2.0)
+    return 0
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    try:
+        with _opened(_open_state(Path(args.state_dir), create=True)) as state_fd:
+            os.close(_open_private_dir(BLOBS_NAME, state_fd, create=True))
+            try:
+                fd = os.open(
+                    HISTORY_NAME,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+                    0o600,
+                    dir_fd=state_fd,
+                )
+            except FileExistsError:
+                info = os.stat(HISTORY_NAME, dir_fd=state_fd, follow_symlinks=False)
+                if not stat.S_ISREG(info.st_mode):
+                    raise CollectorError(f"{HISTORY_NAME} is not a regular file") from None
+                if stat.S_IMODE(info.st_mode) != 0o600:
+                    os.chmod(HISTORY_NAME, 0o600, dir_fd=state_fd)
+            else:
+                with _opened(fd):
+                    os.fchmod(fd, 0o600)
+                    _write_all(fd, EMPTY_HISTORY)
+    except (OSError, CollectorError) as error:
+        _emit({"ok": False, "error": f"clipboard state directory unusable: {_error_text(error)}"})
+        return 1
+    _emit({"ok": True})
+    return 0
+
+
+def _valid_shas(shas: list[str]) -> bool:
+    return all(SHA_RE.match(sha) for sha in shas)
+
+
+def cmd_gc(args: argparse.Namespace) -> int:
+    """Delete unreferenced blobs and temp files older than the grace period.
+
+    Explicit removals go through `rm`; this sweep only finds crash leftovers.
+    Temp files younger than TEMP_MIN_AGE_SEC may belong to a capture in
+    progress and are always kept. `deferred` counts the candidates kept and
+    `nextEligibleMs` (wall-clock ms, present when any were kept) is when the
+    first of them becomes old enough to delete.
+    """
+    if not _valid_shas(args.keep or []):
+        _emit({"ok": False, "error": "invalid sha in keep list"})
+        return 2
+    keep = set(args.keep or [])
+    now = time.time()
+    temp_wait = max(args.grace_sec, TEMP_MIN_AGE_SEC)
+    removed = 0
+    deferred = 0
+    next_eligible: float | None = None
+    try:
+        with _blob_dir(Path(args.state_dir), lock=True) as dir_fd:
+            for name in os.listdir(dir_fd):
+                is_blob = SHA_RE.match(name) is not None
+                if (not is_blob and not name.startswith(TEMP_PREFIX)) or name in keep:
+                    continue
+                try:
+                    info = os.stat(name, dir_fd=dir_fd, follow_symlinks=False)
+                except FileNotFoundError:
+                    continue
+                if not stat.S_ISREG(info.st_mode):
+                    continue
+                eligible = info.st_mtime + (args.grace_sec if is_blob else temp_wait)
+                if eligible > now:
+                    deferred += 1
+                    next_eligible = eligible if next_eligible is None else min(next_eligible, eligible)
+                elif _unlink_regular(dir_fd, name):
+                    removed += 1
+    except FileNotFoundError:
+        pass
+    except (OSError, CollectorError) as error:
+        _emit({"ok": False, "error": f"cannot open blob directory: {_error_text(error)}"})
+        return 1
+    reply = {"ok": True, "removed": removed, "deferred": deferred}
+    if next_eligible is not None:
+        reply["nextEligibleMs"] = math.ceil(next_eligible * 1000)
+    _emit(reply)
+    return 0
+
+
+def cmd_rm(args: argparse.Namespace) -> int:
+    """Delete named blobs that are regular files.
+
+    With --before-ms, a blob replaced at or after that time is kept: it belongs
+    to a capture of the same content that the service has not seen yet.
+    """
+    if not _valid_shas(args.sha):
+        _emit({"ok": False, "error": "invalid sha"})
+        return 2
+    before = args.before_ms / 1000.0 if args.before_ms is not None else None
+    removed = 0
+    try:
+        with _blob_dir(Path(args.state_dir), lock=True) as dir_fd:
+            for sha in dict.fromkeys(args.sha):
+                removed += _unlink_regular(dir_fd, sha, before)
+    except FileNotFoundError:
+        pass
+    except (OSError, CollectorError) as error:
+        _emit({"ok": False, "error": f"cannot remove: {_error_text(error)}"})
+        return 1
+    _emit({"ok": True, "removed": removed})
+    return 0
+
+
+def _blob_gone(error: Exception) -> bool:
+    """A missing, linked or non-regular blob, as opposed to unusable state."""
+    if isinstance(error, NotRegular):
+        return True
+    return isinstance(error, OSError) and error.errno in (errno.ENOENT, errno.ELOOP)
+
+
+def cmd_copy(args: argparse.Namespace) -> int:
+    if not SHA_RE.match(args.sha) or not MIME_RE.match(args.mime):
+        print("stillsuit-clipboard-collector: invalid copy arguments", file=sys.stderr)
+        return 2
+    try:
+        with _blob_dir(Path(args.state_dir)) as blobs_fd:
+            fd = _open_regular(blobs_fd, args.sha)
+    except (OSError, CollectorError) as error:
+        print(f"stillsuit-clipboard-collector: blob unavailable: {_error_text(error)}", file=sys.stderr)
+        return BLOB_GONE if _blob_gone(error) else 1
+    try:
+        matches = _hash_fd(fd) == args.sha
+        os.lseek(fd, 0, os.SEEK_SET)
+    except OSError as error:
+        os.close(fd)
+        print(f"stillsuit-clipboard-collector: blob unreadable: {_error_text(error)}", file=sys.stderr)
+        return 1
+    if not matches:
+        os.close(fd)
+        print("stillsuit-clipboard-collector: blob content does not match its name", file=sys.stderr)
+        return BLOB_GONE
+    os.dup2(fd, 0)
+    os.close(fd)
+    try:
+        os.execvp(args.wl_copy, [args.wl_copy, "--type", args.mime])
+    except OSError as error:
+        print(f"stillsuit-clipboard-collector: cannot run wl-copy: {error.strerror}", file=sys.stderr)
+        return 1
+    return 1
+
+
+def _emit_flags(args: argparse.Namespace) -> list[str]:
+    flags = [
+        "--state-dir", args.state_dir,
+        "--wl-paste", args.wl_paste,
+        "--max-text-bytes", str(args.max_text_bytes),
+        "--max-image-bytes", str(args.max_image_bytes),
+    ]
+    for prefix in args.secret_source_prefix or []:
+        flags.append(f"--secret-source-prefix={prefix}")
+    flags.append(f"--unattributed-firefox={args.unattributed_firefox}")
+    flags.append(f"--gecko-app-ids={args.gecko_app_ids.pattern}")
+    flags.append(f"--focus-settle-ms={args.focus_settle_ms:g}")
+    if args.niri:
+        flags.append(f"--niri={args.niri}")
+    return flags
+
+
+def _kill_group(pgid: int) -> None:
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+
+
+def cmd_watch(args: argparse.Namespace) -> int:
+    """Run wl-paste --watch in its own process group and take the group down with us.
+
+    The shell may stop us with a signal or die without reaping us; either way
+    wl-paste, an in-flight emit and its readers all go. With --owner-pid, a
+    watch whose parent is not that process by the time the death signal is
+    armed exits before starting anything.
+    """
+    if not args.collector.startswith("/"):
+        print("stillsuit-clipboard-collector: --collector must be absolute", file=sys.stderr)
+        return 2
+    if not _die_with_parent(signal.SIGTERM):
+        return 1
+    # The owner may have died before the death signal was armed; we were
+    # then reparented to a subreaper and would collect forever.
+    if args.owner_pid is not None and os.getppid() != args.owner_pid:
+        print("stillsuit-clipboard-collector: watch outlived its owner", file=sys.stderr)
+        return 1
+    argv = [args.wl_paste, "--watch", args.collector, "emit", *_emit_flags(args)]
+    supervisor = os.getpid()
+    previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, STOP_SIGNALS)
+
+    def prepare_child() -> None:
+        signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+        if not _set_death_signal(signal.SIGKILL) or os.getppid() != supervisor:
+            os._exit(1)
+
+    try:
+        child = subprocess.Popen(
+            argv, stdin=subprocess.DEVNULL, close_fds=True, process_group=0, preexec_fn=prepare_child,
+            env={**os.environ, WATCH_PID_ENV: str(supervisor)},
+        )
+    except OSError as error:
+        print(f"stillsuit-clipboard-collector: cannot run wl-paste: {_error_text(error)}", file=sys.stderr)
+        return 1
+
+    def stop(signum: int, _frame: object) -> None:
+        _kill_group(child.pid)
+        os._exit(128 + signum)
+
+    for signum in STOP_SIGNALS:
+        signal.signal(signum, stop)
+    signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+    # Wait without reaping so the group id cannot be reused before the kill.
+    os.waitid(os.P_PID, child.pid, os.WEXITED | os.WNOWAIT)
+    _kill_group(child.pid)
+    status = child.wait()
+    return status if status >= 0 else 128 - status
+
+
+def _positive_int(value: str) -> int:
+    number = int(value)
+    if number <= 0:
+        raise argparse.ArgumentTypeError("must be positive")
+    return number
+
+
+def _regex(value: str) -> re.Pattern[str]:
+    try:
+        return re.compile(value)
+    except re.error as error:
+        raise argparse.ArgumentTypeError(f"invalid regular expression: {error}") from None
+
+
+def _nonnegative_finite(value: str) -> float:
+    number = float(value)
+    if not math.isfinite(number) or number < 0:
+        raise argparse.ArgumentTypeError("must be a finite number, zero or more")
+    return number
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="stillsuit-clipboard-collector")
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    def with_state(sub: argparse.ArgumentParser) -> argparse.ArgumentParser:
+        sub.add_argument("--state-dir", required=True)
+        return sub
+
+    def with_rules(sub: argparse.ArgumentParser) -> None:
+        sub.add_argument("--wl-paste", default="wl-paste")
+        sub.add_argument("--max-text-bytes", type=_positive_int, default=DEFAULT_MAX_TEXT)
+        sub.add_argument("--max-image-bytes", type=_positive_int, default=DEFAULT_MAX_IMAGE)
+        sub.add_argument("--secret-source-prefix", action="append")
+        sub.add_argument("--unattributed-firefox", choices=UNATTRIBUTED_FIREFOX_MODES, default="skip")
+        sub.add_argument("--gecko-app-ids", type=_regex, default=re.compile(DEFAULT_GECKO_APP_IDS))
+        sub.add_argument("--focus-settle-ms", type=_nonnegative_finite, default=DEFAULT_FOCUS_SETTLE_MS)
+        sub.add_argument("--niri")
+
+    with_state(commands.add_parser("init")).set_defaults(handler=cmd_init)
+
+    emit = with_state(commands.add_parser("emit"))
+    with_rules(emit)
+    emit.set_defaults(handler=cmd_emit)
+
+    watch = with_state(commands.add_parser("watch"))
+    with_rules(watch)
+    watch.add_argument("--collector", required=True)
+    watch.add_argument("--owner-pid", type=_positive_int)
+    watch.set_defaults(handler=cmd_watch)
+
+    gc = with_state(commands.add_parser("gc"))
+    gc.add_argument("--grace-sec", type=_nonnegative_finite, default=120.0)
+    gc.add_argument("--keep", nargs="*", default=[])
+    gc.set_defaults(handler=cmd_gc)
+
+    rm = with_state(commands.add_parser("rm"))
+    rm.add_argument("--sha", nargs="+", required=True)
+    rm.add_argument("--before-ms", type=_nonnegative_finite)
+    rm.set_defaults(handler=cmd_rm)
+
+    copy = with_state(commands.add_parser("copy"))
+    copy.add_argument("--sha", required=True)
+    copy.add_argument("--mime", required=True)
+    copy.add_argument("--wl-copy", default="wl-copy")
+    copy.set_defaults(handler=cmd_copy)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    if not str(args.state_dir).startswith("/"):
+        print("stillsuit-clipboard-collector: --state-dir must be absolute", file=sys.stderr)
+        return 2
+    return args.handler(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

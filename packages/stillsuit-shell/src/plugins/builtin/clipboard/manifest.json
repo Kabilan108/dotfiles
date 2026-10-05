@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.clipboard",
+  "name": "Clipboard history",
+  "description": "Clipboard history service that skips password-manager copies and expires entries after a TTL.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["service"],
+  "entryPoints": { "service": "Service.qml" },
+  "scope": { "service": "global" },
+  "capabilities": ["clipboard-observe", "clipboard-write", "clipboard-history-state"],
+  "stateSchemaVersion": 1
+}
