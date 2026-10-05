@@ -1,4 +1,5 @@
 module Stillsuit.Services
+AppLaunch 1.0 AppLaunch.qml
 AudioService 1.0 AudioService.qml
 BatteryService 1.0 BatteryService.qml
 BluetoothService 1.0 BluetoothService.qml
