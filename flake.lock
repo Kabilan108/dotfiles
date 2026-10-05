@@ -1581,11 +1581,11 @@
         "nixpkgs": "nixpkgs_12"
       },
       "locked": {
-        "lastModified": 1791215555,
-        "narHash": "sha256-y0bR7eqmu+iJshgkQmWgrJ4bb383Xz+7qh2QRkwBvTg=",
+        "lastModified": 1791241107,
+        "narHash": "sha256-dA2tEe2bFySkPG9X/AK5X/1HYockt+kuph47OFBAr1s=",
         "owner": "kabilan108",
         "repo": "tracer",
-        "rev": "17de88f4720315ec6f1bcc8f9974d7d1983016c8",
+        "rev": "c9ac3f336c1a7dad2de72bf3591265d0cf90023d",
         "type": "github"
       },
       "original": {
