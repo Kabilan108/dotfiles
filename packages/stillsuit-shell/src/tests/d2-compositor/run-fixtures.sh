@@ -266,6 +266,18 @@ jq -e '
   and ([.windows[] | select(.is_focused)] == [])
 ' >/dev/null <<<"$(ipc state)"
 
+# A null focus (a layer surface such as a Stillsuit menu holds the keyboard)
+# keeps the last focused window, as does closing some other window. Closing
+# that window clears it, and a later focus sets it again.
+jq -e '.lastFocusedWindowId == 40' >/dev/null <<<"$(ipc state)"
+ipc inject '{"WindowClosed":{"id":42}}' >/dev/null
+jq -e '.lastFocusedWindowId == 40 and ([.windows[].id] == [40,41])' >/dev/null <<<"$(ipc state)"
+ipc inject '{"WindowClosed":{"id":40}}' >/dev/null
+jq -e '.lastFocusedWindowId == null and ([.windows[].id] == [41])' >/dev/null <<<"$(ipc state)"
+ipc inject '{"WindowFocusChanged":{"id":41}}' >/dev/null
+ipc inject '{"WindowFocusChanged":{"id":null}}' >/dev/null
+jq -e '.lastFocusedWindowId == 41 and ([.windows[] | select(.is_focused)] == [])' >/dev/null <<<"$(ipc state)"
+
 # Removing a middle workspace in the same update that changes the row before
 # it keeps every surviving cell bound to its own workspace: the cell that
 # showed workspace 6 still shows 6, rather than the removed cell for 5 being

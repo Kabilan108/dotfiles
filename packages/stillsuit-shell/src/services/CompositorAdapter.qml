@@ -16,6 +16,11 @@ QtObject {
     property string focusedOutputId: ""
     property var workspaces: []
     property var windows: []
+    // The id of the window niri most recently flagged focused. It survives
+    // focus moving to a layer surface (a Stillsuit menu or panel) or to no
+    // window, and becomes null once that window closes.
+    readonly property var lastFocusedWindowId: root._lastFocusedWindowId
+    property var _lastFocusedWindowId: null
 
     function replace(nextOutputs, nextFocusedOutputId, nextWorkspaces, nextWindows) {
         return update({
@@ -37,7 +42,11 @@ QtObject {
         if (nextOutputs !== outputs) { outputs = nextOutputs; changed = true }
         if (nextFocused !== focusedOutputId) { focusedOutputId = nextFocused; changed = true }
         if (nextWorkspaces !== workspaces) { workspaces = nextWorkspaces; changed = true }
-        if (nextWindows !== windows) { windows = nextWindows; changed = true }
+        if (nextWindows !== windows) {
+            windows = nextWindows
+            _lastFocusedWindowId = _lastFocused(nextWindows, _lastFocusedWindowId)
+            changed = true
+        }
         if (changed) revision += 1
         return changed
     }
@@ -78,6 +87,17 @@ QtObject {
             console.warn("stillsuit compositor: rejected non-plain snapshot rows: " + error)
             return previous.length === 0 ? previous : []
         }
+    }
+
+    function _lastFocused(rows, previous) {
+        var previousOpen = false
+        for (var index = 0; index < rows.length; index++) {
+            var row = rows[index]
+            if (!row || row.id === undefined) continue
+            if (row.is_focused === true) return row.id
+            if (row.id === previous) previousOpen = true
+        }
+        return previousOpen ? previous : null
     }
 
     function _sameId(left, right) {

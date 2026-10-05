@@ -62,16 +62,20 @@ in
     package = mkOption {
       type = types.package;
       default = pkgs.callPackage ../../../packages/stillsuit-shell/default.nix {
+        # wl-copy and wl-paste exec `cat` to move clipboard data.
         runtimeInputs =
           config.programs.stillsuitShell.runtimeInputs
-          ++ [ pkgs.wl-clipboard ]
+          ++ [
+            pkgs.coreutils
+            pkgs.wl-clipboard
+          ]
           ++ lib.optional (
             config.programs.stillsuitShell.integrations.agentPanelHelperPackage != null
           ) config.programs.stillsuitShell.integrations.agentPanelHelperPackage;
       };
       defaultText = lib.literalExpression ''
         pkgs.callPackage ../../../packages/stillsuit-shell/default.nix {
-          runtimeInputs = cfg.runtimeInputs ++ [ pkgs.wl-clipboard ] ++ lib.optional
+          runtimeInputs = cfg.runtimeInputs ++ [ pkgs.coreutils pkgs.wl-clipboard ] ++ lib.optional
             (cfg.integrations.agentPanelHelperPackage != null)
             cfg.integrations.agentPanelHelperPackage;
         }
