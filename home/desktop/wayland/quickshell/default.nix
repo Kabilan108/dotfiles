@@ -22,6 +22,16 @@ let
   };
   networkHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/network-helper.nix { };
   agentUsageHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/agent-usage-helper.nix { };
+  clipboardCollector =
+    pkgs.callPackage ../../../../packages/stillsuit-shell/clipboard-collector.nix
+      { };
+  # swaylock.nix (imported by the niri compositor module) installs the
+  # lock-screen script. Session actions run against the shell's exact PATH,
+  # so the launcher needs its store path rather than the bare name. Configs
+  # without it keep the module's loginctl default.
+  lockScreen = lib.findFirst (
+    package: (package.name or "") == "lock-screen"
+  ) null config.home.packages;
   publishHelper = pkgs.writeShellApplication {
     name = "stillsuit-publish";
     runtimeInputs = [ inputs.pagebin.packages.${pkgs.stdenv.hostPlatform.system}.default ];
@@ -97,8 +107,31 @@ in
     pkgs.power-profiles-daemon
     pkgs.upower
     agentUsageHelper
+    clipboardCollector
     networkHelper
+    pkgs.wl-clipboard
+    pkgs.libqalculate
+    pkgs.fd
   ];
+
+  programs.stillsuitShell.launch = {
+    terminal = [
+      "ghostty"
+      "-e"
+    ];
+    browser = [ "helium" ];
+    opener = [ "xdg-open" ];
+    session = {
+      lock = lib.mkIf (lockScreen != null) [ "${lockScreen}/bin/lock-screen" ];
+      logout = [
+        (lib.getExe pkgs.niri)
+        "msg"
+        "action"
+        "quit"
+        "--skip-confirmation"
+      ];
+    };
+  };
 
   programs.stillsuitShell.plugins = [
     (builtinPlugin "agent-panel")
@@ -129,6 +162,37 @@ in
         settings.managerPath = lib.getExe' pkgs.blueman "blueman-manager";
       }
     )
+    (
+      (builtinPlugin "clipboard")
+      // {
+        settings = {
+          collectorPath = lib.getExe clipboardCollector;
+          wlPastePath = lib.getExe' pkgs.wl-clipboard "wl-paste";
+          wlCopyPath = lib.getExe' pkgs.wl-clipboard "wl-copy";
+          maxItems = 200;
+          ttlHours = 72;
+          maxTextBytes = 1048576;
+          maxImageBytes = 20971520;
+          clearPurgeWindowSec = 330;
+          # Bitwarden's Zen/Firefox extension copies offer the same MIME types
+          # as an address-bar copy and as any GTK3 app's text copy. With
+          # "skip", such an offer is recorded only when niri shows the same
+          # settled focus before and after the payload read: a window not
+          # matching geckoAppIds, stamped by niri, newest stamp, and focused
+          # for at least focusSettleMs. Firefox/Zen address-bar copies and
+          # GTK3 copies made within 2 s of a focus change don't enter
+          # history. "record" keeps them all.
+          unattributedFirefox = "skip";
+          focusSettleMs = 2000;
+          geckoAppIds = "^(zen|zen-beta|zen-browser|zen-alpha|zen-twilight|app\\.zen_browser\\.zen|firefox|firefox-esr|firefox-nightly|librewolf|org\\.mozilla\\.firefox)$";
+          niriPath = lib.getExe pkgs.niri;
+          secretSourcePrefixes = [
+            "chrome-extension://nngceckbapebfimnlniiiahkandclblb/"
+            "https://vault.sole-pierce.ts.net"
+          ];
+        };
+      }
+    )
     (builtinPlugin "clock")
     # Enabled by the "moberg" Stillsuit profile.
     (
@@ -138,6 +202,18 @@ in
         settings = {
           helperPath = lib.getExe devCheckoutsHelper;
           openHelperPath = lib.getExe openHelper;
+        };
+      }
+    )
+    (
+      (builtinPlugin "launcher")
+      // {
+        settings = {
+          qalcPath = lib.getExe' pkgs.libqalculate "qalc";
+          fdPath = lib.getExe pkgs.fd;
+          searchRoot = homeDir;
+          webEngine = "https://unduck.link?q=%TERM%";
+          maxResults = 100;
         };
       }
     )

@@ -17,7 +17,7 @@ One tool: **`acu`** (on PATH; source lives in this skill's `scripts/`). Composit
 | Terminal / dev work | `tmux send-keys` / `capture-pane` — user keeps one session per project (`tmux ls`); NEVER click/type at terminal pixels |
 | Media playback | `playerctl` (Spotify etc.) |
 | Quickshell panels (bar, mixer, notifs) | `qs ipc -c stillsuit-next call <target> <fn>`; manage the shell with `stillsuit-shell.service`; manage plugins with `stillsuit-plugins` |
-| Clipboard | `wl-copy` / `wl-paste` (history in walker) |
+| Clipboard | `wl-copy` / `wl-paste` (history in the Stillsuit launcher, Mod+V) |
 | Window/workspace management | `acu state`, `acu focus`, `acu spawn`, raw `niri msg action ...` |
 | GUI apps with AT-SPI trees (GTK/Qt; Chromium/Electron launched with the a11y flag) | `acu ui` (semantic element list) + `acu act` (in-process press/set-text) — **no focus, works on hidden workspaces** |
 | Everything else | the `acu` pixel loop below (focus required for input) |
