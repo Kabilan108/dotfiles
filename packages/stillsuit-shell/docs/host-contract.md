@@ -44,6 +44,59 @@ Tooltips neither focus nor dismiss panels. Banners go to the notification's
 saved output, else the focused output, minus any listed in the
 `notifications.avoidOutputs` setting while another output remains.
 
+### Core-owned menus
+
+A menu entry point is `Item` content with `readonly property bool hostedMenu:
+true`, `implicitWidth`, `implicitHeight`, and `open(payloadJson)` /
+`close()` methods. Like a panel it creates no window. The core keeps one
+`MenuHost` per output, and its surface stays mapped. Closed, it parks as a
+1x1 surface on the bottom layer with an empty input mask, no keyboard focus, and
+nothing drawn, so it neither takes input nor blocks direct scanout. Shown, it
+covers the output on the overlay layer with exclusive keyboard focus, a dim
+scrim, and the content centered horizontally with its top at 22% of the
+output height. The host gives the content focus when it presents it. Content
+stays transparent until the surface has grown, but it is never hidden: the
+compositor can send keys before the surface grows, and only a visible item can
+take them. A menu forwards that focus to its own field, for example by making
+its root a `FocusScope` whose field sets `focus: true`. A menu should keep its
+field ready to type into from `open()` on and not wait for its first paint. When the menu closes, the surface returns to its parked state and
+releases keyboard focus, so the compositor returns it to the previously
+focused window.
+
+A compositor sends no frame callbacks to a parked surface it does not show,
+such as one that last committed under a window, and Qt Wayland then stops
+rendering and committing that window. Until the shown state reaches the
+compositor, typed keys go to the previously focused window. If the render loop
+has not touched a shown host within 50 ms, the host remaps its surface so the
+shown state arrives on a fresh one. A host that rendered but has not grown
+within 150 ms is remapped too.
+
+A global menu is presented in the `MenuHost` of the output it was placed on
+and moves between hosts like a hosted panel. At most one menu is shown.
+Opening a menu dismisses the open panel; opening a panel or another menu
+closes the open menu. Escape and a press outside the content close it
+through `SurfaceRouter.dismissMenus()`. A change of the focused output closes
+every menu placed on another output, including one whose content is still
+loading, so a menu never appears on the output the user left. A banner does
+not close a menu, so a notification arriving while the user types never
+closes the launcher. `surfaceDismissPanels()` and bar background presses
+dismiss panels and leave menus alone.
+
+A shown menu may define `keepOpenOnToggle(payloadJson): bool`. A toggle on
+the open menu with a payload calls it, and when it returns true the router
+delivers the payload through `open(payloadJson)` instead of closing, so a
+launcher toggled into another mode switches mode. Without the function a
+toggle closes the menu.
+
+A hosted panel's or menu's `open()`, `close()`, `keepOpenOnToggle()`, or a
+handler that runs while its host presents it, such as `onParentChanged`, may
+close or reopen its own surface through `context.actions`. The router treats
+that as a cancellation of the request in progress: the request returns `ok`,
+the newer open or close decides what is shown, and the contribution does not
+enter `error`. Content destroyed by anything other than the router ends its
+route and unloads its contribution, `keepLoaded` or not; the next open
+constructs a fresh instance.
+
 See `runtime-plugins.md` for mutable plugin discovery and `../src/ui/README.md`
 for the shared component API. Theme compilation remains Nix-owned.
 
@@ -247,6 +300,11 @@ agentPanelHide(): string
 agentPanelToggle(): string
 agentPanelStatus(): string
 agentPanelTerminate(): string
+appLaunch(desktopId: string, actionId: string): string
+openUrl(url: string): string
+openPath(path: string, mode: string): string
+copyText(text: string): string
+sessionAction(name: string): string
 ```
 
 An ID must name a validated catalog entry. Payload JSON is surface data only;
@@ -255,6 +313,70 @@ shell command.
 
 The bar calls `surfaceDismissPanels()` for empty-background presses. It uses
 the same router dismissal as PanelHost's outside-click handler.
+
+### Launch actions
+
+The last five actions start programs or write the clipboard. Callers name a
+desktop entry, URL, path, text, or session action; the argv comes from the
+desktop entry index or from the Nix-generated launch configuration
+(`programs.stillsuitShell.launch`, read once from `STILLSUIT_LAUNCH_CONFIG`),
+never from the caller. Each returns a literal status. `ok` means submitted:
+Quickshell starts the process detached and reports nothing back, so a
+program that fails later is not an error here.
+
+| Action | Result | Behavior |
+|---|---|---|
+| `appLaunch` | `ok`, `unknown`, `unavailable`, `error` | Re-resolves the desktop ID with `DesktopEntries.byId`. An empty `actionId` is the main entry; otherwise it names one of the entry's desktop actions. Runs the entry's parsed command (field codes stripped by Quickshell), wrapped in `launch.terminal` when the entry sets `Terminal=true`, with the entry's `Path` as working directory. |
+| `openUrl` | `ok`, `invalid`, `unavailable`, `error` | Accepts only `http:` and `https:` URLs with a host, no whitespace or control characters, at most 8 KiB. Runs `launch.browser` with the URL appended. |
+| `openPath` | `ok`, `invalid`, `unavailable`, `error` | Accepts an absolute path without NUL, at most 4 KiB, that need not exist. `mode` `open` opens the path; `reveal` opens its parent directory. Runs `launch.opener` with the path appended. |
+| `copyText` | `ok`, `error` | Writes at most 1 MiB of UTF-8 text to `wl-copy --type text/plain;charset=utf-8` on stdin, never argv. One copy runs at a time; while it runs, only the newest requested text is queued. |
+| `sessionAction` | `ok`, `unknown`, `error` | `lock`, `suspend`, `logout`, `reboot`, or `poweroff`, running the configured `launch.session` argv. An action configured as an empty list is `error`. |
+
+`unknown` names a missing entry, desktop action, or session action; `invalid`
+is a rejected argument; `unavailable` means the launch helper has not passed
+its check (below); `error` means the launch could not be submitted, including
+a missing argv prefix or configuration. Callers treat every status other than
+`ok` as a failure. Desktop entries resolve only after Quickshell's first scan
+has been applied, one event-loop turn after the first use of `DesktopEntries`.
+
+App, URL, and path launches run the fixed helper from
+`STILLSUIT_APP_LAUNCH_HELPER`:
+
+```text
+stillsuit-app-launch --name <label> [--cwd <dir>] -- <argv...>
+stillsuit-app-launch --check
+```
+
+At startup `AppLaunch` runs `--check`, which exits 0 without output. Until
+that succeeds, helper launches return `unavailable`. A launch that finds the
+helper unavailable starts one new check when none is running; nothing polls.
+
+It replaces its environment with the systemd user manager's environment, so
+programs see the session `PATH` and `XDG_DATA_DIRS` instead of the shell's
+exact runtime `PATH`, changes to `--cwd` when it is an existing absolute
+directory and to `HOME` otherwise, and execs `systemd-run --user --scope
+--collect --quiet --slice=app.slice --unit=app-stillsuit-<label>-<random>.scope`.
+The label keeps `[a-zA-Z0-9_.-]`, replaces other characters with `_`, is cut
+to 64 characters, and becomes `app` when nothing alphanumeric remains. A
+launched program therefore lives in its own scope under `app.slice`, never in
+`stillsuit-shell.service`, and survives a shell restart.
+
+Before the exec the helper checks that the manager environment is readable,
+that the program resolves to an executable through the session `PATH`, and
+that `systemd-run` is executable. When a check or the exec itself fails it
+posts `notify-send --app-name=Stillsuit "Couldn't start <label>" "<reason>"`
+and exits 1. The notification carries the label and a fixed reason, never
+the program's arguments. Failures after the exec, such as systemd refusing
+the scope or the program exiting, belong to `systemd-run` and the program and
+produce no notification. Usage errors exit 2 without one. Session actions run
+detached from the shell without a scope; their programs must be absolute
+paths because they resolve against the shell's exact `PATH`.
+
+These actions are context-only. `IpcFacade` carries them as plain functions
+for `HostContext`, but no `IpcHandler` forwards to them. Otherwise anything
+that can reach the Quickshell IPC socket could run programs, open URLs, or
+overwrite the clipboard. Key bindings open the launcher surface
+through `stillsuit-surface`, and the launcher calls these actions itself.
 
 ## Profile lifecycle
 

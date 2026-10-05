@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# Start a program in its own transient systemd user scope under app.slice, so
+# it lives in app.slice/app-stillsuit-<label>-<random>.scope instead of the
+# shell's service cgroup and runs with the session environment.
+#
+#   stillsuit-app-launch --name <label> [--cwd <dir>] -- <argv...>
+#   stillsuit-app-launch --check
+#
+# --check exits 0 without output; the shell runs it once to learn that the
+# helper can run at all. A launch that fails before systemd-run starts posts a
+# desktop notification naming only the label and exits non-zero. Failures
+# after the exec (scope creation, the program itself) belong to systemd-run
+# and the program and are not reported here.
+set -euo pipefail
+shopt -s execfail
+
+usage() {
+    printf 'usage: stillsuit-app-launch --name <label> [--cwd <dir>] -- <argv...>\n' >&2
+    exit 2
+}
+
+if [[ $# -eq 1 && $1 == --check ]]; then
+    exit 0
+fi
+
+name=""
+cwd=""
+separated=0
+while (($# > 0)); do
+    case $1 in
+        --name)
+            (($# >= 2)) || usage
+            name=$2
+            shift 2
+            ;;
+        --cwd)
+            (($# >= 2)) || usage
+            cwd=$2
+            shift 2
+            ;;
+        --)
+            shift
+            separated=1
+            break
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+((separated == 1)) || usage
+(($# > 0)) || usage
+[[ -n $1 ]] || usage
+
+label=${name//[^a-zA-Z0-9_.-]/_}
+label=${label:0:64}
+if [[ ! $label =~ [a-zA-Z0-9] ]]; then
+    label=app
+fi
+unit="app-stillsuit-${label}-$(printf '%08x' "$SRANDOM").scope"
+
+# The notification carries the label and a fixed reason, never the argv.
+fail() {
+    printf 'stillsuit-app-launch: %s: %s\n' "$label" "$1" >&2
+    notify-send --app-name=Stillsuit "Couldn't start $label" "$1" >/dev/null 2>&1 || true
+    exit 1
+}
+
+# Prints the executable file that the search path $1 resolves program $2 to.
+# Relative search path entries are skipped.
+resolve() {
+    local program=$2 dir dirs
+    if [[ $program == */* ]]; then
+        [[ $program == /* && -f $program && -x $program ]] || return 1
+        printf '%s' "$program"
+        return 0
+    fi
+    IFS=: read -ra dirs <<<"$1"
+    for dir in "${dirs[@]}"; do
+        if [[ $dir == /* && -f $dir/$program && -x $dir/$program ]]; then
+            printf '%s' "$dir/$program"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# The shell service runs with an exact, minimal PATH. Launched programs get
+# the user manager's environment instead, which carries the session PATH,
+# XDG_DATA_DIRS, and the compositor variables imported at login.
+manager_environment=$(busctl --user --json=short get-property \
+    org.freedesktop.systemd1 /org/freedesktop/systemd1 \
+    org.freedesktop.systemd1.Manager Environment) \
+    || fail "The session environment is unavailable."
+jq -e '.type == "as" and (.data | type == "array" and all(type == "string"))' \
+    <<<"$manager_environment" >/dev/null \
+    || fail "The session environment is unreadable."
+
+session_environment=()
+session_path=""
+while IFS= read -r -d '' entry; do
+    if [[ $entry =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+        session_environment+=("$entry")
+        if [[ $entry == PATH=* ]]; then
+            session_path=${entry#PATH=}
+        fi
+    fi
+done < <(jq -j '.data[] | ., "\u0000"' <<<"$manager_environment")
+wait "$!" || fail "The session environment is unreadable."
+
+resolve "$session_path" "$1" >/dev/null || fail "Its program was not found."
+systemd_run=$(resolve "$PATH" systemd-run) || fail "systemd-run is not available."
+
+if [[ $cwd == /* && -d $cwd ]]; then
+    cd -- "$cwd"
+else
+    cd -- "${HOME:-/}" 2>/dev/null || cd /
+fi
+
+exec env -i "${session_environment[@]}" "$systemd_run" --user --scope --collect --quiet \
+    --slice=app.slice --unit="$unit" -- "$@" \
+    || fail "systemd-run could not be started."

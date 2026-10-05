@@ -9,6 +9,9 @@ QtObject {
     property QtObject serviceRegistry: null
     property QtObject surfaceRouter: null
     property QtObject compositorControl: null
+    // Launch actions are context-only. No IpcHandler forwards to them, so IPC
+    // never becomes a way to run programs or write the clipboard.
+    property QtObject appLauncher: null
     property QtObject fallbackContext: null
     property var theme: ({})
     property string configId: "stillsuit"
@@ -315,6 +318,26 @@ QtObject {
         return compositorControl && typeof compositorControl.focusWorkspace === "function"
             ? compositorControl.focusWorkspace(workspaceId)
             : "unavailable"
+    }
+
+    function appLaunch(desktopId, actionId) {
+        return appLauncher ? appLauncher.appLaunch(desktopId, actionId) : "error"
+    }
+
+    function openUrl(url) {
+        return appLauncher ? appLauncher.openUrl(url) : "error"
+    }
+
+    function openPath(path, mode) {
+        return appLauncher ? appLauncher.openPath(path, mode) : "error"
+    }
+
+    function copyText(text) {
+        return appLauncher ? appLauncher.copyText(text) : "error"
+    }
+
+    function sessionAction(name) {
+        return appLauncher ? appLauncher.sessionAction(name) : "error"
     }
 
     function pluginUnload(pluginId) {

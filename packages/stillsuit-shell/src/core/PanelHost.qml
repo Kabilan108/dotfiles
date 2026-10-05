@@ -65,6 +65,8 @@ PanelWindow {
         if (panelContent && panelContent !== item) panelContent.visible = false
         panelContent = item
         item.parent = contentArea
+        // The content's parent handler may have closed its own route.
+        if (panelContent !== item) return
         item.anchors.fill = contentArea
         item.visible = true
         contentArea.forceActiveFocus()

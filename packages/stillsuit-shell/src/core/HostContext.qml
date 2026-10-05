@@ -200,6 +200,36 @@ QtObject {
                     : "unavailable"
             }
 
+            function appLaunch(desktopId, actionId) {
+                return root.actionsSource && typeof root.actionsSource.appLaunch === "function"
+                    ? root.actionsSource.appLaunch(desktopId, actionId === undefined ? "" : actionId)
+                    : "error"
+            }
+
+            function openUrl(url) {
+                return root.actionsSource && typeof root.actionsSource.openUrl === "function"
+                    ? root.actionsSource.openUrl(url)
+                    : "error"
+            }
+
+            function openPath(path, mode) {
+                return root.actionsSource && typeof root.actionsSource.openPath === "function"
+                    ? root.actionsSource.openPath(path, mode)
+                    : "error"
+            }
+
+            function copyText(text) {
+                return root.actionsSource && typeof root.actionsSource.copyText === "function"
+                    ? root.actionsSource.copyText(text)
+                    : "error"
+            }
+
+            function sessionAction(name) {
+                return root.actionsSource && typeof root.actionsSource.sessionAction === "function"
+                    ? root.actionsSource.sessionAction(name)
+                    : "error"
+            }
+
             function pluginUnload(pluginId) {
                 return root.actionsSource
                     ? root.actionsSource.pluginUnload(String(pluginId))

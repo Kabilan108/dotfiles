@@ -16,4 +16,14 @@ Scope {
             router: root.router
         }
     }
+    Variants {
+        model: root.screens
+        MenuHost {
+            required property var modelData
+            screen: modelData
+            outputId: String(modelData.name)
+            theme: root.theme
+            router: root.router
+        }
+    }
 }

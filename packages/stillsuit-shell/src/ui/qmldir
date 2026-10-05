@@ -5,6 +5,7 @@ Panel 1.0 Panel.qml
 PanelKeyCatcher 1.0 PanelKeyCatcher.qml
 PointerMoveGate 1.0 PointerMoveGate.qml
 ShellAction 1.0 ShellAction.qml
+ShellAppIcon 1.0 ShellAppIcon.qml
 ShellBarCluster 1.0 ShellBarCluster.qml
 ShellBarTooltip 1.0 ShellBarTooltip.qml
 ShellBusyIndicator 1.0 ShellBusyIndicator.qml
@@ -20,4 +21,5 @@ ShellStateView 1.0 ShellStateView.qml
 ShellStatus 1.0 ShellStatus.qml
 ShellSurface 1.0 ShellSurface.qml
 ShellText 1.0 ShellText.qml
+ShellTextField 1.0 ShellTextField.qml
 ShellToggle 1.0 ShellToggle.qml

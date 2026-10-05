@@ -34,7 +34,16 @@ QtObject {
     property var sessionOpen: ({})
     property var placements: ({})
     property var panelHosts: ({})
+    property string presentedMenuId: ""
+    property var menuHosts: ({})
     property bool catalogReconciliationActive: false
+    // Bumped whenever a route opens or closes. A plugin callback can open or
+    // close its own route re-entrantly; callers compare generations after
+    // each callback and stop when the route changed underneath them.
+    property var routeGenerations: ({})
+    property bool tearingDown: false
+
+    Component.onDestruction: tearingDown = true
 
     function registerPanelHost(outputId, host) {
         var next = _copy(panelHosts)
@@ -47,6 +56,19 @@ QtObject {
         var next = _copy(panelHosts)
         delete next[outputId]
         panelHosts = next
+    }
+
+    function registerMenuHost(outputId, host) {
+        var next = _copy(menuHosts)
+        next[outputId] = host
+        menuHosts = next
+    }
+
+    function unregisterMenuHost(outputId, host) {
+        if (menuHosts[outputId] !== host) return
+        var next = _copy(menuHosts)
+        delete next[outputId]
+        menuHosts = next
     }
     property QtObject surfaceHost: QtObject {}
 
@@ -97,16 +119,40 @@ QtObject {
     function dismissPanels() {
         var ids = Object.keys(sessionOpen)
         for (var index = 0; index < ids.length; index++)
-            if (sessionOpen[ids[index]]) close(ids[index])
+            if (sessionOpen[ids[index]] && !_isMenuRoute(ids[index])) close(ids[index])
     }
 
+    function dismissMenus() {
+        var ids = Object.keys(sessionOpen)
+        for (var index = 0; index < ids.length; index++)
+            if (sessionOpen[ids[index]] && _isMenuRoute(ids[index])) close(ids[index])
+    }
+
+    // A banner arriving while the user types must not close a menu.
     function interruptForBanner(outputId) {
         var ids = Object.keys(sessionOpen)
         for (var index = 0; index < ids.length; index++) {
             var id = ids[index]
-            if (id !== "stillsuit.notifications" && isOpen(id)
+            if (id !== "stillsuit.notifications" && isOpen(id) && !_isMenuRoute(id)
                     && placementOutputId(id) === String(outputId)) close(id)
         }
+    }
+
+    // Presented and still-loading menus alike, so a menu requested on one
+    // output never appears there after focus moved on.
+    function _closeMenusAwayFrom(outputId) {
+        var ids = Object.keys(sessionOpen)
+        for (var index = 0; index < ids.length; index++) {
+            var id = ids[index]
+            if (sessionOpen[id] && _isMenuRoute(id) && placementOutputId(id) !== outputId)
+                close(id)
+        }
+    }
+
+    function _isMenuRoute(pluginId) {
+        return pluginId === presentedMenuId
+            || (catalog !== null && catalog.has(pluginId)
+                && catalog.primarySurfaceKind(pluginId) === "menu")
     }
 
     onScreensChanged: Qt.callLater(root._reconcileScreens)
@@ -182,6 +228,7 @@ QtObject {
         ignoreUnknownSignals: true
 
         function onFocusedOutputIdChanged() {
+            root._closeMenusAwayFrom(root._currentFocusedOutputId())
             if (root.presentedId !== ""
                     && root.placementOutputId(root.presentedId) !== root._currentFocusedOutputId()) {
                 root.dismissPanels()
@@ -301,6 +348,7 @@ QtObject {
             return "unknown"
 
         if (presentedId === key) presentedId = ""
+        if (presentedMenuId === key) presentedMenuId = ""
 
         _clearQueue(key)
         _setSessionOpen(key, false)
@@ -310,8 +358,11 @@ QtObject {
 
         var primaryKind = catalog.primarySurfaceKind(key)
         var primaryState = contributionState(key, primaryKind)
+        var generation = _routeGeneration(key)
         if (primaryState === "loaded" && !_invokeClose(key, primaryKind))
             return "error"
+        if (_routeGeneration(key) !== generation)
+            return "ok"
         if ((primaryState === "loaded" || primaryState === "loading")
                 && catalog.get(key).manifest.keepLoaded !== true)
             _unloadObjects(key)
@@ -326,13 +377,35 @@ QtObject {
                     && _screenById(requested.outputId)
                     && requested.outputId !== placementOutputId(pluginId))
                 return open(pluginId, payloadJson)
+            if (presentedMenuId === String(pluginId)) {
+                var generation = _routeGeneration(pluginId)
+                var keepOpen = _menuKeepsOpenOnToggle(pluginId, payloadJson)
+                if (_routeGeneration(pluginId) !== generation)
+                    return "ok"
+                if (keepOpen)
+                    return open(pluginId, payloadJson)
+            }
         }
         return isOpen(pluginId) ? close(pluginId) : open(pluginId, payloadJson)
+    }
+
+    // A menu may answer a toggle with new content, such as a launcher asked
+    // for another mode, instead of closing.
+    function _menuKeepsOpenOnToggle(pluginId, payloadJson) {
+        var instance = _placedInstance(pluginId, catalog.primarySurfaceKind(pluginId))
+        if (!instance || typeof instance.keepOpenOnToggle !== "function")
+            return false
+        try {
+            return instance.keepOpenOnToggle(String(payloadJson)) === true
+        } catch (error) {
+            return false
+        }
     }
 
     function unload(pluginId) {
         var key = String(pluginId)
         if (presentedId === key) presentedId = ""
+        if (presentedMenuId === key) presentedMenuId = ""
         _clearQueue(key)
         _setSessionOpen(key, false)
         _setPlacement(key, "")
@@ -529,7 +602,10 @@ QtObject {
         if (entry.manifest.scope[scopeKey] !== "per-output") {
             var globalInstance = component.createObject(surfaceHost,
                 _constructionProperties(entry, null, false))
-            return globalInstance ? [globalInstance] : null
+            if (!globalInstance)
+                return null
+            _watchInstance(pluginId, kind, globalInstance)
+            return [globalInstance]
         }
 
         var instances = []
@@ -541,9 +617,51 @@ QtObject {
                 _destroyInstances(instances)
                 return null
             }
+            _watchInstance(pluginId, kind, instance)
             instances.push(instance)
         }
         return instances
+    }
+
+    // The router destroys instances only after removing them from objects.
+    // An instance that dies while still listed was destroyed by something
+    // else: end its route and unload the contribution so the next open
+    // constructs a fresh instance instead of presenting a dead one.
+    function _watchInstance(pluginId, kind, instance) {
+        var routeKey = _routeKey(pluginId, kind)
+        instance.Component.destruction.connect(function() {
+            try {
+                if (!root.tearingDown)
+                    root._instanceDestroyed(routeKey, pluginId, kind, instance)
+            } catch (error) {
+                console.warn("[stillsuit] instance destruction cleanup failed: " + error)
+            }
+        })
+    }
+
+    function _instanceDestroyed(routeKey, pluginId, kind, instance) {
+        var instances = objects[routeKey]
+        if (!Array.isArray(instances) || instances.indexOf(instance) === -1)
+            return
+        console.warn("[stillsuit] " + pluginId + " " + kind
+            + " instance was destroyed outside the router; unloading it")
+        var objectsNext = _copy(objects)
+        objectsNext[routeKey] = instances.filter(function(item) { return item !== instance })
+        objects = objectsNext
+        if (!catalog || !catalog.has(pluginId) || catalog.primarySurfaceKind(pluginId) === kind)
+            _endRoute(pluginId)
+        _unloadContributionKey(routeKey)
+    }
+
+    // Route state only; the dead instance gets no close() call.
+    function _endRoute(pluginId) {
+        if (presentedId === pluginId) presentedId = ""
+        if (presentedMenuId === pluginId) presentedMenuId = ""
+        _clearQueue(pluginId)
+        _setSessionOpen(pluginId, false)
+        _setPlacement(pluginId, "")
+        if (internalActiveId === pluginId)
+            internalActiveId = presentedId
     }
 
     function _constructionProperties(entry, screen, perOutput) {
@@ -569,22 +687,31 @@ QtObject {
         if (!Array.isArray(queue) || queue.length === 0)
             return true
         var primaryKind = catalog.primarySurfaceKind(pluginId)
+        var generation = _routeGeneration(pluginId)
         _clearQueue(pluginId)
         for (var index = 0; index < queue.length; index++) {
             if (queue[index].kind !== primaryKind)
                 continue
             if (!_deliverOne(pluginId, primaryKind, queue[index].payload))
                 return false
+            if (_routeGeneration(pluginId) !== generation)
+                return true
         }
         return true
     }
 
+    // Returns true when the request was delivered or a plugin callback
+    // closed or replaced the route meanwhile; a cancelled delivery is not a
+    // failure.
     function _deliverOne(pluginId, kind, payloadJson) {
+        if (!isOpen(pluginId))
+            return true
         var instance = _placedInstance(pluginId, kind)
         if (!instance) {
             _failPlugin(pluginId, kind, "surface has no instance for the selected output")
             return false
         }
+        var generation = _routeGeneration(pluginId)
         try {
             if (instance.hostedPanel === true && presentedId === pluginId) {
                 var siblings = contributionInstances(pluginId, kind)
@@ -598,19 +725,42 @@ QtObject {
                     }
                 }
             }
+            if (instance.hostedMenu === true)
+                _releaseMenuFromOtherHosts(pluginId, kind, instance)
+            if (!_routeCurrent(pluginId, kind, instance, generation))
+                return true
             if (typeof instance.open === "function")
                 instance.open(payloadJson)
             else if ("visible" in instance)
                 instance.visible = true
+            if (!_routeCurrent(pluginId, kind, instance, generation))
+                return true
             if (instance.hostedPanel === true) {
                 var host = panelHosts[placementOutputId(pluginId)]
                 if (!host) throw new Error("no panel host for output")
                 var outgoingId = presentedId
                 host.present(instance,
                     panelAnchorX(pluginId, placementOutputId(pluginId)))
+                if (!_routeCurrent(pluginId, kind, instance, generation))
+                    return true
                 presentedId = pluginId
                 if (outgoingId !== "" && outgoingId !== pluginId)
                     close(outgoingId)
+                if (presentedMenuId !== "")
+                    close(presentedMenuId)
+            } else if (instance.hostedMenu === true) {
+                var menuHost = menuHosts[placementOutputId(pluginId)]
+                if (!menuHost) throw new Error("no menu host for output")
+                var outgoingMenuId = presentedMenuId
+                var outgoingPanelId = presentedId
+                menuHost.present(instance)
+                if (!_routeCurrent(pluginId, kind, instance, generation))
+                    return true
+                presentedMenuId = pluginId
+                if (outgoingMenuId !== "" && outgoingMenuId !== pluginId)
+                    close(outgoingMenuId)
+                if (outgoingPanelId !== "" && outgoingPanelId !== pluginId)
+                    close(outgoingPanelId)
             }
             return true
         } catch (error) {
@@ -619,22 +769,62 @@ QtObject {
         }
     }
 
+    function _routeGeneration(pluginId) {
+        return routeGenerations[String(pluginId)] || 0
+    }
+
+    function _routeCurrent(pluginId, kind, instance, generation) {
+        return _routeGeneration(pluginId) === generation && isOpen(pluginId)
+            && _placedInstance(pluginId, kind) === instance
+    }
+
     function _invokeClose(pluginId, kind) {
         var instances = contributionInstances(pluginId, kind)
+        var generation = _routeGeneration(pluginId)
         try {
             for (var index = 0; index < instances.length; index++) {
                 var host = panelHosts[String(instances[index].outputId || "")]
                 if (host && instances[index].hostedPanel === true)
                     host.dismiss(instances[index])
+                if (instances[index].hostedMenu === true)
+                    _dismissHostedMenu(instances[index])
                 if (typeof instances[index].close === "function")
                     instances[index].close()
                 else if ("visible" in instances[index])
                     instances[index].visible = false
+                // A close() that reopened or unloaded the route owns it now.
+                if (_routeGeneration(pluginId) !== generation)
+                    return true
             }
             return true
         } catch (error) {
             _failPlugin(pluginId, kind, "surface close failed: " + error)
             return false
+        }
+    }
+
+    // A global menu instance follows its placement between hosts, and a
+    // per-output sibling may still be shown on the previous output.
+    function _releaseMenuFromOtherHosts(pluginId, kind, instance) {
+        var targetOutputId = placementOutputId(pluginId)
+        var siblings = contributionInstances(pluginId, kind)
+        for (var outputId in menuHosts) {
+            var host = menuHosts[outputId]
+            var shownItem = host ? host.menuContent : null
+            if (!shownItem || outputId === targetOutputId
+                    || siblings.indexOf(shownItem) === -1)
+                continue
+            host.dismiss(shownItem)
+            if (shownItem !== instance && typeof shownItem.close === "function")
+                shownItem.close()
+        }
+    }
+
+    function _dismissHostedMenu(instance) {
+        for (var outputId in menuHosts) {
+            var host = menuHosts[outputId]
+            if (host && host.menuContent === instance)
+                host.dismiss(instance)
         }
     }
 
@@ -732,6 +922,9 @@ QtObject {
         if (!catalog)
             return
         var currentScreens = _screens()
+        if (presentedMenuId !== ""
+                && _screenById(placementOutputId(presentedMenuId)) === null)
+            close(presentedMenuId)
         if (currentScreens.length === 0) {
             var openIds = Object.keys(sessionOpen).sort()
             for (var openIndex = 0; openIndex < openIds.length; openIndex++)
@@ -811,6 +1004,7 @@ QtObject {
                     _failPlugin(pluginId, kind, kind + " screen reconciliation failed")
                     return false
                 }
+                _watchInstance(pluginId, kind, instance)
                 created.push(instance)
             }
             nextInstances.push(instance)
@@ -864,6 +1058,7 @@ QtObject {
         if (internalActiveId === key)
             internalActiveId = presentedId !== key ? presentedId : ""
         if (presentedId === key) presentedId = ""
+        if (presentedMenuId === key) presentedMenuId = ""
         _unloadObjects(key)
         var errorsNext = _copy(errors)
         errorsNext[_routeKey(key, kind)] = String(message || "unknown surface error")
@@ -908,6 +1103,9 @@ QtObject {
         else
             delete sessionsNext[pluginId]
         sessionOpen = sessionsNext
+        var generationsNext = _copy(routeGenerations)
+        generationsNext[pluginId] = _routeGeneration(pluginId) + 1
+        routeGenerations = generationsNext
         internalRevision++
     }
 
@@ -1024,6 +1222,8 @@ QtObject {
             var host = panelHosts[String(instances[index].outputId || "")]
             if (host && instances[index].hostedPanel === true)
                 host.dismiss(instances[index])
+            if (instances[index] && instances[index].hostedMenu === true)
+                _dismissHostedMenu(instances[index])
             if (instances[index] && typeof instances[index].destroy === "function")
                 instances[index].destroy()
         }

@@ -23,6 +23,22 @@ default trailing action slot. Actions remain caller-owned. `ShellScrollArea`
 caps content at `maximumHeight` and adds clipping, bounded scrolling, and a
 scrollbar. Use it for lists that can grow, starting with Bluetooth device lists.
 
+`ShellTextField` is a themed single-line input with `text`, `placeholderText`,
+an optional leading `iconName`, and an `accepted()` signal for Enter. Its
+`keyPressed(event)` signal fires before the field edits text. A parent that
+owns Up, Down, Tab, Enter, or a shortcut such as Ctrl+K accepts the event
+there. Otherwise Qt's own editing shortcuts act first; Ctrl+K, for one,
+deletes to the end of the line. Keys the field ignores, such as Escape,
+keep propagating to parent items. The caret, selection, border, and
+placeholder use theme roles. `selectAll()` and `clear()` act on the text.
+
+`ShellAppIcon` shows an application icon from a freedesktop icon name,
+resolved with `Quickshell.iconPath(name, true)`, or from an absolute path. It
+decodes at its display size and loads files asynchronously. When the icon
+cannot be resolved it shows a monogram of `fallbackLabel`, or the catalog
+glyph `fallbackIconName` when the label is empty. `ready` reports whether the
+icon itself loaded.
+
 These components consume theme-v2 semantic roles and component assignments.
 Callers must not pass palette colors or add private color records. Direct
 `color` overrides are reserved for values already obtained from a semantic or
