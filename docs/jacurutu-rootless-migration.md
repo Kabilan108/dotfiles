@@ -3,19 +3,20 @@
 ## Current checkpoint
 
 Prepared on 2026-10-05 from `/tmp/jacurutu-rootless-docker-handoff.md`, copied
-from Sietch and checksum verified. The additive system was activated and its
-rootless daemon is running on Jacurutu. Home Manager failed to link Docker's
-configuration because its existing `~/.config/moberg` parent was root-owned.
-The repair declares ownership of that parent directory and orders Home Manager
-after tmpfiles setup/resetup; it preserves secret-file ownership and contents.
+from Sietch and checksum verified. The repaired additive system was activated
+successfully. Home Manager and rootless Docker are healthy, and a fresh shell
+selects the rootless endpoint. The existing root-owned `~/.config/moberg` parent
+was repaired before Home Manager linked Docker's configuration. Its inode and
+secret-file contents were preserved.
 Rebuilds and reboot are human-operated under `AGENTS.md`.
 
 The root flake covers Sietch and Jacurutu. The separate `raspi` flake is outside
 this migration. Shared development defaults enable rootless Docker and deny
-Docker-group membership. Jacurutu temporarily sets
-`dotfiles.docker.rootlessDevelopment.allowRootfulUserAccess = true` for export
-and validation. Remove that override after verified restoration, then activate
-and reboot before claiming the privilege boundary is complete. Disabling
+Docker-group membership. Jacurutu's installed additive generation temporarily
+grants privileged Docker access for export and validation. The source override
+is now removed after verified database restoration and application checks.
+Activate the final reviewed build and reboot before claiming the privilege
+boundary is complete. Disabling
 rootless does not automatically grant privileged Docker access; reviewed host
 exceptions use the same explicit access option.
 
@@ -68,6 +69,35 @@ Their exact IDs were revalidated immediately before removal without force or
 volume deletion. Image IDs and the five-volume inventory remained unchanged.
 No global prune was run; no standalone container migration is required.
 
+The disposable full-clone pilot passed source builds, startup migrations, doctor,
+exec/logs, checkpoint save/switch/reset, pause/resume, and three HTTP checks. A
+test table written after a saved checkpoint disappeared after reset. Its exact
+containers, checkpoint, and three named volumes were removed afterward.
+
+Both PostgreSQL volumes were logically restored and fingerprint verified: IAM
+has 28 tables and Patient has 60. Protected SQL, globals, authentication files,
+and checksums are retained. Separate target identities and a second live data
+check were recorded before application startup. The real checkout then passed
+source builds, migrations, doctor, SQL queries, and three HTTP checks. The
+export-worker image was separately rebuilt. The final checkpoint/recovery audit
+and exact source-volume cleanup precede the human final activation.
+
+Scoped preparation repaired 30,792 root-owned shared UV cache entries and 13,084
+untracked generated entries across 17 component repositories. The component
+operator pinned directory/file identities, rejected symlinks and hard links,
+preserved modes, and excluded tracked source and notebook checkpoints. Two
+tracked/source-like exceptions were retained unchanged. Original component
+branches, local work, and lockfile bytes remain preserved.
+
+Physical-LAN firewall verification is deferred at the user's request until
+Jacurutu and Sietch share a LAN. Local loopback and Tailscale-address publishing
+checks passed. Sietch's remote TCP probes timed out because Jacurutu's compiled
+Tailscale policy permits the Pixel but excludes Sietch as an inbound source.
+Those timeouts do not establish a rootless firewall result. Tailnet policy was
+left unchanged; a remote positive control needs an authorized peer such as the
+Pixel. The exact network fixtures were removed.
+
+
 ## Additive activation
 
 Build the reviewed committed snapshot in an isolated checkout. Keep unrelated
@@ -110,14 +140,13 @@ does not restart an existing system daemon during activation.
    roles/memberships, sequences, large objects, and settings preserved. Quiesce
    writers and retain checksummed SQL recovery copies. Verify rootless restores
    and application behavior before deleting any source resource.
-4. If Clara is included, preserve `jovyan`, preview the notebook helper with the
-   actual rootless UID mapping, stop overlapping writers, then apply scoped
-   ACLs. Verify notebook writes, host access, and read-only archive behavior.
+4. Clara was deleted at the user's request. Preserve its notebook home, archives,
+   and image; no notebook permission changes are required for this cutover.
 5. Remove the temporary privileged-access override, build and review the final
    configuration, request human activation and reboot, then verify fresh socket
    denial, plain Docker rootless selection, booted/running configuration, real
    checkout smoke/checkpoint checks, and retained services.
-6. Verify networking separately from `DOCKER-USER`, using an independent peer,
+6. Complete the deferred networking check separately from `DOCKER-USER`, using an independent peer,
    a successful positive control, explicit bind fixtures, and tailnet-positive /
    physical-LAN-negative checks. Remove exact fixtures.
 7. Prepare an exact source cleanup allowlist only after restore and application
