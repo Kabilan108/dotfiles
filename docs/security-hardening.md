@@ -139,6 +139,18 @@ secondary layer. The real attack surface is the **decrypted client session**.
 
 ## SSH hardening
 
+Sietch's configuration restricts ordinary OpenSSH to the Tailscale interface:
+`services.openssh.openFirewall = false` removes the global port 22 allowance,
+and `networking.firewall.interfaces.tailscale0.allowedTCPPorts = [ 22 ]` adds
+the interface-specific allowance. Existing SSH keys and disabled password
+authentication remain in use. This does not enable Tailscale SSH's separate
+authentication service or change Jacurutu's policy.
+
+After activation, verify a fresh SSH connection through Sietch's Tailscale
+address and failure through its LAN address, using `ControlPath=none` to avoid
+reusing an existing connection. A Tailscale failure requires local-console
+recovery. Keep a working session open while checking the new policy.
+
 Status: OpenSSH 10.3 supports `sk-ssh-ed25519` ✓. `ykman` not installed yet;
 confirm `libfido2` present when generating the first sk key.
 

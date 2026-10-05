@@ -14,6 +14,10 @@
 
   dotfiles.docker.rootlessDevelopment.enable = true;
 
+  # Keep ordinary OpenSSH and key authentication, but require the tailnet for
+  # remote administration. Local console access is the recovery path.
+  networking.firewall.interfaces.tailscale0.allowedTCPPorts = [ 22 ];
+
   # Leave Bluetooth available for deliberate use, but keep its radio off on boot.
   hardware.bluetooth.powerOnBoot = lib.mkForce false;
 
@@ -77,6 +81,7 @@
     hardware.openrgb.enable = true;
     openssh = {
       enable = true;
+      openFirewall = false;
       settings.PasswordAuthentication = false;
       settings.KbdInteractiveAuthentication = false;
     };
