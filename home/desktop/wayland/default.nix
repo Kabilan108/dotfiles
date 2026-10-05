@@ -7,7 +7,6 @@
 {
   imports = [
     ./screenshots.nix
-    ./walker.nix
   ]
   ++ map (compositor: ./compositors + "/${compositor}") waylandCompositors
   ++ lib.optionals (lib.elem "niri" waylandCompositors) [ ./quickshell ];

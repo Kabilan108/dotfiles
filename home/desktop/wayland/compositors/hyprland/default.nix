@@ -3,11 +3,15 @@ let
   # Hosts can run niri and Hyprland from the same user manager, where every
   # graphical-session.target unit would start under both compositors. mako is
   # also D-Bus activated and would otherwise claim org.freedesktop.Notifications
-  # ahead of Stillsuit in a niri session. Drop-ins keep each unit's own conditions.
+  # ahead of Stillsuit in a niri session. Elephant's clipboard provider would
+  # record a niri session's clipboard alongside Stillsuit's, without its
+  # password-manager filtering. Drop-ins keep each unit's own conditions.
   hyprlandSessionUnits = [
     "waybar"
     "hyprpaper"
     "mako"
+    "walker"
+    "elephant"
   ];
 in
 {
@@ -19,6 +23,7 @@ in
     ../../swaylock.nix
     ../../mako.nix
     ../../waybar.nix
+    ../../walker.nix
   ];
 
   xdg.configFile = lib.listToAttrs (
