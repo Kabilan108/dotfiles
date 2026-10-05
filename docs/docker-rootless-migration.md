@@ -122,8 +122,13 @@ The rootless maintenance timer is running again.
 Publishing tests passed for loopback and Sietch's Tailscale address, including
 browser access through the tailnet. Those listeners did not bind the LAN address.
 A remote LAN IPv6 firewall test passed with a working SSH control. The independent
-LAN IPv4 attempt was inconclusive because its SSH control also failed. Rootless
-publications use host listeners; system Docker's `DOCKER-USER` guard remains
+LAN IPv4 follow-up also passed: Jacurutu routed directly over `wlp1s0` from
+`10.0.0.60` to Sietch's `10.0.0.71`, and the SSH control exited successfully.
+Tailscale-bound and wildcard fixtures responded over the tailnet, while all
+three LAN probes timed out, including the wildcard publication. The exact test
+containers and listeners were removed afterward. Evidence is recorded in
+`lan-ipv4-verification.json` under the protected migration evidence directory.
+Rootless publications use host listeners; system Docker's `DOCKER-USER` guard remains
 separate and does not establish rootless protection.
 
 Clara remains `jovyan`. Its existing notebook home received scoped ACLs for host
