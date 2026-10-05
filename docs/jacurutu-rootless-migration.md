@@ -12,11 +12,10 @@ Rebuilds and reboot are human-operated under `AGENTS.md`.
 
 The root flake covers Sietch and Jacurutu. The separate `raspi` flake is outside
 this migration. Shared development defaults enable rootless Docker and deny
-Docker-group membership. Jacurutu's installed additive generation temporarily
-grants privileged Docker access for export and validation. The source override
-is now removed after verified database restoration and application checks.
-Activate the final reviewed build and reboot before claiming the privilege
-boundary is complete. Disabling
+Docker-group membership. Jacurutu's additive generation temporarily granted
+privileged Docker access for export and validation. That override was removed,
+and human activation and reboot are complete. Fresh ordinary-user access to
+`/run/docker.sock` is denied; plain Docker selects the rootless daemon. Disabling
 rootless does not automatically grant privileged Docker access; reviewed host
 exceptions use the same explicit access option.
 
@@ -89,8 +88,22 @@ original `last_used`; all 31 recorded Git HEADs, branches, and statuses match.
 The final isolated build at `ffd646a7` passed, as did flake checking and both
 hosts' daemon/group policy evaluations. The reviewed human operator is
 `/vault/userdata/jacurutu-rootless-migration/2026-10-05/activate-final.sh`.
-Activation and reboot remain pending; post-reboot privilege and application
-verification must finish before this migration is complete.
+Post-reboot cutover verification passed. The running and booted generations
+match at `/nix/store/qsclyxvnflglasnhlnrafrwfm21mi187-nixos-system-jacurutu-26.11.20261001.c59305b`.
+This newer human-built generation has the same Docker units, firewall unit, and
+kernel as the reviewed snapshot. The Docker group has no members; a fresh socket
+connection is denied, and a fresh shell selects rootless Docker. Home Manager,
+both daemons, and the Docker firewall unit are active. System Docker's unchanged
+storage guard exited successfully during this boot. Original storage inodes and
+ancestor ACLs remain preserved.
+
+After reboot, the real checkout passed all three HTTP checks, doctor, SQL exec,
+logs, and a separate 14-step checkpoint workflow. Reset removed a table written
+after saving the test checkpoint. The test checkpoint was deleted; the checkout
+returned to paused/default with its metadata and current lockfile bytes preserved.
+Evidence is retained under `post-reboot/` in the protected migration directory.
+The data and privilege cutover is complete. The independent networking follow-up
+remains deferred as described below.
 
 Scoped preparation repaired 30,792 root-owned shared UV cache entries and 13,084
 untracked generated entries across 17 component repositories. The component
@@ -119,7 +132,7 @@ Jacurutu's tmpfiles declarations protect the existing `/vault` and
 `/vault/userdata` directory inodes with root ownership, sticky mode, and a named
 write ACL for `kabilan`. The userdata group/other entries keep execute-only
 access. Child ownership is unchanged. Rootful Docker retains
-`/vault/userdata/docker`; rootless gets a separate mode-0700
+`/vault/userdata/docker`; rootless gets a separate initially mode-0700
 `/vault/userdata/docker-rootless`. Never recursively chown the vault.
 
 Before activation, record host-side directory inodes, modes, ownership, and ACLs.
@@ -137,7 +150,7 @@ once the build and security review pass. Rootful Docker's storage guard waits
 for tmpfiles and the mounted vault on next start; its changed unit deliberately
 does not restart an existing system daemon during activation.
 
-## Continue after activation
+## Verification and recovery checklist
 
 1. Verify installed configuration, rootless daemon UID/security/socket/data root,
    actual subordinate mappings, fresh-shell endpoint, retained rootful health,
