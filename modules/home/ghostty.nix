@@ -16,6 +16,8 @@
   programs.ghostty = {
     enable = true;
     settings = {
+      # io_uring event waits inflate Linux I/O-pressure readings while idle.
+      async-backend = "epoll";
       clipboard-read = "allow";
       clipboard-write = "allow";
       clipboard-trim-trailing-spaces = true;

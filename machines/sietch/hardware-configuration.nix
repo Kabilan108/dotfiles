@@ -23,6 +23,8 @@
     "cryptd"
   ];
   boot.initrd.luks.devices."cryptroot".device = "/dev/disk/by-label/NIXOS_LUKS";
+  # Let periodic fstrim reach the SSD through the encrypted root mapping.
+  boot.initrd.luks.devices."cryptroot".allowDiscards = true;
   boot.kernelModules = [ "kvm-amd" ];
   boot.extraModulePackages = [ ];
 
