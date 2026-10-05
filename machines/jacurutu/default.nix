@@ -14,6 +14,9 @@ in
 
   networking.hostName = "jacurutu";
 
+  # Temporary additive stage. Remove after verified rootless data restoration.
+  dotfiles.docker.rootlessDevelopment.allowRootfulUserAccess = true;
+
   # Test the main package set's kernel for the security update. The earlier
   # disk-unlock freeze remains unresolved; retain generation 1141 for recovery.
   boot.kernelPackages = pkgs.linuxPackages;

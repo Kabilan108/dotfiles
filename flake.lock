@@ -1376,7 +1376,6 @@
         "pagebin": "pagebin",
         "siren": "siren",
         "stylix": "stylix",
-        "t3-dot-bridge": "t3-dot-bridge",
         "tracer": "tracer",
         "try": "try",
         "walker": "walker",
@@ -1512,22 +1511,6 @@
         "repo": "default-linux",
         "type": "github"
       }
-    },
-    "t3-dot-bridge": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "path": "./packages/t3-dot-bridge",
-        "type": "path"
-      },
-      "original": {
-        "path": "./packages/t3-dot-bridge",
-        "type": "path"
-      },
-      "parent": []
     },
     "tinted-kitty": {
       "flake": false,

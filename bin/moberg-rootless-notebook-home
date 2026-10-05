@@ -245,7 +245,7 @@ def main() -> None:
         action="store_true",
         help="Confirm notebook processes are stopped before applying",
     )
-    parser.add_argument("--docker-host", default="unix:///run/user/1000/docker.sock")
+    parser.add_argument("--docker-host", default=f"unix:///run/user/{os.getuid()}/docker.sock")
     parser.add_argument(
         "--image", default="busybox:latest", help="Existing local mapping-probe image"
     )

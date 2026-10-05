@@ -37,7 +37,7 @@ in
       "plugdev"
       "input"
     ]
-    ++ lib.optionals (!isSietch) [ "docker" ];
+    ++ lib.optionals config.dotfiles.docker.rootlessDevelopment.allowRootfulUserAccess [ "docker" ];
     shell = pkgs.bashInteractive;
     linger = true;
   };

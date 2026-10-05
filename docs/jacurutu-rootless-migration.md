@@ -1,0 +1,121 @@
+# Jacurutu rootless Docker migration
+
+## Current checkpoint
+
+Prepared on 2026-10-05 from `/tmp/jacurutu-rootless-docker-handoff.md`, copied
+from Sietch and checksum verified. Rootless Docker is not yet activated on
+Jacurutu. Rebuilds and reboot are human-operated under `AGENTS.md`.
+
+The root flake covers Sietch and Jacurutu. The separate `raspi` flake is outside
+this migration. Shared development defaults enable rootless Docker and deny
+Docker-group membership. Jacurutu temporarily sets
+`dotfiles.docker.rootlessDevelopment.allowRootfulUserAccess = true` for export
+and validation. Remove that override after verified restoration, then activate
+and reboot before claiming the privilege boundary is complete. Disabling
+rootless does not automatically grant privileged Docker access; reviewed host
+exceptions use the same explicit access option.
+
+Sietch's existing rootless daemon, rootful Executor, protected storage, and
+Docker-group exclusion remain configured. See
+[the completed Sietch procedure](docker-rootless-migration.md) for transfer,
+notebook ACL, application verification, and independent networking evidence.
+
+## Inventory and preservation
+
+Protected evidence is in
+`/vault/userdata/jacurutu-rootless-migration/2026-10-05`, with directory mode
+0700 and files mode 0600. Inspect dumps privately; container environment values
+and database dumps must stay out of reports. Inventory includes full container,
+image, volume, network, context, and daemon metadata, writable-layer diffs,
+checkout configuration, and component Git state.
+
+One full-clone checkout is registered at `/vault/work/moberg/dev-server`, named
+`dev-server-0`, Compose project `dev-server`, checkpoint `default`, initially
+paused with no Compose containers. Dev CLI commit
+`0ae5f102438537a9071f25e9e83ade2e13004b10` was fast-forwarded into its actual
+`dev/flake` branch. Independent component branches, stashes, and local work
+remain in place. Preserve the original lifecycle state and `last_used` value
+`2026-09-30T14:25:01+00:00` after verification.
+
+| Resource | Planned disposition |
+| --- | --- |
+| `dev-server_db-iam_default` | PostgreSQL 12 data; verified logical export and rootless restore required |
+| `dev-server_db-patient_default` | PostgreSQL 12 data; verified logical export and rootless restore required |
+| `dev-server_dashboard-node-modules` | Recreate dependencies rootless after successful pilot; preserve source until application validation |
+| Anonymous volume `adc3aeb7c171e96ddc4ced8fcb3be607dfd04eff38e7969af4f0062161233aad` | Read-only inventory found no files, 4 KiB; retain until scoped cleanup decision |
+| Anonymous volume `cc62d305ca07226c81913a28f84c499cb5a4b5bdeb6891fb5b9b979337a8c643` | Read-only inventory found no files, 4 KiB; retain until scoped cleanup decision |
+| Stopped `moberg-clara-local` | Existing `jovyan` notebook home and read-only archive/source binds; migration decision pending |
+| Stopped `hungry_brown` | Connect-client experiment with a writable layer; retain unchanged pending user decision |
+| Stopped `hardcore_dirac` | Jupyter experiment with a writable layer; retain unchanged pending user decision |
+| Four dev-server images | Rebuild Dashboard, IAM, Query, and export-worker from preserved component revisions; retain source images |
+| `moberg-clara-local:dev` | Unique local image; retain and transfer/rebuild if Clara is migrated |
+| `jupyterhub-singleuser-dev:latest` | Local image used by stopped experiment; retain unchanged |
+| Three untagged images | Unique local builds of unknown purpose; retain unchanged |
+| Registry Jupyter 2.1.1, connect-client, PostgreSQL 12, BusyBox | Retain rootful copies; pull or transfer required rootless images with identity checks |
+| `bridge`, `host`, `none` networks | Built-in rootful networks; retain, let rootless create separate networks |
+| System Docker and Docker firewall unit | Retain during migration; no discovered active system container dependency on Jacurutu |
+| `docker-prune.service` | Installed manual system-daemon operation; no timer, no invocation during migration |
+| LazyDocker and interactive Docker/Compose | New sessions inherit the UID-derived rootless endpoint |
+| Moberg maintenance CLI | Configured rootless endpoint; maintenance timers are disabled on Jacurutu |
+
+All three standalone containers are stopped, unprivileged, have no devices or
+Docker socket mounts, and need no demonstrated privileged runtime behavior.
+Preserve their writable layers until disposition is settled. Nothing has been
+deleted or globally pruned.
+
+## Additive activation
+
+Build the reviewed committed snapshot in an isolated checkout. Keep unrelated
+desktop changes out of the build. The imported Sietch lock contained an orphaned
+T3 Bridge input absent from committed `flake.nix`; normalize that stale entry
+without updating any actual dependency pin.
+
+Jacurutu's tmpfiles declarations protect the existing `/vault` and
+`/vault/userdata` directory inodes with root ownership, sticky mode, and a named
+write ACL for `kabilan`. The userdata group/other entries keep execute-only
+access. Child ownership is unchanged. Rootful Docker retains
+`/vault/userdata/docker`; rootless gets a separate mode-0700
+`/vault/userdata/docker-rootless`. Never recursively chown the vault.
+
+Before activation, record host-side directory inodes, modes, ownership, and ACLs.
+Reject symlinks or an absent vault mount. Verify the existing system Docker data
+directory is genuinely root-owned with no non-root write access. The agent's
+restricted user namespace maps only UID 1000 and GID 100, so host-root ownership
+appears as UID/GID 65534 there; use a human host shell for authoritative checks.
+That shell must also confirm live `/etc/subuid`, `/etc/subgid`, and the setuid
+mapping helpers. NixOS evaluates automatic subordinate range allocation and
+linger enabled; derive the assigned ranges after activation.
+
+Use the exact reviewed build's `switch-to-configuration` for activation after
+the human registers its system profile. Notify through `notify-send` and Hark
+once the build and security review pass. Rootful Docker's storage guard waits
+for tmpfiles and the mounted vault on next start; its changed unit deliberately
+does not restart an existing system daemon during activation.
+
+## Continue after activation
+
+1. Verify installed configuration, rootless daemon UID/security/socket/data root,
+   actual subordinate mappings, fresh-shell endpoint, retained rootful health,
+   protected parent inodes/ACLs, and maintenance routing. Start the user daemon
+   if needed. Do not infer activation from the build.
+2. Validate a disposable checkout against rootless with source builds, startup,
+   migrations, exec/logs, checkpoint save/restore, pause/resume, doctor, and
+   teardown. Use loopback or Tailscale bindings and preserve unrelated data.
+3. Export both source PostgreSQL volumes with all databases, schema/data,
+   roles/memberships, sequences, large objects, and settings preserved. Quiesce
+   writers and retain checksummed SQL recovery copies. Verify rootless restores
+   and application behavior before deleting any source resource.
+4. If Clara is included, preserve `jovyan`, preview the notebook helper with the
+   actual rootless UID mapping, stop overlapping writers, then apply scoped
+   ACLs. Verify notebook writes, host access, and read-only archive behavior.
+5. Remove the temporary privileged-access override, build and review the final
+   configuration, request human activation and reboot, then verify fresh socket
+   denial, plain Docker rootless selection, booted/running configuration, real
+   checkout smoke/checkpoint checks, and retained services.
+6. Verify networking separately from `DOCKER-USER`, using an independent peer,
+   a successful positive control, explicit bind fixtures, and tailnet-positive /
+   physical-LAN-negative checks. Remove exact fixtures.
+7. Prepare an exact source cleanup allowlist only after restore and application
+   proofs pass. Revalidate IDs, labels, references, and recovery evidence before
+   deletion. Retain unknown state and protected recovery copies with an explicit
+   retention decision; finish with every resource's actual disposition.

@@ -49,7 +49,12 @@
   ];
 
   systemd.tmpfiles.rules = [
-    "d /vault 0755 kabilan users - -"
+    # Preserve user workflows and protect root-owned immediate children.
+    "d /vault 1755 root root - -"
+    "a /vault - - - - u::rwx,u:kabilan:rwx,g::r-x,m::rwx,o::r-x"
+    # Keep userdata unlistable by other users, as before the migration.
+    "d /vault/userdata 1711 root root - -"
+    "a /vault/userdata - - - - u::rwx,u:kabilan:rwx,g::--x,m::rwx,o::--x"
   ];
 
   # Enables DHCP on each ethernet and wireless interface. In case of scripted networking

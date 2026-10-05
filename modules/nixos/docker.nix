@@ -17,8 +17,22 @@ let
   );
 in
 {
-  options.dotfiles.docker.rootlessDevelopment.enable =
-    lib.mkEnableOption "rootless Docker for the Sietch development user";
+  options.dotfiles.docker.rootlessDevelopment = {
+    enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Use a separate rootless Docker daemon for user development";
+    };
+    allowRootfulUserAccess = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Grant the development user privileged Docker-group access during an
+        explicitly staged migration or a reviewed host exception. Remove a
+        migration override after verified restoration and before reboot.
+      '';
+    };
+  };
 
   config = {
     boot.kernel.sysctl = {
