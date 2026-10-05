@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stillsuit launcher plan: replacing Walker and Elephant</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f4f2ee;
+    --bg-2: #ebe7df;
+    --card: #fffdf9;
+    --ink: #1d1f24;
+    --muted: #5f6470;
+    --line: #d6d0c4;
+    --line-2: #a9a294;
+    --accent: #3d63c9;
+    --accent-soft: #dde5fa;
+    --warn: #a3561c;
+    --warn-soft: #f6e2cf;
+    --bad: #a83a3a;
+    --bad-soft: #f4d9d6;
+    --good: #3c7140;
+    --good-soft: #dbead8;
+    --code-bg: #1b1d26;
+    --code-ink: #dfe3ee;
+    --shadow: 0 10px 30px rgba(30, 28, 22, .07);
+    /* catppuccin mocha, used only for the mockups */
+    --m-crust: #11111b; --m-mantle: #181825; --m-base: #1e1e2e; --m-s0: #313244; --m-s1: #45475a;
+    --m-ov0: #6c7086; --m-sub0: #a6adc8; --m-text: #cdd6f4; --m-blue: #89b4fa; --m-mauve: #cba6f7;
+    --m-green: #a6e3a1; --m-peach: #fab387; --m-red: #f38ba8; --m-yellow: #f9e2af;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #13151b; --bg-2: #1b1e26; --card: #1a1d25; --ink: #e6e8ee; --muted: #a0a6b4;
+      --line: #2f3440; --line-2: #4a5160; --accent: #8fb0ff; --accent-soft: #1f2a45;
+      --warn: #f0a669; --warn-soft: #3a2a1c; --bad: #f08c8c; --bad-soft: #3b2121;
+      --good: #9fd29a; --good-soft: #1e3020; --shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  a { color: var(--accent); text-underline-offset: .15em; }
+  code, pre, kbd, .mono { font-family: ui-monospace, "JetBrains Mono", SFMono-Regular, Consolas, monospace; }
+  code { font-size: .88em; overflow-wrap: anywhere; }
+  kbd { display: inline-block; padding: 0 6px; border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 5px; font-size: .78em; background: var(--card); white-space: nowrap; }
+  .page { width: min(1240px, calc(100% - 32px)); margin: 0 auto; }
+  header.hero { padding: 64px 0 34px; border-bottom: 1px solid var(--line); }
+  .eyebrow { margin: 0 0 14px; color: var(--accent); font: 700 .74rem/1.3 ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; }
+  h1 { margin: 0; max-width: 980px; font: 760 clamp(2.4rem, 6vw, 4.6rem)/.98 ui-serif, Georgia, serif; letter-spacing: -.035em; }
+  .lede { max-width: 820px; margin: 22px 0 0; font-size: clamp(1.05rem, 1.8vw, 1.25rem); }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 22px; color: var(--muted); font: .78rem/1.5 ui-monospace, monospace; }
+  .layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 40px; align-items: start; }
+  nav.toc { position: sticky; top: 0; padding: 24px 0; max-height: 100vh; overflow: auto; }
+  nav.toc strong { display: block; margin-bottom: 10px; font: 700 .7rem/1 ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }
+  nav.toc a { display: block; padding: 4px 0; color: var(--muted); font-size: .86rem; text-decoration: none; }
+  nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); }
+  main { min-width: 0; padding-bottom: 80px; }
+  section { margin: 60px 0; scroll-margin-top: 20px; }
+  .label { color: var(--accent); font: 700 .72rem/1.3 ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; }
+  h2 { margin: 6px 0 18px; font: 720 clamp(1.7rem, 3.4vw, 2.6rem)/1.05 ui-serif, Georgia, serif; letter-spacing: -.025em; }
+  h3 { margin: 0 0 8px; font-size: 1.05rem; line-height: 1.3; }
+  p { max-width: 860px; }
+  .muted { color: var(--muted); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .card { padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); box-shadow: var(--shadow); min-width: 0; }
+  .card p { margin: 6px 0 0; color: var(--muted); font-size: .94rem; }
+  .card .big { display: block; font: 750 1.9rem/1 ui-serif, Georgia, serif; color: var(--accent); margin-bottom: 6px; }
+  .callout { margin: 22px 0; padding: 16px 18px; border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 6px 6px 0; }
+  .callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+  .callout.bad { border-color: var(--bad); background: var(--bad-soft); }
+  .callout.good { border-color: var(--good); background: var(--good-soft); }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: 8px; }
+  pre { overflow: auto; margin: 14px 0; padding: 14px 16px; border-radius: 7px; background: var(--code-bg); color: var(--code-ink); font-size: .82rem; line-height: 1.55; }
+  .table-wrap { overflow: auto; margin: 20px 0; border: 1px solid var(--line); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); font-size: .89rem; }
+  th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { background: var(--bg-2); font: 700 .7rem/1.3 ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase; }
+  tr:last-child td { border-bottom: 0; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font: 700 .66rem/1.6 ui-monospace, monospace; text-transform: uppercase; white-space: nowrap; }
+  .t-take { color: var(--good); background: var(--good-soft); }
+  .t-adapt { color: var(--warn); background: var(--warn-soft); }
+  .t-leave { color: var(--bad); background: var(--bad-soft); }
+  .t-p { color: var(--accent); background: var(--accent-soft); }
+
+  /* cgroup diagram */
+  .cg { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 22px 0; }
+  .cg-col { padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+  .cg-col h3 { display: flex; gap: 8px; align-items: center; }
+  .box { margin: 8px 0; padding: 10px 12px; border: 1px dashed var(--line-2); border-radius: 7px; font: .8rem/1.45 ui-monospace, monospace; }
+  .box .name { font-weight: 700; display: block; margin-bottom: 4px; }
+  .box.danger { border-color: var(--bad); background: var(--bad-soft); }
+  .box.safe { border-color: var(--good); background: var(--good-soft); }
+  .box .proc { display: inline-block; margin: 2px 4px 2px 0; padding: 1px 6px; border-radius: 4px; background: var(--bg-2); }
+  .box.nest { margin-left: 14px; }
+
+  /* flow */
+  .flow { display: flex; gap: 6px; align-items: stretch; overflow-x: auto; padding: 4px 2px 12px; margin: 18px 0; }
+  .flow .node { flex: 1 0 150px; padding: 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--card); font-size: .82rem; }
+  .flow .node b { display: block; font-size: .88rem; margin-bottom: 4px; }
+  .flow .node span { color: var(--muted); }
+  .flow .arr { align-self: center; color: var(--accent); font: 700 1.2rem/1 ui-monospace, monospace; }
+
+  /* architecture */
+  .arch { display: grid; gap: 12px; margin: 22px 0; }
+  .lane { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; align-items: stretch; }
+  .lane > .lname { padding: 12px; border-radius: 7px; background: var(--bg-2); font: 700 .72rem/1.35 ui-monospace, monospace; text-transform: uppercase; letter-spacing: .05em; }
+  .lane > .lname small { display: block; margin-top: 6px; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
+  .lane .items { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+  .comp { padding: 11px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--card); font-size: .84rem; }
+  .comp b { display: block; margin-bottom: 3px; font-size: .88rem; }
+  .comp code { font-size: .78rem; }
+  .comp.new { border: 1.5px solid var(--accent); }
+  .comp.newcore { border: 1.5px solid var(--warn); }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .8rem; color: var(--muted); }
+  .legend i { display: inline-block; width: 14px; height: 10px; margin-right: 6px; border-radius: 3px; vertical-align: middle; }
+
+  /* mockup */
+  .stage { margin: 22px 0; padding: 28px 16px; border-radius: 10px; background: radial-gradient(circle at 30% 20%, #2b2f45, #121320 70%); display: grid; place-items: center; }
+  .modes { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 14px; }
+  .modes button { appearance: none; border: 1px solid var(--m-s1); background: var(--m-mantle); color: var(--m-sub0); padding: 5px 10px; border-radius: 7px; font: 600 .78rem/1.2 ui-sans-serif, system-ui, sans-serif; cursor: pointer; }
+  .modes button[aria-pressed="true"] { border-color: var(--m-blue); color: var(--m-text); background: var(--m-s0); }
+  .modes button kbd { margin-left: 6px; background: var(--m-base); border-color: var(--m-s1); color: var(--m-sub0); }
+  .launcher { width: min(560px, 100%); padding: 14px; border-radius: 11px; background: color-mix(in srgb, var(--m-base) 95%, transparent); border: 1px solid var(--m-s1); color: var(--m-text); font: 13px/1.4 "Noto Sans", ui-sans-serif, system-ui, sans-serif; box-shadow: 0 24px 60px rgba(0,0,0,.45); }
+  .search { display: flex; align-items: center; gap: 8px; padding: 0 10px; height: 40px; border-radius: 7px; background: var(--m-mantle); border: 1px solid var(--m-s1); }
+  .search:focus-within { border-color: var(--m-blue); }
+  .search .chip { padding: 1px 7px; border-radius: 5px; background: var(--m-s0); color: var(--m-mauve); font: 600 11px/1.6 "JetBrains Mono", ui-monospace, monospace; white-space: nowrap; }
+  .search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--m-text); font: 600 14px/1 inherit; font-family: inherit; }
+  .search input::placeholder { color: var(--m-ov0); }
+  .body { display: flex; gap: 10px; margin-top: 10px; }
+  .results { flex: 1; min-width: 0; list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; }
+  .results li { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px; border-radius: 7px; cursor: default; }
+  .results li[aria-selected="true"] { background: var(--m-s0); outline: 1px solid color-mix(in srgb, var(--m-blue) 55%, transparent); }
+  .results .ic { flex: none; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; background: var(--m-s0); color: var(--m-blue); font: 700 11px/1 ui-monospace, monospace; }
+  .results .tx { min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .results .tx mark { background: none; color: var(--m-blue); font-weight: 700; }
+  .results .sub { color: var(--m-ov0); font-size: 11px; margin-left: 6px; }
+  .results .tr { color: var(--m-ov0); font: 11px/1 "JetBrains Mono", ui-monospace, monospace; }
+  .results li.current .tx { color: var(--m-mauve); }
+  .results .section { height: 22px; padding: 6px 10px 0; color: var(--m-ov0); font: 700 10px/1 ui-monospace, monospace; text-transform: uppercase; letter-spacing: .08em; }
+  .preview { width: 190px; flex: none; padding: 10px; border-radius: 7px; background: var(--m-mantle); border: 1px solid var(--m-s1); color: var(--m-sub0); font: 11px/1.45 "JetBrains Mono", ui-monospace, monospace; white-space: pre-wrap; overflow: hidden; }
+  .empty { padding: 26px 10px; text-align: center; color: var(--m-ov0); }
+  .hints { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--m-s0); color: var(--m-ov0); font-size: 11px; }
+  .hints span b { display: inline-block; margin-right: 4px; padding: 0 5px; border: 1px solid var(--m-s1); border-radius: 4px; color: var(--m-text); font: 600 10px/1.6 ui-monospace, monospace; }
+  .intent { width: min(560px, 100%); margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: rgba(17,17,27,.85); color: var(--m-green); font: 12px/1.5 "JetBrains Mono", ui-monospace, monospace; white-space: pre-wrap; min-height: 3.2em; }
+  .intent .k { color: var(--m-ov0); }
+
+  /* timeline */
+  .timeline { position: relative; margin-top: 22px; }
+  .timeline::before { content: ""; position: absolute; left: 17px; top: 8px; bottom: 8px; width: 1px; background: var(--line-2); }
+  .ms { position: relative; margin: 0 0 14px 46px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+  .ms::before { content: attr(data-step); position: absolute; left: -46px; top: 15px; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--accent); border-radius: 50%; background: var(--bg); color: var(--accent); font: 700 .72rem/1 ui-monospace, monospace; }
+  .ms.gate { border-color: var(--warn); }
+  .ms.gate::before { border-color: var(--warn); color: var(--warn); }
+  .ms h3 { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+  .ms p { margin: 6px 0; }
+  .ms ul { margin: 6px 0 0; padding-left: 18px; }
+  .ms li + li { margin-top: 3px; }
+  .ms .verify { margin-top: 10px; padding: 9px 12px; border-radius: 6px; background: var(--bg-2); font-size: .88rem; }
+  .ms .verify b { font: 700 .68rem/1 ui-monospace, monospace; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); display: block; margin-bottom: 4px; }
+
+  .q { padding: 16px 18px; border: 1px solid var(--accent); border-radius: 8px; background: var(--card); }
+  .q + .q { margin-top: 10px; }
+  .q p { margin: 6px 0 0; }
+  .q .rec { color: var(--good); font-weight: 650; }
+  footer { padding: 26px 0 50px; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+  :focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 2px; }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; gap: 0; }
+    nav.toc { position: relative; display: flex; gap: 14px; overflow-x: auto; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    nav.toc strong { display: none; }
+    nav.toc a { flex: none; }
+    .cg { grid-template-columns: 1fr; }
+    .lane { grid-template-columns: 1fr; }
+    .preview { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+<header class="hero">
+  <p class="eyebrow">Stillsuit · implementation plan · 2026-10-01</p>
+  <h1>Walker and Elephant, folded into the shell</h1>
+  <p class="lede">One Stillsuit plugin takes over all five of your pickers and the prefix modes, and a small service plugin takes over clipboard history. Elephant goes too. Walker keeps its keybindings until the new launcher has run beside it for a while. After that, one rebuild swaps them.</p>
+  <div class="meta">
+    <span>Omarchy main 821ae58 (2026-10-02)</span>
+    <span>Walker d885437 · pin 42b3ed8</span>
+    <span>Elephant a35b3b5 · pin 23f3723</span>
+    <span>Quickshell 0.3.1</span>
+    <span>Measured on sietch</span>
+  </div>
+</header>
+
+<div class="layout">
+<nav class="toc" aria-label="Contents">
+  <strong>Contents</strong>
+  <a href="#short">Short version</a>
+  <a href="#today">What you run today</a>
+  <a href="#cgroup">The launch bug</a>
+  <a href="#omarchy">How Omarchy does it</a>
+  <a href="#arch">Architecture</a>
+  <a href="#mockup">Try the mockup</a>
+  <a href="#contract">Providers and intents</a>
+  <a href="#search">Search and ranking</a>
+  <a href="#phases">Phases</a>
+  <a href="#files">Files touched</a>
+  <a href="#decisions">Decisions and questions</a>
+  <a href="#risks">Risks</a>
+  <a href="#sources">Sources</a>
+</nav>
+
+<main>
+<section id="short">
+  <div class="label">01 · Short version</div>
+  <h2>Replace both, fix launching first, cut over last</h2>
+  <div class="cards">
+    <article class="card"><span class="big">Both go</span><h3>Elephant is on hold upstream</h3><p>Its README now opens with "Development is on hold." Your pin predates <code>c9cc79b</code>, which fixed a clipboard pin/delete deadlock. Every provider you use fits in a small JS module, and Quickshell already parses desktop entries.</p></article>
+    <article class="card"><span class="big">2.3 GB</span><h3>of Helium lives in Elephant's cgroup</h3><p>Apps launched from Walker run inside <code>elephant.service</code>. A restart of that unit kills them. The new launcher gives every app its own systemd scope. That piece ships first, before any UI.</p></article>
+    <article class="card"><span class="big">Shape, not actions</span><h3>What to copy from Omarchy</h3><p>Copy the single menu plugin, the overlay that stays mapped so it opens sharp, and a model in plain JS with node tests. Skip their <code>bash -lc</code> action strings, substring-only search and missing frecency.</p></article>
+    <article class="card"><span class="big">2 rebuilds</span><h3>Everything else hot-reloads</h3><p>Rebuild one lands the shared host code: the menu host, text field, icon lookup and launch helper. Rebuild two is the cutover. The plugins in between hot-reload under <code>src/plugins/</code>.</p></article>
+  </div>
+</section>
+
+<section id="today">
+  <div class="label">02 · Inventory</div>
+  <h2>What you run today</h2>
+  <p>Everything below comes from <code>home/desktop/wayland/walker.nix</code>, the niri binds at <code>config.kdl:504-509</code>, and the Hyprland binds at <code>hyprland.nix:215-220</code>. No script in the repo calls <code>walker --dmenu</code> or the <code>elephant</code> CLI, so dmenu mode can wait.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Key</th><th>Walker call</th><th>Elephant side</th><th>State on disk</th><th>New home</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><kbd>Mod+D</kbd></td><td><code>--set combi</code></td><td>desktopapplications, calc, websearch; an empty query shows apps</td><td><code>desktopapplications_history.gob</code></td><td><code>apps</code>, <code>calc</code>, <code>web</code> providers</td><td><span class="tag t-p">P1</span></td></tr>
+      <tr><td><kbd>Mod+Tab</kbd></td><td><code>--provider windows</code></td><td>windows, through wlr-foreign-toplevel</td><td>none</td><td><code>windows</code> provider over <code>context.compositor.windows</code>, most recent first by niri <code>focus_timestamp</code></td><td><span class="tag t-p">P1</span></td></tr>
+      <tr><td><kbd>Mod+Shift+E</kbd></td><td><code>menus:power</code></td><td>TOML menu, 5 shell strings</td><td>none</td><td><code>power</code> provider with typed session intents</td><td><span class="tag t-p">P1</span></td></tr>
+      <tr><td><kbd>Mod+Alt+P</kbd></td><td><code>menus:profiles</code></td><td>Lua menu. It shells out to <code>qs ipc … stillsuit-profile</code> twice, and with <code>Cache = false</code> that happens on every keystroke</td><td>none</td><td><code>profiles</code> provider reading <code>context.profiles</code> directly, no processes</td><td><span class="tag t-p">P1</span></td></tr>
+      <tr><td><kbd>Mod+V</kbd></td><td><code>--provider clipboard</code></td><td>clipboard: <code>wl-paste --watch</code>, gob store, image files</td><td><code>clipboard.gob</code> (48 KB), <code>clipboardimages/</code></td><td><code>stillsuit.clipboard</code> service plus a <code>clipboard</code> provider</td><td><span class="tag t-p">P3</span></td></tr>
+      <tr><td><kbd>Mod+Shift+V</kbd> <span class="muted">(Hyprland)</span></td><td><code>menus/clear-clipboard</code></td><td>stops Elephant, deletes the gob, starts it again</td><td></td><td>"Clear history" action inside clipboard mode</td><td><span class="tag t-p">P3</span></td></tr>
+      <tr><td>Prefixes</td><td><code>;</code> list, <code>&gt;</code> run, <code>/</code> files, <code>.</code> symbols, <code>@</code> web, <code>:</code> clipboard, <code>$</code> windows</td><td>providerlist, runner, files, symbols, websearch, clipboard, windows</td><td><code>runner_history.gob</code>, <code>files.db</code> (19 MB SQLite, rebuilt from <code>fd</code> on every start)</td><td>Same prefixes, same characters</td><td><span class="tag t-p">P2</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="cgroup">
+  <div class="label">03 · The finding that sets the order of work</div>
+  <h2>Restarting Elephant kills your browser</h2>
+  <p>systemd reports 1.2 GB for <code>elephant.service</code> (peak 2 GB, 431 tasks). Elephant itself holds 30 MB. The rest is twelve Helium processes, about 2.3 GB RSS, sitting in Elephant's cgroup.</p>
+  <p>The cause is one line in <code>walker.nix</code>: <code>auto_detect_launch_prefix = false</code>. With no prefix, Elephant launches with <code>sh -c</code> and <code>Setsid</code>. setsid detaches the terminal session but leaves the process in the unit's cgroup, and the unit uses <code>KillMode=control-group</code>. The Walker and Elephant Home Manager modules also attach <code>X-Restart-Triggers</code> hashed over the whole config, and <code>walker.service</code> has <code>Requires=elephant.service</code>. Any edit to the launcher config therefore restarts Elephant on switch and takes your Walker-launched apps with it. That is the mechanism behind the AGENTS.md rule about not auto-restarting these units.</p>
+  <div class="cg">
+    <div class="cg-col">
+      <h3><span class="tag t-leave">today</span> launched from Walker</h3>
+      <div class="box">user@1000.service / app.slice</div>
+      <div class="box danger nest"><span class="name">elephant.service · KillMode=control-group</span>
+        <span class="proc">elephant 30 MB</span><span class="proc">wl-paste --watch</span><br>
+        <span class="proc">helium ×12 ≈ 2.3 GB</span><span class="proc">bwrap (AppImage)</span></div>
+      <p class="muted" style="font-size:.86rem;margin:8px 0 0">A <code>systemctl --user restart elephant</code> SIGTERMs everything in this box.</p>
+    </div>
+    <div class="cg-col">
+      <h3><span class="tag t-take">planned</span> launched from Stillsuit</h3>
+      <div class="box">user@1000.service / app.slice</div>
+      <div class="box nest"><span class="name">stillsuit-shell.service</span><span class="proc">quickshell</span><span class="proc">wl-paste --watch</span><span class="proc">qalc, fd (short-lived)</span></div>
+      <div class="box safe nest"><span class="name">app-stillsuit-helium-3f9a.scope</span><span class="proc">helium …</span></div>
+      <div class="box safe nest"><span class="name">app-stillsuit-com.mitchellh.ghostty-81c2.scope</span><span class="proc">ghostty</span></div>
+      <p class="muted" style="font-size:.86rem;margin:8px 0 0">Restarting the shell never touches an app scope.</p>
+    </div>
+  </div>
+  <div class="callout warn">
+    <p><strong>Stillsuit has the same exposure.</strong> <code>stillsuit-shell.service</code> also uses <code>KillMode=control-group</code>. The only launch helper in the tree today is <code>Quickshell.execDetached</code> (dictation <code>Service.qml:63</code>), and Quickshell's own <code>DesktopEntry.execute()</code> uses that too. A naive launcher would just move the bug from Elephant into the shell.</p>
+  </div>
+  <p>I tested the fix from inside a service cgroup on sietch. The command below put its child at <code>app.slice/app-stillsuit-probe-….scope</code>. Omarchy fixed the same problem the same way: <code>uwsm-app -- gtk-launch</code>, landing apps in <code>app-graphical.slice</code>.</p>
+  <pre>systemd-run --user --scope --collect --quiet \
+  --slice=app.slice --unit=app-stillsuit-&lt;desktop-id&gt;-&lt;rand&gt; \
+  -- &lt;argv from DesktopEntry.command&gt;</pre>
+</section>
+
+<section id="omarchy">
+  <div class="label">04 · Reference</div>
+  <h2>How Omarchy's menu works on main</h2>
+  <p>Omarchy removed Walker and Elephant on 2026-05-19 (<code>abf0a68b</code>). The replacement is one plugin, <code>omarchy.menu</code>, that combines the launcher and the system menu (<code>7a9947a7</code>, 2026-07-23). Its core has been stable since mid-August. The only late-September change is the overlay staying mapped (<code>48de7823</code>).</p>
+  <div class="flow" role="list">
+    <div class="node" role="listitem"><b>Hyprland bind</b><span>registered as a global shortcut <code>omarchy:menu.root</code>, so no process spawns per keypress</span></div>
+    <div class="arr" aria-hidden="true">→</div>
+    <div class="node" role="listitem"><b>shell.toggle</b><span><code>("omarchy.menu", {menu: route})</code>, payload queued until loaded</span></div>
+    <div class="arr" aria-hidden="true">→</div>
+    <div class="node" role="listitem"><b>Menu.qml · 1,479 lines</b><span>view, nav stack, dmenu mode, providers, guards</span></div>
+    <div class="arr" aria-hidden="true">→</div>
+    <div class="node" role="listitem"><b>MenuModel.js · 535 lines</b><span>JSONC tree, merge, routes, scoring. Loads in node for tests</span></div>
+    <div class="arr" aria-hidden="true">→</div>
+    <div class="node" role="listitem"><b>Action</b><span><code>bash -lc &lt;string&gt;</code>, or <code>uwsm-app -- gtk-launch id.desktop</code> for apps</span></div>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Idea</th><th>Verdict</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>One <code>menu</code>-kind plugin, <code>keepLoaded: true</code>, opened by IPC with a route payload</td><td><span class="tag t-take">take</span></td><td>Stillsuit's schema already lists the <code>menu</code> kind. With <code>keepLoaded</code>, an open becomes a synchronous delivery to a live object.</td></tr>
+      <tr><td><code>OverlayWindow</code> stays mapped: closed it parks as 1×1 on the Bottom layer with an empty input mask</td><td><span class="tag t-take">take</span></td><td>No blurry first frame while fractional scale arrives, and no window creation on open.</td></tr>
+      <tr><td>Pure-JS model with node tests (<code>test/shell.d/menu-test.sh</code>)</td><td><span class="tag t-take">take</span></td><td>Stillsuit already runs node tests for notifications.</td></tr>
+      <tr><td>App library on <code>DesktopEntries</code> with a 750 ms rescan debounce and an icon fallback index</td><td><span class="tag t-take">take</span></td><td>Same Quickshell API. Your Nix icon themes need the fallback less, but it's cheap.</td></tr>
+      <tr><td>Clipboard as its own plugin: two <code>wl-paste --watch</code> children, images by sha256, atomic JSON</td><td><span class="tag t-take">take</span></td><td>Keeps the privacy-sensitive collector separable from the launcher.</td></tr>
+      <tr><td>Acronym matching for short terms</td><td><span class="tag t-take">take</span></td><td>"vsc" finds Visual Studio Code. Layered on top of fuzzy matching here.</td></tr>
+      <tr><td>Route tree in a user JSONC file</td><td><span class="tag t-adapt">adapt</span></td><td>Becomes modes in the IPC payload plus Nix-declared menus whose entries name typed intents.</td></tr>
+      <tr><td>Global shortcuts instead of spawning a client</td><td><span class="tag t-adapt">adapt</span></td><td>niri has no equivalent. <code>qs ipc</code> measured 40-50 ms here. Omarchy's private socket is the later fix if that ever feels slow.</td></tr>
+      <tr><td><code>action</code>, <code>when</code>, <code>checked</code> run as <code>bash -lc</code> strings</td><td><span class="tag t-leave">leave</span></td><td>Turns a config file into an executable, and Stillsuit's host contract forbids exactly this.</td></tr>
+      <tr><td>dmenu through tempfiles and 50 ms polling with no timeout</td><td><span class="tag t-leave">leave</span></td><td>Nothing of yours needs dmenu. If it's ever needed, use a FIFO with a timeout.</td></tr>
+      <tr><td>Substring-only search, no frecency, <code>clear()</code> and append on every keystroke</td><td><span class="tag t-leave">leave</span></td><td>Elephant's fzf scoring and usage boost are the parts worth keeping.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="arch">
+  <div class="label">05 · Architecture</div>
+  <h2>Where each piece lives</h2>
+  <p>The host contract gives plugins no process runner, and payloads never become argv. So the launcher's providers return typed intents, and the core executes them through new named actions. The view stays a view. The service owns state, history and async processes.</p>
+  <div class="legend"><span><i style="background:var(--warn)"></i>new core code, needs rebuild 1</span><span><i style="background:var(--accent)"></i>new plugin code, hot-reloads</span><span><i style="background:var(--line-2)"></i>exists today</span></div>
+  <div class="arch">
+    <div class="lane"><div class="lname">Trigger<small>niri binds</small></div><div class="items">
+      <div class="comp"><b>niri bind</b><code>qs ipc -c stillsuit-next call stillsuit-surface toggle stillsuit.launcher '{"mode":"combi"}'</code></div>
+    </div></div>
+    <div class="lane"><div class="lname">Core<small>src/core, src/services, src/ui</small></div><div class="items">
+      <div class="comp"><b>SurfaceRouter</b>routes <code>menu</code> kind, preloads with <code>keepLoaded</code>, picks the focused output</div>
+      <div class="comp newcore"><b>MenuHost</b>one mapped layer surface per output. Overlay layer, exclusive keyboard while shown, scrim, Esc and outside click. Dismisses open panels.</div>
+      <div class="comp newcore"><b>AppLaunch</b><code>appLaunch(desktopId, actionId)</code>, <code>openUrl</code>, <code>openPath</code>, <code>runLine</code>. Every child goes into a <code>systemd-run --scope</code>.</div>
+      <div class="comp newcore"><b>SessionService</b><code>lock · suspend · logout · reboot · poweroff</code>, argv from Nix settings</div>
+      <div class="comp newcore"><b>ShellTextField · ShellAppIcon</b>themed input with no hjkl capture; <code>Quickshell.iconPath</code> with fallback</div>
+    </div></div>
+    <div class="lane"><div class="lname">stillsuit.launcher<small>kinds: service, menu</small></div><div class="items">
+      <div class="comp new"><b>Service.qml</b>provider registry, query generation counter, async <code>qalc</code>/<code>fd</code> processes, executes intents</div>
+      <div class="comp new"><b>Menu.qml</b>search field, recycled <code>ListView</code>, hint bar, preview pane</div>
+      <div class="comp new"><b>Matcher.js · History.js</b>fuzzy and acronym scoring, usage boost, JSON history. Node-tested.</div>
+      <div class="comp new"><b>providers/*.js</b>apps · windows · calc · web · power · profiles · runner · files · symbols · clipboard · providers</div>
+    </div></div>
+    <div class="lane"><div class="lname">stillsuit.clipboard<small>kind: service</small></div><div class="items">
+      <div class="comp new"><b>Service.qml</b><code>wl-paste --watch</code> for text and image, mime checks, password-manager hint skip</div>
+      <div class="comp new"><b>Store</b><code>$XDG_STATE_HOME/stillsuit/clipboard/</code>: <code>history.json</code> plus <code>images/&lt;sha256&gt;.png</code>, mode 0600</div>
+    </div></div>
+    <div class="lane"><div class="lname">Existing facades<small>already in context</small></div><div class="items">
+      <div class="comp"><b>context.compositor.windows</b>niri JSON with <code>focus_timestamp</code></div>
+      <div class="comp"><b>actions.windowFocus(id)</b>fixed argv, integer-checked</div>
+      <div class="comp"><b>context.profiles · actions.profileActivate</b>replaces the Lua menu outright</div>
+      <div class="comp"><b>DesktopEntries.applications</b>Quickshell 0.3.1; field codes stripped, actions and keywords parsed</div>
+    </div></div>
+  </div>
+  <p class="muted">Why a core <code>MenuHost</code> and not a window the plugin owns? Today the router hosts only panels. A <code>menu</code> instance gets no window, so the OSD plugin builds its own. A plugin-owned window would hot-reload, but clipboard, a future emoji grid and dmenu would each copy the layer-shell, focus and dismiss logic. One host keeps panel exclusion and output choice in a single place, at the cost of one rebuild.</p>
+</section>
+
+<section id="mockup">
+  <div class="label">06 · Interactive mockup</div>
+  <h2>Try it</h2>
+  <p>The modes match your keybinds. Type to filter, use a prefix (<code>;</code> <code>&gt;</code> <code>/</code> <code>.</code> <code>@</code> <code>:</code> <code>$</code>) to switch provider, use the arrow keys to move, and press Enter to see the intent the provider returns and what the core would run for it. The data is fake, and the colours approximate the shell's Catppuccin Mocha theme.</p>
+  <div class="stage">
+    <div class="modes" id="modes" role="group" aria-label="Launcher mode"></div>
+    <div class="launcher" id="launcher">
+      <div class="search"><span class="chip" id="chip">combi</span><input id="q" type="text" autocomplete="off" spellcheck="false" aria-label="Search" aria-controls="results" placeholder="Search"></div>
+      <div class="body">
+        <ul class="results" id="results" role="listbox" aria-label="Results"></ul>
+        <div class="preview" id="preview" hidden></div>
+      </div>
+      <div class="hints" id="hints"></div>
+    </div>
+    <div class="intent" id="intent" aria-live="polite"><span class="k">intent →</span> press Enter on a row</div>
+  </div>
+</section>
+
+<section id="contract">
+  <div class="label">07 · Provider contract</div>
+  <h2>Providers return intents, the core runs them</h2>
+  <p>Each provider is a <code>.pragma library</code> JS file with no QML imports, so node can load it in tests. Sync providers answer inside the keystroke. Async ones (calc, files) hand the service an argv to run, and the service drops any reply whose generation number is stale.</p>
+<pre>// providers/apps.js
+.pragma library
+const meta = { id: "apps", label: "Applications", prefix: "", kind: "sync" }
+
+function query(text, env) {
+  // env.apps: snapshot of DesktopEntries, env.match: Matcher.score, env.usage: History.boost
+  return env.apps.map(app =&gt; ({
+    key: app.id, text: app.name, subtext: app.genericName, icon: app.icon,
+    ...env.match(text, [app.name, app.genericName, app.keywords.join(" "), app.comment], app.id),
+    actions: ["launch", ...app.actions.map(a =&gt; "action:" + a.id)],
+  })).filter(r =&gt; r.score &gt; 0)
+}
+
+function activate(item, action) {
+  return action.startsWith("action:")
+    ? { type: "app.launch", desktopId: item.key, actionId: action.slice(7) }
+    : { type: "app.launch", desktopId: item.key }
+}</pre>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Intent</th><th>Sources</th><th>Executed by</th></tr></thead>
+    <tbody>
+      <tr><td><code>app.launch {desktopId, actionId?}</code></td><td>apps</td><td><code>context.actions.appLaunch</code>. Looks the id up again in <code>DesktopEntries</code>, wraps <code>runInTerminal</code> entries in Ghostty, and starts it in an app scope.</td></tr>
+      <tr><td><code>window.focus {id}</code></td><td>windows</td><td><code>context.actions.windowFocus</code> (exists), called after the surface closes so niri focus isn't fought over</td></tr>
+      <tr><td><code>session.lock</code> … <code>session.poweroff</code></td><td>power</td><td>SessionService. <code>lock-screen</code>, <code>systemctl suspend|reboot|poweroff</code>, <code>niri msg action quit</code>. Nix supplies the paths.</td></tr>
+      <tr><td><code>profile.activate {id}</code></td><td>profiles</td><td><code>context.actions.profileActivate</code> (exists)</td></tr>
+      <tr><td><code>url.open {url}</code></td><td>web, bare URLs</td><td>AppLaunch with the browser argv from settings (<code>helium</code>), engine URL templates from Nix. Unduck stays the default.</td></tr>
+      <tr><td><code>text.copy {text}</code></td><td>calc, symbols</td><td><code>wl-copy</code> with text on stdin, fixed argv</td></tr>
+      <tr><td><code>clipboard.copy|remove|clear {id}</code></td><td>clipboard</td><td>stillsuit.clipboard service</td></tr>
+      <tr><td><code>path.open|reveal|copy {path}</code></td><td>files</td><td><code>xdg-open</code> in an app scope, or <code>wl-copy</code></td></tr>
+      <tr><td><code>command.run {line}</code></td><td>runner (<code>&gt;</code>)</td><td><code>$SHELL -c line</code> in an app scope. The line can only come from your keyboard in that mode, never from config or IPC payloads.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Nix-declared menus (the power menu today, more later) are lists of <code>{text, icon, keywords, intent}</code>. Any new kind of action gets a named intent and a core method. A shell string never becomes the escape hatch.</p>
+</section>
+
+<section id="search">
+  <div class="label">08 · Search and ranking</div>
+  <h2>Elephant's scoring, Omarchy's acronyms, your history</h2>
+  <ul>
+    <li><b>Fuzzy match.</b> fzf-style subsequence scoring. Bonuses for string start, word boundaries, camelCase and consecutive runs; penalties for gaps and late starts. Same idea as Elephant's <code>FuzzyMatchV2</code> with <code>score − start</code>. Returns match positions for highlighting.</li>
+    <li><b>Field weights.</b> Each field after the first costs <code>min(index × 5, 50)</code>, as in Elephant. For apps that means name, then generic name, keywords, comment.</li>
+    <li><b>Acronyms.</b> For terms of 5 characters or fewer, also match first letters of words and camelCase parts, as Omarchy's <code>AppSearch.js</code> does.</li>
+    <li><b>Usage boost.</b> Port of Elephant's <code>CalcUsageScore</code>: per (query, item) a count capped at 10 and a last-used date; <code>max((10 − days) × count, 1)</code> over the length difference between the stored and current query. It's added only once an item has passed the minimum score. Stored at <code>$XDG_STATE_HOME/stillsuit/launcher/history.json</code> with atomic writes. The old gob history can't be read and starts empty. It's 4 KB, so little is lost.</li>
+    <li><b>Order.</b> Score descending, then text. Results capped at 100, your current <code>max_results</code>.</li>
+  </ul>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Node test case</th><th>Expect</th></tr></thead>
+    <tbody>
+      <tr><td><code>ghost</code></td><td>Ghostty first</td></tr>
+      <tr><td><code>obs</code> after launching Obsidian three times</td><td>Obsidian above OBS Studio</td></tr>
+      <tr><td><code>vsc</code></td><td>Visual Studio Code via acronym</td></tr>
+      <tr><td><code>2+2*3</code> in combi</td><td>calc row <code>8</code> on top once qalc answers; stale answers dropped</td></tr>
+      <tr><td><code>@nix flake</code></td><td>web provider only, Unduck row</td></tr>
+      <tr><td><code>$hel</code></td><td>Helium windows, most recently focused first</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="phases">
+  <div class="label">09 · Phases</div>
+  <h2>Six steps, two rebuilds</h2>
+  <p>Walker stays bound until P4. The trial bind is <kbd>Mod+Shift+D</kbd>, which is free in your niri config. Per AGENTS.md, I'll send <code>notify-send</code> at each rebuild gate and won't rebuild sietch or jacurutu myself.</p>
+  <div class="timeline">
+    <article class="ms gate" data-step="P0">
+      <h3>Host pieces <span class="tag t-adapt">rebuild 1</span></h3>
+      <ul>
+        <li><code>src/core/MenuHost.qml</code>, plus a <code>hostedMenu</code> branch in <code>SurfaceRouter._deliverOne</code>. Uses Omarchy's parked-surface trick.</li>
+        <li><code>src/services/AppLaunch.qml</code> and <code>SessionService.qml</code>; new <code>context.actions</code>: <code>appLaunch</code>, <code>openUrl</code>, <code>openPath</code>, <code>runLine</code>, <code>session</code>. Additive only.</li>
+        <li><code>src/ui/ShellTextField.qml</code> and <code>ShellAppIcon.qml</code>, plus <code>qmldir</code> entries.</li>
+        <li><code>docs/host-contract.md</code>: the menu kind, the new actions, the intent rule.</li>
+      </ul>
+      <div class="verify"><b>Verify</b>Workbench fixture opens a menu-kind fixture centered on the second output with keyboard focus. Esc and outside click close it. Opening it dismisses a panel. A fixture asserts the AppLaunch argv shape. Then stop and report for the rebuild.</div>
+    </article>
+    <article class="ms" data-step="P1">
+      <h3>Launcher with your four daily pickers <span class="tag t-p">hot-reload</span></h3>
+      <ul>
+        <li><code>stillsuit.launcher</code> with apps, calc, web, windows, power and profiles. Modes: <code>combi</code>, <code>windows</code>, <code>power</code>, <code>profiles</code>.</li>
+        <li><code>Matcher.js</code>, <code>History.js</code> and provider tests under <code>src/tests/launcher/</code>.</li>
+        <li>Add <code>libqalculate</code> and the browser to the plugin settings in <code>quickshell/default.nix</code>. <code>qalc</code> isn't on your PATH today.</li>
+        <li>Trial bind <kbd>Mod+Shift+D</kbd>. Hold off on the other modes' binds until P4.</li>
+      </ul>
+      <div class="verify"><b>Verify</b><code>status</code> shows the plugin loaded. Screenshots of each mode. Open latency from the bind to first frame. A launched app's <code>/proc/&lt;pid&gt;/cgroup</code> shows <code>app-stillsuit-*.scope</code>. Node suite exit code checked.</div>
+    </article>
+    <article class="ms" data-step="P2">
+      <h3>Prefix providers <span class="tag t-p">hot-reload</span></h3>
+      <ul>
+        <li><code>;</code> provider list, <code>&gt;</code> runner (PATH scanned once, about 1,500 binaries), <code>/</code> files, <code>.</code> symbols, <code>@</code> web, <code>$</code> windows.</li>
+        <li>Files runs <code>fd --max-results 200</code> per debounced query, with no index. That drops the 19 MB SQLite database that's rebuilt on every start.</li>
+        <li>Symbols come from nixpkgs <code>cldr-annotations</code> 48.2, flattened to one JSON file at build time.</li>
+      </ul>
+      <div class="verify"><b>Verify</b>Each prefix switches the chip and provider. A stale <code>fd</code> reply never replaces newer results. Copy intents put the expected text on the clipboard.</div>
+    </article>
+    <article class="ms" data-step="P3">
+      <h3>Clipboard <span class="tag t-p">hot-reload</span></h3>
+      <ul>
+        <li><code>stillsuit.clipboard</code> service: text and image watchers, sha256 image files, 200 items, files mode 0600. Skips copies marked <code>x-kde-passwordManagerHint</code>.</li>
+        <li>Clipboard mode with a preview pane for images and long text. Actions: copy, remove, clear all. "Clear all" replaces the <code>clear-clipboard</code> script.</li>
+      </ul>
+      <div class="verify"><b>Verify</b>Copy text, an image and a password from Vaultwarden. The first two appear in history and the password doesn't. Restarting the shell keeps history. Clear removes the files.</div>
+    </article>
+    <article class="ms gate" data-step="P4">
+      <h3>Cutover <span class="tag t-adapt">rebuild 2</span></h3>
+      <ul>
+        <li>Point <kbd>Mod+D</kbd>, <kbd>Mod+Tab</kbd>, <kbd>Mod+Shift+E</kbd>, <kbd>Mod+Alt+P</kbd> and <kbd>Mod+V</kbd> at Stillsuit modes in niri, and in Hyprland too.</li>
+        <li>Remove <code>walker.nix</code>, the <code>walker</code> and <code>elephant</code> flake inputs, the Walker Cachix substituters, <code>menus/clear-clipboard</code>, and the <code>walker.service</code> stop inside <code>logoutCmd</code>.</li>
+        <li>Update the AGENTS.md note about Walker and Elephant restarts.</li>
+      </ul>
+      <div class="callout bad" style="margin:10px 0 0"><p><strong>Before this rebuild,</strong> relaunch anything still inside Elephant's cgroup, or you lose it when Home Manager stops the unit. I'll put this check in the gate notice: <code>cat /sys/fs/cgroup$(systemctl --user show -p ControlGroup --value elephant.service)/cgroup.procs | xargs -r ps -o pid=,comm= -p</code>.</p></div>
+    </article>
+    <article class="ms" data-step="P5">
+      <h3>Later, only if wanted</h3>
+      <ul>
+        <li>A <code>stillsuit-pick</code> dmenu CLI over a FIFO with a timeout.</li>
+        <li>Pinned apps, an emoji grid, a "Launching X…" OSD after 2 s with no new window, and Omarchy's private IPC socket if 40-50 ms ever feels slow.</li>
+      </ul>
+    </article>
+  </div>
+</section>
+
+<section id="files">
+  <div class="label">10 · Files</div>
+  <h2>What changes, by phase</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Path</th><th>Change</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><code>packages/stillsuit-shell/src/core/MenuHost.qml</code>, <code>SurfaceRouter.qml</code>, <code>HostContext.qml</code>, <code>IpcFacade.qml</code></td><td>menu hosting, new actions</td><td>P0</td></tr>
+      <tr><td><code>…/src/services/AppLaunch.qml</code>, <code>SessionService.qml</code>, <code>qmldir</code></td><td>new</td><td>P0</td></tr>
+      <tr><td><code>…/src/ui/ShellTextField.qml</code>, <code>ShellAppIcon.qml</code>, <code>qmldir</code></td><td>new</td><td>P0</td></tr>
+      <tr><td><code>…/schemas/manifest.v1.json</code>, <code>ManifestValidator.js</code></td><td>no change expected; <code>menu</code> already allowed</td><td>P0</td></tr>
+      <tr><td><code>…/docs/host-contract.md</code>, <code>.claude/skills/stillsuit-plugin/references/*</code></td><td>document menu kind and intents</td><td>P0</td></tr>
+      <tr><td><code>…/src/plugins/builtin/launcher/</code></td><td>new plugin: manifest, Service, Menu, Matcher, History, providers/</td><td>P1-P3</td></tr>
+      <tr><td><code>…/src/plugins/builtin/clipboard/</code></td><td>new service plugin</td><td>P3</td></tr>
+      <tr><td><code>…/src/tests/launcher/</code>, <code>menu-host/</code></td><td>node suite and headless fixture</td><td>P0-P3</td></tr>
+      <tr><td><code>home/desktop/wayland/quickshell/default.nix</code></td><td><code>builtinPlugin</code> entries and settings: qalc, fd, browser, engines, lock command, symbols JSON</td><td>P1-P3</td></tr>
+      <tr><td><code>home/desktop/wayland/compositors/niri/config.kdl</code>, <code>hyprland.nix</code></td><td>trial bind in P1, full rebind in P4</td><td>P1, P4</td></tr>
+      <tr><td><code>home/desktop/wayland/walker.nix</code>, <code>default.nix</code>, <code>menus/clear-clipboard</code>, <code>flake.nix</code>, <code>flake.lock</code>, <code>modules/nixos/wayland/hyprland.nix</code>, <code>AGENTS.md</code></td><td>remove Walker and Elephant</td><td>P4</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="decisions">
+  <div class="label">11 · Decisions</div>
+  <h2>What I settled, and what I need from you</h2>
+  <h3>Settled unless you object</h3>
+  <ul>
+    <li>A core <code>MenuHost</code> rather than a window inside the plugin. That costs one rebuild and saves copying the same window logic into every future picker.</li>
+    <li>Typed intents only. The one place a raw command runs is <code>&gt;</code> mode, from your keyboard.</li>
+    <li>The window switcher lists most recently focused first, using niri's <code>focus_timestamp</code>. Walker uses toplevel order.</li>
+    <li>Same keys at cutover, no dmenu in v1, history starts fresh.</li>
+    <li>Clipboard is its own plugin, so a profile can switch it off without losing the launcher.</li>
+  </ul>
+  <h3 style="margin-top:22px">Questions</h3>
+  <div class="q">
+    <b>1. Replace Elephant as well as Walker?</b>
+    <p class="rec">Recommended: yes.</p>
+    <p>The alternative is to keep Elephant as the backend and talk to its socket in JSON mode (format byte 1, no protobuf). That would shrink P1, but you keep a daemon whose development is on hold, an unpatched clipboard deadlock unless you bump the pin, and the cgroup fix as a <code>launch_prefix</code> setting instead of something Stillsuit guarantees.</p>
+  </div>
+  <div class="q">
+    <b>2. Clipboard retention.</b>
+    <p class="rec">Recommended: keep today's 200 items with no expiry, and add the password-manager skip.</p>
+    <p>That matches your current setup (<code>max_items = 200</code>, <code>auto_cleanup = 0</code>). The other choice is an age limit, for example 7 days, with images deleted sooner.</p>
+  </div>
+  <div class="q">
+    <b>3. Which prefix modes do you actually use?</b>
+    <p class="rec">Default: build all of them in P2.</p>
+    <p>Runner and web search have history files, so you've used those at least. If <code>/</code> files, <code>.</code> symbols or <code>;</code> provider list never come up, P2 gets shorter.</p>
+  </div>
+</section>
+
+<section id="risks">
+  <div class="label">12 · Risks</div>
+  <h2>What could go wrong</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Risk</th><th>Mitigation</th><th>Proof</th></tr></thead>
+    <tbody>
+      <tr><td>Focus fights between the exclusive layer surface and niri when switching windows. Walker warns that <code>force_keyboard_focus</code> breaks window focusing, and Elephant sleeps 100 ms before focusing.</td><td>Close the surface first, then call <code>windowFocus</code> on the next frame</td><td>P1 test: <kbd>Mod+Tab</kbd> lands focus on the chosen window across workspaces and outputs</td></tr>
+      <tr><td>A bug in <code>MenuHost</code> is core code and isn't contained like a plugin</td><td>Small host (Omarchy's is 56 lines); headless fixture; additive API</td><td>Fixture suite plus workbench before rebuild 1</td></tr>
+      <tr><td>Clipboard history captures secrets</td><td>Password-manager hint skip, 0600 files, clear action, per-profile disable</td><td>P3 Vaultwarden copy test</td></tr>
+      <tr><td>Keystroke cost with about 1,500 PATH binaries or 4,000 symbols</td><td>These only score under their prefix; combi scores apps alone; recycled <code>ListView</code>, top 100</td><td>Time a keystroke with the full symbols set; target under 8 ms of JS</td></tr>
+      <tr><td>The open feels slower than Walker's warm GTK window</td><td><code>keepLoaded</code> and a mapped surface; open timed in P1</td><td>Bind-to-first-frame number in the P1 report</td></tr>
+      <tr><td>The cutover rebuild kills apps still in Elephant's cgroup</td><td>Gate notice with the check command</td><td>Empty <code>cgroup.procs</code> before switch</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="sources">
+  <div class="label">13 · Sources</div>
+  <h2>Pinned references</h2>
+  <ul>
+    <li>Omarchy menu: <a href="https://github.com/basecamp/omarchy/blob/821ae589059ffdadc970315f866c94b55d268af7/shell/plugins/menu/Menu.qml">Menu.qml</a>, <a href="https://github.com/basecamp/omarchy/blob/821ae589059ffdadc970315f866c94b55d268af7/shell/plugins/menu/MenuModel.js">MenuModel.js</a>, <a href="https://github.com/basecamp/omarchy/blob/821ae589059ffdadc970315f866c94b55d268af7/shell/Ui/OverlayWindow.qml">OverlayWindow.qml</a>, <a href="https://github.com/basecamp/omarchy/blob/821ae589059ffdadc970315f866c94b55d268af7/shell/services/AppLibrary.qml#L78-L85">AppLibrary.qml launch</a>, <a href="https://github.com/basecamp/omarchy/blob/821ae589059ffdadc970315f866c94b55d268af7/shell/services/AppSearch.js">AppSearch.js</a>, <a href="https://github.com/basecamp/omarchy/tree/821ae589059ffdadc970315f866c94b55d268af7/shell/plugins/clipboard">clipboard plugin</a>, <a href="https://github.com/basecamp/omarchy/blob/821ae589059ffdadc970315f866c94b55d268af7/docs/menu.md">docs/menu.md</a></li>
+    <li>Elephant: <a href="https://github.com/abenz1267/elephant/blob/a35b3b54ae8bfddaa3bae82d1409cf2d6dfebf3b/README.md">README (on hold)</a>, <a href="https://github.com/abenz1267/elephant/blob/a35b3b54ae8bfddaa3bae82d1409cf2d6dfebf3b/pkg/common/runprefix.go#L11-L63">runprefix.go</a>, <a href="https://github.com/abenz1267/elephant/blob/a35b3b54ae8bfddaa3bae82d1409cf2d6dfebf3b/internal/comm/comm.go">comm.go (socket framing)</a>, <a href="https://github.com/abenz1267/elephant/blob/a35b3b54ae8bfddaa3bae82d1409cf2d6dfebf3b/pkg/common/history/history.go#L135-L163">history.go usage score</a>, <a href="https://github.com/abenz1267/elephant/commit/c9cc79b">c9cc79b clipboard deadlock fix</a></li>
+    <li>Walker: <a href="https://github.com/abenz1267/walker/blob/d8854375f9eb6a8026d440afe175f34e0d8b3c10/nix/modules/home-manager.nix#L197-L215">home-manager.nix unit coupling</a>, <a href="https://github.com/abenz1267/walker/blob/d8854375f9eb6a8026d440afe175f34e0d8b3c10/src/data.rs">data.rs (prefixes, reconnect)</a></li>
+    <li>Quickshell v0.3.1: <code>src/core/desktopentry.hpp</code> (<code>DesktopEntries</code>, <code>command</code>, <code>execute()</code> uses <code>execDetached</code>), <code>qmlglobal.hpp</code> (the clipboard only works while a Quickshell window has focus, so history needs <code>wl-paste</code>)</li>
+    <li>This repo: <code>home/desktop/wayland/walker.nix</code>, <code>compositors/niri/config.kdl:504-516</code>, <code>packages/stillsuit-shell/docs/host-contract.md</code>, <code>src/core/SurfaceRouter.qml:582-620</code>, <code>docs/plans/omarchy-quattro-shell-adoption.html</code></li>
+    <li>Live checks on sietch, 2026-10-01: unit memory and cgroup membership, the <code>systemd-run --scope</code> probe, <code>qs ipc</code> timing, niri window JSON keys</li>
+  </ul>
+</section>
+</main>
+</div>
+<footer>Plan only. Nothing in the shell or the flake has changed yet. Source: <code>docs/plans/stillsuit-launcher-plan.html</code>.</footer>
+</div>
+
+<script>
+(() => {
+  const APPS = [
+    { id: "com.mitchellh.ghostty", name: "Ghostty", sub: "Terminal", icon: "Gh", kw: "terminal shell" },
+    { id: "helium", name: "Helium", sub: "Web Browser", icon: "He", kw: "browser web internet" },
+    { id: "obsidian", name: "Obsidian", sub: "Notes", icon: "Ob", kw: "notes markdown vault" },
+    { id: "com.obsproject.Studio", name: "OBS Studio", sub: "Streaming", icon: "OS", kw: "record stream" },
+    { id: "code", name: "Visual Studio Code", sub: "Text Editor", icon: "VS", kw: "editor ide" },
+    { id: "org.gnome.Nautilus", name: "Files", sub: "File Manager", icon: "Fi", kw: "folder nautilus" },
+    { id: "pavucontrol", name: "Volume Control", sub: "Audio", icon: "Vo", kw: "pulseaudio sound mixer" },
+    { id: "steam", name: "Steam", sub: "Games", icon: "St", kw: "games valve" },
+    { id: "blender", name: "Blender", sub: "3D Modeling", icon: "Bl", kw: "3d render" },
+    { id: "spotify", name: "Spotify", sub: "Music", icon: "Sp", kw: "music player" },
+  ];
+  const USAGE = { obsidian: 3, "com.mitchellh.ghostty": 6, helium: 5 };
+  const WINDOWS = [
+    { id: 41, app: "helium", title: "Stillsuit launcher plan", ws: 1, t: 9 },
+    { id: 17, app: "com.mitchellh.ghostty", title: "~/dotfiles · nvim", ws: 2, t: 8 },
+    { id: 23, app: "obsidian", title: "coppermind · daily", ws: 3, t: 6 },
+    { id: 58, app: "helium", title: "niri wiki · Configuration", ws: 1, t: 4 },
+    { id: 9, app: "spotify", title: "Spotify Premium", ws: 4, t: 2 },
+  ];
+  const POWER = [
+    { k: "lock", text: "Lock", icon: "Lk", kw: "lock sleep" },
+    { k: "suspend", text: "Suspend", icon: "Su", kw: "sleep suspend" },
+    { k: "logout", text: "Logout", icon: "Lo", kw: "logout quit" },
+    { k: "reboot", text: "Reboot", icon: "Rb", kw: "reboot restart" },
+    { k: "poweroff", text: "Shutdown", icon: "Sh", kw: "shutdown poweroff" },
+  ];
+  const PROFILES = [{ id: "default", name: "Default", desc: "Active" }];
+  const CLIP = [
+    { id: "c1", text: "nix flake check --no-build", kind: "text" },
+    { id: "c2", text: "https://github.com/basecamp/omarchy/tree/main/shell/plugins/menu", kind: "text" },
+    { id: "c3", text: "screenshot 1920×1080 png", kind: "image" },
+    { id: "c4", text: "systemctl --user status stillsuit-shell", kind: "text" },
+  ];
+  const SYMBOLS = [["→", "right arrow"], ["λ", "lambda"], ["✓", "check mark"], ["°", "degree"], ["…", "ellipsis"], ["×", "multiplication sign"], ["≈", "almost equal"], ["€", "euro"]];
+  const FILES = ["~/dotfiles/flake.nix", "~/dotfiles/home/desktop/wayland/walker.nix", "~/notes/04-projects/manifest.md", "~/dotfiles/packages/stillsuit-shell/docs/host-contract.md", "~/Downloads/omarchy-menu.png"];
+  const PROVIDERS = [["apps", ""], ["providers", ";"], ["runner", ">"], ["files", "/"], ["symbols", "."], ["web", "@"], ["clipboard", ":"], ["windows", "$"], ["power", ""], ["profiles", ""]];
+  const PREFIX = { ";": "providers", ">": "runner", "/": "files", ".": "symbols", "@": "web", ":": "clipboard", "$": "windows" };
+  const MODES = [
+    { id: "combi", key: "Mod+D", providers: ["apps", "calc", "web"] },
+    { id: "windows", key: "Mod+Tab", providers: ["windows"] },
+    { id: "power", key: "Mod+Shift+E", providers: ["power"] },
+    { id: "profiles", key: "Mod+Alt+P", providers: ["profiles"] },
+    { id: "clipboard", key: "Mod+V", providers: ["clipboard"] },
+  ];
+  const appById = Object.fromEntries(APPS.map(a => [a.id, a]));
+
+  function fuzzy(q, s) {
+    if (!q) return { score: 1, pos: [] };
+    const ql = q.toLowerCase(), sl = s.toLowerCase();
+    const at = sl.indexOf(ql);
+    if (at >= 0) {
+      const boundary = at === 0 || /[\s\-_.·\/]/.test(sl[at - 1]);
+      return { score: 100 - at + (boundary ? 30 : 0) + ql.length * 4, pos: [...Array(ql.length).keys()].map(i => i + at) };
+    }
+    let i = 0, score = 0, last = -2;
+    const pos = [];
+    for (let j = 0; j < sl.length && i < ql.length; j++) {
+      if (sl[j] === ql[i]) {
+        const boundary = j === 0 || /[\s\-_.·\/]/.test(sl[j - 1]);
+        score += 6 + (boundary ? 10 : 0) + (j === last + 1 ? 6 : 0);
+        pos.push(j); last = j; i++;
+      }
+    }
+    return i === ql.length ? { score: score - pos[0], pos } : null;
+  }
+  function best(q, fields) {
+    let top = null;
+    fields.forEach((f, k) => {
+      const m = fuzzy(q, f || "");
+      if (m) { const s = m.score - Math.min(k * 5, 50); if (!top || s > top.score) top = { score: s, pos: k === 0 ? m.pos : [] }; }
+    });
+    return top;
+  }
+  function calc(expr) {
+    const toks = expr.replace(/\s+/g, "").match(/\d+(?:\.\d+)?|[-+*/()^]/g);
+    if (!toks || toks.join("") !== expr.replace(/\s+/g, "") || !/\d/.test(expr) || !/[-+*/^]/.test(expr)) return null;
+    let i = 0;
+    const peek = () => toks[i], next = () => toks[i++];
+    function prim() { const t = next(); if (t === "(") { const v = sum(); if (next() !== ")") throw 0; return v; } if (t === "-") return -prim(); const n = Number(t); if (Number.isNaN(n)) throw 0; return n; }
+    function pow() { let v = prim(); while (peek() === "^") { next(); v = Math.pow(v, prim()); } return v; }
+    function prod() { let v = pow(); while (peek() === "*" || peek() === "/") { v = next() === "*" ? v * pow() : v / pow(); } return v; }
+    function sum() { let v = prod(); while (peek() === "+" || peek() === "-") { v = next() === "+" ? v + prod() : v - prod(); } return v; }
+    try { const v = sum(); return i === toks.length && Number.isFinite(v) ? String(Math.round(v * 1e9) / 1e9) : null; } catch { return null; }
+  }
+
+  const PROV = {
+    apps: q => APPS.map(a => { const m = best(q, [a.name, a.sub, a.kw]); return m && { p: "apps", key: a.id, text: a.name, sub: a.sub, icon: a.icon, pos: m.pos, score: m.score + (USAGE[a.id] || 0) * (q ? 4 : 1), acts: [["↵", "launch"], ["⇧↵", "new window"]], intent: { type: "app.launch", desktopId: a.id } }; }).filter(Boolean),
+    calc: q => { const v = calc(q); return v === null ? [] : [{ p: "calc", key: "calc", text: v, sub: q, icon: "=", pos: [], score: 1000, acts: [["↵", "copy"]], intent: { type: "text.copy", text: v } }]; },
+    web: (q, single) => !q ? [] : [{ p: "web", key: "unduck", text: "Search Unduck for \"" + q + "\"", sub: "", icon: "@", pos: [], score: single ? 500 : 5, acts: [["↵", "open"]], intent: { type: "url.open", url: "https://unduck.link?q=" + encodeURIComponent(q) } }],
+    windows: q => WINDOWS.map(w => { const a = appById[w.app]; const m = best(q, [w.title, a.name]); return m && { p: "windows", key: String(w.id), text: w.title, sub: a.name + " · ws " + w.ws, icon: a.icon, pos: m.pos, score: m.score + w.t * (q ? 1 : 100), acts: [["↵", "focus"]], intent: { type: "window.focus", id: w.id } }; }).filter(Boolean),
+    power: q => POWER.map((e, i) => { const m = best(q, [e.text, e.kw]); return m && { p: "power", key: e.k, text: e.text, sub: "", icon: e.icon, pos: m.pos, score: q ? m.score : 100 - i, acts: [["↵", "run"]], intent: { type: "session." + e.k } }; }).filter(Boolean),
+    profiles: q => PROFILES.map(e => { const m = best(q, [e.name, e.id]); return m && { p: "profiles", key: e.id, text: e.name, sub: e.desc, icon: "Pr", pos: m.pos, score: m.score, current: true, acts: [["↵", "activate"]], intent: { type: "profile.activate", id: e.id } }; }).filter(Boolean),
+    clipboard: q => CLIP.map((c, i) => { const m = best(q, [c.text]); return m && { p: "clipboard", key: c.id, text: c.text, sub: c.kind === "image" ? "image" : "", icon: c.kind === "image" ? "Im" : "Tx", pos: m.pos, score: q ? m.score : 100 - i, preview: c.kind === "image" ? "[image preview]\n1920×1080 · png\nimages/3f9a….png" : c.text, acts: [["↵", "copy"], ["Del", "remove"], ["^⇧Del", "clear all"]], intent: { type: "clipboard.copy", id: c.id } }; }).filter(Boolean),
+    symbols: q => SYMBOLS.map(([s, n]) => { const m = best(q, [n]); return m && { p: "symbols", key: s, text: s + "  " + n, sub: "", icon: s, pos: [], score: m.score, acts: [["↵", "copy"]], intent: { type: "text.copy", text: s } }; }).filter(Boolean),
+    files: q => FILES.map(f => { const m = best(q, [f]); return m && { p: "files", key: f, text: f, sub: "", icon: "Fl", pos: m.pos, score: m.score, preview: "fd --max-results 200 …\n" + f, acts: [["↵", "open"], ["^↵", "reveal"], ["^c", "copy path"]], intent: { type: "path.open", path: f } }; }).filter(Boolean),
+    runner: q => !q ? [] : [{ p: "runner", key: "run", text: "Run: " + q, sub: "in $SHELL, own scope", icon: ">", pos: [], score: 1, acts: [["↵", "run"], ["⇧↵", "run in terminal"]], intent: { type: "command.run", line: q } }],
+    providers: q => PROVIDERS.map(([n, p]) => { const m = best(q, [n]); return m && { p: "providers", key: n, text: n, sub: p ? "prefix " + p : "mode", icon: p || "·", pos: m.pos, score: m.score, acts: [["↵", "switch"]], intent: { type: "ui.switch", provider: n, prefix: p } }; }).filter(Boolean),
+  };
+
+  function exec(intent) {
+    const t = intent.type;
+    const scope = id => "systemd-run --user --scope --collect --slice=app.slice \\\n  --unit=app-stillsuit-" + id + "-" + Math.random().toString(16).slice(2, 6) + " -- ";
+    if (t === "app.launch") return scope(intent.desktopId) + "<DesktopEntries.byId(\"" + intent.desktopId + "\").command>";
+    if (t === "url.open") return scope("helium") + "helium " + intent.url;
+    if (t === "window.focus") return "close surface, next frame: context.actions.windowFocus(" + intent.id + ")";
+    if (t === "text.copy") return "wl-copy  (stdin: " + intent.text + ")";
+    if (t === "profile.activate") return "context.actions.profileActivate(\"" + intent.id + "\")";
+    if (t === "clipboard.copy") return "stillsuit.clipboard copy(" + intent.id + ")";
+    if (t === "path.open") return scope("xdg-open") + "xdg-open " + intent.path;
+    if (t === "command.run") return scope("run") + "$SHELL -c " + JSON.stringify(intent.line);
+    if (t === "ui.switch") return "stay open; switch provider to " + intent.provider;
+    const s = { "session.lock": "lock-screen", "session.suspend": "systemctl suspend", "session.logout": "niri msg action quit", "session.reboot": "systemctl reboot", "session.poweroff": "systemctl poweroff" };
+    return "SessionService → " + (s[t] || "?");
+  }
+
+  const $ = id => document.getElementById(id);
+  const input = $("q"), list = $("results"), chip = $("chip"), hints = $("hints"), preview = $("preview"), out = $("intent"), modesEl = $("modes");
+  let mode = MODES[0], rows = [], sel = 0;
+
+  MODES.forEach(m => {
+    const b = document.createElement("button");
+    b.type = "button"; b.dataset.mode = m.id; b.setAttribute("aria-pressed", String(m === mode));
+    b.append(m.id); const k = document.createElement("kbd"); k.textContent = m.key; b.append(k);
+    b.addEventListener("click", () => setMode(m));
+    modesEl.append(b);
+  });
+  function setMode(m) {
+    mode = m; input.value = "";
+    modesEl.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === m.id)));
+    out.innerHTML = '<span class="k">intent →</span> press Enter on a row';
+    render(); input.focus();
+  }
+  function render() {
+    let q = input.value, provs = mode.providers, label = mode.id, prefixed = false;
+    if (mode.id === "combi" && q && PREFIX[q[0]]) { provs = [PREFIX[q[0]]]; label = PREFIX[q[0]]; q = q.slice(1).trimStart(); prefixed = true; }
+    chip.textContent = label;
+    const single = provs.length === 1;
+    rows = provs.flatMap(p => PROV[p](q.trim(), single)).sort((a, b) => b.score - a.score || a.text.localeCompare(b.text)).slice(0, 100);
+    if (mode.id === "combi" && !prefixed && !q) rows = rows.filter(r => r.p === "apps");
+    sel = Math.min(sel, Math.max(rows.length - 1, 0));
+    list.replaceChildren();
+    if (!rows.length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = "No results"; list.append(li); }
+    rows.forEach((r, i) => {
+      const li = document.createElement("li");
+      li.setAttribute("role", "option"); li.id = "opt-" + i;
+      li.setAttribute("aria-selected", String(i === sel));
+      if (r.current) li.classList.add("current");
+      const ic = document.createElement("span"); ic.className = "ic"; ic.textContent = r.icon;
+      const tx = document.createElement("span"); tx.className = "tx";
+      const hl = new Set(r.pos);
+      [...r.text].forEach((ch, k) => { if (hl.has(k)) { const m = document.createElement("mark"); m.textContent = ch; tx.append(m); } else tx.append(ch); });
+      if (r.sub) { const s = document.createElement("span"); s.className = "sub"; s.textContent = r.sub; tx.append(s); }
+      const tr = document.createElement("span"); tr.className = "tr"; tr.textContent = r.p;
+      li.append(ic, tx, tr);
+      li.addEventListener("mousemove", () => { if (sel !== i) { sel = i; paint(); } });
+      li.addEventListener("click", () => { sel = i; activate(); });
+      list.append(li);
+    });
+    paint();
+  }
+  function paint() {
+    [...list.querySelectorAll('[role="option"]')].forEach((li, i) => li.setAttribute("aria-selected", String(i === sel)));
+    const r = rows[sel];
+    if (r) { input.setAttribute("aria-activedescendant", "opt-" + sel); const el = $("opt-" + sel); el && el.scrollIntoView({ block: "nearest" }); }
+    preview.hidden = !(r && r.preview);
+    if (r && r.preview) preview.textContent = r.preview;
+    hints.replaceChildren();
+    (r ? r.acts : []).concat([["Esc", "close"]]).forEach(([k, l]) => { const s = document.createElement("span"); const b = document.createElement("b"); b.textContent = k; s.append(b, l); hints.append(s); });
+  }
+  function activate() {
+    const r = rows[sel]; if (!r) return;
+    if (r.intent.type === "ui.switch") { input.value = r.intent.prefix ? r.intent.prefix : ""; if (!r.intent.prefix) { const m = MODES.find(m => m.providers[0] === r.intent.provider); if (m) return setMode(m); } render(); }
+    out.replaceChildren();
+    const k1 = document.createElement("span"); k1.className = "k"; k1.textContent = "intent → ";
+    const k2 = document.createElement("span"); k2.className = "k"; k2.textContent = "\ncore   → ";
+    out.append(k1, JSON.stringify(r.intent), k2, exec(r.intent));
+  }
+  input.addEventListener("input", () => { sel = 0; render(); });
+  input.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown" || (e.ctrlKey && e.key === "j")) { sel = Math.min(sel + 1, rows.length - 1); paint(); e.preventDefault(); }
+    else if (e.key === "ArrowUp" || (e.ctrlKey && e.key === "k")) { sel = Math.max(sel - 1, 0); paint(); e.preventDefault(); }
+    else if (e.key === "Enter") { activate(); e.preventDefault(); }
+    else if (e.key === "Escape") { if (input.value) { input.value = ""; render(); } else { out.innerHTML = '<span class="k">surface →</span> closed (parked 1×1 on the Bottom layer)'; } e.preventDefault(); }
+  });
+  render();
+})();
+</script>
+</body>
+</html>
