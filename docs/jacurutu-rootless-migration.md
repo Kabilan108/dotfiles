@@ -42,18 +42,18 @@ paused with no Compose containers. Dev CLI commit
 remain in place. Preserve the original lifecycle state and `last_used` value
 `2026-09-30T14:25:01+00:00` after verification.
 
-| Resource | Planned disposition |
+| Resource | Current disposition |
 | --- | --- |
-| `dev-server_db-iam_default` | PostgreSQL 12 data; verified logical export and rootless restore required |
-| `dev-server_db-patient_default` | PostgreSQL 12 data; verified logical export and rootless restore required |
-| `dev-server_dashboard-node-modules` | Recreate dependencies rootless after successful pilot; preserve source until application validation |
+| `dev-server_db-iam_default` | Verified PostgreSQL 12 rootless restore; exact rootful source removed; private recovery dumps retained |
+| `dev-server_db-patient_default` | Verified PostgreSQL 12 rootless restore; exact rootful source removed; private recovery dumps retained |
+| `dev-server_dashboard-node-modules` | Recreated rootless and application verified; exact rootful dependency volume removed |
 | Anonymous volume `adc3aeb7c171e96ddc4ced8fcb3be607dfd04eff38e7969af4f0062161233aad` | Read-only inventory found no files, 4 KiB; retain until scoped cleanup decision |
 | Anonymous volume `cc62d305ca07226c81913a28f84c499cb5a4b5bdeb6891fb5b9b979337a8c643` | Read-only inventory found no files, 4 KiB; retain until scoped cleanup decision |
 | `moberg-clara-local` | Deleted at explicit user request; notebook home, archives, and image retained |
 | `hungry_brown` | Deleted at explicit user request; image retained |
 | `hardcore_dirac` | Deleted at explicit user request; image retained |
-| Four dev-server images | Rebuild Dashboard, IAM, Query, and export-worker from preserved component revisions; retain source images |
-| `moberg-clara-local:dev` | Unique local image; retain and transfer/rebuild if Clara is migrated |
+| Four dev-server images | Dashboard, IAM, Query, and export-worker rebuilt rootless from preserved revisions; rootful images retained |
+| `moberg-clara-local:dev` | Retained unchanged; Clara container deleted at explicit user request |
 | `jupyterhub-singleuser-dev:latest` | Local image used by stopped experiment; retain unchanged |
 | Three untagged images | Unique local builds of unknown purpose; retain unchanged |
 | Registry Jupyter 2.1.1, connect-client, PostgreSQL 12, BusyBox | Retain rootful copies; pull or transfer required rootless images with identity checks |
@@ -79,8 +79,18 @@ has 28 tables and Patient has 60. Protected SQL, globals, authentication files,
 and checksums are retained. Separate target identities and a second live data
 check were recorded before application startup. The real checkout then passed
 source builds, migrations, doctor, SQL queries, and three HTTP checks. The
-export-worker image was separately rebuilt. The final checkpoint/recovery audit
-and exact source-volume cleanup precede the human final activation.
+export-worker image was separately rebuilt. The real
+checkpoint reset removed a post-save test table, and final recovery certification
+passed. Exactly the two old rootful database volumes and the old dependency
+volume were then removed. No original image or anonymous volume was deleted.
+The checkout was returned to its original paused/default lifecycle and exact
+original `last_used`; all 31 recorded Git HEADs, branches, and statuses match.
+
+The final isolated build at `ffd646a7` passed, as did flake checking and both
+hosts' daemon/group policy evaluations. The reviewed human operator is
+`/vault/userdata/jacurutu-rootless-migration/2026-10-05/activate-final.sh`.
+Activation and reboot remain pending; post-reboot privilege and application
+verification must finish before this migration is complete.
 
 Scoped preparation repaired 30,792 root-owned shared UV cache entries and 13,084
 untracked generated entries across 17 component repositories. The component
