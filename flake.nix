@@ -117,7 +117,6 @@
     agenix = {
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.home-manager.follows = "home-manager";
     };
     elephant.url = "github:abenz1267/elephant";
     firefox-addons = {
