@@ -1,6 +1,6 @@
 // Snapshot: context.profiles as {active: id, available: [{id, name, description}]}.
 
-var meta = { id: "profiles", label: "Profiles", icon: "preferences-desktop", snapshot: "profiles" }
+var meta = { id: "profiles", label: "Profiles", icon: "shell:settings", snapshot: "profiles" }
 
 function safeString(value) {
     if (value === undefined || value === null) return ""

@@ -10,7 +10,7 @@
 // Any other word ("7zip", "x264", "2fa"), a bare number ("2048") or a bare
 // constant ("pi", "e") is not math. ISO dates (2026-10-05) are excluded.
 
-var meta = { id: "calc", label: "Calculator", icon: "accessories-calculator" }
+var meta = { id: "calc", label: "Calculator", icon: "shell:calculator" }
 
 var CALC_SCORE = 1000000
 var MAX_LENGTH = 256

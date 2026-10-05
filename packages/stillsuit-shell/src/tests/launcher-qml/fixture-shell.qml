@@ -167,6 +167,29 @@ ShellRoot {
         return after
     }
 
+    // What each visible row's icon slot shows: the pack glyph name once its
+    // image is ready, "app:<icon>" for a theme icon, or "letter:<label>" when
+    // the theme lookup failed and the monogram placeholder is up.
+    function rowGlyphs() {
+        var list = resultList()
+        list.forceLayout()
+        var result = []
+        for (var index = 0; index < service.rows.length; index++) {
+            var item = list.itemAtIndex(index)
+            if (!item)
+                continue
+            var glyph = menu.findNamed(item, "launcher-row-shell-icon")
+            var app = menu.findNamed(item, "launcher-row-app-icon")
+            if (glyph && glyph.visible)
+                result.push(glyph.ready ? glyph.name : "loading:" + glyph.name)
+            else if (app && app.visible)
+                result.push(app.ready ? "app:" + app.icon : "letter:" + app.fallbackLabel)
+            else
+                result.push("none")
+        }
+        return result
+    }
+
     function noteItems() {
         var items = []
         for (var index = 0; index < 100; index++)
@@ -183,6 +206,7 @@ ShellRoot {
 
     property QtObject fakeCompositor: QtObject {
         property int revision: 1
+        property var lastFocusedWindowId: null
         property var workspaces: [
             { id: 1, idx: 1, name: "", output: "DP-1" },
             { id: 2, idx: 2, name: "web", output: "DP-2" }
@@ -801,6 +825,24 @@ ShellRoot {
             until: function() { return root.callsNamed("windowFocus").length === 1 }
         },
         {
+            name: "power rows load pack glyphs",
+            act: function() { root.openMenu('{"mode":"power"}') },
+            until: function() {
+                return root.rowGlyphs().join(" ") === "lock sleep logout refresh power"
+            }
+        },
+        {
+            name: "power rows render pack glyphs, not theme lookups or letters",
+            act: function() {
+                // The fixture has no icon theme, like a system without
+                // non-symbolic names; theme lookups would fall back to letters.
+                root.expect(root.rowGlyphs().join(" ") === "lock sleep logout refresh power",
+                    "power rows show ShellIcon glyphs: " + root.rowGlyphs())
+                root.screenshot("power")
+            },
+            until: function() { return root.screenshotDir === "" || root.shot === "power" }
+        },
+        {
             name: "power and profiles",
             act: function() {
                 root.expect(root.lastCall("windowFocus") === "[11]", "focuses the selected window")
@@ -909,6 +951,75 @@ ShellRoot {
                 root.expect(root.warnings.indexOf("window focus returned unknown") !== -1,
                     "the deferred failure is logged: " + JSON.stringify(root.warnings))
                 root.expect(!service.opened && service.actionError === "", "nothing is raised after close")
+            },
+            until: function() { return true }
+        },
+        {
+            // niri flags no window once the menu holds focus, and its
+            // debounced stamps can still put the previous window newest.
+            name: "the window focused at open stays current",
+            act: function() {
+                var saved = root.fakeCompositor.windows
+                var stamped = function(id, title, focused, secs) {
+                    return { id: id, title: title, app_id: "app" + id, workspace_id: 1, is_focused: focused,
+                        focus_timestamp: { secs: secs, nanos: 0 } }
+                }
+                root.fakeCompositor.windows = [
+                    stamped(21, "Revisited", true, 100),
+                    stamped(22, "Previous", false, 300),
+                    stamped(23, "Older", false, 50)
+                ]
+                root.fakeCompositor.revision++
+                root.openMenu('{"mode":"windows"}')
+                root.fakeCompositor.windows = root.fakeCompositor.windows.map(function(window) {
+                    return Object.assign({}, window, { is_focused: false })
+                })
+                root.fakeCompositor.revision++
+                root.expect(root.rowTexts().join("|") === "windows:Previous|windows:Older|windows:Revisited",
+                    "the window focused at open goes last: " + root.rowTexts())
+                root.expect(service.rows[2].current === true && service.rows[0].current === false,
+                    "the window focused at open is labeled current")
+                root.openMenu('{"mode":"windows"}')
+                root.expect(service.rows.length === 3 && service.rows[2].text === "Revisited" && service.rows[2].current,
+                    "reopening while the menu holds focus keeps the capture: " + root.rowTexts())
+                root.fakeActions.surfaceClose("stillsuit.launcher")
+                root.fakeCompositor.windows = saved
+                root.fakeCompositor.revision++
+            },
+            until: function() { return true }
+        },
+        {
+            // Another layer surface (a Stillsuit panel) holds the keyboard as
+            // the menu opens, so niri flags no window; the compositor's last
+            // focused window stands in, unless it is no longer open.
+            name: "with no flagged window the last focused one is current",
+            act: function() {
+                var saved = root.fakeCompositor.windows
+                var stamped = function(id, title, secs) {
+                    return { id: id, title: title, app_id: "app" + id, workspace_id: 1, is_focused: false,
+                        focus_timestamp: { secs: secs, nanos: 0 } }
+                }
+                root.fakeCompositor.windows = [
+                    stamped(21, "Revisited", 100),
+                    stamped(22, "Previous", 300),
+                    stamped(23, "Older", 50)
+                ]
+                root.fakeCompositor.lastFocusedWindowId = 21
+                root.fakeCompositor.revision++
+                root.openMenu('{"mode":"windows"}')
+                root.expect(root.rowTexts().join("|") === "windows:Previous|windows:Older|windows:Revisited",
+                    "the last focused window goes last: " + root.rowTexts())
+                root.expect(service.rows[2].current === true && service.rows[0].current === false,
+                    "the last focused window is labeled current")
+                root.fakeActions.surfaceClose("stillsuit.launcher")
+                root.fakeCompositor.lastFocusedWindowId = 99
+                root.openMenu('{"mode":"windows"}')
+                root.expect(service.rows[2].text === "Previous" && service.rows[2].current === true,
+                    "a closed last focused window falls back to the newest stamp: " + root.rowTexts())
+                root.fakeActions.surfaceClose("stillsuit.launcher")
+                root.fakeCompositor.lastFocusedWindowId = null
+                root.fakeCompositor.windows = saved
+                root.fakeCompositor.revision++
             },
             until: function() { return true }
         },

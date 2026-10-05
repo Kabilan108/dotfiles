@@ -2,7 +2,7 @@
 // Rows come only from a result whose text equals the current query, so a slow
 // reply for an older query never shows.
 
-var meta = { id: "files", label: "Files", icon: "system-file-manager" }
+var meta = { id: "files", label: "Files", icon: "shell:folder" }
 
 var MAX_PATHS = 1000
 var MAX_PATH_LENGTH = 4096
@@ -76,7 +76,7 @@ function query(text, env) {
             provider: meta.id,
             text: shown,
             subtext: "",
-            icon: directory ? "folder" : "text-x-generic",
+            icon: directory ? "shell:folder" : "shell:file",
             // fd already matched the path; keep its rows even when the fuzzy
             // matcher disagrees (fd patterns are regular expressions).
             score: match.score > 0 ? match.score : 1,
