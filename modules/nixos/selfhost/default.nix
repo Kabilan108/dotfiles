@@ -9,6 +9,7 @@ let
 in
 {
   imports = [
+    ./blocky.nix
     ./sera.nix
     ./cliproxyapi.nix
     ./executor.nix

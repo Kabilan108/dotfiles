@@ -102,6 +102,7 @@ in
   "secrets/ssh/jacurutu/yk-nano.age".publicKeys = [ jacurutu ];
 
   "secrets/selfhost/executor-env.age".publicKeys = [ sietch ];
+  "secrets/selfhost/blocky-denylist.age".publicKeys = [ sietch ];
   "secrets/selfhost/cliproxyapi-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/t3-tunnel-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/siren-env.age".publicKeys = [ sietch ];

@@ -19,6 +19,7 @@
 
 	"autoApprovers": {
 		"services": {
+			"svc:blocky":      ["tag:server"],
 			"svc:cliproxyapi": ["tag:server"],
 			"svc:executor":    ["tag:server"],
 			"svc:hark":        ["tag:server"],
@@ -38,6 +39,10 @@
 	},
 
 	"grants": [
+		// Phone browser uses Blocky's DoH endpoint. Jacurutu retains its
+		// existing control-plane access through the grant below.
+		{"src": ["pixel-9"], "dst": ["svc:blocky"], "ip": ["tcp:443"]},
+
 		// control plane: jacurutu reaches everything
 		{"src": ["jacurutu"], "dst": ["*"], "ip": ["*"]},
 
@@ -130,20 +135,20 @@
 	"tests": [
 		{
 			"src":    "jacurutu",
-			"accept": ["sietch:22", "sietch:443", "tleilax:22", "tag:nas:443"],
+			"accept": ["sietch:22", "sietch:443", "tleilax:22", "tag:nas:443", "svc:blocky:443"],
 		},
 		{
 			"src":    "sietch",
 			"accept": ["tleilax:22", "pixel-9:40000", "tag:nas:2049"],
-			"deny":   ["jacurutu:22", "jacurutu:443", "tag:nas:443"],
+			"deny":   ["jacurutu:22", "jacurutu:443", "tag:nas:443", "svc:blocky:443"],
 		},
 		{
 			"src":    "pixel-9",
-			"accept": ["sietch:443", "sietch:8096", "jacurutu:443", "tag:nas:443"],
+			"accept": ["sietch:443", "sietch:8096", "jacurutu:443", "tag:nas:443", "svc:blocky:443"],
 		},
 		{
 			"src":  "tag:nas",
-			"deny": ["sietch:22", "jacurutu:22", "tleilax:22"],
+			"deny": ["sietch:22", "jacurutu:22", "tleilax:22", "sietch:53", "svc:blocky:443"],
 		},
 	],
 	"nodeAttrs": [
@@ -157,4 +162,3 @@
 		{"target": ["sietch"], "attr": ["funnel"]},
 	],
 }
-

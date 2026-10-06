@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# vim: syn=bash ft=bash
+
+set -euo pipefail
+
+# Agenix replaces a secret from stdin when stdin is not a terminal.
+# This command edits the existing list; it must never act as an importer.
+if [[ ! -t 0 || ! -t 1 ]]; then
+  printf '%s\n' 'Run edit-block-list in an interactive terminal; piped or redirected input/output is refused.' >&2
+  exit 1
+fi
+
+WD='/home/kabilan/dotfiles'
+
+exec sudo systemd-run --scope -p MemorySwapMax=0 \
+  env TMPDIR=/dev/shm AGENIX_RULES="$WD/secrets.nix" \
+  EDITOR='/etc/profiles/per-user/kabilan/bin/vim -n -i NONE -u NONE' \
+  agenix -e "secrets/selfhost/blocky-denylist.age" -i "$HOME/.ssh/id_ed25519"
