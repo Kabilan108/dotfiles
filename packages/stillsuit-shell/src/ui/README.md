@@ -33,11 +33,25 @@ keep propagating to parent items. The caret, selection, border, and
 placeholder use theme roles. `selectAll()` and `clear()` act on the text.
 
 `ShellAppIcon` shows an application icon from a freedesktop icon name,
-resolved with `Quickshell.iconPath(name, true)`, or from an absolute path. It
-decodes at its display size and loads files asynchronously. When the icon
-cannot be resolved it shows a monogram of `fallbackLabel`, or the catalog
-glyph `fallbackIconName` when the label is empty. `ready` reports whether the
-icon itself loaded.
+loaded through Quickshell's icon provider, or from an absolute path. It
+decodes at its display size and loads asynchronously. Until the icon loads,
+or when it cannot be resolved, it shows a monogram of `fallbackLabel`, or the
+catalog glyph `fallbackIconName` when the label is empty. `ready` reports
+whether the icon itself loaded.
+
+The provider draws a placeholder for names the theme lacks, so a themed name
+also has to pass `Quickshell.iconPath(name, true)`. That check is a
+synchronous theme lookup, and a cold one can take most of a second, so no
+binding makes it. `IconCheck.js` looks each name up once per engine and every
+icon shares the verdict. The lookup waits until the provider has loaded the
+image on the pixmap reader thread, which pays the cold theme cost there, and
+then for the window's next frame while `themeCheckAllowed` is true. Until a
+name is checked its image bypasses the pixmap cache, so Ready always follows
+a fresh provider lookup of that name. A surface that takes keyboard focus sets
+`themeCheckAllowed: Window.active`: until the compositor has handed it the
+keyboard, a lookup would delay the request for focus, and typing meant for it
+would reach the previous window. An icon installed while the shell runs shows
+after a restart.
 
 These components consume theme-v2 semantic roles and component assignments.
 Callers must not pass palette colors or add private color records. Direct

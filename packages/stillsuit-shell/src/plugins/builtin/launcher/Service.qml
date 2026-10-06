@@ -21,14 +21,6 @@ import "model/providers/windows.js" as Windows
 // qalc and fd lookups only run for the text currently shown. Closing kills
 // any lookup, stops every timer, and drops the rows. Source changes that
 // arrive while closed only mark a snapshot stale.
-//
-// The one exception is a single warmup shortly after startup. It does the
-// first open's work ahead of time: the app snapshot, its prepared haystacks,
-// the history read, and the icon theme lookups of the rows an empty combi
-// query shows. A cold icon lookup can take a few hundred milliseconds, and
-// the menu cannot present before its delegates resolve their icons. The
-// warmup runs once per service and never reschedules itself; an open before
-// it finishes cancels it.
 Scope {
     id: root
 
@@ -58,18 +50,6 @@ Scope {
     readonly property int fdTimeoutMs: 2000
     readonly property int fdMaxResults: 200
     readonly property int pageSize: 8
-    // Enough icons for the rows on screen plus the list's cache buffer.
-    readonly property int warmupIconCount: pageSize * 2
-
-    // Startup work of the rest of the shell goes first.
-    property int warmupDelayMs: 2000
-    // "pending" until the warmup ran against a scanned app list or an open
-    // made it moot, "icons" while it resolves icons, then "done".
-    property string warmupState: "pending"
-    property int warmupRuns: 0
-    readonly property bool warmupPending: warmupTimer.running || iconWarmupTimer.running
-    property var _warmupIcons: []
-    property var _warmedIcons: []
 
     property bool opened: false
     property string mode: Query.DEFAULT_MODE
@@ -155,7 +135,6 @@ Scope {
 
     function open(payload) {
         var request = _request(payload)
-        _finishWarmup()
         _ensureHistory()
         // A mode switch reopens the menu while it holds focus; keep what the
         // first open saw.
@@ -620,57 +599,6 @@ Scope {
             historyFile.setText(JSON.stringify(history.toJSON()))
     }
 
-    function _warmup() {
-        if (opened || warmupState !== "pending")
-            return
-        // A scan that lands later starts the warmup again.
-        if (DesktopEntries.applications.values.length === 0)
-            return
-        warmupRuns++
-        _ensureHistory()
-        var rows = []
-        try {
-            rows = engine.run("", Query.DEFAULT_MODE, _env("", Query.DEFAULT_MODE)).rows
-        } catch (error) {
-            if (context && context.logger)
-                context.logger.warn("launcher warmup failed: " + error)
-        }
-        var icons = []
-        for (var index = 0; index < rows.length && icons.length < warmupIconCount; index++) {
-            var icon = String(rows[index].icon || "")
-            // Paths and shell glyphs load without a theme lookup.
-            if (icon !== "" && icon.charAt(0) !== "/" && icon.indexOf("shell:") !== 0
-                    && icons.indexOf(icon) === -1)
-                icons.push(icon)
-        }
-        _warmupIcons = icons
-        warmupState = "icons"
-        iconWarmupTimer.restart()
-    }
-
-    // One lookup per event loop turn, so input and frames interleave.
-    function _warmNextIcon() {
-        if (warmupState !== "icons")
-            return
-        if (_warmupIcons.length === 0) {
-            warmupState = "done"
-            return
-        }
-        var icon = _warmupIcons[0]
-        _warmupIcons = _warmupIcons.slice(1)
-        // The same lookup ShellAppIcon makes; the theme loader caches it.
-        Quickshell.iconPath(icon, true)
-        _warmedIcons = _warmedIcons.concat([icon])
-        iconWarmupTimer.restart()
-    }
-
-    function _finishWarmup() {
-        warmupTimer.stop()
-        iconWarmupTimer.stop()
-        _warmupIcons = []
-        warmupState = "done"
-    }
-
     function _syncPending(pending) {
         if (pending.calc !== undefined)
             _requestCalc(String(pending.calc))
@@ -851,11 +779,8 @@ Scope {
         target: DesktopEntries
         function onApplicationsChanged() {
             root._appsDirty = true
-            if (!root.opened) {
-                if (root.warmupState === "pending")
-                    warmupTimer.restart()
+            if (!root.opened)
                 return
-            }
             // The first scan of a fresh process lands while the menu may
             // already show an empty list; later rescans are debounced.
             if (root._apps.length === 0)
@@ -910,21 +835,6 @@ Scope {
         interval: 1000
         repeat: false
         onTriggered: root._flushHistory()
-    }
-
-    Timer {
-        id: warmupTimer
-        interval: root.warmupDelayMs
-        running: true
-        repeat: false
-        onTriggered: root._warmup()
-    }
-
-    Timer {
-        id: iconWarmupTimer
-        interval: 0
-        repeat: false
-        onTriggered: root._warmNextIcon()
     }
 
     Timer {

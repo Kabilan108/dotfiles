@@ -180,8 +180,13 @@ wait_for "focus to return after the stalled menu" '.probeFocus'
 
 [[ $(ipc open '{"mode":"combi"}') == ok ]]
 wait_for "the menu to draw for icon checks" '.drawn'
+wait_for "the missing theme icon to be checked" '.themeIconChecked'
 sleep 0.3
 run_step icons
+sleep 0.4
+run_step iconsGated
+wait_for "the reassigned icon to be checked" '.themeIconChecked'
+run_step iconsAfterFrame
 [[ $(ipc close) == ok ]]
 run_step router
 run_step reentrant
