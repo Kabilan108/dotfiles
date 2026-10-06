@@ -52,7 +52,8 @@ services come from `context.services.get(id)`.
 
 ```
 theme        read-only theme.v2 view: semantic, component, typography, metrics, motion, effects
-compositor   apiVersion, name, revision, outputs[], focusedOutputId, workspaces[], windows[]
+compositor   apiVersion, name, revision, outputs[], focusedOutputId, workspaces[], windows[],
+             lastFocusedWindowId (last niri-focused window, kept while a layer surface holds focus; null once closed)
 services     revision, has(id), get(id), state(id)   — declared dependencies only
 panels       activeId, selectedId, selectedOutputId, focusedOutputId, isOpen(id), state(id)
 logger       debug/info/warn/error(message)
@@ -62,8 +63,20 @@ actions      surfaceOpen(id, payloadJson), surfaceClose(id), surfaceToggle(id, p
              surfaceDismissPanels(), pluginUnload(id), pluginReload(id), pluginRescan(),
              profileActivate(id), windowFocus(windowId), workspaceFocus(workspaceId),
              shellPing(), shellStatus(), themeQuery(),
-             agentPanel{Open,Hide,Toggle,Status,Terminate}()
+             agentPanel{Open,Hide,Toggle,Status,Terminate}(),
+             appLaunch(desktopId, actionId), openUrl(url), openPath(path, "open"|"reveal"),
+             copyText(text), sessionAction("lock"|"suspend"|"logout"|"reboot"|"poweroff")
 ```
+
+The launch actions take names, never argv: `appLaunch` re-resolves the
+desktop ID, and argv prefixes come from `programs.stillsuitShell.launch`.
+They return `ok`, `unknown`, `invalid`, `unavailable`, or `error` (see the
+host contract for which); treat anything but `ok` as a failure. `ok` means
+submitted, not that the program started: the helper posts its own desktop
+notification when a launch fails. `unavailable` means the helper has not yet
+passed its startup check. Apps, URLs, and paths start in their own
+`app.slice` scope through the `stillsuit-app-launch` helper. These actions are
+context-only; IPC cannot reach them.
 
 Payload JSON is surface data only; `{ "outputId": "..." }` places a panel.
 
@@ -87,6 +100,40 @@ Item {
 The core places it below the bar on `outputId`, dismisses on outside press,
 outside wheel, Escape, and on a banner for that output. Panels do not create
 windows or handle dismissal.
+
+## Hosted menu
+
+```qml
+FocusScope {
+    readonly property bool hostedMenu: true
+    implicitWidth: 640
+    implicitHeight: content.implicitHeight
+    visible: false                       // the host sets visibility
+    required property var context
+    function open(payloadJson) {}
+    function close() {}
+    // Optional: return true to take a toggle as a new open (for example a mode switch).
+    function keepOpenOnToggle(payloadJson) { return false }
+    Ui.ShellTextField { focus: true; theme: context.theme /* ... */ }
+}
+```
+
+The core shows it on the output it opened on, over a dim scrim with
+exclusive keyboard focus, centered at 22% of the output height. The host
+focuses the root, so make it a `FocusScope` whose field sets `focus: true`.
+Focus arrives when the host presents the menu, before its first paint, and
+keys typed right after opening can arrive then. Keep the field ready from
+`open()` on; never gate input or focus on the menu having painted.
+Escape, a press outside the content, or a focused-output change closes it,
+even while it is still loading. Opening a menu closes the open panel and the
+reverse. Banners do not close menus.
+
+A panel or menu may call `surfaceClose`/`surfaceOpen` on itself from `open()`,
+`close()`, `keepOpenOnToggle()`, or a handler that runs while its host
+presents it, such as `onParentChanged`; the router treats that as cancelling
+the request in progress, not as an error. Never `destroy()` your own surface
+root: the router then ends the route and unloads the contribution, and the
+next open constructs it again.
 
 ## Lifecycle and containment
 

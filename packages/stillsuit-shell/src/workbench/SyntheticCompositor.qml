@@ -14,6 +14,10 @@ QtObject {
     property string focusedOutputId: ""
     property var workspaces: []
     property var windows: []
+    // A fixture with no focused window may name the one a layer surface took
+    // focus from; like the Niri adapter, it is null unless that window exists.
+    readonly property var lastFocusedWindowId: root._lastFocusedWindowId
+    property var _lastFocusedWindowId: null
     property var focusRequests: []
     property var workspaceFocusRequests: []
 
@@ -64,7 +68,18 @@ QtObject {
         focusedOutputId = focused
         workspaces = _retarget(snapshot.workspaces || [], primary)
         windows = JSON.parse(JSON.stringify(snapshot.windows || []))
+        _lastFocusedWindowId = _lastFocused(windows, snapshot.lastFocusedWindowId)
         revision += 1
+    }
+
+    function _lastFocused(rows, named) {
+        var namedOpen = false
+        for (var index = 0; index < rows.length; index++) {
+            if (!rows[index] || rows[index].id === undefined) continue
+            if (rows[index].is_focused === true) return rows[index].id
+            if (rows[index].id === named) namedOpen = true
+        }
+        return namedOpen ? named : null
     }
 
     // Fixtures name their output "WB-1"; map it onto whatever the first real

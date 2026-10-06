@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""Canned wl-paste for collector tests.
+
+$FAKE_CLIP_DIR/types lists the offered types; payloads/<quoted type> holds each
+payload. When types.after exists, every --list-types call after the first
+returns it instead, and payloads.after/<quoted type> replaces a payload after
+its first read, simulating an offer that changed mid-classification. While
+hold-<quoted type> exists, a read of that type touches held-<quoted type> and
+waits for the hold file to go away. A `read-delay` file makes every payload
+read sleep that many seconds first.
+--watch records its argv to watch.argv and exits, unless scenarios/ exists:
+then it plays each unplayed scenarios/<NN> directory in order like a selection
+change (installs its types and payloads, runs the watch command with the
+preferred payload on stdin and CLIPBOARD_STATE from its `state` file). A
+scenario's `gate` file names a file to wait for first; an `exit` file makes the
+watcher exit with that status instead; a `delay` file starts the command
+through a shell that touches emit-starting and sleeps that many seconds before
+exec. After the last scenario it waits to be killed. In --watch mode the
+process names itself wl-paste, as the collector's emit checks its parent's comm.
+"""
+
+import ctypes
+import os
+import shutil
+import subprocess
+import sys
+import time
+import urllib.parse
+from pathlib import Path
+
+
+def play(root: Path, command: list[str]) -> int:
+    for scenario in sorted((root / "scenarios").iterdir()):
+        played = root / f"played-{scenario.name}"
+        if played.exists():
+            continue
+        gate = scenario / "gate"
+        if gate.exists():
+            target = root / gate.read_text().strip()
+            while not target.exists():
+                time.sleep(0.05)
+        played.touch()
+        if (scenario / "exit").exists():
+            return int((scenario / "exit").read_text())
+        shutil.rmtree(root / "payloads", ignore_errors=True)
+        shutil.copytree(scenario / "payloads", root / "payloads")
+        shutil.copyfile(scenario / "types", root / "types")
+        types = (root / "types").read_text().splitlines()
+        stdin = b""
+        if types:
+            first = root / "payloads" / urllib.parse.quote(types[0], safe="")
+            stdin = first.read_bytes() if first.exists() else b""
+        state = (scenario / "state").read_text().strip() if (scenario / "state").exists() else "data"
+        if (scenario / "delay").exists():
+            delay = (scenario / "delay").read_text().strip()
+            command = ["sh", "-c", 'touch "$FAKE_CLIP_DIR/emit-starting"; sleep "$0"; exec "$@"', delay, *command]
+        subprocess.run(command, input=stdin, env={**os.environ, "CLIPBOARD_STATE": state}, check=False)
+    while True:
+        time.sleep(3600)
+
+root = Path(os.environ["FAKE_CLIP_DIR"])
+args = sys.argv[1:]
+with open(root / "calls.log", "a", encoding="utf-8") as log:
+    log.write(" ".join(args) + "\n")
+
+if args[:1] == ["--watch"]:
+    PR_SET_NAME = 15
+    ctypes.CDLL(None).prctl(PR_SET_NAME, b"wl-paste", 0, 0, 0)
+    (root / "watch.argv").write_text("\n".join(args) + "\n", encoding="utf-8")
+    if (root / "scenarios").is_dir():
+        sys.exit(play(root, args[1:]))
+    sys.exit(0)
+
+if args == ["--list-types"]:
+    counter = root / "list-count"
+    count = int(counter.read_text()) if counter.exists() else 0
+    counter.write_text(str(count + 1))
+    source = root / ("types.after" if count >= 1 and (root / "types.after").exists() else "types")
+    if not source.exists():
+        print("Nothing is copied", file=sys.stderr)
+        sys.exit(1)
+    sys.stdout.write(source.read_text(encoding="utf-8"))
+    sys.exit(0)
+
+if len(args) == 3 and args[0] == "--no-newline" and args[1] == "--type":
+    name = urllib.parse.quote(args[2], safe="")
+    hold = root / f"hold-{name}"
+    if hold.exists():
+        (root / f"held-{name}").touch()
+        while hold.exists():
+            time.sleep(0.02)
+    if (root / "read-delay").exists():
+        time.sleep(float((root / "read-delay").read_text().strip()))
+    seen = root / f"read-{name}"
+    payload = root / "payloads" / name
+    if seen.exists() and (root / "payloads.after" / name).exists():
+        payload = root / "payloads.after" / name
+    seen.touch()
+    if not payload.exists():
+        sys.exit(1)
+    sys.stdout.buffer.write(payload.read_bytes())
+    sys.exit(0)
+
+print("fake wl-paste: unexpected arguments", file=sys.stderr)
+sys.exit(64)

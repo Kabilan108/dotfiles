@@ -42,6 +42,10 @@ ShellRoot {
         id: niriService
     }
 
+    Services.AppLaunch {
+        id: appLaunch
+    }
+
     HostContext {
         id: hostContext
         theme: shell.publicTheme
@@ -100,6 +104,7 @@ ShellRoot {
         serviceRegistry: serviceRegistry
         surfaceRouter: surfaceRouter
         compositorControl: niriService
+        appLauncher: appLaunch
         theme: shell.publicTheme
         fallbackContext: pluginCatalog.fallbackContext
         configId: shell.configId

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.launcher",
+  "name": "Launcher",
+  "description": "Application, window, power, profile, file, web, calculator and clipboard launcher menu.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["service", "menu"],
+  "entryPoints": { "service": "Service.qml", "menu": "Menu.qml" },
+  "scope": { "service": "global", "menu": "global" },
+  "dependencies": ["stillsuit.clipboard"],
+  "capabilities": ["app-launch", "window-focus", "session-control", "profile-switch", "clipboard-history", "clipboard-write", "file-search", "url-open", "launcher-history-state"],
+  "keepLoaded": true,
+  "stateSchemaVersion": 1
+}

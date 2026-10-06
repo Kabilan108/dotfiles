@@ -9,7 +9,14 @@
 let
   cfg = config.programs.stillsuitShell;
   agentPanelHelper = cfg.integrations.agentPanelHelperPackage;
-  exactRuntimeInputs = cfg.runtimeInputs ++ lib.optional (agentPanelHelper != null) agentPanelHelper;
+  exactRuntimeInputs =
+    cfg.runtimeInputs
+    # wl-copy and wl-paste exec `cat` to move clipboard data.
+    ++ [
+      pkgs.coreutils
+      pkgs.wl-clipboard
+    ]
+    ++ lib.optional (agentPanelHelper != null) agentPanelHelper;
   localMode = cfg.development.sourceMode == "local";
   localSource = toString cfg.development.localSource;
   executable = if localMode then lib.getExe pkgs.quickshell else lib.getExe cfg.package;
@@ -29,6 +36,8 @@ let
   );
   agentPanelConfig = "${config.xdg.configHome}/stillsuit/agent-panel.json";
   pluginHelper = pkgs.callPackage ../../../packages/stillsuit-shell/plugin-helper.nix { };
+  appLaunchHelper = pkgs.callPackage ../../../packages/stillsuit-shell/app-launch-helper.nix { };
+  launchConfig = pkgs.writeText "stillsuit-launch.json" (builtins.toJSON cfg.launch);
   workbench = pkgs.callPackage ../../../packages/stillsuit-shell/workbench-helper.nix {
     stillsuit-shell = cfg.package;
     stillsuit-plugins = pluginHelper;
@@ -92,6 +101,8 @@ in
               "STILLSUIT_THEME_PATH=${stillsuitTheme.validatedTheme}"
               "STILLSUIT_ALLOW_LOCAL_PLUGINS=${if localMode || cfg.pluginRoots != [ ] then "1" else "0"}"
               "STILLSUIT_SHADOW_MODE=${if cfg.development.shadowMode then "1" else "0"}"
+              "STILLSUIT_APP_LAUNCH_HELPER=${lib.getExe appLaunchHelper}"
+              "STILLSUIT_LAUNCH_CONFIG=${launchConfig}"
             ]
             ++ lib.optionals (cfg.pluginRoots != [ ]) [
               "STILLSUIT_PLUGIN_RUNTIME_CONFIG=${runtimeDiscovery}"

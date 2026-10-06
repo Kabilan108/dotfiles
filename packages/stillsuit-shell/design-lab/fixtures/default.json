@@ -57,6 +57,14 @@
       }
     },
     "stillsuit.resources": { "cpuPercent": 7, "memoryPercent": 47 },
+    "stillsuit.clipboard": {
+      "revision": 1,
+      "items": [
+        { "id": "0000000000000000000000000000000000000000000000000000000000000001", "kind": "text", "mime": "text/plain;charset=utf-8", "bytes": 38, "preview": "nix build .#nixosConfigurations.sietch", "created": 1790000000000, "lastUsed": 1790000400000, "path": "" },
+        { "id": "0000000000000000000000000000000000000000000000000000000000000002", "kind": "text", "mime": "text/plain;charset=utf-8", "bytes": 43, "preview": "https://jacurutu.sole-pierce.ts.net/status", "created": 1790000100000, "lastUsed": 1790000300000, "path": "" },
+        { "id": "0000000000000000000000000000000000000000000000000000000000000003", "kind": "text", "mime": "text/plain;charset=utf-8", "bytes": 64, "preview": "Spice must flow.\nThe sleeper must awaken.", "created": 1790000200000, "lastUsed": 1790000200000, "path": "" }
+      ]
+    },
     "stillsuit.agent-usage": {
       "revision": 1, "updatedAt": "2026-09-06T12:00:00Z",
       "accounts": [

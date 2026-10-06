@@ -72,7 +72,8 @@ ShellRoot {
                 outputs: niri.adapter.outputs,
                 focusedOutputId: niri.adapter.focusedOutputId,
                 workspaces: niri.adapter.workspaces,
-                windows: niri.adapter.windows
+                windows: niri.adapter.windows,
+                lastFocusedWindowId: niri.adapter.lastFocusedWindowId
             })
         }
 

@@ -56,7 +56,13 @@ Ui.ShellStatus { theme; label; iconName; role }                                 
 Ui.ShellStateView { theme; mode: "empty"|"loading"|"error"; title; message; iconName; actionLabel; onActionRequested }
 Ui.ShellEmptyRow { theme; iconName; text; error }                               // compact empty treatment
 Ui.ShellBusyIndicator { theme; sizeRole; color }
+Ui.ShellTextField { theme; text; placeholderText; iconName; onKeyPressed: event => { /* accept to take the key */ }; onAccepted }
+Ui.ShellAppIcon { theme; icon /* freedesktop name or absolute path */; fallbackLabel; fallbackIconName; sizeRole }
 ```
+
+`ShellTextField.keyPressed` fires before the field edits text, so a parent
+can take Up, Down, Tab, Enter, or Ctrl+K by setting `event.accepted = true`.
+Unaccepted Escape reaches the menu host and closes the menu.
 
 Toggle and slider are owner-controlled: they emit the request and never write
 their own value; the owner performs the change and publishes the accepted
