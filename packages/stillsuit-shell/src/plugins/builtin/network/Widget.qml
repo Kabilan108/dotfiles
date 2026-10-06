@@ -18,7 +18,9 @@ Ui.ShellBarCluster {
     }) : false
 
     theme: context.theme
-    iconName: service && service.wifiEnabled ? "wifi" : "wifi-off"
+    iconName: !service ? "wifi-off"
+        : service.wiredConnected ? "ethernet"
+        : service.wifiEnabled ? "wifi" : "wifi-off"
     secondaryIconName: vpnConnected ? "vpn" : ""
     selected: context.panels && context.panels.selectedId === "stillsuit.network"
         && context.panels.selectedOutputId === outputId
