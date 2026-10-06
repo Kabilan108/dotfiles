@@ -45,7 +45,23 @@ rg -F 'required property var screen' "$plugin_root/Panel.qml" >/dev/null
 test -f "$plugin_root/assets/moberg.svg"
 
 bash_path=$(command -v bash)
-printf '#!%s\ncat %q\n' "$bash_path" "$script_dir/checkouts.json" >"$fixture_root/helper.sh"
+cat >"$fixture_root/helper.sh" <<HELPER
+#!$bash_path
+case "\${1:-}" in
+    "") cat '$script_dir/checkouts.json' ;;
+    resume)
+        printf '%s\\n' "\$*" >>'$fixture_root/actions.txt'
+        sleep 0.2
+        printf '{"name": "%s", "state": "active"}\\n' "\$2"
+        ;;
+    pause)
+        printf '%s\\n' "\$*" >>'$fixture_root/actions.txt'
+        printf '{"code": 3, "error": "checkout %s is not registered"}\\n' "\$2"
+        exit 3
+        ;;
+    *) exit 2 ;;
+esac
+HELPER
 printf '#!%s\nprintf "%%s\\n" "$1" >%q\n' "$bash_path" "$fixture_root/opened.txt" \
     >"$fixture_root/open.sh"
 chmod +x "$fixture_root/helper.sh" "$fixture_root/open.sh"

@@ -116,9 +116,9 @@ rec {
   # Extra authorized keys per host, outside the access matrix.
   extraAuthorizedKeys = {
     # Forced-command key for the Stillsuit dev-checkouts plugin on jacurutu;
-    # it can only print `dev co list --json`.
+    # it can only list checkouts and pause or resume one by name.
     sietch = [
-      "command=\"/etc/profiles/per-user/kabilan/bin/moberg-dev-status\",restrict,from=\"100.64.0.0/10\" ${mobergStatusKey}"
+      "command=\"/etc/profiles/per-user/kabilan/bin/moberg-dev-checkouts\",restrict,from=\"100.64.0.0/10\" ${mobergStatusKey}"
     ];
   };
 

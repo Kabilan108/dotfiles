@@ -76,6 +76,17 @@ Item {
                 maximumLines: 3
             }
 
+            Ui.ShellStatus {
+                Layout.fillWidth: true
+                visible: root.service.actionError !== ""
+                theme: root.theme
+                status: "danger"
+                iconName: "warning"
+                label: root.service.actionError
+                wrap: true
+                maximumLines: 3
+            }
+
             Ui.ShellStateView {
                 Layout.fillWidth: true
                 visible: !root.service.available
@@ -145,8 +156,22 @@ Item {
                             danger: Boolean(modelData.issue)
                             label: root.service.title(modelData)
                             description: modelData.issue || root.service.subtitle(modelData)
-                            trailingText: String(modelData.state || "")
+                            trailingText: root.service.canResume(modelData)
+                                ? "" : String(modelData.state || "")
                             interactive: false
+
+                            Ui.ShellButton {
+                                visible: root.service.canResume(modelData)
+                                theme: root.theme
+                                compact: true
+                                ghost: true
+                                iconName: "play"
+                                label: "Resume"
+                                busy: root.service.pending(modelData, "resume")
+                                enabled: !root.service.acting || busy
+                                accessibleName: "Resume " + root.service.title(modelData)
+                                onClicked: root.service.resume(modelData)
+                            }
                         }
                     }
                 }
@@ -199,6 +224,18 @@ Item {
                         monospace: !card.checkout.issue
                         elide: Text.ElideMiddle
                     }
+                }
+
+                Ui.ShellButton {
+                    theme: root.theme
+                    compact: true
+                    ghost: true
+                    iconName: "pause"
+                    label: ""
+                    busy: root.service.pending(card.checkout, "pause")
+                    enabled: !root.service.acting || busy
+                    accessibleName: "Pause " + root.service.title(card.checkout)
+                    onClicked: root.service.pause(card.checkout)
                 }
             }
 

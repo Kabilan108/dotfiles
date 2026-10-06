@@ -108,17 +108,52 @@ ShellRoot {
             verify(service.lastError === "Status helper returned invalid JSON", "invalid JSON")
             verify(widget.failing, "chip shows failure")
 
-            verifyOpened.start()
+            verify(service.canResume(unlabeled) && !service.canResume(coin)
+                && !service.canResume(service.idle.filter(function(c) {
+                    return c.name === "broken" })[0]),
+                "resume offered only for healthy stopped checkouts")
+            service.actionError = "stale"
+            verify(service.resume(unlabeled) === "started", "resume started")
+            verify(service.actionError === "", "starting an action clears the old action error")
+            verify(service.acting && service.pending(unlabeled, "resume")
+                && !service.pending(unlabeled, "pause") && !service.pending(coin),
+                "pending state names one checkout and verb")
+            verify(service.pause(coin) === "busy", "one action at a time")
+            step = "resume"
+            actionPoll.start()
         } catch (error) {
             fail(error.message)
         }
     }
 
+    property string step: ""
+
     Timer {
-        id: verifyOpened
-        interval: 500
+        id: actionPoll
+        interval: 100
+        repeat: true
         onTriggered: {
+            if (service.acting || service.refreshing)
+                return
             try {
+                if (root.step === "resume") {
+                    root.verify(service.actionError === "", "resume succeeded: " + service.actionError)
+                    root.verify(service.pause({ name: "../x" }) === "invalid",
+                        "unsafe checkout names refused")
+                    root.verify(service.pause(service.running[0]) === "started", "pause started")
+                    root.step = "pause"
+                    return
+                }
+                stop()
+                root.verify(service.actionError
+                    === "Pause dev-server-1: checkout dev-server-1 is not registered",
+                    "action error survives the follow-up poll: " + service.actionError)
+                root.verify(service.lastError === "" && !service.refreshQueued,
+                    "follow-up poll succeeded")
+                actionLog.reload()
+                root.verify(actionLog.text().trim()
+                    === "resume t3code-e52c4300\npause dev-server-1",
+                    "helper received verb and name: " + actionLog.text())
                 openLog.reload()
                 var opened = openLog.text().trim()
                 root.verify(opened === "http://100.64.0.2:8887", "opener received URL: " + opened)
@@ -128,6 +163,12 @@ ShellRoot {
                 root.fail(error.message)
             }
         }
+    }
+
+    FileView {
+        id: actionLog
+        path: root.fixtureRoot + "/actions.txt"
+        blockLoading: true
     }
 
     FileView {

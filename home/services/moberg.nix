@@ -31,19 +31,40 @@ let
     exec ${pkgs.direnv}/bin/direnv exec . "$@"
   '';
 
-  # Runs the checkout's editable devcli venv directly: a forced SSH command has
-  # no login environment, and loading the direnv/nix shell would cost seconds
-  # per poll. Docker's endpoint comes from ~/.config/moberg/docker.toml.
-  devStatus = pkgs.writeShellApplication {
-    name = "moberg-dev-status";
+  # The forced command behind the desktop dev-checkouts key. It accepts only
+  # `status`, `pause NAME`, and `resume NAME`, from SSH_ORIGINAL_COMMAND or
+  # argv. It runs the checkout's editable devcli venv directly: a forced SSH
+  # command has no login environment, and loading the direnv/nix shell would
+  # cost seconds per poll. Docker's endpoint comes from ~/.config/moberg/docker.toml.
+  devCheckouts = pkgs.writeShellApplication {
+    name = "moberg-dev-checkouts";
     runtimeInputs = [
       pkgs.git
       pkgs.coreutils
     ];
     text = ''
       export PATH="$PATH:/run/current-system/sw/bin"
-      cd ${lib.escapeShellArg cfg.devStatus.checkout}
-      exec timeout 20 ./.cache/devcli/bin/dev co list --json
+      usage() {
+        printf 'usage: moberg-dev-checkouts [status | pause NAME | resume NAME]\n' >&2
+        exit 2
+      }
+      read -r -a words <<<"''${SSH_ORIGINAL_COMMAND-$*}"
+      verb="''${words[0]:-status}"
+      cd ${lib.escapeShellArg cfg.devCheckouts.checkout}
+      dev=./.cache/devcli/bin/dev
+      case "$verb" in
+        status)
+          [[ ''${#words[@]} -le 1 ]] || usage
+          exec timeout 20 "$dev" co list --json
+          ;;
+        pause | resume)
+          [[ ''${#words[@]} -eq 2 && ''${words[1]} =~ ^[a-z0-9][a-z0-9._-]*$ ]] || usage
+          limit=120
+          [[ $verb == resume ]] && limit=900
+          exec timeout "$limit" "$dev" --checkout "''${words[1]}" co "$verb" --json
+          ;;
+        *) usage ;;
+      esac
     '';
   };
 in
@@ -65,8 +86,8 @@ in
       };
     };
 
-    devStatus = {
-      enable = lib.mkEnableOption "moberg-dev-status, the read-only checkout status command used by the desktop dev-checkouts plugin";
+    devCheckouts = {
+      enable = lib.mkEnableOption "moberg-dev-checkouts, the status/pause/resume command used by the desktop dev-checkouts plugin";
       checkout = lib.mkOption {
         type = lib.types.str;
         default = "/vault/work/moberg/dev-server";
@@ -76,8 +97,8 @@ in
   };
 
   config = lib.mkMerge [
-    (lib.mkIf cfg.devStatus.enable {
-      home.packages = [ devStatus ];
+    (lib.mkIf cfg.devCheckouts.enable {
+      home.packages = [ devCheckouts ];
     })
     (lib.mkIf cfg.eboostReviewerReport.enable {
       systemd.user.services.moberg-eboost-reviewer-report = {

@@ -3,7 +3,8 @@ import Quickshell
 import Quickshell.Io
 
 // Polls `dev co list --json` on sietch through the fixed helper and owns the
-// last good checkout list. Views only read it and call refresh()/openLink().
+// last good checkout list. The same helper pauses or resumes one checkout at a
+// time. Views only read state and call refresh(), pause(), resume(), openLink().
 QtObject {
     id: root
 
@@ -29,7 +30,13 @@ QtObject {
     property string lastError: ""
     property string updatedAt: ""
     property bool refreshing: false
+    property bool refreshQueued: false
     property bool loaded: false
+    property string actionName: ""
+    property string actionVerb: ""
+    // Kept apart from lastError, which every successful poll clears.
+    property string actionError: ""
+    readonly property bool acting: actionName !== ""
 
     readonly property var running: checkouts.filter(function(c) { return c.running === true })
     readonly property var idle: checkouts.filter(function(c) { return c.running !== true })
@@ -47,6 +54,10 @@ QtObject {
         }
         onExited: function(exitCode) {
             root.refreshing = false
+            if (root.refreshQueued) {
+                root.refreshQueued = false
+                Qt.callLater(root.refresh)
+            }
             if (exitCode !== 0) {
                 var detail = helperErr.text.trim().split("\n").filter(function(line) {
                     return line !== ""
@@ -55,6 +66,25 @@ QtObject {
                 return
             }
             root._apply(helperOut.text)
+        }
+    }
+
+    property Process action: Process {
+        stdout: StdioCollector {
+            id: actionOut
+            waitForEnd: true
+        }
+        stderr: StdioCollector {
+            id: actionErr
+            waitForEnd: true
+        }
+        onExited: function(exitCode) {
+            var verb = root.actionVerb
+            var name = root.actionName
+            root.actionName = ""
+            root.actionVerb = ""
+            root.actionError = exitCode === 0 ? "" : root._actionError(verb, name, exitCode)
+            root.refresh()
         }
     }
 
@@ -69,11 +99,61 @@ QtObject {
     function refresh() {
         if (!available)
             return "unavailable"
-        if (refreshing)
+        if (refreshing) {
+            refreshQueued = true
             return "queued"
+        }
         refreshing = true
         helper.running = true
         return "started"
+    }
+
+    function pause(checkout) {
+        return _act("pause", checkout)
+    }
+
+    function resume(checkout) {
+        return _act("resume", checkout)
+    }
+
+    function canResume(checkout) {
+        return checkout.running !== true && !checkout.issue
+            && checkout.instance !== null && checkout.instance !== undefined
+    }
+
+    function pending(checkout, verb) {
+        return actionName !== "" && actionName === checkout.name
+            && (verb === undefined || actionVerb === verb)
+    }
+
+    function _act(verb, checkout) {
+        if (!available)
+            return "unavailable"
+        if (acting)
+            return "busy"
+        var name = String(checkout && checkout.name || "")
+        if (!/^[a-z0-9][a-z0-9._-]*$/.test(name))
+            return "invalid"
+        actionVerb = verb
+        actionName = name
+        actionError = ""
+        action.command = [helperPath, verb, name]
+        action.running = true
+        return "started"
+    }
+
+    function _actionError(verb, name, exitCode) {
+        var detail = ""
+        try {
+            var payload = JSON.parse(actionOut.text)
+            detail = payload && payload.error ? String(payload.error) : ""
+        } catch (error) {
+        }
+        if (detail === "")
+            detail = actionErr.text.trim().split("\n").filter(function(line) {
+                return line !== ""
+            }).pop() || "exited " + exitCode
+        return (verb === "pause" ? "Pause " : "Resume ") + name + ": " + detail
     }
 
     function _apply(text) {

@@ -43,8 +43,9 @@ let
       gio open -- "$1"
     '';
   };
-  # The key's authorized_keys entry on sietch forces `moberg-dev-status`, so
-  # this can only ever read `dev co list --json`.
+  # The key's authorized_keys entry on sietch forces `moberg-dev-checkouts`,
+  # which reads the request from SSH_ORIGINAL_COMMAND: no arguments lists
+  # checkouts; `pause NAME` / `resume NAME` change one.
   devCheckoutsHelper = pkgs.writeShellApplication {
     name = "stillsuit-dev-checkouts";
     runtimeInputs = [ pkgs.openssh ];
@@ -52,7 +53,7 @@ let
       exec ssh -i "$HOME/.ssh/moberg-status-jacurutu" \
         -o IdentitiesOnly=yes -o BatchMode=yes -o ControlMaster=no -o ControlPath=none \
         -o ConnectTimeout=5 -o ServerAliveInterval=5 -o ServerAliveCountMax=2 \
-        ${fleet.hosts.sietch.user}@${fleet.hosts.sietch.tailscaleIp} moberg-dev-status
+        ${fleet.hosts.sietch.user}@${fleet.hosts.sietch.tailscaleIp} moberg-dev-checkouts "$@"
     '';
   };
 in
