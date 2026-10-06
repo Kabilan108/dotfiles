@@ -11,3 +11,9 @@ output "DP-1" {
 }
 
 spawn-sh-at-startup "swaybg -i $HOME/dotfiles/wallpapers/uwide/lucy.png -m fill"
+
+// Helium on the 3090 negotiates a dmabuf that niri can neither fixate nor
+// render into, so the cast shows nothing. Shared-memory buffers work.
+debug {
+    disable-pipewire-dmabuf
+}
