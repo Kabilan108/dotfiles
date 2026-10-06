@@ -23,13 +23,18 @@ Item {
     property var createdWidget: null
     property var pendingConstruction: null
 
-    implicitWidth: failed || !createdWidget
-        ? 0
-        : Math.max(0, createdWidget.implicitWidth || createdWidget.width || 0)
-    implicitHeight: failed || !createdWidget
-        ? 0
-        : Math.max(0, createdWidget.implicitHeight || createdWidget.height || 0)
-    visible: !failed && createdWidget !== null
+    // Widgets hide through `collapsed`, not `visible`: a child reads
+    // visible as false while this slot is hidden, so it could never return.
+    readonly property bool collapsed: createdWidget !== null && createdWidget.collapsed === true
+    readonly property bool occupied: !failed && createdWidget !== null && !collapsed
+
+    implicitWidth: occupied
+        ? Math.max(0, createdWidget.implicitWidth || createdWidget.width || 0)
+        : 0
+    implicitHeight: occupied
+        ? Math.max(0, createdWidget.implicitHeight || createdWidget.height || 0)
+        : 0
+    visible: occupied
 
     HoverHandler { id: tooltipHover }
     Ui.ShellBarTooltip {

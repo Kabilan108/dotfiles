@@ -20,7 +20,7 @@ Ui.ShellBarCluster {
     readonly property bool stale: _hasStaleDefault()
 
     theme: context.theme
-    visible: reportingDefaultCount > 0
+    readonly property bool collapsed: reportingDefaultCount === 0
     iconName: "agent"
     iconSource: hasCodex
         ? Qt.resolvedUrl("assets/codex.svg")

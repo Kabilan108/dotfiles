@@ -76,6 +76,13 @@ passes the owning window's output identity to `WidgetSlot`, and `WidgetSlot`
 includes it in the initial-property map passed to `createObject`. Widgets must
 not infer their output later from global focus state.
 
+A widget with nothing to show declares `readonly property bool collapsed` and
+sets it to true. `WidgetSlot` then hides the slot and gives it zero size, so
+the bar reclaims the widget's width and the spacing around it. The widget stays
+constructed and returns when `collapsed` goes false. Widgets must not hide
+themselves with `visible`: the slot cannot tell an item hidden by its own
+binding from one hidden because its parent is.
+
 ## Injected `HostContext`
 
 Every entry point may declare `required property var context`. The host injects

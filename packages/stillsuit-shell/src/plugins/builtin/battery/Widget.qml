@@ -22,7 +22,7 @@ Ui.ShellBarCluster {
         : service && service.charging ? theme.semantic.signal.charging
         : theme.component.bar.clusterText
     enabled: service && service.available
-    visible: service && service.present
+    readonly property bool collapsed: !service || !service.present
     onClicked: context.actions.surfaceToggle("stillsuit.battery", JSON.stringify({outputId: root.outputId}))
 
     function _iconName() {

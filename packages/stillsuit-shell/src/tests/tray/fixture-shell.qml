@@ -136,7 +136,7 @@ ShellRoot {
             root.check(service.itemById("Slack_status_icon_1") === root.slack, "itemById resolves")
             root.check(service.itemById("passive") === null, "itemById skips hidden items")
 
-            root.check(widget.visible === true, "widget shows with items")
+            root.check(widget.collapsed === false, "widget shows with items")
             root.check(widget.implicitWidth > 0 && widget.implicitWidth === widget.slotExtent * 4,
                 "widget width is one slot per visible item: " + widget.implicitWidth)
             root.check(widget.accessibleName === "System tray, 4 items", "accessible name counts")
@@ -226,7 +226,7 @@ ShellRoot {
                 "showing one tray item rebuilt the existing icons")
 
             root.model.items = [root.passive]
-            root.check(service.count === 0 && widget.visible === false && widget.implicitWidth === 0,
+            root.check(service.count === 0 && widget.collapsed === true && widget.implicitWidth === 0,
                 "empty tray collapses the widget")
 
             if (root.failures === 0) console.log("TRAY_FIXTURE_OK")

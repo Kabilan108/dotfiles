@@ -183,8 +183,29 @@ ShellRoot {
                         && tracker.destructionCount === 1
                         && testedSlot.createdWidget === retainedWidget,
                     "reassigning the same registration rebuilt the widget")
-                testedSlot.registration = fixture.failingRegistration
+                testedSlot.createdWidget.collapsed = true
                 phase = 3
+                return
+            }
+
+            if (phase === 3) {
+                fixture.assert(!testedSlot.occupied && testedSlot.implicitWidth === 0
+                        && testedSlot.implicitHeight === 0,
+                    "collapsed widget still occupies its slot")
+                fixture.assert(testedSlot.createdWidget === retainedWidget
+                        && tracker.destructionCount === 1,
+                    "collapsing a widget destroyed it")
+                testedSlot.createdWidget.collapsed = false
+                phase = 4
+                return
+            }
+
+            if (phase === 4) {
+                fixture.assert(testedSlot.occupied && testedSlot.implicitWidth === 19
+                        && testedSlot.implicitHeight === 11,
+                    "expanded widget did not reclaim its slot")
+                testedSlot.registration = fixture.failingRegistration
+                phase = 5
                 return
             }
 

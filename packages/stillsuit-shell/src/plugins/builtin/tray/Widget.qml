@@ -21,8 +21,8 @@ Item {
     readonly property string accessibleName: items.length === 0
         ? "System tray, empty" : "System tray, " + items.length + " items"
 
-    visible: items.length > 0
-    implicitWidth: visible ? iconRow.implicitWidth : 0
+    readonly property bool collapsed: items.length === 0
+    implicitWidth: collapsed ? 0 : iconRow.implicitWidth
     implicitHeight: theme.metrics.barHeight
 
     function openMenu(item) {

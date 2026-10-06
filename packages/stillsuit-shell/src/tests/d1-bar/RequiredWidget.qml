@@ -4,6 +4,7 @@ Item {
     required property var context
     required property var service
     required property string outputId
+    property bool collapsed: false
 
     implicitWidth: 19
     implicitHeight: 11
