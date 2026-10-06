@@ -293,7 +293,7 @@ window-rule {
 
 // Hide windows from screen capture
 window-rule {
-    match app-id=r#"^obsidian$"#
+    match app-id=r#"^(obsidian|md\.obsidian\.Obsidian)$"#
     block-out-from "screen-capture"
 }
 
@@ -403,12 +403,13 @@ window-rule {
     geometry-corner-radius 5
     clip-to-geometry true
     draw-border-with-background false
+    open-maximized-to-edges false
 }
 
 window-rule {
     match app-id=r#"^com\.mitchellh\.ghostty$"#
     match app-id=r#"^Slack$"#
-    match app-id=r#"^obsidian$"#
+    match app-id=r#"^(obsidian|md\.obsidian\.Obsidian)$"#
 
     opacity 0.85
     background-effect {
