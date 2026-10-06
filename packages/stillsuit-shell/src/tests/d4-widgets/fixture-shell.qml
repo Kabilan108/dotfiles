@@ -16,10 +16,28 @@ ShellRoot {
     property int workspaceConstructionCount: 0
     property var productionWorkspaceCounts: ({})
     property var actionCalls: []
+    property var workspaceFocusCalls: []
     readonly property string primaryOutputId: Quickshell.screens.length > 0
         ? String(Quickshell.screens[0].name) : ""
     readonly property string secondaryOutputId: Quickshell.screens.length > 1
         ? String(Quickshell.screens[1].name) : ""
+
+    function workspaceCells(widget) {
+        var strip = widget.children[0].children[0]
+        var result = []
+        for (var index = 0; index < strip.children.length; index++) {
+            var child = strip.children[index]
+            if (child.workspace !== undefined) result.push(child)
+        }
+        return result
+    }
+
+    function clickArea(cell) {
+        for (var index = 0; index < cell.children.length; index++) {
+            if (cell.children[index].cursorShape !== undefined) return cell.children[index]
+        }
+        return null
+    }
 
     function recordProductionWorkspace(outputId, count) {
         var next = Object.assign({}, productionWorkspaceCounts)
@@ -80,6 +98,10 @@ ShellRoot {
             return "ok"
         }
         function surfaceClose(pluginId) { return "ok" }
+        function workspaceFocus(workspaceId) {
+            fixture.workspaceFocusCalls = fixture.workspaceFocusCalls.concat([Number(workspaceId)])
+            return "ok"
+        }
     }
 
     QtObject {
@@ -192,6 +214,25 @@ ShellRoot {
                 secondaryWorkspaces: workspaceSecondary.workspaces.length,
                 secondaryColumns: workspaceSecondary.columns,
                 secondaryFocusedColumn: workspaceSecondary.focusedColumn
+            })
+        }
+        // Clicking is driven through each cell's MouseArea so the assertion
+        // covers the wiring from pointer to action. The secondary output's
+        // active workspace is 2; clicking it must not reach the compositor.
+        function workspaceClick(): string {
+            var cells = fixture.workspaceCells(workspaceSecondary)
+            var areas = cells.map(function(cell) { return fixture.clickArea(cell) })
+            var pointerCursors = areas.map(function(area) { return area ? area.cursorShape === Qt.PointingHandCursor : null })
+            fixture.workspaceFocusCalls = []
+            if (areas[0]) areas[0].clicked(null)
+            var afterActive = fixture.workspaceFocusCalls.slice()
+            if (areas[1]) areas[1].clicked(null)
+            return JSON.stringify({
+                ids: cells.map(function(cell) { return cell.workspace.id }),
+                active: cells.map(function(cell) { return cell.active }),
+                pointerCursors: pointerCursors,
+                afterActive: afterActive,
+                calls: fixture.workspaceFocusCalls
             })
         }
         function resourceSnapshot(): string {

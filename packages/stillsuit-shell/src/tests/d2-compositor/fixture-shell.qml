@@ -103,6 +103,10 @@ ShellRoot {
             return String(niri.parseEvent(line))
         }
 
+        function focusWorkspace(workspaceId: string): string {
+            return niri.focusWorkspace(workspaceId)
+        }
+
         function markRows(): string {
             fixture.markedWorkspaces = niri.adapter.workspaces
             fixture.markedWindows = niri.adapter.windows

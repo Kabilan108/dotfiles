@@ -116,5 +116,6 @@ case "$*" in
         ;;
     esac
     ;;
+  'msg action focus-monitor '*|'msg action focus-workspace '*) ;;
   *) exit 64 ;;
 esac

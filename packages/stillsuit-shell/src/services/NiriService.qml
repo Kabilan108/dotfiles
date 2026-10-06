@@ -546,6 +546,60 @@ Scope {
         }
     }
 
+    // A workspace is addressed by its snapshot id so a per-output bar acts on
+    // its own workspace. Niri's CLI takes only an index, applied to the
+    // focused monitor, so the id resolves against the snapshot to an output
+    // and index, and a workspace on another output is reached by focusing
+    // that monitor first. A request arriving while a command runs replaces
+    // any earlier pending request once the command exits: the last click wins.
+    property var _workspaceCommands: []
+    property var _replacementWorkspaceCommands: null
+
+    function focusWorkspace(workspaceId) {
+        var id = Number(workspaceId)
+        if (!Number.isInteger(id) || id <= 0) return "invalid-workspace"
+        var workspace = _workspaceById(id)
+        if (!workspace) return "unknown-workspace"
+        var output = String(workspace.output || "")
+        var commands = []
+        if (output !== "" && output !== compositorAdapter.focusedOutputId)
+            commands.push(["niri", "msg", "action", "focus-monitor", output])
+        if (workspace.is_active !== true)
+            commands.push(["niri", "msg", "action", "focus-workspace", String(workspace.idx)])
+        if (commands.length === 0) return "ok"
+        if (workspaceProcess.running) {
+            _replacementWorkspaceCommands = commands
+            return "ok"
+        }
+        _runWorkspaceCommands(commands)
+        return "ok"
+    }
+
+    function _workspaceById(id) {
+        var rows = compositorAdapter.workspaces
+        for (var index = 0; index < rows.length; index++) {
+            if (rows[index] && rows[index].id === id) return rows[index]
+        }
+        return null
+    }
+
+    function _runWorkspaceCommands(commands) {
+        _workspaceCommands = commands.slice(1)
+        workspaceProcess.command = commands[0]
+        workspaceProcess.running = true
+    }
+
+    Process {
+        id: workspaceProcess
+        command: ["niri", "msg", "action", "focus-workspace", "1"]
+        onExited: {
+            var next = root._replacementWorkspaceCommands || root._workspaceCommands
+            root._replacementWorkspaceCommands = null
+            root._workspaceCommands = []
+            if (next.length > 0) root._runWorkspaceCommands(next)
+        }
+    }
+
     Process {
         id: eventStream
         command: ["niri", "msg", "--json", "event-stream"]

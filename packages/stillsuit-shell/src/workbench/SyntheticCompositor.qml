@@ -15,11 +15,37 @@ QtObject {
     property var workspaces: []
     property var windows: []
     property var focusRequests: []
+    property var workspaceFocusRequests: []
 
     function focusWindow(windowId) {
         var next = focusRequests.slice(-49)
         next.push(Number(windowId))
         focusRequests = next
+        return "ok"
+    }
+
+    // Activates the workspace in the snapshot the way Niri's WorkspaceActivated
+    // event would, so the bar on the fixture output shows the switch.
+    function focusWorkspace(workspaceId) {
+        var id = Number(workspaceId)
+        if (!Number.isInteger(id) || id <= 0) return "invalid-workspace"
+        var target = null
+        for (var index = 0; index < workspaces.length; index++) {
+            if (workspaces[index] && workspaces[index].id === id) target = workspaces[index]
+        }
+        if (!target) return "unknown-workspace"
+        var next = workspaceFocusRequests.slice(-49)
+        next.push(id)
+        workspaceFocusRequests = next
+        var output = String(target.output || target.output_id || "")
+        workspaces = workspaces.map(function(row) {
+            var copy = Object.assign({}, row)
+            if (String(copy.output || copy.output_id || "") === output) copy.is_active = copy.id === id
+            copy.is_focused = copy.id === id
+            return copy
+        })
+        focusedOutputId = output
+        revision += 1
         return "ok"
     }
 

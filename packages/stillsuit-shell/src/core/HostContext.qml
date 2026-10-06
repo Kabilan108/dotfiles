@@ -194,6 +194,12 @@ QtObject {
                     : "unavailable"
             }
 
+            function workspaceFocus(workspaceId) {
+                return root.actionsSource && typeof root.actionsSource.workspaceFocus === "function"
+                    ? root.actionsSource.workspaceFocus(workspaceId)
+                    : "unavailable"
+            }
+
             function pluginUnload(pluginId) {
                 return root.actionsSource
                     ? root.actionsSource.pluginUnload(String(pluginId))

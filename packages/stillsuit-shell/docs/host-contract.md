@@ -131,8 +131,12 @@ windows: WindowSnapshot[]
 Snapshots contain plain data and no process handles. Plugin-specific view code
 may filter or bind these records. Compositor mutations, when added, go through
 named methods on `actions`; plugins cannot send raw `niri msg` arguments. The
-one mutation today is `actions.windowFocus(id)`, which focuses a window from a
-`windows[]` snapshot (and so activates its workspace).
+mutations today are `actions.windowFocus(id)`, which focuses a window from a
+`windows[]` snapshot (and so activates its workspace), and
+`actions.workspaceFocus(id)`, which activates a workspace from a `workspaces[]`
+snapshot on the output that owns it, focusing that output first when it is not
+the focused one. Focusing the workspace that is already active and focused is
+a no-op.
 
 ### `services`
 
@@ -234,6 +238,7 @@ pluginReload(id: string): string
 pluginRescan(): string
 profileActivate(id: string): string
 windowFocus(id: number): string
+workspaceFocus(id: number): string
 shellPing(): string
 shellStatus(): string
 themeQuery(): string

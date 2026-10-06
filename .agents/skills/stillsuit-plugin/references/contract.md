@@ -60,7 +60,8 @@ settings     pluginId, values (from Nix + runtime preferences), paths {configRoo
 profiles     active, available[], revision, state (ready/switching/degraded/error), error
 actions      surfaceOpen(id, payloadJson), surfaceClose(id), surfaceToggle(id, payloadJson),
              surfaceDismissPanels(), pluginUnload(id), pluginReload(id), pluginRescan(),
-             profileActivate(id), windowFocus(windowId), shellPing(), shellStatus(), themeQuery(),
+             profileActivate(id), windowFocus(windowId), workspaceFocus(workspaceId),
+             shellPing(), shellStatus(), themeQuery(),
              agentPanel{Open,Hide,Toggle,Status,Terminate}()
 ```
 

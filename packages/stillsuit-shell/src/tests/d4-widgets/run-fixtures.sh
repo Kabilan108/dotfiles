@@ -114,6 +114,12 @@ production_bar=$(ipc productionBarSnapshot)
 jq -e '.constructions == 2 and (.outputIds | length) == 2 and .outputIds[0] != .outputIds[1] and .primaryWorkspaces == 1 and .secondaryWorkspaces == 2' >/dev/null <<<"$production_bar"
 workspace=$(ipc workspaceSnapshot)
 jq -e '.primaryWorkspaces == 1 and .secondaryWorkspaces == 2 and .secondaryColumns == 4 and .secondaryFocusedColumn == 2' >/dev/null <<<"$workspace"
+workspace_click=$(ipc workspaceClick)
+jq -e '
+  .ids == [2, 3] and .active == [true, false]
+  and .pointerCursors == [false, true]
+  and .afterActive == [] and .calls == [3]
+' >/dev/null <<<"$workspace_click"
 first_resources=$(ipc resourceSnapshot)
 jq -e '.cpuPercent == 0 and .memoryPercent == 40' >/dev/null <<<"$first_resources"
 printf '%s\n' 'cpu 200 0 200 1000 0 0 0 0 0 0' > "$STILLSUIT_FIXTURE_STAT"

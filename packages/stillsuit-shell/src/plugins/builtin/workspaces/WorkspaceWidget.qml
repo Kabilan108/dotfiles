@@ -22,7 +22,6 @@ Item {
         && context.settings.values.reducedMotion === true
     readonly property int motionDuration: reducedMotion ? 0 : context.theme.motion.fast
     readonly property string accessibleName: "Workspaces and Niri columns on " + outputId
-    property string tooltipText: accessibleName
     readonly property bool inlineLayout: workspaceStrip.parent === contentRow
         && separator.parent === contentRow
         && columnStrip.parent === contentRow
@@ -60,6 +59,17 @@ Item {
 
                     width: 16
                     height: 18
+
+                    function activate() {
+                        if (!active)
+                            root.focusWorkspace(workspace)
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: parent.active ? Qt.ArrowCursor : Qt.PointingHandCursor
+                        onClicked: parent.activate()
+                    }
 
                     Rectangle {
                         anchors.fill: parent
@@ -127,6 +137,13 @@ Item {
                 }
             }
         }
+    }
+
+    function focusWorkspace(workspace) {
+        if (!workspace || workspace.id === undefined || !context.actions
+                || typeof context.actions.workspaceFocus !== "function")
+            return "unavailable"
+        return context.actions.workspaceFocus(workspace.id)
     }
 
     function workspacesForOutput(rows, requestedOutputId) {

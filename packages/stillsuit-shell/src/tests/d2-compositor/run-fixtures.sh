@@ -280,6 +280,41 @@ jq -e '
   and .delegateStates == [{"id":4,"active":true},{"id":6,"active":false}]
 ' >/dev/null <<<"$(ipc rowIdentity)"
 
+# Focusing a workspace resolves its id against the snapshot. A workspace on
+# the focused output becomes a single focus-workspace by index; one that is
+# already active and focused sends nothing; ids the snapshot lacks are refused
+# before any process starts. A workspace on another output focuses that
+# monitor first, then the index on it, in that order.
+wait_for_argv_count() {
+  local argv expected
+  argv=$1
+  expected=$2
+  for _ in {1..160}; do
+    if [[ $(argv_count "$argv") -eq $expected ]]; then return 0; fi
+    sleep 0.05
+  done
+  printf 'argv %q did not reach count %s\n' "$argv" "$expected" >&2
+  cat "$STILLSUIT_D2_FIXTURE_STATE/argv.log" >&2
+  return 1
+}
+[[ $(ipc focusWorkspace 6) == ok ]]
+wait_for_argv_count 'msg action focus-workspace 2' 1
+[[ $(ipc focusWorkspace 4) == ok ]]
+[[ $(ipc focusWorkspace 999) == unknown-workspace ]]
+[[ $(ipc focusWorkspace abc) == invalid-workspace ]]
+[[ $(ipc focusWorkspace 0) == invalid-workspace ]]
+sleep 0.3
+[[ $(argv_count 'msg action focus-workspace 1') -eq 0 ]]
+[[ $(argv_count 'msg action focus-workspace 2') -eq 1 ]]
+ipc inject '{"WorkspacesChanged":{"workspaces":[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":true,"is_focused":true,"active_window_id":41,"is_urgent":false},{"id":6,"idx":2,"output":"HDMI-A-1","is_active":false,"is_focused":false,"is_urgent":false},{"id":7,"idx":1,"output":"DP-9","is_active":false,"is_focused":false,"is_urgent":false}]}}' >/dev/null
+[[ $(ipc focusWorkspace 7) == ok ]]
+wait_for_argv_count 'msg action focus-monitor DP-9' 1
+wait_for_argv_count 'msg action focus-workspace 1' 1
+monitor_line=$(grep -nxF -- 'msg action focus-monitor DP-9' "$STILLSUIT_D2_FIXTURE_STATE/argv.log" | cut -d: -f1)
+workspace_line=$(grep -nxF -- 'msg action focus-workspace 1' "$STILLSUIT_D2_FIXTURE_STATE/argv.log" | cut -d: -f1)
+(( monitor_line < workspace_line ))
+[[ $(argv_count 'msg action focus-window --id 0') -eq 0 ]]
+
 # Known events whose payloads fail validation, and events the parser does not
 # know, are never applied. The first queues generation 6, which the fake holds
 # so the unchanged state can be observed; the rest collapse into generation 7.
@@ -332,7 +367,8 @@ jq -e '.baseDelayMs == 50 and .doubledDelayMs == 100 and .cappedDelayMs == 200' 
 ownership=$(ipc ownership)
 jq -e '.serviceInstances == 1 and .adapterInstances == 1' >/dev/null <<<"$ownership"
 LC_ALL=C sort -u "$STILLSUIT_D2_FIXTURE_STATE/argv.log" >"$tmp_dir/argv.unique"
-diff -u <(printf '%s\n' 'msg --json event-stream' 'msg -j outputs' 'msg -j windows' 'msg -j workspaces') "$tmp_dir/argv.unique"
+diff -u <(printf '%s\n' 'msg --json event-stream' 'msg -j outputs' 'msg -j windows' 'msg -j workspaces' \
+  'msg action focus-monitor DP-9' 'msg action focus-workspace 1' 'msg action focus-workspace 2') "$tmp_dir/argv.unique"
 
 if rg --line-number --ignore-case '(binding loop|typeerror|referenceerror)' "$tmp_dir/quickshell.log" >"$tmp_dir/quickshell-errors"; then
   cat "$tmp_dir/quickshell-errors" >&2

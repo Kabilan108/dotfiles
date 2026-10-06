@@ -8,6 +8,6 @@
   "kinds": ["bar-widget"],
   "entryPoints": { "barWidget": "WorkspaceWidget.qml" },
   "scope": { "barWidget": "per-output" },
-  "capabilities": ["compositor-read"],
+  "capabilities": ["compositor-read", "compositor-focus"],
   "barWidget": { "defaultSection": "left", "allowMultiple": false, "order": 10 }
 }

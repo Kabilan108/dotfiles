@@ -161,6 +161,10 @@ QtObject {
         function focusWindow(windowId: string): string {
             return root.windowFocus(windowId)
         }
+
+        function focusWorkspace(workspaceId: string): string {
+            return root.workspaceFocus(workspaceId)
+        }
     }
 
     property IpcHandler pluginHandler: IpcHandler {
@@ -304,6 +308,12 @@ QtObject {
     function windowFocus(windowId) {
         return compositorControl && typeof compositorControl.focusWindow === "function"
             ? compositorControl.focusWindow(windowId)
+            : "unavailable"
+    }
+
+    function workspaceFocus(workspaceId) {
+        return compositorControl && typeof compositorControl.focusWorkspace === "function"
+            ? compositorControl.focusWorkspace(workspaceId)
             : "unavailable"
     }
 
