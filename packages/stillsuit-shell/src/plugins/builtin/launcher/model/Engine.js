@@ -26,6 +26,7 @@
 //   profiles: {active: id, available: [{id, name, description}]}
 //   clipboardItems: [{id, kind: "text"|"image", preview, mime, bytes,
 //                     createdAt, lastUsed, path?}]   (times in ms)
+//   clipboardImagesOnly: true to list only image clipboard items
 //   filesResult: {text, paths: [absolute or searchRoot-relative path]}
 //   calcResult: {text, value, error}
 //   history: a History.create() instance, or its toJSON() data
@@ -378,6 +379,7 @@ function create(modules) {
             currentWindowId: source.currentWindowId,
             profiles: source.profiles,
             clipboardItems: source.clipboardItems,
+            clipboardImagesOnly: source.clipboardImagesOnly === true,
             filesResult: source.filesResult,
             calcResult: source.calcResult
         }

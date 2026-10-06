@@ -2,7 +2,7 @@
 # Launcher service and menu in an offscreen shell: fixture desktop entries,
 # a fake host context, and fake qalc and fd scripts that log each run so the
 # fixture can check which lookups started, finished, or were terminated.
-# The fd script runs the real fd for the pattern "needle" against a search
+# The fd script runs the real fd for patterns containing "needle" against a search
 # tree with a directory link into another volume and Nix-style result links.
 # Set LAUNCHER_QML_SCREENSHOTS to a directory to keep the menu screenshots.
 set -euo pipefail
@@ -86,7 +86,7 @@ case "\$pattern" in
         sleep 5 >/dev/null &
         trap 'kill \$!; exit 143' TERM
         wait \$! ;;
-    needle) exec "$real_fd" "\$@" ;;
+    *needle*) exec "$real_fd" "\$@" ;;
 esac
 STUB
 chmod +x "$fixture_dir/bin/qalc" "$fixture_dir/bin/fd"

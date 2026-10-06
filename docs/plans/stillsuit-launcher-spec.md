@@ -12,8 +12,9 @@ with the plan, this file wins.
   Elephant's launch prefix changes so apps it starts land in their own scope.
 - Full niri cutover in this PR: Mod+D, Mod+Tab, Mod+Shift+E, Mod+Alt+P and
   Mod+V open Stillsuit modes. No trial key.
-- Prefix modes kept: `/` files, `@` web, `$` windows, `:` clipboard. Dropped:
-  `;` provider list, `>` runner, `.` symbols. Calc stays in combi.
+- Prefix modes kept: `/` files, `$` windows, `:` clipboard. Dropped:
+  `;` provider list, `>` runner, `.` symbols, and later `@` web (combi's
+  search row covers it). Calc stays in combi.
 - Clipboard history: items expire after a configurable TTL (default 72 hours),
   200 items max. Skip password-manager copies. The user copies secrets from the
   Bitwarden extension in Helium and in Zen, and sometimes the web vault.
@@ -191,7 +192,7 @@ different mode switches mode instead of closing.
   frequency. Serialize/deserialize a versioned JSON object; bound to 2,000
   records, oldest evicted.
 - `Query.js`: parses raw input into `{provider ids, text, prefix}` using the
-  prefix table `/ files`, `@ web`, `$ windows`, `: clipboard`, and the mode
+  prefix table `/ files`, `$ windows`, `: clipboard`, and the mode
   table: `combi` -> apps, calc, web (web only as a trailing fallback row);
   `windows` -> windows; `power` -> power; `profiles` -> profiles;
   `clipboard` -> clipboard. A prefix overrides the mode. Empty combi query ->
@@ -206,12 +207,17 @@ different mode switches mode instead of closing.
     query looks like math; Enter copies the result.
   - `web`: one row "Search the web for <text>" using the engine URL template
     (Unduck `https://unduck.link?q=%TERM%`); bare URLs (`example.com`,
-    `https://...`) get an "Open <url>" row.
+    `https://...`) get an "Open <url>" row. A query starting with `!` is an
+    Unduck bang: its search row ranks first and the `!` reaches the engine.
   - `windows`: niri windows from `context.compositor.windows`, most recently
     focused first (`focus_timestamp`), title + app id, workspace in subtext.
   - `power`: lock, suspend, logout, reboot, poweroff with keywords.
   - `profiles`: from `context.profiles.available`, current one marked.
   - `files`: rows from async `fd` results; actions open / reveal / copy path.
+    Words match the file name in order; a glob (`*`, `**`, `?`) without `/`
+    matches the whole name; text with `/` matches the path below the search
+    root (`downloads/*.pdf`, `downloads/ pdf`). Case-insensitive unless the
+    text has a capital.
   - `clipboard`: rows from the clipboard service; actions copy, remove,
     clear all; preview text or image path.
 - Row shape: `{ key, provider, text, subtext, icon, score, positions,
@@ -237,7 +243,7 @@ Node tests in `src/tests/launcher/` (run by a `run.sh` that exits non-zero on
 any failure), including the plan's table: `ghost` -> Ghostty first; `obs`
 after three Obsidian launches -> Obsidian above OBS Studio; `vsc` -> Visual
 Studio Code; `2+2*3` -> calc row on top once the answer arrives, stale answers
-dropped; `@nix flake` -> web only; `$hel` -> Helium windows, most recent
+dropped; `!nix flake` -> the web search row first; `$hel` -> Helium windows, most recent
 first; empty combi -> apps by usage; prefixes stripped correctly; a 1,500-app
 synthetic set scores a keystroke in under 8 ms of JS.
 
@@ -253,15 +259,16 @@ synthetic set scores a keystroke in under 8 ms of JS.
   on the next event-loop turn. Exposes `results` (array of row objects),
   `selectedIndex`, `mode`, `query`, `setQuery(text)`, `activate(index,
   actionId)`, `open(payload)`, `close()`.
-- `Menu.qml` (hostedMenu content): search field (`ShellTextField`), mode chip,
+- `Menu.qml` (hostedMenu content): search field (`ShellTextField`) whose
+  leading icon shows the mode,
   result list (`ListView` with `reuseItems: true` over an index model or keyed
   rows; never `ScriptModel` with `objectProp` over removable rows), preview
   pane in clipboard mode, a hint bar with the selected row's actions.
   Keys: Up/Down/Ctrl+J/Ctrl+K move, Enter activates the default action,
   Ctrl+Enter / Tab cycles secondary actions (show which), Escape closes,
-  Ctrl+D removes in clipboard mode. Mouse: click activates, hover selects.
-  Width about 640 px (clipboard about 960 px with preview), max 8.5 visible
-  rows. Theme everything from `context.theme`.
+  Ctrl+D removes and Ctrl+I toggles images-only in clipboard mode. Mouse:
+  click activates, hover selects. Width about 560 px, 256 px for power and
+  profiles, clipboard about 830 px with preview; max 8.5 visible rows. Theme everything from `context.theme`.
 - Settings (Nix): `qalcPath`, `fdPath`, `searchRoot` (default home),
   `webEngine` URL template, `maxResults` 100.
 

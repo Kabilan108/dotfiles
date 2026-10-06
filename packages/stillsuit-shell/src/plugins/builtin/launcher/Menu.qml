@@ -20,9 +20,14 @@ FocusScope {
     readonly property real rowHeight: theme.metrics.rowHeight + unit
     readonly property real maxVisibleRows: 8.5
     readonly property bool clipboardView: service.clipboardActive
-    // 640 and 960 px at the default 4 px unit.
-    readonly property real standardWidth: unit * 160
-    readonly property real clipboardWidth: unit * 240
+    // Short single-purpose lists get a narrower frame so it doesn't read as
+    // mostly empty space.
+    readonly property bool compactView: viewName === "power" || viewName === "profiles"
+    // 560, 256, and 420 px at the default 4 px unit.
+    readonly property real standardWidth: unit * 140
+    readonly property real compactWidth: unit * 64
+    readonly property real clipboardListWidth: unit * 105
+    readonly property real clipboardWidth: padding * 2 + clipboardListWidth + unit * 2 + theme.metrics.panelWidth
     readonly property bool clipboardProblem: clipboardView
         && (service.clipboardStatus === "error"
             || (service.clipboardStatus === "degraded" && service.clipboardError !== ""))
@@ -43,18 +48,21 @@ FocusScope {
         : service.clipboardError !== "" ? service.clipboardError : "Clipboard history is unavailable"
     readonly property bool bannerDanger: service.actionError !== "" || service.clipboardStatus === "error"
     readonly property var previewData: clipboardView && selectedRow && selectedRow.preview ? selectedRow.preview : null
-    readonly property var modeLabels: ({
-        combi: "combi", windows: "windows", power: "power", profiles: "profiles", clipboard: "clipboard",
-        files: "files", web: "web", apps: "apps", calc: "calc"
+    readonly property bool imagesOnly: clipboardView && service.clipboardImagesOnly
+    readonly property var modeIcons: ({
+        combi: "apps", windows: "window", power: "power", profiles: "layers", clipboard: "clipboard",
+        files: "folder"
     })
     readonly property var placeholders: ({
         combi: "Search applications", windows: "Switch to a window", power: "Power",
         profiles: "Switch profile", clipboard: "Search clipboard history",
-        files: "Search files", web: "Search the web"
+        files: "Search files"
     })
     readonly property string viewName: service.prefixProvider !== "" ? service.prefixProvider : service.mode
+    // Rows name their provider only when several can appear together.
+    readonly property bool mixedProviders: service.providerIds.length > 1
 
-    implicitWidth: clipboardView ? clipboardWidth : standardWidth
+    implicitWidth: clipboardView ? clipboardWidth : compactView ? compactWidth : standardWidth
     implicitHeight: frame.implicitHeight
     visible: false
 
@@ -106,6 +114,9 @@ FocusScope {
         else if (control && event.key === Qt.Key_D) {
             if (selectedRow && selectedRow.provider === "clipboard")
                 service.activate(service.selectedIndex, "remove")
+        } else if (control && event.key === Qt.Key_I) {
+            service.toggleClipboardImages()
+            list.positionViewAtBeginning()
         } else if (event.key === Qt.Key_Escape)
             dismiss()
         else
@@ -163,9 +174,9 @@ FocusScope {
         if (service.busy)
             return service.filesBusy ? "Searching files…" : "Calculating…"
         if (service.prefixProvider === "files" && service.query.slice(1).trim() === "")
-            return "Type to search files under " + service.searchRoot
+            return "Search file names under " + service.searchRoot + ", or a folder: downloads/*.pdf"
         if (clipboardView && service.query.replace(/^:/, "").trim() === "")
-            return "Clipboard history is empty"
+            return imagesOnly ? "No images in clipboard history" : "Clipboard history is empty"
         return "No results"
     }
 
@@ -203,38 +214,18 @@ FocusScope {
                 width: parent.width
                 height: field.implicitHeight
 
-                Rectangle {
-                    id: chip
-                    objectName: "launcher-mode-chip"
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: chipText.implicitWidth + root.unit * 3
-                    height: chipText.implicitHeight + root.unit
-                    radius: root.theme.metrics.radiusSmall
-                    color: root.theme.component.panel.section
-
-                    Ui.ShellText {
-                        id: chipText
-                        anchors.centerIn: parent
-                        theme: root.theme
-                        text: root.modeLabels[root.viewName] || root.viewName
-                        monospace: true
-                        sizeRole: "caption"
-                        role: "accent"
-                    }
-                }
-
                 Ui.ShellTextField {
                     id: field
                     objectName: "launcher-field"
-                    anchors.left: chip.right
-                    anchors.leftMargin: root.unit * 2
+                    anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     focus: true
                     theme: root.theme
-                    iconName: "search"
-                    placeholderText: root.placeholders[root.viewName] || "Search"
+                    iconName: root.imagesOnly ? "image" : root.modeIcons[root.viewName] || "search"
+                    iconRole: "accent"
+                    placeholderText: root.imagesOnly ? "Search clipboard images"
+                        : root.placeholders[root.viewName] || "Search"
                     accessibleName: "Launcher search"
                     onTextChanged: root.service.setQuery(text)
                     onKeyPressed: event => root.handleKey(event)
@@ -301,7 +292,7 @@ FocusScope {
                 height: root.clipboardView ? fullHeight : listHeight
 
                 Item {
-                    width: root.clipboardView ? body.width - preview.width - body.spacing : body.width
+                    width: root.clipboardView ? root.clipboardListWidth : body.width
                     height: body.height
 
                     ListView {
@@ -338,7 +329,7 @@ FocusScope {
                     id: preview
                     objectName: "launcher-preview"
                     visible: root.clipboardView
-                    width: root.clipboardView ? root.theme.metrics.panelWidth : 0
+                    width: root.clipboardView ? body.width - root.clipboardListWidth - body.spacing : 0
                     height: body.height
                     radius: root.theme.metrics.radiusMedium
                     color: root.theme.component.panel.section
@@ -426,6 +417,11 @@ FocusScope {
                     label: "Delete"
                 }
                 Hint {
+                    visible: root.clipboardView
+                    keys: "Ctrl+I"
+                    label: root.imagesOnly ? "All items" : "Images only"
+                }
+                Hint {
                     keys: "Esc"
                     label: "Close"
                 }
@@ -488,8 +484,6 @@ FocusScope {
                 anchors.fill: parent
                 radius: root.theme.metrics.radiusMedium
                 color: rowItem.selected ? root.theme.component.panel.rowSelected : "transparent"
-                border.width: rowItem.selected ? 1 : 0
-                border.color: root.theme.semantic.outline.focus
             }
 
             Item {
@@ -561,7 +555,8 @@ FocusScope {
                 theme: root.theme
                 monospace: true
                 sizeRole: "caption"
-                text: !rowItem.row ? "" : rowItem.current ? "current" : String(rowItem.row.provider || "")
+                text: !rowItem.row ? "" : rowItem.current ? "current"
+                    : root.mixedProviders ? String(rowItem.row.provider || "") : ""
                 role: rowItem.current ? "accent" : "muted"
             }
 

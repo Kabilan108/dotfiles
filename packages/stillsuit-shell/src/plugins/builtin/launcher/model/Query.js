@@ -2,7 +2,6 @@
 // "foo/bar" in combi stays an app query.
 var PREFIXES = {
     "/": "files",
-    "@": "web",
     "$": "windows",
     ":": "clipboard"
 }

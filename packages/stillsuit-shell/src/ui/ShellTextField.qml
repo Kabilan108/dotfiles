@@ -9,8 +9,10 @@ FocusScope {
     property alias text: input.text
     property string placeholderText: ""
     property string iconName: ""
+    property string iconRole: "muted"
     property string accessibleName: placeholderText
     readonly property alias inputItem: input
+    readonly property real cursorWidth: 2
 
     // Emitted before the field edits text. Accept the event to keep it from
     // the field, for keys such as Up, Down, Tab, or Ctrl+K that a parent owns.
@@ -40,7 +42,7 @@ FocusScope {
         theme: root.theme
         visible: root.iconName !== ""
         name: root.iconName !== "" ? root.iconName : "circle"
-        role: "muted"
+        role: root.iconRole
         sizeRole: "small"
         anchors.left: parent.left
         anchors.leftMargin: root.theme.metrics.spaceUnit
@@ -65,7 +67,7 @@ FocusScope {
         renderType: Text.NativeRendering
         Accessible.name: root.accessibleName
         cursorDelegate: Rectangle {
-            width: 2
+            width: root.cursorWidth
             color: root.theme.semantic.accent.primary
             visible: input.cursorVisible
         }
@@ -73,9 +75,12 @@ FocusScope {
         onAccepted: root.accepted()
     }
 
+    // The caret sits at the start of an empty field; the placeholder starts
+    // just past it so the two don't touch.
     ShellText {
         theme: root.theme
         anchors.fill: input
+        anchors.leftMargin: root.cursorWidth + root.theme.metrics.spaceUnit / 2
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
         text: root.placeholderText

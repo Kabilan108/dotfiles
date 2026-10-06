@@ -142,16 +142,16 @@ ShellRoot {
         if (!expect(engine.run("2+2*3", "combi", env).rows[0].text === "8", "calc")) return
         var windows = engine.run("$hel", "combi", env).rows
         if (!expect(windows.length === 2 && windows[0].windowId === 2, "windows")) return
-        var web = engine.run("@nix flake", "combi", env).rows
-        if (!expect(web.length === 1 && web[0].url === "https://unduck.link?q=nix%20flake", "web")) return
+        var web = engine.run("!nix flake", "combi", env).rows
+        if (!expect(web[0].url === "https://unduck.link?q=!nix%20flake", "web")) return
         var intent = engine.activate(engine.run("ghost", "combi", env).rows[0], "action:new-window")
         if (!expect(intent && intent.type === "app.launch" && intent.actionId === "new-window", "intent")) return
         engine.record(env.history, "vs", engine.run("vs", "combi", env).rows[0], env.now)
         var restored = History.create(JSON.parse(JSON.stringify(env.history.toJSON())))
         if (!expect(restored.size() === 1, "history round trip")) return
-        var surrogate = engine.run("@" + "x".repeat(1022) + "\uD83D\uDE00", "combi", env).rows
-        if (!expect(surrogate.length === 1 && surrogate[0].url.length === 1022 + 22, "surrogate cut")) return
-        if (!expect(engine.run("@a\uD800", "combi", env).rows[0].url === "https://unduck.link?q=a%EF%BF%BD",
+        var surrogate = engine.run("!" + "x".repeat(1022) + "\uD83D\uDE00", "combi", env).rows
+        if (!expect(surrogate[0].url.length === 1023 + 22, "surrogate cut")) return
+        if (!expect(engine.run("!a\uD800", "combi", env).rows[0].url === "https://unduck.link?q=!a%EF%BF%BD",
                 "lone surrogate")) return
         var stale = engine.run("ghost", "combi", env).rows[0]
         var current = engine.run("ghost", "combi", env).rows[0]

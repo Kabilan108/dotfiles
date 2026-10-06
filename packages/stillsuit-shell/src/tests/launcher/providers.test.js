@@ -79,6 +79,49 @@ assert.equal(Web.searchUrl("https://x.test/%TERM%/%TERM%", "a b"), "https://x.te
     assert.deepEqual(engine.run(":line two", "combi", env).rows.map(row => row.itemId), ["new"])
     assert.equal(engine.run(":key", "combi", env).rows[0].itemId, "old", "matches late in the text still rank")
     assert.equal(engine.run(":zzz", "combi", env).rows.length, 0)
+
+    const imagesEnv = Object.assign({ clipboardImagesOnly: true }, env)
+    assert.deepEqual(engine.run("", "clipboard", imagesEnv).rows.map(row => row.itemId), ["img"], "images only")
+    assert.deepEqual(engine.run("png", "clipboard", imagesEnv).rows.map(row => row.itemId), ["img"])
+    assert.equal(engine.run("line", "clipboard", imagesEnv).rows.length, 0, "text items stay hidden while searching")
+    assert.equal(engine.run("", "clipboard", env).rows.length, 4, "the filter is per run")
+}
+
+// File query forms become fd patterns
+{
+    const files = L.providers.files
+    const root = "/home/me"
+    const matches = (text, path) => {
+        const query = files.fdQuery(text, root)
+        const subject = query.fullPath ? path : path.slice(path.lastIndexOf("/") + 1)
+        return new RegExp(query.pattern, query.caseSensitive ? "" : "i").test(subject)
+    }
+    const cases = [
+        ["nix flake", "/home/me/notes/nix-flake.md", true],
+        ["nix flake", "/home/me/nix/flake.lock", false, "words match the name only"],
+        ["(", "/home/me/a(b).txt", true, "regex characters are literal"],
+        ["*.pdf", "/home/me/Downloads/report.pdf", true],
+        ["*.pdf", "/home/me/Downloads/report.pdf.part", false, "a name glob matches the whole name"],
+        ["report-??.txt", "/home/me/report-01.txt", true],
+        ["downloads/*.pdf", "/home/me/Downloads/report.pdf", true],
+        ["downloads/*.pdf", "/home/me/Downloads/old/report.pdf", false, "* stays in one folder"],
+        ["downloads/**/*.pdf", "/home/me/Downloads/old/report.pdf", true],
+        ["downloads/**/*.pdf", "/home/me/Downloads/report.pdf", true, "**/ also matches no folders"],
+        ["downloads/ pdf", "/home/me/Downloads/old/report.pdf", true],
+        ["downloads/ pdf", "/home/me/Documents/report.pdf", false],
+        ["downloads/", "/home/me/Downloads/anything", true],
+        ["me/", "/home/me/x.txt", false, "the search root itself never matches"],
+        ["/dl/", "/home/me/dl/x.txt", true],
+        ["/dl/", "/home/me/nodl/x.txt", false, "a leading slash starts a folder name"],
+        ["Downloads/", "/home/me/downloads/x", false, "a capital makes the match case-sensitive"]
+    ]
+    for (const [text, path, expected, why] of cases)
+        assert.equal(matches(text, path), expected, `${text} vs ${path}` + (why ? `: ${why}` : ""))
+    assert.equal(files.fdQuery("  ", root), null)
+    assert.equal(files.fdQuery("a/b", "/").pattern, "^/.*a/b", "a filesystem root search")
+    assert.equal(files.fdQuery("*.pdf", root).pattern.indexOf("/"), -1, "fd rejects / in a name pattern")
+    assert.equal(files.fdQuery("nix", root).fullPath, false)
+    assert.equal(files.fdQuery("x/y", root).fullPath, true)
 }
 
 // Calc and files providers ignore results for other text, also when called directly
@@ -108,7 +151,7 @@ assert.equal(Web.searchUrl("https://x.test/%TERM%/%TERM%", "a b"), "https://x.te
         now: L.NOW
     }
     const runs = [
-        ["", "combi"], ["e", "combi"], ["1+1", "combi"], ["example.com", "combi"], ["@q", "combi"],
+        ["", "combi"], ["e", "combi"], ["1+1", "combi"], ["example.com", "combi"], ["!q", "combi"],
         ["$", "combi"], [":", "combi"], ["/notes", "combi"], ["", "power"], ["", "profiles"], ["", "windows"]
     ]
     const forbidden = /^(command|cmd|argv|args|exec|line|shell|script|program)$/i

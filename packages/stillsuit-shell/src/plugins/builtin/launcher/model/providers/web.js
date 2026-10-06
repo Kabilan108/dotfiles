@@ -10,12 +10,15 @@
 // a known TLD, so they are not URLs.
 // An explicit URL ranks near the top; an inferred one ranks below every other
 // match, just above the trailing search row.
+// A query starting with "!" is a search-engine bang ("!nixpkgs baobab"): its
+// search row ranks first and the "!" goes to the engine unchanged.
 
 var meta = { id: "web", label: "Web", icon: "shell:search" }
 
 var DEFAULT_ENGINE = "https://unduck.link?q=%TERM%"
 var URL_SCORE = 800000
 var INFERRED_URL_SCORE = 1
+var BANG_SCORE = 2000000
 // Combi's fallback row is trailing: the engine appends it after every real
 // match, and only when the result cap leaves a free slot.
 var FALLBACK_SCORE = 0
@@ -93,7 +96,7 @@ function engineHost(template) {
 function query(text, env) {
     if (text === "") return []
     var rows = []
-    var prefixed = env.prefix === "@"
+    var bang = text.charAt(0) === "!"
     var parsed = parseUrl(text)
     if (parsed) {
         var url = parsed.url
@@ -103,7 +106,7 @@ function query(text, env) {
             text: "Open " + url,
             subtext: "Open in browser",
             icon: meta.icon,
-            score: prefixed ? 2 : parsed.explicit ? URL_SCORE : INFERRED_URL_SCORE,
+            score: parsed.explicit ? URL_SCORE : INFERRED_URL_SCORE,
             positions: [],
             actions: [{ id: "open", label: "Open" }, { id: "copy", label: "Copy URL" }],
             url: url
@@ -118,11 +121,11 @@ function query(text, env) {
             text: "Search the web for " + text,
             subtext: engineHost(template),
             icon: meta.icon,
-            score: prefixed ? 1 : FALLBACK_SCORE,
+            score: bang ? BANG_SCORE : FALLBACK_SCORE,
             positions: [],
             actions: [{ id: "open", label: "Search" }, { id: "copy", label: "Copy URL" }],
             url: search,
-            trailing: !prefixed
+            trailing: !bang
         })
     }
     return rows
@@ -148,6 +151,7 @@ if (typeof module !== "undefined") {
         DEFAULT_ENGINE: DEFAULT_ENGINE,
         URL_SCORE: URL_SCORE,
         INFERRED_URL_SCORE: INFERRED_URL_SCORE,
+        BANG_SCORE: BANG_SCORE,
         FALLBACK_SCORE: FALLBACK_SCORE
     }
 }

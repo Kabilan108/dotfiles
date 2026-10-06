@@ -87,29 +87,31 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(app.rows[0].text, "2048")
 }
 
-// @nix flake -> web only, Unduck row
+// !nix flake -> the bang search row first, "!" passed to Unduck
 {
     const engine = L.createEngine()
-    const result = engine.run("@nix flake", "combi", baseEnv())
-    assert.deepEqual(result.providerIds, ["web"])
-    assert.equal(result.prefix, "@")
-    assert.equal(result.text, "nix flake")
-    assert.deepEqual(result.rows.map(row => row.key), ["web:search"])
-    assert.equal(result.rows[0].url, "https://unduck.link?q=nix%20flake")
-    assert.deepEqual(engine.activate(result.rows[0], ""), { type: "url.open", url: "https://unduck.link?q=nix%20flake" })
+    const result = engine.run("!nix flake", "combi", baseEnv())
+    assert.deepEqual(result.providerIds, ["calc", "apps", "web"])
+    assert.equal(result.prefix, "")
+    assert.equal(result.text, "!nix flake")
+    assert.equal(result.rows[0].key, "web:search")
+    assert.equal(result.rows[0].url, "https://unduck.link?q=!nix%20flake")
+    assert.deepEqual(engine.activate(result.rows[0], ""), { type: "url.open", url: "https://unduck.link?q=!nix%20flake" })
     assert.equal(result.rows[0].trailing, false)
 
-    const spaced = engine.run("@   nix   flake  ", "combi", baseEnv())
-    assert.equal(spaced.text, "nix   flake")
-    assert.equal(engine.run("@", "combi", baseEnv()).rows.length, 0, "@ alone has no rows")
+    const appMatch = engine.run("!ghost", "combi", baseEnv({ settings: { maxResults: 1 } }))
+    assert.deepEqual(appMatch.rows.map(row => row.key), ["web:search"], "a bang outranks app matches")
+    assert.equal(engine.run("!", "combi", baseEnv()).rows[0].key, "web:search")
+    assert.equal(engine.run("@weather", "combi", baseEnv()).rows.some(row => row.url === "https://unduck.link?q=%40weather"),
+        true, "@ is plain text")
 
-    const encoded = engine.run("@a&b=c#d", "combi", baseEnv())
-    assert.equal(encoded.rows[0].url, "https://unduck.link?q=a%26b%3Dc%23d")
+    const encoded = engine.run("a&b=c#d", "combi", baseEnv())
+    assert.equal(encoded.rows[encoded.rows.length - 1].url, "https://unduck.link?q=a%26b%3Dc%23d")
 
-    const custom = engine.run("@q", "combi", baseEnv({ settings: { webEngine: "https://duckduckgo.com/?q=%TERM%&ia=web" } }))
-    assert.equal(custom.rows[0].url, "https://duckduckgo.com/?q=q&ia=web")
-    const unsafe = engine.run("@q", "combi", baseEnv({ settings: { webEngine: "javascript:alert(%TERM%)" } }))
-    assert.equal(unsafe.rows[0].url, "https://unduck.link?q=q", "a non-http engine falls back to the default")
+    const custom = engine.run("!q", "combi", baseEnv({ settings: { webEngine: "https://duckduckgo.com/?q=%TERM%&ia=web" } }))
+    assert.equal(custom.rows[0].url, "https://duckduckgo.com/?q=!q&ia=web")
+    const unsafe = engine.run("!q", "combi", baseEnv({ settings: { webEngine: "javascript:alert(%TERM%)" } }))
+    assert.equal(unsafe.rows[0].url, "https://unduck.link?q=!q", "a non-http engine falls back to the default")
 }
 
 // URL rows
@@ -120,9 +122,9 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(bare[0].text, "Open https://github.com/foo")
     assert.deepEqual(engine.activate(bare[0], ""), { type: "url.open", url: "https://github.com/foo" })
     assert.deepEqual(engine.activate(bare[0], "copy"), { type: "text.copy", text: "https://github.com/foo" })
-    const prefixed = engine.run("@https://example.com", "combi", baseEnv()).rows
-    assert.deepEqual(prefixed.map(row => row.key), ["web:url", "web:search"])
-    assert.equal(prefixed[0].url, "https://example.com")
+    const explicit = engine.run("https://example.com", "combi", baseEnv()).rows
+    assert.equal(explicit[0].key, "web:url")
+    assert.equal(explicit[0].url, "https://example.com")
 }
 
 // The web fallback never outranks an app match and only takes a free slot
@@ -367,9 +369,9 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(engine.activate(ghostty, "action:rm -rf"), null, "unknown actions are refused")
     assert.equal(engine.activate({ provider: "nope" }, ""), null)
     assert.equal(engine.activate(null, ""), null)
-    const search = engine.run("@x", "combi", baseEnv()).rows[0]
+    const search = engine.run("!x", "combi", baseEnv()).rows[0]
     const forged = Object.assign({}, search, { url: "file:///etc/passwd" })
-    assert.deepEqual(engine.activate(forged, ""), { type: "url.open", url: "https://unduck.link?q=x" },
+    assert.deepEqual(engine.activate(forged, ""), { type: "url.open", url: "https://unduck.link?q=!x" },
         "a copy activates the engine's own row, not the edited fields")
     assert.equal(L.providers.web.activate(forged, ""), null, "non-http urls never become intents")
 }
@@ -383,7 +385,7 @@ const texts = rows => rows.map(row => row.text)
         calcResult: { text: "1+1", value: "2", error: "" }
     })
     const runs = [
-        ["ghost", "combi"], ["1+1", "combi"], ["example.com", "combi"], ["@q", "combi"], ["$", "combi"],
+        ["ghost", "combi"], ["1+1", "combi"], ["example.com", "combi"], ["!q", "combi"], ["$", "combi"],
         [":", "combi"], ["/notes", "combi"], ["", "power"], ["", "profiles"]
     ]
     const providersSeen = new Set()
@@ -418,12 +420,11 @@ const texts = rows => rows.map(row => row.text)
     const env = baseEnv({
         clipboardItems: [{ id: "c", kind: "text", preview: "x\uD800y", mime: "text/plain", bytes: 1, createdAt: 1, lastUsed: 1 }]
     })
-    const edge = "@" + "x".repeat(1022) + "\u{1F600}"
+    const edge = "!" + "x".repeat(1022) + "\u{1F600}"
     const edgeRows = engine.run(edge, "combi", env).rows
-    assert.equal(edgeRows.length, 1)
-    assert.equal(edgeRows[0].url, "https://unduck.link?q=" + "x".repeat(1022), "the cut pair is dropped whole")
-    assert.equal(engine.run("@a\uD800b", "combi", env).rows[0].url, "https://unduck.link?q=a%EF%BF%BDb")
-    assert.equal(engine.run("@\uDC00", "combi", env).rows[0].url, "https://unduck.link?q=%EF%BF%BD")
+    assert.equal(edgeRows[0].url, "https://unduck.link?q=!" + "x".repeat(1022), "the cut pair is dropped whole")
+    assert.equal(engine.run("!a\uD800b", "combi", env).rows[0].url, "https://unduck.link?q=!a%EF%BF%BDb")
+    assert.equal(engine.run("!\uDC00", "combi", env).rows[0].url, "https://unduck.link?q=!%EF%BF%BD")
 
     let seed = 99
     const next = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff)

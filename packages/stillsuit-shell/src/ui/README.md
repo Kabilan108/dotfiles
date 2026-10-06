@@ -24,7 +24,8 @@ caps content at `maximumHeight` and adds clipping, bounded scrolling, and a
 scrollbar. Use it for lists that can grow, starting with Bluetooth device lists.
 
 `ShellTextField` is a themed single-line input with `text`, `placeholderText`,
-an optional leading `iconName`, and an `accepted()` signal for Enter. Its
+an optional leading `iconName` (tinted by `iconRole`, muted by default), and
+an `accepted()` signal for Enter. Its
 `keyPressed(event)` signal fires before the field edits text. A parent that
 owns Up, Down, Tab, Enter, or a shortcut such as Ctrl+K accepts the event
 there. Otherwise Qt's own editing shortcuts act first; Ctrl+K, for one,

@@ -206,6 +206,22 @@ def draw_soft(name: str, g: Glyph) -> bool:
         rounded([(5,2.5),(13.5,2.5),(19,8),(19,21.5),(5,21.5)],2.2)
         line((13.5,3),(13.5,8),(18.5,8))
         line((8.5,13),(15.5,13)); line((8.5,17),(13,17))
+    elif name == 'apps':
+        for x in (3,13.5):
+            for y in (3,13.5): box(x,y,7.5,7.5)
+    elif name == 'window':
+        # Frame with a title bar rule.
+        box(2.5,4,19,16)
+        line((3.4,8.6),(20.6,8.6))
+    elif name == 'layers':
+        # Top sheet with two edges stacked beneath it.
+        rounded([(12,3),(21,7.8),(12,12.6),(3,7.8)],1.2)
+        line((3,12.2),(12,17),(21,12.2))
+        line((3,16.4),(12,21.2),(21,16.4))
+    elif name == 'clipboard':
+        box(4.5,3.8,15,17.7)
+        rounded([(8.5,2.2),(15.5,2.2),(15.5,6),(8.5,6)],.9,True)
+        line((8.5,11),(15.5,11)); line((8.5,15),(13,15))
     else:
         return False
     return True

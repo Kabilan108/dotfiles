@@ -61,6 +61,8 @@ Scope {
     property int actionIndex: 0
     property string prefix: ""
     property var providerIds: []
+    // The clipboard picker lists only images; reset on every open.
+    property bool clipboardImagesOnly: false
     // Why the last action was refused, shown until the query changes or an
     // action succeeds; "" when there is nothing to report.
     property string actionError: ""
@@ -143,6 +145,7 @@ Scope {
             _currentWindowId = focusedId !== null ? focusedId : _lastFocusedWindowId()
         mode = request.mode
         query = request.query
+        clipboardImagesOnly = false
         selectedIndex = 0
         actionIndex = 0
         actionError = ""
@@ -177,6 +180,14 @@ Scope {
             return
         query = next
         actionError = ""
+        _userMoved = false
+        _rerun()
+    }
+
+    function toggleClipboardImages() {
+        if (!opened || !clipboardActive)
+            return
+        clipboardImagesOnly = !clipboardImagesOnly
         _userMoved = false
         _rerun()
     }
@@ -448,6 +459,7 @@ Scope {
             currentWindowId: _currentWindowId,
             profiles: _profiles,
             clipboardItems: _clipboardItems,
+            clipboardImagesOnly: clipboardImagesOnly,
             filesResult: filesResult,
             calcResult: calcResult,
             history: history,
@@ -696,20 +708,11 @@ Scope {
             filesProcess.running = false
     }
 
-    // fd matches file names against a regular expression. Each word is
-    // matched literally and the words in order, so "nix flake" finds
-    // "nix-flake.md" and "(" is not a regex error.
-    function _filesPattern(text) {
-        var words = text.split(/\s+/).filter(function(word) { return word !== "" })
-        return words.map(function(word) {
-            return word.replace(/[\\.+*?()|\[\]{}^$#&\-~]/g, "\\$&")
-        }).join(".*")
-    }
-
     function _startFiles() {
         if (!opened || _filesWanted === "")
             return
-        if (fdPath === "" || searchRoot === "") {
+        var search = Files.fdQuery(_filesWanted, searchRoot)
+        if (fdPath === "" || searchRoot === "" || search === null) {
             _finishFiles(_filesWanted, [])
             return
         }
@@ -727,10 +730,14 @@ Scope {
         // Directory symlinks are followed because home directories link into
         // other volumes, which would also follow Nix `result` links into the
         // store and dependency trees, so those names are excluded.
-        filesProcess.command = [fdPath, "--follow", "--max-results", String(fdMaxResults), "--absolute-path",
+        // The pattern syntax is documented in model/providers/files.js.
+        var command = [fdPath, "--follow", "--max-results", String(fdMaxResults), "--absolute-path",
             "--color", "never", "--exclude", "result", "--exclude", "result-*",
             "--exclude", "node_modules", "--exclude", ".direnv", "--exclude", ".git",
-            "--exclude", ".cache", "--print0", "--", _filesPattern(_filesRunText), searchRoot]
+            "--exclude", ".cache", "--print0", search.caseSensitive ? "--case-sensitive" : "--ignore-case"]
+        if (search.fullPath)
+            command.push("--full-path")
+        filesProcess.command = command.concat(["--", search.pattern, searchRoot])
         filesProcess.running = true
         filesTimeout.restart()
     }

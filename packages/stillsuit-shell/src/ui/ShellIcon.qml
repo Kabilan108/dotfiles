@@ -56,17 +56,17 @@ Item {
     // of truth; IconCache evaluates it once per engine.
     function _catalog() {
         return [
-            "add", "agent", "audio", "battery", "battery-alert", "battery-charging",
+            "add", "agent", "apps", "audio", "battery", "battery-alert", "battery-charging",
             "battery-level-0", "battery-level-1", "battery-level-2", "battery-level-3",
             "battery-level-4", "battery-level-5", "battery-level-6", "battery-level-full",
             "battery-question", "bluetooth", "brightness", "calculator", "check", "chevron-left",
-            "chevron-right", "circle", "close", "copy", "cpu", "danger", "delete", "edit",
+            "chevron-right", "circle", "clipboard", "close", "copy", "cpu", "danger", "delete", "edit",
             "ethernet", "expand-less", "expand-more", "file", "folder", "forward-10", "headphones",
-            "image", "info", "lock", "logout", "memory", "microphone", "more", "network",
+            "image", "info", "layers", "lock", "logout", "memory", "microphone", "more", "network",
             "notifications", "notifications-off",
             "pause", "play", "power", "record", "refresh", "replay-10", "repeat", "search",
             "settings", "shuffle", "skip-next", "skip-previous", "sleep", "success", "unlock",
-            "upload", "volume-down", "volume-mute", "volume-up", "vpn", "warning", "wifi", "wifi-off"
+            "upload", "volume-down", "volume-mute", "volume-up", "vpn", "warning", "wifi", "wifi-off", "window"
         ]
     }
 

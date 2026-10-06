@@ -1,6 +1,17 @@
 // Snapshot: env.filesResult {text, paths} from the service's async fd run.
 // Rows come only from a result whose text equals the current query, so a slow
 // reply for an older query never shows.
+//
+// Query forms (fdQuery turns them into an fd regular expression):
+// - words: the file name contains each word, in order ("nix flake").
+// - a glob without "/": the whole file name matches ("*.pdf", "report-??.txt").
+// - anything with "/": matched against the path below the search root, so
+//   "downloads/ pdf" and "downloads/*.pdf" find PDFs in a Downloads folder.
+//   A leading "/" starts a folder name ("/dl" skips "nodl"). With a glob the
+//   pattern must reach the end of the path; without one it may stop anywhere.
+// Spaces stand for "anything", "*" for anything within one folder or name,
+// "**" for anything across folders, "?" for one character. Every other
+// character is literal. Matching ignores case unless the text has a capital.
 
 var meta = { id: "files", label: "Files", icon: "shell:folder" }
 
@@ -40,6 +51,73 @@ function baseName(path) {
     return trimmed.slice(trimmed.lastIndexOf("/") + 1)
 }
 
+function escapeRegex(text) {
+    return text.replace(/[\\.+*?()|\[\]{}^$#&\-~]/g, "\\$&")
+}
+
+function isGlob(text) {
+    return /[*?]/.test(text)
+}
+
+// fd refuses a name pattern containing "/", so name globs use "." for "any
+// character"; a name holds no "/" anyway.
+function translate(text, path) {
+    var any = path ? "[^/]" : "."
+    var out = ""
+    for (var index = 0; index < text.length; index++) {
+        var ch = text.charAt(index)
+        if (/\s/.test(ch)) {
+            while (index + 1 < text.length && /\s/.test(text.charAt(index + 1))) index++
+            out += ".*"
+        } else if (ch === "*" && text.charAt(index + 1) === "*") {
+            index++
+            if (text.charAt(index + 1) === "/") {
+                index++
+                out += "(?:.*/)?"
+            } else {
+                out += ".*"
+            }
+        } else if (ch === "*") {
+            out += any + "*"
+        } else if (ch === "?") {
+            out += any
+        } else {
+            out += escapeRegex(ch)
+        }
+    }
+    return out
+}
+
+// Returns {pattern, fullPath, caseSensitive} for fd, or null when there is
+// nothing to search for. root is the absolute search root fd walks.
+function fdQuery(text, root) {
+    var value = safeString(text).trim()
+    if (value === "") return null
+    var caseSensitive = value !== value.toLowerCase()
+    var glob = isGlob(value)
+    var path = value.indexOf("/") >= 0
+    var body = translate(value, path)
+    if (!path) {
+        return { pattern: glob ? "^" + body + "$" : body, fullPath: false, caseSensitive: caseSensitive }
+    }
+    var base = safeString(root)
+    while (base.length > 1 && base.charAt(base.length - 1) === "/") base = base.slice(0, -1)
+    var rootPart = base === "/" ? "" : escapeRegex(base)
+    var lead = value.charAt(0) === "/" ? "(?:/.*)?" : "/.*"
+    return {
+        pattern: "^" + rootPart + lead + body + (glob ? "$" : ""),
+        fullPath: true,
+        caseSensitive: caseSensitive
+    }
+}
+
+// Glob and path queries rank by their literal characters; plain words rank
+// as typed.
+function scoreText(text) {
+    if (!isGlob(text) && text.indexOf("/") < 0) return text
+    return text.replace(/[*?\s]+/g, "")
+}
+
 function pending(text, env) {
     if (text === "") return ""
     var result = env.filesResult
@@ -51,7 +129,8 @@ function query(text, env) {
     if (text === "" || !result || result.text !== text) return []
     var paths = result.paths && typeof result.paths.length === "number" ? result.paths : []
     var root = rootOf(env)
-    var prepared = env.query && env.query.text === text ? env.query : env.matcher.prepareQuery(text)
+    var ranked = scoreText(text)
+    var prepared = env.query && env.query.text === ranked ? env.query : env.matcher.prepareQuery(ranked)
     var rows = []
     var seen = Object.create(null)
     var count = Math.min(paths.length, MAX_PATHS)
@@ -78,7 +157,7 @@ function query(text, env) {
             subtext: "",
             icon: directory ? "shell:folder" : "shell:file",
             // fd already matched the path; keep its rows even when the fuzzy
-            // matcher disagrees (fd patterns are regular expressions).
+            // matcher disagrees (globs and spaces are not fuzzy patterns).
             score: match.score > 0 ? match.score : 1,
             positions: match.score > 0 ? positions : [],
             actions: [
@@ -107,6 +186,7 @@ function activate(row, actionId) {
 if (typeof module !== "undefined") {
     module.exports = {
         meta: meta,
+        fdQuery: fdQuery,
         pending: pending,
         query: query,
         activate: activate

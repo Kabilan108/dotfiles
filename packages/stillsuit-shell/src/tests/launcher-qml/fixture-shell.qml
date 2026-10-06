@@ -621,9 +621,10 @@ ShellRoot {
                 root.expect(service.rows[1].subtext.indexOf("workspace 1") !== -1
                     && service.rows[1].subtext.indexOf("DP-1") !== -1,
                     "window subtext names workspace and output: " + service.rows[1].subtext)
-                root.type("@nix flake")
-                root.expect(service.prefixProvider === "web" && service.rows.length === 1
-                    && service.rows[0].provider === "web", "@ is web only: " + root.rowTexts())
+                root.type("!nix flake")
+                root.expect(service.prefix === "" && service.rows[0].key === "web:search"
+                    && service.rows[0].url === "https://unduck.link?q=!nix%20flake",
+                    "a bang search row comes first: " + root.rowTexts())
                 root.type(":")
                 root.expect(service.prefixProvider === "clipboard" && service.rows.length === 3,
                     ": lists clipboard items: " + root.rowTexts())
@@ -695,6 +696,47 @@ ShellRoot {
                     === "files:proj/needle-src.txt|files:repos/project/needle-vault.txt",
                     "fd finds files behind a directory link and skips result links and node_modules: "
                     + root.rowTexts().slice(0, 12))
+                root.type("/PROJ/needle")
+            },
+            until: function() {
+                return root.linesMatching(/^fd start .*--case-sensitive --full-path -- .*PROJ\/needle /).length === 1
+                    && !service.filesBusy
+            }
+        },
+        {
+            name: "files: a capital makes the search case-sensitive",
+            act: function() {
+                root.expect(service.rows.every(function(row) { return row.provider !== "files" }),
+                    "PROJ does not match proj: " + root.rowTexts())
+                root.type("/proj/needle")
+            },
+            until: function() { return service.rows.length > 0 && service.rows[0].provider === "files" }
+        },
+        {
+            name: "files: a folder in the query matches the path",
+            act: function() {
+                root.expect(root.rowTexts().join("|") === "files:proj/needle-src.txt",
+                    "proj/needle matches only inside proj: " + root.rowTexts())
+                root.type("/repos/**/needle*.txt")
+            },
+            until: function() {
+                return service.rows.length > 0 && service.rows[0].text === "repos/project/needle-vault.txt"
+            }
+        },
+        {
+            name: "files: path globs",
+            act: function() {
+                root.expect(root.rowTexts().join("|") === "files:repos/project/needle-vault.txt",
+                    "repos/**/needle*.txt crosses folders: " + root.rowTexts())
+                root.type("/needle-s*")
+            },
+            until: function() { return service.rows.length > 0 && service.rows[0].text === "proj/needle-src.txt" }
+        },
+        {
+            name: "files: name globs",
+            act: function() {
+                root.expect(root.rowTexts().join("|") === "files:proj/needle-src.txt",
+                    "needle-s* matches whole names: " + root.rowTexts())
                 root.fakeActions.surfaceClose("stillsuit.launcher")
             },
             until: function() { return true }
@@ -722,7 +764,7 @@ ShellRoot {
                 var started = root.linesMatching(/^fd start/)
                 root.expect(started[started.length - 1].indexOf("--follow --max-results 200 --absolute-path --color never "
                     + "--exclude result --exclude result-* --exclude node_modules --exclude .direnv --exclude .git "
-                    + "--exclude .cache --print0 -- main.*q " + root.searchRoot) !== -1,
+                    + "--exclude .cache --print0 --ignore-case -- main.*q " + root.searchRoot) !== -1,
                     "fd argv: " + started[started.length - 1])
                 root.expect(root.rowTexts().slice().sort().join("|") === "files:docs/main-quick/|files:src/main.qml",
                     "fd paths become rows: " + root.rowTexts())
@@ -828,11 +870,20 @@ ShellRoot {
                 root.expect(root.lastCall("windowFocus") === "[11]", "focuses the selected window")
                 root.openMenu('{"mode":"power"}')
                 root.expect(service.rows.length === 5 && service.rows[0].text === "Lock", "power lists its actions")
+                root.expect(menu.implicitWidth === menu.compactWidth && menu.compactWidth < menu.standardWidth,
+                    "power is compact: " + menu.implicitWidth)
+                root.expect(menu.fieldItem().iconName === "power", "power field icon: " + menu.fieldItem().iconName)
                 root.key(Qt.Key_Return)
                 root.expect(root.lastCall("sessionAction") === '["lock"]', "power row runs sessionAction")
                 root.openMenu('{"mode":"profiles"}')
                 root.expect(service.rows[0].text === "Default" && service.rows[0].current === true,
                     "current profile is first and marked")
+                root.expect(menu.implicitWidth === menu.compactWidth && menu.fieldItem().iconName === "layers",
+                    "profiles is compact with its icon: " + menu.implicitWidth + " " + menu.fieldItem().iconName)
+                root.type("/x")
+                root.expect(menu.implicitWidth === menu.standardWidth && menu.fieldItem().iconName === "folder",
+                    "a files prefix widens the frame: " + menu.implicitWidth + " " + menu.fieldItem().iconName)
+                root.type("")
                 root.key(Qt.Key_Down)
                 root.key(Qt.Key_Return)
                 root.expect(root.lastCall("profileActivate") === '["focus"]', "profile row activates")
@@ -877,7 +928,7 @@ ShellRoot {
                     "a started profile switch closes")
                 root.refusals = { copyText: "error" }
                 root.openMenu('{"mode":"combi"}')
-                root.type("@nix")
+                root.type("!nix")
                 root.key(Qt.Key_Tab)
                 root.key(Qt.Key_Return)
                 root.expect(service.opened && root.bannerText() === "Couldn't copy to the clipboard: it could not be started",
@@ -1016,7 +1067,8 @@ ShellRoot {
                 menu.open('{"mode":"clipboard"}')
                 root.expect(service.mode === "clipboard" && service.query === "" && service.selectedIndex === 0,
                     "switching mode resets query and selection")
-                root.expect(menu.implicitWidth > 900, "clipboard view is wide: " + menu.implicitWidth)
+                root.expect(menu.implicitWidth === menu.clipboardWidth && menu.clipboardWidth > menu.standardWidth,
+                    "clipboard view is wide: " + menu.implicitWidth)
                 root.fakeActions.surfaceClose("stillsuit.launcher")
                 root.expect(menu.keepOpenOnToggle('{"mode":"clipboard"}') === false, "closed menu never stays open")
             },
@@ -1058,6 +1110,17 @@ ShellRoot {
                 root.openMenu('{"mode":"clipboard"}')
                 root.expect(root.rowTexts().join("|") === "clipboard:hello world|clipboard:second clip line two|clipboard:Image",
                     "clipboard rows newest first: " + root.rowTexts())
+                root.expect(menu.fieldItem().iconName === "clipboard", "clipboard field icon: " + menu.fieldItem().iconName)
+                root.expect(root.key(Qt.Key_I, Qt.ControlModifier), "Ctrl+I is handled")
+                root.expect(menu.imagesOnly && root.rowTexts().join("|") === "clipboard:Image",
+                    "Ctrl+I lists images only: " + root.rowTexts())
+                root.expect(menu.fieldItem().iconName === "image", "images-only field icon: " + menu.fieldItem().iconName)
+                root.key(Qt.Key_I, Qt.ControlModifier)
+                root.expect(!menu.imagesOnly && service.rows.length === 3, "Ctrl+I again lists everything")
+                root.key(Qt.Key_I, Qt.ControlModifier)
+                root.fakeActions.surfaceClose("stillsuit.launcher")
+                root.openMenu('{"mode":"clipboard"}')
+                root.expect(!menu.imagesOnly && service.rows.length === 3, "reopening clears the image filter")
                 root.key(Qt.Key_Down)
                 root.key(Qt.Key_Down)
                 root.expect(menu.previewData && menu.previewData.kind === "image", "image row previews the blob")

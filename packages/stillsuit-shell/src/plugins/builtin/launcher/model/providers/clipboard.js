@@ -4,6 +4,7 @@
 // Matcher.STRONG_MATCH_RATIO of the best one keep that order and weaker ones
 // follow by score. The start offset is not penalised: where a match sits in a
 // long clip says little about relevance.
+// env.clipboardImagesOnly keeps only image items.
 
 var meta = { id: "clipboard", label: "Clipboard", icon: "shell:copy", snapshot: "clipboardItems" }
 
@@ -89,6 +90,8 @@ function itemsOf(env) {
 
 function query(text, env) {
     var items = itemsOf(env)
+    if (env.clipboardImagesOnly === true)
+        items = items.filter(function(item) { return item.image })
     var ordered = []
     if (text === "") {
         for (var index = 0; index < items.length; index++)
