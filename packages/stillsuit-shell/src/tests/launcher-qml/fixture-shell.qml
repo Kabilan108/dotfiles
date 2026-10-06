@@ -25,7 +25,6 @@ ShellRoot {
     property var warnings: []
     property real mark: 0
     property int appsRevision: 0
-    property int warmAppsRevision: -1
     property var savedItems: []
     property var delegatesBefore: ({})
     property var failures: []
@@ -318,7 +317,6 @@ ShellRoot {
     Launcher.Service {
         id: service
         context: root.fakeContext
-        warmupDelayMs: 0
     }
 
     FloatingWindow {
@@ -406,39 +404,21 @@ ShellRoot {
             until: function() { return DesktopEntries.applications.values.length >= 5 }
         },
         {
-            name: "warmup finishes while closed",
-            until: function() { return service.warmupState === "done" }
-        },
-        {
-            name: "warmup ran once and left nothing scheduled",
-            act: function() {
-                root.expect(service.warmupRuns === 1, "warmup ran once: " + service.warmupRuns)
-                root.expect(!service.warmupPending && !service.pendingWork, "nothing is scheduled after the warmup")
-                root.expect(!service._appsDirty && service._apps.length >= 5, "warmup built the app snapshot")
-                root.expect(service._historyLoaded, "warmup read the history")
-                root.expect(service._warmedIcons.slice().sort().join(" ")
-                    === "com.mitchellh.ghostty com.obsproject.Studio helium obsidian vscode",
-                    "warmup resolved the empty query's icons once each: " + service._warmedIcons)
-                root.expect(!service.opened && service.rows.length === 0, "warmup leaves the launcher closed")
-                root.warmAppsRevision = service._appsRevision
-                root.stepStarted = Date.now()
-            },
-            until: function() { return Date.now() - root.stepStarted > 300 }
+            name: "the closed launcher does no work after startup",
+            act: function() { root.stepStarted = Date.now() },
+            until: function() { return Date.now() - root.stepStarted > 2500 }
         },
         {
             name: "combi opens on apps and filters",
             act: function() {
-                root.expect(service.warmupRuns === 1 && !service.warmupPending, "the warmup does not repeat")
-                // Quickshell may rescan desktop entries at any time; a rescan
-                // marks the snapshot dirty and the open must rebuild it.
-                var rescanned = service._appsDirty
+                root.expect(!service.pendingWork && !service.opened && service.rows.length === 0,
+                    "nothing is scheduled while closed")
+                root.expect(service._apps.length === 0 && !service._historyLoaded,
+                    "no snapshot or history is read before the first open")
                 root.openMenu('{"mode":"combi"}')
-                if (rescanned)
-                    root.expect(service._appsRevision > root.warmAppsRevision && !service._appsDirty,
-                        "a rescanned snapshot rebuilds on open")
-                else
-                    root.expect(service._appsRevision === root.warmAppsRevision,
-                        "the first open reuses the warmed snapshot")
+                root.expect(service._apps.length >= 5 && !service._appsDirty,
+                    "the first open builds the app snapshot")
+                root.expect(service._historyLoaded, "the first open reads the history")
                 root.expect(service.opened && service.mode === "combi", "opens in combi")
                 root.expect(root.fieldFocused(), "the search field takes focus on open")
                 root.expect(service.rows.length >= 5, "empty combi lists apps: " + root.rowTexts())
@@ -1138,23 +1118,22 @@ ShellRoot {
                 root.openMenu('{"mode":"combi"}')
                 root.fakeActions.surfaceClose("stillsuit.launcher")
                 root.appsRevision = service._appsRevision
-                root.writeApplication("warmup-probe", "[Desktop Entry]\nType=Application\nName=Warmup Probe\nExec=probe\n")
+                root.writeApplication("rescan-probe", "[Desktop Entry]\nType=Application\nName=Rescan Probe\nExec=probe\n")
             },
             until: function() { return service._appsDirty },
             timeout: 4000
         },
         {
-            name: "the rescan does not restart the warmup",
+            name: "the rescan does no work while closed",
             act: function() {
-                root.expect(service.warmupRuns === 1 && service.warmupState === "done", "warmup still ran once: " + service.warmupRuns)
-                root.expect(!service.warmupPending && !service.pendingWork, "nothing is scheduled while closed")
+                root.expect(!service.pendingWork, "nothing is scheduled while closed")
                 root.expect(service._appsRevision === root.appsRevision, "the snapshot is not rebuilt while closed")
                 root.openMenu('{"mode":"combi"}')
-                root.type("warmup probe")
-                root.expect(service.rows.length > 0 && service.rows[0].text === "Warmup Probe",
+                root.type("rescan probe")
+                root.expect(service.rows.length > 0 && service.rows[0].text === "Rescan Probe",
                     "the next open rebuilds the stale snapshot: " + root.rowTexts())
                 root.fakeActions.surfaceClose("stillsuit.launcher")
-                root.expect(service.warmupRuns === 1 && !service.warmupPending, "opening does not restart the warmup")
+                root.expect(!service.pendingWork, "closing leaves nothing scheduled")
             },
             until: function() { return true }
         }

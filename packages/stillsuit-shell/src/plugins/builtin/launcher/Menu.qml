@@ -509,6 +509,7 @@ FocusScope {
                     icon: visible ? root.rowIcon(rowItem.row) : ""
                     fallbackLabel: rowItem.row ? String(rowItem.row.text || "") : ""
                     sizeRole: "large"
+                    themeCheckAllowed: Window.active
                 }
 
                 Ui.ShellIcon {

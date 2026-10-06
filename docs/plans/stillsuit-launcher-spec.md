@@ -30,12 +30,16 @@ with the plan, this file wins.
   can be removed mid-list (see `docs/host-contract.md`, the Quickshell 0.3.1
   ScriptModel quirk). Hidden surfaces compute nothing. Gate timers on
   visibility. Prefer event APIs over polling.
-- One exception, added after VM measurement: the launcher runs a single
-  warmup about 2 s after the shell starts (app snapshot, `engine.prepare`,
-  history read, icon-theme lookups for the top empty-query rows, one per
-  event-loop turn). Cold icon lookups cost ~200 ms each and made the first
-  Mod+D after login take ~1 s; with the warmup it takes ~64 ms. Nothing
-  recurs.
+- Nothing on the path from Mod+D to the menu taking keyboard focus may ask
+  the icon theme. `Quickshell.iconPath(name, true)` checks the theme
+  synchronously; while the theme is cold, the first open spent ~1 s there,
+  niri kept keyboard focus on the previous window, and the typed letters went
+  to it. `ShellAppIcon` loads with the unchecked `iconPath`, and
+  `src/ui/IconCheck.js` runs the checked lookup once per name, sharing the
+  verdict across icons. The launcher's icons allow it only once their window
+  is active (niri has handed it the keyboard), then after the next frame. An
+  earlier startup warmup that hid the cost was removed, so the launcher does
+  no work until it opens.
 - JS logic lives in plain JS files that work both as QML imports and in node
   (`if (typeof module !== "undefined") module.exports = {...}` at the bottom,
   as in `src/services/NotificationModel.js`). No `.pragma library` needed.

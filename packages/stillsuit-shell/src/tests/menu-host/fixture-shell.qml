@@ -309,6 +309,7 @@ ShellRoot {
             downCount: content ? content.downCount : -1,
             ctrlKCount: content ? content.ctrlKCount : -1,
             acceptCount: content ? content.acceptCount : -1,
+            themeIconChecked: content ? content.themeIcon._verdict !== -1 : false,
             menuKeys: menuKeys
         })
     }
@@ -368,9 +369,10 @@ ShellRoot {
 
     function checkIcons() {
         var menu = testRouter.contributionInstances("menu", "menu")[0]
-        verify(menu.themeIcon.resolvedSource.toString() === "" && !menu.themeIcon.ready,
-            "a missing theme icon resolves to nothing")
-        verify(menu.themeIcon.children[2].visible, "missing theme icon shows the catalog glyph")
+        verify(menu.themeIcon._verdict === 0 && menu.themeIcon.resolvedSource.toString() === ""
+            && !menu.themeIcon.ready, "a missing theme icon resolves to nothing once checked")
+        verify(!menu.themeIcon.children[0].visible && menu.themeIcon.children[2].visible,
+            "a missing theme icon shows the catalog glyph")
         verify(menu.fileIcon.ready, "an absolute icon path loads")
         verify(menu.fileIcon.children[0].asynchronous, "icons load asynchronously")
         verify(menu.fileIcon.children[0].sourceSize.width === Math.ceil(menu.fileIcon.width),
@@ -381,6 +383,36 @@ ShellRoot {
         verify(!menu.missingFileIcon.ready && menu.missingFileIcon.children[1].visible,
             "a missing file shows the monogram fallback")
         verify(menu.missingFileIcon.children[1].children[0].text === "Z", "monogram uses the first letter")
+        iconLookups = menu.themeIcon._lookupCount()
+        menu.themeIcon.themeCheckAllowed = false
+        menu.themeIcon.icon = "stillsuit-fixture-second-missing-icon"
+        verify(menu.themeIcon._verdict === -1 && menu.themeIcon._lookupCount() === iconLookups,
+            "assigning an unchecked name does not ask the theme")
+        verify(menu.themeIcon.resolvedSource.toString() === "image://icon/stillsuit-fixture-second-missing-icon"
+            && !menu.themeIcon.ready && !menu.themeIcon.children[0].visible,
+            "an unchecked name loads in the background behind the fallback")
+        verify(!menu.themeIcon.children[0].cache && menu.fileIcon.children[0].cache,
+            "an unchecked name skips the pixmap cache; checked icons use it")
+        menu.themeIcon.Window.window.update()
+    }
+
+    property int iconLookups: 0
+
+    function checkIconsGated() {
+        var menu = testRouter.contributionInstances("menu", "menu")[0]
+        verify(menu.themeIcon._verdict === -1 && menu.themeIcon._lookupCount() === iconLookups,
+            "frames swapped while lookups are not allowed do not ask the theme")
+        menu.themeIcon.themeCheckAllowed = true
+    }
+
+    function checkIconsAfterFrame() {
+        var menu = testRouter.contributionInstances("menu", "menu")[0]
+        verify(menu.themeIcon._verdict === 0 && menu.themeIcon._lookupCount() === iconLookups + 1,
+            "the name is looked up once, after a frame")
+        menu.themeIcon.icon = "stillsuit-fixture-icon-that-does-not-exist"
+        verify(menu.themeIcon._verdict === 0 && menu.themeIcon._lookupCount() === iconLookups + 1,
+            "a checked name answers from the shared verdicts")
+        verify(menu.fileIcon._verdict === 1, "path icons need no theme check")
     }
 
     function checkRouter() {
@@ -723,6 +755,8 @@ ShellRoot {
                 else if (step === "bannerAndPanels") root.checkBannerAndPanels()
                 else if (step === "presses") root.checkPresses()
                 else if (step === "icons") root.checkIcons()
+                else if (step === "iconsGated") root.checkIconsGated()
+                else if (step === "iconsAfterFrame") root.checkIconsAfterFrame()
                 else if (step === "router") root.checkRouter()
                 else if (step === "reentrant") root.checkReentrantRoutes()
                 else if (step === "queuedFocus") root.checkQueuedMenuFocusChange()
