@@ -24,9 +24,9 @@ Compose the page for this subject and reader. Then apply the contract for what t
 - **Real code, labelled sketches.** Excerpts carry their source and commit; code that does not exist yet is marked as a sketch (see exhibits).
 - Keep useful source links, keyboard-operable controls, and external text rendered as text. Exclude credentials and secrets.
 
-## Lint
+## Highlight and lint
 
-Run `python3 <this skill's directory>/scripts/lint.py page.html --root <repo>` before each publish. It reports prose walls, phone-width problems, decisions without a default, charts without a claim, stale code excerpts, broken anchors and secret-like strings. It checks structure, not meaning: a chart can pass and still misstate its data. Warnings are prompts for judgement: fix the ones that hurt the reader, and keep the page as it is where the content justifies it. Name a kept warning in the handoff when it affects whether the reader can trust a claim.
+Before each publish, run `node <this skill's directory>/scripts/highlight.mts page.html --root <repo>` to colour code blocks (see [exhibits](references/exhibits.md)), then `python3 <this skill's directory>/scripts/lint.py page.html --root <repo>`. The lint reports prose walls, phone-width problems, unhighlighted code, decisions without a default, charts without a claim, stale code excerpts, broken anchors and secret-like strings. It checks structure, not meaning: a chart can pass and still misstate its data. Warnings are prompts for judgement: fix the ones that hurt the reader, and keep the page as it is where the content justifies it. Name a kept warning in the handoff when it affects whether the reader can trust a claim.
 
 ## Publish
 

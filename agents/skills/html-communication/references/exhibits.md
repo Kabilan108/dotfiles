@@ -26,7 +26,7 @@ Draw with HTML, CSS and inline SVG. A rendering library is fine when you check i
 
 ## Trees and diffs
 
-Monospace blocks. Mark each row: `+` new, `-` removed, `~` changed, `?` proposed, a space for context. Bold a new symbol. End a row with its location (`path:line`) when it exists or is being added; align locations in a right column. Keep one tree under about 15 rows.
+Monospace blocks marked `language-text`. Mark each row: `+` new, `-` removed, `~` changed, `?` proposed, a space for context. Bold a new symbol. End a row with its location (`path:line`) when it exists or is being added; align locations in a right column. Keep one tree under about 15 rows.
 
 ```text
 ~ <Composer/>                            web/src/composer/Composer.tsx:41
@@ -49,7 +49,7 @@ Draw the smallest region that makes the point: one card, one menu, one row, desi
 
 ## Code
 
-- Excerpt of code that exists: the lines that carry the point, 25 at most, exact text from the file, wrapped in `<figure data-source="path:start-end" data-commit="sha">`. Highlight the lines that carry the point.
+- Excerpt of code that exists: the lines that carry the point, 25 at most, exact text from the file, wrapped in `<figure data-source="path:start-end" data-commit="sha">`. Name the lines that carry the point in the caption.
 - Code that does not exist yet: `<figure data-sketch>`, with "sketch" in the caption.
 - Change to existing code: unified diff with its real `@@` hunk header, one file per figure.
 - Schema: text in the language that states it (TypeScript, SQL, protobuf, JSON Schema), with `+`/`-` lines for changes. Show the 5 to 10 members that matter and note how many more exist.
@@ -58,11 +58,20 @@ Draw the smallest region that makes the point: one card, one menu, one row, desi
 ```html
 <figure data-source="server/src/scheduled/store.ts:58-66" data-commit="80eca63">
   <figcaption><code>store.ts:58</code> claims due rows; two workers never claim the same row.</figcaption>
-  <pre><code>…the exact lines…</code></pre>
+  <pre><code class="language-ts">…the exact lines, HTML-escaped…</code></pre>
 </figure>
 ```
 
 `scripts/lint.py --root <repo>` checks that each `data-source` excerpt still matches its file.
+
+### Syntax highlighting
+
+Write each block as `<pre><code class="language-…">` holding the raw, HTML-escaped code, then run `scripts/highlight.mts`. It colours the code in place with light and dark themes and no runtime script, and is safe to rerun.
+
+- An excerpt in a `data-source` figure takes its language from the file's extension or shebang.
+- A diff is `language-diff`. The code inside it is coloured in the language of `data-lang="ts"`, or of the file named in its `+++` line, with added and removed lines shaded.
+- Trees, command output and other plain text are `language-text`, left uncoloured.
+- A language the highlighter does not bundle is left plain, and the script names it.
 
 ## Tables
 

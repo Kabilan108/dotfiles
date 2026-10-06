@@ -67,6 +67,24 @@ PRE_WRAP_RULE = re.compile(
     r"\bpre\b[^{}]*\{[^}]*white-space\s*:\s*(pre-wrap|break-spaces)"
 )
 GIT_REF = re.compile(r"^[A-Za-z0-9][\w./-]{0,99}$")
+LANGUAGE_CLASS = re.compile(r"(?:^|\s)lang(?:uage)?-([\w+#-]+)", re.IGNORECASE)
+PLAIN_LANGUAGES = {
+    "text",
+    "plaintext",
+    "plain",
+    "txt",
+    "tree",
+    "none",
+    "output",
+    "console-output",
+}
+
+
+def code_language(node: Node) -> str | None:
+    match = LANGUAGE_CLASS.search(node.attrs.get("class", ""))
+    if match:
+        return match.group(1).lower()
+    return node.attrs.get("data-lang") or None
 
 
 @dataclass
@@ -339,7 +357,35 @@ class Linter:
             if caption is None or not caption.text():
                 self.warn(chart.line, "chart has no caption stating the claim it shows")
 
+    def check_highlighting(self) -> None:
+        unlabelled: list[int] = []
+        unhighlighted: list[int] = []
+        for code in self.doc.find_all(
+            lambda n: n.tag == "code" and n.parent is not None and n.parent.tag == "pre"
+        ):
+            pre = code.parent
+            assert pre is not None
+            lang = code_language(code) or code_language(pre)
+            in_excerpt = any(a.has("data-source") for a in pre.ancestors())
+            if not lang and not (in_excerpt and pre.has("data-highlighted")):
+                unlabelled.append(pre.line)
+            elif (
+                lang and lang not in PLAIN_LANGUAGES and not pre.has("data-highlighted")
+            ):
+                unhighlighted.append(pre.line)
+        if unlabelled:
+            self.warn(
+                unlabelled[0],
+                f'{len(unlabelled)} code block(s) with no language; add class="language-…" (language-text for trees and output)',
+            )
+        if unhighlighted:
+            self.warn(
+                unhighlighted[0],
+                f"{len(unhighlighted)} code block(s) not highlighted; run scripts/highlight.mts on the page",
+            )
+
     def check_code(self) -> None:
+        self.check_highlighting()
         sources = self.doc.find_all(lambda n: n.has("data-source"))
         if sources and self.root is None:
             self.warn(
