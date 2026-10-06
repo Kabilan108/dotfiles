@@ -347,6 +347,12 @@ trust_level = "trusted"
 [projects."/vault/work/moberg/dev-server/ci-cd-pipeline"]
 trust_level = "trusted"
 
+[projects."/home/kabilan/experiments/futo-gboard"]
+trust_level = "trusted"
+
+[projects."/vault/repos/cli/tracer"]
+trust_level = "trusted"
+
 [tui]
 screen_reader_detection_done = true
 
