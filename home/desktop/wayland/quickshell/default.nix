@@ -44,16 +44,19 @@ let
     '';
   };
   # The key's authorized_keys entry on sietch forces `moberg-dev-checkouts`,
-  # which reads the request from SSH_ORIGINAL_COMMAND: no arguments lists
-  # checkouts; `pause NAME` / `resume NAME` change one.
+  # which parses SSH_ORIGINAL_COMMAND as the request itself (`status`,
+  # `pause NAME`, `resume NAME`), so send only the request words.
   devCheckoutsHelper = pkgs.writeShellApplication {
     name = "stillsuit-dev-checkouts";
     runtimeInputs = [ pkgs.openssh ];
     text = ''
+      if (($# == 0)); then
+        set -- status
+      fi
       exec ssh -i "$HOME/.ssh/moberg-status-jacurutu" \
         -o IdentitiesOnly=yes -o BatchMode=yes -o ControlMaster=no -o ControlPath=none \
         -o ConnectTimeout=5 -o ServerAliveInterval=5 -o ServerAliveCountMax=2 \
-        ${fleet.hosts.sietch.user}@${fleet.hosts.sietch.tailscaleIp} moberg-dev-checkouts "$@"
+        ${fleet.hosts.sietch.user}@${fleet.hosts.sietch.tailscaleIp} "$@"
     '';
   };
 in
