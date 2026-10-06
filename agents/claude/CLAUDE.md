@@ -18,7 +18,7 @@ Use native workers within the current harness when available. Use a provider CLI
 
 For durable shell delegation, use `agent-run --help` (source: `~/dotfiles/bin/agent-run`). It records model, scope, process identity, result and exit status. Give it a self-contained prompt file. After `agent-run start`, immediately run `agent-run wait <id> --timeout 0` using the harness mechanism below. Retain its handle. After a restart, reconcile the task's existing runs and re-arm waits before launching replacements. Review the result and diff before acknowledging completion. Use `launch-agent` for interactive panes, not batch completion tracking.
 
-For review of a consequential behavioral invariant, consult `~/dotfiles/agents/references/empirical-review.md`.
+For review of a consequential behavioral invariant, consult `~/dotfiles/agents/references/empirical-review.md`. Before presenting numbers that drive a decision (benchmarks, audits, data analysis), have an independent reviewer recompute them from the raw data, following its "Data claims" section.
 
 ## Browser and artifacts
 

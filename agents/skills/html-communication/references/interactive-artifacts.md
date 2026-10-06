@@ -1,6 +1,6 @@
 # Interactive artifacts
 
-Interaction must shorten a real engineering feedback loop.
+Interaction must shorten a real engineering feedback loop. Decisions for the user are plain markup with no script; see [decisions](decisions.md).
 
 - Keep one state object. Every control updates state, preview, validation, and export together.
 - Start with useful defaults. Add presets only when they represent coherent real choices.
