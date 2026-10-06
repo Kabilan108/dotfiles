@@ -32,18 +32,20 @@ const FILENAMES: Record<string, string> = {
 
 const CSS = `pre.hl{background:var(--shiki-light-bg);color:var(--shiki-light);padding:12px 14px;border-radius:8px;overflow-x:auto;tab-size:4}
 pre.hl span{color:var(--shiki-light)}
-pre.hl .line.add,pre.hl .line.del,pre.hl .line.hunk,pre.hl .line.meta{display:inline-block;min-width:100%}
+pre.hl .line.add,pre.hl .line.del,pre.hl .line.hunk,pre.hl .line.meta,pre.hl .line.focus{display:inline-block;min-width:100%}
+pre.hl .line.focus{background:rgba(223,142,29,.16);box-shadow:inset 3px 0 #df8e1d}
 pre.hl .line.add{background:rgba(64,160,43,.16)}pre.hl .line.del{background:rgba(210,15,57,.13)}
 pre.hl .line.add>.mark{color:#40a02b}pre.hl .line.del>.mark{color:#d20f39}
 pre.hl .line.hunk,pre.hl .line.hunk span{color:#1e66f5}pre.hl .line.meta,pre.hl .line.meta span{color:#8c8fa1}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]) pre.hl{background:var(--shiki-dark-bg);color:var(--shiki-dark)}:root:not([data-theme=light]) pre.hl span{color:var(--shiki-dark)}:root:not([data-theme=light]) pre.hl .line.hunk,:root:not([data-theme=light]) pre.hl .line.hunk span{color:#89b4fa}:root:not([data-theme=light]) pre.hl .line.meta,:root:not([data-theme=light]) pre.hl .line.meta span{color:#7f849c}:root:not([data-theme=light]) pre.hl .line.add>.mark{color:#a6e3a1}:root:not([data-theme=light]) pre.hl .line.del>.mark{color:#f38ba8}}
-:root[data-theme=dark] pre.hl{background:var(--shiki-dark-bg);color:var(--shiki-dark)}:root[data-theme=dark] pre.hl span{color:var(--shiki-dark)}:root[data-theme=dark] pre.hl .line.hunk,:root[data-theme=dark] pre.hl .line.hunk span{color:#89b4fa}:root[data-theme=dark] pre.hl .line.meta,:root[data-theme=dark] pre.hl .line.meta span{color:#7f849c}:root[data-theme=dark] pre.hl .line.add>.mark{color:#a6e3a1}:root[data-theme=dark] pre.hl .line.del>.mark{color:#f38ba8}`;
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) pre.hl{background:var(--shiki-dark-bg);color:var(--shiki-dark)}:root:not([data-theme=light]) pre.hl span{color:var(--shiki-dark)}:root:not([data-theme=light]) pre.hl .line.hunk,:root:not([data-theme=light]) pre.hl .line.hunk span{color:#89b4fa}:root:not([data-theme=light]) pre.hl .line.meta,:root:not([data-theme=light]) pre.hl .line.meta span{color:#7f849c}:root:not([data-theme=light]) pre.hl .line.add>.mark{color:#a6e3a1}:root:not([data-theme=light]) pre.hl .line.del>.mark{color:#f38ba8}:root:not([data-theme=light]) pre.hl .line.focus{background:rgba(249,226,175,.12);box-shadow:inset 3px 0 #f9e2af}}
+:root[data-theme=dark] pre.hl{background:var(--shiki-dark-bg);color:var(--shiki-dark)}:root[data-theme=dark] pre.hl span{color:var(--shiki-dark)}:root[data-theme=dark] pre.hl .line.hunk,:root[data-theme=dark] pre.hl .line.hunk span{color:#89b4fa}:root[data-theme=dark] pre.hl .line.meta,:root[data-theme=dark] pre.hl .line.meta span{color:#7f849c}:root[data-theme=dark] pre.hl .line.add>.mark{color:#a6e3a1}:root[data-theme=dark] pre.hl .line.del>.mark{color:#f38ba8}:root[data-theme=dark] pre.hl .line.focus{background:rgba(249,226,175,.12);box-shadow:inset 3px 0 #f9e2af}`;
 
 interface Stats {
   highlighted: number;
   diffs: number;
   plain: number;
   skipped: string[];
+  notes: string[];
 }
 
 function escapeHtml(text: string): string {
@@ -102,12 +104,41 @@ function languageFromShebang(root: string | undefined, path: string): string | u
   return program ? (INTERPRETERS[program] ?? INTERPRETERS[program.replace(/[\d.]+$/, "")]) : undefined;
 }
 
-function enclosingSource(html: string, index: number): string | undefined {
+function enclosingSource(html: string, index: number): { path: string; start: number } | undefined {
   const before = html.slice(0, index);
   const open = before.lastIndexOf("<figure");
   if (open < 0 || before.lastIndexOf("</figure>") > open) return undefined;
   const tag = before.slice(open, before.indexOf(">", open) + 1);
-  return attr(tag, "data-source")?.split(":")[0];
+  const spec = attr(tag, "data-source");
+  if (!spec) return undefined;
+  const [path, range = ""] = spec.split(":");
+  return { path, start: Number.parseInt(range, 10) || 1 };
+}
+
+function focusLines(spec: string | undefined, firstNumber: number, count: number): { lines: Set<number>; outside: string[] } {
+  const lines = new Set<number>();
+  const outside: string[] = [];
+  for (const part of (spec ?? "").split(",").map((s) => s.trim()).filter(Boolean)) {
+    const [from, to = from] = part.split("-").map((n) => Number.parseInt(n, 10));
+    if (!Number.isFinite(from) || !Number.isFinite(to) || to < from) {
+      outside.push(part);
+      continue;
+    }
+    for (let n = from; n <= to; n++) {
+      const index = n - firstNumber;
+      if (index >= 0 && index < count) lines.add(index);
+      else outside.push(String(n));
+    }
+  }
+  return { lines, outside };
+}
+
+function markFocus(body: string, lines: Set<number>): string {
+  if (!lines.size) return body;
+  return body
+    .split("\n")
+    .map((line, i) => (lines.has(i) ? line.replace('<span class="line', '<span class="line focus') : line))
+    .join("\n");
 }
 
 function diffTarget(code: string): string | undefined {
@@ -187,7 +218,8 @@ function highlightHtml(highlighter: Highlighter, html: string, stats: Stats, roo
   const known = new Set(highlighter.getLoadedLanguages());
   const rewritten = html.replace(BLOCK, (whole, preAttrs: string, gapA: string, codeAttrs: string, inner: string, gapB: string, offset: number) => {
     const declared = languageFromClass(codeAttrs) ?? languageFromClass(preAttrs) ?? attr(codeAttrs, "data-lang") ?? attr(preAttrs, "data-lang");
-    const sourcePath = enclosingSource(html, offset);
+    const source = enclosingSource(html, offset);
+    const sourcePath = source?.path;
     const lang = declared ?? (sourcePath ? (languageFromPath(sourcePath) ?? languageFromShebang(root, sourcePath)) : undefined);
     if (!lang) {
       const hint = sourcePath && !root ? `; pass --root to read the shebang of ${sourcePath}` : "";
@@ -206,7 +238,14 @@ function highlightHtml(highlighter: Highlighter, html: string, stats: Stats, roo
       stats.skipped.push(`line ${html.slice(0, offset).split("\n").length}: language "${target}" is not bundled`);
       return whole;
     }
-    const { body, rootStyle } = isDiff && target !== "diff" ? renderDiff(highlighter, code, target) : renderCode(highlighter, code, target);
+    const rendered = isDiff && target !== "diff" ? renderDiff(highlighter, code, target) : renderCode(highlighter, code, target);
+    const focusSpec = attr(codeAttrs, "data-hl") ?? attr(preAttrs, "data-hl");
+    const focus = focusLines(focusSpec, isDiff ? 1 : (source?.start ?? 1), code.split("\n").length);
+    if (focus.outside.length) {
+      stats.notes.push(`line ${html.slice(0, offset).split("\n").length}: data-hl ${focus.outside.join(", ")} is outside the block (excerpts use file line numbers)`);
+    }
+    const body = markFocus(rendered.body, focus.lines);
+    const rootStyle = rendered.rootStyle;
     if (isDiff) stats.diffs++;
     else stats.highlighted++;
 
@@ -249,10 +288,10 @@ async function main(): Promise<number> {
       failed = true;
       continue;
     }
-    const stats: Stats = { highlighted: 0, diffs: 0, plain: 0, skipped: [] };
+    const stats: Stats = { highlighted: 0, diffs: 0, plain: 0, skipped: [], notes: [] };
     const output = highlightHtml(highlighter, html, stats, root);
     if (output !== html) writeFileSync(file, output);
-    for (const note of stats.skipped) console.error(`${file}: ${note}`);
+    for (const note of [...stats.skipped, ...stats.notes]) console.error(`${file}: ${note}`);
     console.error(`${file}: ${stats.highlighted} code, ${stats.diffs} diff, ${stats.plain} plain, ${stats.skipped.length} skipped`);
   }
   return failed ? 1 : 0;

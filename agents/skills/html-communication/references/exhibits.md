@@ -49,7 +49,7 @@ Draw the smallest region that makes the point: one card, one menu, one row, desi
 
 ## Code
 
-- Excerpt of code that exists: the lines that carry the point, 25 at most, exact text from the file, wrapped in `<figure data-source="path:start-end" data-commit="sha">`. Name the lines that carry the point in the caption.
+- Excerpt of code that exists: the lines that carry the point, 25 at most, exact text from the file, wrapped in `<figure data-source="path:start-end" data-commit="sha">`. Emphasise the lines that carry the point with `data-hl` (below).
 - Code that does not exist yet: `<figure data-sketch>`, with "sketch" in the caption.
 - Change to existing code: unified diff with its real `@@` hunk header, one file per figure.
 - Schema: text in the language that states it (TypeScript, SQL, protobuf, JSON Schema), with `+`/`-` lines for changes. Show the 5 to 10 members that matter and note how many more exist.
@@ -72,6 +72,7 @@ Write each block as `<pre><code class="language-…">` holding the raw, HTML-esc
 - A diff is `language-diff`. The code inside it is coloured in the language of `data-lang="ts"`, or of the file named in its `+++` line, with added and removed lines shaded.
 - Trees, command output and other plain text are `language-text`, left uncoloured.
 - A language the highlighter does not bundle is left plain, and the script names it.
+- `data-hl="4-5,9"` on the `<code>` emphasises those lines. In a `data-source` excerpt the numbers are the file's line numbers, the ones the caption cites; elsewhere they count from the block's first line.
 
 ## Tables
 
