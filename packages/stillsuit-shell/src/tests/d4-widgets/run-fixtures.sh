@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'printf "d4 widgets fixture failed at line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
 
 fixture_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source_root=$(cd -- "$fixture_dir/../.." && pwd)
@@ -8,6 +9,7 @@ shell_pid=""
 sway_pid=""
 
 cleanup() {
+    local status=$? portal_mount
     if [[ -n "$shell_pid" ]] && kill -0 "$shell_pid" 2>/dev/null; then
         kill -TERM "$shell_pid"
         wait "$shell_pid" || true
@@ -16,7 +18,13 @@ cleanup() {
         kill -TERM "$sway_pid"
         wait "$sway_pid" || true
     fi
-    rm -rf -- "$tmp_dir"
+    for portal_mount in "$tmp_dir/runtime/doc" "$tmp_dir/runtime/gvfs"; do
+        if mountpoint -q -- "$portal_mount"; then
+            fusermount -u -- "$portal_mount" || status=1
+        fi
+    done
+    rm -rf -- "$tmp_dir" || status=1
+    exit "$status"
 }
 trap cleanup EXIT
 
@@ -127,7 +135,14 @@ printf '%s\n' 'MemTotal: 1000 kB' 'MemAvailable: 250 kB' > "$STILLSUIT_FIXTURE_M
 second_resources=$(ipc resourceSnapshot)
 jq -e '.cpuPercent == 50 and .memoryPercent == 75' >/dev/null <<<"$second_resources"
 routes=$(ipc routeActions)
-jq -e '. == ["stillsuit.recording"]' >/dev/null <<<"$routes"
+jq -e '
+  .activation == {pauseCalls: 1, paused: true, routes: []}
+  and .pauseCalls == 1
+  and .routes == [
+    {action: "toggle", pluginId: "stillsuit.recording", outputId: .outputIds[0]},
+    {action: "toggle", pluginId: "stillsuit.recording", outputId: .outputIds[1]}
+  ]
+' >/dev/null <<<"$routes"
 workflow=$(ipc workflowState)
 jq -e '.recordingText == "01:07"' >/dev/null <<<"$workflow"
 

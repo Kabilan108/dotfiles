@@ -90,11 +90,15 @@ ShellRoot {
     QtObject {
         id: actions
         function surfaceToggle(pluginId, payloadJson) {
-            fixture.actionCalls = fixture.actionCalls.concat([String(pluginId)])
+            fixture.actionCalls = fixture.actionCalls.concat([{
+                action: "toggle", pluginId: String(pluginId), outputId: JSON.parse(payloadJson).outputId
+            }])
             return "ok"
         }
         function surfaceOpen(pluginId, payloadJson) {
-            fixture.actionCalls = fixture.actionCalls.concat([String(pluginId)])
+            fixture.actionCalls = fixture.actionCalls.concat([{
+                action: "open", pluginId: String(pluginId), outputId: JSON.parse(payloadJson).outputId
+            }])
             return "ok"
         }
         function surfaceClose(pluginId) { return "ok" }
@@ -243,8 +247,25 @@ ShellRoot {
             })
         }
         function routeActions(): string {
+            fixture.actionCalls = []
+            recordingModel.pauseCalls = 0
+            recordingModel.paused = false
+            // ShellAction activation pauses recording. Panel routing belongs
+            // to the double click and must retain the widget's own output.
             recordingPrimary.trigger()
-            return JSON.stringify(fixture.actionCalls)
+            var activation = {
+                pauseCalls: recordingModel.pauseCalls,
+                paused: recordingModel.paused,
+                routes: fixture.actionCalls.slice()
+            }
+            recordingPrimary.handleDoubleClick()
+            recordingSecondary.handleDoubleClick()
+            return JSON.stringify({
+                activation: activation,
+                pauseCalls: recordingModel.pauseCalls,
+                routes: fixture.actionCalls,
+                outputIds: [fixture.primaryOutputId, fixture.secondaryOutputId]
+            })
         }
         function workflowState(): string {
             recordingModel.elapsedText = "01:07"
