@@ -207,7 +207,7 @@ in
           meetingHelperPath = lib.getExe meetingEnqueueHelper;
           openHelperPath = lib.getExe openHelper;
           publishHelperPath = lib.getExe publishHelper;
-          dictatorSocketPath = "/run/user/1000/dictator/osd.sock";
+          dictatorSocketPath = lib.optionalString config.dotfiles.services.dictator.enable "/run/user/1000/dictator/osd.sock";
         };
       }
     )
