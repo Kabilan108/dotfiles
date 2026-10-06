@@ -1,0 +1,10 @@
+{"schema_version": 1, "checkouts": [
+  {"name": "dev-server-1", "path": "/vault/work/moberg/dev-server-1", "instance": 1, "project": "MCP-7160 COIN", "state": "active", "checkpoint": "default", "last_used": "2026-10-05T00:18:21+00:00", "ports": {"dashboard": 3100}, "containers": {"running": 6}, "memory": null, "issue": null, "branch": "dev/flake", "running": true,
+   "links": [
+     {"name": "dashboard", "url": "http://100.64.0.2:3100", "service": "dashboard", "state": "running"},
+     {"name": "dask", "url": "http://100.64.0.2:8887", "service": "query", "state": "running"},
+     {"name": "hub", "url": "http://100.64.0.2:8100", "service": "hub", "state": null}
+   ]},
+  {"name": "t3code-e52c4300", "path": "/w/t3code-e52c4300", "instance": 8, "project": null, "state": "paused", "checkpoint": "7304-work", "last_used": "2026-10-05T02:00:00+00:00", "ports": {}, "containers": {"exited": 5}, "memory": null, "issue": null, "branch": "t3code/sd-channels", "running": false, "links": []},
+  {"name": "broken", "path": "/w/broken", "instance": null, "project": null, "state": null, "checkpoint": null, "last_used": null, "ports": {}, "containers": {}, "memory": null, "issue": "checkout path or metadata is missing", "branch": null, "running": false, "links": []}
+]}

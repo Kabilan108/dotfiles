@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "stillsuit.dev-checkouts",
+  "name": "Dev checkouts",
+  "description": "Moberg dev-server checkouts on sietch, with links to each running checkout's dashboard and Dask.",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kinds": ["service", "bar-widget", "panel"],
+  "entryPoints": { "service": "Service.qml", "barWidget": "Widget.qml", "panel": "Panel.qml" },
+  "scope": { "service": "global", "barWidget": "per-output", "panel": "per-output" },
+  "capabilities": ["network-access"],
+  "barWidget": { "defaultSection": "left", "allowMultiple": false, "order": 90 },
+  "keepLoaded": true
+}

@@ -64,6 +64,7 @@
     dotfiles.services = {
       claude-keepalive.enable = true;
       moberg.devMaintenance.enable = true;
+      moberg.devStatus.enable = true;
       moberg.eboostReviewerReport.enable = true;
       t3-code.enable = true;
       wayvnc.enable = true;

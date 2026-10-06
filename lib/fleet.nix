@@ -41,6 +41,7 @@ rec {
         "moberg-devserver4"
         "moberg-mobile-dev"
         "agent-jacurutu"
+        "moberg-status-jacurutu"
         "yk-nfc"
         "yk-nano"
       ];
@@ -113,7 +114,15 @@ rec {
   };
 
   # Extra authorized keys per host, outside the access matrix.
-  extraAuthorizedKeys = { };
+  extraAuthorizedKeys = {
+    # Forced-command key for the Stillsuit dev-checkouts plugin on jacurutu;
+    # it can only print `dev co list --json`.
+    sietch = [
+      "command=\"/etc/profiles/per-user/kabilan/bin/moberg-dev-status\",restrict,from=\"100.64.0.0/10\" ${mobergStatusKey}"
+    ];
+  };
+
+  mobergStatusKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINNgVKXKNqU9Mybb8UEVVa4jGvUYGhmaoGMvhwkJledu moberg-status@jacurutu";
 
   agentKeyRestrictions = "from=\"100.64.0.0/10\",no-agent-forwarding,no-X11-forwarding,no-port-forwarding";
 

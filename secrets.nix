@@ -93,6 +93,7 @@ in
   "secrets/ssh/jacurutu/moberg-devserver4.age".publicKeys = [ jacurutu ];
   "secrets/ssh/jacurutu/moberg-mobile-dev.age".publicKeys = [ jacurutu ];
   "secrets/ssh/jacurutu/agent-jacurutu.age".publicKeys = [ jacurutu ];
+  "secrets/ssh/jacurutu/moberg-status-jacurutu.age".publicKeys = [ jacurutu ];
   "secrets/ssh/jacurutu/yk-nfc.age".publicKeys = [ jacurutu ];
   "secrets/ssh/jacurutu/yk-nano.age".publicKeys = [ jacurutu ];
 

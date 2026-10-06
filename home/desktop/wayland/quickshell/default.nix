@@ -7,6 +7,7 @@
 }:
 let
   homeDir = "/home/kabilan";
+  fleet = import ../../../../lib/fleet.nix;
   dictatorPackages = inputs.dictator.packages.${pkgs.stdenv.hostPlatform.system};
   builtinPlugin = name: {
     source = ../../../../packages/stillsuit-shell/src;
@@ -35,8 +36,23 @@ let
       pkgs.mpv
       pkgs.nautilus
     ];
+    # gio launches the handler's Exec line (e.g. a bare `helium`), which the
+    # shell unit's restricted PATH cannot resolve on its own.
     text = ''
+      export PATH="$PATH:/etc/profiles/per-user/${config.home.username}/bin:/run/current-system/sw/bin"
       gio open -- "$1"
+    '';
+  };
+  # The key's authorized_keys entry on sietch forces `moberg-dev-status`, so
+  # this can only ever read `dev co list --json`.
+  devCheckoutsHelper = pkgs.writeShellApplication {
+    name = "stillsuit-dev-checkouts";
+    runtimeInputs = [ pkgs.openssh ];
+    text = ''
+      exec ssh -i "$HOME/.ssh/moberg-status-jacurutu" \
+        -o IdentitiesOnly=yes -o BatchMode=yes -o ControlMaster=no -o ControlPath=none \
+        -o ConnectTimeout=5 -o ServerAliveInterval=5 -o ServerAliveCountMax=2 \
+        ${fleet.hosts.sietch.user}@${fleet.hosts.sietch.tailscaleIp} moberg-dev-status
     '';
   };
 in
@@ -110,6 +126,17 @@ in
       }
     )
     (builtinPlugin "clock")
+    # Enabled by the "moberg" Stillsuit profile.
+    (
+      (builtinPlugin "dev-checkouts")
+      // {
+        enable = false;
+        settings = {
+          helperPath = lib.getExe devCheckoutsHelper;
+          openHelperPath = lib.getExe openHelper;
+        };
+      }
+    )
     ((builtinPlugin "moberg-demo") // { enable = false; })
     (
       (builtinPlugin "network")
