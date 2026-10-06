@@ -14,6 +14,15 @@ in
 
   networking.hostName = "jacurutu";
 
+  # Temporary Instagram and Threads block. Remove this block to undo it.
+  networking.extraHosts = ''
+    0.0.0.0 instagram.com www.instagram.com m.instagram.com
+    :: instagram.com www.instagram.com m.instagram.com
+
+    0.0.0.0 threads.com www.threads.com m.threads.com
+    :: threads.com www.threads.com m.threads.com
+  '';
+
   # The Framework airplane key emits KEY_RFKILL directly to the kernel.
   # Disable its measured HID scan code without changing the other hotkeys.
   services.udev.extraHwdb = ''
