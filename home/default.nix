@@ -258,7 +258,6 @@ in
     }).zotero
 
     # media/file handling
-    baobab
     inputs.disktree.packages.${systemName}.default
     gparted
     gpu-screen-recorder-gtk
