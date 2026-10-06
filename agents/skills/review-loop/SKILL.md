@@ -31,7 +31,7 @@ Keep any model or effort the user names. Each round is a new `delegate_task` cal
 2. **Run round k.** Fill in the prompt template, launch the reviewer, and wait for the notification. Done when a report with a verdict line has arrived for the current head. A failed run, a missing report, or a report on an older head is not a round.
 
 3. **Adjudicate every finding** against the source. Trace or reproduce it yourself before acting on it. Give each finding one verdict:
-   - **Fixed:** the fix, plus a regression test that fails on the previous head.
+   - **Fixed:** the fix.
    - **Rejected:** the evidence (code path, test, measurement) showing the scenario cannot happen or is intended.
    - **Deferred:** real, but outside this change. It goes in the log for the human reviewers.
 
