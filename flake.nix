@@ -153,7 +153,12 @@
       url = "github:ggml-org/llama.cpp/e85caa81ea2b65797396018c179b87ad61fa38ab";
       inputs.nixpkgs.follows = "llama-nixpkgs";
     };
-    "niri-flake".url = "github:sodiboo/niri-flake";
+    # niri-flake stopped bumping its niri-unstable pin in August 2026; track
+    # niri directly so fixes (e.g. SHM screencasting on NVIDIA) reach us.
+    "niri-flake" = {
+      url = "github:sodiboo/niri-flake";
+      inputs.niri-unstable.url = "github:niri-wm/niri";
+    };
     stylix = {
       url = "github:nix-community/stylix";
       inputs.nixpkgs.follows = "nixpkgs";
