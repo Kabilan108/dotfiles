@@ -176,9 +176,9 @@
     # tools i maintain
     atlas.url = "github:kabilan108/atlas";
     dictator.url = "github:kabilan108/dictator";
+    # Match disktree's CI build so both hosts can substitute from Cachix.
     disktree = {
       url = "github:Kabilan108/disktree";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
     hark.url = "github:Kabilan108/hark";
     omasnap = {

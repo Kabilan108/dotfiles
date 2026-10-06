@@ -159,21 +159,35 @@
     },
     "disktree": {
       "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
+        "nixpkgs": "disktree-nixpkgs"
       },
       "locked": {
-        "lastModified": 1791302635,
-        "narHash": "sha256-cu9xbKdscbTpunifsOXZttvs8LKx7GFoWdAnZp80eE0=",
+        "lastModified": 1791309226,
+        "narHash": "sha256-CF1mlLOqTlmNDR6h9EnLERntr7qQlBz9OA4mht0FJ4Q=",
         "owner": "Kabilan108",
         "repo": "disktree",
-        "rev": "726f92c9cda6b5f8c2af5bd75b2fdabfeec11611",
+        "rev": "1a751ac710f20252742fcb5310d821b2fa5a7730",
         "type": "github"
       },
       "original": {
         "owner": "Kabilan108",
         "repo": "disktree",
+        "type": "github"
+      }
+    },
+    "disktree-nixpkgs": {
+      "locked": {
+        "lastModified": 1790185690,
+        "narHash": "sha256-xJ+X4hBtOcAFGBOe5nAMyMUeF9foJBmIOu3NjBqBycU=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "4975466d324710c576dc11ad614684e6bd8cad8e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
         "type": "github"
       }
     },
