@@ -32,6 +32,7 @@ const FILENAMES: Record<string, string> = {
 
 const CSS = `pre.hl{background:var(--shiki-light-bg);color:var(--shiki-light);padding:12px 14px;border-radius:8px;overflow-x:auto;tab-size:4}
 pre.hl span{color:var(--shiki-light)}
+pre.hl>code{display:inline-block;min-width:100%}
 pre.hl .line.add,pre.hl .line.del,pre.hl .line.hunk,pre.hl .line.meta,pre.hl .line.focus{display:inline-block;min-width:100%}
 pre.hl .line.focus{box-sizing:border-box;min-width:calc(100% + 8px);border-left:3px solid #df8e1d;margin-left:-8px;padding-left:5px}pre.hl .line.focus:not(.add):not(.del){background:rgba(223,142,29,.16)}
 pre.hl .line.add{background:rgba(64,160,43,.16)}pre.hl .line.del{background:rgba(210,15,57,.13)}
