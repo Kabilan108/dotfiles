@@ -1,6 +1,7 @@
 {
   pkgs,
   config,
+  osConfig,
   inputs,
   lib,
   ...
@@ -25,6 +26,9 @@ let
   clipboardCollector =
     pkgs.callPackage ../../../../packages/stillsuit-shell/clipboard-collector.nix
       { };
+  # `niri msg` should speak the running compositor's IPC version, and both
+  # hosts run niri-unstable rather than the nixpkgs release.
+  niri = lib.getExe osConfig.programs.niri.package;
   # swaylock.nix (imported by the niri compositor module) installs the
   # lock-screen script. Session actions run against the shell's exact PATH,
   # so the launcher needs its store path rather than the bare name. Configs
@@ -128,7 +132,7 @@ in
     session = {
       lock = lib.mkIf (lockScreen != null) [ "${lockScreen}/bin/lock-screen" ];
       logout = [
-        (lib.getExe pkgs.niri)
+        niri
         "msg"
         "action"
         "quit"
@@ -189,7 +193,7 @@ in
           unattributedFirefox = "skip";
           focusSettleMs = 2000;
           geckoAppIds = "^(zen|zen-beta|zen-browser|zen-alpha|zen-twilight|app\\.zen_browser\\.zen|firefox|firefox-esr|firefox-nightly|librewolf|org\\.mozilla\\.firefox)$";
-          niriPath = lib.getExe pkgs.niri;
+          niriPath = niri;
           secretSourcePrefixes = [
             "chrome-extension://nngceckbapebfimnlniiiahkandclblb/"
             "https://vault.sole-pierce.ts.net"

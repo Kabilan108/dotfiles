@@ -6,9 +6,10 @@ with the plan, this file wins.
 
 ## Decisions from the user (2026-10-05)
 
-- Replace Walker and Elephant on niri. Hyprland (sietch today) keeps Walker and
-  Elephant, imported only when `waylandCompositor == "hyprland"`, with
-  Elephant's launch prefix changed so apps it starts land in their own scope.
+- Replace Walker and Elephant on niri. Hyprland sessions keep Walker and
+  Elephant: the Hyprland compositor module imports them, and their units are
+  gated on `XDG_CURRENT_DESKTOP=Hyprland` because sietch runs both compositors.
+  Elephant's launch prefix changes so apps it starts land in their own scope.
 - Full niri cutover in this PR: Mod+D, Mod+Tab, Mod+Shift+E, Mod+Alt+P and
   Mod+V open Stillsuit modes. No trial key.
 - Prefix modes kept: `/` files, `@` web, `$` windows, `:` clipboard. Dropped:
@@ -293,7 +294,8 @@ top), `remove(id)`, `clear()`. Images previewed from the blob path.
 - `home/desktop/wayland/compositors/niri/config.kdl`: the five binds call
   `qs ipc -c <configId> call stillsuit-surface toggle stillsuit.launcher
   '{"mode":"..."}'`. Run `niri validate`.
-- `home/desktop/wayland/default.nix`: import `walker.nix` only for Hyprland.
+- `home/desktop/wayland/compositors/hyprland/default.nix`: import `walker.nix`
+  and add `walker` and `elephant` to the Hyprland-session-only units.
   In `walker.nix`, set Elephant's launch prefix to an app-scope `systemd-run`
   and drop the Stillsuit profiles menu (Stillsuit doesn't run on Hyprland).
 - `AGENTS.md`: update the Walker/Elephant note.
