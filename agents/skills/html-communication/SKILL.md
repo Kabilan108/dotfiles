@@ -19,7 +19,7 @@ Compose the page for this subject and reader. Then apply the contract for what t
 ## Page shape
 
 - **Skimmable top layer.** What this is, the outcome or main claims, and what you need from the reader. Depth (evidence, method, raw tables, long excerpts) goes in collapsible sections under the point it supports. A dense subject stays as dense as it needs to be, one level down.
-- **Reviewable text in `<main>`.** The user reviews through PageBin's review layer, which anchors highlights and comments to selectable text inside `<main>`. Anything the user might comment on is text, even when an image also shows it.
+- **Reviewable text.** The user reviews through PageBin's review layer, which anchors comments to selectable text in the page and skips text inside SVG, form fields and scripts. Anything the user might comment on, including a diagram's key labels, also appears as plain text, such as in a caption. Read the feedback with `pagebin review`; see [decisions](references/decisions.md).
 - **Freshness line.** A visible `data-freshness` element near the title: when it was updated, the commit or data reviewed, and what this version supersedes.
 - **Real code, labelled sketches.** Excerpts carry their source and commit; code that does not exist yet is marked as a sketch (see exhibits).
 - Keep useful source links, keyboard-operable controls, and external text rendered as text. Exclude credentials and secrets.

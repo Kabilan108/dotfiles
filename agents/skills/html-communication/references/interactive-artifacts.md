@@ -11,5 +11,3 @@ Interaction must shorten a real engineering feedback loop. Decisions for the use
 - Provide a deterministic static fallback for the important conclusions.
 
 Skip interaction when filters, tabs, or animation merely decorate content.
-
-Storage and clipboard APIs may fail in hosted frames. Catch those failures, retain state in memory, and offer selectable text or a download instead.

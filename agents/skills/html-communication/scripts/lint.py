@@ -169,7 +169,7 @@ class Linter:
     def run(self) -> list[tuple[int, str]]:
         self.check_head()
         self.check_prose()
-        self.check_main_and_freshness()
+        self.check_freshness()
         self.check_decisions()
         self.check_charts()
         self.check_code()
@@ -249,22 +249,7 @@ class Linter:
                 f"{len(long_paragraphs)} paragraph(s) over {MAX_PARAGRAPH} words (lines {shown}{', ...' if len(long_paragraphs) > 6 else ''})",
             )
 
-    def check_main_and_freshness(self) -> None:
-        mains = self.doc.find_all(lambda n: n.tag == "main")
-        if not mains:
-            self.warn(
-                1,
-                "no <main>; the PageBin review layer anchors comments to text inside <main>",
-            )
-        else:
-            body = next(iter(self.doc.find_all(lambda n: n.tag == "body")), self.doc)
-            inside = sum(words(m.text()) for m in mains)
-            total = words(body.text())
-            if total and (total - inside) / total > 0.2:
-                self.warn(
-                    mains[0].line,
-                    f"{total - inside} of {total} words sit outside <main>, where the review layer cannot anchor comments",
-                )
+    def check_freshness(self) -> None:
         if not self.doc.find_all(lambda n: n.has("data-freshness")):
             self.warn(
                 1,

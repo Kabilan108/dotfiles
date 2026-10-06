@@ -55,4 +55,4 @@ A decision sits on the claim it changes: after the exhibit, before child claims.
 3. Add the how and where claims, then the exhibits, then the decisions.
 4. Lint, publish, and check the page closed, with each claim open, and at each decision.
 5. Hand it over in one line: how many decisions, and that the checked options are your recommendations.
-6. Apply the answers. Refer to claims by number. When the answers change the shape of the plan, update the page and hand it over again.
+6. Read the review with `pagebin review` (see [decisions](decisions.md)) and apply the answers. Refer to claims by number. When the answers change the shape of the plan, update the page and hand it over again.
