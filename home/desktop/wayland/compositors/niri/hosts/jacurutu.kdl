@@ -36,25 +36,25 @@ output "eDP-1" {
 }
 
 // TODO: replace display name with output name from `niri msg outputs`
-// This expects my ultrawide monitor (connected to jacurutu)
+// Single Ultrawide, above laptop
 output "DP-4" {
   mode "3440x1440@100.000"
   scale 1
-  // position x=2256 y=0
   position x=0 y=-1504
 }
 
-// This expects my 27" Dell (connected to jacurutu)
+// Single 27" Dell, above laptop
 output "DP-2" {
   mode "1920x1080@60.000"
   scale 1
   position x=0 y=-1080
 }
 
-// output "Office Samsung" {
-//   mode "3840x2160@30.000"
-//   scale 2
-//   position x=2256 y=0
-// }
+// Single 27" Dell, laptop on right
+output "DP-3" {
+  mode "1920x1080@60.000"
+  scale 1
+  position x=-1920 y=0
+}
 
 spawn-sh-at-startup "swaybg -i $HOME/dotfiles/wallpapers/shoggoth-001.png -m fill"
