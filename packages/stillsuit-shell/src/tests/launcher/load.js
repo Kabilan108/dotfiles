@@ -1,7 +1,7 @@
 const path = require("node:path")
 
 const modelDir = path.join(__dirname, "../../plugins/builtin/launcher/model")
-const providerNames = ["apps", "calc", "web", "windows", "power", "profiles", "files", "clipboard"]
+const providerNames = ["apps", "calc", "web", "windows", "power", "profiles", "files", "clipboard", "remmina"]
 
 const Matcher = require(path.join(modelDir, "Matcher.js"))
 const History = require(path.join(modelDir, "History.js"))

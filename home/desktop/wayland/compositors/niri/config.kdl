@@ -443,6 +443,7 @@ binds {
     Mod+Tab hotkey-overlay-title="Switch Window" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.launcher" "{\"mode\":\"windows\"}"; }
     Mod+Shift+E hotkey-overlay-title="Power Menu" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.launcher" "{\"mode\":\"power\"}"; }
     Mod+Alt+P hotkey-overlay-title="Plugin Profiles" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.launcher" "{\"mode\":\"profiles\"}"; }
+    Mod+Alt+C hotkey-overlay-title="Remote Connections" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.launcher" "{\"mode\":\"remmina\"}"; }
     Mod+V hotkey-overlay-title="Clipboard" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.launcher" "{\"mode\":\"clipboard\"}"; }
 
     // quickshell panels

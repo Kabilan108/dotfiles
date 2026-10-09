@@ -4,6 +4,7 @@ import "model/Matcher.js" as Matcher
 import "model/History.js" as History
 import "model/Query.js" as Query
 import "model/Engine.js" as Engine
+import "model/providers/remmina.js" as Remmina
 import "model/providers/apps.js" as Apps
 import "model/providers/calc.js" as Calc
 import "model/providers/web.js" as Web
@@ -118,7 +119,7 @@ ShellRoot {
     function runChecks() {
         var engine = Engine.create({
             Matcher: Matcher, History: History, Query: Query,
-            providers: [Apps, Calc, Web, Windows, Power, Profiles, Files, Clipboard]
+            providers: [Apps, Calc, Web, Windows, Power, Profiles, Files, Clipboard, Remmina]
         })
         var env = {
             apps: [

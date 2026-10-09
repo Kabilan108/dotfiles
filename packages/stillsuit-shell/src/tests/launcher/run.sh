@@ -7,7 +7,7 @@ set -euo pipefail
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
-for test_file in syntax query matcher history providers engine perf; do
+for test_file in syntax query matcher history providers engine remmina perf; do
     node "$script_dir/$test_file.test.js"
 done
 

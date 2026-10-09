@@ -380,13 +380,14 @@ const texts = rows => rows.map(row => row.text)
 {
     const engine = L.createEngine()
     const env = baseEnv({
+        connections: [{ name: "Lab", path: "/tmp/lab.remmina" }],
         clipboardItems: [{ id: "c", kind: "text", preview: "x", mime: "text/plain", bytes: 1, createdAt: 1, lastUsed: 1 }],
         filesResult: { text: "notes", paths: ["/home/tony/notes.md"] },
         calcResult: { text: "1+1", value: "2", error: "" }
     })
     const runs = [
         ["ghost", "combi"], ["1+1", "combi"], ["example.com", "combi"], ["!q", "combi"], ["$", "combi"],
-        [":", "combi"], ["/notes", "combi"], ["", "power"], ["", "profiles"]
+        [":", "combi"], ["/notes", "combi"], ["", "power"], ["", "profiles"], ["", "remmina"]
     ]
     const providersSeen = new Set()
     for (const [input, mode] of runs) {
@@ -418,6 +419,7 @@ const texts = rows => rows.map(row => row.text)
 {
     const engine = L.createEngine()
     const env = baseEnv({
+        connections: [{ name: "Lab", path: "/tmp/lab.remmina" }],
         clipboardItems: [{ id: "c", kind: "text", preview: "x\uD800y", mime: "text/plain", bytes: 1, createdAt: 1, lastUsed: 1 }]
     })
     const edge = "!" + "x".repeat(1022) + "\u{1F600}"
@@ -458,7 +460,7 @@ const texts = rows => rows.map(row => row.text)
 {
     const engine = L.createEngine()
     const duplicateApps = L.APPS.concat([L.APPS[0]])
-    for (const [input, mode] of [["", "combi"], ["e", "combi"], ["$", "combi"], ["", "power"], ["", "profiles"]]) {
+    for (const [input, mode] of [["", "combi"], ["e", "combi"], ["$", "combi"], ["", "power"], ["", "profiles"], ["", "remmina"]]) {
         const first = engine.run(input, mode, baseEnv({ apps: duplicateApps }))
         const keys = first.rows.map(row => row.key)
         assert.equal(new Set(keys).size, keys.length, `unique keys for ${mode} "${input}"`)
@@ -577,6 +579,7 @@ const texts = rows => rows.map(row => row.text)
     const iconDir = path.join(__dirname, "../../ui/icons")
     const engine = L.createEngine()
     const env = baseEnv({
+        connections: [{ name: "Lab", path: "/tmp/lab.remmina" }],
         clipboardItems: [
             { id: "t", kind: "text", preview: "hello", mime: "text/plain", bytes: 5, createdAt: 2, lastUsed: 2 },
             { id: "i", kind: "image", preview: "", mime: "image/png", bytes: 9, createdAt: 1, lastUsed: 1, path: "/tmp/i.png" }
@@ -594,7 +597,7 @@ const texts = rows => rows.map(row => row.text)
     assert.deepEqual(iconsOf("example.com", "combi"), ["web=shell:search", "web=shell:search"])
 
     const shellNames = new Set()
-    for (const [text, mode] of [["", "power"], ["", "profiles"], [":", "combi"], ["/notes", "combi"],
+    for (const [text, mode] of [["", "power"], ["", "profiles"], ["", "remmina"], [":", "combi"], ["/notes", "combi"],
         ["2+2*3", "combi"], ["example.com", "combi"]]) {
         for (const row of engine.run(text, mode, env).rows) shellNames.add(row.icon.slice("shell:".length))
     }

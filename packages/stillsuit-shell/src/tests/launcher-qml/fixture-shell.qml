@@ -303,6 +303,8 @@ ShellRoot {
         readonly property QtObject settings: QtObject {
             readonly property string pluginId: "stillsuit.launcher"
             readonly property var values: ({
+                remminaPath: Quickshell.env("LAUNCHER_FIXTURE_REMMINA"),
+                remminaListPath: Quickshell.env("LAUNCHER_FIXTURE_REMMINA_LIST"),
                 qalcPath: Quickshell.env("LAUNCHER_FIXTURE_QALC"),
                 fdPath: Quickshell.env("LAUNCHER_FIXTURE_FD"),
                 searchRoot: root.searchRoot,
@@ -1199,6 +1201,35 @@ ShellRoot {
                 root.expect(!service.pendingWork, "closing leaves nothing scheduled")
             },
             until: function() { return true }
+        }
+        ,{
+            name: "saved connections load as a flat list",
+            act: function() { root.openMenu('{"mode":"remmina"}') },
+            until: function() { return service.rows.length === 3 && !service.connectionsBusy }
+        },
+        {
+            name: "connection groups are visible and searchable",
+            act: function() {
+                root.expect(service.rows[0].text === "Alpha", "connections sort by name")
+                root.expect(service.rows[0].subtext === "Lab · SSH · alpha.example", "group is visible")
+                root.type("lab")
+                root.expect(service.rows.length === 2, "group search filters flat list")
+                root.screenshot("remmina-group")
+            },
+            until: function() { return root.shot === "remmina-group" || root.screenshotDir === "" }
+        },
+        {
+            name: "connection selection emits a validated saved path",
+            act: function() {
+                var intent = service.engine.activate(service.rows[0], "connect")
+                root.expect(intent.type === "remmina.connect" && intent.path === "/tmp/alpha.remmina", "saved profile intent")
+                root.expect(service.activate(0, "connect") === "ok", "connection launches")
+                root.expect(!service.opened, "connection launch closes picker")
+            },
+            until: function() {
+                return root.logLines().indexOf("remmina:--connect") !== -1
+                    && root.logLines().indexOf("remmina:/tmp/alpha.remmina") !== -1
+            }
         }
     ]
 

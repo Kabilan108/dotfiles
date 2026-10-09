@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "stillsuit.launcher",
   "name": "Launcher",
-  "description": "Application, window, power, profile, file, web, calculator and clipboard launcher menu.",
+  "description": "Application, window, power, profile, file, web, calculator, Remmina connection and clipboard launcher menu.",
   "version": "1.0.0",
   "apiVersion": "1",
   "kinds": ["service", "menu"],

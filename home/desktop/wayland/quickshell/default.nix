@@ -22,6 +22,9 @@ let
     omarecord = inputs.omarecord.packages.${pkgs.stdenv.hostPlatform.system}.omarecord;
   };
   networkHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/network-helper.nix { };
+  remminaListHelper =
+    pkgs.callPackage ../../../../packages/stillsuit-shell/remmina-list-helper.nix
+      { };
   agentUsageHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/agent-usage-helper.nix { };
   clipboardCollector =
     pkgs.callPackage ../../../../packages/stillsuit-shell/clipboard-collector.nix
@@ -217,6 +220,8 @@ in
       (builtinPlugin "launcher")
       // {
         settings = {
+          remminaListPath = lib.getExe remminaListHelper;
+          remminaPath = lib.getExe pkgs.remmina;
           qalcPath = lib.getExe' pkgs.libqalculate "qalc";
           fdPath = lib.getExe pkgs.fd;
           searchRoot = homeDir;

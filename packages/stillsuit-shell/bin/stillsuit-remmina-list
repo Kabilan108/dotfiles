@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+"""List saved connection metadata without exporting credentials."""
+import configparser
+import json
+import os
+from pathlib import Path
+
+
+def connections() -> list[dict[str, str]]:
+    home = Path.home()
+    data = Path(os.environ.get("XDG_DATA_HOME", home / ".local/share"))
+    config = Path(os.environ.get("XDG_CONFIG_HOME", home / ".config"))
+    folders = [data / "remmina", home / ".remmina"]
+    prefs = configparser.ConfigParser(interpolation=None, strict=False)
+    try:
+        prefs.read(config / "remmina/remmina.pref", encoding="utf-8")
+        custom = prefs.get("remmina_pref", "datadir_path", fallback="")
+        if custom:
+            folders.insert(0, Path(custom).expanduser())
+    except (OSError, configparser.Error, UnicodeError):
+        pass
+    result: list[dict[str, str]] = []
+    seen: set[Path] = set()
+    for folder in folders:
+        for path in sorted(folder.glob("*.remmina")):
+            path = path.resolve()
+            if path in seen:
+                continue
+            seen.add(path)
+            profile = configparser.ConfigParser(interpolation=None, strict=False)
+            try:
+                profile.read(path, encoding="utf-8")
+                if not profile.has_section("remmina"):
+                    continue
+                item = {key: profile.get("remmina", key, fallback="")
+                        for key in ("name", "group", "protocol", "server")}
+            except (OSError, configparser.Error, UnicodeError):
+                continue
+            item["name"] = item["name"] or path.stem
+            item["path"] = str(path)
+            result.append(item)
+    return sorted(result, key=lambda item: (item["name"].casefold(), item["path"]))
+
+
+if __name__ == "__main__":
+    print(json.dumps(connections()))

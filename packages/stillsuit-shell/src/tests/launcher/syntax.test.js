@@ -26,7 +26,7 @@ function stripStringsAndComments(source) {
 }
 
 const files = modelFiles(modelDir)
-assert.equal(files.length, 12, "Matcher, History, Query, Engine and eight providers")
+assert.equal(files.length, 13, "Matcher, History, Query, Engine and nine providers")
 
 const banned = [
     [/\?\./, "optional chaining"],

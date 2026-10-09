@@ -5,6 +5,7 @@ import "model/Engine.js" as Engine
 import "model/Matcher.js" as Matcher
 import "model/History.js" as History
 import "model/Query.js" as Query
+import "model/providers/remmina.js" as Remmina
 import "model/providers/apps.js" as Apps
 import "model/providers/calc.js" as Calc
 import "model/providers/clipboard.js" as Clipboard
@@ -51,6 +52,10 @@ Scope {
     readonly property int fdMaxResults: 200
     readonly property int pageSize: 8
 
+    readonly property string remminaListPath: _absolute(values.remminaListPath)
+    readonly property string remminaPath: _absolute(values.remminaPath)
+    property var connections: []
+    property int connectionsRevision: 0
     property bool opened: false
     property string mode: Query.DEFAULT_MODE
     property string query: ""
@@ -73,12 +78,13 @@ Scope {
         && actionIndex < selectedRow.actions.length ? selectedRow.actions[actionIndex] : null
     readonly property bool calcBusy: _calcWanted !== ""
     readonly property bool filesBusy: _filesWanted !== ""
-    readonly property bool busy: calcBusy || filesBusy
+    readonly property bool connectionsBusy: connectionsProcess.running
+    readonly property bool busy: calcBusy || filesBusy || connectionsBusy
     readonly property bool clipboardActive: providerIds.indexOf("clipboard") !== -1
     // A lookup, debounce, or rescan is scheduled or running. Always false
     // while closed; the debounced history write is not counted.
     readonly property bool pendingWork: appsTimer.running || calcDebounce.running || calcTimeout.running
-        || calcProcess.running || filesDebounce.running || filesTimeout.running || filesProcess.running
+        || connectionsProcess.running || calcProcess.running || filesDebounce.running || filesTimeout.running || filesProcess.running
 
     // The clipboard service is a declared dependency; its own status reports
     // a broken watcher, and a missing service is reported here.
@@ -92,7 +98,7 @@ Scope {
         Matcher: Matcher,
         History: History,
         Query: Query,
-        providers: [Calc, Apps, Web, Windows, Power, Profiles, Files, Clipboard]
+        providers: [Calc, Apps, Web, Windows, Power, Profiles, Files, Clipboard, Remmina]
     })
 
     property var history: History.create(null, Date.now())
@@ -152,11 +158,25 @@ Scope {
         _userMoved = false
         opened = true
         _rerun()
+        if (providerIds.indexOf("remmina") !== -1)
+            _loadConnections()
+    }
+
+    function _loadConnections() {
+        if (remminaListPath === "") {
+            actionError = "Remmina connection helper is unavailable"
+            return
+        }
+        connections = []
+        connectionsRevision++
+        _rerun()
+        connectionsProcess.running = true
     }
 
     function close() {
         _cancelCalc()
         _cancelFiles()
+        connectionsProcess.running = false
         appsTimer.stop()
         if (!opened && rows.length === 0)
             return
@@ -180,6 +200,9 @@ Scope {
             return
         query = next
         actionError = ""
+        if (Query.parse(query, mode).providerIds.indexOf("remmina") !== -1
+            && providerIds.indexOf("remmina") === -1)
+            _loadConnections()
         _userMoved = false
         _rerun()
     }
@@ -372,6 +395,11 @@ Scope {
     function _execute(intent) {
         var actions = context.actions
         switch (intent.type) {
+        case "remmina.connect":
+            if (remminaPath === "") return "unavailable"
+            if (!connections.some(function(item) { return item.path === intent.path })) return "unknown"
+            Quickshell.execDetached([remminaPath, "--connect", intent.path])
+            return "ok"
         case "app.launch":
             return _report("app launch", actions.appLaunch(intent.desktopId, intent.actionId || ""))
         case "session":
@@ -454,6 +482,7 @@ Scope {
         if (needed.indexOf("clipboard") !== -1)
             _ensureClipboard()
         return {
+            connections: connections,
             apps: _apps,
             windows: _windows,
             currentWindowId: _currentWindowId,
@@ -466,6 +495,7 @@ Scope {
             settings: engineSettings,
             now: Date.now(),
             revisions: {
+                connections: connectionsRevision,
                 apps: _appsRevision,
                 windows: _windowsRevision,
                 profiles: _profilesRevision,
@@ -820,6 +850,28 @@ Scope {
     Connections {
         target: root.opened && root.clipboardActive ? root.clipboard : null
         function onRevisionChanged() { root._rerun() }
+    }
+
+    Process {
+        id: connectionsProcess
+        command: [root.remminaListPath]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (!root.opened) return
+                try {
+                    var items = JSON.parse(text)
+                    root.connections = Array.isArray(items) ? items : []
+                    root.connectionsRevision++
+                    root._rerun()
+                } catch (error) {
+                    root.actionError = "Could not read saved Remmina connections"
+                }
+            }
+        }
+        onExited: function(exitCode) {
+            if (exitCode !== 0 && root.opened)
+                root.actionError = "Could not read saved Remmina connections"
+        }
     }
 
     FileView {

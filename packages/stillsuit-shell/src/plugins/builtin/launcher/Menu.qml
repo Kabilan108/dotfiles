@@ -25,6 +25,7 @@ FocusScope {
     readonly property bool compactView: viewName === "power" || viewName === "profiles"
     // 560, 256, and 420 px at the default 4 px unit.
     readonly property real standardWidth: unit * 140
+    readonly property real connectionsWidth: unit * 120
     readonly property real compactWidth: unit * 64
     readonly property real clipboardListWidth: unit * 105
     readonly property real clipboardWidth: padding * 2 + clipboardListWidth + unit * 2 + theme.metrics.panelWidth
@@ -51,18 +52,19 @@ FocusScope {
     readonly property bool imagesOnly: clipboardView && service.clipboardImagesOnly
     readonly property var modeIcons: ({
         combi: "apps", windows: "window", power: "power", profiles: "layers", clipboard: "clipboard",
-        files: "folder"
+        remmina: "window", files: "folder"
     })
     readonly property var placeholders: ({
         combi: "Search applications", windows: "Switch to a window", power: "Power",
         profiles: "Switch profile", clipboard: "Search clipboard history",
-        files: "Search files"
+        remmina: "Search connections, groups, or servers", files: "Search files"
     })
     readonly property string viewName: service.prefixProvider !== "" ? service.prefixProvider : service.mode
     // Rows name their provider only when several can appear together.
     readonly property bool mixedProviders: service.providerIds.length > 1
 
-    implicitWidth: clipboardView ? clipboardWidth : compactView ? compactWidth : standardWidth
+    implicitWidth: clipboardView ? clipboardWidth : viewName === "remmina" ? connectionsWidth
+        : compactView ? compactWidth : standardWidth
     implicitHeight: frame.implicitHeight
     visible: false
 
@@ -172,11 +174,14 @@ FocusScope {
 
     function emptyText() {
         if (service.busy)
-            return service.filesBusy ? "Searching files…" : "Calculating…"
+            return service.connectionsBusy ? "Loading connections…"
+                : service.filesBusy ? "Searching files…" : "Calculating…"
         if (service.prefixProvider === "files" && service.query.slice(1).trim() === "")
             return "Search file names under " + service.searchRoot + ", or a folder: downloads/*.pdf"
         if (clipboardView && service.query.replace(/^:/, "").trim() === "")
             return imagesOnly ? "No images in clipboard history" : "Clipboard history is empty"
+        if (viewName === "remmina" && service.query.replace(/^>/, "").trim() === "")
+            return "No saved Remmina connections"
         return "No results"
     }
 

@@ -2,6 +2,7 @@
 // "foo/bar" in combi stays an app query.
 var PREFIXES = {
     "/": "files",
+    ">": "remmina",
     "$": "windows",
     ":": "clipboard"
 }
@@ -11,6 +12,7 @@ var MODES = {
     windows: ["windows"],
     power: ["power"],
     profiles: ["profiles"],
+    remmina: ["remmina"],
     clipboard: ["clipboard"]
 }
 

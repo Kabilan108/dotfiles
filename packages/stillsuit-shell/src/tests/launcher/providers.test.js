@@ -141,6 +141,7 @@ assert.equal(Web.searchUrl("https://x.test/%TERM%/%TERM%", "a b"), "https://x.te
 {
     const engine = L.createEngine()
     const env = {
+        connections: [{ name: "Lab", path: "/tmp/lab.remmina" }],
         apps: L.APPS,
         windows: L.WINDOWS,
         profiles: { active: "a", available: [{ id: "a", name: "A", description: "" }, { id: "b", name: "B", description: "" }] },
@@ -152,7 +153,7 @@ assert.equal(Web.searchUrl("https://x.test/%TERM%/%TERM%", "a b"), "https://x.te
     }
     const runs = [
         ["", "combi"], ["e", "combi"], ["1+1", "combi"], ["example.com", "combi"], ["!q", "combi"],
-        ["$", "combi"], [":", "combi"], ["/notes", "combi"], ["", "power"], ["", "profiles"], ["", "windows"]
+        ["$", "combi"], [":", "combi"], ["/notes", "combi"], ["", "power"], ["", "profiles"], ["", "windows"], ["", "remmina"]
     ]
     const forbidden = /^(command|cmd|argv|args|exec|line|shell|script|program)$/i
     let checked = 0

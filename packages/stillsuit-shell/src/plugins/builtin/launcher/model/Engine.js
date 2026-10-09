@@ -72,6 +72,7 @@ var INTENT_FIELDS = {
     "profile.activate": { id: "id" },
     "url.open": { url: "url" },
     "text.copy": { text: "text" },
+    "remmina.connect": { path: "path" },
     "path.open": { path: "path" },
     "path.reveal": { path: "path" },
     "clipboard.copy": { id: "id" },
@@ -404,7 +405,8 @@ function create(modules) {
                 else rows.push(produced[r])
             }
         }
-        var limit = ctx.settings.maxResults
+        var limit = parsed.providerIds.length === 1 && parsed.providerIds[0] === "remmina"
+            ? rows.length : ctx.settings.maxResults
         rows = leadingRows(rows, limit)
 
         var seen = Object.create(null)

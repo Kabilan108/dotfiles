@@ -47,6 +47,15 @@ desktop code $'Name=Visual Studio Code\nGenericName=Text Editor\nExec=code %F\nI
 desktop helium $'Name=Helium\nGenericName=Web Browser\nExec=helium %U\nIcon=helium'
 desktop hidden-tool $'Name=Hidden Tool\nExec=hidden\nNoDisplay=true'
 
+cat >"$fixture_dir/bin/remmina-list" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' '[{"name":"Zeta","group":"Office","protocol":"RDP","server":"zeta.example","path":"/tmp/zeta.remmina"},{"name":"Alpha","group":"Lab","protocol":"SSH","server":"alpha.example","path":"/tmp/alpha.remmina"},{"name":"Beta","group":"Lab","protocol":"VNC","server":"beta.example","path":"/tmp/beta.remmina"}]'
+STUB
+cat >"$fixture_dir/bin/remmina" <<'STUB'
+#!/usr/bin/env bash
+printf 'remmina:%s\n' "$@" >>"$LAUNCHER_FIXTURE_LOG"
+STUB
+chmod +x "$fixture_dir/bin/remmina-list" "$fixture_dir/bin/remmina"
 bash_bin=$(command -v bash)
 cat >"$fixture_dir/bin/qalc" <<STUB
 #!$bash_bin
@@ -125,6 +134,8 @@ export HOME="$fixture_dir/home" XDG_RUNTIME_DIR="$fixture_dir/runtime" \
     LAUNCHER_FIXTURE_LOG="$fixture_dir/log" \
     LAUNCHER_FIXTURE_STATE="$fixture_dir/state/stillsuit" \
     LAUNCHER_FIXTURE_SEARCH_ROOT="$fixture_dir/search" \
+    LAUNCHER_FIXTURE_REMMINA="$fixture_dir/bin/remmina" \
+    LAUNCHER_FIXTURE_REMMINA_LIST="$fixture_dir/bin/remmina-list" \
     LAUNCHER_FIXTURE_QALC="$fixture_dir/bin/qalc" \
     LAUNCHER_FIXTURE_FD="$fixture_dir/bin/fd" \
     LAUNCHER_FIXTURE_IMAGE="$fixture_dir/clip.png" \
