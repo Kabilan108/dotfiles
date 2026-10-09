@@ -1,0 +1,294 @@
+#!/usr/bin/env python3
+"""Add new Russ releases through Executor. No agent or Spotify credentials needed."""
+
+import argparse
+import fcntl
+import json
+import os
+import shlex
+import tempfile
+import time
+import unicodedata
+import urllib.error
+import urllib.request
+from pathlib import Path
+from typing import Any
+
+URL = "https://executor.sole-pierce.ts.net/mcp"
+PREFIX = "spotify.user.tonykabilanokeke."
+ARTIST = "1z7b1Pr1rSlvWRzsW3HOrS"
+PLAYLIST = "42vFNy1x38EFtT05MfpGYs"
+OWNER = "212livlbgxcljkmo76kgcu7xq"
+STATE_DIR = Path.home() / ".local/state/russ-playlist-sync"
+API_KEY = Path.home() / ".config/russ-playlist-sync/executor-env"
+CUTOFF = "2026-07-10"
+
+
+def save(path: Path, data: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    temporary = Path(name)
+    try:
+        with os.fdopen(fd, "w") as stream:
+            json.dump(data, stream, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+class RejectedRequest(RuntimeError):
+    """Spotify explicitly rejected a request without applying the write."""
+
+
+class Executor:
+    headers: dict[str, str]
+
+    def __init__(self, agent_auth: bool = False) -> None:
+        if agent_auth:
+            # One-off setup only. Never refresh or modify the agent's credentials.
+            path = Path.home() / ".claude/.credentials.json"
+            entries = json.loads(path.read_text())["mcpOAuth"].values()
+            matches = [entry for entry in entries if entry.get("serverUrl") == URL]
+            if len(matches) != 1 or matches[0]["expiresAt"] < time.time() * 1000:
+                raise RuntimeError("No fresh saved Executor login for one-off setup")
+            token = matches[0]["accessToken"]
+        else:
+            directory = os.environ.get("CREDENTIALS_DIRECTORY")
+            path = Path(directory) / "executor-api-key" if directory else API_KEY
+            fields = shlex.split(path.read_text(), comments=True)
+            if len(fields) != 1:
+                raise RuntimeError("Expected one EXECUTOR_API_KEY assignment or one raw key")
+            token = fields[0]
+            if token.startswith("EXECUTOR_API_KEY="):
+                token = token.partition("=")[2]
+            elif "=" in token:
+                raise RuntimeError("Expected an EXECUTOR_API_KEY assignment")
+            if not token:
+                raise RuntimeError("Executor API key is empty")
+        self.headers = {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+        }
+        self.rpc("initialize", {
+            "protocolVersion": "2025-03-26", "capabilities": {},
+            "clientInfo": {"name": "russ-playlist-sync", "version": "1"},
+        })
+        self.rpc("notifications/initialized", {}, notification=True)
+
+    def rpc(self, method: str, params: dict[str, Any], notification: bool = False) -> Any:
+        body: dict[str, Any] = {"jsonrpc": "2.0", "method": method, "params": params}
+        if not notification:
+            body["id"] = 1
+        request = urllib.request.Request(URL, data=json.dumps(body).encode(), headers=self.headers)
+        with urllib.request.urlopen(request, timeout=180) as response:
+            if session := response.headers.get("mcp-session-id"):
+                self.headers["mcp-session-id"] = session
+            raw = response.read().decode()
+        if not raw:
+            return {}
+        if raw.startswith(("event:", "data:")):
+            raw = next(line[6:] for line in raw.splitlines() if line.startswith("data: "))
+        result = json.loads(raw)
+        if "error" in result:
+            raise RuntimeError(f"Executor RPC failed: {result['error'].get('code')}")
+        return result["result"]
+
+    def execute(self, code: str, approved_add: dict[str, Any] | None = None) -> Any:
+        result = self.rpc("tools/call", {"name": "execute", "arguments": {"code": code}})
+        if result.get("isError"):
+            raise RuntimeError("Executor execution failed; inspect the connection in Executor")
+        envelope = result.get("structuredContent")
+        if envelope is None:
+            envelope = json.loads(result["content"][0]["text"])
+        if envelope.get("status") == "waiting_for_interaction":
+            interaction = envelope.get("interaction", {})
+            if (approved_add is not None
+                and interaction.get("kind") == "form"
+                and interaction.get("address") == "tools." + PREFIX + "playlists.addItemsToPlaylist"
+                and interaction.get("args") == approved_add
+                and interaction.get("requestedSchema") == {"type": "object", "properties": {}}):
+                # The user authorized weekly adds to this fixed playlist.
+                resumed = self.rpc("tools/call", {"name": "resume", "arguments": {
+                    "executionId": envelope["executionId"], "action": "accept", "content": "{}",
+                }})
+                envelope = resumed.get("structuredContent")
+                if envelope is None:
+                    envelope = json.loads(resumed["content"][0]["text"])
+        if envelope.get("status") != "completed":
+            save(STATE_DIR / "executor-last-error.json", envelope)
+            raise RuntimeError("Executor paused or failed; see executor-last-error.json")
+        return envelope["result"]
+
+    def tool(self, suffix: str, arguments: dict[str, Any]) -> Any:
+        # Only fixed Spotify tool addresses are used; no arbitrary user input executes.
+        approved_add = None
+        if suffix == "playlists.addItemsToPlaylist":
+            if arguments.get("path") != {"playlist_id": PLAYLIST}:
+                raise RuntimeError("Refusing an add to any other playlist")
+            approved_add = arguments
+        for attempt in range(4):
+            # Pace the catalog backfill as well as normal weekly scans.
+            time.sleep(0.75)
+            result = self.execute(
+                f"return await tools.{PREFIX}{suffix}({json.dumps(arguments)});", approved_add,
+            )
+            if result.get("ok"):
+                return result["data"]
+            error = result.get("error", {})
+            if error.get("details", {}).get("error", {}).get("reason") == "QUOTA_EXCEEDED":
+                raise RejectedRequest("Spotify developer quota exhausted (QUOTA_EXCEEDED); retry on a later scheduled run")
+            if error.get("status") == 429 and attempt < 3:
+                headers = result.get("http", {}).get("headers", {})
+                delay = int(headers.get("retry-after", "60"))
+                if delay > 300:
+                    raise RejectedRequest("Spotify rate limit exceeds this run's retry budget")
+                print(f"Spotify rate limited; retrying in {delay}s", flush=True)
+                time.sleep(max(delay, 1))
+                continue
+            message = f"Spotify {suffix}: {error.get('code')} {error.get('status', '')}"
+            if error.get("code") == "upstream_http_error" and error.get("status") in {400, 401, 403, 404, 429}:
+                raise RejectedRequest(message)
+            raise RuntimeError(message)
+        raise RuntimeError("Spotify retry budget exhausted")
+
+    def pages(self, suffix: str, arguments: dict[str, Any], limit: int) -> list[Any]:
+        items: list[Any] = []
+        offset = 0
+        for _ in range(200):
+            page = self.tool(suffix, {**arguments, "query": {
+                **arguments.get("query", {}), "limit": limit, "offset": offset,
+            }})
+            items.extend(page["items"])
+            if not page.get("next"):
+                return items
+            if not page["items"]:
+                raise RuntimeError("Spotify returned an empty page with a next cursor")
+            offset += len(page["items"])
+        raise RuntimeError("Spotify pagination exceeded the safety limit")
+
+
+def keys(track: dict[str, Any]) -> set[str]:
+    # Title + credited artists also matches album/single and clean/explicit copies.
+    title = unicodedata.normalize("NFKC", track["name"]).casefold().strip()
+    artists = ",".join(sorted(artist["id"] for artist in track["artists"]))
+    return {"id:" + track["id"], "song:" + title + "|" + artists}
+
+
+def sync(
+    client: Executor, state: dict[str, Any], state_path: Path, apply: bool,
+    catch_up_all: bool = False,
+) -> None:
+    metadata = client.tool("playlists.getPlaylist", {"path": {"playlist_id": PLAYLIST}})
+    if metadata["owner"]["id"] != OWNER or metadata["id"] != PLAYLIST:
+        raise RuntimeError("Playlist identity changed; refusing to write")
+    playlist = client.pages("playlists.getPlaylistsItems", {"path": {"playlist_id": PLAYLIST}}, 50)
+    tracks = [item.get("item") or item.get("track") for item in playlist]
+    tracks = [track for track in tracks if track and track.get("id") and track.get("type") == "track"]
+    seen = set() if catch_up_all else set(state.get("seen", []))
+    for track in tracks:
+        seen.update(keys(track))
+    cutoff = "0000-01-01" if catch_up_all else state.get("cutoff", CUTOFF)
+    # Never move this date forward: delayed listings must still be discovered.
+    cache_path = state_path.with_name("catalog-cache.json")
+    cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
+    listing = cache.get("albums", {})
+    if listing.get("fetched_at", 0) > time.time() - 900:
+        albums = listing["items"]
+    else:
+        albums = client.pages("artists.getAnArtistsAlbums", {
+            "path": {"id": ARTIST},
+            "query": {"include_groups": "album,single,appears_on", "market": "US"},
+        }, 10)
+        cache["albums"] = {"fetched_at": time.time(), "items": albums}
+        if apply:
+            save(cache_path, cache)
+    cached_tracks = cache.setdefault("tracks", {})
+    candidates: list[dict[str, Any]] = []
+    for album in sorted(albums, key=lambda album: album["release_date"], reverse=True):
+        if album["release_date"] <= cutoff:
+            continue
+        cached = cached_tracks.get(album["id"])
+        # A changed track count means the existing album needs another scan.
+        if cached and album.get("total_tracks") == len(cached):
+            album_tracks = cached
+        else:
+            album_tracks = client.pages("albums.getAnAlbumsTracks", {
+                "path": {"id": album["id"]}, "query": {"market": "US"},
+            }, 10)
+            cached_tracks[album["id"]] = album_tracks
+            if apply:
+                save(cache_path, cache)
+        for track in album_tracks:
+            if not track.get("id") or not any(a["id"] == ARTIST for a in track["artists"]):
+                continue
+            if track.get("is_playable") is False:
+                continue
+            identity = keys(track)
+            if identity & seen:
+                seen.update(identity)
+                continue
+            seen.update(identity)
+            candidates.append(track)
+    print(json.dumps({"cutoff": cutoff, "add": [track["name"] for track in candidates]}), flush=True)
+    if not apply:
+        return
+    if state.get("pending"):
+        # An interrupted POST could have succeeded before a user removed it.
+        present = {track["id"] for track in tracks}
+        if not all(track_id in present for track_id in state["pending"]):
+            raise RuntimeError("Previous add has an uncertain outcome; resolve pending state before retrying")
+        state["pending"] = []
+        save(state_path, state)
+    # Save the baseline before writes, but mark new songs seen only after success.
+    candidate_keys = set().union(*(keys(track) for track in candidates)) if candidates else set()
+    state.update({"playlist": PLAYLIST, "artist": ARTIST, "cutoff": cutoff,
+                  "seen": sorted(seen - candidate_keys)})
+    save(state_path, state)
+    for offset in range(0, len(candidates), 100):
+        batch = candidates[offset:offset + 100]
+        state["pending"] = [track["id"] for track in batch]
+        save(state_path, state)
+        try:
+            client.tool("playlists.addItemsToPlaylist", {
+                "path": {"playlist_id": PLAYLIST},
+                "body": {"uris": [track["uri"] for track in batch], "position": offset},
+            })
+        except RejectedRequest:
+            state["pending"] = []
+            save(state_path, state)
+            raise
+        state["seen"] = sorted(set(state["seen"]).union(*(keys(track) for track in batch)))
+        state["pending"] = []
+        save(state_path, state)
+    state["last_success"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    state["catch_up_all"] = False
+    save(state_path, state)
+    print(f"Added {len(candidates)} songs to Russ", flush=True)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--apply", action="store_true", help="Add songs and save state; default is read-only")
+    parser.add_argument("--catch-up-all", action="store_true", help="Add the full catalog once, including songs removed before this catch-up")
+    parser.add_argument("--agent-auth", action="store_true", help="One-off setup with a fresh saved Executor login; never refresh it")
+    args = parser.parse_args()
+    STATE_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (STATE_DIR / "sync.lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        state_path = STATE_DIR / "state.json"
+        state = json.loads(state_path.read_text()) if state_path.exists() else {}
+        if state and (state.get("playlist") != PLAYLIST or state.get("artist") != ARTIST):
+            raise RuntimeError("State belongs to another playlist or artist")
+        if args.catch_up_all and args.apply:
+            state.update({"playlist": PLAYLIST, "artist": ARTIST, "catch_up_all": True})
+            save(state_path, state)
+        catch_up_all = args.catch_up_all or state.get("catch_up_all", False)
+        sync(Executor(agent_auth=args.agent_auth), state, state_path, args.apply, catch_up_all)
+
+
+if __name__ == "__main__":
+    main()

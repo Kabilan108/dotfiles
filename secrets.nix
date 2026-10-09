@@ -107,4 +107,6 @@ in
   "secrets/selfhost/t3-tunnel-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/siren-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/vaultwarden-env.age".publicKeys = [ sietch ];
+
+  "secrets/executor/russ-playlist-sync.age".publicKeys = [ sietch jacurutu ];
 }
