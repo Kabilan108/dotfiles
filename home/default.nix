@@ -174,6 +174,9 @@ in
         downloadPattern = "*x86_64.AppImage";
         desktopName = "T3 Code";
         comment = "T3 Code Editor";
+        # Official Linux production icon, vendored from pingdotgg/t3code at
+        # 69db400b3cd6b1590d0dfdabf9857621a9089b39.
+        icon = "${../config/t3code/icon.png}";
         args = [ "--password-store=gnome-libsecret" ];
         categories = [
           "Development"
