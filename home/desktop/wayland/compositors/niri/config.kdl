@@ -461,7 +461,6 @@ binds {
     Mod+Shift+Return hotkey-overlay-title="Open Floating Note: Obsidian" { spawn "coppermind-quick-note"; }
     Mod+B hotkey-overlay-title="Open Browser: zen-beta" { spawn "zen-beta"; }
     Mod+Shift+B hotkey-overlay-title="Open Browser: helium" { spawn "helium"; }
-    Mod+Shift+C hotkey-overlay-title="Open Browser: chrome" { spawn "google-chrome-stable"; }
 
     // speech to text
     Mod+T { spawn "dictator" "toggle"; }
