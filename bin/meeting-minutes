@@ -1737,7 +1737,7 @@ def propose_unknown_people(job: dict[str, Any], minutes: dict[str, Any]) -> None
             "status: proposed\n"
             "---\n"
             f"# Proposed person: {attendee}\n\n"
-            f"Identified as an attendee in [[meetings/{job['canonical_stem']}|{minutes['title']}]]. "
+            f"Identified as an attendee in [[01-logs/meetings/{job['canonical_stem']}|{minutes['title']}]]. "
             "Role and relationship need Tony's confirmation.\n"
         )
         atomic_write_text(path, content)
@@ -1922,8 +1922,9 @@ def append_weekly_backlink(job: dict[str, Any], minutes: dict[str, Any]) -> None
     if not weekly_path.is_file():
         raise MeetingMinutesError(f"Weekly log does not exist: {weekly_path}")
     text = weekly_path.read_text()
-    link = f"[[meetings/{job['canonical_stem']}|{minutes['title']}]]"
-    if link in text:
+    link = f"[[01-logs/meetings/{job['canonical_stem']}|{minutes['title']}]]"
+    # also matches backlinks written in the older [[meetings/<stem>|...]] form
+    if f"meetings/{job['canonical_stem']}|" in text:
         return
     heading = meeting_time.strftime("### %a, %b ")
     day = meeting_time.day
