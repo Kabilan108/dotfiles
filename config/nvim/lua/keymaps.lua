@@ -4,8 +4,6 @@ local sessions = require 'mini.sessions'
 local trailspace = require 'mini.trailspace'
 
 local utils = require 'utils'
-local custom_ws = require 'custom.workspaces'
-custom_ws.setup()
 
 ---------------------------------------------------------------------------------------
 

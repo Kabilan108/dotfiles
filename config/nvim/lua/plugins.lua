@@ -269,27 +269,6 @@ return {
         end,
         desc = 'worktree: create',
       },
-      {
-        '<leader>pp',
-        function()
-          require('custom.workspaces').pick()
-        end,
-        desc = 'workspace: pick',
-      },
-      {
-        '<leader>pa',
-        function()
-          require('custom.workspaces').add()
-        end,
-        desc = 'workspace: add cwd',
-      },
-      {
-        '<leader>pr',
-        function()
-          require('custom.workspaces').pick_remove()
-        end,
-        desc = 'workspace: remove',
-      },
     },
     config = function()
       require('telescope').setup {
