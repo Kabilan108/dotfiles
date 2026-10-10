@@ -24,6 +24,7 @@ local config = {
     component_separators = '',
     section_separators = '',
     theme = 'catppuccin-mocha',
+    disabled_filetypes = { statusline = { 'readable-pad' } },
   },
   sections = {
     -- these are to remove the defaults

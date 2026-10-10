@@ -207,6 +207,13 @@ return {
         desc = 'search everything',
       },
       {
+        '<leader>st',
+        function()
+          require('custom.vault_tags').pick()
+        end,
+        desc = 'search tags (vault)',
+      },
+      {
         '<leader>sh',
         function()
           require('telescope.builtin').help_tags()
@@ -466,6 +473,7 @@ return {
         'markdown',
         'markdown_inline',
         'python',
+        'yaml',
       }
 
       vim.treesitter.language.register('bash', 'sh')
@@ -480,6 +488,30 @@ return {
         end,
       })
     end,
+  },
+
+  -- markdown rendering
+  {
+    'MeanderingProgrammer/render-markdown.nvim',
+    ft = { 'markdown' },
+    dependencies = { 'nvim-treesitter/nvim-treesitter' },
+    opts = {
+      checkbox = {
+        -- statuses from the vault's Obsidian Tasks config and custom-checkboxes.css snippet
+        custom = {
+          todo = { raw = '[/]', rendered = '󰥔 ', highlight = 'RenderMarkdownTodo' },
+          cancelled = {
+            raw = '[-]',
+            rendered = '󰅖 ',
+            highlight = 'RenderMarkdownError',
+            scope_highlight = '@markup.strikethrough',
+          },
+          important = { raw = '[!]', rendered = '󰀪 ', highlight = 'RenderMarkdownWarn' },
+          question = { raw = '[?]', rendered = '󰘥 ', highlight = 'RenderMarkdownInfo' },
+          partial = { raw = '[~]', rendered = '◐ ', highlight = 'RenderMarkdownHint' },
+        },
+      },
+    },
   },
 
   -- treesitter-context: sticky context for classes/functions

@@ -314,6 +314,7 @@ in
     gopls
     just-lsp
     lua-language-server
+    markdown-oxide
     nil
     pyright
     ruff

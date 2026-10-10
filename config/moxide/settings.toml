@@ -1,0 +1,7 @@
+# Weekly logs in the coppermind vault are ISO weeks (01-logs/2026-w41.md).
+dailynote = "%G-w%V"
+daily_notes_folder = "01-logs"
+new_file_folder_path = "00-bin"
+
+# Matched against directory basenames anywhere in the vault.
+excluded_folders = ["archives", "_archive", "excalidraw", "repos"]

@@ -97,6 +97,7 @@ in
     ".config/uv/uv.toml".source = cfgLink "uv/uv.toml";
     ".config/.bunfig.toml".source = cfgLink "bunfig.toml";
     ".config/pnpm/config.yaml".source = cfgLink "pnpm/config.yaml";
+    ".config/moxide".source = cfgLink "moxide";
     ".config/nvim".source = cfgLink "nvim";
     ".config/worktrunk".source = cfgLink "worktrunk";
     ".npmrc".source = cfgLink "npm/npmrc";
