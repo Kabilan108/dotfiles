@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import runpy
@@ -96,6 +97,62 @@ def test_sync_copies_json_and_moves_only_top_level_mp4(tmp_path: Path) -> None:
     assert not (destination / "keep.txt").exists()
     assert not (destination / ".work/incomplete.mp4").exists()
     assert (media / ".work/incomplete.mp4").is_file()
+
+
+@pytest.mark.parametrize("interrupted_rename", [False, True])
+def test_sync_retains_failed_job_recording_until_completed(
+    tmp_path: Path, interrupted_rename: bool
+) -> None:
+    env, media, _ = cli_env(tmp_path)
+    destination = tmp_path / "sietch"
+    destination.mkdir()
+    env["MEETING_MINUTES_SYNC_DESTINATION"] = str(destination)
+    jobs = Path(env["MEETING_MINUTES_STATE_DIR"]) / "jobs"
+    jobs.mkdir(parents=True)
+    recording = media / "failed.mp4"
+    recording.write_bytes(b"retry needs this")
+    job_path = jobs / "job.json"
+    job = {"phase": "error", "recording_path": str(recording)}
+    if interrupted_rename:
+        job.update(
+            phase="writing",
+            canonical_stem="failed",
+            recording_path=str(media / ".inbox/job.mp4"),
+        )
+    job_path.write_text(json.dumps(job))
+
+    run_cli(env, "sync-artifacts")
+    assert recording.is_file()
+    assert not (destination / recording.name).exists()
+
+    job["phase"] = "completed"
+    job_path.write_text(json.dumps(job))
+    run_cli(env, "sync-artifacts")
+    assert not recording.exists()
+    assert (destination / recording.name).read_bytes() == b"retry needs this"
+
+
+def test_sync_holds_worker_lock_during_transfer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env, _, _ = cli_env(tmp_path)
+    for name, value in env.items():
+        if name.startswith("MEETING_MINUTES_") or name == "COPPERMIND_VAULT":
+            monkeypatch.setenv(name, value)
+    sync = runpy.run_path(str(SCRIPT))["sync_artifacts"]
+    lock_path = Path(env["MEETING_MINUTES_STATE_DIR"]) / "worker.lock"
+    calls = 0
+
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        with lock_path.open("a+") as lock, pytest.raises(BlockingIOError):
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        calls += 1
+        return subprocess.CompletedProcess(args, 0)
+
+    monkeypatch.setattr(sync.__globals__["subprocess"], "run", fake_run)
+    sync()
+    assert calls == 2
 
 
 def test_pipeline_note_uses_shared_artifact_references(tmp_path: Path) -> None:

@@ -2061,8 +2061,24 @@ def sync_artifacts() -> None:
         "--itemize-changes",
         "--partial-dir=.rsync-partial",
     ]
-    with ARTIFACT_SYNC_LOCK_PATH.open("a+") as lock:
+    # Publication and retries must finish before sync snapshots the job paths.
+    # Otherwise rsync can remove a recording while its job still needs it.
+    with LOCK_PATH.open("a+") as worker_lock, ARTIFACT_SYNC_LOCK_PATH.open("a+") as lock:
+        fcntl.flock(worker_lock.fileno(), fcntl.LOCK_EX)
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        exclusions: list[str] = []
+        for path in JOBS_DIR.glob("*.json"):
+            job = read_json(path)
+            if job.get("phase") == "completed":
+                continue
+            stem = str(job.get("canonical_stem") or "")
+            if stem:
+                # A crash may leave the rename durable before the path update.
+                exclusions.append(f"--exclude=/{stem}.mp4")
+            for field in ("recording_path", "video_path"):
+                recording = Path(str(job.get(field) or ""))
+                if recording.parent == MEDIA_ROOT:
+                    exclusions.append(f"--exclude=/{recording.name}")
         subprocess.run(
             [
                 *common,
@@ -2077,6 +2093,7 @@ def sync_artifacts() -> None:
             [
                 *common,
                 "--remove-source-files",
+                *exclusions,
                 "--include=/*.mp4",
                 "--exclude=*",
                 f"{MEDIA_ROOT}/",
