@@ -475,6 +475,9 @@ return {
     ft = { 'markdown' },
     dependencies = { 'nvim-treesitter/nvim-treesitter' },
     opts = {
+      ignore = function(buf)
+        return vim.fs.root(buf, '.obsidian') == nil
+      end,
       checkbox = {
         -- statuses from the vault's Obsidian Tasks config and custom-checkboxes.css snippet
         custom = {

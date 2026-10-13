@@ -3,6 +3,10 @@ if not vim.fs.root(0, '.obsidian') then
   return
 end
 
+vim.keymap.set('n', 'ny', function()
+  require('custom.note_link_yank').yank()
+end, { buffer = true, desc = 'notes: copy link URL or absolute path' })
+
 vim.opt_local.wrap = true
 vim.opt_local.linebreak = true
 -- wrapped list items line up with the text after the bullet
