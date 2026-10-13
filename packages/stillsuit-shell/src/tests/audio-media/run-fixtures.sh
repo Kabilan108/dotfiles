@@ -24,7 +24,7 @@ export XDG_CACHE_HOME="$fixture_root/cache"
 export XDG_RUNTIME_DIR="$fixture_root/runtime"
 export QT_QPA_PLATFORM=wayland
 export STILLSUIT_CONFIG_ID=stillsuit-audio-media-fixture
-unset DBUS_SESSION_BUS_ADDRESS
+export DBUS_SESSION_BUS_ADDRESS="unix:path=$fixture_root/no-session-bus"
 
 mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" \
     "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"

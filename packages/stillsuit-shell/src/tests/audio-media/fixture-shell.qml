@@ -350,6 +350,36 @@ ShellRoot {
         _assert(Quickshell.screens.length > 0, "fixture screen available")
         var outputScreen = Quickshell.screens[0]
         var outputId = String(outputScreen.name || "fixture-output")
+        var widget = viewComponents[0].createObject(root, {
+            context: fakeContext, service: audio, outputId: outputId
+        })
+        _assert(widget !== null, "audio bar widget constructs")
+        var volumePointer = _findObject(widget, "audio-volume-pointer")
+        _assert(volumePointer !== null && volumePointer.acceptedButtons === Qt.MiddleButton,
+            "volume gestures leave left-click panel activation available")
+        fakeAudioModel.volume = 0.5
+        volumePointer.adjustVolume({ angleDelta: { y: 120 }, accepted: false })
+        _assert(Math.abs(audio.volume - 0.55) < 0.00001, "scroll up raises volume five percent")
+        volumePointer.adjustVolume({ angleDelta: { y: -120 }, accepted: false })
+        _assert(Math.abs(audio.volume - 0.5) < 0.00001, "scroll down lowers volume five percent")
+        volumePointer.adjustVolume({ angleDelta: { y: 2400 }, accepted: false })
+        _assert(audio.volume === 1, "scroll volume clamps at maximum")
+        volumePointer.adjustVolume({ angleDelta: { y: -2400 }, accepted: false })
+        _assert(audio.volume === 0, "scroll volume clamps at minimum")
+        var horizontalWheel = { angleDelta: { y: 0 }, accepted: true }
+        volumePointer.adjustVolume(horizontalWheel)
+        _assert(!horizontalWheel.accepted && audio.volume === 0,
+            "horizontal scrolling leaves volume unchanged")
+        volumePointer.toggleMute()
+        _assert(audio.muted, "middle-click mutes output")
+        volumePointer.toggleMute()
+        _assert(!audio.muted, "middle-click unmutes output")
+        audio.forceUnavailable = true
+        _assert(!volumePointer.enabled, "volume gestures disabled without output")
+        audio.forceUnavailable = false
+        fakeAudioModel.volume = 1.4
+        root.outputMuteCalls = 0
+        widget.destroy()
         var panel = viewComponents[1].createObject(root, {
             context: fakeContext,
             service: audio,
