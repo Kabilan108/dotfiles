@@ -1,6 +1,6 @@
 model = "gpt-6.1-sol"
 
-model_reasoning_effort = "high"
+model_reasoning_effort = "medium"
 
 sandbox_mode = "danger-full-access"
 
@@ -50,26 +50,26 @@ approval_mode = "approve"
 
 [mcp_servers.node_repl]
 args = []
-command = "/nix/store/7dqxb3ya9r477c7bwzfp5vj607nvmimj-chatgpt-official-payload-26.930.21537/usr/lib/chatgpt/resources/cua_node/bin/node_repl"
+command = "/nix/store/41pmr64jq524fgqchbczc2942bvymhic-chatgpt-official-payload-26.1007.21434/usr/lib/chatgpt/resources/cua_node/bin/node_repl"
 startup_timeout_sec = 120
 
 [mcp_servers.node_repl.env]
 NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
-NODE_REPL_NODE_MODULE_DIRS = "/nix/store/7dqxb3ya9r477c7bwzfp5vj607nvmimj-chatgpt-official-payload-26.930.21537/usr/lib/chatgpt/resources/cua_node/lib/node_modules"
-NODE_REPL_NODE_PATH = "/nix/store/7dqxb3ya9r477c7bwzfp5vj607nvmimj-chatgpt-official-payload-26.930.21537/usr/lib/chatgpt/resources/cua_node/bin/node"
-NODE_REPL_TRUSTED_CODE_PATHS = "/home/kabilan/.codex:/nix/store/7dqxb3ya9r477c7bwzfp5vj607nvmimj-chatgpt-official-payload-26.930.21537/usr/lib/chatgpt/resources/cua_node/lib/node_modules"
+NODE_REPL_NODE_MODULE_DIRS = "/nix/store/41pmr64jq524fgqchbczc2942bvymhic-chatgpt-official-payload-26.1007.21434/usr/lib/chatgpt/resources/cua_node/lib/node_modules"
+NODE_REPL_NODE_PATH = "/nix/store/41pmr64jq524fgqchbczc2942bvymhic-chatgpt-official-payload-26.1007.21434/usr/lib/chatgpt/resources/cua_node/bin/node"
+NODE_REPL_TRUSTED_CODE_PATHS = "/home/kabilan/.codex:/nix/store/41pmr64jq524fgqchbczc2942bvymhic-chatgpt-official-payload-26.1007.21434/usr/lib/chatgpt/resources/cua_node/lib/node_modules"
 CODEX_HOME = "/home/kabilan/.codex"
 BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab,mcpapps"
 BROWSER_USE_TINYSKY_ENABLED = "1"
 NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunction with the Browser Plugin."
 NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
 BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
-BROWSER_USE_CODEX_APP_VERSION = "26.930.21537"
-NODE_REPL_TRUSTED_SERVICES = '{"browser":"/home/kabilan/.codex/plugins/cache/openai-bundled/browser/26.930.21537/scripts/browser-service.mjs"}'
-CODEX_CLI_PATH = "/nix/store/7dqxb3ya9r477c7bwzfp5vj607nvmimj-chatgpt-official-payload-26.930.21537/usr/lib/chatgpt/resources/codex"
+BROWSER_USE_CODEX_APP_VERSION = "26.1007.21434"
+NODE_REPL_TRUSTED_SERVICES = '{"browser":"/home/kabilan/.codex/plugins/cache/openai-bundled/browser/26.1007.21434/scripts/browser-service.mjs"}'
+CODEX_CLI_PATH = "/nix/store/41pmr64jq524fgqchbczc2942bvymhic-chatgpt-official-payload-26.1007.21434/usr/lib/chatgpt/resources/codex"
 
 [mcp_servers.cua_repl]
-command = "/nix/store/7dqxb3ya9r477c7bwzfp5vj607nvmimj-chatgpt-official-payload-26.930.21537/usr/lib/chatgpt/ChatGPT"
+command = "/nix/store/41pmr64jq524fgqchbczc2942bvymhic-chatgpt-official-payload-26.1007.21434/usr/lib/chatgpt/ChatGPT"
 enabled = false
 
 [notice]
@@ -353,6 +353,9 @@ trust_level = "trusted"
 [projects."/vault/repos/cli/tracer"]
 trust_level = "trusted"
 
+[projects."/vault/repos/disktree"]
+trust_level = "trusted"
+
 [tui]
 screen_reader_detection_done = true
 
@@ -449,6 +452,8 @@ global = "ghostty"
 [memories]
 generate_memories = true
 use_memories = true
+extract_model = "gpt-6-luna"
+consolidation_model = "gpt-6.1-sol"
 
 [hooks.state]
 
