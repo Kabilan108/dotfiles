@@ -194,6 +194,8 @@ in
 
   programs.neovim = {
     enable = true;
+    # Use Neovim's inotifywait backend for LSP workspace file watching on Linux.
+    extraPackages = [ pkgs.inotify-tools ];
     defaultEditor = true;
     viAlias = true;
     vimAlias = true;
