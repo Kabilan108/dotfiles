@@ -13,6 +13,7 @@ in
   ];
 
   networking.hostName = "jacurutu";
+  dotfiles.mobergTailscale.enable = true;
 
   # The Framework airplane key emits KEY_RFKILL directly to the kernel.
   # Disable its measured HID scan code without changing the other hotkeys.
