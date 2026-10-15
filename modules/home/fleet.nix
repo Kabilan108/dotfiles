@@ -130,6 +130,8 @@ in
         "bitbucket.org" = {
           User = "git";
           IdentityFile = "~/.ssh/moberg-bitbucket";
+          # IPv6 connections to Bitbucket time out on this network.
+          AddressFamily = "inet";
         };
       };
   };
@@ -141,8 +143,14 @@ in
   home.file.".ssh/config" = {
     target = lib.mkForce ".ssh/config_source";
     onChange = ''
-      cat "$HOME/.ssh/config_source" > "$HOME/.ssh/config"
-      chmod 400 "$HOME/.ssh/config"
+      (
+        set -e
+        ssh_config_tmp=$(mktemp "$HOME/.ssh/config.XXXXXXXXXX")
+        trap 'rm -f "$ssh_config_tmp"' EXIT
+        cat "$HOME/.ssh/config_source" > "$ssh_config_tmp"
+        chmod 400 "$ssh_config_tmp"
+        mv -fT "$ssh_config_tmp" "$HOME/.ssh/config"
+      )
     '';
   };
 
