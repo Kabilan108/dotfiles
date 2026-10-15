@@ -8,10 +8,48 @@ let
   cfg = config.dotfiles.services.t3-code;
   defaultT3Version = lib.escapeShellArg cfg.t3Version;
   versionFile = "${config.xdg.configHome}/t3-code/version";
+  android = pkgs.androidenv.composeAndroidPackages {
+    platformVersions = [ "37.0" ];
+    buildToolsVersions = [ "37.0.0" ];
+    includeEmulator = true;
+    includeSystemImages = true;
+    systemImageTypes = [ "google_apis" ];
+    abiVersions = [ "x86_64" ];
+  };
+  androidSdkPackage = pkgs.symlinkJoin {
+    name = "androidsdk-t3";
+    paths = [ android.androidsdk ];
+    # T3 requires the Android Studio layout; Nix installs tools by version.
+    postBuild = ''
+      tools_root="$out/libexec/android-sdk/cmdline-tools"
+      if [ ! -e "$tools_root/latest" ]; then
+        for tools in "$tools_root"/*; do
+          if [ -x "$tools/bin/avdmanager" ]; then
+            ln -s "$(basename "$tools")" "$tools_root/latest"
+            break
+          fi
+        done
+      fi
+      test -x "$tools_root/latest/bin/avdmanager"
+    '';
+  };
+  androidSdk = "${androidSdkPackage}/libexec/android-sdk";
 
   t3CodeStart = pkgs.writeShellScript "t3-code-start" ''
     set -eu
     source "$HOME/.bashenv"
+
+    ${lib.optionalString cfg.android.enable ''
+      export ANDROID_HOME=${lib.escapeShellArg androidSdk}
+      export ANDROID_SDK_ROOT="$ANDROID_HOME"
+      export JAVA_HOME=${pkgs.jdk17}
+      export PATH="${
+        lib.makeBinPath [
+          androidSdkPackage
+          pkgs.jdk17
+        ]
+      }:$PATH"
+    ''}
 
     export PATH="${
       pkgs.lib.makeBinPath [
@@ -77,6 +115,7 @@ in
 {
   options.dotfiles.services.t3-code = {
     enable = lib.mkEnableOption "T3 Code server exposed through Tailscale Serve";
+    android.enable = lib.mkEnableOption "a local Android SDK and emulator for T3 Code";
     t3Version = lib.mkOption {
       type = lib.types.str;
       default = "0.0.27";
@@ -85,7 +124,15 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ t3CodeVersion ];
+    home.packages = [
+      t3CodeVersion
+    ]
+    ++ lib.optionals cfg.android.enable [ androidSdkPackage ];
+
+    # Also expose the conventional path for tools outside the systemd service.
+    home.file."Android/Sdk" = lib.mkIf cfg.android.enable {
+      source = androidSdk;
+    };
 
     systemd.user.services.t3-code = {
       Unit = {

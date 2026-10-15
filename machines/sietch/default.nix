@@ -11,6 +11,7 @@
   ];
 
   networking.hostName = "sietch";
+  nixpkgs.config.android_sdk.accept_license = true;
 
   dotfiles.docker.rootlessDevelopment.enable = true;
   dotfiles.mobergTailscale.enable = true;
@@ -68,7 +69,10 @@
       moberg.devMaintenance.enable = true;
       moberg.devCheckouts.enable = true;
       moberg.eboostReviewerReport.enable = true;
-      t3-code.enable = true;
+      t3-code = {
+        enable = true;
+        android.enable = true;
+      };
       wayvnc.enable = true;
     };
 
