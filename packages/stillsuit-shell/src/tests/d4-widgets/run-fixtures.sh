@@ -77,6 +77,9 @@ config_dir="$XDG_CONFIG_HOME/stillsuit-fixtures/d4"
 cp "$fixture_dir/fixture-shell.qml" "$config_dir/shell.qml"
 cp "$fixture_dir/../FixtureTheme.js" "$config_dir/FixtureTheme.js"
 cp -r "$source_root/ui" "$config_dir/ui"
+mkdir -p "$config_dir/imports/Stillsuit"
+ln -s "$config_dir/ui" "$config_dir/imports/Stillsuit/Ui"
+export QML_IMPORT_PATH="$config_dir/imports${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
 mkdir -p "$config_dir/plugins/builtin"
 for plugin in clock workspaces resources recording; do
     cp -r "$source_root/plugins/builtin/$plugin" "$config_dir/plugins/builtin/$plugin"
@@ -94,8 +97,8 @@ for manifest in "$source_root"/plugins/builtin/*/manifest.json; do
 done
 jq -e '.kinds == ["service", "bar-widget"] and .scope.service == "global"' \
     "$source_root/plugins/builtin/clock/manifest.json" >/dev/null
-jq -e '.kinds == ["service", "bar-widget"] and .scope.service == "global"
-  and (.entryPoints | has("panel") | not)' \
+jq -e '.kinds == ["service", "bar-widget", "panel"] and .scope.service == "global"
+  and .scope.panel == "per-output" and .entryPoints.panel == "Panel.qml" and .keepLoaded == true' \
     "$source_root/plugins/builtin/resources/manifest.json" >/dev/null
 jq -e '.dependencies == ["stillsuit.workflows"]' "$source_root/plugins/builtin/recording/manifest.json" >/dev/null
 

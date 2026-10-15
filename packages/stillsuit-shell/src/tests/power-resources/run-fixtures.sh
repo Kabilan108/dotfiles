@@ -29,6 +29,9 @@ config_dir="$XDG_CONFIG_HOME/stillsuit-fixtures/power-resources"
 mkdir -p "$config_dir"
 cp -R -- "$source_root/." "$config_dir/"
 cp -- "$script_dir/fixture-shell.qml" "$config_dir/shell.qml"
+mkdir -p "$config_dir/imports/Stillsuit"
+ln -s "$config_dir/ui" "$config_dir/imports/Stillsuit/Ui"
+export QML_IMPORT_PATH="$config_dir/imports${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
 
 fixture_log="$fixture_root/quickshell.log"
 quickshell --no-color -p "$config_dir" >"$fixture_log" 2>&1
@@ -39,6 +42,7 @@ fi
 grep -F 'POWER_RESOURCES_FIXTURE_OK checks=' "$fixture_log" >/dev/null
 
 "$script_dir/battery-watcher.test.sh"
+PYTHONDONTWRITEBYTECODE=1 python3 "$script_dir/collector.test.py"
 
 if rg -n '#[0-9a-fA-F]{6}|\.palette\.|theme\.colors|theme\.controls|theme\.geometry' \
     "$source_root/plugins/builtin/battery" \
