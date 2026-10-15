@@ -127,7 +127,9 @@ in
           User = "git";
           IdentityFile = "~/.ssh/github";
         };
-        "bitbucket.org" = {
+        # Keep existing SSH URLs working after the November 2026 hostname migration.
+        "bitbucket.org ssh.bitbucket.org" = {
+          HostName = "ssh.bitbucket.org";
           User = "git";
           IdentityFile = "~/.ssh/moberg-bitbucket";
           # IPv6 connections to Bitbucket time out on this network.
