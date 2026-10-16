@@ -82,6 +82,12 @@
         alsa.enable = true;
         alsa.support32Bit = true;
         pulse.enable = true;
+        wireplumber.extraConfig."51-bluetooth" = {
+          "wireplumber.settings" = {
+            # Keep high-fidelity playback; calls use a separate microphone.
+            "bluetooth.autoswitch-to-headset-profile" = false;
+          };
+        };
       };
       tailscale = {
         enable = true;
