@@ -11,7 +11,7 @@ Item {
     readonly property bool hostedPanel: true
     readonly property var theme: context.theme
     property bool opened: false
-    implicitWidth: theme.metrics.panelWidth + theme.metrics.spaceUnit * 12
+    implicitWidth: theme.metrics.panelWidth
     implicitHeight: content.implicitHeight + theme.metrics.panelPadding * 2
     visible: false
 
