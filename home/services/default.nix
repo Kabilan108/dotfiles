@@ -12,6 +12,7 @@
     ./moberg.nix
     ./parakeet-redux.nix
     ./russ-playlist-sync.nix
+    ./solaar.nix
     ./storage-maintenance.nix
     ./t3-code.nix
     ./tracer-digest.nix

@@ -55,6 +55,7 @@ in
       };
       mic-volume-enforce.enable = true;
       parakeet-redux.enable = true;
+      solaar.enable = true;
       t3-code.enable = false;
       tracer-sync.enable = true;
     };
