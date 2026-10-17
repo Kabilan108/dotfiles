@@ -1,9 +1,13 @@
-{ pkgs, ... }:
+{ inputs, pkgs, ... }:
 {
   programs.gpu-screen-recorder.enable = true;
 
   xdg.portal.enable = true;
-  xdg.portal.extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+  xdg.portal.extraPortals = [
+    pkgs.xdg-desktop-portal-gtk
+    # File chooser backend; routed per compositor in modules/home/scout.nix and gtk.nix.
+    inputs.scout.packages.${pkgs.stdenv.hostPlatform.system}.default
+  ];
 
   environment.sessionVariables = {
     NIXOS_OZONE_WL = "1"; # Electron/Chromium Wayland

@@ -1388,6 +1388,7 @@
         "omarecord": "omarecord",
         "omasnap": "omasnap",
         "pagebin": "pagebin",
+        "scout": "scout",
         "siren": "siren",
         "stylix": "stylix",
         "tracer": "tracer",
@@ -1395,6 +1396,26 @@
         "walker": "walker",
         "zen-browser": "zen-browser",
         "zotero-nixpkgs": "zotero-nixpkgs"
+      }
+    },
+    "scout": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1792201783,
+        "narHash": "sha256-P6Cvlx4Ei4YRvYNozQ/CtnvE5cgL1su0Fj6XMtDnLKs=",
+        "ref": "refs/heads/main",
+        "rev": "95f9d43b63f7c39b890a77d8b8014fd9aef963ea",
+        "revCount": 8,
+        "type": "git",
+        "url": "ssh://git@github.com/Kabilan108/scout"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/Kabilan108/scout"
       }
     },
     "siren": {

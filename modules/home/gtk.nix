@@ -45,6 +45,7 @@ in
       org.freedesktop.impl.portal.ScreenCast=hyprland
       org.freedesktop.impl.portal.Screenshot=hyprland
       org.freedesktop.impl.portal.GlobalShortcuts=hyprland
+      org.freedesktop.impl.portal.FileChooser=scout;gtk
     '';
   };
 
