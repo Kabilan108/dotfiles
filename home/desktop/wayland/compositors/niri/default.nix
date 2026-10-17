@@ -20,10 +20,11 @@ in
 
     # agent computer use (agents/skills/niri-computer-use, `acu` CLI):
     # wlrctl = virtual pointer, wev = input-event oracle,
-    # dotool = uinput keys for niri compositor binds
+    # dotool = uinput keys for niri compositor binds, grim = output screenshots
     wlrctl
     wev
     dotool
+    grim
   ];
 
   # niri-flake would otherwise generate config.kdl and collide with the symlink below.
