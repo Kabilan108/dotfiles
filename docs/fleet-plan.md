@@ -77,13 +77,11 @@ tleilax to `hosts`. Execute while at jacurutu with the old policy saved.
 
 ### Phase 4 — t3 service polish [done 2026-07-12]
 
-`t3-code.t3Version` module option pins t3 (default 0.0.27; bump
-deliberately). Docs review: t3 has no dedicated tailscale integration — only
-`--host` binding (already done) and an `--auth-token` flag; T3 Connect not
-shipped yet. Keeping the raw tailnet-IP:3773 bind. Optional follow-ups:
-front with a Tailscale Service (`t3.sole-pierce.ts.net`) once confirmed the
-desktop/mobile app pairs over https/wss, and add `--auth-token` if the
-tailnet ever gets less trusted.
+Updated October 2026: the Home Manager service runs the standalone `~/.local/bin/t3`
+binary on loopback port 3773 with Tailscale Serve for HTTPS access. `t3-update`
+defaults to the latest nightly and also accepts a channel or an exact version.
+See [T3 Code maintenance](t3-code-binary-migration.md). Jacurutu keeps the
+desktop AppImage.
 
 ### Phase 5 — discord-notify unblock [done 2026-07-12]
 
