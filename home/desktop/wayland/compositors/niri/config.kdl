@@ -335,6 +335,12 @@ window-rule {
     open-floating true
 }
 
+// Omasnap's windowed editor and Save As chooser.
+window-rule {
+    match app-id=r#"^omasnap$"#
+    open-floating true
+}
+
 window-rule {
     match app-id=r#"^org\.gnome\.Nautilus$"#
     open-floating true
@@ -635,6 +641,8 @@ binds {
     // Mod+Shift+Space { switch-layout "prev"; }
 
     Print { spawn-sh "OMASNAP_SCREENSHOT_DIR=$HOME/media/screenshots exec omasnap"; }
+    Ctrl+Print { spawn-sh "OMASNAP_SCREENSHOT_DIR=$HOME/media/screenshots exec omasnap --editor overlay"; }
+    Mod+Print { spawn-sh "OMASNAP_SCREENSHOT_DIR=$HOME/media/screenshots exec omasnap --scroll"; }
     Shift+Print { spawn-sh "OMASNAP_SCREENSHOT_DIR=$HOME/media/screenshots exec omasnap --capture-window"; }
     Alt+Print { spawn-sh "OMASNAP_SCREENSHOT_DIR=$HOME/media/screenshots exec omasnap --capture-fullscreen"; }
 
