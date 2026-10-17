@@ -6,8 +6,7 @@
 }:
 let
   cfg = config.dotfiles.services.t3-code;
-  defaultT3Version = lib.escapeShellArg cfg.t3Version;
-  versionFile = "${config.xdg.configHome}/t3-code/version";
+  t3Binary = "${config.home.homeDirectory}/.local/bin/t3";
   android = pkgs.androidenv.composeAndroidPackages {
     platformVersions = [ "37.0" ];
     buildToolsVersions = [ "37.0.0" ];
@@ -59,56 +58,65 @@ let
       ]
     }:$PATH"
 
-    version_file=${lib.escapeShellArg versionFile}
-    if [[ -e "$version_file" ]]; then
-      t3_version=$(< "$version_file")
-    else
-      t3_version=${defaultT3Version}
+    if [[ ! -x ${lib.escapeShellArg t3Binary} ]]; then
+      echo "T3 Code binary missing. Install it from https://t3.codes/install.sh before starting this service." >&2
+      exit 1
     fi
 
-    exec npx --yes "t3@$t3_version" serve \
+    exec ${lib.escapeShellArg t3Binary} serve \
       --host 127.0.0.1 \
       --port 3773 \
       --tailscale-serve \
       --tailscale-serve-port 443
   '';
 
-  t3CodeVersion = pkgs.writeShellApplication {
-    name = "t3-code-version";
+  t3Update = pkgs.writeShellApplication {
+    name = "t3-update";
     runtimeInputs = [
       pkgs.coreutils
-      pkgs.nodejs_24
       pkgs.systemd
     ];
     text = ''
-      version_file=${lib.escapeShellArg versionFile}
+      t3_binary=${lib.escapeShellArg t3Binary}
 
-      if (( $# == 0 )); then
-        if [[ -e "$version_file" ]]; then
-          cat "$version_file"
-        else
-          echo ${defaultT3Version}
-        fi
-        exit 0
+      usage() {
+        echo "Usage: t3-update [--channel stable|nightly|preview | --version VERSION]"
+      }
+
+      update_args=(--channel nightly)
+      case "''${1:-}" in
+        "") if (( $# != 0 )); then usage >&2; exit 2; fi ;;
+        --help|-h) usage; exit 0 ;;
+        --channel)
+          if (( $# != 2 )); then usage >&2; exit 2; fi
+          case "$2" in
+            stable|nightly|preview) update_args=(--channel "$2" --allow-downgrade) ;;
+            *) usage >&2; exit 2 ;;
+          esac
+          ;;
+        --version)
+          if (( $# != 2 )) || [[ -z "$2" || "$2" == -* ]]; then
+            usage >&2; exit 2
+          fi
+          update_args=("$2" --allow-downgrade)
+          ;;
+        *) usage >&2; exit 2 ;;
+      esac
+
+      # Home Manager owns t3-code.service; do not install the upstream service.
+      "$t3_binary" update "''${update_args[@]}"
+
+      # Compare the running executable with the updated symlink, including when
+      # an earlier update downloaded a release without restarting this service.
+      running_pid=$(systemctl --user show t3-code.service --property=MainPID --value)
+      running_binary=$(readlink -f "/proc/$running_pid/exe" || true)
+      installed_binary=$(readlink -f "$t3_binary")
+      if [[ "$running_pid" == 0 || "$running_binary" != "$installed_binary" ]]; then
+        systemctl --user restart t3-code.service
+        echo "T3 Code server restarted with $("$t3_binary" --version)"
+      else
+        echo "T3 Code server already runs $("$t3_binary" --version); no restart needed."
       fi
-
-      if (( $# != 1 )); then
-        echo "Usage: t3-code-version [VERSION|TAG]" >&2
-        exit 2
-      fi
-
-      requested_version=$1
-      resolved_version="$(npm view --silent "t3@$requested_version" version)"
-      if [[ -z "$resolved_version" ]]; then
-        echo "Unable to resolve t3@$requested_version from npm." >&2
-        exit 1
-      fi
-
-      mkdir -p "$(dirname "$version_file")"
-      printf '%s\n' "$requested_version" > "$version_file"
-
-      systemctl --user restart t3-code.service
-      echo "T3 Code server restarted with t3@$requested_version (resolves to $resolved_version)"
     '';
   };
 in
@@ -116,16 +124,11 @@ in
   options.dotfiles.services.t3-code = {
     enable = lib.mkEnableOption "T3 Code server exposed through Tailscale Serve";
     android.enable = lib.mkEnableOption "a local Android SDK and emulator for T3 Code";
-    t3Version = lib.mkOption {
-      type = lib.types.str;
-      default = "0.0.27";
-      description = "Default T3 Code version used when ~/.config/t3-code/version does not exist.";
-    };
   };
 
   config = lib.mkIf cfg.enable {
     home.packages = [
-      t3CodeVersion
+      t3Update
     ]
     ++ lib.optionals cfg.android.enable [ androidSdkPackage ];
 
