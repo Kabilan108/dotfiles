@@ -47,8 +47,8 @@ pick_host() {
 }
 
 pick_panes() {
-  tmux list-panes -s -F "#{window_id}:#{pane_id}|[#{window_index},#{pane_index}] #{window_name} > #{pane_current_command} (#{pane_id})" |
-    fzf --tmux --delimiter="|" --with-nth=2 |
+  tmux list-panes -s -F "#{window_id}:#{pane_id}|[#{window_index},#{pane_index}] #{window_name} > #{pane_current_command} (#{pane_id})  #{pane_current_path}" |
+    fzf --tmux --delimiter="|" --with-nth=2.. |
     cut -d'|' -f1
 }
 
