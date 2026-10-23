@@ -356,6 +356,9 @@ trust_level = "trusted"
 [projects."/vault/repos/disktree"]
 trust_level = "trusted"
 
+[projects."/vault/repos/omasnap"]
+trust_level = "trusted"
+
 [tui]
 screen_reader_detection_done = true
 
