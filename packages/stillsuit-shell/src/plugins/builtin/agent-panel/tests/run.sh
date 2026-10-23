@@ -6,6 +6,7 @@ readonly TEST_DIR
 HELPER=${HELPER:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)/bin/stillsuit-agent-panel}
 export HELPER
 readonly HELPER
+export STILLSUIT_AGENT_PANEL_SELF="$HELPER"
 PLUGIN_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 readonly PLUGIN_ROOT
 readonly REAL_PATH=$PATH
@@ -309,6 +310,7 @@ assert_eq absent "$("$HELPER" status | jq -r .session)" "fixture termination"
 reset_fixture
 mkdir -p "$TEST_DIR/real-bin"
 ln -s "$TEST_DIR/bin/niri" "$TEST_DIR/real-bin/niri"
+ln -s "$TEST_DIR/bin/ghostty" "$TEST_DIR/real-bin/ghostty"
 cat >"$TEST_DIR/real-bin/tmux" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -317,6 +319,15 @@ EOF
 chmod +x "$TEST_DIR/real-bin/tmux"
 export REAL_TMUX FIXTURE_TMUX_SOCKET
 export PATH="$TEST_DIR/real-bin:$REAL_PATH"
+# Start the server through the helper, rather than pre-starting it outside
+# the lock. The next request must complete while that server stays alive.
+jq -cn --arg directory "$HOME/dotfiles" \
+  '{command: ["sleep", "60"], workingDirectory: $directory}' >"$XDG_CONFIG_HOME/stillsuit/agent-panel.json"
+timeout 15 "$HELPER" open >/dev/null || fail "cold-server open failed"
+timeout 3 "$HELPER" hide >/dev/null || fail "tmux server retained the panel lock"
+assert_eq running "$(timeout 3 "$HELPER" status | jq -r .session)" "cold server survives hide"
+timeout 3 "$HELPER" terminate >/dev/null || fail "cold-server termination failed"
+reset_fixture
 "$REAL_TMUX" -S "$FIXTURE_TMUX_SOCKET" new-session -d -s stillsuit-extra sleep 60
 assert_eq absent "$("$HELPER" status | jq -r .session)" "real tmux prefix decoy ignored"
 "$REAL_TMUX" -S "$FIXTURE_TMUX_SOCKET" new-session -d -s stillsuit sleep 60

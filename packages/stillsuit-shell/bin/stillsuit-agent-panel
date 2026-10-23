@@ -37,7 +37,16 @@ readonly LOCK_FILE="$RUNTIME_ROOT/agent-panel.lock"
 
 mkdir -p "$RUNTIME_ROOT"
 exec 9>"$LOCK_FILE"
-flock 9
+flock --timeout 10 9 || {
+  printf 'timed out waiting for the agent panel lock\n' >&2
+  exit 75
+}
+
+# A newly started tmux server must not retain the panel lock after we exit.
+# Close it for every tmux invocation, including server-starting queries.
+tmux() {
+  command tmux "$@" 9>&-
+}
 
 query_window_ids() {
   local windows
@@ -194,7 +203,7 @@ ensure_session() {
 }
 
 launch_window() {
-  if ! ghostty +new-window --title="$WINDOW_TITLE" --command="$GHOSTTY_COMMAND" >/dev/null 2>&1; then
+  if ! ghostty +new-window --title="$WINDOW_TITLE" --command="$GHOSTTY_COMMAND" 9>&- >/dev/null 2>&1; then
     printf 'failed to request the agent window from shared Ghostty\n' >&2
     return 75
   fi
