@@ -162,11 +162,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1791309226,
-        "narHash": "sha256-CF1mlLOqTlmNDR6h9EnLERntr7qQlBz9OA4mht0FJ4Q=",
+        "lastModified": 1793112638,
+        "narHash": "sha256-rQr99dWiCN45Us6UQEpHGd2JzgTTkJhS2IZE65Tx8mg=",
         "owner": "Kabilan108",
         "repo": "disktree",
-        "rev": "1a751ac710f20252742fcb5310d821b2fa5a7730",
+        "rev": "a1e45c429dbceec1d3ae3c26b4f73ae6ced4a08f",
         "type": "github"
       },
       "original": {
