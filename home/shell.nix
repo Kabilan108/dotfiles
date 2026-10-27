@@ -84,6 +84,9 @@ in
     FASTAI_HOME = "${USER_DATA}/fastai";
     GOPATH = "${USER_DATA}/go";
     HF_HOME = "${USER_DATA}/huggingface";
+    # HF_HOME is a model cache shared with services (siren); keep login
+    # credentials (token, stored_tokens) out of it.
+    HF_TOKEN_PATH = "$HOME/.config/huggingface/token";
     HF_DATASETS_CACHE = "$HF_HOME/datasets";
     OLLAMA_MODELS = "${USER_DATA}/ollama/models";
     TORCH_HOME = "${USER_DATA}/torch";

@@ -21,11 +21,17 @@
     # so CA distrusts (e.g. the Oct 2026 eMudhra compromise) apply on rebuild.
     SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt";
     REQUESTS_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt";
+    # Share the model cache, not the login: siren's models are public, so it
+    # downloads anonymously. huggingface_hub treats a missing token file as no
+    # token; put HF_TOKEN in siren-env.age if a gated model is ever needed.
+    HF_TOKEN_PATH = "/var/lib/siren/hf-token";
   };
 
   # grant exactly the siren user access to the kabilan-owned cache; the
-  # default (d:) entries make files created by other tools inherit it
+  # default (d:) entries make files created by other tools inherit it.
+  # m::rwX restores the ACL mask, which any chmod 700/600 in the tree zeroes
+  # (that silently revokes siren's entry); tmpfiles re-applies it on boot and switch.
   systemd.tmpfiles.rules = [
-    "A+ /vault/userdata/huggingface - - - - u:siren:rwX,d:u:siren:rwX"
+    "A+ /vault/userdata/huggingface - - - - u:siren:rwX,d:u:siren:rwX,m::rwX"
   ];
 }
