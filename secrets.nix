@@ -31,10 +31,6 @@ in
     sietch
     jacurutu
   ];
-  "secrets/netrc.age".publicKeys = [
-    sietch
-    jacurutu
-  ];
   "secrets/nix-access-tokens.age".publicKeys = [
     sietch
     jacurutu

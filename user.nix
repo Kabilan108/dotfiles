@@ -101,13 +101,6 @@ in
       owner = "kabilan";
       group = "users";
     };
-    secrets."secrets/netrc.age" = {
-      file = ./secrets/netrc.age;
-      path = "${home}/.netrc";
-      mode = "0600";
-      owner = "kabilan";
-      group = "users";
-    };
 
     # .config/moberg dir
     secrets."secrets/moberg/credentials.env.age" = {
