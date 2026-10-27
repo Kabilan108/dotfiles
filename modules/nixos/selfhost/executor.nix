@@ -29,4 +29,11 @@
 
   systemd.services.docker-executor.serviceConfig.EnvironmentFile =
     config.age.secrets.selfhost-executor-env.path;
+
+  # The image runs as distroless nonroot (65532:65532) since v1.6.11; earlier
+  # images ran as root and left data.db root-owned. Check the image's User on bumps.
+  systemd.tmpfiles.rules = [
+    "d /var/lib/executor 0700 65532 65532 -"
+    "Z /var/lib/executor - 65532 65532 -"
+  ];
 }
