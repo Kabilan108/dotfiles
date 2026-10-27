@@ -12,6 +12,29 @@ let
     exec env -u LD_LIBRARY_PATH -u APPDIR -u APPIMAGE ${lib.getExe pkgs.libnotify} "$@"
   '';
   defaultBrowserDesktop = "helium.desktop";
+  textEditorDesktop = "nvim.desktop";
+  textMimeTypes = [
+    "text/plain"
+    "text/markdown"
+    "text/csv"
+    "text/tab-separated-values"
+    "text/x-log"
+    "text/x-patch"
+    "text/x-bibtex"
+    "text/css"
+    "text/javascript"
+    "text/x-python"
+    "text/x-go"
+    "text/rust"
+    "text/x-lua"
+    "text/x-nix"
+    "text/x-shellscript"
+    "application/x-shellscript"
+    "application/json"
+    "application/yaml"
+    "application/toml"
+    "application/sql"
+  ];
   # Electron apps only build AT-SPI accessibility trees (agent computer use:
   # `acu ui` / `acu act`) when launched with this flag; the session-wide a11y
   # bus flag is not enough. Wraps the binaries and rewrites desktop entries
@@ -187,9 +210,18 @@ in
     };
   };
 
+  # GLib can only launch Terminal=true entries (nvim.desktop) through
+  # xdg-terminal-exec or a hardcoded terminal list that lacks Ghostty.
+  xdg.terminal-exec = {
+    enable = true;
+    settings.default = [ "com.mitchellh.ghostty.desktop" ];
+  };
+
   xdg.mimeApps = {
     enable = true;
-    defaultApplications = {
+    # Zotero's desktop entry claims text/plain, which every code/markdown type inherits.
+    associations.removed."text/plain" = "zotero.desktop";
+    defaultApplications = lib.genAttrs textMimeTypes (_: textEditorDesktop) // {
       # Images - explicit MIME types (wildcards don't work in XDG)
       "image/avif" = "org.gnome.Loupe.desktop";
       "image/bmp" = "org.gnome.Loupe.desktop";
