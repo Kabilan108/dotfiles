@@ -26,7 +26,6 @@ let
       fi
     }
 
-    update_tool llm ${pkgs.uv}/bin/uv tool install -U --with llm-cmd --with llm-openrouter --with llm-tmux-fragments llm
     # Trusted owner-maintained package: follow Git HEAD without a release-age hold.
     update_tool viewh5 ${pkgs.uv}/bin/uv tool install -U --from git+https://github.com/kabilan108/viewh5 viewh5
 
