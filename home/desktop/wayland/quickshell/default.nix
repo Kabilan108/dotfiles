@@ -41,7 +41,7 @@ let
   ) null config.home.packages;
   publishHelper = pkgs.writeShellApplication {
     name = "stillsuit-publish";
-    runtimeInputs = [ inputs.pagebin.packages.${pkgs.stdenv.hostPlatform.system}.default ];
+    runtimeInputs = [ pkgs.pagebin ];
     text = ''
       exec pagebin publish --json --no-infer "$1"
     '';

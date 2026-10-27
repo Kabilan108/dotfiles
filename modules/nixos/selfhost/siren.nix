@@ -17,6 +17,10 @@
   systemd.services.siren.environment = {
     SIREN_PARAKEET_CLAUDE_HINT = "true";
     TRITON_LIBCUDA_PATH = "/run/opengl-driver/lib";
+    # The venv's certifi comes from siren's uv.lock; trust the NixOS store instead
+    # so CA distrusts (e.g. the Oct 2026 eMudhra compromise) apply on rebuild.
+    SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt";
+    REQUESTS_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt";
   };
 
   # grant exactly the siren user access to the kabilan-owned cache; the

@@ -60,6 +60,23 @@ in
       tracer-sync.enable = true;
     };
 
+    # Desktop client only; T3 servers (sietch) run the native `t3` binary via t3-update.
+    programs.appimages.apps.t3code = {
+      repo = "pingdotgg/t3code";
+      pattern = "T3-Code-*.AppImage";
+      downloadPattern = "*x86_64.AppImage";
+      desktopName = "T3 Code";
+      comment = "T3 Code Editor";
+      # Official Linux production icon, vendored from pingdotgg/t3code at
+      # 69db400b3cd6b1590d0dfdabf9857621a9089b39.
+      icon = "${../../config/t3code/icon.png}";
+      args = [ "--password-store=gnome-libsecret" ];
+      categories = [
+        "Development"
+        "TextEditor"
+      ];
+    };
+
     services.spotifyd = {
       enable = true;
       settings.global = {

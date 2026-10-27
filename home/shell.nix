@@ -32,6 +32,16 @@ let
     src = nixDirenvUnresholved;
   });
 
+  # Point clients that ship their own roots (certifi, pip) at the NixOS store,
+  # which picks up trust-store fixes on rebuild.
+  systemCaEnv = rec {
+    SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt";
+    REQUESTS_CA_BUNDLE = SSL_CERT_FILE;
+    PIP_CERT = SSL_CERT_FILE;
+    # Deno ignores SSL_CERT_FILE and otherwise uses its bundled roots.
+    DENO_TLS_CA_STORE = "system";
+  };
+
   colors = config.lib.stylix.colors.withHashtag;
   themeName = "stylix";
 in
@@ -51,7 +61,9 @@ in
     "$GOPATH/bin"
   ];
 
-  home.sessionVariables = rec {
+  systemd.user.sessionVariables = systemCaEnv;
+
+  home.sessionVariables = systemCaEnv // rec {
     FZF_DEFAULT_OPTS = "--reverse";
 
     BLEND_CACHE_DIR = "/vault/userdata/cache/blender";
@@ -91,7 +103,6 @@ in
 
     ".config/backup".source = cfgLink "backup";
     ".config/Code/User".source = cfgLink "vscode";
-    ".config/Cursor/User".source = cfgLink "vscode";
     # ".config/herdr/config.toml".source = cfgLink "herdr/config.toml";
     ".config/sessionizer".source = cfgLink "sessionizer";
     ".config/uv/uv.toml".source = cfgLink "uv/uv.toml";

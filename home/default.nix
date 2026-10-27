@@ -189,26 +189,7 @@ in
     };
   };
 
-  programs.appimages = {
-    enable = true;
-    apps = {
-      t3code = {
-        repo = "pingdotgg/t3code";
-        pattern = "T3-Code-*.AppImage";
-        downloadPattern = "*x86_64.AppImage";
-        desktopName = "T3 Code";
-        comment = "T3 Code Editor";
-        # Official Linux production icon, vendored from pingdotgg/t3code at
-        # 69db400b3cd6b1590d0dfdabf9857621a9089b39.
-        icon = "${../config/t3code/icon.png}";
-        args = [ "--password-store=gnome-libsecret" ];
-        categories = [
-          "Development"
-          "TextEditor"
-        ];
-      };
-    };
-  };
+  programs.appimages.enable = true;
 
   # GLib can only launch Terminal=true entries (nvim.desktop) through
   # xdg-terminal-exec or a hardcoded terminal list that lacks Ghostty.
@@ -269,7 +250,6 @@ in
 
   home.packages = with pkgs; [
     # desktop apps
-    code-cursor
     (withElectronA11y discord [
       "Discord"
       "discord"
@@ -325,7 +305,7 @@ in
     ghostty
     # inputs.herdr.packages.${systemName}.default
     inputs.hark.packages.${systemName}.harkctl
-    inputs.pagebin.packages.${systemName}.default
+    pagebin
     kitty.kitten
     lazygit
     notifySend

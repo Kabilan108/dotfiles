@@ -52,32 +52,34 @@ let
         local download_pattern="$4"
         local assets
         local asset
+        local releases
         local release
-        local published_at
-        local published_epoch
-        local now_epoch
-        local release_age
+        local tag
+        local cutoff_epoch
+        local newest_local
         local target
         local staging_dir
         local -a matching_assets=()
 
-        if ! release=$(gh release view --repo "$repo" --json assets,publishedAt); then
-          notify-send -u critical "$display_name update failed" "Could not check the latest GitHub release." || true
+        if ! releases=$(gh release list --repo "$repo" --exclude-drafts --exclude-pre-releases --limit 50 --json tagName,publishedAt); then
+          notify-send -u critical "$display_name update failed" "Could not list GitHub releases." || true
           failed=1
           return
         fi
 
-        published_at=$(jq -r '.publishedAt' <<< "$release")
-        if ! published_epoch=$(date --date="$published_at" +%s); then
-          notify-send -u critical "$display_name update failed" "Could not read the latest release date." || true
-          failed=1
+        # Apps that release more often than weekly would never pass a latest-only age check.
+        cutoff_epoch=$(( $(date +%s) - 7 * 24 * 60 * 60 ))
+        tag=$(jq -r --argjson cutoff "$cutoff_epoch" \
+          '[.[] | select((.publishedAt | fromdateiso8601) < $cutoff)] | sort_by(.publishedAt) | last | .tagName // empty' \
+          <<< "$releases")
+        if [[ -z "$tag" ]]; then
+          printf '%s has no release older than seven days\n' "$display_name"
           return
         fi
 
-        now_epoch=$(date +%s)
-        release_age=$(( now_epoch - published_epoch ))
-        if (( release_age <= 7 * 24 * 60 * 60 )); then
-          printf '%s release is not yet more than seven days old: %s\n' "$display_name" "$published_at"
+        if ! release=$(gh release view "$tag" --repo "$repo" --json assets); then
+          notify-send -u critical "$display_name update failed" "Could not read GitHub release $tag." || true
+          failed=1
           return
         fi
 
@@ -103,9 +105,15 @@ let
           return
         fi
 
+        newest_local=$(find "$app_dir" -maxdepth 1 -name "$local_pattern" -type f -printf '%f\n' | sort -V | tail -n 1)
+        if [[ -n "$newest_local" && "$(printf '%s\n%s\n' "$newest_local" "$asset" | sort -V | tail -n 1)" != "$asset" ]]; then
+          printf '%s already has a newer build than %s: %s\n' "$display_name" "$asset" "$newest_local"
+          return
+        fi
+
         staging_dir=$(mktemp -d "$app_dir/.update.XXXXXX")
         staging_dirs+=("$staging_dir")
-        if ! gh release download --repo "$repo" --pattern "$download_pattern" --dir "$staging_dir"; then
+        if ! gh release download "$tag" --repo "$repo" --pattern "$download_pattern" --dir "$staging_dir"; then
           rm -rf -- "$staging_dir"
           notify-send -u critical "$display_name update failed" "Could not download $asset." || true
           failed=1
