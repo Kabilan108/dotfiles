@@ -109,7 +109,6 @@ in
     ".config/pnpm/config.yaml".source = cfgLink "pnpm/config.yaml";
     ".config/moxide".source = cfgLink "moxide";
     ".config/nvim".source = cfgLink "nvim";
-    ".config/worktrunk".source = cfgLink "worktrunk";
     ".npmrc".source = cfgLink "npm/npmrc";
 
     "bin".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/bin";

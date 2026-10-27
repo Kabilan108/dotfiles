@@ -248,27 +248,6 @@ return {
         end,
         desc = 'search git index',
       },
-      {
-        '<leader>wt',
-        function()
-          require('custom.worktree').pick()
-        end,
-        desc = 'worktree: switch',
-      },
-      {
-        '<leader>w-',
-        function()
-          require('custom.worktree').switch_previous()
-        end,
-        desc = 'worktree: previous',
-      },
-      {
-        '<leader>wc',
-        function()
-          require('custom.worktree').create()
-        end,
-        desc = 'worktree: create',
-      },
     },
     config = function()
       require('telescope').setup {
