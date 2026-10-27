@@ -1309,11 +1309,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792208479,
-        "narHash": "sha256-vapZasSjARLh8JptQbVVJILR8C6xj/4kklg4q3LaqV8=",
+        "lastModified": 1793080162,
+        "narHash": "sha256-oqEjuw94yRRfH7RY39pi88T453/edoTAHCon34DMwXI=",
         "owner": "Kabilan108",
         "repo": "omasnap",
-        "rev": "18e81fc4a5df1251ea242cd42d71265c1976227a",
+        "rev": "d19ab06c1cf18d395b6631ac1f3c3217878eee9e",
         "type": "github"
       },
       "original": {
