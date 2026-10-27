@@ -5,7 +5,7 @@
   ...
 }:
 let
-  scout = inputs.scout.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  scout = pkgs.scout;
 in
 {
   # scout: keyboard-first file manager. The NixOS side registers its file

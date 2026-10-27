@@ -174,7 +174,7 @@ in
 
   programs.tracer = {
     enable = true;
-    package = inputs.tracer.packages.${systemName}.tracer;
+    package = pkgs.tracer;
     watch.enable = true;
     settings = {
       archive = {
@@ -304,7 +304,7 @@ in
     gh
     ghostty
     # inputs.herdr.packages.${systemName}.default
-    inputs.hark.packages.${systemName}.harkctl
+    harkctl
     pagebin
     kitty.kitten
     lazygit
@@ -318,7 +318,6 @@ in
     tree
     tree-sitter
     vhs
-    worktrunk
 
     # lsp & formatters
     bash-language-server

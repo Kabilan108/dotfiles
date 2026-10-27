@@ -17,6 +17,10 @@
         (import ./packages/security-overrides.nix)
         # Builds pagebin with this overlay set's bun, which `bun build --compile` embeds.
         inputs.pagebin.overlays.default
+        inputs.atlas.overlays.default
+        inputs.hark.overlays.default
+        inputs.scout.overlays.default
+        inputs.tracer.overlays.default
       ];
 
       compositorModules = {
@@ -177,13 +181,22 @@
     };
 
     # tools i maintain
-    atlas.url = "github:kabilan108/atlas";
-    dictator.url = "github:kabilan108/dictator";
-    # Match disktree's CI build so both hosts can substitute from Cachix.
+    atlas = {
+      url = "github:kabilan108/atlas";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    dictator = {
+      url = "github:kabilan108/dictator";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     disktree = {
       url = "github:Kabilan108/disktree";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
-    hark.url = "github:Kabilan108/hark";
+    hark = {
+      url = "github:Kabilan108/hark";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     omasnap = {
       url = "github:Kabilan108/omasnap/niri-native";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -201,7 +214,13 @@
       url = "git+ssh://git@github.com/Kabilan108/scout";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    siren.url = "github:kabilan108/siren";
-    tracer.url = "github:kabilan108/tracer";
+    siren = {
+      url = "github:kabilan108/siren";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    tracer = {
+      url = "github:kabilan108/tracer";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 }

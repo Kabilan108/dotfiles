@@ -116,7 +116,7 @@
     environment.systemPackages = with pkgs; [
       inputs.agenix.packages.${pkgs.stdenv.hostPlatform.system}.default
 
-      inputs.atlas.packages.${pkgs.stdenv.hostPlatform.system}.default
+      pkgs.atlas
 
       # file system support
       gvfs

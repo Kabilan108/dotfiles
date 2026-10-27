@@ -6,7 +6,7 @@
   xdg.portal.extraPortals = [
     pkgs.xdg-desktop-portal-gtk
     # File chooser backend; routed per compositor in modules/home/scout.nix and gtk.nix.
-    inputs.scout.packages.${pkgs.stdenv.hostPlatform.system}.default
+    pkgs.scout
   ];
 
   environment.sessionVariables = {
