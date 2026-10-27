@@ -1,0 +1,12 @@
+default_stages = ["pre-commit"]
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "niri-validate"
+name = "niri validate"
+entry = "scripts/niri-validate"
+language = "system"
+files = "^home/desktop/wayland/compositors/niri/.*\\.kdl$"
+pass_filenames = false

@@ -1,115 +1,45 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This is my (Tony's) dotfiles flake. It is a shared configuration for my fleet machines.
 
-## Common Commands
+Primarily, it declares how my sietch, jacurutu, and tleilax machines should be configured
+and set up.
 
-### System Configuration (NixOS + Home Manager)
-```bash
-# Deploy system configuration using flakes
-sudo nixos-rebuild switch --flake .#sietch
-sudo nixos-rebuild switch --flake .#jacurutu
+It includes a suite of custom tools, bash scripts, and a custom quickshell desktop
 
-# Check flake syntax and structure
-nix flake check --no-build
+The main branch is `nixos`.
 
-# Update flake inputs
-nix flake update
-```
+sietch and jacurutu are built from the root `flake.nix`. tleilax is built from the
+separate flake in `raspi/`, which has its own `raspi/flake.lock`. Updating the root
+flake's inputs does not update tleilax; bump `raspi/flake.lock` too.
 
-### Dotfiles Setup
-```bash
-# Bootstrap symlinks and directories (for remaining non-Nix configs)
-./scripts/bootstrap.sh
+## Self-Hosted Services
 
-# Enter development shell with Claude Code
-nix develop
-```
+`sietch` and `tleilax` are my self-hosting boxes. different services are configured
+per-machine.
 
-### Self-Hosted Services
+all self-hosted services are managed as tailscale services. refer to the `add-selfhost-service`
+skill when setting up a new service.
 
-Services run as NixOS units defined in `modules/nixos/selfhost/`, localhost-bound
-and published tailnet-only as `https://<name>.sole-pierce.ts.net` via Tailscale
-Services. Adding one: use the `add-selfhost-service` skill. Updating pinned
-container images: `update-image-pins` skill / `bin/image-pins`. Permission model
-and hardening guidance: `docs/security-hardening.md` ("Selfhost service
-permission model").
+if you need to update images for self-hosted containers, refer to the `update-image-pins`
+skill and `bin/image-pins`.
 
-```bash
-# Inspect
-systemctl status siren jellyfin vaultwarden docker-executor
-tailscale serve status --json | jq '.Services'
-```
+## Rules
 
-## Architecture Overview
-
-This is a complete NixOS + Home Manager-based development workstation configuration with:
-
-### Core Components
-- **flake.nix** - Main flake configuration defining system configurations and inputs
-- **configuration.nix** - Shared system configuration with services and basic setup
-- **user.nix** - User configuration with Home Manager integration
-- **home/default.nix** - Main Home Manager configuration (packages, programs, desktop)
-- **home/shell.nix** - Shell environment and dotfiles
-- **home/services.nix** - User systemd services
-- **machines/{sietch,jacurutu}/default.nix** - Machine-specific configurations
-- **scripts/bootstrap.sh** - Symlink remaining dotfiles and create directory structure
-
-### Directory Structure
-- **home/** - Home Manager configuration (shell, services, completions, desktop environments)
-- **home/desktop/x11/** - X11 desktop environment (i3, polybar, rofi, dunst, picom)
-- **home/desktop/wayland/** - Wayland desktop environment (future)
-- **modules/home/** - Reusable Home Manager modules (fonts, ghostty, gtk, pwas, zen browser)
-- **modules/nixos/** - Shared NixOS modules (desktop X11/Wayland, nvidia, VPN, virt-manager, etc.)
-- **bin/** - Custom scripts and utilities
-- **config/** - Application configurations (nvim, claude, vscode, etc.)
-- **machines/** - Machine-specific configurations (sietch with NVIDIA/CUDA, jacurutu with Framework laptop support)
-- **packages/** - Custom package definitions
-- **wallpapers/** - Desktop wallpapers
-- **modules/nixos/selfhost/** - Self-hosted services (Jellyfin, Vaultwarden, Siren, Executor) behind Tailscale Services
-- **scripts/** - Utility scripts (bootstrap, partitioning)
-- **secrets/** - Encrypted secrets managed with agenix
-
-### Key Features
-- **Vault Storage**: `/vault` directory for persistent data with symlinks to `~/work`, `~/repos`, `~/journal`, `~/userdata`
-- **Session Management**: `sessionizer` script for tmux session switching with fzf
-- **AI Integration**: Multiple AI services configured (Anthropic, OpenAI, OpenRouter)
-- **Development Environment**: Comprehensive LSP setup with Neovim, autocomplete, debugging, and code navigation
-- **Self-Hosted Services**: Jellyfin for media, Vaultwarden for passwords, Siren for speech-to-text, Executor as MCP gateway — all tailnet-only
-
-### Configuration Management
-- **Home Manager**: User packages, programs, and dotfiles managed declaratively in `home/`
-- **NixOS**: System services, hardware, and global configuration
-- **Modular design**: Reusable modules in `modules/nixos/` and `modules/home/`
-- **Display server support**: X11 and Wayland configurations in `home/desktop/`
-- **Hybrid approach**: Some configs still symlinked via `scripts/bootstrap.sh` (legacy)
-- Machine-specific settings isolated in `machines/{hostname}/`
-- Development dependencies managed through Home Manager
-- Secrets encrypted with agenix and machine-specific SSH keys
-- Custom packages (dictator, atlas) integrated as flake inputs
-- Local packages defined in `packages/`
-
-### Development Workflow
-1. Use `sessionizer` for project navigation
-2. Neovim with comprehensive LSP setup managed by Home Manager
-3. Development tools (lazygit, lazydocker, etc.) configured via Home Manager
-4. Self-hosted AI services for assistance
-5. Docker for service management
-6. Git workflow with GitHub CLI integration
-
-## Special Notes
-- **sietch**: Desktop system with NVIDIA GPU and CUDA support, gaming setup
-- **jacurutu**: Framework laptop with fingerprint support and power management
-- **Home Manager**: Manages user-level packages, programs, and configurations
-- **Themes**: Catppuccin Mocha color scheme integrated across applications
-- Tailscale VPN integration for secure remote access
-- Font requirement: FiraMono Nerd Font (managed by Home Manager)
-- Default shell: bash with custom configuration managed by Home Manager
-- Flake-based configuration for reproducible builds and easy rollbacks
-
-## Instructions
-
-- When you make changes that necessitate rebuilding the flake ona  user-managed machine (sietch, jacurutu), use `notify-send` to inform the user. Don't rebuild the flake yourself on these machines. Feel free to rebuild flakes for other machines in the fleet.
-- Give every systemd timer an explicit `RandomizedDelaySec` appropriate to its latency requirements to avoid thundering-herd workload spikes.
-- When making changes to my niri config `home/desktop/wayland/compositors/niri/config.kdl`, make sure to run `niri validate` and resolve any config errors.
-- Walker and Elephant only run in Hyprland sessions (their units are gated on `XDG_CURRENT_DESKTOP`); niri sessions use the Stillsuit launcher (`stillsuit.launcher`, `stillsuit.clipboard`). Do not add Home Manager or systemd rebuild-time auto restarts for `elephant.service` or `walker.service`. Before Elephant got an app-scope `launch_prefix`, apps it launched lived in its cgroup, so restarting it killed them.
+- The following rules apply when you need to rebuild the flake to apply changes on any
+  machine in the fleet:
+  - Default to asking the user to rebuild with `notify-send`
+  - If you are running on jacurutu, and Tony gives his explicit approval, you may rebuild
+    `sietch` or `tleilax` remotely via SSH. For `sietch`, you'll need him to enter the
+    sudo password, so prefer tmux panes where he can take over to enter creds.
+- Give every systemd timer an explicit `RandomizedDelaySec` appropriate to its latency
+  requirements to avoid thundering-herd workload spikes.
+- If you are making changes that need to propagate across the fleet, start in one
+  checkout. If the changes need Tony's review (i.e. if he hasn't explicitly greenlit
+  committing + pushing), let him know. Once approved, commit and push then `git pull`
+  on each other machine before it rebuilds. Never copy or patch uncommitted edits into
+  another machine's checkout.
+- Never launch Zen (or another Firefox-based browser) with `--remote-debugging-port` or
+  `--marionette` against a real profile. Automation mode can leave test prefs in
+  `prefs.js` that disable Safe Browsing and revocation updates. Use a copy of the
+  profile or a fresh one.

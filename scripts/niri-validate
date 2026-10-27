@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Validate the niri config once per host: config.kdl includes ~/.config/niri/host.kdl,
+# so substitute each repo host file for that include.
+set -euo pipefail
+
+niri_dir="$(git rev-parse --show-toplevel)/home/desktop/wayland/compositors/niri"
+tmp=$(mktemp -d)
+trap 'rm -rf -- "$tmp"' EXIT
+
+status=0
+for host in "$niri_dir"/hosts/*.kdl; do
+  name=$(basename "$host" .kdl)
+  sed "s|\"~/.config/niri/host.kdl\"|\"$host\"|" "$niri_dir/config.kdl" > "$tmp/$name.kdl"
+  if ! grep -qF "\"$host\"" "$tmp/$name.kdl"; then
+    echo "niri-validate: host include not found in config.kdl" >&2
+    exit 1
+  fi
+  if ! niri validate -c "$tmp/$name.kdl" > "$tmp/$name.log" 2>&1; then
+    echo "niri config invalid for $name:" >&2
+    cat "$tmp/$name.log" >&2
+    status=1
+  fi
+done
+exit "$status"
