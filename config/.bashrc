@@ -165,10 +165,6 @@ if [ -f "$HOME/.bashenv" ]; then
   source "$HOME/.bashenv"
 fi
 
-### -> Shell integrations
-
-eval "$(wt config shell init bash)"
-
 #### --> FUNCTIONS
 
 function tmuxa() {
