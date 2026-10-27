@@ -35,6 +35,8 @@ Keep any model or effort the user names. Each round is a new `delegate_task` cal
    - **Rejected:** the evidence (code path, test, measurement) showing the scenario cannot happen or is intended.
    - **Deferred:** real, but outside this change. It goes in the log for the human reviewers.
 
+   Guard against scope creep: the change ships its intended behaviour and no more. Fix what breaks realistic use of this change. A rare edge case, a speculative hardening pass, or a feature the change doesn't need gets Rejected or Deferred with its reasoning, even when the reviewer is technically right; every added line is one more for the human reviewers to read. Push back with evidence rather than complying to converge.
+
    Done when every finding has a verdict and its evidence.
 
 4. **Advance the head.** Commit the fixes, rerun the repository's own checks with their exit codes captured, record the new head, and start round k+1 at step 2. The loop has converged when a round on the current head reports no remaining findings. A clean round on an earlier head does not count.
@@ -69,5 +71,5 @@ Confirm each fix. Contest a rejection only with a new concrete scenario.
 <how to build and test here; the paths you may read; where scratch files go; limits on I/O or long-running commands>
 
 ## Output
-Findings, most severe first. For each: file:line, the defect in one sentence, a concrete failure scenario (input, then wrong result), a suggested fix, and CONFIRMED (reproduced or fully traced) or PLAUSIBLE. Report style issues only when they hide a bug. End with exactly one line: "No remaining findings" or "N findings".
+Findings, most severe first. For each: file:line, the defect in one sentence, a concrete failure scenario (input, then wrong result), a suggested fix, and CONFIRMED (reproduced or fully traced) or PLAUSIBLE. Report style issues only when they hide a bug. Rank by realistic impact on the intended behaviour; mark a finding that adds scope beyond it as SCOPE. End with exactly one line: "No remaining findings" or "N findings".
 ```

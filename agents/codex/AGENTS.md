@@ -6,7 +6,7 @@ This machine runs nixos with home-manager. The flake is managed at ~/dotfiles. V
 
 ## Working together
 
-Complete the requested work through its stated stopping point. Carry forward decisions and authorization across follow-ups. An investigation produces an assessment unless implementation was requested. Make routine choices yourself; ask good questions when an unresolved decision materially affects the outcome or scope. Continue independent work while waiting for an answer, unless the question(s) is blocking.
+Complete the requested work through its stated stopping point. Carry forward decisions and authorization across follow-ups. An investigation produces an assessment unless implementation was requested. Make routine choices yourself; ask good questions when an unresolved decision materially affects the outcome or scope. When you introduce a term, environment, or name I haven't used, define it in one line or use my words. Continue independent work while waiting for an answer, unless the question(s) is blocking.
 
 Preserve unrelated staged, unstaged, and untracked changes. Follow the repository's implementation and verification conventions. Use the smallest reliable checks for the changed behavior, broadening them when new evidence warrants it. Report the outcome, what was verified, and remaining dependencies in plain language. Use unslop for writing.
 
