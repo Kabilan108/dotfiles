@@ -78,6 +78,11 @@ in
     UV_MALWARE_CHECK = "1";
     UV_SYSTEM_PYTHON = "0";
 
+    # Fleet hosts set RequestTTY=yes for tmux-on-ssh. A TTY merges remote
+    # stderr into stdout, which breaks Nix's remote ops: nixos-rebuild
+    # --build-host parsed build progress as the result path. Only Nix reads this.
+    NIX_SSHOPTS = "-o RequestTTY=no";
+
     USER_DATA = "/vault/userdata";
     PYREPL_PORT = "5678";
 
