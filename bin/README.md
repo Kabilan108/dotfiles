@@ -32,11 +32,5 @@ useful bash tools. some of these are used as part of my desktop env others are j
 - [sessionizer](./sessionizer):
   fleet-aware tmux session manager and project directory jumper with an fzf picker. It lists sessions and unused project directories from reachable machines, sessions first and ordered by most recent use. Tab and Shift-Tab cycle the machine filter, Ctrl-S cycles sessions/directories, and Ctrl-F (or `f` in normal mode) pins a favorite to the top; favorites live in `~/.local/state/sessionizer/favorites.json`. Remote selections replace the local tmux client over SSH and can return to the origin machine's picker without mirroring tmux state.
 
-- [set-wallpaper](./set-wallpaper):
-  sets wallpaper using the `feh` utility, loading the path from a variable.
-
-- [start-polybar](./start-polybar):
-  launches polybar status bar with proper configuration.
-
 - [volctl](./volctl):
   adjusts audio volume and mute/unmute status with notifications; handles mic as well.

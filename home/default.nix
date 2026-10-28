@@ -1,5 +1,4 @@
 {
-  displayServer,
   inputs,
   lib,
   pkgs,
@@ -84,8 +83,9 @@ in
 
     inputs.atlas.homeManagerModules.default
     inputs.tracer.homeManagerModules.default
-  ]
-  ++ (if displayServer == "x11" then [ ./desktop/x11 ] else [ ./desktop/wayland ]);
+
+    ./desktop/wayland
+  ];
 
   home.username = "kabilan";
   home.homeDirectory = homeDir;

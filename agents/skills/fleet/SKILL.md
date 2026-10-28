@@ -28,11 +28,12 @@ before inspecting or changing policy.
 - Interactive/long-running work on a remote box: run it inside that host's
   tmux (`ssh <host>-agent 'tmux new-session -d -s <name> "<command>"'`),
   then report the session name so the user can attach.
-- Fleet machines are NixOS. Configuration changes go through `~/dotfiles`
-  (edit + `nh os switch` or `sudo nixos-rebuild switch --flake ~/dotfiles#<host>`),
-  never ad-hoc edits to system files. The registry itself (`lib/fleet.nix`)
-  drives SSH config, authorized keys, host colors, and this doc — change it
-  there and rebuild.
+- Fleet machines are NixOS. Configuration changes go through `~/dotfiles`,
+  never ad-hoc edits to system files. Before rebuilding or deploying any
+  host, read the Rules section of `~/dotfiles/AGENTS.md`: it says
+  which host may deploy which, and gives the tleilax deploy command. The
+  registry itself (`lib/fleet.nix`) drives SSH config, authorized keys, host
+  colors, and this doc — change it there and rebuild.
 - Long jobs on sietch should end with a clear artifact the user can find
   (a pagebin URL, a file path, or a `discord-notify` message when available).
 - Workload placement: sietch for heavy/parallel agent work and anything

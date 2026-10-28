@@ -111,7 +111,7 @@ let
     - From a remote tmux view: `M-s` returns to the local machine's session picker; plain detach (prefix+d) returns to the session you came from.
     - Access is directional: only the `can ssh into` lists above are permitted; never try to reach jacurutu from another machine.
     - Remote interactive work: `ssh <name>` lands in the `main` tmux session automatically; one-off commands (`ssh <name> '<cmd>'`) bypass tmux.
-    - SSH hosts are NixOS; config changes go through ~/dotfiles on that machine (`nh os switch` / `nixos-rebuild switch --flake`), never ad-hoc system edits.
+    - SSH hosts are NixOS; config changes go through ~/dotfiles, never ad-hoc system edits. Before rebuilding or deploying any host, read the Rules section of `~/dotfiles/AGENTS.md`: it says which host may deploy which.
   '';
 in
 {

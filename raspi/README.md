@@ -6,7 +6,7 @@ small configs (e.g. tmux, agent configs) can be copied or pulled in as a flake i
 
 ## Phase 1 — bare headless NixOS
 
-### 0. One-time: enable aarch64 emulation on the build host (jacurutu)
+### 0. One-time, for the SD image only: enable aarch64 emulation on the build host (jacurutu)
 Add to jacurutu's config, then `nixos-rebuild switch`:
 
 ```nix
@@ -49,11 +49,13 @@ Fallback if `.local` doesn't resolve: `nmap -sn 192.168.1.0/24` (adjust subnet) 
 sudo tailscale up
 ```
 
-From here on, admin over Tailscale. Future changes never require reflashing:
+From here on, admin over Tailscale. Future changes never require reflashing. Deploy from
+the dotfiles root on jacurutu (the only host allowed to deploy tleilax). The Pi builds its
+own closure, so this step needs no emulation:
 
 ```sh
 nixos-rebuild switch --flake ./raspi#tleilax \
-  --target-host kabilan@tleilax --use-remote-sudo
+  --build-host tleilax-agent --target-host tleilax-agent --sudo
 ```
 
 ## Phase 1.5 — move root + Nix store to the SSD (after USB3 cable arrives)

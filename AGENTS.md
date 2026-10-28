@@ -31,7 +31,9 @@ skill and `bin/image-pins`.
   - Default to asking the user to rebuild with `notify-send`
   - If you are running on jacurutu, and Tony gives his explicit approval, you may rebuild
     `sietch` or `tleilax` remotely via SSH. For `sietch`, you'll need him to enter the
-    sudo password, so prefer tmux panes where he can take over to enter creds.
+    sudo password, so prefer tmux panes where he can take over to enter creds. tleilax
+    builds its own closure and switches with passwordless sudo:
+    `nixos-rebuild switch --flake ./raspi#tleilax --build-host tleilax-agent --target-host tleilax-agent --sudo`
 - Give every systemd timer an explicit `RandomizedDelaySec` appropriate to its latency
   requirements to avoid thundering-herd workload spikes.
 - If you are making changes that need to propagate across the fleet, start in one

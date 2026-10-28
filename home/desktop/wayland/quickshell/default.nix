@@ -88,8 +88,7 @@ in
   programs.stillsuitShell.ownership.notificationOwners = [ "stillsuit.notifications" ];
   home.packages = [ pkgs.quickshell ];
 
-  # Stillsuit is built on niri IPC. Hosts that also run Hyprland reach
-  # graphical-session.target from both compositors, so skip the Hyprland one.
+  # Stillsuit is built on niri IPC.
   systemd.user.services.stillsuit-shell.Unit.ConditionEnvironment = "XDG_CURRENT_DESKTOP=niri";
 
   # Stillsuit provides the network and Bluetooth controls. Keep the desktop

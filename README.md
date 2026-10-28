@@ -38,8 +38,7 @@ nix flake update
 │   ├── services.nix         # User systemd services
 │   ├── completions/         # Custom shell completions
 │   └── desktop/             # Desktop environment configs
-│       ├── x11/             # X11 desktop (i3, polybar, rofi, dunst, picom)
-│       └── wayland/         # Wayland desktop (future)
+│       └── wayland/         # niri compositor + Stillsuit shell
 ├── modules/                 # Reusable modules
 │   ├── home/                # Home Manager modules
 │   │   ├── fonts.nix        # Font configuration
@@ -48,7 +47,6 @@ nix flake update
 │   │   ├── pwas.nix         # Progressive web apps
 │   │   └── zen/             # Zen browser configuration
 │   └── nixos/               # NixOS modules
-│       ├── deskotp-x11.nix  # X11 and desktop services
 │       ├── desktop-wayland.nix # Wayland desktop services
 │       ├── nvidia.nix       # NVIDIA/CUDA setup
 │       ├── mullvad-vpn.nix  # VPN configuration
@@ -99,8 +97,8 @@ nix flake update
 
 ### Shared Configuration
 - **Home Manager**: User-level package and configuration management
-- **i3 Window Manager**: Tiling window manager with custom keybindings (via Home Manager)
-- **Desktop Applications**: Fully declarative configuration for rofi, dunst, picom, polybar, and GTK themes
+- **niri + Stillsuit**: Scrolling Wayland compositor with a Quickshell-based bar, launcher, and notifications
+- **Desktop Applications**: Declarative GTK themes and app configuration (via Home Manager)
 - **Development Environment**: Comprehensive LSP setup, languages, and tools (via Home Manager)
 - **Audio**: PipeWire with PulseAudio compatibility
 - **Networking**: NetworkManager with VPN support
@@ -140,10 +138,10 @@ All custom packages are integrated as flake inputs:
 - `machines/<hostname>/*.nix`: Hardware-specific modules
 
 ### Modules
-- `modules/nixos/`: Shared NixOS modules (X11, Wayland, NVIDIA, VPN, etc.)
+- `modules/nixos/`: Shared NixOS modules (Wayland, NVIDIA, VPN, etc.)
 - `modules/home/`: Reusable Home Manager modules (fonts, terminal, themes)
 - `home/`: User environment and configuration (Home Manager)
-- `home/desktop/`: Desktop environment setup (x11, wayland) managed declaratively
+- `home/desktop/`: niri and Stillsuit desktop setup managed declaratively
 - `secrets/`: Encrypted configuration files
 
 ## Adding New Machines

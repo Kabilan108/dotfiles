@@ -8,7 +8,7 @@ Everything below was probed live on this machine; re-verify with `acu doctor` at
 - niri config: `~/.config/niri/config.kdl` → out-of-store symlink → `~/dotfiles/home/desktop/wayland/compositors/niri/config.kdl`. **Live-editable**: edit, `niri validate`, then `niri msg action load-config-file` (niri also auto-reloads on save). No home-manager rebuild needed.
 - Hot corners are DISABLED in config (`gestures { hot-corners { off; } }`) because synthetic pointer sweeps through (0,0) kept opening the overview. Overview is still on Mod+O.
 - `focus-follows-mouse max-scroll-amount="0%"` is enabled — pointer motion over a fully-visible window focuses it.
-- Top layer surfaces: waybar + stillsuit-bar (quickshell). Floating windows clamp to y >= ~290 in the working area. Layer surfaces expose no geometry via IPC on this build.
+- Top layer surface: stillsuit-bar (quickshell). Floating windows clamp to y >= ~290 in the working area. Layer surfaces expose no geometry via IPC on this build.
 - `prefer-no-csd`, gaps 6, default column width 0.5.
 
 ## Input protocols (Wayland-native — the only reliable path)

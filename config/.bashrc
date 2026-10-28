@@ -245,12 +245,9 @@ alias xlsx2csv='libreoffice --headless --convert-to csv'
 if [ -n "$WAYLAND_DISPLAY" ]; then
   alias copy='wl-copy'
   alias clipboard='wl-paste'
-elif [ -n "$DISPLAY" ]; then
-  alias copy='xclip -selection clipboard'
-  alias clipboard='xclip -selection clipboard -o'
 fi
 
-### -> AUTO-START HYPRLAND
+### -> AUTO-START NIRI
 
 # Auto-start compositor on TTY1
 # - Only runs if not already in a graphical session ($DISPLAY check)
@@ -259,7 +256,5 @@ fi
 if [ -z "$DISPLAY" ] && [ "$XDG_VTNR" = "1" ] && [ -z "$SSH_CONNECTION" ]; then
   if command -v niri-session >/dev/null 2>&1; then
     exec niri-session
-  elif command -v Hyprland >/dev/null 2>&1; then
-    exec Hyprland
   fi
 fi
