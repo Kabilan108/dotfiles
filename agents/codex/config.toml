@@ -465,3 +465,15 @@ consolidation_model = "gpt-6.1-sol"
 
 [hooks.state."/home/kabilan/.codex/hooks.json:session_start:0:0"]
 trusted_hash = "sha256:7fcad8e587d2ed4c23aba1c21bbf1d53027bd6d1deb3f30f036aa9c3221c70dd"
+
+[hooks.state."/home/kabilan/dotfiles/agents/codex/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:65fa3c04f51962a1897933c4a8ede682a0cb695b0a782b196c4bbfdbead6ef65"
+
+[hooks.state."/home/kabilan/dotfiles/agents/codex/hooks.json:post_tool_use:0:0"]
+trusted_hash = "sha256:c3b26783a1c53e001abcbac6fbbc866da0d422b3d6d6dd86fe523aa04ef62942"
+
+[hooks.state."/home/kabilan/.codex/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:65fa3c04f51962a1897933c4a8ede682a0cb695b0a782b196c4bbfdbead6ef65"
+
+[hooks.state."/home/kabilan/.codex/hooks.json:post_tool_use:0:0"]
+trusted_hash = "sha256:c3b26783a1c53e001abcbac6fbbc866da0d422b3d6d6dd86fe523aa04ef62942"
