@@ -31,14 +31,8 @@ create_symlink() {
 
 mkdir -p "$CONFDIR"
 
-echo "Creating user directories..."
-mkdir -p "$HOME/downloads" \
-         "$HOME/media/screenshots" \
-         "$HOME/media/screencaps" \
-         "$HOME/media/wallpapers"
-
 if [ -d "/vault" ]; then
-  mkdir -p "/vault/work" "/vault/repos" "/vault/journal" "/vault/userdata" "/vault/experiments"
+  mkdir -p "/vault/work" "/vault/repos" "/vault/userdata" "/vault/experiments"
   create_symlink "/vault/work" "$HOME/work"
   create_symlink "/vault/repos" "$HOME/repos"
   create_symlink "/vault/experiments" "$HOME/experiments"

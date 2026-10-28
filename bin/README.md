@@ -20,9 +20,6 @@ useful bash tools. some of these are used as part of my desktop env others are j
 - [tkncount](./tkncount):
   counts tokens in stdin using anthropic’s token-counting API.
 
-- [open-nvim](./open-nvim):
-  launches neovim inside a ghostty terminal.
-
 - [pathurl](./pathurl):
   converts a file path to a file:// url, useful for easy copy-paste.
 

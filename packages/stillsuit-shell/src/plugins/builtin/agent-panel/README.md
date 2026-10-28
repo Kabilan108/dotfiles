@@ -19,10 +19,9 @@ under a lock to prevent duplicate dispatch during concurrent opens.
 
 The user-level systemd drop-in makes normal Ghostty resident without putting
 resident flags in global application settings. The matching Niri title rule
-and Mod+Return forwarding command remain in the separate, unapplied
-`docs/plans/stillsuit-shared-ghostty-niri.patch`. The current 60% geometry is
-preserved. Deploy the helper, resident service, and Niri patch together only
-after approval; this source verification does not start the resident service.
+and Mod+Return forwarding command live in
+`home/desktop/wayland/compositors/niri/config.kdl`. The current 60% geometry is
+preserved.
 
 The helper reads `$XDG_CONFIG_HOME/stillsuit/agent-panel.json` when it needs to
 start the agent. If `XDG_CONFIG_HOME` is unset, it reads

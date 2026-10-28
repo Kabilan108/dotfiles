@@ -303,7 +303,6 @@ in
     fzf
     gh
     ghostty
-    # inputs.herdr.packages.${systemName}.default
     harkctl
     pagebin
     kitty.kitten

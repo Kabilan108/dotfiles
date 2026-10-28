@@ -1,9 +1,8 @@
 // Usage boost reimplements the formula of Elephant's CalcUsageScore
-// (abenz1267/elephant pkg/common/history/history.go, GPL-3.0) as restated in
-// docs/plans/stillsuit-launcher-spec.md. Differences: related stored queries
-// contribute their best per-record boost instead of a summed count, and the
-// length difference divides as (1 + delta), so results don't depend on map
-// iteration order.
+// (abenz1267/elephant pkg/common/history/history.go, GPL-3.0). Differences:
+// related stored queries contribute their best per-record boost instead of a
+// summed count, and the length difference divides as (1 + delta), so results
+// don't depend on map iteration order.
 
 var VERSION = 1
 var MAX_RECORDS = 2000
