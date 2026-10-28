@@ -31,11 +31,12 @@
 	},
 
 	"hosts": {
-		"sietch":   "100.71.183.33",
-		"jacurutu": "100.108.28.4",
-		"tleilax":  "100.73.84.103",
-		"pixel-9":  "100.66.90.94",
-		"moberg-demo": "100.79.75.43"
+		"sietch":      "100.71.183.33",
+		"jacurutu":    "100.108.28.4",
+		"tleilax":     "100.73.84.103",
+		"pixel-9":     "100.66.90.94",
+		"ipad":        "100.120.97.93",
+		"moberg-demo": "100.79.75.43",
 	},
 
 	"grants": [
@@ -68,6 +69,13 @@
 			"src": ["pixel-9"],
 			"dst": ["sietch", "jacurutu", "tleilax"],
 			"ip":  ["*"],
+		},
+
+		// iPad: SSH and T3 Code over Tailscale Serve.
+		{
+			"src": ["ipad"],
+			"dst": ["sietch", "jacurutu", "tleilax"],
+			"ip":  ["tcp:22", "tcp:443"],
 		},
 
 		// tailnet members reach the hosted services
@@ -133,6 +141,16 @@
 	],
 
 	"tests": [
+		{"src": "ipad", "accept": [
+			"sietch:22",
+			"sietch:443",
+			"jacurutu:22",
+			"jacurutu:443",
+			"tleilax:22",
+			"tleilax:443",
+			"svc:vault:443",
+			"svc:jellyfin:443",
+		], "deny": ["sietch:7297"]},
 		{
 			"src":    "jacurutu",
 			"accept": ["sietch:22", "sietch:443", "tleilax:22", "tag:nas:443", "svc:blocky:443"],
