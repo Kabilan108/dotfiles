@@ -1,6 +1,6 @@
 # Decisions
 
-A decision is plain markup with no script. PageBin's review layer saves the answers alongside the user's comments. The visible ID lets the user also answer in chat.
+A decision is plain markup with no script, on a PageBin page: the review layer saves the answers alongside the user's comments. The visible ID lets the user also answer in chat. A thread has no such layer, so a choice asked in a thread goes in the reply text (see SKILL.md, "In the thread").
 
 ```html
 <section class="decision" id="retry-policy" data-pb-decision="retry-policy">

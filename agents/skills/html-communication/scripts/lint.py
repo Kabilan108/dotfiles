@@ -77,7 +77,16 @@ PLAIN_LANGUAGES = {
     "none",
     "output",
     "console-output",
+    "mermaid",
 }
+CSS_RULE = re.compile(r"([^{}]+)\{([^{}]*)\}")
+CSS_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+VAR_USE = re.compile(r"var\(\s*--([\w-]+)\s*(,?)")
+VAR_DEF = re.compile(r"(?:^|[;{\s])--([\w-]+)\s*:")
+COMPOUND = re.compile(r"([#.]?)([\w-]+)")
+ZERO_LENGTH = re.compile(r"^-?0(?:\.0+)?(?:[a-z%]+)?$")
+EMPTY_BACKGROUND = re.compile(r"^(?:transparent|none|initial|unset|inherit)\b")
+MIN_SIDE_PAD = 16
 
 
 def code_language(node: Node) -> str | None:
@@ -193,6 +202,8 @@ class Linter:
         self.check_code()
         self.check_anchors()
         self.check_phone_width()
+        self.check_frame()
+        self.check_diagrams()
         self.check_secrets()
         if self.is_plan():
             self.check_plan()
@@ -520,6 +531,174 @@ class Linter:
                 self.warn(
                     table.line,
                     f"table has {columns} columns; put it in a horizontal scroll wrapper for phones",
+                )
+
+    def page_css(self) -> tuple[str, list[tuple[list[str], dict[str, str]]]]:
+        """The page's own CSS (generated highlight and Pele blocks excluded) and its flattened rules."""
+        sheets = [
+            CSS_COMMENT.sub("", s.raw_text())
+            for s in self.doc.find_all(lambda n: n.tag == "style")
+            if not s.has("data-highlight") and not s.has("data-pele")
+        ]
+        inline = [n.attrs["style"] for n in self.doc.walk() if n.has("style")]
+        rules = []
+        for selectors, body in CSS_RULE.findall("\n".join(sheets)):
+            declarations = {}
+            for declaration in body.split(";"):
+                prop, _, value = declaration.partition(":")
+                if value.strip():
+                    declarations[prop.strip().lower()] = value.strip().lower()
+            rules.append(([s.strip() for s in selectors.split(",")], declarations))
+        return "\n".join(sheets + inline), rules
+
+    @staticmethod
+    def matches(selector: str, node: Node) -> bool:
+        """Whether the selector's last compound names this element by tag, id or class."""
+        last = re.split(r"[\s>+~]+", selector.strip())[-1]
+        if last == "*":
+            return True
+        if not last or re.search(r"[\[:]", last):
+            return last in {":root", "html:root"} and node.tag == "html"
+        parts = COMPOUND.findall(last)
+        if not parts:
+            return False
+        for kind, name in parts:
+            if kind == "#" and node.attrs.get("id") != name:
+                return False
+            if kind == "." and name not in node.classes():
+                return False
+            if kind == "" and name != "*" and name != node.tag:
+                return False
+        return True
+
+    @staticmethod
+    def side_padding(declarations: dict[str, str]) -> bool:
+        def wide(value: str) -> bool:
+            if ZERO_LENGTH.match(value) or value == "auto":
+                return False
+            px = re.match(r"^([\d.]+)px$", value)
+            return not px or float(px.group(1)) >= MIN_SIDE_PAD
+
+        def tokens(value: str) -> list[str]:
+            return re.findall(r"\S+\([^)]*\)|\S+", value)
+
+        for prop in ("width", "max-width", "inline-size", "max-inline-size"):
+            inset = re.search(
+                r"calc\(\s*100(?:%|vw)\s*-\s*([\d.]+)(px)?", declarations.get(prop, "")
+            )
+            if inset and (
+                not inset.group(2) or float(inset.group(1)) >= 2 * MIN_SIDE_PAD
+            ):
+                return True
+        for side in ("padding", "margin"):
+            for prop in (f"{side}-left", f"{side}-inline-start", f"{side}-inline"):
+                if prop in declarations and any(
+                    wide(v) for v in tokens(declarations[prop])
+                ):
+                    return True
+            values = tokens(declarations.get(side, ""))
+            if values and wide(values[1] if len(values) > 1 else values[0]):
+                return True
+        return False
+
+    def check_frame(self) -> None:
+        """A PageBin page sits edge to edge over white with no host theme, so it supplies its own frame."""
+        css, rules = self.page_css()
+        html = next(iter(self.doc.find_all(lambda n: n.tag == "html")), None)
+        body = next(iter(self.doc.find_all(lambda n: n.tag == "body")), None)
+
+        roots = [n for n in (html, body) if n is not None]
+        backgrounds = [
+            value
+            for selectors, declarations in rules
+            if any(self.matches(s, n) for s in selectors for n in roots)
+            for prop, value in declarations.items()
+            if prop in {"background", "background-color"}
+        ] + [
+            value.strip().lower()
+            for n in roots
+            for prop, _, value in (
+                d.partition(":") for d in n.attrs.get("style", "").split(";")
+            )
+            if prop.strip().lower() in {"background", "background-color"}
+        ]
+        if not [v for v in backgrounds if not EMPTY_BACKGROUND.match(v)]:
+            self.warn(
+                1,
+                "html and body set no background; PageBin shows the page over white, so set your own background and text colour",
+            )
+
+        defined = set(VAR_DEF.findall(css))
+        undefined = sorted(
+            {name for name, fallback in VAR_USE.findall(css) if not fallback} - defined
+        )
+        if undefined:
+            listed = ", ".join(f"--{name}" for name in undefined[:5])
+            self.warn(
+                1,
+                f"uses CSS variables the page never defines and gives no fallback ({listed}); a thread's theme variables do not exist on PageBin, so define them in the page's palette",
+            )
+
+        if body is None:
+            return
+        frame = [body]
+        node = body
+        for _ in range(3):
+            children = node.elements()
+            if not children:
+                break
+            node = children[0]
+            frame.append(node)
+        frame += [n for n in body.walk() if n.tag == "main" and n not in frame]
+
+        body_margin_kept = not any(
+            any(self.matches(s, body) for s in selectors)
+            and any(
+                p in declarations and ZERO_LENGTH.match(declarations[p].split()[0])
+                for p in ("margin", "margin-left", "margin-inline")
+            )
+            for selectors, declarations in rules
+        )
+        padded = any(
+            any(self.matches(s, n) for s in selectors for n in frame)
+            and self.side_padding(declarations)
+            for selectors, declarations in rules
+        ) or any(
+            self.side_padding(
+                {
+                    p.strip().lower(): v.strip().lower()
+                    for p, _, v in (
+                        d.partition(":") for d in n.attrs.get("style", "").split(";")
+                    )
+                    if v.strip()
+                }
+            )
+            for n in frame
+        )
+        if not body_margin_kept and not padded:
+            self.warn(
+                body.line,
+                f"no side padding on body, main or the outer wrapper, so text touches the screen edge on phones; pad by {MIN_SIDE_PAD}px or more",
+            )
+
+    def check_diagrams(self) -> None:
+        mermaid = [
+            code
+            for code in self.doc.find_all(lambda n: n.tag == "code")
+            if code_language(code) == "mermaid"
+        ]
+        loaders = self.doc.find_all(lambda n: n.tag == "script" and n.has("data-pele"))
+        if mermaid and not loaders:
+            self.warn(
+                mermaid[0].line,
+                f"{len(mermaid)} Mermaid block(s) not rendered; run scripts/diagrams.mts on the page",
+            )
+        for script in self.doc.find_all(lambda n: n.tag == "script"):
+            src = script.attrs.get("src", "")
+            if "pele" in src and re.match(r"^(?:https?:)?//", src):
+                self.warn(
+                    script.line,
+                    "Pele loads from a CDN; for PageBin run scripts/diagrams.mts without --cdn so the pinned copy ships with the page",
                 )
 
     def check_secrets(self) -> None:

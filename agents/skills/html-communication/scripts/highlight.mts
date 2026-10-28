@@ -6,7 +6,7 @@ import { resolve, sep } from "node:path";
 import { createHighlighter, type Highlighter, type ThemedToken } from "./vendor/shiki.mjs";
 
 const THEMES = { light: "catppuccin-latte", dark: "catppuccin-mocha" } as const;
-const PLAIN = new Set(["text", "plaintext", "plain", "txt", "tree", "none", "output", "console-output"]);
+const PLAIN = new Set(["text", "plaintext", "plain", "txt", "tree", "none", "output", "console-output", "mermaid"]);
 const BLOCK = /<pre\b([^>]*)>(\s*)<code\b([^>]*)>([\s\S]*?)<\/code>(\s*)<\/pre>/g;
 const STYLE_TAG = /<style data-highlight>[\s\S]*?<\/style>\s*/;
 const META_LINE = /^(diff |index |--- |\+\+\+ |new file|deleted file|similarity |rename |old mode|new mode|Binary |\\ )/;

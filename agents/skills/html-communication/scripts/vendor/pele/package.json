@@ -1,0 +1,7 @@
+{
+  "name": "html-communication-pele-vendor",
+  "private": true,
+  "dependencies": {
+    "pele": "1.12.0"
+  }
+}

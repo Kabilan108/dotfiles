@@ -11,4 +11,4 @@ Load the installed CLI's version-matched instructions before acting:
 pagebin skill
 ```
 
-Follow those instructions as the source of truth. Never publish credentials or secrets, expose viewer URLs unnecessarily, or commit PageBin receipt data.
+Follow those instructions as the source of truth. Author HTML pages for PageBin under html-communication's "PageBin page" section. Never publish credentials or secrets, expose viewer URLs unnecessarily, or commit PageBin receipt data.

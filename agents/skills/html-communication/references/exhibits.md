@@ -2,7 +2,7 @@
 
 Pick the smallest exhibit that makes the point. Give each one a caption: one sentence on what to notice. A pin or callout on an exhibit is one clause. Several small exhibits beat one large one.
 
-Draw with HTML, CSS and inline SVG. A rendering library is fine when you check its output in the PageBin viewer.
+Draw diagrams as Mermaid (see [Diagrams](#diagrams)) and everything else with HTML, CSS and inline SVG. A rendering library is fine when you check its output where the reader will see it.
 
 ## Which exhibit
 
@@ -39,8 +39,11 @@ Use the same marks for a component tree, a file tree, pseudocode or a call stack
 
 ## Diagrams
 
+Write flow, sequence, state, class, ER, gantt, git, timeline and the other Mermaid types as Mermaid; Pele renders them and re-lays them out for a phone. In a T3 thread, write the diagram as a ` ```mermaid ` fence in the reply; it renders as a diagram. On a PageBin page, write HTML-escaped `<pre><code class="language-mermaid">` blocks and run `scripts/diagrams.mts`; each diagram takes its colours from the background and text around it. Add `--cdn` for an HTML page shown in a thread, which cannot carry the attachment. Hand-draw SVG for what Mermaid cannot express.
+
 - Flow and sequence: at most about 12 nodes; at most 3 columns, so a phone reads it without panning. Short labels on nodes and arrows; detail goes in the caption.
 - State machine: place states on a grid, main path on the top row and the ways out below. Every state is reachable; every dead end is final. When the state changes the screen, pair each state with its mockup.
+- Change marks: tag nodes with a class name (`A:::added`, plus `classDef added stroke-width:2px`) and colour `.pele-node.added > :first-child` in the page CSS from its palette. A hex fill written in the diagram stays the same colour in light and dark.
 - Arrows never cross labels. Check the render.
 
 ## Mockups
