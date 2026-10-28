@@ -150,12 +150,15 @@ in
   programs.atuin = {
     enable = true;
     enableBashIntegration = true;
+    daemon.enable = true;
     settings = {
       style = "compact";
       inline_height = 20;
       keymap_mode = "vim-insert";
       enter_accept = true;
       theme.name = themeName;
+      threads.capture = true;
+      daemon.autostart = false;
     };
     themes = {
       "${themeName}" = {
