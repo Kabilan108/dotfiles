@@ -77,13 +77,17 @@ his YubiKey. Hosts build only signed tags.
 - The receiver (`deploy-receiver.service`) fetches GitHub into its own
   root-owned clone, checks the signature, and builds that exact commit. It
   never reads `~/dotfiles`, so an edit there deploys nothing.
+- A host only moves forward: the signed commit must descend from the one it
+  runs, including Tony's manual rebuilds, and its `flake.lock` must be
+  complete. A deliberate rollback takes `deploy --allow-rollback <host>`,
+  which asks on the terminal even with `--yes`; that's Tony's call.
 - sietch takes deploys now. tleilax takes them once it builds from the root
   flake; until then `deploy` refuses it, and with Tony's explicit approval you
   rebuild it from jacurutu:
   `nixos-rebuild switch --flake ~/dotfiles/raspi#tleilax --build-host tleilax-agent --target-host tleilax-agent --sudo`
 - `rebuild` is Tony's manual rebuild of the host he's on, from `~/dotfiles`.
   It lists the commits since that host's last signed tag and asks; on jacurutu,
-  approving signs a tag. Leave it to him.
+  approving signs and pushes a tag. Leave it to him.
 - sietch's `~/dotfiles` still feeds `~/bin`, the agent configs and niri's
   `config.kdl` directly, so those change on `git pull` there, with or without
   a deploy. Pull it after a deploy so the two match.
