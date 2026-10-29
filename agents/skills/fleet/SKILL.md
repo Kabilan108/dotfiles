@@ -1,6 +1,6 @@
 ---
 name: fleet
-description: Use when a task involves another machine in the fleet (jacurutu, sietch, tleilax), such as running commands remotely, checking a service on another box, rebuilding or deploying a machine, or deciding where a workload should run.
+description: Use when a task involves a machine in the fleet (jacurutu, sietch, tleilax)
 ---
 
 ## Fleet
