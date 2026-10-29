@@ -170,8 +170,14 @@ in
     };
   };
 
+  # Codex's sandbox denies /run/agenix.d. Nix drops its whole config when it
+  # can't stat an include path but skips an include it can't read, so include
+  # the tokens through a link outside that directory.
+  environment.etc."nix/access-tokens.conf".source =
+    config.age.secrets."secrets/nix-access-tokens.age".path;
+
   nix.extraOptions = ''
-    !include ${config.age.secrets."secrets/nix-access-tokens.age".path}
+    !include /etc/nix/access-tokens.conf
   '';
 
   home-manager = {
