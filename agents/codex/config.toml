@@ -261,8 +261,6 @@ trust_level = "trusted"
 [projects."/vault/work/moberg/dev-server-3"]
 trust_level = "trusted"
 
-[projects."/vault/repos/hunk"]
-trust_level = "trusted"
 
 [projects."/vault/repos/jot"]
 trust_level = "trusted"
