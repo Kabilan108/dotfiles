@@ -71,6 +71,11 @@
         jacurutu = makeSystem { name = "jacurutu"; };
       };
 
+      templates.devshell = {
+        path = ./templates/devshell;
+        description = "Flake with a dev shell for x86_64 and aarch64 Linux, loaded by direnv";
+      };
+
       devShells.${system}.default =
         let
           pkgs = import nixpkgs {

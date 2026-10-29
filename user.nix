@@ -170,8 +170,13 @@ in
     };
   };
 
+  # Codex's sandbox hides /run/agenix. Nix ignores its whole config if an
+  # include path is in a hidden directory, but skips an unreadable link.
+  environment.etc."nix/access-tokens.conf".source =
+    config.age.secrets."secrets/nix-access-tokens.age".path;
+
   nix.extraOptions = ''
-    !include ${config.age.secrets."secrets/nix-access-tokens.age".path}
+    !include /etc/nix/access-tokens.conf
   '';
 
   home-manager = {

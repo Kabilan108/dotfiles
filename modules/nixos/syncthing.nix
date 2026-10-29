@@ -3,10 +3,11 @@ let
   hostname = config.networking.hostName;
   otherHost = if hostname == "sietch" then "jacurutu" else "sietch";
 
+  fleet = import ../../lib/fleet.nix;
   tailscaleIPs = {
-    sietch = "100.71.183.33";
-    jacurutu = "100.108.28.4";
-    pixel = "100.126.253.59";
+    sietch = fleet.hosts.sietch.tailscaleIp;
+    jacurutu = fleet.hosts.jacurutu.tailscaleIp;
+    pixel = fleet.devices.tko-pixel-9.tailscaleIp;
   };
 
   deviceIDs = {

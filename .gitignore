@@ -2,6 +2,7 @@ certs/
 .direnv/
 
 .envrc
+!templates/devshell/.envrc
 CLAUDE.md
 
 **/vscode/History/

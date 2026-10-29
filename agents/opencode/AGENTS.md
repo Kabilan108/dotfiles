@@ -69,4 +69,5 @@ Use an integrated browser when one is available and suitable. Otherwise use agen
 
 - Never pipe verification commands (tests, linters, builds) through filters that mask exit codes (`| tail`, `| grep`). Capture output to a file and check the exit code explicitly: `cmd > /tmp/out 2>&1; echo "exit=$?"`. A masked failure has caused a broken commit to be pushed.
 - When watching a CI/workflow run, capture the run ID at trigger time and poll that ID. Never poll "latest run" (`gh run list --limit 1`) — a just-triggered push races the previous run and you will report the wrong result.
+- A workflow that needs a secret reads it from a GitHub environment with me as the required reviewer, never from a repository secret. Agent GitHub tokens never get the Deployments permission.
 - When an applicable `.envrc` exists, run project commands through `direnv exec "$PWD" ...`.

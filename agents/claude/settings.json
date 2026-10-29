@@ -63,8 +63,22 @@
       "mcp__deepwiki__ask_question",
       "Bash(ghostty +list-keybinds --default)"
     ],
-    "deny": [],
-    "defaultMode": "auto"
+    "deny": [
+      "Read(//**/.envrc)",
+      "Read(//**/.env)",
+      "Read(//**/.env.local)",
+      "Read(//**/.env.*.local)",
+      "Read(//**/.env.production)",
+      "Read(//**/.env.development)",
+      "Read(//run/agenix/**)",
+      "Read(~/.bashenv)",
+      "Read(~/.netrc)",
+      "Read(~/.git-credentials)",
+      "Read(~/.config/*/env)",
+      "Read(~/.ssh/**)"
+    ],
+    "defaultMode": "auto",
+    "disableBypassPermissionsMode": "disable"
   },
   "model": "opus[1m]",
   "hooks": {

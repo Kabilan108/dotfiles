@@ -1,6 +1,6 @@
 ---
 name: nix-flakes
-description: Use when creating, packaging, or changing one of Tony's tool flakes, wiring a flake into ~/dotfiles, or pushing a security fix for a runtime or dependency out to those tools.
+description: Use when setting up a project's dev environment (dev shell, .envrc), creating, packaging, or changing one of Tony's tool flakes, wiring a flake into ~/dotfiles, or pushing a security fix for a runtime or dependency out to those tools.
 ---
 
 # Tony's tool flakes
@@ -38,3 +38,13 @@ Overlays reach what the build takes from nixpkgs, and nothing else. Match the fi
 - `nix build` of the producer flake passes, and the binary runs.
 - The consumer's overlaid dependency is in the build. Check with `nix derivation show` on `pkgs.<name>` from a dotfiles host, or ask the binary directly (`BUN_BE_BUN=1 <bin> --version` for Bun compiles).
 - `nix build .#nixosConfigurations.<host>.config.system.build.toplevel` passes in dotfiles for each host that installs the tool.
+
+## New project dev shell
+
+When a project needs development tools, start from the template in the project root:
+
+```sh
+nix flake init -t ~/dotfiles#devshell
+```
+
+It writes a `flake.nix` with `devShells.default` for x86_64 and aarch64 Linux, and an `.envrc` holding only `use flake`. Claude's file tools can't read or write `.envrc`, so let the template create it. Secrets stay out of `.envrc`. Add tools to `packages`, `git add flake.nix flake.lock` in a git repo (flakes see only tracked files), then `direnv allow`. Done when `nix flake check` and `direnv exec "$PWD" true` pass.

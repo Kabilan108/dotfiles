@@ -217,7 +217,7 @@ alias tn="tmuxn"
 alias tl="tmuxl"
 alias tk="tmuxk"
 
-alias cc="claude --dangerously-skip-permissions"
+alias cc="claude"
 alias cx="codex --yolo"
 alias cxf="codex --yolo --model gpt-6.1-sol --config model_reasoning_effort=low --config service_tier=fast"
 alias oc="OPENCODE_EXPERIMENTAL=true opencode"

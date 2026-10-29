@@ -2,17 +2,57 @@ model = "gpt-6.1-sol"
 
 model_reasoning_effort = "high"
 
-sandbox_mode = "danger-full-access"
-
 personality = "pragmatic"
 service_tier = "priority"
-approval_policy = "never"
+approval_policy = "on-request"
 approvals_reviewer = "auto_review"
+default_permissions = "tony-safe"
 
 mcp_oauth_credentials_store = "file"
 
 [shell_environment_policy]
 inherit = "all"
+ignore_default_excludes = false
+
+[shell_environment_policy.filters]
+"*PASSWORD*" = "exclude"
+"*CREDENTIAL*" = "exclude"
+
+[permissions.tony-safe]
+extends = ":workspace"
+
+[permissions.tony-safe.workspace_roots]
+"~/repos" = true
+"~/dotfiles" = true
+"~/.t3/worktrees" = true
+"/vault/work/moberg" = true
+"~/experiments" = true
+
+[permissions.tony-safe.filesystem]
+glob_scan_max_depth = 5
+# The sandbox can't mount over symlinks such as /run/agenix, ~/.bashenv or
+# ~/.config/pagebin/env. Denying the real directory covers every agenix file,
+# including the ones linked into ~/.config and ~/.ssh.
+"/run/agenix.d" = "deny"
+"~/.netrc" = "deny"
+"~/.git-credentials" = "deny"
+# The agenix identity decrypts every secret in the repo.
+"~/.ssh/id_ed25519" = "deny"
+# Writable tool caches. Nix keeps its fetcher cache in ~/.cache, and
+# home/shell.nix points uv, npm, bun, Gradle and Go at /vault/userdata.
+"~/.cache" = "write"
+"/vault/userdata/cache" = "write"
+"/vault/userdata/go" = "write"
+
+[permissions.tony-safe.filesystem.":workspace_roots"]
+"**/.env" = "deny"
+"**/.env.local" = "deny"
+"**/.env.*.local" = "deny"
+"**/.env.production" = "deny"
+"**/.env.development" = "deny"
+
+[permissions.tony-safe.network]
+enabled = true
 
 [features]
 hooks = true
@@ -219,9 +259,6 @@ trust_level = "trusted"
 trust_level = "trusted"
 
 [projects."/vault/work/moberg/dev-server-3"]
-trust_level = "trusted"
-
-[projects."/vault/repos/hunk"]
 trust_level = "trusted"
 
 [projects."/vault/repos/jot"]

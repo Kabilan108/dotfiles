@@ -23,9 +23,8 @@ rec {
       ];
       hostPubkey = null;
       keys = {
-        # hardware-only: yk-nfc travels with the user, yk-nano is the backup
-        # (lives at sietch; its handle file stays on jacurutu). id_ed25519 is
-        # deliberately NOT authorized for human ssh - agenix identity only.
+        # hardware only: yk-nfc travels with the user, yk-nano is the backup in
+        # storage. id_ed25519 is the agenix identity, never a login key.
         human = [
           "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIAU2WbCLrvbZce+BFRjxjqGfc2atw+UW1OzuUL0xoQP0AAAABHNzaDo= yk-nfc"
           "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIC2osOfuEavgTyeKIekDC3QRInB5F7+OwbNr8rI0gxeOAAAABHNzaDo= yk-nano"
@@ -104,12 +103,26 @@ rec {
 
   # Non-SSH devices belong in the inventory without entering the access matrix.
   devices = {
-    google-pixel-9 = {
+    tko-pixel-9 = {
       role = "phone";
       model = "Pixel 9";
       os = "Android";
-      tailscaleIp = "100.126.253.59";
+      tailscaleIp = "100.66.90.94";
       description = "Personal phone; Android app deployment over paired wireless ADB. Read the current connection port from Wireless debugging; pairing uses a separate temporary port.";
+    };
+    dar-es-balat = {
+      role = "nas";
+      model = "Synology (model not recorded; placeholder)";
+      os = "Synology DSM";
+      tailscaleIp = "100.70.188.62";
+      description = "Synology NAS, tagged tag:nas. Agents work on it only interactively with Tony, through a browser. Network and access rules: ~/dotfiles/docs/nas-network-policy.md.";
+    };
+    tonys-ipad = {
+      role = "tablet";
+      model = "iPad (model not recorded; placeholder)";
+      os = "iPadOS";
+      tailscaleIp = "100.120.97.93";
+      description = "Tony's iPad. Agents never connect to it.";
     };
   };
 

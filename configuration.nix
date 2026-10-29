@@ -30,7 +30,6 @@
         dates = "weekly";
         options = "--delete-older-than 7d";
       };
-      extraOptions = "trusted-users = root kabilan";
       settings = {
         extra-substituters = [ "https://kabilan108.cachix.org" ];
         extra-trusted-public-keys = [
