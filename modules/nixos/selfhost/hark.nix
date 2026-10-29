@@ -1,27 +1,15 @@
-{
-  lib,
-  pkgs,
-  ...
-}:
+{ config, inputs, ... }:
 let
   port = 8787;
-  project = "/home/kabilan/experiments/hark";
-  website = "${project}/apps/website";
-  entrypoint = "${website}/dist/server/index.js";
-  dataDir = "/vault/userdata/hark";
-  environmentFile = "${dataDir}/secrets/backend.env";
-  serverStateDir = "/vault/userdata/hark-server";
+  # Server state only. Android release material stays in /vault/userdata/hark as kabilan.
+  dataDir = "/vault/userdata/hark-server";
+  # Published APKs: written by kabilan's release script, read by the service.
+  downloadsDir = "/vault/userdata/hark-downloads";
 in
 {
+  imports = [ inputs.hark.nixosModules.default ];
+
   selfhost.tailnetServices.hark.port = port;
-
-  users.groups.hark = { };
-  users.users.hark = {
-    isSystemUser = true;
-    group = "hark";
-  };
-
-  systemd.tmpfiles.rules = [ "d ${serverStateDir} 0700 hark hark -" ];
 
   age.secrets.selfhost-hark-env = {
     file = ../../../secrets/selfhost/hark-env.age;
@@ -33,54 +21,25 @@ in
     owner = "hark";
     group = "hark";
   };
+  # Read by hark's scripts/android-build-release, which runs as kabilan.
+  age.secrets.hark-android-release-keystore = {
+    file = ../../../secrets/hark/android-release-keystore.age;
+    owner = "kabilan";
+    group = "users";
+  };
+  age.secrets.hark-android-signing-properties = {
+    file = ../../../secrets/hark/android-signing-properties.age;
+    owner = "kabilan";
+    group = "users";
+  };
 
-  systemd.services.hark = {
-    description = "Hark Android backend";
-    after = [ "network-online.target" ];
-    wants = [ "network-online.target" ];
-    wantedBy = [ "multi-user.target" ];
-    unitConfig.ConditionPathExists = [
-      entrypoint
-      environmentFile
-    ];
-    environment = {
-      HOST = "127.0.0.1";
-      PORT = toString port;
-      DATABASE_URL = "${dataDir}/hark.sqlite";
-      NODE_ENV = "production";
-    };
-    serviceConfig = {
-      User = "kabilan";
-      Group = "users";
-      WorkingDirectory = website;
-      EnvironmentFile = environmentFile;
-      ExecStart = "${lib.getExe pkgs.nodejs_24} ${entrypoint}";
-      Restart = "on-failure";
-      RestartSec = 5;
-      TimeoutStopSec = 30;
-      UMask = "0077";
+  systemd.tmpfiles.rules = [ "d ${downloadsDir} 0755 kabilan users -" ];
 
-      NoNewPrivileges = true;
-      PrivateDevices = true;
-      PrivateTmp = true;
-      ProtectSystem = "strict";
-      ProtectHome = "read-only";
-      ReadWritePaths = [ dataDir ];
-      ProtectKernelTunables = true;
-      ProtectKernelModules = true;
-      ProtectKernelLogs = true;
-      ProtectControlGroups = true;
-      ProtectClock = true;
-      ProtectHostname = true;
-      RestrictSUIDSGID = true;
-      RestrictRealtime = true;
-      LockPersonality = true;
-      CapabilityBoundingSet = "";
-      RestrictAddressFamilies = [
-        "AF_UNIX"
-        "AF_INET"
-        "AF_INET6"
-      ];
-    };
+  services.hark = {
+    enable = true;
+    inherit port dataDir downloadsDir;
+    requireExistingDatabase = true;
+    environmentFile = config.age.secrets.selfhost-hark-env.path;
+    fcmServiceAccountFile = config.age.secrets.selfhost-hark-fcm-service-account.path;
   };
 }

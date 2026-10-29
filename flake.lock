@@ -325,11 +325,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793124445,
-        "narHash": "sha256-xaVWUEh00LghPqYqwZce87gYF14vJNE2tjgz/S4RXPY=",
+        "lastModified": 1793246008,
+        "narHash": "sha256-yezJ/6PYqOfbtg7jz0N5ED9YB9eQ4vxNiDua6Jy9S8Y=",
         "owner": "Kabilan108",
         "repo": "hark",
-        "rev": "233adfe789f5e615bc2e81d0fb4492f10d087361",
+        "rev": "205c64624e2dbc54800ba05c6344bf91a73b33e7",
         "type": "github"
       },
       "original": {
