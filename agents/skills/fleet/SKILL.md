@@ -39,24 +39,54 @@ inspecting or changing policy.
 
 - Fleet machines are NixOS. Configuration changes go through `~/dotfiles`,
   never ad-hoc edits to system files. The registry (`lib/fleet.nix`) drives SSH
-  config, authorized keys, host colors and `computers.md`; change it there and
-  rebuild.
+  config, authorized keys, host colors, `computers.md`, and who deploys to
+  whom; change it there and rebuild.
 - When a change needs a rebuild, the default is to tell Tony with
   `notify-send` and leave the rebuild to him.
-- On jacurutu, with Tony's explicit approval, you may rebuild sietch or
-  tleilax over SSH:
-  - sietch needs his sudo password, so start the rebuild in a tmux pane he
-    can take over to enter it.
-  - tleilax builds its own closure and switches with passwordless sudo:
-    `nixos-rebuild switch --flake ~/dotfiles/raspi#tleilax --build-host tleilax-agent --target-host tleilax-agent --sudo`
 - Make a fleet-wide change once, in one checkout. A branch or a separate
   worktree is fine, and is often what Tony asks for.
 - On any branch other than `nixos`, commit and push freely, so Tony can review
   and merge on GitHub instead of hunting for worktree paths.
-- On `nixos`, commit but leave pushing to Tony: he reviews those commits
-  locally first.
-- Each other machine runs `git pull` in `~/dotfiles` before it rebuilds. Never
-  copy or patch uncommitted edits into another machine's checkout.
+- Pushing to `nixos` depends on the deploy gate below:
+  - Until the deploy gate is merged and sietch and jacurutu are both rebuilt
+    with it, commit on `nixos` and leave pushing to Tony.
+  - After that, you may push to `nixos`. Nothing builds an unsigned commit:
+    hosts deploy only tags Tony signed, and `rebuild` lists unsigned commits
+    and asks first.
+  - A rebuilt host has `deploy-tag` on PATH. From jacurutu, check both with
+    `command -v deploy-tag && ssh sietch-agent command -v deploy-tag`. From
+    sietch, ask Tony unless he has said both are rebuilt.
+- Anything new that acts on a push to `nixos` (a CI build, a cache publish, an
+  ACL apply) must first check for a signed tag against an allowed-signers list
+  kept outside the branch, so a push can't approve itself.
+- Never copy or patch uncommitted edits into another machine's checkout.
+
+## Deploying
+
+Tony approves a commit by signing a git tag, `deploy/<host>/<UTC time>`, with
+his YubiKey. Hosts build only signed tags.
+
+- `deploy <host>` runs on jacurutu. It fetches `origin/nixos`, lists the
+  commits since the host's last signed tag, asks, signs a new tag (a YubiKey
+  touch), pushes it, and starts the host's receiver over SSH. With nothing new
+  it skips the signing and only starts the receiver.
+- You may run `deploy` on jacurutu, but only Tony can touch the key, and the
+  new keys also need their PIN typed in a terminal. Start it in a tmux pane he
+  can attach to and tell him with `notify-send`. `--yes` skips the question,
+  never the touch; pass it only after he approved the commit list in chat.
+- The receiver (`deploy-receiver.service`) fetches GitHub into its own
+  root-owned clone, checks the signature, and builds that exact commit. It
+  never reads `~/dotfiles`, so an edit there deploys nothing.
+- sietch takes deploys now. tleilax takes them once it builds from the root
+  flake; until then `deploy` refuses it, and with Tony's explicit approval you
+  rebuild it from jacurutu:
+  `nixos-rebuild switch --flake ~/dotfiles/raspi#tleilax --build-host tleilax-agent --target-host tleilax-agent --sudo`
+- `rebuild` is Tony's manual rebuild of the host he's on, from `~/dotfiles`.
+  It lists the commits since that host's last signed tag and asks; on jacurutu,
+  approving signs a tag. Leave it to him.
+- sietch's `~/dotfiles` still feeds `~/bin`, the agent configs and niri's
+  `config.kdl` directly, so those change on `git pull` there, with or without
+  a deploy. Pull it after a deploy so the two match.
 
 ## Placement
 
