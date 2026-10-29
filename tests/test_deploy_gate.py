@@ -1,15 +1,20 @@
 """Deploy gate scripts in modules/nixos/deploy and bin/rebuild.
 
 OpenSSH's software security key (tests/sk-dummy.nix) stands in for the
-YubiKeys, a local bare repo for GitHub, and stubs for nixos-rebuild,
-systemctl, ssh, sudo and hostname. Set DEPLOY_TEST_OPENSSH to a built
-tests/sk-dummy.nix to skip the nix build.
+YubiKeys and a local bare repo for GitHub. Stubs stand in for nixos-rebuild
+(which records the commit it "switched" to), nixos-version (which reports it),
+systemctl, socat (which runs the broker instead of connecting to the socket),
+ssh, sudo and hostname. The receiver's flake.lock check runs the real nix. Set
+DEPLOY_TEST_OPENSSH to a built tests/sk-dummy.nix to skip the nix build.
 """
 
+import fcntl
 import os
+import pty
 import shutil
 import subprocess
 import tempfile
+import termios
 import unittest
 from pathlib import Path
 
@@ -23,11 +28,30 @@ T1 = "deploy/sietch/20261029T100000Z"
 T2 = "deploy/sietch/20261029T110000Z"
 T3 = "deploy/sietch/20261029T120000Z"
 
+FLAKE = "{ outputs = _: { }; }\n"
+FLAKE_LOCK = '{"nodes":{"root":{}},"root":"root","version":7}\n'
+
 STUBS = {
     "deploy-tag": 'exec bash "{scripts}/deploy-tag.sh" "$@"',
-    "nixos-rebuild": 'echo "$*" >> "{tmp}/rebuilds"; exit "${{NIXOS_REBUILD_EXIT:-0}}"',
-    "systemctl": '[[ "$*" == "start deploy-receiver.service" ]] || exit 98\nbash "{scripts}/receiver.sh"',
+    "nixos-rebuild": (
+        'echo "$*" >> "{tmp}/rebuilds"\n'
+        '[[ ${{NIXOS_REBUILD_EXIT:-0}} == 0 ]] || exit "$NIXOS_REBUILD_EXIT"\n'
+        '[[ "$*" =~ rev=([0-9a-f]+) ]] && echo "${{BASH_REMATCH[1]}}" > "{tmp}/running"\n'
+        "exit 0"
+    ),
+    "nixos-version": (
+        '[[ "$*" == --configuration-revision && -s "{tmp}/running" ]] || exit 1\n'
+        'cat "{tmp}/running"'
+    ),
+    "systemctl": (
+        '[[ "$*" == "start --job-mode=replace deploy-receiver.service" ]] || exit 98\n'
+        'bash "{scripts}/receiver.sh"'
+    ),
     "journalctl": "exec sleep 60",
+    "socat": (
+        '[[ "$*" == "-u UNIX-CONNECT:{tmp}/trigger.sock -" ]] || exit 97\n'
+        'exec bash "{scripts}/broker.sh"'
+    ),
     "ssh": '[[ "$*" == "sietch-agent deploy-trigger" ]] || exit 99\nexec bash "{scripts}/trigger.sh"',
     "sudo": 'echo "$*" >> "{tmp}/sudo"',
     "hostname": 'echo "$TEST_HOSTNAME"',
@@ -123,12 +147,18 @@ class DeployGate(unittest.TestCase):
             "DEPLOY_BRANCH": "nixos",
             "DEPLOY_STATE_DIR": str(self.state),
             "DEPLOY_STATE_FILE": str(self.state / "deployed"),
+            "DEPLOY_NIXOS_VERSION": str(bin_dir / "nixos-version"),
+            "DEPLOY_TRIGGER_SOCKET": str(self.tmp / "trigger.sock"),
             "DOTFILES": str(self.work),
         }
         self.state.mkdir()
         self.git("init", "-q", "--bare", "--initial-branch=nixos", str(self.origin), cwd=self.tmp)
         self.git("clone", "-q", str(self.origin), str(self.work), cwd=self.tmp)
+        (self.work / "flake.nix").write_text(FLAKE)
+        (self.work / "flake.lock").write_text(FLAKE_LOCK)
+        self.git("add", "flake.nix", "flake.lock")
         self.commit("one")
+        self.set_running(self.rev("HEAD"))
         self.commit("two")
         self.git("push", "-q", "origin", "HEAD:nixos")
         self.git("switch", "-q", "-c", "side")
@@ -172,7 +202,20 @@ class DeployGate(unittest.TestCase):
         self.git("add", "file")
         self.git("commit", "-q", "-m", message)
 
-    def sign(self, tag: str, key: str, rev: str = "HEAD", push: bool = True) -> None:
+    def push_commit(self, message: str) -> str:
+        self.commit(message)
+        self.git("push", "-q", "origin", "HEAD:nixos")
+        return self.rev("HEAD")
+
+    def set_running(self, rev: str) -> None:
+        (self.tmp / "running").write_text(rev + "\n")
+
+    def running(self) -> str:
+        return (self.tmp / "running").read_text().strip()
+
+    def sign(
+        self, tag: str, key: str, rev: str = "HEAD", push: bool = True, message: str = "test"
+    ) -> None:
         r = self.run_cmd(
             [
                 "git",
@@ -185,7 +228,7 @@ class DeployGate(unittest.TestCase):
                 "tag",
                 "-s",
                 "-m",
-                "test",
+                message,
                 tag,
                 rev,
             ],
@@ -206,7 +249,10 @@ class DeployGate(unittest.TestCase):
         return path.read_text().splitlines() if path.exists() else []
 
     def switch_line(self, commit: str) -> str:
-        return f"switch --flake git+file://{self.state}/dotfiles.git?rev={commit}#sietch"
+        return (
+            f"switch --no-update-lock-file --flake git+file://{self.state}/dotfiles.git"
+            f"?rev={commit}#sietch"
+        )
 
     def assert_refused(self, reason: str, **extra: str) -> None:
         r = self.receive(**extra)
@@ -225,7 +271,7 @@ class Receiver(DeployGate):
         self.assertEqual((self.state / "deployed").read_text(), f"{T1} {self.tip}\n")
         r = self.receive()
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn(f"sietch already runs {T1}", r.stdout)
+        self.assertIn(f"No deploy tag newer than {T1}; sietch runs {self.tip}", r.stdout)
         self.assertEqual(len(self.rebuilds()), 1)
 
     def test_unsigned_tag(self) -> None:
@@ -314,12 +360,12 @@ class Receiver(DeployGate):
         self.sign(T1, "yk", rev="HEAD^")
         r = self.receive()
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn(f"already runs {T2}", r.stdout)
+        self.assertIn(f"No deploy tag newer than {T2}", r.stdout)
         # Deleting the newer tag on GitHub doesn't bring the older one back.
         self.git("push", "-q", "origin", f":refs/tags/{T2}")
         r = self.receive()
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn(f"already runs {T2}", r.stdout)
+        self.assertIn(f"No deploy tag newer than {T2}", r.stdout)
         self.assertEqual(self.git("tag", "-l", cwd=self.state / "dotfiles.git"), T1)
         self.assertEqual(self.rebuilds(), [self.switch_line(self.tip)])
 
@@ -329,6 +375,79 @@ class Receiver(DeployGate):
         self.assertFalse((self.state / "deployed").exists())
         self.assertEqual(self.receive().returncode, 0)
         self.assertEqual(len(self.rebuilds()), 2)
+
+
+class Rollback(DeployGate):
+    def test_withheld_tag_cannot_roll_back_a_manual_rebuild(self) -> None:
+        # The review's replay: deploy A, sign B but withhold it, rebuild a newer
+        # C by hand, then publish B and trigger.
+        self.sign(T1, "yk")
+        self.assertEqual(self.receive().returncode, 0)
+        b = self.push_commit("b")
+        self.sign(T2, "yk", push=False)
+        c = self.push_commit("c")
+        self.set_running(c)
+        self.git("push", "-q", "origin", f"refs/tags/{T2}")
+        r = self.receive()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn(f"refusing {T2}: {b} doesn't descend from {c}", r.stderr)
+        self.assertEqual(self.running(), c)
+        self.assertEqual(self.rebuilds(), [self.switch_line(self.tip)])
+        # The manual rebuild is the new floor: a tag on a child of C deploys.
+        d = self.push_commit("d")
+        self.sign(T3, "yk")
+        r = self.receive()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.running(), d)
+
+    def test_signed_override_allows_a_rollback(self) -> None:
+        older = self.rev("HEAD^")
+        self.set_running(self.tip)
+        # Outside the first paragraph the line doesn't count.
+        self.sign(T1, "yk", rev=older, message="deploy sietch\n\nAllow-Rollback: yes")
+        self.assert_refused(f"{older} doesn't descend from {self.tip}")
+        self.sign(T2, "yk", rev=older, message="deploy sietch\nAllow-Rollback: yes\n\nabc1234 one")
+        r = self.receive()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.running(), older)
+
+    def test_unknown_running_commit_needs_the_override(self) -> None:
+        (self.tmp / "running").unlink()
+        self.sign(T1, "yk")
+        self.assert_refused("can't read the commit sietch runs")
+        self.sign(T2, "yk", message="deploy sietch\nAllow-Rollback: yes")
+        self.assertEqual(self.receive().returncode, 0)
+        self.assertEqual(self.running(), self.tip)
+
+    def test_a_dirty_manual_rebuild_counts_as_its_base_commit(self) -> None:
+        self.set_running(f"{self.tip}-dirty")
+        self.sign(T1, "yk", rev="HEAD^")
+        self.assert_refused(f"doesn't descend from {self.tip}")
+        self.sign(T2, "yk")
+        self.assertEqual(self.receive().returncode, 0)
+
+
+class FlakeLock(DeployGate):
+    def test_missing_flake_lock(self) -> None:
+        self.git("rm", "-q", "flake.lock")
+        self.git("commit", "-q", "-m", "drop the lock")
+        self.git("push", "-q", "origin", "HEAD:nixos")
+        self.sign(T1, "yk")
+        self.assert_refused(f"{self.rev('HEAD')} has no flake.lock")
+
+    def test_stale_flake_lock(self) -> None:
+        dep = self.tmp / "dep"
+        self.git("init", "-q", str(dep), cwd=self.tmp)
+        (dep / "flake.nix").write_text(FLAKE)
+        self.git("add", "flake.nix", cwd=dep)
+        self.git("commit", "-q", "-m", "dep", cwd=dep)
+        (self.work / "flake.nix").write_text(
+            f'{{ inputs.dep.url = "git+file://{dep}"; outputs = _: {{ }}; }}\n'
+        )
+        self.git("commit", "-q", "-am", "add an input without locking it")
+        self.git("push", "-q", "origin", "HEAD:nixos")
+        self.sign(T1, "yk")
+        self.assert_refused(f"the flake.lock at {self.rev('HEAD')} is out of date")
 
 
 class DeployTag(DeployGate):
@@ -378,6 +497,72 @@ class Deploy(DeployGate):
         self.assertEqual(len(self.deployed_tags()), 2)
         self.assertEqual(self.rebuilds()[-1], self.switch_line(self.rev("HEAD")))
 
+    def at_terminal(self, cmd: list[str], typed: str) -> tuple[int, str]:
+        """Run cmd with a pseudo-terminal as its controlling terminal."""
+        primary, secondary = pty.openpty()
+        proc = subprocess.Popen(
+            cmd,
+            cwd=self.work,
+            env=self.env,
+            stdin=secondary,
+            stdout=secondary,
+            stderr=secondary,
+            start_new_session=True,
+            preexec_fn=lambda: fcntl.ioctl(0, termios.TIOCSCTTY, 0),
+        )
+        os.close(secondary)
+        os.write(primary, typed.encode())
+        output = b""
+        while True:
+            try:
+                chunk = os.read(primary, 4096)
+            except OSError:
+                break
+            if not chunk:
+                break
+            output += chunk
+        os.close(primary)
+        return proc.wait(timeout=60), output.decode(errors="replace")
+
+    def test_allow_rollback_needs_a_terminal_even_with_yes(self) -> None:
+        r = self.deploy("--yes", "--allow-rollback", "--key", str(KEYS["yk"]), "sietch")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("needs a terminal to confirm", r.stderr)
+        self.assertEqual(self.deployed_tags(), [])
+
+    def test_allow_rollback_at_a_terminal(self) -> None:
+        self.assertEqual(self.deploy("--yes", "--key", str(KEYS["yk"]), "sietch").returncode, 0)
+        self.git("reset", "-q", "--hard", "HEAD^")
+        self.git("push", "-q", "--force", "origin", "HEAD:nixos")
+        older = self.rev("HEAD")
+        code, out = self.at_terminal(
+            ["bash", str(SCRIPTS / "deploy.sh"), "--key", str(KEYS["yk"]), "sietch"], "y\n"
+        )
+        self.assertNotEqual(code, 0, out)
+        self.assertIn(f"doesn't descend from {self.tip}", out)
+        code, out = self.at_terminal(
+            [
+                "bash",
+                str(SCRIPTS / "deploy.sh"),
+                "--allow-rollback",
+                "--key",
+                str(KEYS["yk"]),
+                "sietch",
+            ],
+            "y\n",
+        )
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.running(), older)
+        self.assertIn(f"sietch runs {older}", out)
+
+    def test_reports_a_host_running_another_commit(self) -> None:
+        self.assertEqual(self.deploy("--yes", "--key", str(KEYS["yk"]), "sietch").returncode, 0)
+        # A manual rebuild moved the host on; nothing new is signed.
+        self.set_running(self.side)
+        r = self.deploy("--yes", "--key", str(KEYS["yk"]), "sietch")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(f"doesn't report running {self.tip}", r.stderr)
+
     def test_reports_a_failed_deploy(self) -> None:
         r = self.deploy("--yes", "--key", str(KEYS["yk"]), "sietch", NIXOS_REBUILD_EXIT="1")
         self.assertEqual(r.returncode, 1)
@@ -404,6 +589,30 @@ class Deploy(DeployGate):
         self.assertIn("It was rewound or force-pushed", r.stdout)
         self.assertIn("needs a terminal to confirm", r.stderr)
         self.assertEqual(len(self.deployed_tags()), 1)
+
+
+class Trigger(DeployGate):
+    def trigger(self, output: str) -> subprocess.CompletedProcess[str]:
+        bin_dir = self.tmp / "trigger-bin"
+        bin_dir.mkdir(exist_ok=True)
+        stub = bin_dir / "socat"
+        stub.write_text('#!/usr/bin/env bash\nprintf %s "$TEST_OUTPUT"\n')
+        stub.chmod(0o755)
+        return self.run_cmd(
+            ["bash", str(SCRIPTS / "trigger.sh")],
+            extra_env={"PATH": f"{bin_dir}:{os.environ['PATH']}", "TEST_OUTPUT": output},
+        )
+
+    def test_status_counts_only_as_the_last_line(self) -> None:
+        r = self.trigger("log\ndeploy-trigger-status 3\n")
+        self.assertEqual((r.returncode, r.stdout), (3, "log\n"))
+        r = self.trigger("log\ndeploy-trigger-status 0\n")
+        self.assertEqual((r.returncode, r.stdout), (0, "log\n"))
+        for output in ["deploy-trigger-status 0\nmore log\n", "log\n", ""]:
+            with self.subTest(output=output):
+                r = self.trigger(output)
+                self.assertEqual(r.returncode, 1)
+                self.assertIn("closed before the deploy reported a result", r.stderr)
 
 
 class Gate(DeployGate):
@@ -464,6 +673,7 @@ class Rebuild(DeployGate):
         self.assertIn("No signed deploy tag for jacurutu yet", r.stdout)
         [tag] = self.git("tag", "-l", "deploy/jacurutu/*").splitlines()
         self.assertEqual(self.rev(f"{tag}^{{commit}}"), self.tip)
+        self.assertEqual(self.git("tag", "-l", cwd=self.origin), tag)
         self.assertEqual(self.sudo_calls(), [f"nixos-rebuild switch --flake {self.work}#jacurutu"])
 
         r = self.rebuild()
@@ -482,6 +692,15 @@ class Rebuild(DeployGate):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(len(self.git("tag", "-l", "deploy/jacurutu/*").splitlines()), 1)
         self.assertEqual(len(self.sudo_calls()), 3)
+
+    def test_a_failed_push_still_builds(self) -> None:
+        self.give_key()
+        self.origin.rename(self.tmp / "offline.git")
+        r = self.rebuild("y\n")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("Couldn't push deploy/jacurutu/", r.stdout)
+        self.assertEqual(len(self.git("tag", "-l", "deploy/jacurutu/*").splitlines()), 1)
+        self.assertEqual(len(self.sudo_calls()), 1)
 
     def test_without_a_yubikey_it_asks_to_build_unsigned(self) -> None:
         r = self.rebuild("", host="sietch")

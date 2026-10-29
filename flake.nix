@@ -38,6 +38,8 @@
                 config.allowUnfree = true;
                 inherit overlays;
               };
+              # The deploy receiver only moves forward from this commit.
+              system.configurationRevision = self.rev or self.dirtyRev or null;
             }
             (./. + "/machines/${name}")
             ./configuration.nix
