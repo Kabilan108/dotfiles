@@ -10,9 +10,29 @@ let
   entrypoint = "${website}/dist/server/index.js";
   dataDir = "/vault/userdata/hark";
   environmentFile = "${dataDir}/secrets/backend.env";
+  serverStateDir = "/vault/userdata/hark-server";
 in
 {
   selfhost.tailnetServices.hark.port = port;
+
+  users.groups.hark = { };
+  users.users.hark = {
+    isSystemUser = true;
+    group = "hark";
+  };
+
+  systemd.tmpfiles.rules = [ "d ${serverStateDir} 0700 hark hark -" ];
+
+  age.secrets.selfhost-hark-env = {
+    file = ../../../secrets/selfhost/hark-env.age;
+    owner = "hark";
+    group = "hark";
+  };
+  age.secrets.selfhost-hark-fcm-service-account = {
+    file = ../../../secrets/selfhost/hark-fcm-service-account.age;
+    owner = "hark";
+    group = "hark";
+  };
 
   systemd.services.hark = {
     description = "Hark Android backend";
