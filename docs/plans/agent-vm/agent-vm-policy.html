@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agent VMs on sietch: policy proposal</title>
+<style>
+:root{color-scheme:light dark;--bg:#f4f1ea;--surface:#fffdf8;--line:#d8d2c4;--text:#1f2522;--muted:#66706b;--accent:#8a4f24;--ok:#2f6b3f;--bad:#a1302a;--warn:#8a6a12;--chip:#ece6d8}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 ui-sans-serif,system-ui,sans-serif}
+main{max-width:1120px;margin:auto;padding:44px 22px 96px}
+header{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:8px}
+h1{font:700 clamp(2rem,5vw,3.6rem)/1.02 ui-serif,Georgia,serif;margin:.2em 0 .3em}
+h2{font:700 1.6rem/1.2 ui-serif,Georgia,serif;margin:0 0 .6em}
+h3{margin:.2em 0 .4em;font-size:1.05rem}
+.lead{font-size:1.12rem;max-width:52rem}.meta,.muted{color:var(--muted)}
+nav{position:sticky;top:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);display:flex;gap:16px;overflow:auto;padding:12px 0;z-index:2;border-bottom:1px solid var(--line)}
+nav a{color:var(--accent);white-space:nowrap;text-decoration:none}nav a:hover{text-decoration:underline}
+section{scroll-margin-top:60px;margin:44px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;min-width:0}
+.card.now{border-left:5px solid var(--ok)}.card.next{border-left:5px solid var(--accent)}.card.later{border-left:5px solid var(--muted)}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;margin:10px 0}
+table{border-collapse:collapse;width:100%;background:var(--surface);font-size:.95rem}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--chip);font-weight:600}
+code{font-family:ui-monospace,SFMono-Regular,monospace;font-size:.9em;background:var(--chip);padding:.05em .3em;border-radius:4px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#171b19;color:#edf0ed;padding:14px 16px;border-radius:8px;overflow:auto;font-size:.88rem}
+pre code{background:none;padding:0}
+.b{display:inline-block;font-size:.78rem;font-weight:700;padding:.1em .55em;border-radius:99px;white-space:nowrap}
+.b.ok{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.b.bad{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+.b.warn{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
+.callout{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--bad);border-radius:10px;padding:14px 18px;margin:16px 0}
+svg text{font-family:ui-sans-serif,system-ui,sans-serif}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px}
+details{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 16px;margin:10px 0}
+summary{cursor:pointer;font-weight:600}
+@media(prefers-color-scheme:dark){:root{--bg:#161a18;--surface:#1f2421;--line:#39413c;--text:#e9ede9;--muted:#a3aba6;--accent:#d6965c;--ok:#7cc48d;--bad:#ef8a80;--warn:#d9b75a;--chip:#2a312d}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body><main>
+<header>
+<p class="meta">Security proposal · updated 2026-10-29 (first draft 2026-10-04) · dotfiles <code>security/agent-vm-policy</code></p>
+<h1>Agent VMs on sietch</h1>
+<p class="lead">Membership in <code>libvirtd</code> gives everything running as kabilan passwordless root through <code>qemu:///system</code>. No agent uses that path. Agents run raw QEMU from Nix-built runners. The fleet-security workstream closes the root path (Stage A) and adds the agent account (Stage C). This branch keeps the later Stage B launcher, which moves agent VMs into a root-enforced box so a hostile guest gets less than kabilan. Agent VMs are for unfamiliar repos and sketchy work. No credential service will run in a VM on sietch: Vaultwarden and Executor are moving to the Pi. This branch changes no host.</p>
+<p class="muted">Source of truth: <code>docs/plans/agent-vm/policy.md</code>. Isolated probe: <code>docs/plans/agent-vm/probe.nix</code>. Skill draft: <code>docs/plans/agent-vm/skill-draft/SKILL.md</code> (not installed).</p>
+</header>
+<nav aria-label="On this page"><a href="#plan">Plan</a><a href="#shape">Before / after</a><a href="#risks">Risks</a><a href="#options">Options</a><a href="#launcher">Launcher</a><a href="#probe">Probe</a><a href="#review">Review</a><a href="#choices">Your choices</a><a href="#rollout">Rollout</a><a href="#evidence">Evidence</a></nav>
+
+<section id="plan">
+<h2>Plan in three stages</h2>
+<div class="grid">
+<article class="card now"><h3>Stage A · owned by fleet-security</h3>
+<p class="muted">In progress in the cheap-fixes PR, branch <code>security/cheap-fixes</code>. This plan is its spec.</p>
+<p>Drop kabilan from <code>libvirtd</code>. Set <code>qemu.runAsRoot = false</code>. A <code>mkBefore</code> polkit rule makes <code>org.libvirt.unix.manage</code> ask for a password every time (<code>AUTH_ADMIN</code>) for wheel and returns <code>NO</code> for everyone else. The branch also gates the read-only <code>monitor</code> action. Tony undefined the <code>downloads</code> storage pool on 2026-10-29.</p>
+<p class="muted">Agent workflows don't change, because none use system libvirt. Tony's virt-manager needs a polkit agent or <code>virsh</code> + <code>pkttyagent</code>.</p></article>
+<article class="card next"><h3>Stage B · <code>agent-vm</code> launcher · this branch, later</h3>
+<p>Root-owned slot sockets that only the <code>agent-vm</code> group can open. Each launch becomes a systemd unit instance that runs the agent's <code>system.build.vm</code> runner as a per-slot <code>agentvm&lt;N&gt;</code> user. The instance gets a filesystem allowlist, a uid egress filter, no tailnet interface, memory/CPU/disk caps, a 12h TTL and cleanup. The slot count caps concurrency.</p>
+<p class="muted">The proven niri QA flow carries over with env-var paths and a copy-in <code>share/</code> dir.</p></article>
+<article class="card later"><h3>Stage C · owned by fleet-security</h3>
+<p>Part of that workstream's sietch agent-account step, because it needs the separate agent user that step creates. <code>/dev/kvm</code> and the GPU nodes become group-only, and the agent account joins <code>agent-vm</code>, which makes the launcher its only fast path. No second general agent identity.</p></article>
+</div>
+</section>
+
+<section id="shape">
+<h2>Before and after</h2>
+<div class="diagram" role="img" aria-label="Before: any kabilan process reaches root libvirtd and root QEMU. After: system libvirt needs a password; agents reach QEMU only as agentvm through a group-gated socket, with an egress filter and caps.">
+<svg viewBox="0 0 1060 300" width="100%" style="max-height:340px">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#8a8f8c"/></marker></defs>
+<g fill="none" stroke="#8a8f8c" stroke-width="1.4">
+<text x="20" y="26" fill="currentColor" stroke="none" font-weight="700" font-size="15">Today</text>
+<rect x="20" y="44" width="170" height="54" rx="8"/><text x="105" y="76" text-anchor="middle" fill="currentColor" stroke="none" font-size="13">any process as kabilan</text>
+<rect x="250" y="44" width="190" height="54" rx="8" stroke="#c0453b"/><text x="345" y="66" text-anchor="middle" fill="currentColor" stroke="none" font-size="13">libvirtd (root)</text><text x="345" y="86" text-anchor="middle" fill="currentColor" stroke="none" font-size="11">no prompt, any XML/pool/arg</text>
+<rect x="500" y="44" width="170" height="54" rx="8" stroke="#c0453b"/><text x="585" y="66" text-anchor="middle" fill="currentColor" stroke="none" font-size="13">QEMU as root</text><text x="585" y="86" text-anchor="middle" fill="currentColor" stroke="none" font-size="11">all caps, no ns, no MAC</text>
+<line x1="190" y1="71" x2="248" y2="71" marker-end="url(#ar)"/><line x1="440" y1="71" x2="498" y2="71" marker-end="url(#ar)"/>
+<rect x="730" y="44" width="300" height="54" rx="8"/><text x="880" y="66" text-anchor="middle" fill="currentColor" stroke="none" font-size="13">agent raw QEMU as kabilan</text><text x="880" y="86" text-anchor="middle" fill="currentColor" stroke="none" font-size="11">guest reaches host loopback, LAN, tailnet, 9p repos</text>
+<text x="20" y="160" fill="currentColor" stroke="none" font-weight="700" font-size="15">Proposed</text>
+<rect x="20" y="178" width="170" height="54" rx="8"/><text x="105" y="210" text-anchor="middle" fill="currentColor" stroke="none" font-size="13">agent as kabilan</text>
+<rect x="250" y="178" width="190" height="54" rx="8" stroke="#3f8a52"/><text x="345" y="200" text-anchor="middle" fill="currentColor" stroke="none" font-size="13">slot sockets 0660</text><text x="345" y="220" text-anchor="middle" fill="currentColor" stroke="none" font-size="11">agent-vm group, 1 VM/slot</text>
+<rect x="500" y="178" width="250" height="54" rx="8" stroke="#3f8a52"/><text x="625" y="200" text-anchor="middle" fill="currentColor" stroke="none" font-size="13">unit instance as agentvm&lt;N&gt;</text><text x="625" y="220" text-anchor="middle" fill="currentColor" stroke="none" font-size="11">sandbox, slice caps, TTL, disk cap</text>
+<rect x="810" y="178" width="220" height="54" rx="8" stroke="#3f8a52"/><text x="920" y="200" text-anchor="middle" fill="currentColor" stroke="none" font-size="13">guest</text><text x="920" y="220" text-anchor="middle" fill="currentColor" stroke="none" font-size="11">public IPv4 only (uid filter)</text>
+<line x1="190" y1="205" x2="248" y2="205" marker-end="url(#ar)"/><line x1="440" y1="205" x2="498" y2="205" marker-end="url(#ar)"/><line x1="750" y1="205" x2="808" y2="205" marker-end="url(#ar)"/>
+<rect x="250" y="250" width="190" height="40" rx="8" stroke-dasharray="4 3"/><text x="345" y="275" text-anchor="middle" fill="currentColor" stroke="none" font-size="12">libvirtd: password each use</text>
+<line x1="105" y1="232" x2="248" y2="270" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+</g></svg>
+</div>
+</section>
+
+<section id="risks">
+<h2>Risks</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>ID</th><th>Risk</th><th>Severity</th><th>Fix</th></tr></thead>
+<tbody>
+<tr><td>R10a</td><td>Any kabilan process gets root through <code>qemu:///system</code>: host files or devices as disks, storage pools over any dir (a <code>downloads</code> pool on <code>~/downloads</code> existed until 2026-10-29), <code>&lt;qemu:commandline&gt;</code>, save/dump paths, node-device detach. QEMU itself runs as root with all caps. Documented behavior, not demonstrated.</td><td><span class="b bad">high</span></td><td>Stage A</td></tr>
+<tr><td>R10b</td><td><code>runAsRoot = false</code> changes QEMU's uid, not the client's authority. libvirtd still chowns XML-named paths, serves pool APIs and accepts per-domain root seclabels.</td><td><span class="b warn">design</span></td><td>Boundary is the connection (polkit + group)</td></tr>
+<tr><td>R10c</td><td>The upstream <code>auth_admin_keep</code> would let other processes reuse Tony's virt-manager authentication for a few minutes.</td><td><span class="b warn">medium</span></td><td><code>AUTH_ADMIN</code> rule, ordered before the module's group rule</td></tr>
+<tr><td>R10d</td><td>Guests running internet code reach host loopback services via slirp <code>10.0.2.2</code>, the LAN and the tailnet as sietch. Read-write shares of repos lets guest files reach <code>.envrc</code>/hooks. A QEMU escape lands as kabilan.</td><td><span class="b warn">medium</span></td><td>Stage B (separate uid)</td></tr>
+<tr><td>R10e</td><td>No caps or TTL. The niri VM ran a week. The root LV is shared by <code>/home</code>, <code>/vault</code> and docker, with 88 GiB free.</td><td><span class="b warn">medium</span></td><td>Stage B caps</td></tr>
+<tr><td>R10f</td><td>Read-only libvirt open to all users. SPICE USB redirect for active sessions (the backup YubiKey lives in sietch). setuid bridge helper allows <code>virbr0</code>.</td><td><span class="b ok">low</span></td><td>Choices C3/C4</td></tr>
+<tr><td>R10g</td><td>A polkit <code>manage-units</code> grant keyed on unit names also authorizes root transient units under matching names. <strong>Reproduced</strong> in the probe.</td><td><span class="b bad">design hazard</span></td><td>Launcher uses a socket, no polkit grant</td></tr>
+</tbody></table></div>
+<p class="callout"><strong>Libvirt was not the only root path.</strong> On 2026-10-04 <code>trusted-users</code> also listed kabilan, which gives root through the Nix daemon. The cheap-fixes PR drops it as well. Stage A alone doesn't leave same-user agents without host-root authority. Account and credential isolation belong to fleet-security.</p>
+</section>
+
+<section id="options">
+<h2>Options considered</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Option</th><th>Root path</th><th>Hostile guest</th><th>Caps</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>A. <code>runAsRoot = false</code> only</td><td>open</td><td>partial</td><td>none</td><td><span class="b bad">not a boundary</span></td></tr>
+<tr><td>B. Drop group, password-gate system libvirt</td><td>closed</td><td>n/a</td><td>n/a</td><td><span class="b ok">Stage A</span></td></tr>
+<tr><td>C. <code>qemu:///session</code> for agents</td><td>n/a</td><td>runs as kabilan</td><td>none</td><td><span class="b warn">no gain over raw QEMU</span></td></tr>
+<tr><td>D. Raw QEMU + user wrapper</td><td>n/a</td><td>escapable cgroup, sees <code>~</code></td><td>advisory</td><td><span class="b warn">interim only</span></td></tr>
+<tr><td>E. <code>agent-vm@</code> via polkit unit grant</td><td>n/a</td><td>contained</td><td>enforced</td><td><span class="b bad">rejected (R10g)</span></td></tr>
+<tr><td>F. Group-gated slot sockets, <code>Accept=yes</code> instances as per-slot <code>agentvm&lt;N&gt;</code></td><td>n/a</td><td>contained</td><td>enforced incl. concurrency</td><td><span class="b ok">Stage B</span></td></tr>
+<tr><td>G. Per-UUID libvirt polkit ACLs</td><td>closed for listed VMs</td><td>per reviewed XML</td><td>libvirt</td><td><span class="b warn">exception path, unused today</span></td></tr>
+<tr><td>H. Group-only <code>/dev/kvm</code> and GPU nodes</td><td>n/a</td><td>makes F exclusive</td><td>n/a</td><td><span class="b warn">Stage C</span></td></tr>
+</tbody></table></div>
+<p>Nothing at the VM layer constrains a malicious agent running as kabilan. It can still start QEMU directly, because <code>/dev/kvm</code> is <code>0666</code>. Stage B protects the host from guests and from runaway VMs. The agent-uid track handles the agent itself.</p>
+</section>
+
+<section id="launcher">
+<h2>Stage B launcher contract</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Boundary</th><th>Enforced by</th></tr></thead>
+<tbody>
+<tr><td>Only <code>agent-vm</code> members can launch. Launching grants only "run this store path as a slot user in this box"</td><td>slot socket mode <code>0660 root:agent-vm</code></td></tr>
+<tr><td>Each VM has its own uid, so an escaped guest can't drive, rewrite or kill another slot's VM</td><td>static <code>agentvm0..2</code>, sticky <code>3770</code> slot dirs, <code>ProtectProc=invisible</code></td></tr>
+<tr><td>Filesystem allowlist: <code>/nix/store</code>, system config and its own slot dirs. <code>/run</code> and <code>/var/lib</code> are blank apart from bound paths (no Mullvad, D-Bus or tailscaled sockets); <code>/home</code>, <code>/vault</code>, <code>/library</code> hidden</td><td><code>TemporaryFileSystem</code>, <code>BindPaths</code>, <code>ProtectHome</code></td></tr>
+<tr><td>No capabilities, no vsock, no user namespaces; <code>/dev/kvm</code> plus GPU device classes in the GPU profile only</td><td><code>CapabilityBoundingSet=</code>, <code>RestrictAddressFamilies</code>, <code>RestrictNamespaces</code>, <code>DevicePolicy=closed</code></td></tr>
+<tr><td>New outbound connections to host-owned addresses, loopback, RFC1918, CGNAT/tailnet, link-local, multicast and all IPv6 are rejected. Replies to inbound VNC/SSH and the resolver stub are allowed</td><td>iptables/ip6tables <code>-m owner --uid-owner 9800-9802</code></td></tr>
+<tr><td>Can't send or listen on <code>tailscale0</code></td><td><code>RestrictNetworkInterfaces=~tailscale0</code></td></tr>
+<tr><td>Concurrency, per-VM and total memory/CPU, 12h TTL</td><td>slot count, cgroups, <code>RuntimeMaxSec</code></td></tr>
+<tr><td>Disk</td><td>dedicated fixed-size <code>nodev,nosuid,noexec</code> filesystem</td></tr>
+<tr><td>Cleanup</td><td><code>ExecStopPost</code>; tmpfiles age 7d; <code>CollectMode=inactive-or-failed</code></td></tr>
+</tbody></table></div>
+<details><summary>Agent-side VM flake change</summary>
+<pre><code>virtualisation = {
+  memorySize = 8192; cores = 8; diskSize = 16384;
+  forwardPorts = [ { from = "host"; host.address = "127.0.0.1"; host.port = 2222; guest.port = 22; } ];
+  sharedDirectories.share = { source = ''"$AGENT_VM_SHARE"''; target = "/mnt/share"; };
+  qemu.options = [
+    "-vga none" "-device virtio-vga-gl,xres=1600,yres=1000"
+    "-display egl-headless,rendernode=/dev/dri/renderD128"
+    "-vnc 127.0.0.1:1"
+    "-qmp unix:$AGENT_VM_RUNTIME/qmp.sock,server=on,wait=off"
+  ];
+};</code></pre></details>
+<details><summary>Stage A polkit rule</summary>
+<pre><code>security.polkit.extraConfig = lib.mkBefore ''
+  polkit.addRule(function(action, subject) {
+    if (action.id == "org.libvirt.unix.manage") {
+      return subject.isInGroup("wheel") ? polkit.Result.AUTH_ADMIN : polkit.Result.NO;
+    }
+  });
+'';</code></pre></details>
+</section>
+
+<section id="probe">
+<h2>Isolated probe results</h2>
+<p class="muted"><code>probe.nix</code> ran as a two-node NixOS test in the Nix sandbox on sietch, with nixpkgs from the flake lock. The host was not touched. The units are stand-ins with the proposed sandbox settings, not real guests. Final run passed.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Check</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td>wheel user outside <code>libvirtd</code>: <code>virsh -c qemu:///system</code></td><td><span class="b ok">denied</span> no polkit agent</td></tr>
+<tr><td>non-wheel user inside <code>libvirtd</code> (re-added by mistake)</td><td><span class="b ok">denied</span> rule order holds</td></tr>
+<tr><td>root, read-only connection</td><td><span class="b ok">allowed</span></td></tr>
+<tr><td><code>agentvm</code> → host loopback service, LAN peer</td><td><span class="b ok">blocked</span></td></tr>
+<tr><td><code>agentvm</code> → public address, resolver stub, <code>/nix/store</code></td><td><span class="b ok">allowed</span></td></tr>
+<tr><td><code>agentvm</code> reads 0644 files in <code>/home</code>, <code>/vault</code></td><td><span class="b ok">blocked</span></td></tr>
+<tr><td>kabilan → listener inside the unit on loopback</td><td><span class="b ok">allowed</span></td></tr>
+<tr><td>socket: non-member connect · bad id · 3rd launch at <code>MaxConnections=2</code></td><td><span class="b ok">refused</span> · <span class="b ok">rejected</span> · <span class="b ok">reset</span></td></tr>
+<tr><td>socket: instance survives client disconnect; kabilan <code>systemctl stop</code> / <code>pkill</code></td><td><span class="b ok">yes</span> · <span class="b ok">denied</span></td></tr>
+<tr><td>hardened unit (after review): v6 LAN peer · non-private host address · <code>AF_VSOCK</code> · <code>/run/dbus</code> · other <code>/var/lib</code> state · <code>unshare --user</code></td><td><span class="b ok">all blocked</span> (kabilan controls reach the peers)</td></tr>
+<tr><td>polkit unit grant: <code>set-property</code>, <code>enable</code>, <code>kill</code>, <code>daemon-reload</code>, other units</td><td><span class="b ok">denied</span></td></tr>
+<tr><td>polkit unit grant: <code>systemd-run --unit=&lt;matching name&gt; -p User=root id</code></td><td><span class="b bad">ran as root</span> R10g</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="choices">
+<h2>Your choices</h2>
+<div class="table-wrap"><table>
+<thead><tr><th></th><th>Decision</th><th>Recommended</th></tr></thead>
+<tbody>
+<tr><td>C1–C4</td><td>System libvirt, polkit agent, <code>allowedBridges</code>, SPICE USB</td><td>fleet-security owns these. Cheap fixes password-gates libvirt and leaves bridges and SPICE USB as they are</td></tr>
+<tr><td>C5</td><td>GPU nodes for agent VMs</td><td>GPU profile (niri needs virgl)</td></tr>
+<tr><td>C6</td><td>Caps and TTL</td><td>3 slots; 12 GiB / 8 CPU each; 24 GiB / 16 CPU total; 12h; kept disks 7d</td></tr>
+<tr><td>C7</td><td>Guest internet</td><td>public open, private/tailnet/host blocked</td></tr>
+<tr><td>C8</td><td>Disk cap backing</td><td>LV if <code>lvmroot</code> has free extents, else loop image; 64 GiB</td></tr>
+<tr><td>C9</td><td>CLI/runner language</td><td>Go</td></tr>
+<tr><td>C11</td><td>Viewing agent VMs remotely</td><td>loopback + <code>ssh -L</code>. A tailscale-IP bind would need the <code>tailscale0</code> restriction lifted</td></tr>
+<tr><td>C12</td><td>Host-side test fixtures (the Stillsuit harness reached a throwaway Vaultwarden on host loopback)</td><td>run fixtures inside the guest; a host-port allowlist reopens R10d</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="review">
+<h2>Independent review, round 1</h2>
+<p>A read-only Claude reviewer probed the design. Adjudication:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Finding</th><th>Status</th><th>Change</th></tr></thead>
+<tbody>
+<tr><td>IPv6 egress gap: sietch has a global LAN prefix</td><td><span class="b bad">confirmed</span></td><td>reject all new v6; <code>ipv6=off</code>; probed</td></tr>
+<tr><td>Escaped guest could serve on sietch's tailnet IP</td><td><span class="b warn">plausible</span></td><td><code>RestrictNetworkInterfaces=~tailscale0</code></td></tr>
+<tr><td>Failed instances wedge <code>MaxConnections</code></td><td><span class="b ok">contradicted</span> by probe</td><td><code>CollectMode</code> for hygiene</td></tr>
+<tr><td>One uid for all VMs gives cross-VM control</td><td><span class="b warn">plausible</span></td><td>per-slot uids and sockets</td></tr>
+<tr><td>Denylist misses world-writable sockets (Mullvad, D-Bus) and <code>/var/lib</code> state</td><td><span class="b bad">confirmed</span></td><td>filesystem allowlist; probed</td></tr>
+<tr><td>vsock and user namespaces open</td><td><span class="b warn">plausible</span></td><td>family/namespace/syscall filters; probed</td></tr>
+<tr><td>Password prompt capturable by a rogue polkit agent</td><td><span class="b warn">same class as sudo</span></td><td>documented; prefer <code>sudo virsh</code></td></tr>
+<tr><td>Slot dir rename; <code>DeviceAllow</code> globs; <code>USE_TMPDIR</code>; cwd-relative EFI/TPM; NVIDIA vs <code>spawn=deny</code></td><td><span class="b bad">confirmed</span></td><td>text corrected; GPU path is a test item</td></tr>
+</tbody></table></div>
+<p class="muted">Outside this proposal: the reviewer's 2026-10-04 finding that <code>/var/lib/executor/data.db*</code> was <code>0644 root</code> is resolved. The state dir has been <code>0700</code>, owned by uid 65532, since commit <code>28ae04ef</code>.</p>
+</section>
+
+<section id="rollout">
+<h2>Validation and rollout</h2>
+<ol>
+<li><strong>Probe</strong> (done): authorization and egress invariants in isolation.</li>
+<li><strong>Stage B NixOS test</strong> before any rebuild. It boots a real <code>system.build.vm</code> guest through the socket and checks that guest→<code>10.0.2.2</code> is rejected, QMP/VNC are reachable, stop over the control socket works, memory/TTL/disk caps fail the guest rather than the host, and <code>-sandbox</code> and the unit filters work with the runner's virtiofsd daemons.</li>
+<li><strong>Desktop QA on sietch</strong> after Tony rebuilds. Re-run the niri agent-seat flow. Pass means virgl on the 3090, SSH on <code>127.0.0.1:2222</code>, QMP screendump, <code>rfbsrc</code> capture and the share dir all work.</li>
+<li><strong>Read-only checks</strong> (fleet-security, with Stage A). An agent shell can't open <code>qemu:///system</code>. Tony is prompted each time. <code>libvirtd</code> is gone from <code>id</code> after relogin and a tmux restart.</li>
+</ol>
+<p>Stage A ships first through the cheap-fixes PR, because nothing agents do depends on it. Agents keep raw QEMU until step 3 passes, then the skill ships. Recovery: <code>sudo systemctl stop agentvm.slice</code>. Instances never autostart.</p>
+<p class="muted">Step 2 must also clear QEMU, virgl and NVIDIA under the new <code>SystemCallFilter</code>, <code>RestrictAddressFamilies</code>, <code>-sandbox</code> and allowlist settings. Any relaxation it forces belongs in this doc.</p>
+</section>
+
+<section id="evidence">
+<h2>Evidence</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Fact (sietch, 2026-10-04)</th><th>Source</th></tr></thead>
+<tbody>
+<tr><td><code>kabilan</code> ∈ wheel, networkmanager, libvirtd, docker, input. Since: <code>docker</code> removed by the rootless migration; <code>libvirtd</code> goes with Stage A</td><td><code>id</code></td></tr>
+<tr><td>polkit: <code>libvirtd</code> members get <code>org.libvirt.unix.manage</code> unconditionally; the rule is hardcoded in the nixpkgs module</td><td><code>10-nixos.rules</code>, <code>libvirtd.nix</code></td></tr>
+<tr><td><code>runAsRoot = true</code>; <code>qemu.conf</code> = <code>namespaces = []</code>; no <code>access_drivers</code>; no MAC</td><td><code>nix eval</code>, files</td></tr>
+<tr><td>no system domains; <code>default</code> network inactive; pools <code>default</code> and <code>downloads</code> (on <code>~/downloads</code>; undefined 2026-10-29)</td><td><code>virsh</code></td></tr>
+<tr><td><code>/dev/kvm</code>, <code>vhost-net</code>, <code>vhost-vsock</code>, <code>net/tun</code>, <code>renderD128</code>, <code>nvidia*</code> are <code>0666</code></td><td><code>ls -l</code></td></tr>
+<tr><td>no polkit agent in the desktop session</td><td><code>ps</code>, repo grep</td></tr>
+<tr><td>the first agent desktop-QA VM (niri, 2026-09-25) was raw QEMU from <code>system.build.vm</code>: virgl on the 3090, slirp, loopback VNC/SSH/QMP, shares of project dirs, still running a week later</td><td>session transcripts</td></tr>
+<tr><td>32 threads, 62 GiB; one ext4 LV for <code>/</code>, <code>/home</code>, <code>/vault</code>; 88 GiB free</td><td><code>nproc</code>, <code>free</code>, <code>df</code></td></tr>
+</tbody></table></div>
+<p class="muted">References: <a href="https://libvirt.org/drvqemu.html#driver-security-architecture">libvirt QEMU driver security</a> · <a href="https://libvirt.org/acl.html">libvirt ACLs</a> · <a href="https://libvirt.org/aclpolkit.html">polkit ACL driver</a> · <a href="https://libvirt.org/kbase/qemu-passthrough-security.html">QEMU passthrough security</a></p>
+</section>
+</main></body>
+</html>
