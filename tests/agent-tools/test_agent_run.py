@@ -231,6 +231,50 @@ class Runs(unittest.TestCase):
             self.assertEqual(record["resume_session"], "claude-session")
             self.assertEqual(record["access"], "plan")
 
+    def test_service_tier_defaults_and_resume(self) -> None:
+        fake = self.root / "bin"
+        fake.mkdir()
+        codex = fake / "codex"
+        codex.write_text(
+            '#!/usr/bin/env python3\nimport sys,json\nfrom pathlib import Path\na=sys.argv\nprint(json.dumps({"type":"thread.started","thread_id":"tier-session"}))\nPath(a[a.index("-o")+1]).write_text(" ".join(a))\n'
+        )
+        codex.chmod(0o755)
+        old = os.environ["PATH"]
+        os.environ["PATH"] = str(fake) + ":" + old
+        try:
+            prompt = self.root / "prompt"
+            prompt.write_text("tier test")
+            common = ["--repo", str(self.root), "--prompt", str(prompt)]
+            self.call("start", "--provider", "codex", *common, "--id", "default")
+            r = json.loads(self.call("wait", "default"))
+            self.assertEqual(
+                (r["model"], r["effort"], r["service_tier"]),
+                ("gpt-6.1-sol", "high", "fast"),
+            )
+            self.assertIn('service_tier="fast"', Path(r["result"]).read_text())
+            self.call(
+                "start",
+                "--provider",
+                "codex",
+                "--service-tier",
+                "priority",
+                *common,
+                "--id",
+                "explicit",
+            )
+            self.call("wait", "explicit")
+            self.call(
+                "start", "--resume-from", "explicit", "--prompt", str(prompt), "--id", "resumed"
+            )
+            r = json.loads(self.call("wait", "resumed"))
+            self.assertEqual(r["service_tier"], "priority")
+            self.assertIn('service_tier="priority"', Path(r["result"]).read_text())
+            self.call(
+                "start", "--provider", "claude", "--service-tier", "fast", *common, code=1
+            )
+        finally:
+            os.environ["PATH"] = old
+
     def test_auto_provider_commands(self) -> None:
         import runpy
 

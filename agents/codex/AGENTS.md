@@ -12,11 +12,13 @@ Preserve unrelated staged, unstaged, and untracked changes. Follow the repositor
 
 ## Delegation
 
-Use subagents at your judgment for read-only exploration: searches, context gathering, an independent review perspective. Be judicious and prefer the cheapest model that meets the bar. Splitting implementation across subagents, using another provider, or launching workers that outlive the session is opt-in: only when I ask, or when a workflow I selected includes it. Once I ask for delegation on a task, that covers its follow-up workers; no need to re-ask for each one. Give each worker a bounded task, owned files or read-only scope, the relevant decisions, and a checkable completion point. The lead owns integration and verification.
+Delegate at your judgment: searches and context gathering, an independent review, a bounded implementation slice, browser verification. A worker earns its cost when it runs alongside other work, keeps bulk output out of your context, or brings a read that is not anchored on yours. Give each worker a bounded task, owned files or read-only scope, the relevant decisions, and a checkable completion point. The lead owns integration and verification.
 
-Use native workers within the current harness when available. Use a provider CLI when I request another provider or a separate runtime. Preserve the selected coordinator. Sol (`gpt-5.6-sol`) at medium is the default for bounded delegated work; Fable 5.1 at medium is the default Claude choice. Astra (`gpt-6-astra`) is an option for peer consultation, design discussion, and consequential review. Keep my explicit model and effort choices. Add another review perspective for material API/design or high-risk behavioral changes, or when requested; ordinary scoped checks need not run a paired review. Never use Haiku.
+Opus 5.5 (`claude-opus-5-5`) is the primary orchestrator and the go-to for implementation, at high effort, xhigh for hard changes. GPT 6.1 Sol (`gpt-6.1-sol`) at high on the fast service tier is the go-to for code review, browser verification and similar checks. For a second opinion on design or a consequential change, use GPT-6 Astra (`gpt-6-astra`) at high or Claude Fable 5.1 (`claude-fable-5-1`). Keep my explicit model and effort choices. Add another review perspective for material API/design or high-risk behavioral changes, or when requested; ordinary scoped checks need not run a paired review.
 
-For durable shell delegation, use `agent-run --help` (source: `~/dotfiles/bin/agent-run`). It records model, scope, process identity, result and exit status. Give it a self-contained prompt file. After `agent-run start`, immediately run `agent-run wait <id> --timeout 0` using the harness mechanism below. Retain its handle. After a restart, reconcile the task's existing runs and re-arm waits before launching replacements. Review the result and diff before acknowledging completion. Use `launch-agent` for interactive panes, not batch completion tracking.
+In T3 Code, `delegate_task` is the go-to for delegation and reaches any provider; T3's own orchestration instructions cover its use. The harness's native subagents also fit searches and other bounded read-only work. Preserve the selected coordinator.
+
+Without T3's delegation tools, reach for `agent-run --help` (source: `~/dotfiles/bin/agent-run`) when a task needs another provider. Give it a self-contained prompt file. Right after `agent-run start`, attach `agent-run wait <id> --timeout 0` through the harness's background process tool and keep the handle. After a restart, reconcile the task's existing runs and re-arm waits before launching replacements. Review the result and diff before acknowledging completion.
 
 For review of a consequential behavioral invariant, consult `~/dotfiles/agents/references/empirical-review.md`. Before presenting numbers that drive a decision (benchmarks, audits, data analysis), have an independent reviewer recompute them from the raw data, following its "Data claims" section.
 
@@ -27,10 +29,6 @@ Use an integrated browser when one is available and suitable. Otherwise use agen
 ## Publishing content
 
 I authorize publishing html artifacts to configured PageBin service and serving previews within my tailnet, including internal repository paths, architecture details, and benchmark results. No additional confirmation is needed.
-
-## Codex-specific tools
-
-Use claude-review for a requested Fable 5.1 second opinion. Run the watcher through the available process tool and retain its yielded handle. Resume that handle with the tool's wait/poll operation; keep the managed wait active until completion or an explicit checkpoint. A finished turn is not guaranteed to be awakened by a background process. On restart, reconcile and reattach waits before starting replacements.
 
 ## Dev server networking
 

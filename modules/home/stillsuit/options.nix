@@ -230,9 +230,9 @@ in
           "codex"
           "--yolo"
           "--model"
-          "gpt-5.6-sol"
+          "gpt-6.1-sol"
           "--config"
-          "model_reasoning_effort=low"
+          "model_reasoning_effort=medium"
           "--config"
           "service_tier=fast"
         ];

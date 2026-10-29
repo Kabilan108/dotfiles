@@ -9,11 +9,11 @@ You are the lead: the reviewer finds, you adjudicate and fix. The loop has **con
 
 ## Reviewer
 
-GPT 6.1 Sol at high effort, launched with the T3 `delegate_task` tool:
+GPT 6.1 Sol at xhigh effort, launched with the T3 `delegate_task` tool:
 
 ```json
 {
-  "target": {"providerInstanceId": "codex", "model": "gpt-6.1-sol", "options": {"reasoningEffort": "high"}},
+  "target": {"providerInstanceId": "codex", "model": "gpt-6.1-sol", "options": {"reasoningEffort": "xhigh"}},
   "role": "review",
   "mode": "async",
   "title": "<repo> review r<k>",

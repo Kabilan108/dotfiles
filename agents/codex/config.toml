@@ -490,8 +490,6 @@ global = "ghostty"
 [memories]
 generate_memories = true
 use_memories = true
-extract_model = "gpt-6-luna"
-consolidation_model = "gpt-6.1-sol"
 
 [hooks.state]
 

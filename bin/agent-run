@@ -114,6 +114,11 @@ def provider_command(record: dict[str, Any], folder: Path) -> list[str]:
             record["model"],
             "-c",
             f'model_reasoning_effort="{record["effort"]}"',
+            *(
+                ["-c", f'service_tier="{record["service_tier"]}"']
+                if record.get("service_tier")
+                else []
+            ),
             "--json",
             "-o",
             str(folder / "result.md"),
@@ -243,12 +248,19 @@ def start(root: Path, args: argparse.Namespace) -> int:
             else (
                 args.model
                 or {
-                    "codex": "gpt-5.6-sol",
-                    "claude": "claude-fable-5-1",
+                    "codex": "gpt-6.1-sol",
+                    "claude": "claude-opus-5-5",
                     "command": None,
                 }[provider]
             )
         )
+        service_tier = (
+            previous.get("service_tier")
+            if previous
+            else args.service_tier or ("fast" if provider == "codex" else None)
+        )
+        if service_tier and provider != "codex":
+            raise ValueError("--service-tier applies to the codex provider only")
         command = args.command[1:] if args.command[:1] == ["--"] else args.command
         if provider == "command" and not command:
             raise ValueError("command provider requires -- command args...")
@@ -266,6 +278,7 @@ def start(root: Path, args: argparse.Namespace) -> int:
             "provider": provider,
             "model": model,
             "effort": previous["effort"] if previous else args.effort,
+            "service_tier": service_tier,
             "access": access,
             "created": now(),
             "state": "running",
@@ -332,8 +345,9 @@ def main() -> int:
     launch.add_argument("--provider", choices=["codex", "claude", "command"])
     launch.add_argument("--model")
     launch.add_argument(
-        "--effort", default="medium", choices=["low", "medium", "high", "xhigh"]
+        "--effort", default="high", choices=["low", "medium", "high", "xhigh"]
     )
+    launch.add_argument("--service-tier", help="codex only; default fast")
     launch.add_argument(
         "--access",
         help="default auto: provider automatic approval review; codex also read-only/workspace-write; claude also default/acceptEdits/plan",
@@ -346,7 +360,7 @@ def main() -> int:
     launch.add_argument("--coordinator", help="coordinator session ID, when available")
     launch.add_argument(
         "--resume-from",
-        help="terminal run (including interrupted) with a captured provider session; preserves model/access/repo",
+        help="terminal run (including interrupted) with a captured provider session; preserves model/effort/service tier/access/repo",
     )
     launch.add_argument(
         "command",
