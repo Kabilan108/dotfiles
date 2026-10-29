@@ -201,6 +201,7 @@ in
   # scout's gd, browsers and file dialogs need telling.
   xdg.userDirs = {
     enable = true;
+    setSessionVariables = true;
     download = "${homeDir}/downloads";
   };
 
