@@ -32,12 +32,8 @@
       };
       settings = {
         extra-substituters = [ "https://kabilan108.cachix.org" ];
-        # kabilan isn't a trusted user, so a flake's nixConfig can only turn on
-        # caches listed here.
-        trusted-substituters = [ "https://nix-community.cachix.org" ];
         extra-trusted-public-keys = [
           "kabilan108.cachix.org-1:g8OqmhpqE1Bz9DjKTV17uQ3yzsfGcDB5fDgGfVC4t/o="
-          "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
         ];
         experimental-features = [
           "nix-command"
