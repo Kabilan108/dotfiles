@@ -26,21 +26,8 @@ skill and `bin/image-pins`.
 
 ## Rules
 
-- The following rules apply when you need to rebuild the flake to apply changes on any
-  machine in the fleet:
-  - Default to asking the user to rebuild with `notify-send`
-  - If you are running on jacurutu, and Tony gives his explicit approval, you may rebuild
-    `sietch` or `tleilax` remotely via SSH. For `sietch`, you'll need him to enter the
-    sudo password, so prefer tmux panes where he can take over to enter creds. tleilax
-    builds its own closure and switches with passwordless sudo:
-    `nixos-rebuild switch --flake ./raspi#tleilax --build-host tleilax-agent --target-host tleilax-agent --sudo`
 - Give every systemd timer an explicit `RandomizedDelaySec` appropriate to its latency
   requirements to avoid thundering-herd workload spikes.
-- If you are making changes that need to propagate across the fleet, start in one
-  checkout. If the changes need Tony's review (i.e. if he hasn't explicitly greenlit
-  committing + pushing), let him know. Once approved, commit and push then `git pull`
-  on each other machine before it rebuilds. Never copy or patch uncommitted edits into
-  another machine's checkout.
 - Never launch Zen (or another Firefox-based browser) with `--remote-debugging-port` or
   `--marionette` against a real profile. Automation mode can leave test prefs in
   `prefs.js` that disable Safe Browsing and revocation updates. Use a copy of the

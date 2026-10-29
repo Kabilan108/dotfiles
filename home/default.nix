@@ -78,7 +78,6 @@ in
     ../modules/home/scout.nix
     ../modules/home/stillsuit
     ../modules/home/stylix.nix
-    ../modules/home/wallpaper.nix
     ../modules/home/zen
 
     inputs.atlas.homeManagerModules.default

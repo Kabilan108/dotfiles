@@ -31,47 +31,62 @@ let
       config.dotfiles.wallpaper.lockscreen;
 in
 {
-  programs.swaylock = {
-    enable = true;
-    package = pkgs.swaylock-effects;
+  options.dotfiles.wallpaper = {
+    desktop = lib.mkOption {
+      type = lib.types.str;
+      description = "Path to desktop wallpaper image";
+    };
+
+    lockscreen = lib.mkOption {
+      type = lib.types.str;
+      default = config.dotfiles.wallpaper.desktop;
+      description = "Path to lockscreen wallpaper image (defaults to desktop wallpaper)";
+    };
   };
 
-  home.packages = [ lockScreen ];
+  config = {
+    programs.swaylock = {
+      enable = true;
+      package = pkgs.swaylock-effects;
+    };
 
-  xdg.configFile."swaylock/config".text = ''
-    image=${lockscreenImage}
-    fade-in=0
+    home.packages = [ lockScreen ];
 
-    clock
-    timestr=%I:%M
-    datestr=
-    font=FiraMono Nerd Font
-    font-size=28
+    xdg.configFile."swaylock/config".text = ''
+      image=${lockscreenImage}
+      fade-in=0
 
-    indicator
-    indicator-radius=100
-    indicator-thickness=8
+      clock
+      timestr=%I:%M
+      datestr=
+      font=FiraMono Nerd Font
+      font-size=28
 
-    ring-color=${colors.base05}cc
-    inside-color=${colors.base00}cc
-    text-color=${colors.base05}
-    line-color=00000000
-    separator-color=00000000
-    key-hl-color=${colors.base0B}
-    bs-hl-color=${colors.base08}
+      indicator
+      indicator-radius=100
+      indicator-thickness=8
 
-    ring-ver-color=${colors.base0B}cc
-    inside-ver-color=${colors.base00}cc
-    text-ver-color=${colors.base05}
+      ring-color=${colors.base05}cc
+      inside-color=${colors.base00}cc
+      text-color=${colors.base05}
+      line-color=00000000
+      separator-color=00000000
+      key-hl-color=${colors.base0B}
+      bs-hl-color=${colors.base08}
 
-    ring-wrong-color=${colors.base08}cc
-    inside-wrong-color=${colors.base00}cc
-    text-wrong-color=${colors.base08}
+      ring-ver-color=${colors.base0B}cc
+      inside-ver-color=${colors.base00}cc
+      text-ver-color=${colors.base05}
 
-    ring-clear-color=${colors.base0A}cc
-    inside-clear-color=${colors.base00}cc
-    text-clear-color=${colors.base05}
+      ring-wrong-color=${colors.base08}cc
+      inside-wrong-color=${colors.base00}cc
+      text-wrong-color=${colors.base08}
 
-    show-failed-attempts
-  '';
+      ring-clear-color=${colors.base0A}cc
+      inside-clear-color=${colors.base00}cc
+      text-clear-color=${colors.base05}
+
+      show-failed-attempts
+    '';
+  };
 }
