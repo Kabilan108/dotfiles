@@ -9,6 +9,7 @@ let
   home = config.users.users.kabilan.home;
   hostName = config.networking.hostName;
   isSietch = hostName == "sietch";
+  userTokensPath = config.age.secrets."secrets/nix-access-tokens-user.age".path;
   mobergVpnCertFile =
     if isSietch then ./secrets/moberg/vpn/sietch-cert.age else ./secrets/moberg/vpn/cert.age;
   mobergVpnKeyFile =
@@ -161,8 +162,16 @@ in
       group = "users";
     };
 
-    # Readable by kabilan because flake fetching runs in the unprivileged nix client.
+    # Root's nix reads this through /etc/nix/nix.conf, so only root may own it.
+    # A copy kabilan owns could be rewritten to load plugins into root's nix.
     secrets."secrets/nix-access-tokens.age" = {
+      file = ./secrets/nix-access-tokens.age;
+      mode = "0400";
+      owner = "root";
+      group = "root";
+    };
+    # kabilan's copy, for flake fetching in the unprivileged nix client.
+    secrets."secrets/nix-access-tokens-user.age" = {
       file = ./secrets/nix-access-tokens.age;
       mode = "0400";
       owner = "kabilan";
@@ -184,7 +193,19 @@ in
     useUserPackages = true;
     extraSpecialArgs = { inherit inputs; };
 
-    users.kabilan.imports = [ ./home ];
+    users.kabilan.imports = [
+      ./home
+      (
+        { config, ... }:
+        {
+          # Same link trick as /etc/nix/access-tokens.conf, for the user's nix.conf.
+          xdg.configFile."nix/access-tokens.conf".source = config.lib.file.mkOutOfStoreSymlink userTokensPath;
+          xdg.configFile."nix/nix.conf".text = ''
+            !include access-tokens.conf
+          '';
+        }
+      )
+    ];
   };
 
   imports = [
