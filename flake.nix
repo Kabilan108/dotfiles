@@ -44,6 +44,7 @@
             ./user.nix
             ./modules/nixos/docker.nix
             ./modules/nixos/fleet.nix
+            ./modules/nixos/deploy
             ./modules/nixos/moberg-vpn.nix
             ./modules/nixos/moberg-tailscale.nix
             inputs.stylix.nixosModules.stylix
