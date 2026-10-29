@@ -1,4 +1,9 @@
-{ config, inputs, ... }:
+{
+  config,
+  inputs,
+  pkgs,
+  ...
+}:
 let
   port = 8787;
   # Server state only. Android release material stays in /vault/userdata/hark as kabilan.
@@ -34,6 +39,9 @@ in
   };
 
   systemd.tmpfiles.rules = [ "d ${downloadsDir} 0755 kabilan users -" ];
+
+  # Online backups of the database: sudo -u hark sqlite3 ... ".backup <dest>".
+  environment.systemPackages = [ pkgs.sqlite ];
 
   services.hark = {
     enable = true;
