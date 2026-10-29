@@ -197,6 +197,13 @@ in
     settings.default = [ "com.mitchellh.ghostty.desktop" ];
   };
 
+  # Writes ~/.config/user-dirs.dirs. Downloads live in a lowercase folder, so
+  # scout's gd, browsers and file dialogs need telling.
+  xdg.userDirs = {
+    enable = true;
+    download = "${homeDir}/downloads";
+  };
+
   xdg.mimeApps = {
     enable = true;
     # Zotero's desktop entry claims text/plain, which every code/markdown type inherits.
