@@ -6,6 +6,7 @@
     ./cliproxyapi.nix
     ./codex-desktop.nix
     ./dictator.nix
+    ./grok-bot.nix
     ./install-tools.nix
     ./meeting-minutes.nix
     ./mic-volume-enforce.nix

@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd -- "$(dirname -- "$(readlink -f -- "$0")")/.." && pwd)"
+pin_file="$repo_root/packages/grok-bot-version.json"
+feed_url=https://api2.cursor.sh/updates/api/download/stable/linux-x64/sand
+mode="${1:---check}"
+if [[ $# -gt 1 || ( "$mode" != --check && "$mode" != --write ) ]]; then
+  echo 'Usage: update-grok-bot [--check|--write]' >&2
+  exit 2
+fi
+
+# Resolve tools from this repository's pinned nixpkgs, without a system rebuild.
+if ! command -v dpkg-deb >/dev/null || ! command -v jq >/dev/null || ! command -v curl >/dev/null; then
+  tools_expr="let p = (builtins.getFlake \"git+file://$repo_root\").nixosConfigurations.jacurutu.pkgs; in p.buildEnv { name = \"grok-bot-update-tools\"; paths = [ p.curl p.dpkg p.jq ]; }"
+  exec direnv exec "$repo_root" nix shell --impure --expr "$tools_expr" --command "$0" "$mode"
+fi
+
+current_version="$(jq -er .version "$pin_file")"
+feed="$(curl -fsSL "$feed_url")"
+feed_version="$(jq -er .version <<< "$feed")"
+commit_sha="$(jq -er .commitSha <<< "$feed")"
+deb_url="$(jq -er .debUrl <<< "$feed")"
+if [[ ! "$feed_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ || ! "$commit_sha" =~ ^[0-9a-f]{40}$ \
+  || "$deb_url" != "https://downloads.cursor.com/grokbot/stable/${commit_sha}/linux/x64/grok-bot_${feed_version}_amd64.deb" ]]; then
+  echo 'Unexpected release feed contents; pin was not changed.' >&2
+  exit 1
+fi
+if dpkg --compare-versions "$feed_version" lt "$current_version"; then
+  echo "Published version $feed_version is older than pinned $current_version; pin was not changed." >&2
+  exit 1
+fi
+printf 'Pinned: %s\nPublished: %s\n' "$current_version" "$feed_version"
+if [[ "$feed_version" == "$current_version" ]]; then
+  if [[ "$commit_sha" != "$(jq -er .commitSha "$pin_file")" ]]; then
+    echo 'Published build differs for the same version; pin was not changed.' >&2
+    exit 1
+  fi
+  echo 'Already current.'
+  exit 0
+fi
+if [[ "$mode" == --check ]]; then
+  echo 'Run update-grok-bot --write to update the pin, then build and rebuild.'
+  exit 0
+fi
+
+prefetch="$(nix store prefetch-file --json "$deb_url")"
+store_path="$(jq -er .storePath <<< "$prefetch")"
+hash="$(jq -er .hash <<< "$prefetch")"
+if [[ "$(dpkg-deb -f "$store_path" Package)" != grok-bot \
+  || "$(dpkg-deb -f "$store_path" Architecture)" != amd64 \
+  || "$(dpkg-deb -f "$store_path" Version)" != "$feed_version" ]]; then
+  echo 'Unexpected official package metadata; pin was not changed.' >&2
+  exit 1
+fi
+candidate="$(mktemp "$pin_file.candidate.XXXXXX")"
+trap 'rm -f "$candidate"' EXIT
+jq --arg version "$feed_version" --arg commitSha "$commit_sha" --arg hash "$hash" \
+  '{version: $version, commitSha: $commitSha, hash: $hash}' "$pin_file" > "$candidate"
+chmod --reference="$pin_file" "$candidate"
+mv -- "$candidate" "$pin_file"
+echo "Updated $pin_file. Review the diff and build before rebuilding."

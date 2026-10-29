@@ -53,6 +53,7 @@ in
         enable = true;
         activeProvider = "siren";
       };
+      grok-bot.enable = true;
       mic-volume-enforce.enable = true;
       parakeet-redux.enable = true;
       solaar.enable = true;
