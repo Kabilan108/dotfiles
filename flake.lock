@@ -792,11 +792,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793238510,
-        "narHash": "sha256-1dAXfbXVyxx0/2zQlYPhHRHZmHDC7q0ks37YkpaRiOs=",
+        "lastModified": 1793240050,
+        "narHash": "sha256-ZSptOcn7xt4f1uGwqRGrwoR9E9lvm/TcchH5qwb4gT0=",
         "ref": "refs/heads/main",
-        "rev": "aa78f558e0fbb59dd92dd133a759029bea5b9bfd",
-        "revCount": 46,
+        "rev": "70e16f51b034b6472d6941406435e611bc7797b1",
+        "revCount": 48,
         "type": "git",
         "url": "ssh://git@github.com/Kabilan108/scout"
       },
