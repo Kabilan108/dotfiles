@@ -41,6 +41,15 @@ in
     sietch
     jacurutu
   ];
+  # Decrypted only on sietch; jacurutu's key is a second way to recover them.
+  "secrets/hark/android-release-keystore.age".publicKeys = [
+    sietch
+    jacurutu
+  ];
+  "secrets/hark/android-signing-properties.age".publicKeys = [
+    sietch
+    jacurutu
+  ];
   "secrets/foobar.age".publicKeys = [
     sietch
   ];
