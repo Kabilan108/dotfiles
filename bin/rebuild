@@ -5,8 +5,8 @@
 #
 # First it lists the commits since this host's last signed deploy tag
 # (deploy/<host>/*) and asks before building them. Where the YubiKey handles
-# live (jacurutu), approving signs the next tag at HEAD with one touch. The
-# tag stays local. Elsewhere it builds unsigned once you say so.
+# live (jacurutu), approving signs the next tag at HEAD with one touch and
+# pushes it. Elsewhere it builds unsigned once you say so.
 set -euo pipefail
 
 host_name=$(hostname)
@@ -25,13 +25,13 @@ else
 fi
 
 show_log() {
-  git -C "$repo" log --no-decorate --format='  %h %<(16,trunc)%an %s' "$@"
+  git -C "$repo" --no-pager log --no-decorate --format='  %h %<(16,trunc)%an %s' "$@"
 }
 
 # Returns 0 to build. Each failure returns explicitly: errexit is off inside
 # a function called from `if`.
 review() {
-  local head last last_tag="" last_commit="" dirty answer
+  local head last last_tag="" last_commit="" dirty answer tag
   head=$(git -C "$repo" rev-parse HEAD) || return 1
   if last=$(deploy-tag -C "$repo" latest "$host_name"); then
     read -r last_tag last_commit <<<"$last"
@@ -66,7 +66,10 @@ review() {
     read -r -p "Sign deploy/$host_name at ${head:0:12} with $key and build? [y]es, [u]nsigned build, [N]o: " answer
     case $answer in
     [yY]*)
-      deploy-tag -C "$repo" sign --key "$key_file" --message "rebuild $host_name" "$host_name" "$head" >/dev/null || return 1
+      tag=$(deploy-tag -C "$repo" sign --key "$key_file" --message "rebuild $host_name" "$host_name" "$head") || return 1
+      if ! git -C "$repo" push --quiet origin "refs/tags/$tag"; then
+        echo "Couldn't push $tag; building anyway. Push it later with: git push origin $tag"
+      fi
       return 0
       ;;
     [uU]*) return 0 ;;

@@ -1,6 +1,7 @@
 # YubiKey-signed deploys; lib/fleet.nix `deploy` says which host plays which
 # part. Every host gets deploy-tag, which bin/rebuild uses. The controller gets
-# `deploy`. Receivers build signed tags through deploy-receiver.service.
+# `deploy`. Receivers build signed tags through deploy-receiver.service, which
+# the deploy-trigger socket starts.
 {
   config,
   lib,
@@ -13,6 +14,23 @@ let
   thisHost = config.networking.hostName;
   isReceiver = builtins.elem thisHost deploy.receivers;
   stateDir = "/var/lib/deploy-receiver";
+  triggerSocket = "/run/deploy-trigger.sock";
+  runningNixosVersion = "/run/current-system/sw/bin/nixos-version";
+
+  # The receiver's Nix reads only this file: the system nix.conf without its
+  # include lines, so nothing outside the store (such as the access-token
+  # include) reaches a root Nix process. Its directory has no registry,
+  # machines or netrc file either.
+  receiverNixConf = pkgs.runCommand "deploy-receiver-nix-conf" { } ''
+    mkdir "$out"
+    grep -Ev '^[[:space:]]*!?include[[:space:]]' ${
+      config.environment.etc."nix/nix.conf".source
+    } > "$out/nix.conf"
+    if grep -q include "$out/nix.conf"; then
+      echo "an include survived in the receiver's nix.conf" >&2
+      exit 1
+    fi
+  '';
 
   # The principal is the key's comment (yk-nfc, yk-nano).
   allowedSigners = pkgs.writeText "deploy-signers" (
@@ -59,7 +77,9 @@ let
     runtimeInputs = [
       deployTag
       pkgs.coreutils
+      pkgs.gawk
       pkgs.git
+      config.nix.package
       config.system.build.nixos-rebuild
     ];
     runtimeEnv = {
@@ -67,12 +87,13 @@ let
       DEPLOY_REPO_URL = deploy.repo;
       DEPLOY_BRANCH = deploy.branch;
       DEPLOY_STATE_DIR = stateDir;
+      DEPLOY_NIXOS_VERSION = runningNixosVersion;
     };
     text = builtins.readFile ./receiver.sh;
   };
 
-  trigger = pkgs.writeShellApplication {
-    name = "deploy-trigger";
+  broker = pkgs.writeShellApplication {
+    name = "deploy-trigger-broker";
     runtimeInputs = [
       pkgs.coreutils
       config.systemd.package
@@ -80,7 +101,15 @@ let
     runtimeEnv = {
       DEPLOY_HOST = thisHost;
       DEPLOY_STATE_FILE = "${stateDir}/deployed";
+      DEPLOY_NIXOS_VERSION = runningNixosVersion;
     };
+    text = builtins.readFile ./broker.sh;
+  };
+
+  trigger = pkgs.writeShellApplication {
+    name = "deploy-trigger";
+    runtimeInputs = [ pkgs.socat ];
+    runtimeEnv.DEPLOY_TRIGGER_SOCKET = triggerSocket;
     text = builtins.readFile ./trigger.sh;
   };
 
@@ -119,7 +148,16 @@ in
     environment =
       config.nix.envVars
       // {
-        HOME = "/root";
+        # Root's Nix and git read only store files and root-owned paths.
+        HOME = stateDir;
+        XDG_CONFIG_HOME = "${stateDir}/config";
+        XDG_DATA_HOME = "${stateDir}/data";
+        XDG_STATE_HOME = "${stateDir}/state";
+        XDG_CACHE_HOME = "/var/cache/deploy-receiver";
+        NIX_CONF_DIR = "${receiverNixConf}";
+        NIX_USER_CONF_FILES = "";
+        NIX_CONFIG = "";
+        NIX_REMOTE = "local";
         GIT_CONFIG_GLOBAL = "/dev/null";
         GIT_CONFIG_NOSYSTEM = "1";
       }
@@ -134,22 +172,41 @@ in
       Type = "oneshot";
       ExecStart = lib.getExe receiver;
       StateDirectory = "deploy-receiver";
+      CacheDirectory = "deploy-receiver";
     };
   };
 
-  # The fleet user may start the receiver, and nothing more: not stop or
-  # restart it, and not pass it anything.
-  security.polkit = lib.mkIf isReceiver {
-    enable = true;
-    extraConfig = ''
-      polkit.addRule(function(action, subject) {
-        if (action.id == "org.freedesktop.systemd1.manage-units" &&
-            action.lookup("unit") == "deploy-receiver.service" &&
-            action.lookup("verb") == "start" &&
-            subject.user == "${fleet.hosts.${thisHost}.user}") {
-          return polkit.Result.YES;
-        }
-      });
-    '';
+  # Members of deploy-trigger may connect to the socket. Each connection runs
+  # the broker as root, which starts the receiver with a fixed job mode and
+  # reads nothing from the caller. This is a socket rather than a polkit rule
+  # because systemd doesn't pass the job mode to polkit: a rule allowing
+  # "start" would also allow --job-mode=flush.
+  users.groups.deploy-trigger = lib.mkIf isReceiver {
+    members = [ fleet.hosts.${thisHost}.user ];
+  };
+
+  systemd.sockets.deploy-trigger = lib.mkIf isReceiver {
+    description = "Deploy trigger";
+    wantedBy = [ "sockets.target" ];
+    socketConfig = {
+      ListenStream = triggerSocket;
+      Accept = true;
+      SocketUser = "root";
+      SocketGroup = "deploy-trigger";
+      SocketMode = "0660";
+      MaxConnections = 4;
+    };
+  };
+
+  systemd.services."deploy-trigger@" = lib.mkIf isReceiver {
+    description = "Start the deploy receiver for a deploy-trigger caller";
+    # A switch must not cut off the caller's log stream.
+    restartIfChanged = false;
+    serviceConfig = {
+      ExecStart = lib.getExe broker;
+      StandardInput = "socket";
+      StandardOutput = "socket";
+      StandardError = "socket";
+    };
   };
 }

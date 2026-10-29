@@ -1,20 +1,22 @@
 # shellcheck shell=bash
-# Start deploy-receiver.service, stream its log, and print what this host runs
-# afterwards. Laptop agents run it over SSH. A polkit rule lets the fleet user
-# start that one unit, and nothing else.
+# Start a deploy through the deploy-trigger socket, print its log, and exit
+# with the receiver's status. Laptop agents run it over SSH; only members of
+# the deploy-trigger group may connect. The status counts only as the very
+# last line, so log output can't fake one.
 set -euo pipefail
 
-since=$(date +%s)
-journalctl --follow --since="@$since" --output=cat --unit=deploy-receiver.service &
-follower=$!
-status=0
-systemctl start deploy-receiver.service || status=$?
-sleep 1
-kill "$follower" 2>/dev/null || true
-wait "$follower" 2>/dev/null || true
+status=""
+while IFS= read -r line; do
+  if [[ $line =~ ^deploy-trigger-status\ ([0-9]+)$ ]]; then
+    status=${BASH_REMATCH[1]}
+  else
+    status=""
+    printf '%s\n' "$line"
+  fi
+done < <(socat -u "UNIX-CONNECT:$DEPLOY_TRIGGER_SOCKET" -)
 
-if [[ -s $DEPLOY_STATE_FILE ]]; then
-  read -r tag commit <"$DEPLOY_STATE_FILE"
-  echo "$DEPLOY_HOST runs $tag $commit"
+if [[ -z $status ]]; then
+  echo "deploy-trigger: the connection closed before the deploy reported a result" >&2
+  exit 1
 fi
 exit "$status"

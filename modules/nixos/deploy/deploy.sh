@@ -2,11 +2,15 @@
 # Approve DEPLOY_BRANCH for a host with a YubiKey-signed tag, push the tag,
 # and have the host build it.
 #
-#   deploy [--yes] [--key yk-nfc|yk-nano|FILE] HOST
+#   deploy [--yes] [--allow-rollback] [--key yk-nfc|yk-nano|FILE] HOST
 #
 # It fetches origin in ~/dotfiles, lists the commits since HOST's last signed
 # deploy tag, and asks before signing. --yes skips that question, never the
 # touch. With nothing new it only starts the deploy on HOST.
+#
+# A host refuses a commit that doesn't descend from the one it runs.
+# --allow-rollback signs "Allow-Rollback: yes" into the tag to permit that,
+# and always asks on the terminal.
 set -euo pipefail
 
 : "${DEPLOY_HOSTS:?}" "${DEPLOY_BRANCH:?}"
@@ -15,7 +19,7 @@ repo=${DOTFILES:-$HOME/dotfiles}
 branch_ref=refs/remotes/origin/$DEPLOY_BRANCH
 
 usage() {
-  echo "usage: deploy [--yes] [--key yk-nfc|yk-nano|FILE] HOST" >&2
+  echo "usage: deploy [--yes] [--allow-rollback] [--key yk-nfc|yk-nano|FILE] HOST" >&2
   exit 2
 }
 
@@ -24,18 +28,20 @@ die() {
   exit 1
 }
 
+# No pager: it would take the terminal and swallow the answer to confirm.
 g() {
-  git -C "$repo" "$@"
+  git -C "$repo" --no-pager "$@"
 }
 
 show_log() {
   g log --no-decorate --format='  %h %<(16,trunc)%an %s' "$@"
 }
 
-# Ask on the terminal. --yes answers for us unless the history was rewritten.
+# Ask on the terminal. --yes answers for us, except for a rewritten history
+# or a rollback.
 confirm() {
   local answer
-  if ((yes && !rewritten)); then
+  if ((yes && !rewritten && !allow_rollback)); then
     return 0
   fi
   if ! { exec 3</dev/tty; } 2>/dev/null; then
@@ -46,11 +52,15 @@ confirm() {
   [[ $answer == [yY]* ]]
 }
 
-yes=0 rewritten=0 key=yk-nfc
+yes=0 rewritten=0 allow_rollback=0 key=yk-nfc
 while [[ $# -gt 0 ]]; do
   case $1 in
   -y | --yes)
     yes=1
+    shift
+    ;;
+  --allow-rollback)
+    allow_rollback=1
     shift
     ;;
   --key)
@@ -80,7 +90,7 @@ if last=$(deploy-tag -C "$repo" latest "$host"); then
   read -r last_tag last_commit <<<"$last"
 fi
 
-if [[ $last_commit == "$target" ]]; then
+if [[ $last_commit == "$target" ]] && ((!allow_rollback)); then
   echo "$last_tag already approves $DEPLOY_BRANCH at ${target:0:12}; nothing to sign."
   tag=$last_tag
 else
@@ -102,9 +112,15 @@ else
     echo "Commits that come in:"
     show_log "$range"
   fi
+  if ((allow_rollback)); then
+    echo "This tag lets $host move to ${target:0:12} even if that rolls back the commit it runs."
+  fi
   confirm "Sign deploy/$host at ${target:0:12} and deploy it?" || die "cancelled; nothing was signed"
   message=$(
     echo "deploy $host"
+    if ((allow_rollback)); then
+      echo "Allow-Rollback: yes"
+    fi
     echo
     g log --no-decorate --format='%h %s' -50 "$range"
   )
@@ -113,12 +129,15 @@ else
   echo "Pushed $tag."
 fi
 
+commit=$(g rev-parse "refs/tags/$tag^{commit}")
 echo "Starting the deploy on $host."
 out=$(mktemp)
 trap 'rm -f "$out"' EXIT
 status=0
 ssh "$host-agent" deploy-trigger 2>&1 | tee "$out" || status=$?
 ((status == 0)) || die "the deploy on $host failed (exit $status)"
-grep -qxF "$host runs $tag $(g rev-parse "refs/tags/$tag^{commit}")" "$out" ||
-  die "$host didn't report running $tag; see its log above"
+grep -qxF "$host deployed $tag $commit" "$out" ||
+  die "$host didn't report deploying $tag; see its log above"
+grep -qxF "$host runs $commit" "$out" ||
+  die "$host deployed $tag but doesn't report running $commit; see its log above"
 echo "$host runs $tag."
