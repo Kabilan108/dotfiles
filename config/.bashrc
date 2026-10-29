@@ -249,10 +249,12 @@ fi
 ### -> AUTO-START NIRI
 
 # Auto-start compositor on TTY1
-# - Only runs if not already in a graphical session ($DISPLAY check)
-# - Only runs on TTY1 (preserves TTY2-6 for troubleshooting)
+# - Only runs if not already in a graphical session or tmux
+# - Only runs on the TTY1 console itself (preserves TTY2-6 for troubleshooting);
+#   XDG_VTNR alone leaks into tmux panes started without DISPLAY
 # - exec replaces shell process, so exiting the compositor logs you out cleanly
-if [ -z "$DISPLAY" ] && [ "$XDG_VTNR" = "1" ] && [ -z "$SSH_CONNECTION" ]; then
+if [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ] && [ -z "$TMUX" ] \
+  && [ -z "$SSH_CONNECTION" ] && [ "$(tty)" = /dev/tty1 ]; then
   if command -v niri-session >/dev/null 2>&1; then
     exec niri-session
   fi
