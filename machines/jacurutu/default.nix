@@ -5,6 +5,14 @@ let
     system = pkgs.stdenv.hostPlatform.system;
     config.allowUnfree = true;
   };
+  # The main package set's patched daemon crashes in the glibc loader.
+  # Keep the current TeamViewer release with the pinned runtime for testing.
+  teamviewer = bootPkgs.teamviewer.overrideAttrs (old: {
+    inherit (pkgs.teamviewer) version src;
+    postFixup = old.postFixup + ''
+      wrapProgram $out/share/teamviewer/tv_bin/TeamViewer --set QT_QPA_PLATFORM xcb
+    '';
+  });
 in
 {
   imports = [
@@ -14,6 +22,11 @@ in
 
   networking.hostName = "jacurutu";
   dotfiles.mobergTailscale.enable = true;
+
+  services.teamviewer = {
+    enable = true;
+    package = teamviewer;
+  };
 
   # The Framework airplane key emits KEY_RFKILL directly to the kernel.
   # Disable its measured HID scan code without changing the other hotkeys.
