@@ -200,6 +200,27 @@ confirm `libfido2` present when generating the first sk key.
 
 ---
 
+## GitHub and CI (decided 2026-10-29)
+
+- sietch keeps git over SSH (`~/.ssh/github`). SSH pushes ignore token
+  permissions, so agents on sietch can change workflow files in any of my repos.
+  I accepted that so agents can set up CI.
+- sietch's `gh` token is a fine-grained PAT, `sietch-kabilan`, covering all my
+  repos and expiring 2027-01-27. Read-only repository permissions: Actions,
+  commit statuses, metadata and repository hooks. Read and write: contents,
+  issues, pull requests, Dependabot alerts and Workflows. No account
+  permissions. It never gets Secrets, Variables, Administration or Deployments.
+- Environments protect workflow secrets; token scopes don't. dotfiles has a
+  `cache-publish` environment with me as the required reviewer, administrator
+  bypass off, and deployments only from the `nixos` branch. When the CI build
+  work starts, the Cachix push token goes in as a secret of that environment, so
+  every run that uses it waits for my approval in GitHub's web UI.
+- Repos whose workflows hold release secrets of their own use the same pattern.
+- Open: if the CI work publishes from signed tags rather than from `nixos`, add
+  a tag rule to `cache-publish`.
+
+---
+
 ## Selfhost service permission model (July 2026, post-migration)
 
 Services run as NixOS units behind Tailscale Services (see
