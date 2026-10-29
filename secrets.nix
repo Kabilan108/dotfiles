@@ -11,10 +11,6 @@ in
     sietch
     jacurutu
   ];
-  "secrets/discord-notify.age".publicKeys = [
-    sietch
-    jacurutu
-  ];
   "secrets/rclone.conf".publicKeys = [
     sietch
     jacurutu

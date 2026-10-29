@@ -92,7 +92,9 @@ for row in "${rows[@]}"; do
 done
 
 summary=$(echo "$digest" | head -c 900)
-discord-notify -t "tracer digest: ${#rows[@]} sessions" -s info \
-  --field "digest=$out_file" --body "$summary" || true
+harkctl notify "$summary
+
+Digest: $out_file" --title "tracer digest: ${#rows[@]} sessions" \
+  --project "Tracer" --idempotency-key "tracer-digest-$(basename "$out_file" .md)" || true
 
 echo "tracer-digest: wrote $out_file (${#rows[@]} sessions, $tag_failures tag failures)"

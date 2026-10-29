@@ -50,11 +50,11 @@ sudo tailscale up
 ```
 
 From here on, admin over Tailscale. Future changes never require reflashing. Deploy from
-the dotfiles root on jacurutu (the only host allowed to deploy tleilax). The Pi builds its
-own closure, so this step needs no emulation:
+jacurutu (the only host allowed to deploy tleilax). The Pi builds its own closure, so this
+step needs no emulation:
 
 ```sh
-nixos-rebuild switch --flake ./raspi#tleilax \
+nixos-rebuild switch --flake ~/dotfiles/raspi#tleilax \
   --build-host tleilax-agent --target-host tleilax-agent --sudo
 ```
 

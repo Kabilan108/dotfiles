@@ -47,14 +47,16 @@ inspecting or changing policy.
   tleilax over SSH:
   - sietch needs his sudo password, so start the rebuild in a tmux pane he
     can take over to enter it.
-  - tleilax builds its own closure and switches with passwordless sudo. Run
-    from `~/dotfiles`:
-    `nixos-rebuild switch --flake ./raspi#tleilax --build-host tleilax-agent --target-host tleilax-agent --sudo`
-- Make a fleet-wide change once, in one checkout; a branch or a separate
-  worktree is fine, and is what Tony may ask for. Commit and push once he has
-  greenlit it; until then, tell him it is ready for review. Each other machine
-  runs `git pull` in `~/dotfiles` before it rebuilds. Never copy or patch
-  uncommitted edits into another machine's checkout.
+  - tleilax builds its own closure and switches with passwordless sudo:
+    `nixos-rebuild switch --flake ~/dotfiles/raspi#tleilax --build-host tleilax-agent --target-host tleilax-agent --sudo`
+- Make a fleet-wide change once, in one checkout. A branch or a separate
+  worktree is fine, and is often what Tony asks for.
+- On any branch other than `nixos`, commit and push freely, so Tony can review
+  and merge on GitHub instead of hunting for worktree paths.
+- On `nixos`, commit but leave pushing to Tony: he reviews those commits
+  locally first.
+- Each other machine runs `git pull` in `~/dotfiles` before it rebuilds. Never
+  copy or patch uncommitted edits into another machine's checkout.
 
 ## Placement
 
@@ -62,7 +64,7 @@ inspecting or changing policy.
   data; jacurutu takes interactive and desktop tasks only; tleilax is a
   low-power Pi for status and appliance jobs.
 - Long jobs on sietch end with an artifact the user can find: a pagebin URL,
-  a file path, or a `discord-notify` message when available.
+  a file path, or a Hark notification (see the notify skill).
 
 ## SSH from agent harness shells
 

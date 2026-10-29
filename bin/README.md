@@ -11,9 +11,6 @@ useful bash tools. some of these are used as part of my desktop env others are j
 - [cmp-branches](./cmp-branches):
   compares all local git branches with a reference branch, showing ahead and behind commits.
 
-- [discord-notify](./discord-notify):
-  sends scriptable Discord webhook notifications to agenix-managed named channels, with status colors for cron jobs and local agents.
-
 - [git-extract](./git-extract):
   extracts a subdirectory from a remote git repo using sparse checkout, without cloning the whole thing.
 
