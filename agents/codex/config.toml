@@ -38,6 +38,11 @@ glob_scan_max_depth = 5
 "~/.git-credentials" = "deny"
 # The agenix identity decrypts every secret in the repo.
 "~/.ssh/id_ed25519" = "deny"
+# Writable tool caches. Nix keeps its fetcher cache in ~/.cache, and
+# home/shell.nix points uv, npm, bun, Gradle and Go at /vault/userdata.
+"~/.cache" = "write"
+"/vault/userdata/cache" = "write"
+"/vault/userdata/go" = "write"
 
 [permissions.tony-safe.filesystem.":workspace_roots"]
 "**/.env" = "deny"
