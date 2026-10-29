@@ -167,9 +167,8 @@
       url = "github:Kabilan108/pagebin";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # Private repository, fetched over SSH.
     scout = {
-      url = "git+ssh://git@github.com/Kabilan108/scout";
+      url = "github:Kabilan108/scout";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     siren = {
