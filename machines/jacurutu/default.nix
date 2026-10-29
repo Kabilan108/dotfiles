@@ -94,7 +94,6 @@ in
         volume_normalisation = true;
       };
     };
-    dotfiles.wallpaper.desktop = "$HOME/dotfiles/wallpapers/shoggoth-001.png";
     dotfiles.wallpaper.lockscreen = "$HOME/dotfiles/wallpapers/shoggoth-math-woodblock.png";
   };
 }

@@ -106,11 +106,9 @@ in
     ".gitconfig".source = cfgLink ".gitconfig";
     ".ipython/profile_default/ipython_config.py".source = cfgLink "ipython_config.py";
     ".tmux.conf".source = cfgLink ".tmux.conf";
-    ".vimrc".source = cfgLink ".vimrc";
 
     ".config/backup".source = cfgLink "backup";
     ".config/Code/User".source = cfgLink "vscode";
-    # ".config/herdr/config.toml".source = cfgLink "herdr/config.toml";
     ".config/sessionizer".source = cfgLink "sessionizer";
     ".config/uv/uv.toml".source = cfgLink "uv/uv.toml";
     ".config/.bunfig.toml".source = cfgLink "bunfig.toml";

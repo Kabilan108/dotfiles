@@ -1,6 +1,3 @@
-// Entries and keywords mirror the Walker power menu in
-// home/desktop/wayland/walker.nix.
-
 var meta = { id: "power", label: "Power", icon: "shell:power" }
 
 var ENTRIES = [

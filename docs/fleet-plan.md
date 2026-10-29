@@ -83,12 +83,10 @@ defaults to the latest nightly and also accepts a channel or an exact version.
 See [T3 Code maintenance](t3-code-binary-migration.md). Jacurutu keeps the
 desktop AppImage.
 
-### Phase 5 — discord-notify unblock [done 2026-07-12]
+### Phase 5 — agent notifications [done 2026-07-12]
 
-Resolution: agents and workflows on sietch/jacurutu use the `discord-notify`
-CLI directly. Named webhook destinations are stored in the agenix-managed
-`~/.config/discord-notify/channels.json`; the skill and CLI expose names, never
-webhook URLs.
+Resolution: agents and workflows notify Tony through Hark (`harkctl`, the
+notify skill).
 
 The attempted HTTP service and Executor integration were removed. Executor
 v1.5.29 has no per-host outbound allowlist, and flipping
@@ -111,7 +109,7 @@ id→URL cache). Actual pagebin CLI changes happen in that repo, not here.
   `sietch:/vault/userdata/tracer-ingest/jacurutu/` over the restricted
   `agent-jacurutu` key.
 - `tracer-digest` (sietch): headless `claude -p` review of new sessions
-  across both archive roots → digest markdown + discord-notify summary.
+  across both archive roots → digest markdown + Hark summary.
   First run auto-seeds sessions older than 14 days as seen. **Manual-first**:
   the weekly timer module exists but is not enabled — run `tracer-digest` by
   hand, tune the prompt/output, then enable `tracer-digest.enable` and set

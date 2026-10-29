@@ -140,7 +140,7 @@ widgets, and surfaces.
 Consumers of a disabled service do not register until that dependency is
 enabled again.
 
-`Mod+Alt+P` opens an Elephant picker that lists and activates profiles; it does
+`Mod+Alt+P` opens the launcher's profiles mode, which lists and activates profiles; it does
 not edit them and does not occupy the bar. The picker queries the shell each
 time it opens, so newly created profiles appear without a rebuild. A switch
 reports `switching` until the watcher publishes the new catalog and the host

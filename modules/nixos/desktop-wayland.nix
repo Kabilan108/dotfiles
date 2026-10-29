@@ -5,7 +5,7 @@
   xdg.portal.enable = true;
   xdg.portal.extraPortals = [
     pkgs.xdg-desktop-portal-gtk
-    # File chooser backend; routed per compositor in modules/home/scout.nix and gtk.nix.
+    # File chooser backend; niri routes to it in modules/home/scout.nix.
     pkgs.scout
   ];
 

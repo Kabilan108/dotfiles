@@ -104,14 +104,6 @@ let
     ${lib.concatStringsSep "\n" (lib.mapAttrsToList renderHost fleet.hosts)}
 
     ${lib.concatStringsSep "\n" (lib.mapAttrsToList renderDevice fleet.devices)}
-
-    ## Conventions
-
-    - Agents/scripts reach fleet machines with `ssh <name>-agent` (restricted key, BatchMode, no prompts); plain `ssh <name>` is the human path (hardware key + tmux auto-attach).
-    - From a remote tmux view: `M-s` returns to the local machine's session picker; plain detach (prefix+d) returns to the session you came from.
-    - Access is directional: only the `can ssh into` lists above are permitted; never try to reach jacurutu from another machine.
-    - Remote interactive work: `ssh <name>` lands in the `main` tmux session automatically; one-off commands (`ssh <name> '<cmd>'`) bypass tmux.
-    - SSH hosts are NixOS; config changes go through ~/dotfiles on that machine (`nh os switch` / `nixos-rebuild switch --flake`), never ad-hoc system edits.
   '';
 in
 {

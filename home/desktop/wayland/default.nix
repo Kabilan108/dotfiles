@@ -1,17 +1,12 @@
-{
-  lib,
-  pkgs,
-  waylandCompositors,
-  ...
-}:
+{ inputs, pkgs, ... }:
 {
   imports = [
-    ./screenshots.nix
-  ]
-  ++ map (compositor: ./compositors + "/${compositor}") waylandCompositors
-  ++ lib.optionals (lib.elem "niri" waylandCompositors) [ ./quickshell ];
+    ./compositors/niri
+    ./quickshell
+  ];
 
   home.packages = with pkgs; [
+    inputs.omasnap.packages.${pkgs.stdenv.hostPlatform.system}.omasnap
     wl-clipboard
     wf-recorder
     wtype

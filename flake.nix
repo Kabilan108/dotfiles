@@ -23,29 +23,13 @@
         inputs.tracer.overlays.default
       ];
 
-      compositorModules = {
-        hyprland = [ ./modules/nixos/wayland/hyprland.nix ];
-        niri = [
-          inputs."niri-flake".nixosModules.niri
-          ./modules/nixos/wayland/niri.nix
-        ];
-      };
-
       makeSystem =
         {
           name,
           modules ? [ ],
-          displayServer ? "x11",
-          waylandCompositors ? [ "hyprland" ],
         }:
         nixpkgs.lib.nixosSystem {
-          specialArgs = {
-            inherit
-              inputs
-              displayServer
-              waylandCompositors
-              ;
-          };
+          specialArgs = { inherit inputs; };
           modules = [
             {
               nixpkgs = {
@@ -65,15 +49,11 @@
             ./modules/nixos/theme.nix
             ./modules/nixos/virt-manager.nix
             ./modules/nixos/syncthing.nix
+            ./modules/nixos/desktop-wayland.nix
+            # niri-flake packages and caches niri; its config.kdl lives in HM as a manual file.
+            inputs."niri-flake".nixosModules.niri
+            ./modules/nixos/wayland/niri.nix
           ]
-          ++ (
-            if displayServer == "x11" then
-              [ ./modules/nixos/deskotp-x11.nix ]
-            else
-              # Wayland compositor configs live in HM; niri uses niri-flake for packaging/caching while keeping manual config files.
-              [ ./modules/nixos/desktop-wayland.nix ]
-              ++ nixpkgs.lib.concatMap (compositor: compositorModules.${compositor}) waylandCompositors
-          )
           ++ modules;
         };
     in
@@ -81,22 +61,13 @@
       nixosConfigurations = {
         sietch = makeSystem {
           name = "sietch";
-          displayServer = "wayland";
-          waylandCompositors = [
-            "niri"
-            "hyprland"
-          ];
           modules = [
             ./modules/nixos/nvidia.nix
             ./modules/nixos/xbox-controller.nix
             ./modules/nixos/mullvad-vpn.nix
           ];
         };
-        jacurutu = makeSystem {
-          name = "jacurutu";
-          displayServer = "wayland";
-          waylandCompositors = [ "niri" ];
-        };
+        jacurutu = makeSystem { name = "jacurutu"; };
       };
 
       devShells.${system}.default =
@@ -132,7 +103,6 @@
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    elephant.url = "github:abenz1267/elephant";
     firefox-addons = {
       url = "gitlab:rycee/nur-expressions?dir=pkgs/firefox-addons";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -142,11 +112,6 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    hy3 = {
-      url = "github:outfoxxed/hy3?ref=hl0.52.0";
-      inputs.hyprland.follows = "hyprland";
-    };
-    hyprland.url = "github:hyprwm/Hyprland/v0.52.0";
     # Update this dependency pin deliberately alongside llama.cpp, not system updates.
     llama-nixpkgs.url = "github:NixOS/nixpkgs/b1b875982b17dabde9b4a37f3e229e74913e6db3";
     # Temporary Zotero pin while its build is incompatible with Firefox 153.
@@ -167,10 +132,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     try.url = "github:tobi/try";
-    walker = {
-      url = "github:abenz1267/walker";
-      inputs.elephant.follows = "elephant";
-    };
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";

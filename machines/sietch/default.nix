@@ -81,7 +81,7 @@
     # survive re-pushes. Only safe while nothing rsyncs into this root.
     programs.tracer.settings.archive.annotatable_roots = [ "/vault/userdata/tracer-ingest" ];
 
-    dotfiles.wallpaper.desktop = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
+    dotfiles.wallpaper.lockscreen = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
   };
 
   services = {

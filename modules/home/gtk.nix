@@ -1,15 +1,12 @@
 {
   config,
-  lib,
   pkgs,
-  waylandCompositors,
   ...
 }:
 let
   gtk-theme = "WhiteSur-Dark";
   gtk-icon-theme = "Adwaita";
   cursor-theme = "catppuccin-mocha-mauve-cursors";
-  hasHyprland = lib.elem "hyprland" waylandCompositors;
 
   # Libadwaita apps refuse to load named GTK themes, so the gresource at
   # resource:///org/gnome/theme/gtk.css is never registered and the CSS
@@ -37,17 +34,6 @@ let
 in
 {
   home.sessionVariables.GTK_THEME = gtk-theme;
-
-  xdg.configFile."xdg-desktop-portal/hyprland-portals.conf" = lib.mkIf hasHyprland {
-    text = ''
-      [preferred]
-      default=gtk
-      org.freedesktop.impl.portal.ScreenCast=hyprland
-      org.freedesktop.impl.portal.Screenshot=hyprland
-      org.freedesktop.impl.portal.GlobalShortcuts=hyprland
-      org.freedesktop.impl.portal.FileChooser=scout;gtk
-    '';
-  };
 
   # color-scheme is the portal-based setting that libadwaita reads for dark mode.
   # gtk-application-prefer-dark-theme only works for GTK3 and non-libadwaita GTK4.

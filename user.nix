@@ -3,8 +3,6 @@
   pkgs,
   inputs,
   lib,
-  displayServer,
-  waylandCompositors,
   ...
 }:
 let
@@ -58,13 +56,6 @@ in
     secrets."secrets/pagebin/env.age" = {
       file = ./secrets/pagebin/env.age;
       path = "${home}/.config/pagebin/env";
-      mode = "0600";
-      owner = "kabilan";
-      group = "users";
-    };
-    secrets."secrets/discord-notify.age" = {
-      file = ./secrets/discord-notify.age;
-      path = "${home}/.config/discord-notify/channels.json";
       mode = "0600";
       owner = "kabilan";
       group = "users";
@@ -186,7 +177,7 @@ in
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
-    extraSpecialArgs = { inherit inputs displayServer waylandCompositors; };
+    extraSpecialArgs = { inherit inputs; };
 
     users.kabilan.imports = [ ./home ];
   };

@@ -1,6 +1,5 @@
 {
   config,
-  displayServer,
   inputs,
   lib,
   pkgs,
@@ -40,7 +39,7 @@ in
       enable = true;
       package = inputs.dictator.packages.${systemName}.default;
       gui.enable = true;
-      displayServer = displayServer;
+      displayServer = "wayland";
       logLevel = "INFO";
       environmentFile = "/run/agenix/secrets/dictator-env";
       settings = {

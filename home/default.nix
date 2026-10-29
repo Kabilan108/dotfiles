@@ -1,5 +1,4 @@
 {
-  displayServer,
   inputs,
   lib,
   pkgs,
@@ -79,13 +78,13 @@ in
     ../modules/home/scout.nix
     ../modules/home/stillsuit
     ../modules/home/stylix.nix
-    ../modules/home/wallpaper.nix
     ../modules/home/zen
 
     inputs.atlas.homeManagerModules.default
     inputs.tracer.homeManagerModules.default
-  ]
-  ++ (if displayServer == "x11" then [ ./desktop/x11 ] else [ ./desktop/wayland ]);
+
+    ./desktop/wayland
+  ];
 
   home.username = "kabilan";
   home.homeDirectory = homeDir;
@@ -303,7 +302,6 @@ in
     fzf
     gh
     ghostty
-    # inputs.herdr.packages.${systemName}.default
     harkctl
     pagebin
     kitty.kitten
