@@ -29,7 +29,6 @@ extends = ":workspace"
 "~/experiments" = true
 
 [permissions.tony-safe.filesystem]
-glob_scan_max_depth = 5
 # The sandbox can't mount over symlinks such as /run/agenix, ~/.bashenv or
 # ~/.config/pagebin/env. Denying the real directory covers every agenix file,
 # including the ones linked into ~/.config and ~/.ssh.
@@ -43,13 +42,6 @@ glob_scan_max_depth = 5
 "~/.cache" = "write"
 "/vault/userdata/cache" = "write"
 "/vault/userdata/go" = "write"
-
-[permissions.tony-safe.filesystem.":workspace_roots"]
-"**/.env" = "deny"
-"**/.env.local" = "deny"
-"**/.env.*.local" = "deny"
-"**/.env.production" = "deny"
-"**/.env.development" = "deny"
 
 [permissions.tony-safe.network]
 enabled = true
