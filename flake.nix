@@ -49,6 +49,7 @@
             inputs.stylix.nixosModules.stylix
             ./modules/nixos/theme.nix
             ./modules/nixos/virt-manager.nix
+            ./modules/nixos/teamviewer.nix
             ./modules/nixos/syncthing.nix
             ./modules/nixos/desktop-wayland.nix
             # niri-flake packages and caches niri; its config.kdl lives in HM as a manual file.

@@ -15,6 +15,7 @@
 
   dotfiles.docker.rootlessDevelopment.enable = true;
   dotfiles.mobergTailscale.enable = true;
+  services.teamviewer.enable = false;
 
   # Keep ordinary OpenSSH and key authentication, but require the tailnet for
   # remote administration. Local console access is the recovery path.
