@@ -64,11 +64,13 @@
 		// initiate, permit exactly the syncthing port and nothing else.
 		// {"src": ["sietch"], "dst": ["jacurutu"], "ip": ["tcp:22000"]},
 
-		// phone: broad access to both interactive machines (t3 code, dev servers)
+		// phone: T3 Code and dev servers on both interactive machines. The phone
+		// never uses SSH, so it gets every TCP port except 22. It reaches
+		// tleilax's services through the svc: grants only.
 		{
 			"src": ["pixel-9"],
-			"dst": ["sietch", "jacurutu", "tleilax"],
-			"ip":  ["*"],
+			"dst": ["sietch", "jacurutu"],
+			"ip":  ["tcp:1-21", "tcp:23-65535"],
 		},
 
 		// iPad: SSH and T3 Code over Tailscale Serve.
@@ -163,6 +165,7 @@
 		{
 			"src":    "pixel-9",
 			"accept": ["sietch:443", "sietch:8096", "jacurutu:443", "tag:nas:443", "svc:blocky:443"],
+			"deny":   ["sietch:22", "jacurutu:22", "tleilax:22"],
 		},
 		{
 			"src":  "tag:nas",
