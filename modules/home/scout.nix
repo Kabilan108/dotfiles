@@ -4,15 +4,23 @@
   pkgs,
   ...
 }:
-let
-  scout = pkgs.scout;
-in
 {
+  imports = [ inputs.scout.homeManagerModules.default ];
+
   # scout: keyboard-first file manager. The NixOS side registers its file
   # chooser portal (modules/nixos/desktop-wayland.nix).
-  # Nautilus ships an org.freedesktop.FileManager1 service file too; priority
-  # makes scout's the one in the profile, so "Show in folder" opens scout.
-  home.packages = [ (lib.hiPrio scout) ];
+  programs.scout = {
+    enable = true;
+    # Nautilus ships an org.freedesktop.FileManager1 service file too; priority
+    # makes scout's the one in the profile, so "Show in folder" opens scout.
+    package = lib.hiPrio pkgs.scout;
+    # g + key. gd already follows the XDG downloads folder and gr is ~/repos.
+    bookmarks = {
+      w = "~/work";
+      m = "~/media";
+      e = "~/experiments";
+    };
+  };
 
   xdg.mimeApps.defaultApplications."inode/directory" = "scout.desktop";
 
