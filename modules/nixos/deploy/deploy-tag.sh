@@ -14,7 +14,9 @@
 #
 # A valid tag is an annotated tag on a commit whose embedded name matches its
 # ref, with exactly one SSH signature by a key in DEPLOY_SIGNERS and nothing
-# after that signature, since git and ssh-keygen don't cover it. With
+# after that signature, since git and ssh-keygen don't cover it. Its signed
+# message has no carriage return and no line of only whitespace, so the one
+# paragraph break is an empty line. With
 # DEPLOY_REQUIRE_TOUCH=1 (and DEPLOY_REQUIRE_PIN=1) the signature must come
 # from a security key and carry the touch (and PIN) flag. ssh-keygen and git
 # verify-tag don't check those flags.
@@ -93,7 +95,7 @@ sk_signature_flags() {
 # Each check returns explicitly: callers use `if verify`, which turns off
 # errexit inside the function.
 verify() {
-  local tag=$1 ref=refs/tags/$1 object name type blocks flags
+  local tag=$1 ref=refs/tags/$1 object name type blocks message flags
   if [[ ! $tag =~ ^deploy/[a-z0-9-]+/[0-9]{8}T[0-9]{6}Z$ ]]; then
     refuse "$tag" "not a deploy/<host>/<YYYYMMDDTHHMMSSZ> name"
     return 1
@@ -125,6 +127,13 @@ verify() {
     refuse "$tag" "it has content after its signature, which the signature doesn't cover"
     return 1
   fi
+  # A non-empty line needs a printable ASCII character, which rules out
+  # spaces, tabs and Unicode spaces alike.
+  message=$(signed_message <<<"$object")
+  if [[ $message == *$'\r'* ]] || grep -qvx -e '' -e '.*[!-~].*' <<<"$message"; then
+    refuse "$tag" "its message has a carriage return or a line of only whitespace"
+    return 1
+  fi
   if ! g -c gpg.ssh.program="$ssh_keygen" -c gpg.ssh.allowedSignersFile="$DEPLOY_SIGNERS" \
     -c gpg.minTrustLevel=fully verify-tag "$ref" >/dev/null 2>&1; then
     refuse "$tag" "not signed by an allowed key"
@@ -148,14 +157,21 @@ verify() {
   return 0
 }
 
-# The override counts only inside the first paragraph of the signed message:
-# after the headers, before the signature. `deploy` writes it there, and the
-# commit list it adds after a blank line can't produce the line.
+# The signed message of a tag object on stdin: after the headers, before the
+# signature.
+signed_message() {
+  sed '1,/^$/d; /^-----BEGIN SSH SIGNATURE-----$/,$d'
+}
+
+# The override counts only inside the first paragraph of the signed message,
+# which ends at the first empty line (verify allows no other kind of blank
+# line). `deploy` writes it there, and the commit list it adds after that can't
+# produce the line.
 allows_rollback() {
   local tag=$1 object message
   verify "$tag" 2>/dev/null || return 1
   object=$(g cat-file tag "refs/tags/$tag")
-  message=$(sed '1,/^$/d; /^-----BEGIN SSH SIGNATURE-----$/,$d' <<<"$object")
+  message=$(signed_message <<<"$object")
   awk '/^$/ { exit } $0 == "Allow-Rollback: yes" { found = 1 } END { exit !found }' <<<"$message"
 }
 

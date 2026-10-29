@@ -3,11 +3,12 @@
 OpenSSH's software security key (tests/sk-dummy.nix) stands in for the
 YubiKeys and a local bare repo for GitHub. Stubs stand in for nixos-rebuild
 (build links a fake system holding its commit; switch makes that commit the
-running one), nixos-version (which reports it), systemctl (a small fake
-systemd: start --no-block runs the receiver in the background and keeps
-ActiveState, InvocationID and Result in files), journalctl (follows that run's
-log), socat (runs the broker instead of connecting to the socket), ssh, sudo
-and hostname. The receiver's flake.lock check and its lock use the real nix
+running one), nixos-version (which reports it), busctl and systemctl (a small
+fake systemd: StartUnit hands out a job ID, joins a pending job, and runs
+run-record.sh with the receiver in the background, or before replying with
+TEST_SYNC_START; the job disappears when the run ends), journalctl (follows a
+run's log), socat (runs the broker instead of connecting to the socket), ssh,
+sudo and hostname. The receiver's flake.lock check and its lock use the real nix
 and flock. Set
 DEPLOY_TEST_OPENSSH to a built tests/sk-dummy.nix to skip the nix build.
 """
@@ -56,22 +57,31 @@ STUBS = {
         '[[ "$*" == --configuration-revision && -s "{tmp}/running" ]] || exit 1\n'
         'cat "{tmp}/running"'
     ),
-    "systemctl": (
+    "busctl": (
+        '[[ "$*" == "call org.freedesktop.systemd1 /org/freedesktop/systemd1 '
+        'org.freedesktop.systemd1.Manager StartUnit ss deploy-receiver.service replace" ]]'
+        " || exit 92\n"
         'u="{tmp}/unit"; mkdir -p "$u"\n'
         'put() {{ printf "%s\\n" "$2" > "$u/.$1"; mv "$u/.$1" "$u/$1"; }}\n'
+        "run() {{\n"
+        "  invocation=$(date +%s%N)\n"
+        '  INVOCATION_ID=$invocation bash "{scripts}/run-record.sh" bash "{scripts}/receiver.sh"'
+        ' > "$u/$invocation.log" 2>&1\n'
+        '  put Job ""\n'
+        "}}\n"
+        'job=$(cat "$u/Job" 2>/dev/null || true)\n'
+        'if [[ -z $job ]]; then\n'
+        '  job=$(( $(cat "$u/last-job" 2>/dev/null || echo 0) + 1 ))\n'
+        '  put last-job "$job"; put Job "$job"\n'
+        '  if [[ -n ${{TEST_SYNC_START:-}} ]]; then run; else run </dev/null >/dev/null 2>&1 & fi\n'
+        "fi\n"
+        'echo "o \\"/org/freedesktop/systemd1/job/$job\\""'
+    ),
+    "systemctl": (
+        'job=$(cat "{tmp}/unit/Job" 2>/dev/null || true)\n'
         'case "$*" in\n'
-        '"start --no-block --job-mode=replace deploy-receiver.service")\n'
-        "  id=$(date +%s%N)\n"
-        '  put InvocationID "$id"; put ActiveState activating\n'
-        '  ( if INVOCATION_ID=$id bash "{scripts}/receiver.sh" > "$u/$id.log" 2>&1\n'
-        "    then put Result success; put ActiveState inactive\n"
-        "    else put Result exit-code; put ActiveState failed; fi\n"
-        # Like systemd unloading the finished unit.
-        '    put InvocationID ""\n'
-        "  ) </dev/null >/dev/null 2>&1 &\n"
-        "  ;;\n"
-        '"show --property="*" --value deploy-receiver.service")\n'
-        '  cat "$u/${{2#--property=}}" 2>/dev/null || true ;;\n'
+        '"show --property=Job --value deploy-receiver.service") echo "$job" ;;\n'
+        '"list-jobs --no-legend") [[ -z $job ]] || echo "$job deploy-receiver.service start running" ;;\n'
         "*) exit 98 ;;\n"
         "esac"
     ),
@@ -178,7 +188,7 @@ class DeployGate(unittest.TestCase):
             "DEPLOY_BRANCH": "nixos",
             "DEPLOY_STATE_DIR": str(self.state),
             "DEPLOY_STATE_FILE": str(self.state / "deployed"),
-            "DEPLOY_LAST_RUN": str(self.state / "last-run"),
+            "DEPLOY_RUNS": str(self.tmp / "runs"),
             "DEPLOY_NIXOS_VERSION": str(bin_dir / "nixos-version"),
             "DEPLOY_TRIGGER_SOCKET": str(self.tmp / "trigger.sock"),
             "DEPLOY_SWITCH_LOCK": str(self.tmp / "switch.lock"),
@@ -247,7 +257,13 @@ class DeployGate(unittest.TestCase):
         return (self.tmp / "running").read_text().strip()
 
     def sign(
-        self, tag: str, key: str, rev: str = "HEAD", push: bool = True, message: str = "test"
+        self,
+        tag: str,
+        key: str,
+        rev: str = "HEAD",
+        push: bool = True,
+        message: str = "test",
+        verbatim: bool = False,
     ) -> None:
         r = self.run_cmd(
             [
@@ -260,6 +276,7 @@ class DeployGate(unittest.TestCase):
                 f"user.signingKey={KEYS[key]}",
                 "tag",
                 "-s",
+                *(["--cleanup=verbatim"] if verbatim else []),
                 "-m",
                 message,
                 tag,
@@ -466,6 +483,45 @@ class Rollback(DeployGate):
         self.assertEqual(self.running(), self.tip)
         self.assertEqual(self.run_cmd(["deploy-tag", "allows-rollback", T1]).returncode, 1)
 
+    def test_only_an_empty_line_ends_the_first_paragraph(self) -> None:
+        # The third review's variants: a blank-looking line that isn't empty
+        # would leave the marker in the first paragraph. Tags carrying one are
+        # refused outright.
+        older = self.rev("HEAD^")
+        self.set_running(self.tip)
+        variants = {
+            "spaces": "deploy sietch\n   \nAllow-Rollback: yes\n",
+            "crlf blank line": "deploy sietch\n\r\nAllow-Rollback: yes\n",
+            "crlf subject line": "deploy sietch\r\nAllow-Rollback: yes\n",
+            "ideographic space": "deploy sietch\n\u3000\nAllow-Rollback: yes\n",
+            "no-break space": "deploy sietch\n\u00a0\nAllow-Rollback: yes\n",
+            "tab": "deploy sietch\n\t\nAllow-Rollback: yes\n",
+        }
+        for i, (name, message) in enumerate(variants.items()):
+            with self.subTest(name):
+                tag = f"deploy/sietch/20261029T1{i}0000Z"
+                self.sign(tag, "yk", rev=older, message=message, verbatim=True)
+                raw = subprocess.run(
+                    ["git", "cat-file", "tag", tag], cwd=self.work, env=self.env,
+                    capture_output=True, check=True,
+                ).stdout
+                self.assertIn(message.encode(), raw)
+                verify = self.run_cmd(
+                    ["git", "-c", f"gpg.ssh.allowedSignersFile={KEYS['signers']}", "verify-tag", tag]
+                )
+                self.assertEqual(verify.returncode, 0, verify.stderr)
+                r = self.receive()
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn(
+                    f"refusing {tag}: its message has a carriage return or a line of only whitespace",
+                    r.stderr,
+                )
+                self.assertEqual(self.running(), self.tip)
+                self.assertEqual(self.rebuilds(), [])
+                self.assertEqual(self.run_cmd(["deploy-tag", "allows-rollback", tag]).returncode, 1)
+                self.git("tag", "-d", tag)
+                self.git("push", "-q", "origin", f":refs/tags/{tag}")
+
     def test_unknown_running_commit_needs_the_override(self) -> None:
         (self.tmp / "running").unlink()
         self.sign(T1, "yk")
@@ -656,6 +712,18 @@ class Deploy(DeployGate):
         self.assertEqual(r.returncode, 1)
         self.assertIn(f"doesn't report running {self.tip}", r.stderr)
 
+    def test_a_carriage_return_in_a_commit_subject_still_deploys(self) -> None:
+        (self.work / "file").write_text("cr")
+        self.git("add", "file")
+        self.git("commit", "-q", "--cleanup=verbatim", "-m", "fix\rthing")
+        self.git("push", "-q", "origin", "HEAD:nixos")
+        r = self.deploy("--yes", "--key", str(KEYS["yk"]), "sietch")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        [tag] = self.deployed_tags()
+        message = self.git("cat-file", "tag", tag, cwd=self.origin)
+        self.assertIn(" fixthing", message)
+        self.assertNotIn("\r", message)
+
     def test_reports_a_failed_deploy(self) -> None:
         r = self.deploy("--yes", "--key", str(KEYS["yk"]), "sietch", NIXOS_REBUILD_EXIT="1")
         self.assertEqual(r.returncode, 1)
@@ -685,6 +753,10 @@ class Deploy(DeployGate):
 
 
 class Trigger(DeployGate):
+    def runs(self) -> list[str]:
+        path = self.tmp / "runs"
+        return path.read_text().splitlines() if path.exists() else []
+
     def test_broker_returns_at_once_for_a_client_that_never_reads(self) -> None:
         self.sign(T1, "yk")
         # The receiver stays busy for a while; the broker must not wait for it,
@@ -699,16 +771,15 @@ class Trigger(DeployGate):
             start_new_session=True,
         )
         self.assertEqual(broker.wait(timeout=2), 0)
-        self.assertEqual((self.tmp / "unit/ActiveState").read_text(), "activating\n")
+        self.assertEqual((self.tmp / "unit/Job").read_text(), "1\n")
         assert broker.stdout is not None
-        self.assertEqual(broker.stdout.read(), b"deploy-trigger: started\n")
+        self.assertEqual(broker.stdout.read(), b"deploy-trigger: queued job 1\n")
         broker.stdout.close()
         deadline = 30
-        while (self.tmp / "unit/ActiveState").read_text() == "activating\n" and deadline:
+        while (self.tmp / "unit/Job").read_text() != "\n" and deadline:
             subprocess.run(["sleep", "1"])
             deadline -= 1
-        self.assertEqual((self.tmp / "unit/Result").read_text(), "success\n")
-        self.assertRegex((self.state / "last-run").read_text(), r"^[0-9]+ 0\n$")
+        self.assertRegex(self.runs()[-1], r"^1 [0-9]+ exit:0$")
 
     def trigger(self, socat: str, **extra: str) -> subprocess.CompletedProcess[str]:
         bin_dir = self.tmp / "trigger-bin"
@@ -721,31 +792,27 @@ class Trigger(DeployGate):
             extra_env={"PATH": f"{bin_dir}:{self.env['PATH']}", **extra},
         )
 
-    def test_a_killed_run_does_not_report_the_last_success(self) -> None:
-        self.sign(T1, "yk")
-        self.assertEqual(self.trigger(f'exec bash "{SCRIPTS}/broker.sh"').returncode, 0)
-        self.commit("next")
-        self.git("push", "-q", "origin", "HEAD:nixos")
-        self.sign(T2, "yk")
-        # SIGKILL the receiver mid-build, so it can't record this run.
-        r = self.trigger(
-            f'exec bash "{SCRIPTS}/broker.sh"',
-            TEST_DURING_BUILD='kill -9 "$(ps -o ppid= -p "$PPID")"',
-        )
-        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
-        self.assertIn("the receiver run failed (exit unknown)", r.stderr)
+    def broker(self, **extra: str) -> subprocess.CompletedProcess[str]:
+        return self.trigger(f'exec bash "{SCRIPTS}/broker.sh"', **extra)
 
-    def test_without_a_started_reply_nothing_is_followed(self) -> None:
-        for socat in ["exit 1", "echo 'deploy-trigger: couldn'\\''t queue it'"]:
-            with self.subTest(socat=socat):
-                r = self.trigger(socat)
-                self.assertEqual(r.returncode, 1)
-                self.assertIn("deploy-trigger:", r.stderr)
-                self.assertFalse((self.tmp / "unit/InvocationID").exists())
+    def test_a_run_that_ends_before_the_first_poll(self) -> None:
+        # The re-review's case: the run finishes, and its job and unit are gone,
+        # before the client first looks.
+        self.sign(T1, "yk")
+        r = self.broker(TEST_SYNC_START="1")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"Building {T1}", r.stdout)
+        self.assertIn(f"sietch deployed {T1} {self.tip}", r.stdout)
+        self.assertIn(f"sietch runs {self.tip}", r.stdout)
+        self.git("tag", "-a", "-m", "unsigned", T2)
+        self.git("push", "-q", "origin", f"refs/tags/{T2}")
+        r = self.broker(TEST_SYNC_START="1")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("the receiver run for job 2 failed (exit 1)", r.stderr)
 
     def test_follows_the_run_and_reports_its_result(self) -> None:
         self.sign(T1, "yk")
-        r = self.trigger(f'exec bash "{SCRIPTS}/broker.sh"')
+        r = self.broker()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn(f"Building {T1}", r.stdout)
         self.assertIn(f"sietch deployed {T1} {self.tip}", r.stdout)
@@ -754,10 +821,47 @@ class Trigger(DeployGate):
         self.git("push", "-q", "origin", "HEAD:nixos")
         self.git("tag", "-a", "-m", "unsigned", T2)
         self.git("push", "-q", "origin", f"refs/tags/{T2}")
-        r = self.trigger(f'exec bash "{SCRIPTS}/broker.sh"')
+        r = self.broker()
         self.assertEqual(r.returncode, 1)
         self.assertIn(f"refusing {T2}", r.stdout)
-        self.assertIn("the receiver run failed (exit 1)", r.stderr)
+        self.assertIn("the receiver run for job 2 failed (exit 1)", r.stderr)
+
+    def test_a_killed_receiver_is_a_failure(self) -> None:
+        self.sign(T1, "yk")
+        self.assertEqual(self.broker().returncode, 0)
+        self.commit("next")
+        self.git("push", "-q", "origin", "HEAD:nixos")
+        self.sign(T2, "yk")
+        # SIGKILL the receiver mid-build; run-record.sh notes the signal.
+        r = self.broker(TEST_DURING_BUILD='kill -9 "$(ps -o ppid= -p "$PPID")"')
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("the receiver run for job 2 failed (exit 137)", r.stderr)
+
+    def test_a_run_that_leaves_no_result_is_a_failure(self) -> None:
+        self.sign(T1, "yk")
+        self.assertEqual(self.broker().returncode, 0)
+        self.commit("next")
+        self.git("push", "-q", "origin", "HEAD:nixos")
+        self.sign(T2, "yk")
+        # SIGKILL the receiver and run-record.sh too: job 2 records only its
+        # start, while job 1's success stays in the record.
+        r = self.broker(
+            TEST_DURING_BUILD=(
+                'receiver=$(ps -o ppid= -p "$PPID"); '
+                'kill -9 "$(ps -o ppid= -p "$receiver")" "$receiver"'
+            )
+        )
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("job 2 ended without the receiver recording a result", r.stderr)
+        self.assertRegex(self.runs()[-1], r"^2 [0-9]+ started$")
+
+    def test_without_a_job_reply_nothing_is_followed(self) -> None:
+        for socat in ["exit 1", "echo 'deploy-trigger: couldn'\\''t queue it'"]:
+            with self.subTest(socat=socat):
+                r = self.trigger(socat)
+                self.assertEqual(r.returncode, 1)
+                self.assertIn("deploy-trigger:", r.stderr)
+                self.assertEqual(self.runs(), [])
 
 
 class Gate(DeployGate):

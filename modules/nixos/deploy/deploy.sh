@@ -122,7 +122,8 @@ else
       echo "Allow-Rollback: yes"
     fi
     echo
-    g log --no-decorate --format='%h %s' -50 "$range"
+    # A carriage return in a commit subject would make the tag invalid.
+    g log --no-decorate --format='%h %s' -50 "$range" | tr -d '\r'
   )
   tag=$(deploy-tag -C "$repo" sign --key "$key_file" --message "$message" "$host" "$target")
   g push --quiet origin "refs/tags/$tag"
