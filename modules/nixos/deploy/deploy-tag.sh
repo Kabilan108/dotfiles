@@ -6,11 +6,15 @@
 #       Print "TAG COMMIT" for the newest valid deploy/HOST/* tag.
 #   deploy-tag [-C DIR] verify TAG
 #       Exit 0 if TAG is valid, else print why to stderr and exit 1.
+#   deploy-tag [-C DIR] allows-rollback TAG
+#       Exit 0 if TAG is valid and its signed message's first paragraph has
+#       the line "Allow-Rollback: yes".
 #   deploy-tag [-C DIR] sign --key FILE [--message TEXT] HOST REV
 #       Sign the next deploy/HOST tag at REV, check it, and print its name.
 #
 # A valid tag is an annotated tag on a commit whose embedded name matches its
-# ref, with exactly one SSH signature by a key in DEPLOY_SIGNERS. With
+# ref, with exactly one SSH signature by a key in DEPLOY_SIGNERS and nothing
+# after that signature, since git and ssh-keygen don't cover it. With
 # DEPLOY_REQUIRE_TOUCH=1 (and DEPLOY_REQUIRE_PIN=1) the signature must come
 # from a security key and carry the touch (and PIN) flag. ssh-keygen and git
 # verify-tag don't check those flags.
@@ -30,6 +34,7 @@ usage() {
   cat >&2 <<'EOF'
 usage: deploy-tag [-C DIR] latest HOST
        deploy-tag [-C DIR] verify TAG
+       deploy-tag [-C DIR] allows-rollback TAG
        deploy-tag [-C DIR] sign --key FILE [--message TEXT] HOST REV
 EOF
   exit 2
@@ -115,6 +120,11 @@ verify() {
     refuse "$tag" "it needs exactly one SSH signature"
     return 1
   fi
+  if [[ $(grep -cx -e '-----END SSH SIGNATURE-----' <<<"$object" || true) != 1 ]] ||
+    [[ -n $(sed '1,/^-----END SSH SIGNATURE-----$/d' <<<"$object" | tr -d '[:space:]') ]]; then
+    refuse "$tag" "it has content after its signature, which the signature doesn't cover"
+    return 1
+  fi
   if ! g -c gpg.ssh.program="$ssh_keygen" -c gpg.ssh.allowedSignersFile="$DEPLOY_SIGNERS" \
     -c gpg.minTrustLevel=fully verify-tag "$ref" >/dev/null 2>&1; then
     refuse "$tag" "not signed by an allowed key"
@@ -136,6 +146,17 @@ verify() {
     fi
   fi
   return 0
+}
+
+# The override counts only inside the first paragraph of the signed message:
+# after the headers, before the signature. `deploy` writes it there, and the
+# commit list it adds after a blank line can't produce the line.
+allows_rollback() {
+  local tag=$1 object message
+  verify "$tag" 2>/dev/null || return 1
+  object=$(g cat-file tag "refs/tags/$tag")
+  message=$(sed '1,/^$/d; /^-----BEGIN SSH SIGNATURE-----$/,$d' <<<"$object")
+  awk '/^$/ { exit } $0 == "Allow-Rollback: yes" { found = 1 } END { exit !found }' <<<"$message"
 }
 
 latest() {
@@ -180,6 +201,10 @@ latest)
 verify)
   [[ $# -eq 2 ]] || usage
   verify "$2"
+  ;;
+allows-rollback)
+  [[ $# -eq 2 ]] || usage
+  allows_rollback "$2"
   ;;
 sign)
   shift

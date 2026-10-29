@@ -16,6 +16,8 @@ let
   stateDir = "/var/lib/deploy-receiver";
   triggerSocket = "/run/deploy-trigger.sock";
   runningNixosVersion = "/run/current-system/sw/bin/nixos-version";
+  # The receiver and bin/rebuild each switch only while holding this lock.
+  switchLock = "/run/fleet-switch.lock";
 
   # The receiver's Nix reads only this file: the system nix.conf without its
   # include lines, so nothing outside the store (such as the access-token
@@ -43,6 +45,7 @@ let
     name = "deploy-tag";
     runtimeInputs = [
       pkgs.coreutils
+      pkgs.gawk
       pkgs.git
       pkgs.gnugrep
       pkgs.gnused
@@ -81,6 +84,7 @@ let
       pkgs.git
       config.nix.package
       config.system.build.nixos-rebuild
+      pkgs.util-linux
     ];
     runtimeEnv = {
       DEPLOY_HOST = thisHost;
@@ -88,28 +92,31 @@ let
       DEPLOY_BRANCH = deploy.branch;
       DEPLOY_STATE_DIR = stateDir;
       DEPLOY_NIXOS_VERSION = runningNixosVersion;
+      DEPLOY_SWITCH_LOCK = switchLock;
     };
     text = builtins.readFile ./receiver.sh;
   };
 
   broker = pkgs.writeShellApplication {
     name = "deploy-trigger-broker";
-    runtimeInputs = [
-      pkgs.coreutils
-      config.systemd.package
-    ];
-    runtimeEnv = {
-      DEPLOY_HOST = thisHost;
-      DEPLOY_STATE_FILE = "${stateDir}/deployed";
-      DEPLOY_NIXOS_VERSION = runningNixosVersion;
-    };
+    runtimeInputs = [ config.systemd.package ];
     text = builtins.readFile ./broker.sh;
   };
 
   trigger = pkgs.writeShellApplication {
     name = "deploy-trigger";
-    runtimeInputs = [ pkgs.socat ];
-    runtimeEnv.DEPLOY_TRIGGER_SOCKET = triggerSocket;
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.socat
+      config.systemd.package
+    ];
+    runtimeEnv = {
+      DEPLOY_HOST = thisHost;
+      DEPLOY_STATE_FILE = "${stateDir}/deployed";
+      DEPLOY_LAST_RUN = "${stateDir}/last-run";
+      DEPLOY_NIXOS_VERSION = runningNixosVersion;
+      DEPLOY_TRIGGER_SOCKET = triggerSocket;
+    };
     text = builtins.readFile ./trigger.sh;
   };
 
@@ -129,7 +136,14 @@ in
       assertion = builtins.all (lib.hasPrefix "sk-") deploy.signers;
       message = "lib/fleet.nix deploy.signers must all be security keys (sk-...).";
     }
+    {
+      assertion = lib.hasInfix switchLock (builtins.readFile ../../../bin/rebuild);
+      message = "bin/rebuild must switch under the same lock as the receiver (${switchLock}).";
+    }
   ];
+
+  # Root-only, so no one else can open it to hold the lock.
+  systemd.tmpfiles.rules = [ "f ${switchLock} 0600 root root -" ];
 
   environment.systemPackages = [
     deployTag
@@ -177,8 +191,8 @@ in
   };
 
   # Members of deploy-trigger may connect to the socket. Each connection runs
-  # the broker as root, which starts the receiver with a fixed job mode and
-  # reads nothing from the caller. This is a socket rather than a polkit rule
+  # the broker as root, which queues the receiver with a fixed job mode, reads
+  # nothing from the caller and exits. This is a socket rather than a polkit rule
   # because systemd doesn't pass the job mode to polkit: a rule allowing
   # "start" would also allow --job-mode=flush.
   users.groups.deploy-trigger = lib.mkIf isReceiver {
@@ -199,11 +213,10 @@ in
   };
 
   systemd.services."deploy-trigger@" = lib.mkIf isReceiver {
-    description = "Start the deploy receiver for a deploy-trigger caller";
-    # A switch must not cut off the caller's log stream.
-    restartIfChanged = false;
+    description = "Queue the deploy receiver for a deploy-trigger caller";
     serviceConfig = {
       ExecStart = lib.getExe broker;
+      RuntimeMaxSec = 30;
       StandardInput = "socket";
       StandardOutput = "socket";
       StandardError = "socket";
