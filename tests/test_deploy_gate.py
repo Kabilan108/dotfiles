@@ -2,9 +2,13 @@
 
 OpenSSH's software security key (tests/sk-dummy.nix) stands in for the
 YubiKeys and a local bare repo for GitHub. Stubs stand in for nixos-rebuild
-(which records the commit it "switched" to), nixos-version (which reports it),
-systemctl, socat (which runs the broker instead of connecting to the socket),
-ssh, sudo and hostname. The receiver's flake.lock check runs the real nix. Set
+(build links a fake system holding its commit; switch makes that commit the
+running one), nixos-version (which reports it), systemctl (a small fake
+systemd: start --no-block runs the receiver in the background and keeps
+ActiveState, InvocationID and Result in files), journalctl (follows that run's
+log), socat (runs the broker instead of connecting to the socket), ssh, sudo
+and hostname. The receiver's flake.lock check and its lock use the real nix
+and flock. Set
 DEPLOY_TEST_OPENSSH to a built tests/sk-dummy.nix to skip the nix build.
 """
 
@@ -36,18 +40,45 @@ STUBS = {
     "nixos-rebuild": (
         'echo "$*" >> "{tmp}/rebuilds"\n'
         '[[ ${{NIXOS_REBUILD_EXIT:-0}} == 0 ]] || exit "$NIXOS_REBUILD_EXIT"\n'
-        '[[ "$*" =~ rev=([0-9a-f]+) ]] && echo "${{BASH_REMATCH[1]}}" > "{tmp}/running"\n'
-        "exit 0"
+        "case $1 in\n"
+        "build)\n"
+        '  [[ "$*" =~ rev=([0-9a-f]+) ]] || exit 95\n'
+        '  system="{tmp}/systems/${{BASH_REMATCH[1]}}"\n'
+        '  mkdir -p "$system" && echo "${{BASH_REMATCH[1]}}" > "$system/rev"\n'
+        '  ln -sfn "$system" result\n'
+        '  if [[ -n ${{TEST_DURING_BUILD:-}} ]]; then bash -c "$TEST_DURING_BUILD"; fi\n'
+        "  ;;\n"
+        'switch) [[ $2 == --store-path ]] && cat "$3/rev" > "{tmp}/running" ;;\n'
+        "*) exit 94 ;;\n"
+        "esac"
     ),
     "nixos-version": (
         '[[ "$*" == --configuration-revision && -s "{tmp}/running" ]] || exit 1\n'
         'cat "{tmp}/running"'
     ),
     "systemctl": (
-        '[[ "$*" == "start --job-mode=replace deploy-receiver.service" ]] || exit 98\n'
-        'bash "{scripts}/receiver.sh"'
+        'u="{tmp}/unit"; mkdir -p "$u"\n'
+        'put() {{ printf "%s\\n" "$2" > "$u/.$1"; mv "$u/.$1" "$u/$1"; }}\n'
+        'case "$*" in\n'
+        '"start --no-block --job-mode=replace deploy-receiver.service")\n'
+        "  id=$(date +%s%N)\n"
+        '  put InvocationID "$id"; put ActiveState activating\n'
+        '  ( if INVOCATION_ID=$id bash "{scripts}/receiver.sh" > "$u/$id.log" 2>&1\n'
+        "    then put Result success; put ActiveState inactive\n"
+        "    else put Result exit-code; put ActiveState failed; fi\n"
+        # Like systemd unloading the finished unit.
+        '    put InvocationID ""\n'
+        "  ) </dev/null >/dev/null 2>&1 &\n"
+        "  ;;\n"
+        '"show --property="*" --value deploy-receiver.service")\n'
+        '  cat "$u/${{2#--property=}}" 2>/dev/null || true ;;\n'
+        "*) exit 98 ;;\n"
+        "esac"
     ),
-    "journalctl": "exec sleep 60",
+    "journalctl": (
+        '[[ $4 == _SYSTEMD_INVOCATION_ID=* ]] || exit 93\n'
+        'exec tail -n +1 -F "{tmp}/unit/${{4#_SYSTEMD_INVOCATION_ID=}}.log" 2>/dev/null'
+    ),
     "socat": (
         '[[ "$*" == "-u UNIX-CONNECT:{tmp}/trigger.sock -" ]] || exit 97\n'
         'exec bash "{scripts}/broker.sh"'
@@ -147,8 +178,10 @@ class DeployGate(unittest.TestCase):
             "DEPLOY_BRANCH": "nixos",
             "DEPLOY_STATE_DIR": str(self.state),
             "DEPLOY_STATE_FILE": str(self.state / "deployed"),
+            "DEPLOY_LAST_RUN": str(self.state / "last-run"),
             "DEPLOY_NIXOS_VERSION": str(bin_dir / "nixos-version"),
             "DEPLOY_TRIGGER_SOCKET": str(self.tmp / "trigger.sock"),
+            "DEPLOY_SWITCH_LOCK": str(self.tmp / "switch.lock"),
             "DOTFILES": str(self.work),
         }
         self.state.mkdir()
@@ -248,11 +281,12 @@ class DeployGate(unittest.TestCase):
         path = self.tmp / "rebuilds"
         return path.read_text().splitlines() if path.exists() else []
 
-    def switch_line(self, commit: str) -> str:
-        return (
-            f"switch --no-update-lock-file --flake git+file://{self.state}/dotfiles.git"
-            f"?rev={commit}#sietch"
-        )
+    def deploy_lines(self, commit: str) -> list[str]:
+        return [
+            f"build --no-update-lock-file --flake git+file://{self.state}/dotfiles.git"
+            f"?rev={commit}#sietch",
+            f"switch --store-path {self.tmp}/systems/{commit}",
+        ]
 
     def assert_refused(self, reason: str, **extra: str) -> None:
         r = self.receive(**extra)
@@ -267,12 +301,12 @@ class Receiver(DeployGate):
         self.sign(T1, "yk")
         r = self.receive()
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertEqual(self.rebuilds(), [self.switch_line(self.tip)])
+        self.assertEqual(self.rebuilds(), self.deploy_lines(self.tip))
         self.assertEqual((self.state / "deployed").read_text(), f"{T1} {self.tip}\n")
         r = self.receive()
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn(f"No deploy tag newer than {T1}; sietch runs {self.tip}", r.stdout)
-        self.assertEqual(len(self.rebuilds()), 1)
+        self.assertEqual(self.rebuilds(), self.deploy_lines(self.tip))
 
     def test_unsigned_tag(self) -> None:
         self.git("tag", "-a", "-m", "unsigned", T1)
@@ -367,14 +401,14 @@ class Receiver(DeployGate):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn(f"No deploy tag newer than {T2}", r.stdout)
         self.assertEqual(self.git("tag", "-l", cwd=self.state / "dotfiles.git"), T1)
-        self.assertEqual(self.rebuilds(), [self.switch_line(self.tip)])
+        self.assertEqual(self.rebuilds(), self.deploy_lines(self.tip))
 
-    def test_failed_switch_is_retried(self) -> None:
+    def test_failed_build_is_retried(self) -> None:
         self.sign(T1, "yk")
         self.assertEqual(self.receive(NIXOS_REBUILD_EXIT="1").returncode, 1)
         self.assertFalse((self.state / "deployed").exists())
         self.assertEqual(self.receive().returncode, 0)
-        self.assertEqual(len(self.rebuilds()), 2)
+        self.assertEqual(len(self.rebuilds()), 3)
 
 
 class Rollback(DeployGate):
@@ -392,7 +426,7 @@ class Rollback(DeployGate):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn(f"refusing {T2}: {b} doesn't descend from {c}", r.stderr)
         self.assertEqual(self.running(), c)
-        self.assertEqual(self.rebuilds(), [self.switch_line(self.tip)])
+        self.assertEqual(self.rebuilds(), self.deploy_lines(self.tip))
         # The manual rebuild is the new floor: a tag on a child of C deploys.
         d = self.push_commit("d")
         self.sign(T3, "yk")
@@ -411,6 +445,27 @@ class Rollback(DeployGate):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self.running(), older)
 
+    def test_unsigned_trailer_cannot_allow_a_rollback(self) -> None:
+        # The re-review's tag: a valid signed message of one paragraph, with
+        # the override appended right after the signature, which nothing covers.
+        older = self.rev("HEAD^")
+        self.set_running(self.tip)
+        self.sign(T1, "yk", rev=older, message="deploy sietch", push=False)
+        signed = self.git("cat-file", "tag", T1)
+        self.assertTrue(signed.endswith("-----END SSH SIGNATURE-----"), signed)
+        forged = self.run_cmd(["git", "mktag"], stdin=signed + "\nAllow-Rollback: yes\n")
+        self.assertEqual(forged.returncode, 0, forged.stderr)
+        self.git("update-ref", f"refs/tags/{T1}", forged.stdout.strip())
+        # git accepts the forged tag: the trailer sits outside what it verifies.
+        verify = self.run_cmd(
+            ["git", "-c", f"gpg.ssh.allowedSignersFile={KEYS['signers']}", "verify-tag", T1]
+        )
+        self.assertEqual(verify.returncode, 0, verify.stderr)
+        self.git("push", "-q", "origin", f"refs/tags/{T1}")
+        self.assert_refused("it has content after its signature")
+        self.assertEqual(self.running(), self.tip)
+        self.assertEqual(self.run_cmd(["deploy-tag", "allows-rollback", T1]).returncode, 1)
+
     def test_unknown_running_commit_needs_the_override(self) -> None:
         (self.tmp / "running").unlink()
         self.sign(T1, "yk")
@@ -425,6 +480,44 @@ class Rollback(DeployGate):
         self.assert_refused(f"doesn't descend from {self.tip}")
         self.sign(T2, "yk")
         self.assertEqual(self.receive().returncode, 0)
+
+
+class SwitchLock(DeployGate):
+    def test_a_manual_rebuild_during_the_build_wins(self) -> None:
+        self.sign(T1, "yk")
+        c = self.push_commit("c")
+        # While the receiver builds the signed commit, a manual rebuild
+        # switches the host to the newer C.
+        r = self.receive(TEST_DURING_BUILD=f'echo {c} > "{self.tmp}/running"')
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn(f"{self.tip} doesn't descend from {c}", r.stderr)
+        self.assertIn("changed while", r.stderr)
+        self.assertEqual(self.rebuilds(), self.deploy_lines(self.tip)[:1])
+        self.assertEqual(self.running(), c)
+
+    def test_the_receiver_waits_for_a_rebuild_holding_the_lock(self) -> None:
+        self.sign(T1, "yk")
+        c = self.push_commit("c")
+        lock = self.tmp / "switch.lock"
+        holder = subprocess.Popen(
+            ["flock", str(lock), "bash", "-c", f'sleep 2; echo {c} > "{self.tmp}/running"']
+        )
+        try:
+            while subprocess.run(["flock", "--nonblock", str(lock), "true"]).returncode == 0:
+                pass
+            r = self.receive()
+        finally:
+            holder.wait(timeout=30)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("Waiting for a manual rebuild to finish", r.stdout)
+        self.assertIn(f"{self.tip} doesn't descend from {c}", r.stderr)
+        self.assertEqual(self.rebuilds(), self.deploy_lines(self.tip)[:1])
+        self.assertEqual(self.running(), c)
+
+    def test_the_lock_file_is_root_only_when_the_receiver_creates_it(self) -> None:
+        self.sign(T1, "yk")
+        self.assertEqual(self.receive().returncode, 0)
+        self.assertEqual((self.tmp / "switch.lock").stat().st_mode & 0o777, 0o600)
 
 
 class FlakeLock(DeployGate):
@@ -480,13 +573,13 @@ class Deploy(DeployGate):
         self.assertIn("one", r.stdout)
         self.assertIn("two", r.stdout)
         self.assertTrue(r.stdout.endswith(f"sietch runs {tag}.\n"), r.stdout)
-        self.assertEqual(self.rebuilds(), [self.switch_line(self.tip)])
+        self.assertEqual(self.rebuilds(), self.deploy_lines(self.tip))
 
         r = self.deploy("--yes", "--key", str(KEYS["yk"]), "sietch")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("nothing to sign", r.stdout)
         self.assertEqual(self.deployed_tags(), [tag])
-        self.assertEqual(len(self.rebuilds()), 1)
+        self.assertEqual(len(self.rebuilds()), 2)
 
         self.commit("four")
         self.git("push", "-q", "origin", "HEAD:nixos")
@@ -495,7 +588,7 @@ class Deploy(DeployGate):
         self.assertIn("four", r.stdout)
         self.assertNotIn(" two\n", r.stdout)
         self.assertEqual(len(self.deployed_tags()), 2)
-        self.assertEqual(self.rebuilds()[-1], self.switch_line(self.rev("HEAD")))
+        self.assertEqual(self.rebuilds()[-2:], self.deploy_lines(self.rev("HEAD")))
 
     def at_terminal(self, cmd: list[str], typed: str) -> tuple[int, str]:
         """Run cmd with a pseudo-terminal as its controlling terminal."""
@@ -592,27 +685,79 @@ class Deploy(DeployGate):
 
 
 class Trigger(DeployGate):
-    def trigger(self, output: str) -> subprocess.CompletedProcess[str]:
+    def test_broker_returns_at_once_for_a_client_that_never_reads(self) -> None:
+        self.sign(T1, "yk")
+        # The receiver stays busy for a while; the broker must not wait for it,
+        # and its output pipe is never read.
+        broker = subprocess.Popen(
+            ["bash", str(SCRIPTS / "broker.sh")],
+            cwd=self.tmp,
+            env={**self.env, "TEST_DURING_BUILD": "sleep 3"},
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        self.assertEqual(broker.wait(timeout=2), 0)
+        self.assertEqual((self.tmp / "unit/ActiveState").read_text(), "activating\n")
+        assert broker.stdout is not None
+        self.assertEqual(broker.stdout.read(), b"deploy-trigger: started\n")
+        broker.stdout.close()
+        deadline = 30
+        while (self.tmp / "unit/ActiveState").read_text() == "activating\n" and deadline:
+            subprocess.run(["sleep", "1"])
+            deadline -= 1
+        self.assertEqual((self.tmp / "unit/Result").read_text(), "success\n")
+        self.assertRegex((self.state / "last-run").read_text(), r"^[0-9]+ 0\n$")
+
+    def trigger(self, socat: str, **extra: str) -> subprocess.CompletedProcess[str]:
         bin_dir = self.tmp / "trigger-bin"
         bin_dir.mkdir(exist_ok=True)
         stub = bin_dir / "socat"
-        stub.write_text('#!/usr/bin/env bash\nprintf %s "$TEST_OUTPUT"\n')
+        stub.write_text(f"#!/usr/bin/env bash\n{socat}\n")
         stub.chmod(0o755)
         return self.run_cmd(
             ["bash", str(SCRIPTS / "trigger.sh")],
-            extra_env={"PATH": f"{bin_dir}:{os.environ['PATH']}", "TEST_OUTPUT": output},
+            extra_env={"PATH": f"{bin_dir}:{self.env['PATH']}", **extra},
         )
 
-    def test_status_counts_only_as_the_last_line(self) -> None:
-        r = self.trigger("log\ndeploy-trigger-status 3\n")
-        self.assertEqual((r.returncode, r.stdout), (3, "log\n"))
-        r = self.trigger("log\ndeploy-trigger-status 0\n")
-        self.assertEqual((r.returncode, r.stdout), (0, "log\n"))
-        for output in ["deploy-trigger-status 0\nmore log\n", "log\n", ""]:
-            with self.subTest(output=output):
-                r = self.trigger(output)
+    def test_a_killed_run_does_not_report_the_last_success(self) -> None:
+        self.sign(T1, "yk")
+        self.assertEqual(self.trigger(f'exec bash "{SCRIPTS}/broker.sh"').returncode, 0)
+        self.commit("next")
+        self.git("push", "-q", "origin", "HEAD:nixos")
+        self.sign(T2, "yk")
+        # SIGKILL the receiver mid-build, so it can't record this run.
+        r = self.trigger(
+            f'exec bash "{SCRIPTS}/broker.sh"',
+            TEST_DURING_BUILD='kill -9 "$(ps -o ppid= -p "$PPID")"',
+        )
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("the receiver run failed (exit unknown)", r.stderr)
+
+    def test_without_a_started_reply_nothing_is_followed(self) -> None:
+        for socat in ["exit 1", "echo 'deploy-trigger: couldn'\\''t queue it'"]:
+            with self.subTest(socat=socat):
+                r = self.trigger(socat)
                 self.assertEqual(r.returncode, 1)
-                self.assertIn("closed before the deploy reported a result", r.stderr)
+                self.assertIn("deploy-trigger:", r.stderr)
+                self.assertFalse((self.tmp / "unit/InvocationID").exists())
+
+    def test_follows_the_run_and_reports_its_result(self) -> None:
+        self.sign(T1, "yk")
+        r = self.trigger(f'exec bash "{SCRIPTS}/broker.sh"')
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"Building {T1}", r.stdout)
+        self.assertIn(f"sietch deployed {T1} {self.tip}", r.stdout)
+        self.assertIn(f"sietch runs {self.tip}", r.stdout)
+        self.commit("not signed")
+        self.git("push", "-q", "origin", "HEAD:nixos")
+        self.git("tag", "-a", "-m", "unsigned", T2)
+        self.git("push", "-q", "origin", f"refs/tags/{T2}")
+        r = self.trigger(f'exec bash "{SCRIPTS}/broker.sh"')
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(f"refusing {T2}", r.stdout)
+        self.assertIn("the receiver run failed (exit 1)", r.stderr)
 
 
 class Gate(DeployGate):
@@ -674,7 +819,10 @@ class Rebuild(DeployGate):
         [tag] = self.git("tag", "-l", "deploy/jacurutu/*").splitlines()
         self.assertEqual(self.rev(f"{tag}^{{commit}}"), self.tip)
         self.assertEqual(self.git("tag", "-l", cwd=self.origin), tag)
-        self.assertEqual(self.sudo_calls(), [f"nixos-rebuild switch --flake {self.work}#jacurutu"])
+        self.assertEqual(
+            self.sudo_calls(),
+            [f"flock /run/fleet-switch.lock nixos-rebuild switch --flake {self.work}#jacurutu"],
+        )
 
         r = self.rebuild()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
@@ -710,7 +858,10 @@ class Rebuild(DeployGate):
         r = self.rebuild("y\n", host="sietch")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(self.git("tag", "-l"), "")
-        self.assertEqual(self.sudo_calls(), [f"nixos-rebuild switch --flake {self.work}#sietch"])
+        self.assertEqual(
+            self.sudo_calls(),
+            [f"flock /run/fleet-switch.lock nixos-rebuild switch --flake {self.work}#sietch"],
+        )
 
     def test_uncommitted_changes_are_shown_and_asked_about(self) -> None:
         self.give_key()
@@ -727,7 +878,7 @@ class Rebuild(DeployGate):
         r = self.rebuild()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("deploy-tag isn't installed yet", r.stdout)
-        self.assertEqual(len(self.sudo_calls()), 1)
+        self.assertEqual(self.sudo_calls(), [f"nixos-rebuild switch --flake {self.work}#jacurutu"])
 
 
 if __name__ == "__main__":

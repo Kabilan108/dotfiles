@@ -1,25 +1,13 @@
 # shellcheck shell=bash
-# Runs as root once per connection to the deploy-trigger socket. Starts
-# deploy-receiver.service with a fixed job mode, streams its log to the caller,
-# then reports what the host deployed and runs, and the receiver's exit status
-# as the last line. It reads nothing from the caller, so a caller can only say
-# "now".
+# Runs as root once per connection to the deploy-trigger socket, for at most
+# RuntimeMaxSec. It queues deploy-receiver.service with a fixed job mode
+# without waiting for it, writes one line and exits. The receiver never depends
+# on the caller, and a caller that never reads can't hold a connection slot.
+# It reads nothing from the caller.
 set -euo pipefail
 
-since=$(date +%s)
-journalctl --follow --since="@$since" --output=cat --unit=deploy-receiver.service &
-follower=$!
-status=0
-systemctl start --job-mode=replace deploy-receiver.service || status=$?
-sleep 1
-kill "$follower" 2>/dev/null || true
-wait "$follower" 2>/dev/null || true
-
-if [[ -s $DEPLOY_STATE_FILE ]]; then
-  read -r tag commit <"$DEPLOY_STATE_FILE"
-  echo "$DEPLOY_HOST deployed $tag $commit"
+if systemctl start --no-block --job-mode=replace deploy-receiver.service; then
+  echo "deploy-trigger: started"
+else
+  echo "deploy-trigger: couldn't queue deploy-receiver.service"
 fi
-if running=$("$DEPLOY_NIXOS_VERSION" --configuration-revision 2>/dev/null); then
-  echo "$DEPLOY_HOST runs $running"
-fi
-echo "deploy-trigger-status $status"

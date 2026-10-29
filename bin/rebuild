@@ -82,9 +82,15 @@ review() {
 
 if ! command -v deploy-tag >/dev/null; then
   echo "deploy-tag isn't installed yet, so this build skips the signed-tag check."
-elif ! review; then
+  sudo nixos-rebuild switch --flake "$repo#$host_name"
+  exit
+fi
+if ! review; then
   echo "Not building."
   exit 1
 fi
 
-sudo nixos-rebuild switch --flake "$repo#$host_name"
+# The deploy receiver switches only under this lock (modules/nixos/deploy),
+# and rechecks what the host runs after taking it, so a deploy that was
+# building when this switch finished can't undo it.
+sudo flock /run/fleet-switch.lock nixos-rebuild switch --flake "$repo#$host_name"
