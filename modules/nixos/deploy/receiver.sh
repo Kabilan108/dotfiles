@@ -26,15 +26,6 @@ repo=$DEPLOY_STATE_DIR/dotfiles.git
 state=$DEPLOY_STATE_DIR/deployed
 branch_ref=refs/heads/$DEPLOY_BRANCH
 
-# deploy-trigger follows this run without privileges, and systemd unloads the
-# unit, with its Result, as soon as it ends. So record this run's exit status.
-record_run() {
-  local status=$?
-  printf '%s %s\n' "${INVOCATION_ID:-}" "$status" >"$DEPLOY_STATE_DIR/last-run.new"
-  mv "$DEPLOY_STATE_DIR/last-run.new" "$DEPLOY_STATE_DIR/last-run"
-}
-trap record_run EXIT
-
 refuse() {
   echo "deploy-receiver: refusing $1: $2" >&2
 }

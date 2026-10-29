@@ -1,6 +1,6 @@
-# VM test for the deploy-trigger socket, its broker and the switch lock, with a
-# stand-in receiver (tests/test_deploy_gate.py covers the real one). From the
-# repo root:
+# VM test for the deploy-trigger socket, its broker, the run record and the
+# switch lock, with a stand-in receiver under the real deploy-receiver-run
+# (tests/test_deploy_gate.py covers the real receiver). From the repo root:
 #   nix build --impure --expr 'import ./tests/deploy-trigger.nix { pkgs = (builtins.getFlake "git+file://${toString ./.}").inputs.nixpkgs.legacyPackages.x86_64-linux; }'
 { pkgs }:
 pkgs.testers.runNixOSTest {
@@ -19,28 +19,24 @@ pkgs.testers.runNixOSTest {
       # The noisy run logs at debug priority: in the journal, not on the slow
       # serial console, which would otherwise hold journald back.
       services.journald.settings.Journal.MaxLevelConsole = lib.mkForce "info";
-      systemd.services.deploy-receiver.serviceConfig.ExecStart = lib.mkForce (
-        pkgs.writeShellScript "stand-in-receiver" ''
-          echo "stand-in receiver ran as $(id -un)"
-          echo run >> /run/stand-in-runs
-          if [ -e /run/noisy-deploy ]; then
-            # Far more log than a socket buffer holds, then still running, so a
-            # broker that streamed the log to a caller that never reads would
-            # block on it.
-            for i in $(seq 20000); do
-              echo "<7>noisy deploy log line $i, which a client that never reads would block"
-            done
-            sleep 5
-          fi
-          if [ -e /run/fail-deploy ]; then
-            echo "stand-in receiver failing"
-            echo "$INVOCATION_ID 3" > /var/lib/deploy-receiver/last-run
-            exit 3
-          fi
-          echo "deploy/sietch/20261029T100000Z 0123abc" > /var/lib/deploy-receiver/deployed
-          echo "$INVOCATION_ID 0" > /var/lib/deploy-receiver/last-run
-        ''
-      );
+      dotfiles.deploy.receiverProgram = "${pkgs.writeShellScript "stand-in-receiver" ''
+        echo "stand-in receiver ran as $(id -un)"
+        echo run >> /run/stand-in-runs
+        if [ -e /run/noisy-deploy ]; then
+          # Far more log than a socket buffer holds, then still running, so a
+          # broker that streamed the log to a caller that never reads would
+          # block on it.
+          for i in $(seq 20000); do
+            echo "<7>noisy deploy log line $i, which a client that never reads would block"
+          done
+          sleep 5
+        fi
+        if [ -e /run/fail-deploy ]; then
+          echo "stand-in receiver failing"
+          exit 3
+        fi
+        echo "deploy/sietch/20261029T100000Z 0123abc" > /var/lib/deploy-receiver/deployed
+      ''}";
       # queued.service waits in the job queue for as long as blocker runs.
       systemd.services.blocker.serviceConfig = {
         Type = "oneshot";
@@ -83,6 +79,15 @@ pkgs.testers.runNixOSTest {
     assert "sietch deployed deploy/sietch/20261029T100000Z 0123abc" in out, out
     assert "sietch runs 0123456789abcdef0123456789abcdef01234567" in out, out
     queued_job_waits()
+
+    # The broker names the job it queued; the run record outlives the unit.
+    reply = machine.succeed("su - kabilan -c '${pkgs.socat}/bin/socat -u UNIX-CONNECT:/run/deploy-trigger.sock -'").strip()
+    assert reply.startswith("deploy-trigger: queued job "), reply
+    job = reply.rsplit(" ", 1)[1]
+    machine.wait_until_succeeds(f"! systemctl list-jobs --no-legend | grep -q '^{job} '", timeout=60)
+    machine.wait_until_succeeds("test \"$(systemctl show --property=ActiveState --value deploy-receiver.service)\" = inactive", timeout=60)
+    machine.succeed(f"su - kabilan -c 'grep -Eq \"^{job} [0-9a-f]{{32}} exit:0$\" /run/deploy-receiver/runs'")
+    machine.succeed("test \"$(stat -c '%U:%G %a' /run/deploy-receiver/runs)\" = 'root:root 644'")
 
     # The receiver's failure reaches the caller as the exit status.
     machine.succeed("touch /run/fail-deploy")
