@@ -101,7 +101,7 @@ EXECUTOR_KEY_FILE = Path(
 ).expanduser()
 RESULT_SCHEMA_VERSION = 3
 # Bump when a prompt or validation rule changes so cached results regenerate.
-GENERATION_VERSION = "2026-10-30.2"
+GENERATION_VERSION = "2026-10-30.3"
 # Unknown speakers below this much talk time are usually diarization noise
 # (cross-talk, a cough); they stay in the result JSON but not in attendees.
 UNKNOWN_SPEAKER_MIN_SECONDS = 15.0
@@ -2166,6 +2166,9 @@ UNTRUSTED_CONTEXT_RULE = (
 )
 DATA_POLICY_PATH = VAULT_ROOT / "04-projects/moberg/data-policy.md"
 SLACK_USER_ID = re.compile(r"[UW][A-Z0-9]{6,15}")
+SLACK_CHANNEL_ID = re.compile(r"[CDG][A-Z0-9]{6,15}")
+SLACK_ACTIVE_SECONDS = 30 * 60
+SLACK_ACTIVE_CHANNEL_LIMIT = 5
 SLACK_KEYWORD = re.compile(r"[A-Za-z][A-Za-z0-9'-]{2,40}")
 DRIVE_FILE_ID = re.compile(r"[A-Za-z0-9_-]{10,200}")
 GEMINI_TITLE = re.compile(r"Meeting started (\d{4})/(\d{2})/(\d{2}) (\d{1,2}):(\d{2})")
@@ -2378,6 +2381,41 @@ def parse_slack_results(text: str) -> list[dict[str, Any]]:
     return messages
 
 
+def run_slack_query(
+    executor: ExecutorClient,
+    query: dict[str, Any],
+    window: tuple[datetime, datetime],
+    found: dict[tuple[str, str], dict[str, Any]],
+    failures: list[str],
+) -> None:
+    cursor = ""
+    for _ in range(SLACK_PAGE_LIMIT):
+        arguments = {
+            **query,
+            "sort": "timestamp",
+            "sort_dir": "asc",
+            "limit": 20,
+            "response_format": "detailed",
+            "include_context": False,
+            **({"cursor": cursor} if cursor else {}),
+        }
+        try:
+            text = slack_result_text(executor.read("slack.search", arguments))
+        except MeetingMinutesError as error:
+            failures.append(f"{query['filters']}: {error}")
+            return
+        for message in parse_slack_results(text):
+            sent = datetime.fromisoformat(message["timestamp"])
+            if window[0] <= sent <= window[1]:
+                key = (message["channel_id"], message["timestamp"])
+                message["matched"] = query.get("keywords", [""])[0]
+                found.setdefault(key, message)
+        next_cursor = re.search(r"use cursor `([^`]+)`", text)
+        cursor = next_cursor.group(1) if next_cursor else ""
+        if not cursor:
+            return
+
+
 def search_slack(
     run: MeetingRun,
     executor: ExecutorClient,
@@ -2386,9 +2424,10 @@ def search_slack(
     keywords: list[str],
 ) -> dict[str, Any]:
     """Searches built only from registry Slack ids, single-word transcript
-    keywords, and dates; results outside an hour before through a day after
-    the meeting are dropped. Conversations active at the meeting start, and
-    messages involving likely attendees or keywords, rank first."""
+    keywords, Slack's own channel ids, and dates; results outside an hour
+    before through a day after the meeting are dropped. Conversations active
+    near the meeting start, and messages involving likely attendees or
+    keywords, rank first."""
     window_start = run.start - timedelta(hours=1)
     window_end = run.end + timedelta(days=1)
     after = (window_start.date() - timedelta(days=1)).isoformat()
@@ -2407,43 +2446,31 @@ def search_slack(
     found: dict[tuple[str, str], dict[str, Any]] = {}
     failures: list[str] = []
     for query in queries:
-        cursor = ""
-        for _ in range(SLACK_PAGE_LIMIT):
-            arguments = {
-                **query,
-                "sort": "timestamp",
-                "sort_dir": "asc",
-                "limit": 20,
-                "response_format": "detailed",
-                "include_context": False,
-                **({"cursor": cursor} if cursor else {}),
-            }
-            try:
-                text = slack_result_text(executor.read("slack.search", arguments))
-            except MeetingMinutesError as error:
-                failures.append(f"{query['filters']}: {error}")
-                break
-            for message in parse_slack_results(text):
-                sent = datetime.fromisoformat(message["timestamp"])
-                if window_start <= sent <= window_end:
-                    message["matched"] = query.get("keywords", [""])[0]
-                    found[(message["channel_id"], message["timestamp"])] = message
-            next_cursor = re.search(r"use cursor `([^`]+)`", text)
-            cursor = next_cursor.group(1) if next_cursor else ""
-            if not cursor:
-                break
+        run_slack_query(executor, query, (window_start, window_end), found, failures)
+    # A conversation that was busy just before or during the meeting is often
+    # how it was arranged (a DM asking for a call, a huddle starting), even
+    # when its other participant is never named in the transcript.
+    active_channels = sorted(
+        {
+            message["channel_id"]
+            for message in found.values()
+            if SLACK_CHANNEL_ID.fullmatch(message["channel_id"])
+            and abs(
+                (
+                    datetime.fromisoformat(message["timestamp"]) - run.start
+                ).total_seconds()
+            )
+            <= SLACK_ACTIVE_SECONDS
+        }
+    )[:SLACK_ACTIVE_CHANNEL_LIMIT]
+    for channel_id in active_channels:
+        query = {"filters": f"in:<#{channel_id}> {dates}"}
+        queries.append(query)
+        run_slack_query(executor, query, (window_start, window_end), found, failures)
 
     likely_ids = {
         entry.get("user_id", "") for person in people for entry in person.slack
     } - {""}
-    active_channels = {
-        message["channel_id"]
-        for message in found.values()
-        if abs(
-            (datetime.fromisoformat(message["timestamp"]) - run.start).total_seconds()
-        )
-        <= 15 * 60
-    }
 
     def rank(message: dict[str, Any]) -> tuple[int, float]:
         related = (

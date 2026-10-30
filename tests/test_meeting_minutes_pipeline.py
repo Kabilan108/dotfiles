@@ -229,7 +229,7 @@ def slack_results(messages: list[dict[str, str]]) -> dict[str, Any]:
 SLACK_MESSAGES = [
     {
         "channel": "DM",
-        "channel_id": "D1",
+        "channel_id": "D00000001",
         "author": "Ada Lovelace",
         "author_id": "UADA000001",
         "ts": str(STARTED_EPOCH - 90),
@@ -244,6 +244,22 @@ SLACK_MESSAGES = [
         "text": "far outside the window",
     },
 ]
+
+UNNAMED_CALLER = {
+    "channel": "DM",
+    "channel_id": "D00000001",
+    "author": "Katherine Johnson",
+    "author_id": "UKJ0000001",
+    "ts": str(STARTED_EPOCH - 120),
+    "text": "free for a quick call?",
+}
+
+
+def slack_search(arguments: dict[str, Any]) -> dict[str, Any]:
+    if arguments["filters"].startswith("in:<#D00000001>"):
+        return slack_results([UNNAMED_CALLER, *SLACK_MESSAGES])
+    return slack_results(SLACK_MESSAGES)
+
 
 PATHS = {
     "calendars": "google_calendar.user.tonykabilanokeke.calendar.calendarList.list",
@@ -305,7 +321,7 @@ def default_handlers() -> dict[str, Callable[[dict[str, Any]], Any]]:
             "encoding": "base64",
             "data": base64.b64encode(MEET_DOC.encode()).decode(),
         },
-        PATHS["slack"]: lambda arguments: slack_results(SLACK_MESSAGES),
+        PATHS["slack"]: slack_search,
     }
 
 
@@ -740,7 +756,8 @@ def test_regenerate_writes_cited_minutes_without_touching_the_vault(
         "Ada Lovelace",
     ]
     assert [message["text"] for message in result["context"]["slack"]["messages"]] == [
-        "joining the dev env call"
+        "free for a quick call?",
+        "joining the dev env call",
     ]
     assert result["coverage_review"]["final_bullets"] == 4
     assert result["citation_repair"] == {
@@ -800,6 +817,7 @@ def test_regenerate_writes_cited_minutes_without_touching_the_vault(
     ]
     assert "from:<@UOWNER0001> after:2026-10-12 before:2026-10-15" in slack_filters
     assert "from:<@UADA000001> after:2026-10-12 before:2026-10-15" in slack_filters
+    assert slack_filters[-1] == "in:<#D00000001> after:2026-10-12 before:2026-10-15"
     for code in executor.codes:
         assert "Hi Ada" not in code and "Hospitals" not in code
 
