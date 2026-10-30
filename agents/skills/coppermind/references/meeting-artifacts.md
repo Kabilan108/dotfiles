@@ -8,6 +8,8 @@ Run `meeting-minutes transcript <meeting-note>` to print the speaker-labeled tra
 
 Sietch holds the durable MP4 copy at the note's `recording` path. The pipeline removes the Jacurutu copy after a successful transfer. From Jacurutu, use `ssh sietch-agent` when an agent needs to inspect or retrieve the recording.
 
+Recordings made with both desktop audio and the microphone carry three audio tracks: 0 is the mix (what players and transcription use), 1 is desktop audio, and 2 is the microphone. `artifacts.audio_tracks` in the minutes data records the layout, and `artifacts.source_tracks` names the stream-copied `<stem>.desktop.mka` and `<stem>.microphone.mka` files published next to the transcript. Older recordings have one mixed track and no source tracks. The desktop track starts a few tens of milliseconds after the mix and microphone, by an amount that differs per recording, so align it by cross-correlation before comparing or combining tracks.
+
 ## Note format
 
 - `calendar_status` is `matched`, `no_match`, or `unavailable`; `calendar_event` and `calendar_event_start` name the matched event. `calendar_errors` lists every source that failed or only partly answered; any entry there means Tony was notified, and `unavailable` means no source answered.
