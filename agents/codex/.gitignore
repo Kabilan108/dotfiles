@@ -43,3 +43,4 @@ tui-thread-reference-capabilities
 ambient-suggestions/
 dictation-history/
 memories.lock
+auth.lock
