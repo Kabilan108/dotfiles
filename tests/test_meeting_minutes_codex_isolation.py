@@ -3,9 +3,12 @@ to a local stand-in model, so these need no network access or credentials."""
 
 from __future__ import annotations
 
+import fcntl
+import json
 import os
 import runpy
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -66,6 +69,10 @@ def isolated_pipeline(
     monkeypatch.setenv("CODEX_HOME", str(user_home))
     monkeypatch.setenv("MEETING_MINUTES_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setenv("MEETING_MINUTES_CODEX_HOME", str(tmp_path / "pipeline-codex"))
+    monkeypatch.setenv("MEETING_MINUTES_CODEX_WORKSPACE", str(tmp_path / "workspace"))
+    monkeypatch.setenv(
+        "MEETING_MINUTES_CODEX_SYSTEM_CONFIG_DIR", str(tmp_path / "etc-codex")
+    )
     monkeypatch.setenv("COPPERMIND_VAULT", str(tmp_path / "vault"))
     monkeypatch.setenv("MEETING_MINUTES_MEDIA_ROOT", str(tmp_path / "media"))
     return runpy.run_path(str(SCRIPT)), log
@@ -124,3 +131,41 @@ def test_tool_check_refuses_a_feature_left_on(
         namespace["MeetingMinutesError"], match=r"not disabled \['shell_tool'\]"
     ):
         namespace["verify_codex_tools"]()
+
+
+def test_symlinked_lock_serializes_logins_with_the_user_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    namespace, _ = isolated_pipeline(tmp_path, monkeypatch)
+    home = namespace["prepare_codex_home"]()
+    user = tmp_path / "user-codex"
+    environment = namespace["codex_environment"]()
+
+    def login(key: str, timeout: float) -> int | None:
+        try:
+            return subprocess.run(
+                ["codex", "login", "--with-api-key"],
+                input=key,
+                env=environment,
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            ).returncode
+        except subprocess.TimeoutExpired:
+            return None
+
+    with (user / "auth.lock").open("a+") as held:
+        fcntl.flock(held.fileno(), fcntl.LOCK_EX)
+        assert login("sk-while-locked", 3) is None
+        assert (
+            json.loads((user / "auth.json").read_text())["OPENAI_API_KEY"] == "sk-test"
+        )
+    assert login("sk-after-unlock", 30) == 0
+    assert (
+        json.loads((user / "auth.json").read_text())["OPENAI_API_KEY"]
+        == "sk-after-unlock"
+    )
+    for name in ("auth.json", "auth.lock"):
+        assert (home / name).is_symlink()
+        assert (home / name).stat().st_ino == (user / name).stat().st_ino

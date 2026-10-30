@@ -114,20 +114,37 @@ SPEAKER_LABEL_PATTERN = re.compile(r"\bSPEAKER_\d+\b")
 # within half a minute of what was said.
 ANCHOR_MAX_SECONDS = 25.0
 ANCHOR_MAX_GAP_SECONDS = 3.0
-ANCHOR_RANGE_LIMIT = 40
+CITATION_MAX_LINES = 3
+CITATION_MAX_SECONDS = 60.0
 SLACK_MESSAGE_LIMIT = 40
 SLACK_PAGE_LIMIT = 5
 # Every Codex run reads meeting content from outside the vault (transcripts,
 # Slack, Meet notes, calendar text), so none may hold a tool that acts on the
 # world. Codex runs from a pipeline-owned CODEX_HOME whose config.toml the
 # pipeline writes; nothing from the user's Codex config (MCP servers, hooks,
-# plugins, profiles, project trust) is loaded. Only the login is shared.
+# plugins, profiles, project trust) is loaded. Only the login is shared, and
+# with it the lock Codex takes around login writes. Codex runs in a workspace
+# outside $HOME, because it also reads `.codex/config.toml` from every parent
+# of its working directory, and ~/.codex is one.
 # Codex 0.166 keeps `unified_exec` on whatever the config says; with
 # `shell_tool` off it exposes no command tool, which the tool check confirms.
 CODEX_HOME_DIR = Path(
     os.environ.get("MEETING_MINUTES_CODEX_HOME", STATE_DIR / "codex-home")
 ).expanduser()
+CODEX_WORKSPACE = Path(
+    os.environ.get(
+        "MEETING_MINUTES_CODEX_WORKSPACE",
+        Path(os.environ["XDG_RUNTIME_DIR"]) / "meeting-minutes/codex-workspace"
+        if os.environ.get("XDG_RUNTIME_DIR")
+        else CODEX_HOME_DIR / "workspace",
+    )
+).expanduser()
 USER_CODEX_HOME = Path(os.environ.get("CODEX_HOME", HOME / ".codex")).expanduser()
+CODEX_SHARED_LOGIN_FILES = ("auth.json", "auth.lock")
+CODEX_SYSTEM_CONFIG_DIR = Path(
+    os.environ.get("MEETING_MINUTES_CODEX_SYSTEM_CONFIG_DIR", "/etc/codex")
+)
+CODEX_SYSTEM_CONFIG_FILES = ("config.toml", "requirements.toml", "managed_config.toml")
 CODEX_DISABLED_FEATURES = (
     "apps",
     "plugins",
@@ -150,8 +167,8 @@ CODEX_DISABLED_FEATURES = (
     "sleep_tool",
     "view_image",
 )
-# What Codex 0.166 still offers under that config, checked before each process
-# sends any meeting content. `exec` runs JavaScript in an isolate with no file
+# Exactly what Codex 0.166 offers under that config, checked before each
+# process sends any meeting content. `exec` runs JavaScript in an isolate with no file
 # system or network and can only call the nested tools listed here:
 # `apply_patch` (refused by the read-only sandbox with approvals off), MCP
 # resource readers (no servers are configured), and a clock. Anything else,
@@ -1790,14 +1807,61 @@ def codex_config() -> str:
     )
 
 
+def verify_codex_login_links() -> None:
+    """auth.json and auth.lock in the pipeline home must be symlinks to the
+    user's. Codex flocks $CODEX_HOME/auth.lock, then truncates and rewrites
+    auth.json in place, so one login needs one lock; a regular file or a link
+    elsewhere would let two homes write the same credentials unserialized."""
+    for name in CODEX_SHARED_LOGIN_FILES:
+        link, target = CODEX_HOME_DIR / name, USER_CODEX_HOME / name
+        if not link.is_symlink():
+            state = "a regular file" if link.exists() else "missing"
+            raise MeetingMinutesError(
+                f"{link} is {state}, not a link to {target}; inspect it before rerunning"
+            )
+        if Path(os.readlink(link)) != target:
+            raise MeetingMinutesError(
+                f"{link} points to {os.readlink(link)}, not {target}"
+            )
+        try:
+            same = os.path.samefile(link, target)
+        except OSError as error:
+            raise MeetingMinutesError(f"Cannot resolve {link}: {error}") from error
+        if not same:
+            raise MeetingMinutesError(f"{link} does not resolve to {target}")
+
+
+def verify_codex_inputs() -> None:
+    """Config layers outside the pipeline home that Codex 0.166 would still
+    read: system and managed files under /etc/codex, and `.codex/config.toml`
+    in the workspace or any parent. Their absence is checked rather than
+    trusted."""
+    present = [
+        str(CODEX_SYSTEM_CONFIG_DIR / name)
+        for name in CODEX_SYSTEM_CONFIG_FILES
+        if (CODEX_SYSTEM_CONFIG_DIR / name).exists()
+    ]
+    present += [
+        str(directory / ".codex/config.toml")
+        for directory in (CODEX_WORKSPACE, *CODEX_WORKSPACE.parents)
+        if (directory / ".codex/config.toml").exists()
+    ]
+    if any(CODEX_WORKSPACE.iterdir()):
+        present.append(f"{CODEX_WORKSPACE} (not empty)")
+    if present:
+        raise MeetingMinutesError(
+            f"Codex would read config outside the pipeline home: {present}"
+        )
+
+
 def prepare_codex_home() -> Path:
-    """The pipeline's CODEX_HOME: its own config, an empty workspace to run
-    in (so no AGENTS.md or project config is picked up), and a symlink to the
-    user's auth.json. Codex rewrites auth.json in place on token refresh, so
-    refreshed tokens land in the user's login rather than a stale copy."""
-    workspace = CODEX_HOME_DIR / "workspace"
-    workspace.mkdir(parents=True, exist_ok=True)
+    """The pipeline's CODEX_HOME: its own config and symlinks to the user's
+    auth.json and auth.lock, plus an empty workspace to run in. Links are
+    created only when absent; anything else in their place stops the run."""
+    CODEX_HOME_DIR.mkdir(parents=True, exist_ok=True)
     CODEX_HOME_DIR.chmod(0o700)
+    CODEX_WORKSPACE.mkdir(parents=True, exist_ok=True)
+    CODEX_WORKSPACE.chmod(0o700)
     for unexpected in ("hooks.json", "AGENTS.md", "rules"):
         if (CODEX_HOME_DIR / unexpected).exists():
             raise MeetingMinutesError(
@@ -1809,10 +1873,15 @@ def prepare_codex_home() -> Path:
     login = USER_CODEX_HOME / "auth.json"
     if not login.is_file():
         raise MeetingMinutesError(f"No Codex login at {login}")
-    auth = CODEX_HOME_DIR / "auth.json"
-    if not auth.is_symlink() or Path(os.readlink(auth)) != login:
-        auth.unlink(missing_ok=True)
-        auth.symlink_to(login)
+    lock = USER_CODEX_HOME / "auth.lock"
+    if not lock.exists():
+        os.close(os.open(lock, os.O_CREAT | os.O_WRONLY, 0o600))
+    for name in CODEX_SHARED_LOGIN_FILES:
+        link = CODEX_HOME_DIR / name
+        if not link.exists() and not link.is_symlink():
+            link.symlink_to(USER_CODEX_HOME / name)
+    verify_codex_login_links()
+    verify_codex_inputs()
     return CODEX_HOME_DIR
 
 
@@ -1820,7 +1889,7 @@ def codex_environment() -> dict[str, str]:
     environment = {
         name: value
         for name, value in os.environ.items()
-        if not name.startswith(("MEETING_MINUTES_EXECUTOR", "CODEX_"))
+        if not name.startswith(("MEETING_MINUTES_EXECUTOR", "CODEX_", "OPENAI_"))
         and name != "CREDENTIALS_DIRECTORY"
     }
     environment["CODEX_HOME"] = str(CODEX_HOME_DIR)
@@ -1838,21 +1907,30 @@ def codex_command(*prefix: str) -> list[str]:
     ]
 
 
+CODEX_TOOL_TYPES = frozenset({"function", "custom"})
+
+
+def unfamiliar_encoding(detail: Any) -> MeetingMinutesError:
+    return MeetingMinutesError(
+        f"Codex tool check: unfamiliar request encoding ({str(detail)[:160]})"
+    )
+
+
 def codex_tool_names(request: dict[str, Any]) -> set[str]:
-    """Every tool a model request offers: top-level tools, namespaced tools,
-    and the nested tools that the `exec` description declares."""
+    """Every tool a model request offers, read from the encoding Codex 0.166
+    uses: optional top-level function/custom tools, and `additional_tools`
+    input items holding namespaces of function/custom tools, with `exec`'s
+    nested tools declared in its description. Any other shape is refused
+    rather than guessed at."""
     names: set[str] = set()
 
-    def add(tool: Any) -> None:
-        if not isinstance(tool, dict):
-            return
-        name = str(tool.get("name") or tool.get("namespace") or tool.get("type") or "")
-        if tool.get("type") == "namespace":
-            names.add(f"namespace:{name}")
-        elif name:
-            names.add(name)
-        for nested in tool.get("tools") or []:
-            add(nested)
+    def add_tool(tool: Any) -> None:
+        if not isinstance(tool, dict) or tool.get("type") not in CODEX_TOOL_TYPES:
+            raise unfamiliar_encoding(tool)
+        name = tool.get("name")
+        if not isinstance(name, str) or not name or "tools" in tool:
+            raise unfamiliar_encoding(tool)
+        names.add(name)
         names.update(
             re.findall(
                 r"^### `([A-Za-z0-9_.-]+)`",
@@ -1861,12 +1939,32 @@ def codex_tool_names(request: dict[str, Any]) -> set[str]:
             )
         )
 
-    for tool in request.get("tools") or []:
-        add(tool)
-    for item in request.get("input") or []:
-        if isinstance(item, dict) and item.get("type") == "additional_tools":
-            for tool in item.get("tools") or []:
-                add(tool)
+    def add_group(group: Any) -> None:
+        if not isinstance(group, dict) or group.get("type") != "namespace":
+            add_tool(group)
+            return
+        name, tools = group.get("name"), group.get("tools")
+        if not isinstance(name, str) or not name or not isinstance(tools, list):
+            raise unfamiliar_encoding(group)
+        names.add(f"namespace:{name}")
+        for tool in tools:
+            add_tool(tool)
+
+    top_level = request.get("tools", [])
+    if not isinstance(top_level, list):
+        raise unfamiliar_encoding("top-level tools")
+    for tool in top_level:
+        add_tool(tool)
+    items = request.get("input")
+    if not isinstance(items, list):
+        raise unfamiliar_encoding("input")
+    for item in items:
+        kind = item.get("type") if isinstance(item, dict) else None
+        if kind == "additional_tools" and isinstance(item.get("tools"), list):
+            for group in item["tools"]:
+                add_group(group)
+        elif kind != "message" or "tools" in item:
+            raise unfamiliar_encoding(item)
     return names
 
 
@@ -1882,7 +1980,7 @@ def codex_report(*arguments: str) -> str:
             text=True,
             timeout=60,
             env=codex_environment(),
-            cwd=CODEX_HOME_DIR / "workspace",
+            cwd=CODEX_WORKSPACE,
             stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError) as error:
@@ -1988,7 +2086,7 @@ def verify_codex_tools() -> None:
         "--sandbox",
         "read-only",
         "--cd",
-        str(CODEX_HOME_DIR / "workspace"),
+        str(CODEX_WORKSPACE),
         "--config",
         provider,
         "--config",
@@ -2002,6 +2100,7 @@ def verify_codex_tools() -> None:
             text=True,
             timeout=120,
             env=codex_environment(),
+            cwd=CODEX_WORKSPACE,
             stdin=subprocess.DEVNULL,
         )
     except subprocess.TimeoutExpired as error:
@@ -2017,10 +2116,11 @@ def verify_codex_tools() -> None:
             f"Codex tool check used model {requests[0].get('model')!r}, "
             f"not {CODEX_MODEL!r}"
         )
-    unexpected = codex_tool_names(requests[0]) - CODEX_EXPECTED_TOOLS
-    if unexpected:
+    offered = codex_tool_names(requests[0])
+    if offered != CODEX_EXPECTED_TOOLS:
         raise MeetingMinutesError(
-            f"Codex offers unexpected tools {sorted(unexpected)}; "
+            f"Codex offers unexpected tools {sorted(offered - CODEX_EXPECTED_TOOLS)} "
+            f"and lacks expected tools {sorted(CODEX_EXPECTED_TOOLS - offered)}; "
             "refusing to send meeting content"
         )
     codex_tools_verified = True
@@ -2057,6 +2157,7 @@ def run_codex(
         text=True,
         timeout=1800,
         env=codex_environment(),
+        cwd=CODEX_WORKSPACE,
     )
     atomic_write_text(log_prefix.with_suffix(".stdout.log"), result.stdout)
     atomic_write_text(log_prefix.with_suffix(".stderr.log"), result.stderr)
@@ -2075,7 +2176,7 @@ def run_codex_agent(
         "--sandbox",
         "read-only",
         "--cd",
-        str(CODEX_HOME_DIR / "workspace"),
+        str(CODEX_WORKSPACE),
         "--output-schema",
         str(schema_path),
         "--output-last-message",
@@ -2346,18 +2447,22 @@ def speaker_seconds(transcript: dict[str, Any]) -> dict[str, float]:
 
 
 def transcript_duration(transcript: dict[str, Any]) -> float:
-    duration = float(transcript.get("duration") or 0)
-    if duration > 0:
+    """The transcript's stated duration, else the latest end among segments
+    whose timestamps are usable; malformed values never raise here."""
+    try:
+        duration = float(transcript.get("duration") or 0)
+    except (TypeError, ValueError):
+        duration = 0.0
+    if math.isfinite(duration) and duration > 0:
         return duration
     segments = transcript.get("segments")
-    if isinstance(segments, list):
-        ends = [
-            float(segment.get("end") or 0)
-            for segment in segments
-            if isinstance(segment, dict)
-        ]
-        return max(ends, default=0.0)
-    return 0.0
+    ends = [
+        bounds[1]
+        for segment in (segments if isinstance(segments, list) else [])
+        if isinstance(segment, dict)
+        and not isinstance(bounds := segment_bounds(segment, 0.0), str)
+    ]
+    return max(ends, default=0.0)
 
 
 def transcript_text(transcript: dict[str, Any]) -> str:
@@ -2372,7 +2477,8 @@ def transcript_text(transcript: dict[str, Any]) -> str:
 
 
 def segment_bounds(segment: dict[str, Any], limit: float) -> tuple[float, float] | str:
-    """A segment's (start, end) clamped to the recording, or why it is unusable."""
+    """A segment's (start, end) clamped to the recording, or why it is
+    unusable. A limit of zero means no recording bound is known."""
     try:
         start = float(segment["start"])
         end = float(segment["end"])
@@ -2380,49 +2486,74 @@ def segment_bounds(segment: dict[str, Any], limit: float) -> tuple[float, float]
         return "non-numeric timestamps"
     if not (math.isfinite(start) and math.isfinite(end)):
         return "non-finite timestamps"
-    if start < 0 or end < start:
-        return "negative or reversed timestamps"
+    if start < 0:
+        return "negative timestamps"
+    if end < start:
+        return "reversed timestamps"
+    if end == start:
+        return "zero-length"
     if limit > 0 and start >= limit:
         return f"starts at {start:.1f}s, after the recording ends at {limit:.1f}s"
     return start, min(end, limit) if limit > 0 else end
 
 
-def segment_pieces(
+def valid_piece(piece: tuple[float, float, str]) -> bool:
+    return 0 < piece[1] - piece[0] <= ANCHOR_MAX_SECONDS
+
+
+def word_pieces(
     segment: dict[str, Any], start: float, end: float
-) -> list[tuple[float, float, str]]:
-    """Split a segment longer than ANCHOR_MAX_SECONDS at word timestamps when
-    the transcript has them, otherwise into equal-length spans with the words
-    shared out evenly."""
-    text = clean_text(segment.get("text"))
-    if end - start <= ANCHOR_MAX_SECONDS:
-        return [(start, end, text)]
+) -> tuple[list[tuple[float, float, str]], str]:
+    """Group a long segment's timed words into pieces of at most
+    ANCHOR_MAX_SECONDS, or explain why its word timestamps cannot be used."""
     words: list[tuple[float, float, str]] = []
     for word in segment.get("words") or []:
-        if not isinstance(word, dict):
-            words = []
-            break
-        bounds = segment_bounds(word, end)
-        token = clean_text(word.get("word") or word.get("text"))
-        if isinstance(bounds, str) or not token or bounds[0] < start:
-            words = []
-            break
+        bounds = segment_bounds(word, 0.0) if isinstance(word, dict) else "not a word"
+        token = (
+            clean_text(word.get("word") or word.get("text"))
+            if isinstance(word, dict)
+            else ""
+        )
+        if isinstance(bounds, str) or not token:
+            return (
+                [],
+                f"unusable word timestamp ({bounds if isinstance(bounds, str) else 'no text'})",
+            )
+        if bounds[0] < start or bounds[1] > end:
+            return [], "word timestamps outside the segment"
+        if words and (bounds[0] < words[-1][0] or bounds[1] < words[-1][1]):
+            return [], "word timestamps out of order"
         words.append((bounds[0], bounds[1], token))
-    if words:
-        pieces: list[tuple[float, float, str]] = []
-        for word_start, word_end, token in words:
-            if pieces and word_end - pieces[-1][0] <= ANCHOR_MAX_SECONDS:
-                piece_start, _, piece_text = pieces[-1]
-                pieces[-1] = (piece_start, word_end, f"{piece_text} {token}")
-            else:
-                pieces.append((word_start, word_end, token))
-        pieces[0] = (start, pieces[0][1], pieces[0][2])
-        pieces[-1] = (pieces[-1][0], end, pieces[-1][2])
-        if all(
-            piece_end - piece_start <= ANCHOR_MAX_SECONDS
-            for piece_start, piece_end, _ in pieces
-        ):
-            return pieces
-    return proportional_pieces(start, end, text)
+    if not words:
+        return [], ""
+    pieces: list[tuple[float, float, str]] = []
+    for word_start, word_end, token in words:
+        if pieces and word_end - pieces[-1][0] <= ANCHOR_MAX_SECONDS:
+            piece_start, _, piece_text = pieces[-1]
+            pieces[-1] = (piece_start, word_end, f"{piece_text} {token}")
+        else:
+            pieces.append((word_start, word_end, token))
+    pieces[0] = (start, pieces[0][1], pieces[0][2])
+    pieces[-1] = (pieces[-1][0], end, pieces[-1][2])
+    if not all(valid_piece(piece) for piece in pieces):
+        return [], "word groups do not fit 25 s pieces"
+    return pieces, ""
+
+
+def segment_pieces(
+    segment: dict[str, Any], start: float, end: float
+) -> tuple[list[tuple[float, float, str]], str]:
+    """Split a segment longer than ANCHOR_MAX_SECONDS at word timestamps when
+    the transcript has usable ones, otherwise into equal-length spans with the
+    words shared out evenly. Returns the pieces and any reason the word
+    timestamps were set aside."""
+    text = clean_text(segment.get("text"))
+    if end - start <= ANCHOR_MAX_SECONDS:
+        return [(start, end, text)], ""
+    pieces, problem = word_pieces(segment, start, end)
+    if pieces:
+        return pieces, ""
+    return proportional_pieces(start, end, text), problem
 
 
 def proportional_pieces(
@@ -2445,7 +2576,7 @@ def proportional_pieces(
 def build_anchors(
     transcript: dict[str, Any], limit: float
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    """Citation anchors no longer than ANCHOR_MAX_SECONDS and inside
+    """Citation anchors with 0 < length <= ANCHOR_MAX_SECONDS inside
     [0, limit]: one speaker's consecutive segments merged while they fit, and
     longer segments split. Segments with unusable timestamps are skipped and
     reported. An anchor is named after its segment (`s12`), with a suffix for
@@ -2464,15 +2595,17 @@ def build_anchors(
             warnings.append(f"segment {base_id} skipped: {bounds}")
             continue
         speaker = clean_text(segment.get("speaker"))
-        for piece_index, (start, end, text) in enumerate(
-            segment_pieces(segment, *bounds)
-        ):
+        pieces, problem = segment_pieces(segment, *bounds)
+        if problem:
+            warnings.append(f"segment {base_id} split evenly: {problem}")
+        for piece_index, (start, end, text) in enumerate(pieces):
             if not text:
                 continue
             current = anchors[-1] if anchors else None
             if (
                 current is not None
                 and current["speaker"] == speaker
+                and start >= current["start"]
                 and end - current["start"] <= ANCHOR_MAX_SECONDS
                 and start - current["end"] <= ANCHOR_MAX_GAP_SECONDS
             ):
@@ -3192,7 +3325,7 @@ def speaker_mapping_text(speakers: list[dict[str, Any]]) -> str:
     )
 
 
-CITATION_RULE = """Citations are anchor IDs from the start of transcript lines (`s1234`, or `s1234.1` for a later part of a long turn), never clock times. Cite the specific lines where the point was said. For a contiguous stretch you may write a range such as `s120-s131`, spanning at most 40 lines."""
+CITATION_RULE = """Citations are anchor IDs from the start of transcript lines (`s1234`, or `s1234.1` for a later part of a long turn), never clock times. Cite the specific lines where the point was said. A range such as `s120-s122` may cover at most 3 consecutive lines and 60 seconds; when a point draws on more of the transcript, cite several short ranges or single lines instead."""
 
 
 def minutes_prompt(
@@ -3281,18 +3414,30 @@ def normalize_project(raw: Any, context: str) -> str:
     return f"{context}/{subproject}" if subproject else context
 
 
-def resolve_citations(raw: Any, anchor_index: dict[str, int]) -> tuple[list[str], int]:
-    """Anchor IDs that exist, plus bounded `sA-sB` ranges; the anchors carry
-    the times, so no cited range can extend past the recording."""
+def citation_fits(first: dict[str, Any], last: dict[str, Any], lines: int) -> bool:
+    return (
+        lines <= CITATION_MAX_LINES
+        and last["end"] - first["start"] <= CITATION_MAX_SECONDS
+    )
+
+
+def resolve_citations(
+    raw: Any, anchors: list[dict[str, Any]], anchor_index: dict[str, int]
+) -> tuple[list[str], int]:
+    """Anchor IDs that exist, plus `sA-sB` ranges of at most
+    CITATION_MAX_LINES lines and CITATION_MAX_SECONDS. The anchors carry the
+    times, so no cited range can extend past the recording."""
     positions: set[int] = set()
     dropped = 0
+    anchor_id = r"[sa]\d+(?:\.\d+)?"
     for item in raw if isinstance(raw, list) else []:
         text = clean_text(item).strip("[]()")
-        span = re.fullmatch(r"([sa]\d+(?:\.\d+)?)\s*[-–]\s*([sa]\d+(?:\.\d+)?)", text)
+        span = re.fullmatch(rf"({anchor_id})\s*[-–]\s*({anchor_id})", text)
         if span and span.group(1) in anchor_index and span.group(2) in anchor_index:
-            first, last = anchor_index[span.group(1)], anchor_index[span.group(2)]
-            first, last = min(first, last), max(first, last)
-            if last - first < ANCHOR_RANGE_LIMIT:
+            first, last = sorted(
+                (anchor_index[span.group(1)], anchor_index[span.group(2)])
+            )
+            if citation_fits(anchors[first], anchors[last], last - first + 1):
                 positions.update(range(first, last + 1))
                 continue
         elif text in anchor_index:
@@ -3306,19 +3451,26 @@ def resolve_citations(raw: Any, anchor_index: dict[str, int]) -> tuple[list[str]
 def citation_ranges(
     anchor_ids: list[str], anchors: list[dict[str, Any]], anchor_index: dict[str, int]
 ) -> list[dict[str, float]]:
-    ranges: list[dict[str, float]] = []
-    previous = -2
-    for anchor_id in anchor_ids:
-        position = anchor_index[anchor_id]
-        anchor = anchors[position]
-        if position == previous + 1 and ranges:
-            ranges[-1]["end"] = round(anchor["end"], 1)
+    """Group cited lines into displayed ranges, starting a new range rather
+    than letting one exceed CITATION_MAX_LINES or CITATION_MAX_SECONDS."""
+    groups: list[list[int]] = []
+    for position in (anchor_index[anchor_id] for anchor_id in anchor_ids):
+        group = groups[-1] if groups else None
+        if (
+            group is not None
+            and position == group[-1] + 1
+            and citation_fits(anchors[group[0]], anchors[position], len(group) + 1)
+        ):
+            group.append(position)
         else:
-            ranges.append(
-                {"start": round(anchor["start"], 1), "end": round(anchor["end"], 1)}
-            )
-        previous = position
-    return ranges
+            groups.append([position])
+    return [
+        {
+            "start": round(anchors[group[0]]["start"], 1),
+            "end": round(anchors[group[-1]]["end"], 1),
+        }
+        for group in groups
+    ]
 
 
 def cite(
@@ -3327,7 +3479,7 @@ def cite(
     anchors: list[dict[str, Any]],
     anchor_index: dict[str, int],
 ) -> int:
-    anchor_ids, dropped = resolve_citations(raw, anchor_index)
+    anchor_ids, dropped = resolve_citations(raw, anchors, anchor_index)
     item["anchors"] = anchor_ids
     item["citations"] = citation_ranges(anchor_ids, anchors, anchor_index)
     item["citation_status"] = "verified" if anchor_ids else "missing"

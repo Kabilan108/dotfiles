@@ -415,20 +415,27 @@ if probe:
     tools_file = fixtures / "tools.json"
     tools = json.loads(tools_file.read_text()) if tools_file.is_file() else [
         {"type": "namespace", "name": "functions", "tools": [
-            {"type": "custom", "name": "exec", "description": "### `apply_patch`\n### `clock__curr_time`\n"},
+            {"type": "custom", "name": "exec", "description": "".join(
+                f"### `{nested}`\n" for nested in (
+                    "apply_patch", "list_mcp_resource_templates", "list_mcp_resources",
+                    "read_mcp_resource", "clock__curr_time",
+                )
+            )},
             {"type": "function", "name": "wait"},
+            {"type": "function", "name": "request_user_input"},
+            {"type": "function", "name": "request_user_input_async"},
         ]}
     ]
     body = json.dumps({"model": model, "input": [{"type": "additional_tools", "tools": tools}]}).encode()
     request = urllib.request.Request(base_url + "/responses", data=body, headers={"Content-Type": "application/json"})
     urllib.request.urlopen(request).read()
     with (fixtures / "probes.jsonl").open("a") as log:
-        log.write(json.dumps({"args": args, "codex_home": codex_home}) + "\n")
+        log.write(json.dumps({"args": args, "codex_home": codex_home, "cwd": os.getcwd()}) + "\n")
     print(json.dumps({"type": "thread.started", "thread_id": "probe"}))
     sys.exit(0)
 prompt = sys.stdin.read()
 with (fixtures / "calls.jsonl").open("a") as log:
-    log.write(json.dumps({"args": args, "prompt": prompt, "codex_home": codex_home}) + "\n")
+    log.write(json.dumps({"args": args, "prompt": prompt, "codex_home": codex_home, "cwd": os.getcwd()}) + "\n")
 schema = json.loads(Path(args[args.index("--output-schema") + 1]).read_text())
 output = Path(args[args.index("--output-last-message") + 1])
 properties = schema["properties"]
@@ -528,6 +535,8 @@ def pipeline_env(
             "FAKE_CODEX_FIXTURES": str(fixtures),
             "CODEX_HOME": str(tmp_path / "user-codex"),
             "MEETING_MINUTES_CODEX_HOME": str(tmp_path / "codex-home"),
+            "MEETING_MINUTES_CODEX_WORKSPACE": str(tmp_path / "codex-workspace"),
+            "MEETING_MINUTES_CODEX_SYSTEM_CONFIG_DIR": str(tmp_path / "etc-codex"),
         }
     )
     env.pop("CREDENTIALS_DIRECTORY", None)
@@ -1212,7 +1221,7 @@ def test_anchors_merge_short_turns_and_cap_span(
     assert all(anchor["end"] - anchor["start"] <= 25 for anchor in anchors)
     index = {anchor["id"]: position for position, anchor in enumerate(anchors)}
     resolved, dropped = namespace["resolve_citations"](
-        ["s0-s10", "s5", "s99", "9:59"], index
+        ["s0-s10", "s5", "s99", "9:59"], anchors, index
     )
     assert resolved == ["s0", "s5", "s10"] and dropped == 2
     assert namespace["citation_ranges"](["s0", "s10"], anchors, index) == [
@@ -1323,12 +1332,12 @@ def test_invalid_and_out_of_range_timestamps_are_bounded(
         "segment s1 skipped: starts at 70.0s, after the recording ends at 60.0s",
         "segment s2 skipped: non-numeric timestamps",
         "segment s3 skipped: non-finite timestamps",
-        "segment s4 skipped: negative or reversed timestamps",
-        "segment s5 skipped: negative or reversed timestamps",
+        "segment s4 skipped: negative timestamps",
+        "segment s5 skipped: reversed timestamps",
         "segment s6 skipped: non-numeric timestamps",
     ]
     index = {anchor["id"]: position for position, anchor in enumerate(anchors)}
-    resolved, _ = namespace["resolve_citations"](["s0"], index)
+    resolved, _ = namespace["resolve_citations"](["s0"], anchors, index)
     assert namespace["citation_ranges"](resolved, anchors, index) == [
         {"start": 50.0, "end": 60.0}
     ]
@@ -1388,3 +1397,354 @@ def test_tool_check_refuses_configured_mcp_servers(
     assert "Codex has MCP servers configured ['extra_local']" in completed.stderr
     assert calls(fixtures) == []
     assert not (fixtures / "probes.jsonl").exists()
+
+
+def test_out_of_order_word_timestamps_fall_back_to_even_splits(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env, _, _, _ = pipeline_env(tmp_path)
+    namespace = load_script(env, monkeypatch)
+    segment = {
+        "id": 0,
+        "start": 0.0,
+        "end": 110.0,
+        "speaker": "SPEAKER_00",
+        "text": "a b c d e",
+        "words": [
+            {"word": word, "start": start, "end": start + 1}
+            for word, start in zip("abcde", (0.0, 40.0, 10.0, 70.0, 100.0), strict=True)
+        ],
+    }
+
+    anchors, warnings = namespace["build_anchors"]({"segments": [segment]}, 600.0)
+
+    assert warnings == ["segment s0 split evenly: word timestamps out of order"]
+    assert all(0 < anchor["end"] - anchor["start"] <= 25 for anchor in anchors)
+    assert [anchor["start"] for anchor in anchors] == sorted(
+        anchor["start"] for anchor in anchors
+    )
+    index = {anchor["id"]: position for position, anchor in enumerate(anchors)}
+    for anchor in anchors:
+        for citation in namespace["citation_ranges"]([anchor["id"]], anchors, index):
+            assert 0 < citation["end"] - citation["start"] <= 25
+
+
+def test_zero_length_segments_are_dropped_with_a_warning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env, _, _, _ = pipeline_env(tmp_path)
+    namespace = load_script(env, monkeypatch)
+    segments = [
+        {"id": 0, "start": 5.0, "end": 5.0, "speaker": "SPEAKER_00", "text": "instant"},
+        {"id": 1, "start": 6.0, "end": 8.0, "speaker": "SPEAKER_00", "text": "spoken"},
+    ]
+
+    anchors, warnings = namespace["build_anchors"]({"segments": segments}, 60.0)
+
+    assert [anchor["id"] for anchor in anchors] == ["s1"]
+    assert warnings == ["segment s0 skipped: zero-length"]
+
+
+def test_duration_fallback_ignores_unparseable_timestamps(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env, _, _, _ = pipeline_env(tmp_path)
+    namespace = load_script(env, monkeypatch)
+    transcript = {
+        "duration": "unknown",
+        "segments": [
+            {
+                "id": 0,
+                "start": 1.0,
+                "end": "soon",
+                "speaker": "SPEAKER_00",
+                "text": "later",
+            },
+            {"id": 1, "start": 2.0, "end": 9.0, "speaker": "SPEAKER_00", "text": "now"},
+            {
+                "id": 2,
+                "start": 3.0,
+                "end": float("inf"),
+                "speaker": "SPEAKER_00",
+                "text": "never",
+            },
+        ],
+    }
+
+    assert namespace["transcript_duration"](transcript) == 9.0
+    assert (
+        namespace["transcript_duration"]({"segments": transcript["segments"][:1]})
+        == 0.0
+    )
+    run = make_run(namespace, tmp_path / "work", transcript=transcript)
+    run.duration = 0.0
+    anchors, warnings = run.anchor_result
+    assert [(anchor["id"], anchor["end"]) for anchor in anchors] == [("s1", 9.0)]
+    assert warnings == [
+        "segment s0 skipped: non-numeric timestamps",
+        "segment s2 skipped: non-finite timestamps",
+    ]
+
+
+def test_citation_ranges_are_capped_at_three_lines_and_sixty_seconds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env, _, _, _ = pipeline_env(tmp_path)
+    namespace = load_script(env, monkeypatch)
+    resolve, ranges = namespace["resolve_citations"], namespace["citation_ranges"]
+    short = [
+        {
+            "id": f"s{index}",
+            "start": index * 10.0,
+            "end": index * 10.0 + 9,
+            "speaker": "A",
+            "text": "x",
+        }
+        for index in range(6)
+    ]
+    index = {anchor["id"]: position for position, anchor in enumerate(short)}
+
+    assert resolve(["s0-s2"], short, index) == (["s0", "s1", "s2"], 0)
+    assert resolve(["s0-s3"], short, index) == ([], 1)
+    singles, _ = resolve(["s0", "s1", "s2", "s3", "s4"], short, index)
+    assert ranges(singles, short, index) == [
+        {"start": 0.0, "end": 29.0},
+        {"start": 30.0, "end": 49.0},
+    ]
+
+    long = [
+        {
+            "id": f"s{index}",
+            "start": index * 25.0,
+            "end": index * 25.0 + 24,
+            "speaker": "A",
+            "text": "x",
+        }
+        for index in range(4)
+    ]
+    long_index = {anchor["id"]: position for position, anchor in enumerate(long)}
+    assert resolve(["s0-s1"], long, long_index) == (["s0", "s1"], 0)
+    assert resolve(["s0-s2"], long, long_index) == ([], 1)
+    assert ranges(["s0", "s1", "s2"], long, long_index) == [
+        {"start": 0.0, "end": 49.0},
+        {"start": 50.0, "end": 74.0},
+    ]
+    assert "at most 3 consecutive lines and 60 seconds" in namespace["CITATION_RULE"]
+    assert namespace["CITATION_RULE"] in namespace["CITATION_REPAIR_PROMPT"]
+
+
+def test_tool_check_requires_the_exact_tool_set(
+    tmp_path: Path, executor: FakeExecutor
+) -> None:
+    env, vault, media, fixtures = pipeline_env(tmp_path, executor)
+    full_fixtures(fixtures)
+    note = meeting_note(vault, media)
+    (fixtures / "tools.json").write_text(
+        json.dumps(
+            [
+                {
+                    "type": "namespace",
+                    "name": "functions",
+                    "tools": [
+                        {
+                            "type": "custom",
+                            "name": "exec",
+                            "description": "### `apply_patch`\n",
+                        },
+                        {"type": "function", "name": "wait"},
+                        {"type": "function", "name": "request_user_input"},
+                        {"type": "function", "name": "request_user_input_async"},
+                    ],
+                }
+            ]
+        )
+    )
+    missing = regenerate(
+        env, note.stem, "--out", str(tmp_path / "missing"), check=False
+    )
+    assert missing.returncode == 1
+    assert (
+        "lacks expected tools ['clock__curr_time', 'list_mcp_resource_templates'"
+        in missing.stderr
+    )
+
+    (fixtures / "tools.json").write_text(
+        json.dumps([{"type": "mcp", "server_label": "extra", "server_url": "http://x"}])
+    )
+    unfamiliar = regenerate(
+        env, note.stem, "--out", str(tmp_path / "unfamiliar"), check=False
+    )
+    assert unfamiliar.returncode == 1
+    assert "unfamiliar request encoding" in unfamiliar.stderr
+    assert calls(fixtures) == []
+
+
+def test_tool_parser_rejects_unfamiliar_request_shapes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env, _, _, _ = pipeline_env(tmp_path)
+    namespace = load_script(env, monkeypatch)
+    parse, error = namespace["codex_tool_names"], namespace["MeetingMinutesError"]
+    function = {"type": "function", "name": "wait"}
+    assert parse({"tools": [function], "input": []}) == {"wait"}
+    for request in (
+        {"tools": [{"type": "web_search"}], "input": []},
+        {"tools": {"wait": function}, "input": []},
+        {"input": [{"type": "function_call_output", "output": "x"}]},
+        {"input": [{"type": "message", "tools": [function]}]},
+        {
+            "input": [
+                {
+                    "type": "additional_tools",
+                    "tools": [{"type": "namespace", "name": "x"}],
+                }
+            ]
+        },
+        {
+            "input": [
+                {
+                    "type": "additional_tools",
+                    "tools": [
+                        {
+                            "type": "namespace",
+                            "name": "x",
+                            "tools": [{"type": "local_shell"}],
+                        }
+                    ],
+                }
+            ]
+        },
+        {"tools": []},
+    ):
+        with pytest.raises(error, match="unfamiliar request encoding"):
+            parse(request)
+
+
+def test_every_codex_call_runs_from_the_empty_workspace(
+    tmp_path: Path, executor: FakeExecutor
+) -> None:
+    env, vault, media, fixtures = pipeline_env(tmp_path, executor)
+    full_fixtures(fixtures)
+    note = meeting_note(vault, media)
+    env["OPENAI_API_KEY"] = "sk-should-not-pass"
+    env["CODEX_SQLITE_HOME"] = str(tmp_path / "elsewhere")
+    elsewhere = tmp_path / "caller"
+    elsewhere.mkdir()
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "regenerate",
+            note.stem,
+            "--out",
+            str(tmp_path / "eval"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=elsewhere,
+    )
+
+    workspace = str(tmp_path / "codex-workspace")
+    invocations = calls(fixtures)
+    probes = [
+        json.loads(line)
+        for line in (fixtures / "probes.jsonl").read_text().splitlines()
+    ]
+    assert [call["args"][1] == "resume" for call in invocations] == [
+        False,
+        True,
+        True,
+        True,
+    ]
+    assert {call["cwd"] for call in [*invocations, *probes]} == {workspace}
+    assert not any(
+        workspace_entry for workspace_entry in (tmp_path / "codex-workspace").iterdir()
+    )
+
+
+def test_codex_environment_keeps_only_the_pipeline_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env, _, _, _ = pipeline_env(tmp_path)
+    env.update(
+        {
+            "OPENAI_API_KEY": "sk-x",
+            "OPENAI_BASE_URL": "http://x",
+            "CODEX_SQLITE_HOME": "/x",
+        }
+    )
+    namespace = load_script(env, monkeypatch)
+
+    environment = namespace["codex_environment"]()
+
+    assert not [name for name in environment if name.startswith("OPENAI_")]
+    assert [name for name in environment if name.startswith("CODEX_")] == ["CODEX_HOME"]
+    assert environment["CODEX_HOME"] == str(tmp_path / "codex-home")
+    assert not [
+        name for name in environment if name.startswith("MEETING_MINUTES_EXECUTOR")
+    ]
+
+
+def test_pipeline_home_shares_the_login_and_its_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env, _, _, _ = pipeline_env(tmp_path)
+    namespace = load_script(env, monkeypatch)
+    error = namespace["MeetingMinutesError"]
+    user, home = tmp_path / "user-codex", tmp_path / "codex-home"
+    assert not (user / "auth.lock").exists()
+
+    namespace["prepare_codex_home"]()
+
+    for name in ("auth.json", "auth.lock"):
+        assert (home / name).is_symlink()
+        assert os.readlink(home / name) == str(user / name)
+        assert (home / name).stat().st_ino == (user / name).stat().st_ino
+    assert (user / "auth.lock").stat().st_mode & 0o777 == 0o600
+
+    (home / "auth.lock").unlink()
+    (home / "auth.lock").write_text("")
+    with pytest.raises(error, match="auth.lock is a regular file"):
+        namespace["prepare_codex_home"]()
+
+    (home / "auth.lock").unlink()
+    (home / "auth.lock").symlink_to(tmp_path / "other.lock")
+    with pytest.raises(error, match="points to"):
+        namespace["prepare_codex_home"]()
+    assert (user / "auth.lock").exists() and not (tmp_path / "other.lock").exists()
+
+    (home / "auth.lock").unlink()
+    (home / "auth.json").unlink()
+    (home / "auth.json").write_text('{"OPENAI_API_KEY": "sk-copy"}')
+    with pytest.raises(error, match="auth.json is a regular file"):
+        namespace["prepare_codex_home"]()
+    assert (home / "auth.json").read_text() == '{"OPENAI_API_KEY": "sk-copy"}'
+
+
+@pytest.mark.parametrize("layer", ["system", "ancestor", "workspace"])
+def test_codex_config_outside_the_pipeline_home_stops_the_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, layer: str
+) -> None:
+    env, _, _, _ = pipeline_env(tmp_path)
+    if layer == "system":
+        (tmp_path / "etc-codex").mkdir()
+        (tmp_path / "etc-codex/managed_config.toml").write_text("")
+        expected = "etc-codex/managed_config.toml"
+    elif layer == "ancestor":
+        (tmp_path / ".codex").mkdir()
+        (tmp_path / ".codex/config.toml").write_text("")
+        expected = ".codex/config.toml"
+    else:
+        (tmp_path / "codex-workspace").mkdir()
+        (tmp_path / "codex-workspace/AGENTS.md").write_text("use tools")
+        expected = "(not empty)"
+    namespace = load_script(env, monkeypatch)
+
+    with pytest.raises(
+        namespace["MeetingMinutesError"], match="outside the pipeline home"
+    ) as raised:
+        namespace["prepare_codex_home"]()
+    assert expected in str(raised.value)
