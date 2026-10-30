@@ -1,6 +1,6 @@
 [settings]
 lockfile = true
-minimum_release_age = "3d"
+minimum_release_age = "7d"
 # The npm release archive includes the native executable and matching CLI guides.
 aqua.registries = ["file:///home/kabilan/dotfiles/config/mise/registry.yaml"]
 
@@ -8,4 +8,5 @@ aqua.registries = ["file:///home/kabilan/dotfiles/config/mise/registry.yaml"]
 agent-browser = "aqua:vercel-labs/agent-browser"
 
 [tools]
-agent-browser = "0.38.1"
+# Track eligible releases; mise.lock pins the version used by the launcher.
+agent-browser = "latest"
