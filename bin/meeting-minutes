@@ -8,6 +8,7 @@ import base64
 import fcntl
 import hashlib
 import json
+import math
 import os
 import re
 import shlex
@@ -16,6 +17,7 @@ import subprocess
 import sys
 import time
 import tomllib
+import threading
 import urllib.error
 import urllib.request
 import uuid
@@ -24,6 +26,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from functools import cached_property
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -116,8 +119,15 @@ SLACK_MESSAGE_LIMIT = 40
 SLACK_PAGE_LIMIT = 5
 # Every Codex run reads meeting content from outside the vault (transcripts,
 # Slack, Meet notes, calendar text), so none may hold a tool that acts on the
-# world. These switch off Codex's built-in shell, code execution, connectors,
-# plugins, browser, and sub-agents; MCP servers are disabled separately.
+# world. Codex runs from a pipeline-owned CODEX_HOME whose config.toml the
+# pipeline writes; nothing from the user's Codex config (MCP servers, hooks,
+# plugins, profiles, project trust) is loaded. Only the login is shared.
+# Codex 0.166 keeps `unified_exec` on whatever the config says; with
+# `shell_tool` off it exposes no command tool, which the tool check confirms.
+CODEX_HOME_DIR = Path(
+    os.environ.get("MEETING_MINUTES_CODEX_HOME", STATE_DIR / "codex-home")
+).expanduser()
+USER_CODEX_HOME = Path(os.environ.get("CODEX_HOME", HOME / ".codex")).expanduser()
 CODEX_DISABLED_FEATURES = (
     "apps",
     "plugins",
@@ -129,10 +139,10 @@ CODEX_DISABLED_FEATURES = (
     "multi_agent",
     "multi_agent_v2",
     "shell_tool",
-    "unified_exec",
     "code_mode_host",
     "memories",
     "goals",
+    "hooks",
     "tool_suggest",
     "skill_mcp_dependency_install",
     "skill_search",
@@ -140,7 +150,26 @@ CODEX_DISABLED_FEATURES = (
     "sleep_tool",
     "view_image",
 )
-CODEX_DISABLED_MCP_SERVERS = ("executor", "deepwiki", "node_repl", "cua_repl")
+# What Codex 0.166 still offers under that config, checked before each process
+# sends any meeting content. `exec` runs JavaScript in an isolate with no file
+# system or network and can only call the nested tools listed here:
+# `apply_patch` (refused by the read-only sandbox with approvals off), MCP
+# resource readers (no servers are configured), and a clock. Anything else,
+# such as an MCP namespace or sub-agents, fails the run.
+CODEX_EXPECTED_TOOLS = frozenset(
+    {
+        "namespace:functions",
+        "exec",
+        "wait",
+        "request_user_input",
+        "request_user_input_async",
+        "apply_patch",
+        "list_mcp_resource_templates",
+        "list_mcp_resources",
+        "read_mcp_resource",
+        "clock__curr_time",
+    }
+)
 CODEX_QUIET_ITEM_TYPES = frozenset({"agent_message", "reasoning", "error", "todo_list"})
 COMPLETION_VISIBLE_SECONDS = 10
 ERROR_VISIBLE_SECONDS = 600
@@ -1162,6 +1191,11 @@ def transcribe_recording(job: dict[str, Any]) -> Path:
                 "end": segment["end"],
                 "speaker": segment["speaker"],
                 "text": segment["text"],
+                **(
+                    {"words": segment["words"]}
+                    if isinstance(segment.get("words"), list)
+                    else {}
+                ),
             }
             for segment in result["segments"]
         ],
@@ -1536,8 +1570,15 @@ class MeetingRun:
         return read_optional(self.session_path).strip()
 
     @cached_property
+    def anchor_result(self) -> tuple[list[dict[str, Any]], list[str]]:
+        limit = (
+            self.duration if self.duration > 0 else transcript_duration(self.transcript)
+        )
+        return build_anchors(self.transcript, limit)
+
+    @property
     def anchors(self) -> list[dict[str, Any]]:
-        return build_anchors(self.transcript)
+        return self.anchor_result[0]
 
 
 @dataclass(frozen=True)
@@ -1729,34 +1770,266 @@ class ExecutorClient:
         return value.get("data")
 
 
+def codex_config() -> str:
+    features = "".join(f"{feature} = false\n" for feature in CODEX_DISABLED_FEATURES)
+    return (
+        "# Written by meeting-minutes on every run; edits are overwritten.\n"
+        f"model = {toml_value(CODEX_MODEL)}\n"
+        f"model_reasoning_effort = {toml_value(CODEX_REASONING_EFFORT)}\n"
+        f"service_tier = {toml_value(CODEX_SERVICE_TIER)}\n"
+        'approval_policy = "never"\n'
+        'sandbox_mode = "read-only"\n'
+        'web_search = "disabled"\n'
+        'cli_auth_credentials_store = "file"\n'
+        "\n[history]\n"
+        'persistence = "none"\n'
+        "\n[agents]\n"
+        "enabled = false\n"
+        "\n[features]\n"
+        f"{features}"
+    )
+
+
+def prepare_codex_home() -> Path:
+    """The pipeline's CODEX_HOME: its own config, an empty workspace to run
+    in (so no AGENTS.md or project config is picked up), and a symlink to the
+    user's auth.json. Codex rewrites auth.json in place on token refresh, so
+    refreshed tokens land in the user's login rather than a stale copy."""
+    workspace = CODEX_HOME_DIR / "workspace"
+    workspace.mkdir(parents=True, exist_ok=True)
+    CODEX_HOME_DIR.chmod(0o700)
+    for unexpected in ("hooks.json", "AGENTS.md", "rules"):
+        if (CODEX_HOME_DIR / unexpected).exists():
+            raise MeetingMinutesError(
+                f"Unexpected {unexpected} in the pipeline Codex home {CODEX_HOME_DIR}"
+            )
+    config = CODEX_HOME_DIR / "config.toml"
+    if read_optional(config) != codex_config():
+        atomic_write_text(config, codex_config())
+    login = USER_CODEX_HOME / "auth.json"
+    if not login.is_file():
+        raise MeetingMinutesError(f"No Codex login at {login}")
+    auth = CODEX_HOME_DIR / "auth.json"
+    if not auth.is_symlink() or Path(os.readlink(auth)) != login:
+        auth.unlink(missing_ok=True)
+        auth.symlink_to(login)
+    return CODEX_HOME_DIR
+
+
+def codex_environment() -> dict[str, str]:
+    environment = {
+        name: value
+        for name, value in os.environ.items()
+        if not name.startswith(("MEETING_MINUTES_EXECUTOR", "CODEX_"))
+        and name != "CREDENTIALS_DIRECTORY"
+    }
+    environment["CODEX_HOME"] = str(CODEX_HOME_DIR)
+    return environment
+
+
 def codex_command(*prefix: str) -> list[str]:
-    command = [
+    return [
         "codex",
         "exec",
         *prefix,
         "--skip-git-repo-check",
         "--json",
-        "--model",
-        CODEX_MODEL,
-        "--config",
-        f'model_reasoning_effort="{CODEX_REASONING_EFFORT}"',
-        "--config",
-        f'service_tier="{CODEX_SERVICE_TIER}"',
-        "--config",
-        'web_search="disabled"',
-        "--config",
-        "agents.enabled=false",
+        "--ignore-rules",
     ]
-    for feature in CODEX_DISABLED_FEATURES:
-        command.extend(["--config", f"features.{feature}=false"])
-    for server in CODEX_DISABLED_MCP_SERVERS:
-        command.extend(["--config", f"mcp_servers.{server}.enabled=false"])
-    return command
+
+
+def codex_tool_names(request: dict[str, Any]) -> set[str]:
+    """Every tool a model request offers: top-level tools, namespaced tools,
+    and the nested tools that the `exec` description declares."""
+    names: set[str] = set()
+
+    def add(tool: Any) -> None:
+        if not isinstance(tool, dict):
+            return
+        name = str(tool.get("name") or tool.get("namespace") or tool.get("type") or "")
+        if tool.get("type") == "namespace":
+            names.add(f"namespace:{name}")
+        elif name:
+            names.add(name)
+        for nested in tool.get("tools") or []:
+            add(nested)
+        names.update(
+            re.findall(
+                r"^### `([A-Za-z0-9_.-]+)`",
+                str(tool.get("description") or ""),
+                flags=re.MULTILINE,
+            )
+        )
+
+    for tool in request.get("tools") or []:
+        add(tool)
+    for item in request.get("input") or []:
+        if isinstance(item, dict) and item.get("type") == "additional_tools":
+            for tool in item.get("tools") or []:
+                add(tool)
+    return names
+
+
+codex_tools_verified = False
+
+
+def codex_report(*arguments: str) -> str:
+    try:
+        result = subprocess.run(
+            ["codex", *arguments],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env=codex_environment(),
+            cwd=CODEX_HOME_DIR / "workspace",
+            stdin=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise MeetingMinutesError(
+            f"codex {' '.join(arguments)} failed: {error}"
+        ) from error
+    if result.returncode != 0:
+        raise MeetingMinutesError(
+            f"codex {' '.join(arguments)} failed: {result.stderr.strip()[-500:]}"
+        )
+    return result.stdout
+
+
+def verify_codex_configuration() -> None:
+    """Codex's own view of the pipeline home: no MCP server from any config
+    layer, and every disabled feature off. MCP tools can be deferred behind
+    `exec` and left out of a request's tool list, so the request check alone
+    would not see them."""
+    try:
+        servers = json.loads(codex_report("mcp", "list", "--json"))
+    except json.JSONDecodeError as error:
+        raise MeetingMinutesError("codex mcp list returned invalid JSON") from error
+    if servers:
+        names = sorted(
+            str(server.get("name")) if isinstance(server, dict) else str(server)
+            for server in servers
+        )
+        raise MeetingMinutesError(
+            f"Codex has MCP servers configured {names}; refusing to send meeting content"
+        )
+    states = {
+        fields[0]: fields[-1]
+        for fields in (
+            line.split() for line in codex_report("features", "list").splitlines()
+        )
+        if len(fields) >= 2
+    }
+    enabled = sorted(
+        feature for feature in CODEX_DISABLED_FEATURES if states.get(feature) != "false"
+    )
+    if enabled:
+        raise MeetingMinutesError(
+            f"Codex features not disabled {enabled}; refusing to send meeting content"
+        )
+
+
+def verify_codex_tools() -> None:
+    """Before any meeting content reaches Codex in this process, check the
+    pipeline's configuration as Codex resolves it, then run it once against a
+    local stand-in model and read the tool list it would send. Any tool
+    outside CODEX_EXPECTED_TOOLS stops the pipeline."""
+    global codex_tools_verified
+    if codex_tools_verified:
+        return
+    verify_codex_configuration()
+    requests: list[dict[str, Any]] = []
+
+    class ProbeProvider(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            length = int(self.headers.get("Content-Length") or 0)
+            try:
+                requests.append(json.loads(self.rfile.read(length)))
+            except json.JSONDecodeError:
+                requests.append({})
+            reply = {
+                "type": "response.completed",
+                "response": {
+                    "id": "probe",
+                    "object": "response",
+                    "status": "completed",
+                    "output": [
+                        {
+                            "type": "message",
+                            "id": "probe-message",
+                            "role": "assistant",
+                            "status": "completed",
+                            "content": [
+                                {"type": "output_text", "text": "ok", "annotations": []}
+                            ],
+                        }
+                    ],
+                    "usage": {"input_tokens": 1, "output_tokens": 1, "total_tokens": 2},
+                },
+            }
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            self.wfile.write(f"data: {json.dumps(reply)}\n\n".encode())
+
+        def log_message(self, format: str, *args: Any) -> None:
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), ProbeProvider)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    provider = (
+        "model_providers.meeting_minutes_probe={"
+        'name="meeting-minutes probe",'
+        f'base_url="http://127.0.0.1:{server.server_address[1]}",'
+        'wire_api="responses",requires_openai_auth=false}'
+    )
+    command = codex_command(
+        "--ephemeral",
+        "--sandbox",
+        "read-only",
+        "--cd",
+        str(CODEX_HOME_DIR / "workspace"),
+        "--config",
+        provider,
+        "--config",
+        'model_provider="meeting_minutes_probe"',
+    )
+    try:
+        result = subprocess.run(
+            [*command, "Reply with ok."],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=codex_environment(),
+            stdin=subprocess.DEVNULL,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise MeetingMinutesError("Codex tool check timed out") from error
+    finally:
+        server.shutdown()
+        server.server_close()
+    if not requests:
+        detail = (result.stderr or result.stdout).strip()[-500:]
+        raise MeetingMinutesError(f"Codex tool check sent no model request: {detail}")
+    if requests[0].get("model") != CODEX_MODEL:
+        raise MeetingMinutesError(
+            f"Codex tool check used model {requests[0].get('model')!r}, "
+            f"not {CODEX_MODEL!r}"
+        )
+    unexpected = codex_tool_names(requests[0]) - CODEX_EXPECTED_TOOLS
+    if unexpected:
+        raise MeetingMinutesError(
+            f"Codex offers unexpected tools {sorted(unexpected)}; "
+            "refusing to send meeting content"
+        )
+    codex_tools_verified = True
 
 
 def codex_tool_events(stdout: str) -> list[str]:
     """Item types other than messages and reasoning mean the model reached a
-    tool; with every tool disabled that is a configuration failure."""
+    tool. The preflight should make this impossible; this is the second
+    check, after the fact."""
     used: list[str] = []
     for line in stdout.splitlines():
         try:
@@ -1774,12 +2047,8 @@ def codex_tool_events(stdout: str) -> list[str]:
 def run_codex(
     command: list[str], prompt: str, log_prefix: Path
 ) -> subprocess.CompletedProcess[str]:
-    environment = {
-        name: value
-        for name, value in os.environ.items()
-        if not name.startswith("MEETING_MINUTES_EXECUTOR")
-        and name != "CREDENTIALS_DIRECTORY"
-    }
+    prepare_codex_home()
+    verify_codex_tools()
     result = subprocess.run(
         command,
         input=prompt,
@@ -1787,7 +2056,7 @@ def run_codex(
         capture_output=True,
         text=True,
         timeout=1800,
-        env=environment,
+        env=codex_environment(),
     )
     atomic_write_text(log_prefix.with_suffix(".stdout.log"), result.stdout)
     atomic_write_text(log_prefix.with_suffix(".stderr.log"), result.stderr)
@@ -1806,7 +2075,7 @@ def run_codex_agent(
         "--sandbox",
         "read-only",
         "--cd",
-        str(VAULT_ROOT if VAULT_ROOT.is_dir() else HOME),
+        str(CODEX_HOME_DIR / "workspace"),
         "--output-schema",
         str(schema_path),
         "--output-last-message",
@@ -2102,46 +2371,128 @@ def transcript_text(transcript: dict[str, Any]) -> str:
     return str(transcript.get("text") or "")
 
 
-def build_anchors(transcript: dict[str, Any]) -> list[dict[str, Any]]:
-    """Citation anchors: consecutive segments from one speaker merged while
-    they stay within ANCHOR_MAX_SECONDS, each named after its first segment."""
+def segment_bounds(segment: dict[str, Any], limit: float) -> tuple[float, float] | str:
+    """A segment's (start, end) clamped to the recording, or why it is unusable."""
+    try:
+        start = float(segment["start"])
+        end = float(segment["end"])
+    except (KeyError, TypeError, ValueError):
+        return "non-numeric timestamps"
+    if not (math.isfinite(start) and math.isfinite(end)):
+        return "non-finite timestamps"
+    if start < 0 or end < start:
+        return "negative or reversed timestamps"
+    if limit > 0 and start >= limit:
+        return f"starts at {start:.1f}s, after the recording ends at {limit:.1f}s"
+    return start, min(end, limit) if limit > 0 else end
+
+
+def segment_pieces(
+    segment: dict[str, Any], start: float, end: float
+) -> list[tuple[float, float, str]]:
+    """Split a segment longer than ANCHOR_MAX_SECONDS at word timestamps when
+    the transcript has them, otherwise into equal-length spans with the words
+    shared out evenly."""
+    text = clean_text(segment.get("text"))
+    if end - start <= ANCHOR_MAX_SECONDS:
+        return [(start, end, text)]
+    words: list[tuple[float, float, str]] = []
+    for word in segment.get("words") or []:
+        if not isinstance(word, dict):
+            words = []
+            break
+        bounds = segment_bounds(word, end)
+        token = clean_text(word.get("word") or word.get("text"))
+        if isinstance(bounds, str) or not token or bounds[0] < start:
+            words = []
+            break
+        words.append((bounds[0], bounds[1], token))
+    if words:
+        pieces: list[tuple[float, float, str]] = []
+        for word_start, word_end, token in words:
+            if pieces and word_end - pieces[-1][0] <= ANCHOR_MAX_SECONDS:
+                piece_start, _, piece_text = pieces[-1]
+                pieces[-1] = (piece_start, word_end, f"{piece_text} {token}")
+            else:
+                pieces.append((word_start, word_end, token))
+        pieces[0] = (start, pieces[0][1], pieces[0][2])
+        pieces[-1] = (pieces[-1][0], end, pieces[-1][2])
+        if all(
+            piece_end - piece_start <= ANCHOR_MAX_SECONDS
+            for piece_start, piece_end, _ in pieces
+        ):
+            return pieces
+    return proportional_pieces(start, end, text)
+
+
+def proportional_pieces(
+    start: float, end: float, text: str
+) -> list[tuple[float, float, str]]:
+    count = math.ceil((end - start) / ANCHOR_MAX_SECONDS)
+    tokens = text.split()
+    span = (end - start) / count
+    bounds = [math.ceil(index * len(tokens) / count) for index in range(count + 1)]
+    return [
+        (
+            start + index * span,
+            start + (index + 1) * span,
+            " ".join(tokens[bounds[index] : bounds[index + 1]]),
+        )
+        for index in range(count)
+    ]
+
+
+def build_anchors(
+    transcript: dict[str, Any], limit: float
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Citation anchors no longer than ANCHOR_MAX_SECONDS and inside
+    [0, limit]: one speaker's consecutive segments merged while they fit, and
+    longer segments split. Segments with unusable timestamps are skipped and
+    reported. An anchor is named after its segment (`s12`), with a suffix for
+    later pieces of a split segment (`s12.1`)."""
     segments = transcript.get("segments")
     anchors: list[dict[str, Any]] = []
+    warnings: list[str] = []
     seen: set[str] = set()
     for index, segment in enumerate(segments if isinstance(segments, list) else []):
-        if not isinstance(segment, dict):
-            continue
-        text = clean_text(segment.get("text"))
-        if not text:
-            continue
-        start = float(segment.get("start") or 0)
-        end = max(float(segment.get("end") or start), start)
-        speaker = clean_text(segment.get("speaker"))
-        current = anchors[-1] if anchors else None
-        if (
-            current is not None
-            and current["speaker"] == speaker
-            and end - current["start"] <= ANCHOR_MAX_SECONDS
-            and start - current["end"] <= ANCHOR_MAX_GAP_SECONDS
-        ):
-            current["end"] = max(current["end"], end)
-            current["text"] += " " + text
+        if not isinstance(segment, dict) or not clean_text(segment.get("text")):
             continue
         segment_id = segment.get("id")
-        anchor_id = f"s{segment_id}" if isinstance(segment_id, int) else f"a{index}"
-        if anchor_id in seen:
-            anchor_id = f"a{index}"
-        seen.add(anchor_id)
-        anchors.append(
-            {
-                "id": anchor_id,
-                "start": start,
-                "end": end,
-                "speaker": speaker,
-                "text": text,
-            }
-        )
-    return anchors
+        base_id = f"s{segment_id}" if type(segment_id) is int else f"a{index}"
+        bounds = segment_bounds(segment, limit)
+        if isinstance(bounds, str):
+            warnings.append(f"segment {base_id} skipped: {bounds}")
+            continue
+        speaker = clean_text(segment.get("speaker"))
+        for piece_index, (start, end, text) in enumerate(
+            segment_pieces(segment, *bounds)
+        ):
+            if not text:
+                continue
+            current = anchors[-1] if anchors else None
+            if (
+                current is not None
+                and current["speaker"] == speaker
+                and end - current["start"] <= ANCHOR_MAX_SECONDS
+                and start - current["end"] <= ANCHOR_MAX_GAP_SECONDS
+            ):
+                current["end"] = max(current["end"], end)
+                current["text"] += " " + text
+                continue
+            anchor_id = base_id if piece_index == 0 else f"{base_id}.{piece_index}"
+            if anchor_id in seen:
+                anchor_id = f"a{index}" + (f".{piece_index}" if piece_index else "")
+            seen.add(anchor_id)
+            anchors.append(
+                {
+                    "id": anchor_id,
+                    "start": start,
+                    "end": end,
+                    "speaker": speaker,
+                    "text": text,
+                }
+            )
+    return anchors, warnings
 
 
 def render_anchored_transcript(anchors: list[dict[str, Any]]) -> str:
@@ -2749,7 +3100,7 @@ def validate_speaker_map(
         person = registry.lookup(name)
         return person.name if person else name
 
-    speakers = []
+    speakers: list[dict[str, Any]] = []
     for label, talk_seconds in seconds.items():
         raw = raw_by_label.get(label, {})
         status = clean_text(raw.get("status")).lower()
@@ -2841,7 +3192,7 @@ def speaker_mapping_text(speakers: list[dict[str, Any]]) -> str:
     )
 
 
-CITATION_RULE = """Citations are anchor IDs from the start of transcript lines (`s1234`), never clock times. Cite the specific lines where the point was said. For a contiguous stretch you may write a range such as `s120-s131`, spanning at most 40 lines."""
+CITATION_RULE = """Citations are anchor IDs from the start of transcript lines (`s1234`, or `s1234.1` for a later part of a long turn), never clock times. Cite the specific lines where the point was said. For a contiguous stretch you may write a range such as `s120-s131`, spanning at most 40 lines."""
 
 
 def minutes_prompt(
@@ -2937,7 +3288,7 @@ def resolve_citations(raw: Any, anchor_index: dict[str, int]) -> tuple[list[str]
     dropped = 0
     for item in raw if isinstance(raw, list) else []:
         text = clean_text(item).strip("[]()")
-        span = re.fullmatch(r"([sa]\d+)\s*[-–]\s*([sa]\d+)", text)
+        span = re.fullmatch(r"([sa]\d+(?:\.\d+)?)\s*[-–]\s*([sa]\d+(?:\.\d+)?)", text)
         if span and span.group(1) in anchor_index and span.group(2) in anchor_index:
             first, last = anchor_index[span.group(1)], anchor_index[span.group(2)]
             first, last = min(first, last), max(first, last)
@@ -3522,22 +3873,38 @@ def run_minutes_pipeline(
         "minutes": minutes,
         "coverage_review": review,
         "citation_repair": citation_repair,
-        "validation": {"warnings": warnings},
+        "validation": {
+            "warnings": warnings,
+            "transcript_warnings": run.anchor_result[1],
+        },
         "screenshots": [],
     }
     atomic_write_json(result_path, result)
     return result
 
 
+def probed_duration(recording: Path | None) -> float:
+    """The recording's own length bounds citation anchors; zero when the file
+    is not here to probe, so callers fall back to the transcript's length."""
+    if recording is None or not recording.is_file():
+        return 0.0
+    try:
+        return probe_duration(recording)
+    except (MeetingMinutesError, OSError, subprocess.SubprocessError):
+        return 0.0
+
+
 def job_run(job: dict[str, Any], transcript_path: Path) -> MeetingRun:
     transcript = read_json(transcript_path)
+    recording = Path(str(job.get("recording_path") or ""))
     return MeetingRun(
         work=WORK_DIR / str(job["job_id"]),
         transcript=transcript,
         started_at=float(job["recording_started_at"]),
-        duration=float(job.get("recording_duration_seconds") or 0)
+        duration=probed_duration(recording)
+        or float(job.get("recording_duration_seconds") or 0)
         or transcript_duration(transcript),
-        recording=Path(str(job.get("recording_path") or "")),
+        recording=recording,
         on_phase=lambda phase, label: set_phase(job, phase, label),
     )
 
@@ -4594,7 +4961,7 @@ def regenerate(args: argparse.Namespace) -> dict[str, Any]:
         work=out,
         transcript=transcript,
         started_at=float(started_at),
-        duration=transcript_duration(transcript),
+        duration=probed_duration(source.recording) or transcript_duration(transcript),
         recording=source.recording,
         on_phase=lambda phase, label: print(f"{phase}: {label}", file=sys.stderr),
         extra_inputs=extra_inputs,
