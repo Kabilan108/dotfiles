@@ -155,40 +155,6 @@ def test_sync_holds_worker_lock_during_transfer(
     assert calls == 2
 
 
-def test_pipeline_note_uses_shared_artifact_references(tmp_path: Path) -> None:
-    namespace = runpy.run_path(str(SCRIPT))
-    namespace["render_note"].__globals__["MEDIA_ROOT"] = tmp_path / "media"
-    namespace["render_note"].__globals__["MEDIA_REFERENCE_ROOT"] = Path(
-        "/vault/userdata/media/meetings"
-    )
-    job = {
-        "recording_started_at": 1_700_000_000,
-        "job_id": "a" * 32,
-        "recording_identity": "identity",
-        "codex_session": "session",
-    }
-    minutes: dict[str, Any] = {
-        "attendees": [],
-        "summary": "Summary",
-        "project": "tooling",
-        "title": "Artifact test",
-        "notes": [],
-        "decisions": [],
-        "follow_ups": [],
-    }
-
-    note = namespace["render_note"](
-        job,
-        minutes,
-        tmp_path / "media/artifact-test.mp4",
-        tmp_path / "media/artifact-test.json",
-        [],
-    )
-
-    assert 'recording: "/vault/userdata/media/meetings/artifact-test.mp4"' in note
-    assert 'transcript: "/vault/userdata/media/meetings/artifact-test.json"' in note
-
-
 def test_artifact_sync_kick_is_non_blocking(monkeypatch: pytest.MonkeyPatch) -> None:
     namespace = runpy.run_path(str(SCRIPT))
     kick = namespace["kick_artifact_sync"]
