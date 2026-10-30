@@ -1,7 +1,22 @@
 #!/usr/bin/env bash
 # vim: syn=bash ft=bash
+#
+# rebuild [--key yk-nfc|yk-nano]: switch this host to ~/dotfiles.
+#
+# First it lists the commits since this host's last signed deploy tag
+# (deploy/<host>/*) and asks before building them. Where the YubiKey handles
+# live (jacurutu), approving signs the next tag at HEAD with one touch and
+# pushes it. Elsewhere it builds unsigned once you say so.
+set -euo pipefail
 
 host_name=$(hostname)
+repo=$HOME/dotfiles
+key=yk-nfc
+
+if [[ ${1:-} == --key && -n ${2:-} ]]; then
+  key=$2
+fi
+key_file=$HOME/.ssh/$key
 
 if [[ -n ${FLEET_HOST_ANSI:-} ]]; then
   printf 'Rebuilding dotfiles flake for \033[%sm%s\033[0m\n' "$FLEET_HOST_ANSI" "$host_name"
@@ -9,4 +24,73 @@ else
   printf 'Rebuilding dotfiles flake for %s\n' "$host_name"
 fi
 
-sudo nixos-rebuild switch --flake "$HOME/dotfiles#$host_name"
+show_log() {
+  git -C "$repo" --no-pager log --no-decorate --format='  %h %<(16,trunc)%an %s' "$@"
+}
+
+# Returns 0 to build. Each failure returns explicitly: errexit is off inside
+# a function called from `if`.
+review() {
+  local head last last_tag="" last_commit="" dirty answer tag
+  head=$(git -C "$repo" rev-parse HEAD) || return 1
+  if last=$(deploy-tag -C "$repo" latest "$host_name"); then
+    read -r last_tag last_commit <<<"$last"
+  fi
+  dirty=$(git -C "$repo" status --porcelain --untracked-files=no) || return 1
+
+  if [[ $last_commit == "$head" && -z $dirty ]]; then
+    echo "HEAD is $last_tag."
+    return 0
+  fi
+  if [[ $last_commit != "$head" ]]; then
+    if [[ -z $last_tag ]]; then
+      echo "No signed deploy tag for $host_name yet. The last 20 commits:"
+      show_log -20 HEAD
+    elif git -C "$repo" merge-base --is-ancestor "$last_commit" HEAD; then
+      echo "Commits since $last_tag:"
+      show_log "$last_commit..HEAD"
+    else
+      echo "HEAD doesn't contain $last_tag (${last_commit:0:12})."
+      echo "Commits that drop out:"
+      show_log "HEAD..$last_commit"
+      echo "Commits that come in:"
+      show_log "$last_commit..HEAD"
+    fi
+  fi
+  if [[ -n $dirty ]]; then
+    echo "Uncommitted changes, built but not covered by any tag:"
+    echo "$dirty"
+  fi
+
+  if [[ $last_commit != "$head" && -e $key_file ]]; then
+    read -r -p "Sign deploy/$host_name at ${head:0:12} with $key and build? [y]es, [u]nsigned build, [N]o: " answer
+    case $answer in
+    [yY]*)
+      tag=$(deploy-tag -C "$repo" sign --key "$key_file" --message "rebuild $host_name" "$host_name" "$head") || return 1
+      if ! git -C "$repo" push --quiet origin "refs/tags/$tag"; then
+        echo "Couldn't push $tag; building anyway. Push it later with: git push origin $tag"
+      fi
+      return 0
+      ;;
+    [uU]*) return 0 ;;
+    *) return 1 ;;
+    esac
+  fi
+  read -r -p "Build this unsigned? [y/N] " answer
+  [[ $answer == [yY]* ]]
+}
+
+if ! command -v deploy-tag >/dev/null; then
+  echo "deploy-tag isn't installed yet, so this build skips the signed-tag check."
+  sudo nixos-rebuild switch --flake "$repo#$host_name"
+  exit
+fi
+if ! review; then
+  echo "Not building."
+  exit 1
+fi
+
+# The deploy receiver switches only under this lock (modules/nixos/deploy),
+# and rechecks what the host runs after taking it, so a deploy that was
+# building when this switch finished can't undo it.
+sudo flock /run/fleet-switch.lock nixos-rebuild switch --flake "$repo#$host_name"

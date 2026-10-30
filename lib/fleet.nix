@@ -24,7 +24,9 @@ rec {
       hostPubkey = null;
       keys = {
         # hardware only: yk-nfc travels with the user, yk-nano is the backup in
-        # storage. id_ed25519 is the agenix identity, never a login key.
+        # storage. Both also sign deploy tags (deploy.signers), so swapping a
+        # line here swaps it for SSH logins and deploys. id_ed25519 is the
+        # agenix identity, never a login key.
         human = [
           "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIAU2WbCLrvbZce+BFRjxjqGfc2atw+UW1OzuUL0xoQP0AAAABHNzaDo= yk-nfc"
           "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIC2osOfuEavgTyeKIekDC3QRInB5F7+OwbNr8rI0gxeOAAAABHNzaDo= yk-nano"
@@ -139,6 +141,26 @@ rec {
 
   agentKeyRestrictions = "from=\"100.64.0.0/10\",no-agent-forwarding,no-X11-forwarding,no-port-forwarding";
 
+  # Agent logins to gated hosts can only run modules/nixos/deploy/gate.sh.
+  agentGateRestrictions = "command=\"/run/current-system/sw/bin/deploy-gate\",restrict,from=\"100.64.0.0/10\"";
+
+  # Signed deploys (modules/nixos/deploy). `deploy <host>` on the controller
+  # pushes a deploy/<host>/<UTC time> tag signed with a YubiKey. Each receiver
+  # fetches the repo over HTTPS and builds only tags that verify against
+  # `signers`.
+  deploy = {
+    repo = "https://github.com/Kabilan108/dotfiles.git";
+    branch = "nixos";
+    controller = "jacurutu";
+    # tleilax joins both lists once it builds from the root flake.
+    receivers = [ "sietch" ];
+    gatedAgentLogins = [ ];
+    signers = hosts.jacurutu.keys.human;
+    # Also require the PIN flag in signatures. Turn on once every signer key
+    # was made with `ssh-keygen -O verify-required`.
+    requirePin = false;
+  };
+
   accessorsOf =
     target:
     builtins.filter (name: builtins.elem target hosts.${name}.canAccess) (builtins.attrNames hosts);
@@ -148,8 +170,13 @@ rec {
     let
       accessors = accessorsOf target;
       humanKeys = builtins.concatMap (name: hosts.${name}.keys.human) accessors;
+      agentRestrictions =
+        if builtins.elem target deploy.gatedAgentLogins then
+          agentGateRestrictions
+        else
+          agentKeyRestrictions;
       agentKeys = builtins.concatMap (
-        name: map (k: "${agentKeyRestrictions} ${k}") hosts.${name}.keys.agent
+        name: map (k: "${agentRestrictions} ${k}") hosts.${name}.keys.agent
       ) accessors;
     in
     humanKeys ++ agentKeys ++ (extraAuthorizedKeys.${target} or [ ]);
