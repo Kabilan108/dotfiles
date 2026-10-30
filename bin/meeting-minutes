@@ -566,6 +566,42 @@ def kick_artifact_sync() -> bool:
     return result.returncode == 0
 
 
+AUDIO_TRACK_ROLES = ("mixed", "desktop", "microphone")
+SOURCE_TRACK_ROLES = ("desktop", "microphone")
+
+
+def parse_audio_tracks(raw: str) -> list[dict[str, Any]]:
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise MeetingMinutesError("Audio track layout is not valid JSON") from error
+    if not isinstance(value, list):
+        raise MeetingMinutesError("Audio track layout must be a list")
+    tracks: list[dict[str, Any]] = []
+    for track in value:
+        if (
+            not isinstance(track, dict)
+            or type(track.get("index")) is not int
+            or track["index"] < 0
+            or track.get("role") not in AUDIO_TRACK_ROLES
+            or not isinstance(track.get("sources"), list)
+            or not all(isinstance(source, str) for source in track["sources"])
+        ):
+            raise MeetingMinutesError(f"Invalid audio track entry: {track!r}")
+        tracks.append(
+            {
+                "index": track["index"],
+                "role": track["role"],
+                "sources": track["sources"],
+            }
+        )
+    indexes = [track["index"] for track in tracks]
+    roles = [track["role"] for track in tracks]
+    if len(set(indexes)) != len(indexes) or len(set(roles)) != len(roles):
+        raise MeetingMinutesError("Audio track layout repeats an index or role")
+    return sorted(tracks, key=lambda track: track["index"])
+
+
 def enqueue_recording(args: argparse.Namespace) -> dict[str, Any]:
     ensure_directories()
     source = Path(args.recording).expanduser().resolve()
@@ -590,13 +626,16 @@ def enqueue_recording(args: argparse.Namespace) -> dict[str, Any]:
         "created_at": now_epoch(),
         "updated_at": now_epoch(),
         "attempt": 1,
-        "calendar_enrichment": {
-            "status": "pending",
-            "mode": "executor-agent-best-effort",
-        },
+        "calendar_enrichment": {"status": "pending", "mode": "executor-read"},
         "notification_attempted": False,
         "error": "",
     }
+    if args.audio_tracks:
+        try:
+            job["audio_tracks"] = parse_audio_tracks(args.audio_tracks)
+        except MeetingMinutesError as error:
+            job["audio_tracks"] = []
+            job["audio_tracks_error"] = str(error)
     with job_lock_path(job_id).open("a+") as job_lock:
         fcntl.flock(job_lock.fileno(), fcntl.LOCK_EX)
         save_job(job)
@@ -704,16 +743,21 @@ def probe_duration(recording: Path) -> float:
     raise MeetingMinutesError("ffprobe returned an invalid duration")
 
 
+def job_recording(job: dict[str, Any]) -> Path:
+    recording = Path(str(job["recording_path"]))
+    if recording.is_file():
+        return recording
+    final_video = Path(str(job.get("video_path", "")))
+    if final_video.is_file():
+        return final_video
+    raise MeetingMinutesError(f"Recording is missing: {recording}")
+
+
 def prepare_upload_audio(job: dict[str, Any]) -> Path:
     """Transcode to the mono 16 kHz FLAC siren decodes anyway; ~5x smaller than
-    the source recording, which keeps the upload and siren's spool small."""
-    recording = Path(str(job["recording_path"]))
-    if not recording.is_file():
-        final_video = Path(str(job.get("video_path", "")))
-        if final_video.is_file():
-            recording = final_video
-        else:
-            raise MeetingMinutesError(f"Recording is missing: {recording}")
+    the source recording, which keeps the upload and siren's spool small. The
+    first audio track is the full mix in both legacy and split recordings."""
+    recording = job_recording(job)
 
     work = WORK_DIR / str(job["job_id"])
     destination = work / "upload.flac"
@@ -759,6 +803,89 @@ def prepare_upload_audio(job: dict[str, Any]) -> Path:
     finally:
         temporary.unlink(missing_ok=True)
     return destination
+
+
+def audio_stream_count(recording: Path) -> int:
+    result = run_checked(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream=index",
+            "-of",
+            "csv=p=0",
+            str(recording),
+        ],
+        timeout=60,
+    )
+    return len([line for line in result.stdout.splitlines() if line.strip()])
+
+
+def source_track_command(recording: Path, index: int, destination: Path) -> list[str]:
+    """Stream-copy one audio track, keeping its codec and timestamps so the
+    desktop and microphone tracks stay aligned with the mix and the video."""
+    return [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-i",
+        str(recording),
+        "-map",
+        f"0:a:{index}",
+        "-c:a",
+        "copy",
+        "-vn",
+        str(destination),
+    ]
+
+
+def extract_source_tracks(job: dict[str, Any]) -> dict[str, str]:
+    """Split desktop and microphone audio out of a recording whose layout the
+    recorder declared. Legacy and single-source recordings have nothing to
+    split; the mix in track 0 is what Siren transcribes either way."""
+    layout = {
+        track["role"]: track
+        for track in job.get("audio_tracks") or []
+        if track.get("role") in SOURCE_TRACK_ROLES
+    }
+    if set(layout) != set(SOURCE_TRACK_ROLES):
+        return {}
+    existing = job.get("source_tracks") or {}
+    if set(existing) == set(SOURCE_TRACK_ROLES) and all(
+        Path(path).is_file() for path in existing.values()
+    ):
+        return existing
+    recording = job_recording(job)
+    streams = audio_stream_count(recording)
+    needed = max(track["index"] for track in job["audio_tracks"]) + 1
+    if streams < needed:
+        raise MeetingMinutesError(
+            f"Recording has {streams} audio streams; its layout declares {needed}"
+        )
+    work = WORK_DIR / str(job["job_id"])
+    work.mkdir(parents=True, exist_ok=True)
+    extracted: dict[str, str] = {}
+    for role in SOURCE_TRACK_ROLES:
+        destination = work / f"{role}.mka"
+        temporary = destination.with_name(f".{role}.{uuid.uuid4().hex}.tmp.mka")
+        try:
+            run_checked(
+                source_track_command(recording, layout[role]["index"], temporary),
+                timeout=1800,
+            )
+            temporary.replace(destination)
+        finally:
+            temporary.unlink(missing_ok=True)
+        extracted[role] = str(destination)
+    job["source_tracks"] = extracted
+    job.pop("source_tracks_error", None)
+    save_job(job)
+    return extracted
 
 
 def siren_job_endpoint(*parts: str) -> str:
@@ -4002,6 +4129,28 @@ def minutes_data_path(transcript_path: Path) -> Path:
     return transcript_path.with_name(f"{transcript_path.stem}.minutes.json")
 
 
+def source_track_path(stem: str, role: str) -> Path:
+    return MEDIA_ROOT / f"{stem}.{role}.mka"
+
+
+def publish_source_tracks(job: dict[str, Any], stem: str) -> dict[str, str]:
+    """Extracted tracks live in the job's work dir, which is removed when the
+    job completes; the published copies sit next to the transcript and move
+    to Sietch with the recording."""
+    published: dict[str, str] = {}
+    for role, path in (job.get("source_tracks") or {}).items():
+        destination = source_track_path(stem, role)
+        source = Path(path)
+        if source != destination and source.is_file():
+            copy_atomically(source, destination)
+        if destination.is_file():
+            published[role] = str(destination)
+    if published:
+        job["source_tracks"] = published
+        save_job(job)
+    return published
+
+
 def finalize_artifacts(
     job: dict[str, Any],
     result: dict[str, Any],
@@ -4028,6 +4177,7 @@ def finalize_artifacts(
 
     if not final_transcript.is_file():
         copy_atomically(transcript_path, final_transcript)
+    source_tracks = publish_source_tracks(job, stem)
 
     result = {
         **result,
@@ -4036,6 +4186,11 @@ def finalize_artifacts(
             "note": str(note_path),
             "recording": str(media_reference(video_path)),
             "transcript": str(media_reference(final_transcript)),
+            "audio_tracks": job.get("audio_tracks") or [],
+            "source_tracks": {
+                role: str(media_reference(Path(path)))
+                for role, path in source_tracks.items()
+            },
         },
     }
     atomic_write_json(final_minutes, result)
@@ -4166,6 +4321,7 @@ def sync_artifacts() -> None:
             if stem:
                 # A crash may leave the rename durable before the path update.
                 exclusions.append(f"--exclude=/{stem}.mp4")
+                exclusions.append(f"--exclude=/{stem}.*.mka")
             for field in ("recording_path", "video_path"):
                 recording = Path(str(job.get(field) or ""))
                 if recording.parent == MEDIA_ROOT:
@@ -4186,6 +4342,7 @@ def sync_artifacts() -> None:
                 "--remove-source-files",
                 *exclusions,
                 "--include=/*.mp4",
+                "--include=/*.mka",
                 "--exclude=*",
                 f"{MEDIA_ROOT}/",
                 destination,
@@ -4203,6 +4360,11 @@ def process_job(job: dict[str, Any]) -> None:
         try:
             recover_staged_recording(job)
             transcript_path = transcribe_recording(job)
+            try:
+                extract_source_tracks(job)
+            except (MeetingMinutesError, OSError, subprocess.SubprocessError) as error:
+                job["source_tracks_error"] = str(error)[:1000]
+                save_job(job)
             run, result = generate_minutes(job, transcript_path)
             calendar = result["calendar"]
             job["title"] = result["minutes"]["title"]
@@ -4491,6 +4653,10 @@ def parser() -> argparse.ArgumentParser:
     enqueue.add_argument("--recording", required=True)
     enqueue.add_argument("--started-at", type=float)
     enqueue.add_argument("--duration-seconds", type=int, default=0)
+    enqueue.add_argument(
+        "--audio-tracks",
+        help="JSON track layout from stillsuit-recorder: [{index, role, sources}]",
+    )
     commands.add_parser("work")
     retry = commands.add_parser("retry")
     retry.add_argument("job_id")
