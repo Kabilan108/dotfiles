@@ -37,6 +37,6 @@ in
     fi
   '';
 
-  # Keep the version and lock writable by `mise upgrade --bump` in the checkout.
+  # Keep the config and lock writable by `mise upgrade` in the checkout.
   xdg.configFile."mise".source = config.lib.file.mkOutOfStoreSymlink miseConfigDir;
 }

@@ -33,11 +33,11 @@ let
       update_tool "$package" ${pkgs.pnpm}/bin/pnpm add -g -y "$package"
     done
 
-    # Replay the reviewed pin; new releases are selected with an explicit mise bump.
+    # Advance the lock to the newest release past mise's release-age delay.
     update_tool agent-browser ${pkgs.coreutils}/bin/env \
       MISE_GLOBAL_CONFIG_FILE=${lib.escapeShellArg "${homeDir}/dotfiles/config/mise/config.toml"} \
       MISE_CEILING_PATHS="$PWD" \
-      ${lib.getExe pkgs.mise} install --locked agent-browser
+      ${lib.getExe pkgs.mise} upgrade --global agent-browser
 
     if (( ''${#failures[@]} )); then
       printf 'Tool updates failed: %s\n' "''${failures[*]}" >&2
