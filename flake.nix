@@ -38,12 +38,15 @@
                 config.allowUnfree = true;
                 inherit overlays;
               };
+              # The deploy receiver only moves forward from this commit.
+              system.configurationRevision = self.rev or self.dirtyRev or null;
             }
             (./. + "/machines/${name}")
             ./configuration.nix
             ./user.nix
             ./modules/nixos/docker.nix
             ./modules/nixos/fleet.nix
+            ./modules/nixos/deploy
             ./modules/nixos/moberg-vpn.nix
             ./modules/nixos/moberg-tailscale.nix
             inputs.stylix.nixosModules.stylix
