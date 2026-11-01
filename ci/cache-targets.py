@@ -60,19 +60,21 @@ def targets(names: list[str]) -> dict[str, dict[str, list[str]]]:
         candidates.update(p for p in closure if name_re.search(p))
 
     found: dict[str, dict[str, list[str]]] = {name: {} for name in names}
+    seen: set[str] = set()
     for path, drv in show(sorted(candidates)).items():
         pname = drv.get("env", {}).get("pname")
         outputs = drv.get("outputs", {}).values()
         if pname not in found or any("hash" in o or "hashAlgo" in o for o in outputs):
             continue
+        seen.add(pname)
         outs = sorted(store_path(o["path"]) for o in outputs)
-        # A pname can also match a nixpkgs build pulled in elsewhere.
+        # Also skips nixpkgs builds of the same pname pulled in elsewhere.
         if not all(cached(out, UPSTREAM) for out in outs):
             found[pname][path] = outs
 
-    missing = [name for name, drvs in found.items() if not drvs]
+    missing = [name for name in names if name not in seen]
     if missing:
-        sys.exit(f"cache-targets: no host builds these locally: {' '.join(missing)}")
+        sys.exit(f"cache-targets: not in any host system: {' '.join(missing)}")
     return found
 
 
@@ -98,7 +100,7 @@ def main() -> None:
             todo = [
                 name
                 for name, drvs in found.items()
-                if not all(cached(out) for outs in drvs.values() for out in outs)
+                if drvs and not all(cached(out) for outs in drvs.values() for out in outs)
             ]
             print(json.dumps(todo))
         case ["drvs", name] if name in packages():

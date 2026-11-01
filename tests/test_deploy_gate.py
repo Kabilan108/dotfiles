@@ -97,7 +97,10 @@ STUBS = {
         '[[ "$*" == "-u UNIX-CONNECT:{tmp}/trigger.sock -" ]] || exit 97\n'
         'exec bash "{scripts}/broker.sh"'
     ),
-    "ssh": '[[ "$*" == "sietch-agent deploy-trigger" ]] || exit 99\nexec bash "{scripts}/trigger.sh"',
+    "ssh": (
+        'if [[ "$*" == *git-receive-pack* ]]; then printf "%s\\n" "$@" > "{tmp}/push-ssh"; exit 1; fi\n'
+        '[[ "$*" == "sietch-agent deploy-trigger" ]] || exit 99\nexec bash "{scripts}/trigger.sh"'
+    ),
     "sudo": 'echo "$*" >> "{tmp}/sudo"',
     "hostname": 'echo "$TEST_HOSTNAME"',
 }
@@ -225,6 +228,7 @@ class DeployGate(unittest.TestCase):
             "GIT_COMMITTER_EMAIL": "test@example.com",
             "DEPLOY_SIGNERS": str(KEYS["signers"]),
             "DEPLOY_PUSH_URL": f"file://{self.origin}",
+            "DEPLOY_PUSH_KNOWN_HOSTS": "/dev/null",
             "DEPLOY_REQUIRE_TOUCH": "1",
             "DEPLOY_REQUIRE_PIN": "0",
             "DEPLOY_HOST": "sietch",
@@ -707,6 +711,25 @@ class DeployTag(DeployGate):
         r = self.run_cmd(["deploy-tag", "push", "--key", str(KEYS["yk"]), T1])
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self.git("tag", "-l", cwd=self.origin), T1)
+
+    def test_push_over_ssh_offers_only_the_signer_key(self) -> None:
+        self.sign(T1, "yk", push=False)
+        r = self.run_cmd(
+            ["deploy-tag", "push", "--key", str(KEYS["yk"]), T1],
+            extra_env={"DEPLOY_PUSH_URL": "git@github.com:owner/repo.git"},
+        )
+        self.assertNotEqual(r.returncode, 0)
+        args = (self.tmp / "push-ssh").read_text().splitlines()
+        for want in [
+            ["-F", "/dev/null"],
+            ["-i", str(KEYS["yk"])],
+            ["-o", "IdentitiesOnly=yes"],
+            ["-o", "IdentityAgent=none"],
+            ["-o", "StrictHostKeyChecking=yes"],
+        ]:
+            self.assertTrue(
+                any(args[i : i + 2] == want for i in range(len(args))), (want, args)
+            )
 
     def test_push_refuses_an_invalid_tag(self) -> None:
         self.sign(T1, "notouch", push=False)

@@ -152,6 +152,8 @@ rec {
     repo = "https://github.com/Kabilan108/dotfiles.git";
     # Tags go over SSH so the signer key can authenticate as a deploy key.
     pushUrl = "git@github.com:Kabilan108/dotfiles.git";
+    # From `gh api meta`.
+    pushKnownHosts = "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n";
     branch = "nixos";
     controller = "jacurutu";
     # tleilax joins both lists once it builds from the root flake.

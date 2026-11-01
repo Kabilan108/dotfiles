@@ -225,10 +225,14 @@ fi
 push() {
   local key=$1 tag=$2
   : "${DEPLOY_PUSH_URL:?DEPLOY_PUSH_URL must name the repo to push to}"
+  : "${DEPLOY_PUSH_KNOWN_HOSTS:?DEPLOY_PUSH_KNOWN_HOSTS must name a known_hosts file}"
+  [[ -r $key && $key != *"'"* ]] || die "can't use key file $key"
   verify "$tag" || die "won't push $tag"
   echo "Touch $(basename "$key") again to push $tag." >&2
-  # Offer the signer key first; ~/.ssh/config may add the account key after it.
-  g -c core.sshCommand="ssh -i '$key' -o IdentitiesOnly=yes" \
+  # Only this key, never the account key from ~/.ssh/config or the agent:
+  # GitHub would accept that key, then refuse the tag.
+  g -c core.sshCommand="ssh -F /dev/null -i '$key' -o IdentitiesOnly=yes -o IdentityAgent=none \
+-o UserKnownHostsFile='$DEPLOY_PUSH_KNOWN_HOSTS' -o StrictHostKeyChecking=yes" \
     push --quiet "$DEPLOY_PUSH_URL" "refs/tags/$tag"
 }
 
