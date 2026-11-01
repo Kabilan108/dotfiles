@@ -382,7 +382,6 @@ class FlakeLockVerify(unittest.TestCase):
         self.assertNotIn("home-manager/old", out, "renamed node with the same lock is unchanged")
         self.assertIn(f"gh pr merge 7 --merge --match-head-commit {head}", out)
         self.assertIn("4 pass, 0 fail, 0 manual", out)
-        self.assertNotIn("nix-instantiate", self.log.read_text(), "unchanged sources need no declaration lookup")
 
     def test_fork_only_commit_fails(self) -> None:
         root = updated_root_lock()
@@ -516,6 +515,55 @@ class FlakeLockVerify(unittest.TestCase):
         self.open_pr(root, updated_raspi_lock())
         out = self.verify("7", code=1)
         self.assertIn("home-manager/nixpkgs: the root flake.nix declares follows 'nixpkgs', the lock has ['boot-nixpkgs']", out)
+
+    def test_follows_redirect_with_the_same_source_fails(self) -> None:
+        # home-manager/nixpkgs moves forward along the same branch, but to the
+        # node behind home-manager/old instead of the root nixpkgs it follows.
+        base = base_root_lock()
+        base["nodes"]["nixpkgs"] = gh_node("NixOS", "nixpkgs", N1, ref="nixos-unstable")
+        self.set_base(base, base_raspi_lock())
+        pr = updated_root_lock()
+        pr["nodes"]["nixpkgs"] = gh_node("NixOS", "nixpkgs", N2, ref="nixos-unstable")
+        pr["nodes"]["nixpkgs_3"] = gh_node("NixOS", "nixpkgs", N3, ref="nixos-unstable")
+        pr["nodes"]["home-manager"]["inputs"]["nixpkgs"] = ["home-manager", "old"]
+        self.open_pr(pr, updated_raspi_lock())
+        out = self.verify("7", code=1)
+        self.assertIn("home-manager/nixpkgs: the root flake.nix declares follows 'nixpkgs'", out)
+
+    def test_unused_override_does_not_block_an_upstream_removal(self) -> None:
+        # The root still overrides home-manager's `data`, but h4 dropped it.
+        base = base_root_lock()
+        base["nodes"]["data"] = gh_node("o", "data", D1, flake=False)
+        base["nodes"]["home-manager"]["inputs"]["data"] = "data"
+        self.set_base(base, base_raspi_lock())
+        pr = updated_root_lock()
+        pr["nodes"]["home-manager"] = gh_node("nix-community", "home-manager", H4, inputs={"nixpkgs": ["nixpkgs"]})
+        del pr["nodes"]["nixpkgs_3"]
+        self.open_pr(pr, updated_raspi_lock())
+        out = self.verify("7", code=0)
+        self.assertIn("PASS   home-manager/data: input removed", out)
+
+    def test_paths_below_a_follows_alias_use_the_followed_context(self) -> None:
+        # The root's alias override for `old` is ignored by Nix, because
+        # alias reuses home-manager. home-manager at h3 moved `old` to master.
+        flake = copy.deepcopy(ROOT_FLAKE)
+        flake["inputs"]["alias"] = {
+            "follows": "home-manager",
+            "inputs": {"old": {"url": "github:NixOS/nixpkgs/nixos-unstable"}},
+        }
+        (self.work / "flake.nix").write_text(json.dumps(flake))
+        base = base_root_lock()
+        base["nodes"]["root"]["inputs"]["alias"] = ["home-manager"]
+        self.set_base(base, base_raspi_lock())
+        pr = updated_root_lock()
+        pr["nodes"]["root"]["inputs"]["alias"] = ["home-manager"]
+        pr["nodes"]["home-manager"] = gh_node(
+            "nix-community", "home-manager", H3, inputs={"nixpkgs": ["nixpkgs"], "old": "nixpkgs_3"}
+        )
+        pr["nodes"]["nixpkgs_3"] = gh_node("NixOS", "nixpkgs", M4, ref="master")
+        self.open_pr(pr, updated_raspi_lock())
+        out = self.verify("7", code=0)
+        self.assertIn(f"home-manager/old: source declared by home-manager at {H3[:9]}", out)
 
     def test_flake_flag_comes_from_the_own_declaration(self) -> None:
         # The root overrides home-manager's `data` source; home-manager
