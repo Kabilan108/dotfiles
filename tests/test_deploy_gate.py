@@ -893,10 +893,12 @@ class Gate(DeployGate):
 
 class Rebuild(DeployGate):
     def rebuild(
-        self, stdin: str = "", host: str = "jacurutu", **extra: str
+        self, stdin: str = "", host: str = "jacurutu", args: tuple[str, ...] = (), **extra: str
     ) -> subprocess.CompletedProcess[str]:
         return self.run_cmd(
-            [str(ROOT / "bin/rebuild")], stdin=stdin, extra_env={"TEST_HOSTNAME": host, **extra}
+            [str(ROOT / "bin/rebuild"), *args],
+            stdin=stdin,
+            extra_env={"TEST_HOSTNAME": host, **extra},
         )
 
     def sudo_calls(self) -> list[str]:
@@ -983,6 +985,57 @@ class Rebuild(DeployGate):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("deploy-tag isn't installed yet", r.stdout)
         self.assertEqual(self.sudo_calls(), [f"nixos-rebuild switch --flake {self.work}#jacurutu"])
+        r = self.rebuild(args=("boot",))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(
+            self.sudo_calls()[1:], [f"nixos-rebuild boot --flake {self.work}#jacurutu"]
+        )
+
+    def test_unsigned_builds_without_asking_or_signing(self) -> None:
+        self.give_key()
+        self.commit("four")
+        r = self.rebuild("", args=("switch", "--unsigned"))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("No signed deploy tag for jacurutu yet", r.stdout)
+        self.assertIn("four", r.stdout)
+        self.assertNotIn("Sign deploy/", r.stdout)
+        self.assertEqual(self.git("tag", "-l"), "")
+        self.assertEqual(self.git("tag", "-l", cwd=self.origin), "")
+        self.assertEqual(
+            self.sudo_calls(),
+            [f"flock /run/fleet-switch.lock nixos-rebuild switch --flake {self.work}#jacurutu"],
+        )
+
+    def test_unsigned_builds_uncommitted_changes(self) -> None:
+        self.give_key()
+        self.assertEqual(self.rebuild("y\n").returncode, 0)
+        (self.work / "file").write_text("dirty")
+        r = self.rebuild("", args=("--unsigned",))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(" M file", r.stdout)
+        self.assertEqual(len(self.sudo_calls()), 2)
+
+    def test_test_and_boot_run_under_the_lock(self) -> None:
+        for action in ["test", "boot"]:
+            with self.subTest(action=action):
+                (self.tmp / "sudo").unlink(missing_ok=True)
+                r = self.rebuild("y\n", host="sietch", args=(action,))
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                self.assertEqual(
+                    self.sudo_calls(),
+                    [
+                        f"flock /run/fleet-switch.lock nixos-rebuild {action} "
+                        f"--flake {self.work}#sietch"
+                    ],
+                )
+
+    def test_unknown_argument(self) -> None:
+        for args in [("--bogus",), ("build",), ("--key",), ("--unsigned", "dry-run")]:
+            with self.subTest(args=args):
+                r = self.rebuild("y\n", args=args)
+                self.assertEqual(r.returncode, 2)
+                self.assertIn("usage: rebuild", r.stderr)
+                self.assertEqual(self.sudo_calls(), [])
 
 
 if __name__ == "__main__":

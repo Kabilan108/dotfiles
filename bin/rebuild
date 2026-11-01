@@ -1,21 +1,45 @@
 #!/usr/bin/env bash
 # vim: syn=bash ft=bash
 #
-# rebuild [--key yk-nfc|yk-nano]: switch this host to ~/dotfiles.
+# rebuild [--key yk-nfc|yk-nano] [--unsigned] [switch|test|boot]: build this
+# host from ~/dotfiles and hand the action (default switch) to nixos-rebuild.
 #
 # First it lists the commits since this host's last signed deploy tag
-# (deploy/<host>/*) and asks before building them. Where the YubiKey handles
-# live (jacurutu), approving signs the next tag at HEAD with one touch and
-# pushes it. Elsewhere it builds unsigned once you say so.
+# (deploy/<host>/*) and any uncommitted changes, and asks before building them.
+# Where the YubiKey handles live (jacurutu), approving signs the next tag at
+# HEAD with one touch and pushes it. Elsewhere it builds unsigned once you say
+# so. --unsigned prints the same list and builds without asking or signing.
 set -euo pipefail
+
+usage() {
+  echo "usage: rebuild [--key yk-nfc|yk-nano] [--unsigned] [switch|test|boot]" >&2
+  exit 2
+}
 
 host_name=$(hostname)
 repo=$HOME/dotfiles
 key=yk-nfc
+unsigned=false
+action=switch
 
-if [[ ${1:-} == --key && -n ${2:-} ]]; then
-  key=$2
-fi
+while (($#)); do
+  case $1 in
+  --key)
+    [[ -n ${2:-} ]] || usage
+    key=$2
+    shift 2
+    ;;
+  --unsigned)
+    unsigned=true
+    shift
+    ;;
+  switch | test | boot)
+    action=$1
+    shift
+    ;;
+  *) usage ;;
+  esac
+done
 key_file=$HOME/.ssh/$key
 
 if [[ -n ${FLEET_HOST_ANSI:-} ]]; then
@@ -62,6 +86,10 @@ review() {
     echo "$dirty"
   fi
 
+  if [[ $unsigned == true ]]; then
+    echo "Building unsigned (--unsigned)."
+    return 0
+  fi
   if [[ $last_commit != "$head" && -e $key_file ]]; then
     read -r -p "Sign deploy/$host_name at ${head:0:12} with $key and build? [y]es, [u]nsigned build, [N]o: " answer
     case $answer in
@@ -82,7 +110,7 @@ review() {
 
 if ! command -v deploy-tag >/dev/null; then
   echo "deploy-tag isn't installed yet, so this build skips the signed-tag check."
-  sudo nixos-rebuild switch --flake "$repo#$host_name"
+  sudo nixos-rebuild "$action" --flake "$repo#$host_name"
   exit
 fi
 if ! review; then
@@ -92,5 +120,5 @@ fi
 
 # The deploy receiver switches only under this lock (modules/nixos/deploy),
 # and rechecks what the host runs after taking it, so a deploy that was
-# building when this switch finished can't undo it.
-sudo flock /run/fleet-switch.lock nixos-rebuild switch --flake "$repo#$host_name"
+# building when this switch or test finished can't undo it.
+sudo flock /run/fleet-switch.lock nixos-rebuild "$action" --flake "$repo#$host_name"
