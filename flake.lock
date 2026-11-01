@@ -812,11 +812,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793124455,
-        "narHash": "sha256-ItBt+chwd2bhJ/4qz5rIts8f1vsRq0eR/d10pmaEwo8=",
+        "lastModified": 1793568710,
+        "narHash": "sha256-G8sFz/aSfcWtZ+3qWqdEzeGELFYXi5T/6XH2EwNaSJ4=",
         "owner": "kabilan108",
         "repo": "siren",
-        "rev": "ab0c50ae7200f70e962a2f0eb0f7994640267830",
+        "rev": "a07e76b38ce0b130e3cc460c81577f20507a3334",
         "type": "github"
       },
       "original": {

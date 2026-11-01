@@ -16,6 +16,7 @@
 
   systemd.services.siren.environment = {
     SIREN_PARAKEET_CLAUDE_HINT = "true";
+    SIREN_SPEAKER_SMOOTHING = "true";
     TRITON_LIBCUDA_PATH = "/run/opengl-driver/lib";
     # The venv's certifi comes from siren's uv.lock; trust the NixOS store instead
     # so CA distrusts (e.g. the Oct 2026 eMudhra compromise) apply on rebuild.
