@@ -44,3 +44,4 @@ ambient-suggestions/
 dictation-history/
 memories.lock
 auth.lock
+*.lock
