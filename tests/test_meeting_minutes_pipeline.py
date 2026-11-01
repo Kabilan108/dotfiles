@@ -1201,6 +1201,26 @@ def test_finalize_writes_minutes_data_and_only_proposes_named_new_people(
     )
 
 
+def test_meetings_tony_did_not_speak_in_propose_no_one(
+    tmp_path: Path, executor: FakeExecutor, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env, vault, _media, _fixtures = pipeline_env(tmp_path, executor)
+    namespace = load_script(env, monkeypatch)
+    listeners_only = [
+        speaker
+        for speaker in SPEAKERS["speakers"]
+        if speaker["person_id"] != "tony"
+    ]
+    job = {"job_id": "d" * 32, "canonical_stem": "2026-09-09-personal-webinar"}
+    result = {"speakers": listeners_only, "minutes": MINUTES}
+
+    namespace["propose_new_people"](job, result)
+
+    assert not (vault / "04-projects/_pipeline/proposals").exists() or not any(
+        (vault / "04-projects/_pipeline/proposals").iterdir()
+    )
+
+
 def test_anchors_merge_short_turns_and_cap_span(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

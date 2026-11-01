@@ -4423,8 +4423,15 @@ def yaml_scalar(value: str) -> str:
 
 def propose_new_people(job: dict[str, Any], result: dict[str, Any]) -> None:
     """Only speakers the identification step named as new people, with
-    evidence, become proposals; unknown speakers wait for Tony in the note."""
+    evidence, become proposals; unknown speakers wait for Tony in the note.
+    Meetings Tony only listened to (webinars, talks) propose no one."""
     registry = load_registry()
+    if not any(
+        speaker.get("status") == "identified"
+        and registry.is_owner(str(speaker.get("name") or ""))
+        for speaker in result["speakers"]
+    ):
+        return
     try:
         target = str(PEOPLE_REGISTRY_PATH.relative_to(VAULT_ROOT))
     except ValueError:

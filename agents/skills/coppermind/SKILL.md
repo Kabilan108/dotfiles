@@ -11,7 +11,7 @@ Resolve the root from `~/notes` and confirm `04-projects/manifest.md` exists the
 
 ## Write zones (hard rules)
 
-- `04-projects/` = agent zone: write directly. EXCEPTIONS: `*/brief.md` and `moberg/people.md` are curated — propose changes as a small file in `04-projects/_pipeline/proposals/` (name: `YYYY-MM-DD-<target>-<slug>.md`, body: target file + proposed text + one-line rationale).
+- `04-projects/` = agent zone: write directly. EXCEPTIONS: `*/brief.md`, `people.toml` and `glossary.toml` are curated — propose changes as a small file in `04-projects/_pipeline/proposals/` (name: `YYYY-MM-DD-<target>-<slug>.md`, body: target file + proposed text + one-line rationale).
 - `00-bin/`, `01-logs/`, `02-moberg/`, `scratch/` = Tony's zones. Write only when asked in the current session.
 - `01-logs/topsecret/` (and anything under a `topsecret/` dir) = sensitive. Never read, list, or reference unless Tony explicitly points you at it.
 - Moberg-derived content MUST pass `04-projects/moberg/data-policy.md` (deployment-class redaction) before it lands anywhere in the vault.
@@ -56,11 +56,11 @@ The codebase is ALWAYS the more accurate source for how code works right now. A 
 ## Meeting notes
 
 - Location: `01-logs/meetings/YYYY-MM-DD-<context>-<slug>.md` (context = moberg/xploit/personal/...). One note per meeting, vault-wide — no per-project meeting dirs.
-- Frontmatter contract: `date`, `project` (manifest taxonomy, e.g. `moberg/eboost` — this is how meetings route to projects, NOT tags), `attendees` (plain names; resolve against the project's people.md — no wikilinks needed), `summary` (a tight 2–3 sentence abstract of what happened — problem, key finding/outcome, next step; grep surface for agents, and also opens the body as a `## summary` section above `## notes`), `source: manual|pipeline`, `recording` and `transcript` (artifact paths when pipeline-written). Template: `templates/meeting-note.md`.
+- Frontmatter contract: `date`, `project` (manifest taxonomy, e.g. `moberg/eboost` — this is how meetings route to projects, NOT tags), `attendees` (plain names; resolve against `04-projects/people.toml` — no wikilinks needed), `summary` (a tight 2–3 sentence abstract of what happened — problem, key finding/outcome, next step; grep surface for agents, and also opens the body as a `## summary` section above `## notes`), `source: manual|pipeline`, `recording` and `transcript` (artifact paths when pipeline-written). Template: `templates/meeting-note.md`.
 - When the raw transcript, recording, structured minutes data, or pipeline note format matters, read [references/meeting-artifacts.md](references/meeting-artifacts.md).
 - Body: `## notes` / `## decisions` / `## follow-ups`; pipeline notes add `###` topic sections under notes and an `## ideas raised` section. Follow-up checkboxes describe meeting content; create or link TaskNotes tasks when requested instead of assuming checkbox discovery.
 - Pipeline exception (meeting-minutes agent): it may APPEND one backlink bullet under today's heading in the weekly log — append-only, never edit existing text. This is the only sanctioned automated write to a weekly log.
-- Unknown names in pipeline-written `attendees` → propose a people.md addition via `_pipeline/proposals/`, don't add directly. `Unknown (likely …)` placeholders are unidentified speakers, not names to propose.
+- Unknown names in pipeline-written `attendees` → propose a `people.toml` addition via `_pipeline/proposals/`, don't add directly. `Unknown (likely …)` placeholders are unidentified speakers, not names to propose. The pipeline proposes only people who spoke in a meeting where Tony also spoke.
 
 ## Obsidian CLI
 
