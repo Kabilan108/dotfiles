@@ -6,8 +6,9 @@ A user timer on sietch (`flake-update`, Saturdays around 04:00) runs
 1. Makes a detached worktree of `origin/nixos` in `/tmp`.
 2. Builds jacurutu's current toplevel from `nixos`, for the closure diff.
 3. Runs `nix flake update` at the root and `nix flake update nixpkgs` in `raspi/`.
-4. Builds the sietch and jacurutu toplevels and evaluates tleilax's `drvPath`.
-   sietch can't build aarch64, so tleilax only gets evaluated.
+4. Builds the sietch and jacurutu toplevels, retrying a failed build once
+   (upstream tests flake), and evaluates tleilax's `drvPath`. sietch can't
+   build aarch64, so tleilax only gets evaluated.
 5. Pushes `auto/flake-update-YYYY-MM-DD` and opens a PR with the input changes,
    closure diffs and build results. A failed build or evaluation still opens a
    PR. It is a draft titled `[build failing]` and includes the error. A throw
@@ -32,22 +33,29 @@ bin/flake-lock-verify <PR number or branch>
 
 Run it from your `nixos` checkout so the script itself comes from a trusted
 tree. It compares the PR's `flake.lock` and `raspi/flake.lock` with `nixos`'s.
-For every changed GitHub input, it checks that:
+It matches inputs by path from the root (`home-manager/nixpkgs`), including
+paths through `follows`, so pointing an input at another node counts as a
+change. For every changed GitHub or GitLab input, it checks that:
 
-- the locked repo is the repo named in the lock's `original`;
-- the new rev is reachable from the tracked ref (`original.ref`, or the repo's
-  default branch), or equals `original.rev` when the input is pinned;
-- the new rev descends from the rev that input path had on `nixos`;
-- the narHash matches the source GitHub serves for that rev. Nix substitutes a
-  locked input by narHash and never checks the rev, so this one matters.
+- the lock nodes have no fields beyond the ones Nix reads (a legacy `info`
+  field overrides `locked`);
+- the input's `original` is the one on `nixos`, or the one its declaring
+  `flake.nix` gives at the locked rev, with the root `flake.nix`'s overrides.
+  Nix reuses transitive originals from the lock without rereading the parent,
+  so the PR can't pick them;
+- the locked repo, host and dir are the ones `original` names;
+- the new rev is reachable from the tracked ref (`original.ref`, or the
+  repo's default branch), or equals `original.rev` when the input is pinned;
+- the new rev descends from the old rev, when the source didn't change;
+- the narHash matches the source the forge serves for that rev. Nix
+  substitutes a locked input by narHash and never checks the rev, so this one
+  matters.
 
-It also fails if the PR touches anything besides the two lock files. It matches
-inputs by path from the root (`home-manager/nixpkgs`), so pointing an input at
-another existing node counts as a change.
+It also fails if the PR touches anything besides the two lock files.
 
 Exit 0 means every changed input passed. Exit 1 means a failure: don't merge.
-Exit 2 means the GitHub inputs passed, but some inputs aren't on GitHub
-(gitlab, nixos.org channel tarballs) and need a look by hand. It prints a
+Exit 2 means some inputs aren't on GitHub or GitLab (nixos.org channel
+tarballs, mostly from ghostty's inputs) and need a look by hand. It prints a
 `gh pr merge <n> --merge --match-head-commit <sha>` line. Use it, so you merge
 the commit you checked and not something pushed afterwards.
 

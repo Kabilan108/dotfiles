@@ -27,8 +27,8 @@ in
       };
       Service = {
         Type = "oneshot";
-        # Builds can take hours when caches miss.
-        TimeoutStartSec = "6h";
+        # Three builds of up to 3h each when caches miss (BUILD_TIMEOUT in the script).
+        TimeoutStartSec = "10h";
         Nice = 10;
         Environment = [
           "PATH=${

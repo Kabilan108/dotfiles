@@ -64,7 +64,7 @@ class FlakeUpdatePr(unittest.TestCase):
         ok_log = self.write("build-jacurutu.log", "")
         builds = [
             job.Build("sietch", job.Step(False, log, ""), "/run/current-system", None),
-            job.Build("jacurutu", job.Step(True, ok_log, "/nix/store/x-new"), "/nix/store/x-old", ""),
+            job.Build("jacurutu", job.Step(True, ok_log, "/nix/store/x-new"), "/nix/store/x-old", "", retried=log),
         ]
         body = job.render_body(
             ok=False,
@@ -84,6 +84,7 @@ class FlakeUpdatePr(unittest.TestCase):
         self.assertIn("nixpkgs now ships bun 1.4.5", body)
         self.assertIn("that override can go", body)
         self.assertIn("jacurutu vs the base branch build", body)
+        self.assertIn("(first attempt failed, retry passed; first log", body)
         self.assertIn("bin/flake-lock-verify auto/flake-update-2026-11-01", body)
 
 

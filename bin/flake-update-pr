@@ -12,6 +12,7 @@ import argparse
 import os
 import re
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -24,7 +25,8 @@ from pathlib import Path
 HOSTS = ("sietch", "jacurutu")
 BRANCH_PREFIX = "auto/flake-update-"
 KEEP_RUNS = 8
-BUILD_TIMEOUT = 4 * 3600
+# Three builds at most; home/services/flake-update.nix allows 10h for the unit.
+BUILD_TIMEOUT = 3 * 3600
 BODY_LIMIT = 60_000
 SECTION_LIMIT = 12_000
 LOG_TAIL = 80
@@ -46,6 +48,7 @@ class Build:
     step: Step
     old: str | None
     diff: str | None
+    retried: Path | None = None
 
 
 def run_step(cmd: list[str], log: Path, cwd: Path | None = None, timeout: int | None = None) -> Step:
@@ -161,18 +164,20 @@ def toplevel(flake: Path, host: str) -> str:
 
 def build_host(worktree: Path, run_dir: Path, state_dir: Path, host: str, old: str | None) -> Build:
     link = state_dir / f"result-{host}-new"
-    step = run_step(
-        ["nix", "build", "--keep-going", "--print-out-paths", "--out-link", str(link), toplevel(worktree, host)],
-        run_dir / f"build-{host}.log",
-        timeout=BUILD_TIMEOUT,
-    )
+    cmd = ["nix", "build", "--keep-going", "--print-out-paths", "--out-link", str(link), toplevel(worktree, host)]
+    step = run_step(cmd, run_dir / f"build-{host}.log", timeout=BUILD_TIMEOUT)
+    retried = None
+    if not step.ok:
+        # Upstream test suites flake; a second try rebuilds only what failed.
+        retried = step.log
+        step = run_step(cmd, run_dir / f"build-{host}-retry.log", timeout=BUILD_TIMEOUT)
     diff = None
     if step.ok and old:
         diff_step = run_step(
             ["nix", "store", "diff-closures", old, step.output], run_dir / f"diff-{host}.log"
         )
         diff = diff_step.output if diff_step.ok else f"diff-closures failed:\n{tail(diff_step.log)}"
-    return Build(host, step, old, diff)
+    return Build(host, step, old, diff, retried)
 
 
 def old_closure(worktree: Path, run_dir: Path, state_dir: Path, host: str) -> tuple[str | None, str]:
@@ -253,6 +258,9 @@ def render_body(
     ]
     for build in builds:
         result = f"built `{build.step.output}`" if build.step.ok else "**failed**"
+        if build.retried:
+            outcome = "passed" if build.step.ok else "failed again"
+            result += f" (first attempt failed, retry {outcome}; first log `{build.retried}`)"
         lines.append(f"| {build.host} toplevel | {result} |")
     tleilax_result = f"evaluated `{tleilax.output}`" if tleilax.ok else "**evaluation failed**"
     lines.append(f"| tleilax drvPath (aarch64, eval only) | {tleilax_result} |")
@@ -344,8 +352,8 @@ def update(args: argparse.Namespace, run_dir: Path, state_dir: Path, now: dateti
 
     scratch = Path(tempfile.mkdtemp(prefix="flake-update-"))
     worktree = scratch / "dotfiles"
-    git("worktree", "add", "--quiet", "--detach", str(worktree), base_sha, cwd=repo_dir)
     try:
+        git("worktree", "add", "--quiet", "--detach", str(worktree), base_sha, cwd=repo_dir)
         old: dict[str, str | None] = {}
         old_notes: dict[str, str] = {}
         for host in HOSTS:
@@ -425,6 +433,15 @@ def update(args: argparse.Namespace, run_dir: Path, state_dir: Path, now: dateti
     finally:
         subprocess.run(["git", "worktree", "remove", "--force", str(worktree)], cwd=repo_dir, check=False)
         shutil.rmtree(scratch, ignore_errors=True)
+        subprocess.run(["git", "worktree", "prune"], cwd=repo_dir, check=False)
+
+
+class Terminated(Exception):
+    pass
+
+
+def on_terminate(signum: int, _frame: object) -> None:
+    raise Terminated(f"stopped by signal {signal.Signals(signum).name}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -441,6 +458,7 @@ def main(argv: list[str] | None = None) -> int:
     runs_dir = state_dir / "runs"
     run_dir = runs_dir / now.strftime("%Y-%m-%d-%H%M%S")
     run_dir.mkdir(parents=True)
+    signal.signal(signal.SIGTERM, on_terminate)
     try:
         return update(args, run_dir, state_dir, now)
     except Exception as err:

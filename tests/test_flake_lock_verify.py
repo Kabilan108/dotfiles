@@ -23,20 +23,40 @@ def nar(rev: str) -> str:
     return f"sha256-{rev[:12]}"
 
 
-FAKE_GH = textwrap.dedent(
-    """\
-    #!/usr/bin/env python3
-    import json, os, sys, urllib.parse
+GRAPH_HELPERS = """\
+import json, os, sys, urllib.parse
 
-    forge = json.load(open(os.environ["FAKE_FORGE"]))
-    with open(os.environ["FAKE_LOG"], "a") as log:
-        log.write("gh " + " ".join(sys.argv[1:]) + "\\n")
+forge = json.load(open(os.environ["FAKE_FORGE"]))
+with open(os.environ["FAKE_LOG"], "a") as log:
+    log.write(os.path.basename(sys.argv[0]) + " " + " ".join(sys.argv[1:]) + "\\n")
+
+
+def ancestors(parents, sha):
+    seen, todo = set(), [sha]
+    while todo:
+        current = todo.pop()
+        if current not in seen:
+            seen.add(current)
+            todo.extend(parents[current])
+    return seen
+
+
+def commit(repo, ref):
+    sha = repo["refs"].get(ref, ref)
+    if sha not in repo["parents"]:
+        print("not found (HTTP 404)", file=sys.stderr)
+        sys.exit(22)
+    return sha
+"""
+
+FAKE_GH = GRAPH_HELPERS + textwrap.dedent(
+    """\
     args = sys.argv[1:]
     if args[:2] == ["pr", "view"]:
         print(json.dumps(forge["pr"]))
         sys.exit(0)
     path = args[1].split("?")[0].split("/")
-    repo = forge["repos"].get(f"{path[1]}/{path[2]}".lower())
+    repo = forge["github"].get(f"{path[1]}/{path[2]}".lower())
     if repo is None:
         print("gh: Not Found (HTTP 404)", file=sys.stderr)
         sys.exit(1)
@@ -44,30 +64,12 @@ FAKE_GH = textwrap.dedent(
         print(json.dumps({"default_branch": repo["default_branch"]}))
         sys.exit(0)
     base, head = urllib.parse.unquote("/".join(path[4:])).split("...")
-    parents = repo["parents"]
-
-    def commit(ref):
-        sha = repo["refs"].get(ref, ref)
-        if sha not in parents:
-            print("gh: No commit found (HTTP 404)", file=sys.stderr)
-            sys.exit(1)
-        return sha
-
-    def ancestors(sha):
-        seen, todo = set(), [sha]
-        while todo:
-            current = todo.pop()
-            if current not in seen:
-                seen.add(current)
-                todo.extend(parents[current])
-        return seen
-
-    base, head = commit(base), commit(head)
+    base, head = commit(repo, base), commit(repo, head)
     if base == head:
         status = "identical"
-    elif base in ancestors(head):
+    elif base in ancestors(repo["parents"], head):
         status = "ahead"
-    elif head in ancestors(base):
+    elif head in ancestors(repo["parents"], base):
         status = "behind"
     else:
         status = "diverged"
@@ -75,20 +77,61 @@ FAKE_GH = textwrap.dedent(
     """
 )
 
-FAKE_NIX = textwrap.dedent(
+FAKE_CURL = GRAPH_HELPERS + textwrap.dedent(
     """\
-    #!/usr/bin/env python3
-    import json, os, sys
+    url = urllib.parse.urlsplit(sys.argv[-1])
+    rest = url.path.removeprefix("/api/v4/projects/")
+    project, _, tail = rest.partition("/")
+    repo = forge["gitlab"].get(f"{url.netloc}/{urllib.parse.unquote(project)}".lower())
+    if repo is None:
+        print("curl: (22) The requested URL returned error: 404", file=sys.stderr)
+        sys.exit(22)
+    if not tail:
+        print(json.dumps({"default_branch": repo["default_branch"]}))
+        sys.exit(0)
+    a, b = (commit(repo, ref) for ref in urllib.parse.parse_qs(url.query)["refs[]"])
+    common = ancestors(repo["parents"], a) & ancestors(repo["parents"], b)
+    base = next(c for c in [a, b, *sorted(common)] if c in common)
+    print(json.dumps({"id": base}))
+    """
+)
 
-    with open(os.environ["FAKE_LOG"], "a") as log:
-        log.write("nix " + " ".join(sys.argv[1:]) + "\\n")
-    rev = sys.argv[-1].rsplit("/", 1)[1]
+FAKE_NIX = GRAPH_HELPERS + textwrap.dedent(
+    """\
+    rev = sys.argv[-1].split("?")[0].rsplit("/", 1)[1]
     print(json.dumps({"hash": "sha256-" + rev[:12]}))
     """
 )
 
+FAKE_NIX_INSTANTIATE = GRAPH_HELPERS + textwrap.dedent(
+    """\
+    args = sys.argv[1:]
+    named = {args[i + 1]: args[i + 2] for i, a in enumerate(args) if a == "--argstr"}
+    if "url" in named:
+        url = named["url"]
+        if url.startswith("https:"):
+            print(json.dumps({"type": "tarball", "url": url}))
+            sys.exit(0)
+        scheme, rest = url.split(":", 1)
+        rest, _, query = rest.partition("?")
+        parts = rest.split("/")
+        ref = {"type": scheme, "owner": parts[0], "repo": parts[1]}
+        if len(parts) > 2:
+            ref["rev" if len(parts[2]) == 40 else "ref"] = parts[2]
+        ref.update(urllib.parse.parse_qsl(query))
+        print(json.dumps(ref))
+    elif "file" in named:
+        print(json.dumps(json.load(open(named["file"]))["inputs"]))
+    else:
+        rev = json.loads(named["locked"])["rev"]
+        print(json.dumps(forge["flakes"].get(rev, {})))
+    """
+)
 
-def gh_node(owner: str, repo: str, locked_rev: str, inputs: dict[str, Any] | None = None, **original: str) -> dict[str, Any]:
+
+def gh_node(
+    owner: str, repo: str, locked_rev: str, inputs: dict[str, Any] | None = None, kind: str = "github", **original: str
+) -> dict[str, Any]:
     node: dict[str, Any] = {
         "locked": {
             "lastModified": 1,
@@ -96,9 +139,9 @@ def gh_node(owner: str, repo: str, locked_rev: str, inputs: dict[str, Any] | Non
             "owner": owner,
             "repo": repo,
             "rev": locked_rev,
-            "type": "github",
+            "type": kind,
         },
-        "original": {"owner": owner, "repo": repo, "type": "github", **original},
+        "original": {"owner": owner, "repo": repo, "type": kind, **original},
     }
     if inputs:
         node["inputs"] = inputs
@@ -112,12 +155,17 @@ def lock(nodes: dict[str, Any], root_inputs: dict[str, Any]) -> dict[str, Any]:
 # NixOS/nixpkgs: n1 <- n2 <- n3 on nixos-unstable; master runs one commit
 # ahead (m4), and "fork" only exists in a fork, on top of n3.
 N1, N2, N3, M4, FORK = (sha(x) for x in ("n1", "n2", "n3", "m4", "fork"))
-H1, H2 = sha("h1"), sha("h2")
+H1, H2, H3 = sha("h1"), sha("h2"), sha("h3")
 P1 = sha("pinned")
-G1, G2 = sha("g1"), sha("g2")
+G1, G2, GFORK = sha("g1"), sha("g2"), sha("gfork")
+A1 = sha("a1")
 
+HM_INPUTS = {
+    "nixpkgs": {"url": "github:NixOS/nixpkgs/nixos-unstable"},
+    "old": {"url": "github:NixOS/nixpkgs/nixos-unstable"},
+}
 FORGE: dict[str, Any] = {
-    "repos": {
+    "github": {
         "nixos/nixpkgs": {
             "default_branch": "master",
             "refs": {"nixos-unstable": N3, "master": M4},
@@ -125,8 +173,8 @@ FORGE: dict[str, Any] = {
         },
         "nix-community/home-manager": {
             "default_branch": "master",
-            "refs": {"master": H2},
-            "parents": {H1: [], H2: [H1]},
+            "refs": {"master": H3},
+            "parents": {H1: [], H2: [H1], H3: [H2]},
         },
         "attacker/nixpkgs": {
             "default_branch": "master",
@@ -134,7 +182,40 @@ FORGE: dict[str, Any] = {
             "parents": {N3: [], FORK: [N3]},
         },
     },
+    "gitlab": {
+        "gitlab.com/rycee/nur": {
+            "default_branch": "master",
+            "refs": {"master": G2},
+            "parents": {G1: [], G2: [G1], GFORK: [G1]},
+        },
+    },
+    # Declared inputs per rev. At h3, home-manager moved `old` to master.
+    "flakes": {
+        H1: HM_INPUTS,
+        H2: HM_INPUTS,
+        H3: {**HM_INPUTS, "old": {"url": "github:NixOS/nixpkgs/master"}},
+    },
 }
+
+ROOT_FLAKE = {
+    "inputs": {
+        "nixpkgs": {"url": "github:NixOS/nixpkgs/nixos-unstable"},
+        "home-manager": {"url": "github:nix-community/home-manager", "inputs": {"nixpkgs": {"follows": "nixpkgs"}}},
+        "boot-nixpkgs": {"url": f"github:NixOS/nixpkgs/{P1}"},
+        "firefox-addons": {"url": "gitlab:rycee/nur"},
+        "channel": {"url": "https://channels.nixos.org/x"},
+        "a": {"url": "github:o/a"},
+        "b": {"url": "github:o/a"},
+    }
+}
+RASPI_FLAKE = {"inputs": {"nixpkgs": {"url": "github:NixOS/nixpkgs/nixos-unstable"}}}
+
+
+def tarball(url: str) -> dict[str, Any]:
+    return {
+        "locked": {"narHash": f"sha256-{url[-6:]}", "type": "tarball", "url": url},
+        "original": {"type": "tarball", "url": "https://channels.nixos.org/x"},
+    }
 
 
 def base_root_lock() -> dict[str, Any]:
@@ -146,16 +227,15 @@ def base_root_lock() -> dict[str, Any]:
                 "nix-community", "home-manager", H1, inputs={"nixpkgs": ["nixpkgs"], "old": "nixpkgs_2"}
             ),
             "boot-nixpkgs": gh_node("NixOS", "nixpkgs", P1, rev=P1),
-            "firefox-addons": {
-                "locked": {"type": "gitlab", "owner": "rycee", "repo": "nur", "rev": G1, "narHash": nar(G1)},
-                "original": {"type": "gitlab", "owner": "rycee", "repo": "nur"},
-            },
+            "firefox-addons": gh_node("rycee", "nur", G1, kind="gitlab"),
+            "channel": tarball("https://releases.nixos.org/x-1"),
         },
         {
             "nixpkgs": "nixpkgs",
             "home-manager": "home-manager",
             "boot-nixpkgs": "boot-nixpkgs",
             "firefox-addons": "firefox-addons",
+            "channel": "channel",
         },
     )
 
@@ -171,6 +251,7 @@ def updated_root_lock() -> dict[str, Any]:
         "nix-community", "home-manager", H2, inputs={"nixpkgs": ["nixpkgs"], "old": "nixpkgs_3"}
     )
     updated["nodes"]["nixpkgs_3"] = updated["nodes"].pop("nixpkgs_2")
+    updated["nodes"]["firefox-addons"] = gh_node("rycee", "nur", G2, kind="gitlab")
     return updated
 
 
@@ -185,9 +266,10 @@ class FlakeLockVerify(unittest.TestCase):
         self.work = self.dir / "work"
         self.bin = self.dir / "bin"
         self.bin.mkdir()
-        for name, body in (("gh", FAKE_GH), ("nix", FAKE_NIX)):
+        fakes = {"gh": FAKE_GH, "nix": FAKE_NIX, "nix-instantiate": FAKE_NIX_INSTANTIATE, "curl": FAKE_CURL}
+        for name, body in fakes.items():
             path = self.bin / name
-            path.write_text(body)
+            path.write_text("#!/usr/bin/env python3\n" + body)
             path.chmod(0o755)
         self.log = self.dir / "calls.log"
         self.log.touch()
@@ -195,9 +277,10 @@ class FlakeLockVerify(unittest.TestCase):
         self.git("init", "--quiet", "-b", "nixos", str(self.work), cwd=self.dir)
         self.git("remote", "add", "origin", str(self.dir / "origin.git"))
         (self.work / "README.md").write_text("dotfiles\n")
-        self.write_locks(base_root_lock(), base_raspi_lock())
-        self.commit("base")
-        self.git("push", "--quiet", "origin", "nixos")
+        (self.work / "raspi").mkdir()
+        (self.work / "flake.nix").write_text(json.dumps(ROOT_FLAKE))
+        (self.work / "raspi/flake.nix").write_text(json.dumps(RASPI_FLAKE))
+        self.set_base(base_root_lock(), base_raspi_lock())
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -213,14 +296,18 @@ class FlakeLockVerify(unittest.TestCase):
         return proc.stdout.strip()
 
     def write_locks(self, root: dict[str, Any], raspi: dict[str, Any]) -> None:
-        (self.work / "raspi").mkdir(exist_ok=True)
         (self.work / "flake.lock").write_text(json.dumps(root, indent=2))
         (self.work / "raspi/flake.lock").write_text(json.dumps(raspi, indent=2))
 
     def commit(self, message: str) -> str:
         self.git("add", "-A")
-        self.git("commit", "--quiet", "-m", message)
+        self.git("commit", "--quiet", "--allow-empty", "-m", message)
         return self.git("rev-parse", "HEAD")
+
+    def set_base(self, root: dict[str, Any], raspi: dict[str, Any]) -> None:
+        self.write_locks(root, raspi)
+        self.commit("base")
+        self.git("push", "--quiet", "origin", "nixos")
 
     def open_pr(self, root: dict[str, Any], raspi: dict[str, Any], extra: dict[str, str] | None = None) -> str:
         self.git("switch", "--quiet", "-c", "auto/flake-update")
@@ -267,10 +354,12 @@ class FlakeLockVerify(unittest.TestCase):
         self.assertIn("on nixos-unstable; descends from", out)
         self.assertIn("PASS   home-manager:", out)
         self.assertIn("on default branch master", out)
+        self.assertIn("PASS   firefox-addons: gitlab rycee/nur", out)
         self.assertIn("raspi/flake.lock\n  PASS   nixpkgs:", out)
         self.assertNotIn("home-manager/old", out, "renamed node with the same lock is unchanged")
         self.assertIn(f"gh pr merge 7 --merge --match-head-commit {head}", out)
-        self.assertIn("3 pass, 0 fail, 0 manual", out)
+        self.assertIn("4 pass, 0 fail, 0 manual", out)
+        self.assertNotIn("nix-instantiate", self.log.read_text(), "unchanged sources need no declaration lookup")
 
     def test_fork_only_commit_fails(self) -> None:
         root = updated_root_lock()
@@ -287,6 +376,12 @@ class FlakeLockVerify(unittest.TestCase):
         root["nodes"]["nixpkgs"] = gh_node("NixOS", "nixpkgs", M4, ref="nixos-unstable")
         self.open_pr(root, updated_raspi_lock())
         self.assertIn("not reachable from nixos-unstable", self.verify("7", code=1))
+
+    def test_gitlab_fork_commit_fails(self) -> None:
+        root = updated_root_lock()
+        root["nodes"]["firefox-addons"] = gh_node("rycee", "nur", GFORK, kind="gitlab")
+        self.open_pr(root, updated_raspi_lock())
+        self.assertIn("rev is not reachable from master (merge base:", self.verify("7", code=1))
 
     def test_raspi_lock_is_checked(self) -> None:
         raspi = lock({"nixpkgs": gh_node("NixOS", "nixpkgs", FORK, ref="nixos-unstable")}, {"nixpkgs": "nixpkgs"})
@@ -306,7 +401,7 @@ class FlakeLockVerify(unittest.TestCase):
         root = updated_root_lock()
         root["nodes"]["nixpkgs"]["locked"]["narHash"] = "sha256-somethingelse"
         self.open_pr(root, updated_raspi_lock())
-        self.assertIn("does not match GitHub's source", self.verify("7", code=1))
+        self.assertIn("does not match the forge's source", self.verify("7", code=1))
 
     def test_same_rev_with_new_nar_hash_fails_without_prefetch(self) -> None:
         root = base_root_lock()
@@ -314,28 +409,101 @@ class FlakeLockVerify(unittest.TestCase):
         self.open_pr(root, base_raspi_lock())
         self.assertIn("narHash changed while the rev stayed the same", self.verify("7", "--no-nar-hash", code=1))
 
+    def test_legacy_info_field_fails(self) -> None:
+        root = base_root_lock()
+        root["nodes"]["nixpkgs"]["info"] = {"rev": FORK, "narHash": "sha256-evil"}
+        self.open_pr(root, base_raspi_lock())
+        self.assertIn("node nixpkgs has fields Nix may read as source: info", self.verify("7", code=1))
+
     def test_rewiring_to_an_older_node_fails(self) -> None:
         root = base_root_lock()
         root["nodes"]["root"]["inputs"]["nixpkgs"] = "nixpkgs_2"
         self.open_pr(root, base_raspi_lock())
         out = self.verify("7", code=1)
-        self.assertIn("nixpkgs:", out)
         self.assertIn("does not descend from the old rev", out)
+
+    def test_children_of_a_follows_alias_are_compared(self) -> None:
+        # a and b lock the same source but a's child is newer. Turning a into
+        # an alias of b leaves path a unchanged and downgrades a/child.
+        base = base_root_lock()
+        base["nodes"].update(
+            a=gh_node("o", "a", A1, inputs={"child": "c_new"}),
+            b=gh_node("o", "a", A1, inputs={"child": "c_old"}),
+            c_new=gh_node("NixOS", "nixpkgs", N2, ref="nixos-unstable"),
+            c_old=gh_node("NixOS", "nixpkgs", N1, ref="nixos-unstable"),
+        )
+        base["nodes"]["root"]["inputs"].update(a="a", b="b")
+        self.set_base(base, base_raspi_lock())
+        pr = copy.deepcopy(base)
+        pr["nodes"]["root"]["inputs"]["a"] = ["b"]
+        del pr["nodes"]["a"], pr["nodes"]["c_new"]
+        self.open_pr(pr, base_raspi_lock())
+        out = self.verify("7", code=1)
+        self.assertIn("FAIL   a/child:", out)
+        self.assertIn("does not descend from the old rev", out)
+
+    def test_transitive_original_pinned_to_fork_fails(self) -> None:
+        root = updated_root_lock()
+        root["nodes"]["nixpkgs_3"] = gh_node("NixOS", "nixpkgs", FORK, rev=FORK)
+        self.open_pr(root, updated_raspi_lock())
+        out = self.verify("7", code=1)
+        self.assertIn("FAIL   home-manager/old:", out)
+        self.assertIn("original does not match home-manager at", out)
+
+    def test_transitive_original_moved_to_attacker_repo_fails(self) -> None:
+        root = updated_root_lock()
+        root["nodes"]["nixpkgs_3"] = gh_node("attacker", "nixpkgs", FORK)
+        self.open_pr(root, updated_raspi_lock())
+        self.assertIn("original does not match home-manager at", self.verify("7", code=1))
+
+    def test_original_swapped_to_registry_reference_fails(self) -> None:
+        root = updated_root_lock()
+        node = gh_node("attacker", "nixpkgs", FORK)
+        node["original"] = {"id": "nixpkgs", "type": "indirect"}
+        root["nodes"]["nixpkgs_3"] = node
+        self.open_pr(root, updated_raspi_lock())
+        out = self.verify("7", code=1)
+        self.assertIn("FAIL   home-manager/old:", out)
+
+    def test_upstream_source_change_is_authenticated(self) -> None:
+        root = updated_root_lock()
+        root["nodes"]["home-manager"] = gh_node(
+            "nix-community", "home-manager", H3, inputs={"nixpkgs": ["nixpkgs"], "old": "nixpkgs_3"}
+        )
+        root["nodes"]["nixpkgs_3"] = gh_node("NixOS", "nixpkgs", M4, ref="master")
+        self.open_pr(root, updated_raspi_lock())
+        out = self.verify("7", code=0)
+        self.assertIn("PASS   home-manager/old:", out)
+        self.assertIn("tracked source changed, no ancestry check", out)
+        self.assertIn(f"source declared by home-manager at {H3[:9]}", out)
+
+    def test_cycle_fails(self) -> None:
+        root = base_root_lock()
+        root["nodes"]["home-manager"]["inputs"]["self"] = ["home-manager"]
+        self.open_pr(root, base_raspi_lock())
+        self.assertIn("input graph has a cycle at home-manager/self", self.verify("7", code=1))
 
     def test_pinned_rev_must_match(self) -> None:
         root = updated_root_lock()
-        node = gh_node("NixOS", "nixpkgs", N3, rev=P1)
-        root["nodes"]["boot-nixpkgs"] = node
+        root["nodes"]["boot-nixpkgs"] = gh_node("NixOS", "nixpkgs", N3, rev=P1)
         self.open_pr(root, updated_raspi_lock())
         self.assertIn("locked rev differs from the pinned rev", self.verify("7", code=1))
 
-    def test_non_github_input_needs_manual_check(self) -> None:
+    def test_tarball_input_needs_manual_check(self) -> None:
         root = updated_root_lock()
-        root["nodes"]["firefox-addons"]["locked"].update(rev=G2, narHash=nar(G2))
+        root["nodes"]["channel"] = tarball("https://releases.nixos.org/x-2")
         head = self.open_pr(root, updated_raspi_lock())
         out = self.verify("7", code=2)
-        self.assertIn("MANUAL firefox-addons: gitlab rycee/nur", out)
+        self.assertIn("MANUAL channel: tarball https://releases.nixos.org/x-1 -> tarball https://releases.nixos.org/x-2", out)
+        self.assertIn("1 input(s) need a manual check", out)
         self.assertIn(f"Then merge exactly the checked commit: gh pr merge 7 --merge --match-head-commit {head}", out)
+
+    def test_manual_entry_names_changed_fields(self) -> None:
+        root = updated_root_lock()
+        root["nodes"]["channel"]["locked"]["narHash"] = "sha256-other"
+        self.open_pr(root, updated_raspi_lock())
+        out = self.verify("7", code=2)
+        self.assertIn("(changed: locked.narHash)", out)
 
     def test_other_changed_files_fail(self) -> None:
         self.open_pr(updated_root_lock(), updated_raspi_lock(), extra={"README.md": "changed\n"})
