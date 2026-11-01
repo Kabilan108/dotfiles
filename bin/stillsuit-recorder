@@ -334,6 +334,49 @@ def abort_capture(pid: int, output: Path) -> None:
     output.unlink(missing_ok=True)
 
 
+def audio_tracks(*, desktop_audio: bool, microphone: bool) -> list[dict[str, Any]]:
+    """GPU Screen Recorder writes one audio track per `-a` and mixes the
+    sources joined by `|` within a track. With both sources, track 0 stays the
+    mix that players use, and the separate tracks keep desktop audio and the
+    microphone apart for meeting processing."""
+    sources = {"desktop": "default_output", "microphone": "default_input"}
+    enabled = [
+        role
+        for role, wanted in (("desktop", desktop_audio), ("microphone", microphone))
+        if wanted
+    ]
+    layout: list[tuple[str, list[str]]] = [(role, [sources[role]]) for role in enabled]
+    if len(enabled) == 2:
+        layout.insert(0, ("mixed", [sources[role] for role in enabled]))
+    return [
+        {"index": index, "role": role, "sources": track_sources}
+        for index, (role, track_sources) in enumerate(layout)
+    ]
+
+
+def capture_command(
+    window: str, tracks: list[dict[str, Any]], output: Path
+) -> list[str]:
+    command = [
+        "gpu-screen-recorder",
+        "-w",
+        window,
+        "-f",
+        "30",
+        "-k",
+        "h264",
+        "-q",
+        "high",
+        "-fm",
+        "vfr",
+        "-cursor",
+        "yes",
+    ]
+    for track in tracks:
+        command.extend(["-a", "|".join(track["sources"])])
+    return [*command, "-o", str(output)]
+
+
 def start_recording(args: argparse.Namespace) -> None:
     current = refreshed_state()
     if current.get("phase") in ACTIVE_PHASES:
@@ -358,29 +401,12 @@ def start_recording(args: argparse.Namespace) -> None:
     directory = Path(args.directory).expanduser()
     directory.mkdir(parents=True, exist_ok=True)
     output = unique_path(directory, args.title)
-    command = [
-        "gpu-screen-recorder",
-        "-w",
+    tracks = audio_tracks(desktop_audio=desktop_audio, microphone=microphone)
+    command = capture_command(
         args.monitor if target == "monitor" or rect is None else geometry(rect),
-        "-f",
-        "30",
-        "-k",
-        "h264",
-        "-q",
-        "high",
-        "-fm",
-        "vfr",
-        "-cursor",
-        "yes",
-    ]
-    audio_sources = []
-    if desktop_audio:
-        audio_sources.append("default_output")
-    if microphone:
-        audio_sources.append("default_input")
-    if audio_sources:
-        command.extend(["-a", "|".join(audio_sources)])
-    command.extend(["-o", str(output)])
+        tracks,
+        output,
+    )
 
     process = spawn_logged(command, LOG_PATH)
 
@@ -404,6 +430,7 @@ def start_recording(args: argparse.Namespace) -> None:
         "monitor": args.monitor,
         "desktop_audio": desktop_audio,
         "microphone": microphone,
+        "audio_tracks": tracks,
         "output": str(output),
         "title": output.stem,
         "started_at": now,
@@ -490,6 +517,8 @@ def stop_recording(*, meeting: bool = False) -> None:
                 str(state.get("started_at", time.time())),
                 "--duration-seconds",
                 str(state["elapsed_seconds"]),
+                "--audio-tracks",
+                json.dumps(state.get("audio_tracks") or [], separators=(",", ":")),
             ],
             check=False,
             capture_output=True,

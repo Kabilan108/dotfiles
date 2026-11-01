@@ -68,6 +68,17 @@ in
       owner = "kabilan";
       group = "users";
     };
+    # The key is minted in Executor by hand; until it is encrypted here the
+    # pipeline runs without calendar and context lookups and says so.
+    secrets."secrets/executor/meeting-minutes.age" =
+      lib.mkIf (builtins.pathExists ./secrets/executor/meeting-minutes.age)
+        {
+          file = ./secrets/executor/meeting-minutes.age;
+          path = "${home}/.config/meeting-minutes/executor-env";
+          mode = "0600";
+          owner = "kabilan";
+          group = "users";
+        };
     secrets."secrets/executor/russ-playlist-sync.age" = lib.mkIf isSietch {
       file = ./secrets/executor/russ-playlist-sync.age;
       path = "${home}/.config/russ-playlist-sync/executor-env";
