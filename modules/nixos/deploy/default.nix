@@ -55,6 +55,7 @@ let
     ];
     runtimeEnv = {
       DEPLOY_SIGNERS = "${allowedSigners}";
+      DEPLOY_PUSH_URL = deploy.pushUrl;
       DEPLOY_REQUIRE_TOUCH = "1";
       DEPLOY_REQUIRE_PIN = if deploy.requirePin then "1" else "0";
     };

@@ -224,6 +224,7 @@ class DeployGate(unittest.TestCase):
             "GIT_COMMITTER_NAME": "Test",
             "GIT_COMMITTER_EMAIL": "test@example.com",
             "DEPLOY_SIGNERS": str(KEYS["signers"]),
+            "DEPLOY_PUSH_URL": f"file://{self.origin}",
             "DEPLOY_REQUIRE_TOUCH": "1",
             "DEPLOY_REQUIRE_PIN": "0",
             "DEPLOY_HOST": "sietch",
@@ -701,6 +702,20 @@ class DeployTag(DeployGate):
         self.assertEqual(agent.sign_requests, 1)
 
 
+    def test_push_sends_a_valid_tag(self) -> None:
+        self.sign(T1, "yk", push=False)
+        r = self.run_cmd(["deploy-tag", "push", "--key", str(KEYS["yk"]), T1])
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.git("tag", "-l", cwd=self.origin), T1)
+
+    def test_push_refuses_an_invalid_tag(self) -> None:
+        self.sign(T1, "notouch", push=False)
+        r = self.run_cmd(["deploy-tag", "push", "--key", str(KEYS["notouch"]), T1])
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("won't push", r.stderr)
+        self.assertEqual(self.git("tag", "-l", cwd=self.origin), "")
+
+
 class Deploy(DeployGate):
     def deployed_tags(self) -> list[str]:
         return self.git("tag", "-l", "deploy/*", cwd=self.origin).splitlines()
@@ -741,6 +756,22 @@ class Deploy(DeployGate):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         [tag] = self.deployed_tags()
         self.assertTrue(r.stdout.endswith(f"sietch runs {tag}.\n"), r.stdout)
+
+    def test_lists_ci_changes(self) -> None:
+        r = self.deploy("--yes", "--key", str(KEYS["yk"]), "sietch")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("change CI", r.stdout)
+
+        workflow = self.work / ".github/workflows/cache.yml"
+        workflow.parent.mkdir(parents=True)
+        workflow.write_text("on: push\n")
+        self.git("add", ".github")
+        self.git("commit", "-q", "-m", "ci")
+        self.git("push", "-q", "origin", "HEAD:nixos")
+        r = self.deploy("--yes", "--key", str(KEYS["yk"]), "sietch")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("change CI", r.stdout)
+        self.assertIn("  .github/workflows/cache.yml\n", r.stdout)
 
     def at_terminal(self, cmd: list[str], typed: str) -> tuple[int, str]:
         """Run cmd with a pseudo-terminal as its controlling terminal."""

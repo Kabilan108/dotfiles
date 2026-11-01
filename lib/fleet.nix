@@ -150,6 +150,8 @@ rec {
   # `signers`.
   deploy = {
     repo = "https://github.com/Kabilan108/dotfiles.git";
+    # Tags go over SSH so the signer key can authenticate as a deploy key.
+    pushUrl = "git@github.com:Kabilan108/dotfiles.git";
     branch = "nixos";
     controller = "jacurutu";
     # tleilax joins both lists once it builds from the root flake.
