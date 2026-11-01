@@ -32,6 +32,7 @@ SECTION_LIMIT = 12_000
 LOG_TAIL = 80
 CHANGE_RE = re.compile(r"^• (Updated|Added) input '([^']+)':$")
 URL_RE = re.compile(r"^\s+(?:→ )?'([^']*)'(?: \(([^)]*)\))?$")
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 GITHUB_RE = re.compile(r"^github:([^/]+/[^/]+)/([0-9a-f]{40})$")
 
 
@@ -176,7 +177,8 @@ def build_host(worktree: Path, run_dir: Path, state_dir: Path, host: str, old: s
         diff_step = run_step(
             ["nix", "store", "diff-closures", old, step.output], run_dir / f"diff-{host}.log"
         )
-        diff = diff_step.output if diff_step.ok else f"diff-closures failed:\n{tail(diff_step.log)}"
+        # diff-closures colours its output even into a pipe.
+        diff = ANSI_RE.sub("", diff_step.output) if diff_step.ok else f"diff-closures failed:\n{tail(diff_step.log)}"
     return Build(host, step, old, diff, retried)
 
 

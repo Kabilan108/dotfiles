@@ -56,6 +56,9 @@ class FlakeUpdatePr(unittest.TestCase):
         self.assertIn("`gitlab:rycee/nur-expressions/8172` 2026-11-01", table)
         self.assertIn("| `niri-flake/extra` | (new) |", table)
 
+    def test_strips_colour_codes(self) -> None:
+        self.assertEqual(job.ANSI_RE.sub("", "btop: 1.4.7 \u2192 1.4.8, \x1b[32;1m-52.6 KiB\x1b[0m"), "btop: 1.4.7 \u2192 1.4.8, -52.6 KiB")
+
     def test_failed_build_is_reported_with_its_error(self) -> None:
         log = self.write(
             "build-sietch.log",
