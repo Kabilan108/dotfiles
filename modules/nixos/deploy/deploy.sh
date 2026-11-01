@@ -2,7 +2,7 @@
 # Approve DEPLOY_BRANCH for a host with a YubiKey-signed tag, push the tag,
 # and have the host build it.
 #
-#   deploy [--yes] [--allow-rollback] [--key yk-nfc|yk-nano|FILE] HOST
+#   deploy [--yes] [--allow-rollback] [--key yk-nfc-deploy|yk-nano-deploy|FILE] HOST
 #
 # It fetches origin in ~/dotfiles, lists the commits since HOST's last signed
 # deploy tag, and asks before signing. --yes skips that question, never the
@@ -19,7 +19,7 @@ repo=${DOTFILES:-$HOME/dotfiles}
 branch_ref=refs/remotes/origin/$DEPLOY_BRANCH
 
 usage() {
-  echo "usage: deploy [--yes] [--allow-rollback] [--key yk-nfc|yk-nano|FILE] HOST" >&2
+  echo "usage: deploy [--yes] [--allow-rollback] [--key yk-nfc-deploy|yk-nano-deploy|FILE] HOST" >&2
   exit 2
 }
 
@@ -52,7 +52,7 @@ confirm() {
   [[ $answer == [yY]* ]]
 }
 
-yes=0 rewritten=0 allow_rollback=0 key=yk-nfc
+yes=0 rewritten=0 allow_rollback=0 key=yk-nfc-deploy
 while [[ $# -gt 0 ]]; do
   case $1 in
   -y | --yes)

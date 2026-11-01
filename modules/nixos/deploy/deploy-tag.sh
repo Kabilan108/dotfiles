@@ -10,7 +10,8 @@
 #       Exit 0 if TAG is valid and its signed message's first paragraph has
 #       the line "Allow-Rollback: yes".
 #   deploy-tag [-C DIR] sign --key FILE [--message TEXT] HOST REV
-#       Sign the next deploy/HOST tag at REV, check it, and print its name.
+#       Sign the next deploy/HOST tag at REV with FILE, never an ssh-agent,
+#       check it, and print its name.
 #
 # A valid tag is an annotated tag on a commit whose embedded name matches its
 # ref, with exactly one SSH signature by a key in DEPLOY_SIGNERS and nothing
@@ -193,9 +194,15 @@ sign() {
   [[ -r $key ]] || die "no signing key at $key"
   commit=$(g rev-parse --verify --quiet "$rev^{commit}") || die "no commit $rev"
   tag=deploy/$host/$(date -u +%Y%m%dT%H%M%SZ)
-  echo "Touch the YubiKey to sign $tag (enter its PIN if asked)." >&2
-  g -c gpg.format=ssh -c gpg.ssh.program="$ssh_keygen" -c user.signingKey="$key" \
-    tag --sign --message "${message:-deploy $host}" "$tag" "$commit"
+  echo "Enter the YubiKey PIN when asked, then touch the key to sign $tag." >&2
+  # ssh-keygen signs through any agent that lists the key, and an agent
+  # (GNOME Keyring's lists every ~/.ssh/*.pub) can't ask for the PIN. Without
+  # one, ssh-keygen loads the handle file and asks on the terminal.
+  (
+    unset SSH_AUTH_SOCK
+    g -c gpg.format=ssh -c gpg.ssh.program="$ssh_keygen" -c user.signingKey="$key" \
+      tag --sign --message "${message:-deploy $host}" "$tag" "$commit"
+  )
   if ! verify "$tag"; then
     g tag --delete "$tag" >/dev/null
     die "$tag failed its own check and was deleted"

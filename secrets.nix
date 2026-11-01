@@ -101,6 +101,8 @@ in
   "secrets/ssh/jacurutu/moberg-status-jacurutu.age".publicKeys = [ jacurutu ];
   "secrets/ssh/jacurutu/yk-nfc.age".publicKeys = [ jacurutu ];
   "secrets/ssh/jacurutu/yk-nano.age".publicKeys = [ jacurutu ];
+  "secrets/ssh/jacurutu/yk-nfc-deploy.age".publicKeys = [ jacurutu ];
+  "secrets/ssh/jacurutu/yk-nano-deploy.age".publicKeys = [ jacurutu ];
 
   "secrets/selfhost/executor-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/blocky-denylist.age".publicKeys = [ sietch ];
