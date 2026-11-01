@@ -228,6 +228,11 @@ ARTIFACT_SYNC_LOCK_PATH = STATE_DIR / "artifact-sync.lock"
 INBOX_DIR = MEDIA_ROOT / ".inbox"
 WORK_DIR = MEDIA_ROOT / ".work"
 ASSETS_DIR = VAULT_ROOT / "assets"
+PUBLISH_BACKUP_ROOT = Path(
+    os.environ.get(
+        "MEETING_MINUTES_PUBLISH_BACKUP", "/vault/scratch/meeting-publish-backup"
+    )
+).expanduser()
 ACTIONABLE_PHASES = frozenset(
     {
         "staging",
@@ -5275,6 +5280,176 @@ def regenerate(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+WIKILINK_TARGET = re.compile(r"\[\[([^\]|#]+)")
+
+
+def vault_link_targets(exclude: Path) -> set[str]:
+    """File names linked or embedded from any vault note except `exclude`."""
+    targets: set[str] = set()
+    for path in VAULT_ROOT.rglob("*.md"):
+        relative = path.relative_to(VAULT_ROOT)
+        if path == exclude or any(part.startswith(".") for part in relative.parts):
+            continue
+        targets.update(
+            Path(target.strip()).name
+            for target in WIKILINK_TARGET.findall(read_optional(path))
+        )
+    return targets
+
+
+def keep_backup(source: Path, destination: Path) -> None:
+    """The first backup of a file is the original; later publishes of the
+    same meeting never overwrite it."""
+    if source.is_file() and not destination.exists():
+        copy_atomically(source, destination)
+
+
+def publish_regenerated(directory: Path, *, dry_run: bool = False) -> dict[str, Any]:
+    """Install a `regenerate` output as the production note for an existing
+    pipeline meeting: the note with production frontmatter, its minutes data
+    next to the transcript, and its screenshots in the vault assets. The
+    originals are backed up first. Proposals and the weekly log are left
+    alone, since the meeting was already filed once."""
+    directory = directory.expanduser().resolve()
+    minutes_files = sorted(directory.glob("*.minutes.json"))
+    if len(minutes_files) != 1:
+        raise MeetingMinutesError(f"{directory} has no single <stem>.minutes.json")
+    stem = minutes_files[0].name.removesuffix(".minutes.json")
+    result = read_json(minutes_files[0])
+    if result.get("schema_version") != RESULT_SCHEMA_VERSION:
+        raise MeetingMinutesError(
+            f"{stem}: minutes data is not schema {RESULT_SCHEMA_VERSION}"
+        )
+    regenerated_note = directory / f"{stem}.md"
+    note_path = VAULT_ROOT / "01-logs/meetings" / f"{stem}.md"
+    if not regenerated_note.is_file() or not note_path.is_file():
+        raise MeetingMinutesError(
+            f"{stem}: needs both {regenerated_note} and {note_path}"
+        )
+    if frontmatter_scalar(note_path, "source") != "pipeline":
+        raise MeetingMinutesError(f"{stem}: {note_path} is not a pipeline note")
+
+    transcript_path = MEDIA_ROOT / f"{stem}.json"
+    if not transcript_path.is_file():
+        raise MeetingMinutesError(
+            f"{stem}: transcript {transcript_path} is not on this host"
+        )
+    transcript = read_json(transcript_path)
+    if result.get("pipeline", {}).get("inputs", {}).get("transcript") != digest(
+        json.dumps(transcript, sort_keys=True).encode()
+    ):
+        raise MeetingMinutesError(
+            f"{stem}: regenerated from a different transcript than {transcript_path}"
+        )
+    identity = frontmatter_scalar(note_path, "recording_identity")
+    identities = {
+        identity,
+        frontmatter_scalar(regenerated_note, "recording_identity"),
+        str(transcript.get("recording_identity") or identity),
+    }
+    if not identity or len(identities) != 1:
+        raise MeetingMinutesError(
+            f"{stem}: recording identity does not match the existing note ({sorted(identities)})"
+        )
+
+    original_assets = {
+        Path(name.strip()).name
+        for name in re.findall(r"!\[\[([^\]|#]+)", note_path.read_text())
+        if (ASSETS_DIR / Path(name.strip()).name).is_file()
+    }
+    linked_elsewhere = vault_link_targets(note_path)
+    screenshots = []
+    for screenshot in result.get("screenshots") or []:
+        name = str(screenshot.get("asset_name") or "")
+        source = directory / "assets" / name
+        if (
+            not re.fullmatch(rf"{re.escape(stem)}-\d{{2}}\.png", name)
+            or not source.is_file()
+        ):
+            raise MeetingMinutesError(
+                f"{stem}: screenshot {name!r} is missing from {directory}"
+            )
+        destination = ASSETS_DIR / name
+        if (
+            destination.is_file()
+            and file_digest(destination) != file_digest(source)
+            and name not in original_assets
+            and name in linked_elsewhere
+        ):
+            raise MeetingMinutesError(
+                f"{stem}: {destination} belongs to another note; not overwriting it"
+            )
+        screenshots.append((screenshot, source, destination))
+    new_names = {destination.name for _, _, destination in screenshots}
+    removed = sorted(original_assets - new_names - linked_elsewhere)
+    shared = sorted((original_assets - new_names) & linked_elsewhere)
+    minutes_path = minutes_data_path(transcript_path)
+    backup = PUBLISH_BACKUP_ROOT / stem
+    summary = {
+        "stem": stem,
+        "note": str(note_path),
+        "minutes_data": str(media_reference(minutes_path)),
+        "assets_written": sorted(new_names),
+        "assets_removed": removed,
+        "assets_kept_for_other_notes": shared,
+        "backup": str(backup),
+    }
+    if dry_run:
+        return {**summary, "dry_run": True}
+
+    keep_backup(note_path, backup / note_path.name)
+    keep_backup(minutes_path, backup / minutes_path.name)
+    for name in sorted(original_assets | new_names):
+        keep_backup(ASSETS_DIR / name, backup / "assets" / name)
+
+    published = []
+    for screenshot, source, destination in screenshots:
+        if file_digest(destination) != file_digest(source):
+            copy_atomically(source, destination)
+        published.append(
+            published_screenshot(screenshot, destination.name, destination)
+        )
+    production = {
+        **result,
+        "screenshots": published,
+        "artifacts": {
+            "note": str(note_path),
+            "recording": frontmatter_scalar(note_path, "recording"),
+            "transcript": frontmatter_scalar(note_path, "transcript"),
+            "audio_tracks": [],
+            "source_tracks": {},
+            "published_from": str(directory),
+        },
+    }
+    atomic_write_json(minutes_path, production)
+    artifacts = NoteArtifacts(
+        date=frontmatter_scalar(note_path, "date"),
+        recording=production["artifacts"]["recording"],
+        transcript=production["artifacts"]["transcript"],
+        minutes_data=summary["minutes_data"],
+        pipeline_job=frontmatter_scalar(note_path, "pipeline_job"),
+        recording_identity=identity,
+        codex_session=frontmatter_scalar(regenerated_note, "codex_session"),
+    )
+    atomic_write_text(note_path, render_note(production, artifacts, published))
+    for name in removed:
+        (ASSETS_DIR / name).unlink(missing_ok=True)
+    reconcile_vault_paths(note_path, *(ASSETS_DIR / name for name in new_names))
+    return summary
+
+
+def publish(args: argparse.Namespace) -> tuple[list[dict[str, Any]], bool]:
+    outcomes: list[dict[str, Any]] = []
+    failed = False
+    for directory in args.directories:
+        try:
+            outcomes.append(publish_regenerated(Path(directory), dry_run=args.dry_run))
+        except (MeetingMinutesError, OSError) as error:
+            failed = True
+            outcomes.append({"directory": directory, "error": str(error)})
+    return outcomes, failed
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="meeting-minutes")
     commands = root.add_subparsers(dest="command", required=True)
@@ -5321,6 +5496,12 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         help="discard cached results in --out that came from different inputs",
     )
+    publish_command = commands.add_parser(
+        "publish",
+        help="install regenerate outputs as the production notes they replace",
+    )
+    publish_command.add_argument("directories", nargs="+", metavar="regen-dir")
+    publish_command.add_argument("--dry-run", action="store_true")
     commands.add_parser(
         "seed-people",
         help="print a people registry TOML seeded from the legacy people.md rosters",
@@ -5354,6 +5535,11 @@ def main() -> int:
             sync_artifacts()
         elif args.command == "regenerate":
             print(json.dumps(regenerate(args), indent=2, ensure_ascii=False))
+        elif args.command == "publish":
+            outcomes, failed = publish(args)
+            print(json.dumps(outcomes, indent=2, ensure_ascii=False))
+            if failed:
+                return 1
         elif args.command == "seed-people":
             print(registry_toml(registry_from_legacy_rosters()), end="")
     except (MeetingMinutesError, OSError, subprocess.SubprocessError) as error:
