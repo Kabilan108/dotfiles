@@ -104,7 +104,7 @@ EXECUTOR_KEY_FILE = Path(
 ).expanduser()
 RESULT_SCHEMA_VERSION = 3
 # Bump when a prompt or validation rule changes so cached results regenerate.
-GENERATION_VERSION = "2026-11-01.2"
+GENERATION_VERSION = "2026-11-02.1"
 # Unknown speakers below this much talk time are usually diarization noise
 # (cross-talk, a cough); they stay in the result JSON but not in attendees.
 UNKNOWN_SPEAKER_MIN_SECONDS = 15.0
@@ -228,6 +228,11 @@ ARTIFACT_SYNC_LOCK_PATH = STATE_DIR / "artifact-sync.lock"
 INBOX_DIR = MEDIA_ROOT / ".inbox"
 WORK_DIR = MEDIA_ROOT / ".work"
 ASSETS_DIR = VAULT_ROOT / "assets"
+PUBLISH_BACKUP_ROOT = Path(
+    os.environ.get(
+        "MEETING_MINUTES_PUBLISH_BACKUP", "/vault/scratch/meeting-publish-backup"
+    )
+).expanduser()
 ACTIONABLE_PHASES = frozenset(
     {
         "staging",
@@ -1308,6 +1313,10 @@ class Registry:
             cleaned = f"{first.strip()} {last.strip()}"
         return self.name_index().get(cleaned)
 
+    def resolve(self, value: str) -> Person | None:
+        """A registry id or anything `lookup` accepts."""
+        return self.by_id(value) or self.lookup(value)
+
     def is_owner(self, name: str) -> bool:
         cleaned = clean_text(name).casefold()
         return cleaned in VAULT_OWNER_ALIASES or self.lookup(cleaned) is self.owner
@@ -1563,6 +1572,30 @@ def glossary_prompt_text(terms: list[dict[str, Any]]) -> str:
 
 
 @dataclass
+class SpeakerHints:
+    """Corrections Tony supplies to `regenerate`: labels he has identified
+    (a registry id, a name, or `unknown`), people he confirms attended, and
+    people he confirms were absent."""
+
+    forced: dict[str, str] = field(default_factory=dict)
+    attendees: list[str] = field(default_factory=list)
+    absent: list[str] = field(default_factory=list)
+
+    def __bool__(self) -> bool:
+        return bool(self.forced or self.attendees or self.absent)
+
+    def fingerprint(self) -> str:
+        return json.dumps(
+            {
+                "forced": dict(sorted(self.forced.items())),
+                "attendees": sorted(self.attendees),
+                "absent": sorted(self.absent),
+            },
+            sort_keys=True,
+        )
+
+
+@dataclass
 class MeetingRun:
     """Everything one minutes generation needs, independent of the job queue,
     so the worker and `regenerate` share the same stages."""
@@ -1574,6 +1607,7 @@ class MeetingRun:
     recording: Path | None = None
     on_phase: Callable[[str, str], None] = lambda phase, label: None
     extra_inputs: dict[str, str] = field(default_factory=dict)
+    hints: SpeakerHints = field(default_factory=SpeakerHints)
 
     @property
     def start(self) -> datetime:
@@ -3188,11 +3222,11 @@ Tony (Tony Kabilan Okeke, registry id `tony`) is the vault owner and recorded th
 
 For each label return:
 - status `identified` with `person_id` set to the registry id, and `name` set to that person's name, when the evidence supports one registry person with at least medium confidence.
-- status `new_person` only when the speaker is a specific named person who is not in the registry: they introduce themselves, are addressed by name, or the Meet transcript names them. Set `name` to their name as fully as known, leave `person_id` empty, and give the naming evidence.
-- status `unknown` otherwise, with empty `person_id` and `name`, and up to three names in `likely`, most likely first.
+- status `new_person` only when the speaker is a specific named person who is not in the registry and either introduces themselves or is named at least twice independently (two separate direct addresses, or an address plus the calendar, Meet notes, or Slack). One possibly misheard address is not enough. Set `name` to their name as fully as known, leave `person_id` empty, and give the naming evidence.
+- status `unknown` otherwise, with empty `person_id` and `name`, and up to three names in `likely`, most likely first. List a person as likely only when something ties that specific person to this meeting: a calendar or Meet attendee, Slack around the meeting, a confirmed attendee, or being addressed or introduced in the transcript. Fitting the topic or role is not enough; with no such tie, leave `likely` empty.
 `confidence` is high when a decisive source (Meet transcript match, self-introduction, direct address) or two independent sources agree, medium for a single indirect clue, low for a guess. Identifications need at least one `evidence` item; low-confidence or evidence-free identifications are recorded as unknown. Each evidence item is a short concrete statement citing anchor IDs or the context source, for example "Tony addresses them as 'Ethan' at s412". Diarization can split one person across two labels, so two labels may map to the same person; a label with only seconds of speech may be cross-talk, but return it too. {UNTRUSTED_CONTEXT_RULE}
 
-Speech time per label (seconds): {json.dumps(seconds)}
+{speaker_hint_text(run.hints, registry)}Speech time per label (seconds): {json.dumps(seconds)}
 
 People registry (id: name):
 {registry.prompt_text()}
@@ -3211,6 +3245,141 @@ Speaker-tagged transcript (anchor, start time, speaker, text):
 """
 
 
+class MeetingTies:
+    """What ties a name to this meeting, read from the data rather than from
+    the model's own account: lines where other speakers say the name, the
+    calendar, Meet notes, and Slack around the meeting as sources that name
+    the person, self-introductions in a speaker's own lines, and attendees
+    Tony confirmed."""
+
+    def __init__(
+        self,
+        run: MeetingRun,
+        calendar: dict[str, Any],
+        context: dict[str, Any],
+        registry: Registry,
+    ) -> None:
+        self.registry = registry
+        self.anchors = run.anchors
+        meet = context.get("meet") or {}
+        slack = context.get("slack") or {}
+        self.sources = {
+            "calendar": " ".join(
+                f"{candidate.get('title', '')} {' '.join(candidate.get('attendees', []))}"
+                for candidate in calendar.get("candidates", [])
+            ),
+            "meet": " ".join(
+                [str(meet.get("notes") or "")]
+                + [
+                    str(speaker.get("name") or "")
+                    for speaker in meet.get("speakers") or []
+                ]
+            ),
+            "slack": " ".join(
+                f"{message.get('author', '')} {message.get('participants', '')} "
+                f"{message.get('text', '')}"
+                for message in slack.get("messages") or []
+            ),
+        }
+        self.confirmed = {
+            person.id if person else clean_text(name).casefold()
+            for name in run.hints.attendees
+            for person in [registry.resolve(name)]
+        }
+
+    def forms(self, name: str) -> list[str]:
+        person = self.registry.resolve(name)
+        names = [person.name, *person.aliases] if person else [clean_text(name)]
+        forms = list(dict.fromkeys(names))
+        for full in names:
+            first = full.split()[0] if full.split() else ""
+            if len(first) > 2 and first not in forms:
+                forms.append(first)
+        return [form for form in forms if form]
+
+    def mentions(self, text: str, name: str) -> bool:
+        return any(
+            re.search(
+                rf"\b{re.escape(form)}\b",
+                text,
+                flags=re.IGNORECASE if " " in form else 0,
+            )
+            for form in self.forms(name)
+        )
+
+    def references(self, name: str, label: str = "") -> int:
+        """Independent references: distinct lines by other speakers, plus one
+        for each outside source, that name the person."""
+        lines = sum(
+            1
+            for anchor in self.anchors
+            if anchor["speaker"] != label and self.mentions(anchor["text"], name)
+        )
+        return lines + sum(
+            1 for text in self.sources.values() if self.mentions(text, name)
+        )
+
+    def self_introduced(self, label: str, name: str) -> bool:
+        return any(
+            re.search(
+                rf"\b(?:i'm|i am|my name is|this is|it's)\s+{re.escape(form)}\b",
+                anchor["text"],
+                flags=re.IGNORECASE,
+            )
+            for anchor in self.anchors
+            if anchor["speaker"] == label
+            for form in self.forms(name)
+        )
+
+    def confirmed_attendee(self, name: str) -> bool:
+        person = self.registry.resolve(name)
+        return (person.id if person else clean_text(name).casefold()) in self.confirmed
+
+    def tied(self, name: str) -> bool:
+        person = self.registry.resolve(name)
+        return (
+            person is self.registry.owner
+            or self.confirmed_attendee(name)
+            or self.references(name) > 0
+        )
+
+
+def same_person(registry: Registry, first: str, second: str) -> bool:
+    left, right = registry.resolve(first), registry.resolve(second)
+    if left is not None or right is not None:
+        return left is right
+    return clean_text(first).casefold() == clean_text(second).casefold()
+
+
+def speaker_hint_text(hints: SpeakerHints, registry: Registry) -> str:
+    if not hints:
+        return ""
+
+    def describe(value: str) -> str:
+        person = registry.resolve(value)
+        return f"{person.name} (`{person.id}`)" if person else value
+
+    lines = ["Confirmed by Tony; these override any other evidence:"]
+    for label, value in sorted(hints.forced.items()):
+        if value.casefold() == "unknown":
+            lines.append(f"- {label} is not identifiable; return it as unknown.")
+        else:
+            lines.append(
+                f"- {label} is {describe(value)}; return exactly this mapping."
+            )
+    if hints.attendees:
+        lines.append(
+            "- Attended the meeting: "
+            + ", ".join(describe(name) for name in hints.attendees)
+        )
+    if hints.absent:
+        lines.append(
+            "- Not in the meeting; never map a label to them or list them as likely: "
+            + ", ".join(describe(name) for name in hints.absent)
+        )
+    return "\n".join(lines) + "\n\n"
+
+
 def unknown_display(likely: list[str]) -> str:
     if not likely:
         return "Unknown speaker"
@@ -3218,14 +3387,26 @@ def unknown_display(likely: list[str]) -> str:
 
 
 def validate_speaker_map(
-    payload: dict[str, Any], transcript: dict[str, Any], registry: Registry
+    payload: dict[str, Any],
+    transcript: dict[str, Any],
+    registry: Registry,
+    ties: MeetingTies | None = None,
+    hints: SpeakerHints | None = None,
 ) -> list[dict[str, Any]]:
     """Every diarized label gets exactly one entry. Identifications need
     evidence and at least medium confidence, and the vault owner needs high
     confidence, because a wrong owner match turns someone else's commitments
-    into his tasks. Anything weaker becomes an unknown speaker with likely
-    candidates. Labels in evidence text are replaced by the mapped names."""
+    into his tasks. A person not in the registry needs a self-introduction or
+    two independent references. Anything weaker becomes an unknown speaker,
+    whose likely candidates must each be tied to the meeting. People Tony
+    marks absent are never mapped or listed, and his confirmed mappings
+    replace the model's. Labels in evidence text become the mapped names."""
+    hints = hints or SpeakerHints()
     seconds = speaker_seconds(transcript)
+
+    def absent(name: str) -> bool:
+        return any(same_person(registry, name, other) for other in hints.absent)
+
     raw_by_label: dict[str, dict[str, Any]] = {}
     for raw in payload.get("speakers") or []:
         if not isinstance(raw, dict):
@@ -3260,6 +3441,17 @@ def validate_speaker_map(
         person = registry.by_id(clean_text(raw.get("person_id")))
         if person is None and status in {"identified", "new_person"} and name:
             person = registry.lookup(name)
+        if (person is not None and absent(person.name)) or (
+            person is None and status == "new_person" and absent(name)
+        ):
+            status, name, person = "unknown", "", None
+        if person is None and status == "new_person" and name and ties is not None:
+            if (
+                not ties.self_introduced(label, name)
+                and ties.references(name, label) < 2
+            ):
+                likely.insert(0, name)
+                status, name = "unknown", ""
         person_id = ""
         if status in {"identified", "new_person"} and person is not None:
             owner_ok = person is not registry.owner or confidence == "high"
@@ -3285,7 +3477,16 @@ def validate_speaker_map(
             ):
                 likely.insert(0, canonical(name))
             status, name = "unknown", ""
-        likely = list(dict.fromkeys(likely))[:3]
+        likely = [
+            candidate
+            for candidate in dict.fromkeys(likely)
+            if not absent(candidate) and (ties is None or ties.tied(candidate))
+        ][:3]
+        if label in hints.forced:
+            status, person_id, name, person, likely = forced_mapping(
+                hints.forced[label], registry
+            )
+            confidence, evidence = "high", ["Confirmed by Tony"]
         if person is not None and person is registry.owner and status == "identified":
             display = "Tony"
         elif status == "unknown":
@@ -3312,6 +3513,17 @@ def validate_speaker_map(
             for item in speaker["evidence"]
         ]
     return speakers
+
+
+def forced_mapping(
+    value: str, registry: Registry
+) -> tuple[str, str, str, Person | None, list[str]]:
+    if value.casefold() == "unknown":
+        return "unknown", "", "", None, []
+    person = registry.resolve(value)
+    if person is not None:
+        return "identified", person.id, person.name, person, []
+    return "identified", "", clean_text(value), None, []
 
 
 def replace_speaker_labels(text: str, display: dict[str, str]) -> str:
@@ -3574,7 +3786,9 @@ def merge_attendees(
     speakers: list[dict[str, Any]],
     registry: Registry,
     display: dict[str, str],
+    hints: SpeakerHints | None = None,
 ) -> list[str]:
+    hints = hints or SpeakerHints()
     candidates = []
     for speaker in speakers:
         if speaker["status"] != "unknown":
@@ -3584,9 +3798,11 @@ def merge_attendees(
     unknown_displays = {
         speaker["display"] for speaker in speakers if speaker["status"] == "unknown"
     }
-    for name in clean_strings(raw):
+    for name in [*clean_strings(raw), *hints.attendees]:
         name = replace_speaker_labels(name, display)
         if name.casefold().startswith("unknown") and name not in unknown_displays:
+            continue
+        if any(same_person(registry, name, other) for other in hints.absent):
             continue
         candidates.append(name)
     attendees: list[str] = []
@@ -3595,7 +3811,7 @@ def merge_attendees(
         if registry.is_owner(name):
             name = registry.owner.name
         else:
-            person = registry.lookup(name)
+            person = registry.resolve(name)
             name = person.name if person else name
         if not name or SPEAKER_LABEL_PATTERN.search(name) or name.casefold() in seen:
             continue
@@ -3761,7 +3977,7 @@ def validate_minutes(
         "project": normalize_project(payload.get("project"), context),
         "calendar_match": calendar_match,
         "attendees": merge_attendees(
-            payload.get("attendees"), speakers, registry, display
+            payload.get("attendees"), speakers, registry, display, run.hints
         ),
         "topics": topics,
         "decisions": cited_items("decisions", decision),
@@ -3914,7 +4130,13 @@ def identify_speakers(
     if not thread_id:
         raise MeetingMinutesError("Codex speaker identification returned no thread id")
     atomic_write_text(run.session_path, thread_id + "\n")
-    speakers = validate_speaker_map(read_json(output_path), run.transcript, registry)
+    speakers = validate_speaker_map(
+        read_json(output_path),
+        run.transcript,
+        registry,
+        MeetingTies(run, calendar, context, registry),
+        run.hints,
+    )
     atomic_write_json(run.work / "speakers.json", {"speakers": speakers})
     return speakers
 
@@ -5177,6 +5399,38 @@ def transcript_started_at(transcript: dict[str, Any]) -> float | None:
         return None
 
 
+def speaker_hints(args: argparse.Namespace, transcript: dict[str, Any]) -> SpeakerHints:
+    """Parse --speaker/--attendee/--absent into hints, refusing labels the
+    transcript does not have and people marked both present and absent."""
+    labels = set(speaker_seconds(transcript))
+    registry = load_registry()
+    forced: dict[str, str] = {}
+    for entry in args.speaker or []:
+        label, separator, value = entry.partition("=")
+        label, value = label.strip(), clean_text(value)
+        if not separator or not value:
+            raise MeetingMinutesError(f"--speaker expects LABEL=person, got {entry!r}")
+        if label not in labels:
+            raise MeetingMinutesError(
+                f"--speaker {label}: not a speaker in this transcript ({sorted(labels)})"
+            )
+        forced[label] = value
+    hints = SpeakerHints(
+        forced=forced,
+        attendees=[
+            clean_text(name) for name in args.attendee or [] if clean_text(name)
+        ],
+        absent=[clean_text(name) for name in args.absent or [] if clean_text(name)],
+    )
+    present = [
+        value for value in forced.values() if value.casefold() != "unknown"
+    ] + hints.attendees
+    for name in hints.absent:
+        if any(same_person(registry, name, other) for other in present):
+            raise MeetingMinutesError(f"{name} is marked both present and absent")
+    return hints
+
+
 def regenerate(args: argparse.Namespace) -> dict[str, Any]:
     """Rerun minutes generation into a scratch directory. The vault, proposals,
     weekly log, and job queue are never touched, so before/after comparisons
@@ -5202,7 +5456,10 @@ def regenerate(args: argparse.Namespace) -> dict[str, Any]:
         )
         if not reused:
             raise MeetingMinutesError(f"No calendar or context results in {previous}")
+    hints = speaker_hints(args, transcript)
     extra_inputs = {}
+    if hints:
+        extra_inputs["speaker_hints"] = hints.fingerprint()
     if reused:
         extra_inputs["reused_context"] = digest(
             b"\0".join(
@@ -5227,6 +5484,7 @@ def regenerate(args: argparse.Namespace) -> dict[str, Any]:
         recording=source.recording,
         on_phase=lambda phase, label: print(f"{phase}: {label}", file=sys.stderr),
         extra_inputs=extra_inputs,
+        hints=hints,
     )
     prepare_generation(run, on_input_change="reset" if args.fresh else "reject")
     for path in reused:
@@ -5275,6 +5533,176 @@ def regenerate(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+WIKILINK_TARGET = re.compile(r"\[\[([^\]|#]+)")
+
+
+def vault_link_targets(exclude: Path) -> set[str]:
+    """File names linked or embedded from any vault note except `exclude`."""
+    targets: set[str] = set()
+    for path in VAULT_ROOT.rglob("*.md"):
+        relative = path.relative_to(VAULT_ROOT)
+        if path == exclude or any(part.startswith(".") for part in relative.parts):
+            continue
+        targets.update(
+            Path(target.strip()).name
+            for target in WIKILINK_TARGET.findall(read_optional(path))
+        )
+    return targets
+
+
+def keep_backup(source: Path, destination: Path) -> None:
+    """The first backup of a file is the original; later publishes of the
+    same meeting never overwrite it."""
+    if source.is_file() and not destination.exists():
+        copy_atomically(source, destination)
+
+
+def publish_regenerated(directory: Path, *, dry_run: bool = False) -> dict[str, Any]:
+    """Install a `regenerate` output as the production note for an existing
+    pipeline meeting: the note with production frontmatter, its minutes data
+    next to the transcript, and its screenshots in the vault assets. The
+    originals are backed up first. Proposals and the weekly log are left
+    alone, since the meeting was already filed once."""
+    directory = directory.expanduser().resolve()
+    minutes_files = sorted(directory.glob("*.minutes.json"))
+    if len(minutes_files) != 1:
+        raise MeetingMinutesError(f"{directory} has no single <stem>.minutes.json")
+    stem = minutes_files[0].name.removesuffix(".minutes.json")
+    result = read_json(minutes_files[0])
+    if result.get("schema_version") != RESULT_SCHEMA_VERSION:
+        raise MeetingMinutesError(
+            f"{stem}: minutes data is not schema {RESULT_SCHEMA_VERSION}"
+        )
+    regenerated_note = directory / f"{stem}.md"
+    note_path = VAULT_ROOT / "01-logs/meetings" / f"{stem}.md"
+    if not regenerated_note.is_file() or not note_path.is_file():
+        raise MeetingMinutesError(
+            f"{stem}: needs both {regenerated_note} and {note_path}"
+        )
+    if frontmatter_scalar(note_path, "source") != "pipeline":
+        raise MeetingMinutesError(f"{stem}: {note_path} is not a pipeline note")
+
+    transcript_path = MEDIA_ROOT / f"{stem}.json"
+    if not transcript_path.is_file():
+        raise MeetingMinutesError(
+            f"{stem}: transcript {transcript_path} is not on this host"
+        )
+    transcript = read_json(transcript_path)
+    if result.get("pipeline", {}).get("inputs", {}).get("transcript") != digest(
+        json.dumps(transcript, sort_keys=True).encode()
+    ):
+        raise MeetingMinutesError(
+            f"{stem}: regenerated from a different transcript than {transcript_path}"
+        )
+    identity = frontmatter_scalar(note_path, "recording_identity")
+    identities = {
+        identity,
+        frontmatter_scalar(regenerated_note, "recording_identity"),
+        str(transcript.get("recording_identity") or identity),
+    }
+    if not identity or len(identities) != 1:
+        raise MeetingMinutesError(
+            f"{stem}: recording identity does not match the existing note ({sorted(identities)})"
+        )
+
+    original_assets = {
+        Path(name.strip()).name
+        for name in re.findall(r"!\[\[([^\]|#]+)", note_path.read_text())
+        if (ASSETS_DIR / Path(name.strip()).name).is_file()
+    }
+    linked_elsewhere = vault_link_targets(note_path)
+    screenshots = []
+    for screenshot in result.get("screenshots") or []:
+        name = str(screenshot.get("asset_name") or "")
+        source = directory / "assets" / name
+        if (
+            not re.fullmatch(rf"{re.escape(stem)}-\d{{2}}\.png", name)
+            or not source.is_file()
+        ):
+            raise MeetingMinutesError(
+                f"{stem}: screenshot {name!r} is missing from {directory}"
+            )
+        destination = ASSETS_DIR / name
+        if (
+            destination.is_file()
+            and file_digest(destination) != file_digest(source)
+            and name not in original_assets
+            and name in linked_elsewhere
+        ):
+            raise MeetingMinutesError(
+                f"{stem}: {destination} belongs to another note; not overwriting it"
+            )
+        screenshots.append((screenshot, source, destination))
+    new_names = {destination.name for _, _, destination in screenshots}
+    removed = sorted(original_assets - new_names - linked_elsewhere)
+    shared = sorted((original_assets - new_names) & linked_elsewhere)
+    minutes_path = minutes_data_path(transcript_path)
+    backup = PUBLISH_BACKUP_ROOT / stem
+    summary = {
+        "stem": stem,
+        "note": str(note_path),
+        "minutes_data": str(media_reference(minutes_path)),
+        "assets_written": sorted(new_names),
+        "assets_removed": removed,
+        "assets_kept_for_other_notes": shared,
+        "backup": str(backup),
+    }
+    if dry_run:
+        return {**summary, "dry_run": True}
+
+    keep_backup(note_path, backup / note_path.name)
+    keep_backup(minutes_path, backup / minutes_path.name)
+    for name in sorted(original_assets | new_names):
+        keep_backup(ASSETS_DIR / name, backup / "assets" / name)
+
+    published = []
+    for screenshot, source, destination in screenshots:
+        if file_digest(destination) != file_digest(source):
+            copy_atomically(source, destination)
+        published.append(
+            published_screenshot(screenshot, destination.name, destination)
+        )
+    production = {
+        **result,
+        "screenshots": published,
+        "artifacts": {
+            "note": str(note_path),
+            "recording": frontmatter_scalar(note_path, "recording"),
+            "transcript": frontmatter_scalar(note_path, "transcript"),
+            "audio_tracks": [],
+            "source_tracks": {},
+            "published_from": str(directory),
+        },
+    }
+    atomic_write_json(minutes_path, production)
+    artifacts = NoteArtifacts(
+        date=frontmatter_scalar(note_path, "date"),
+        recording=production["artifacts"]["recording"],
+        transcript=production["artifacts"]["transcript"],
+        minutes_data=summary["minutes_data"],
+        pipeline_job=frontmatter_scalar(note_path, "pipeline_job"),
+        recording_identity=identity,
+        codex_session=frontmatter_scalar(regenerated_note, "codex_session"),
+    )
+    atomic_write_text(note_path, render_note(production, artifacts, published))
+    for name in removed:
+        (ASSETS_DIR / name).unlink(missing_ok=True)
+    reconcile_vault_paths(note_path, *(ASSETS_DIR / name for name in new_names))
+    return summary
+
+
+def publish(args: argparse.Namespace) -> tuple[list[dict[str, Any]], bool]:
+    outcomes: list[dict[str, Any]] = []
+    failed = False
+    for directory in args.directories:
+        try:
+            outcomes.append(publish_regenerated(Path(directory), dry_run=args.dry_run))
+        except (MeetingMinutesError, OSError) as error:
+            failed = True
+            outcomes.append({"directory": directory, "error": str(error)})
+    return outcomes, failed
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="meeting-minutes")
     commands = root.add_subparsers(dest="command", required=True)
@@ -5317,10 +5745,34 @@ def parser() -> argparse.ArgumentParser:
     )
     regenerate_command.add_argument("--screenshots", action="store_true")
     regenerate_command.add_argument(
+        "--speaker",
+        action="append",
+        metavar="LABEL=PERSON",
+        help="force a diarized label to a registry id, a name, or `unknown`",
+    )
+    regenerate_command.add_argument(
+        "--attendee",
+        action="append",
+        metavar="PERSON",
+        help="a registry id or name confirmed to have attended",
+    )
+    regenerate_command.add_argument(
+        "--absent",
+        action="append",
+        metavar="PERSON",
+        help="a registry id or name confirmed not to have attended",
+    )
+    regenerate_command.add_argument(
         "--fresh",
         action="store_true",
         help="discard cached results in --out that came from different inputs",
     )
+    publish_command = commands.add_parser(
+        "publish",
+        help="install regenerate outputs as the production notes they replace",
+    )
+    publish_command.add_argument("directories", nargs="+", metavar="regen-dir")
+    publish_command.add_argument("--dry-run", action="store_true")
     commands.add_parser(
         "seed-people",
         help="print a people registry TOML seeded from the legacy people.md rosters",
@@ -5354,6 +5806,11 @@ def main() -> int:
             sync_artifacts()
         elif args.command == "regenerate":
             print(json.dumps(regenerate(args), indent=2, ensure_ascii=False))
+        elif args.command == "publish":
+            outcomes, failed = publish(args)
+            print(json.dumps(outcomes, indent=2, ensure_ascii=False))
+            if failed:
+                return 1
         elif args.command == "seed-people":
             print(registry_toml(registry_from_legacy_rosters()), end="")
     except (MeetingMinutesError, OSError, subprocess.SubprocessError) as error:
