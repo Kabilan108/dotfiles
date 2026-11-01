@@ -104,7 +104,7 @@ EXECUTOR_KEY_FILE = Path(
 ).expanduser()
 RESULT_SCHEMA_VERSION = 3
 # Bump when a prompt or validation rule changes so cached results regenerate.
-GENERATION_VERSION = "2026-10-30.3"
+GENERATION_VERSION = "2026-11-01.1"
 # Unknown speakers below this much talk time are usually diarization noise
 # (cross-talk, a cough); they stay in the result JSON but not in attendees.
 UNKNOWN_SPEAKER_MIN_SECONDS = 15.0
@@ -116,6 +116,11 @@ ANCHOR_MAX_SECONDS = 25.0
 ANCHOR_MAX_GAP_SECONDS = 3.0
 CITATION_MAX_LINES = 3
 CITATION_MAX_SECONDS = 60.0
+# Per item: cited spots this close together display as one wider range, and
+# an item shows at most CITATION_MAX_RANGES ranges.
+CITATION_MERGE_GAP_SECONDS = 10.0
+CITATION_MERGED_MAX_SECONDS = 90.0
+CITATION_MAX_RANGES = 3
 SLACK_MESSAGE_LIMIT = 40
 SLACK_PAGE_LIMIT = 5
 # Every Codex run reads meeting content from outside the vault (transcripts,
@@ -3325,7 +3330,7 @@ def speaker_mapping_text(speakers: list[dict[str, Any]]) -> str:
     )
 
 
-CITATION_RULE = """Citations are anchor IDs from the start of transcript lines (`s1234`, or `s1234.1` for a later part of a long turn), never clock times. Cite the specific lines where the point was said. A range such as `s120-s122` may cover at most 3 consecutive lines and 60 seconds; when a point draws on more of the transcript, cite several short ranges or single lines instead."""
+CITATION_RULE = """Citations are anchor IDs from the start of transcript lines (`s1234`, or `s1234.1` for a later part of a long turn), never clock times. Cite the specific lines where the point was said. A range such as `s120-s122` may cover at most 3 consecutive lines and 60 seconds. Cite only the strongest evidence, strongest first, and keep each item to at most 3 places in the transcript. Prefer one wider stretch to scattered spots: citations within about 10 seconds of each other are joined into a single range of up to 90 seconds, so to cover a longer passage cite neighbouring short ranges such as `s120-s122` and `s123-s125`."""
 
 
 def minutes_prompt(
@@ -3393,9 +3398,9 @@ Work through the transcript from start to end and find every material point the 
 Keep everything that is already correct, including wording, order, and screenshot candidates (update their topic_index and bullet_index if positions change)."""
 
 
-CITATION_REPAIR_PROMPT = f"""Some items in your minutes have no valid transcript citation. For each item below, find the transcript lines that support it and return their anchor IDs. Return only the JSON object required by the supplied schema, with one repair per item you can support; use the item path exactly as given. Leave out any item the transcript does not support. {CITATION_RULE}
+CITATION_REPAIR_PROMPT = f"""Some items in your minutes have no valid transcript citation, or cite more separate places than allowed. For each item below, return the anchor IDs of its strongest supporting evidence, replacing its current citations. Return only the JSON object required by the supplied schema, with one repair per item you can support; use the item path exactly as given. Leave out any item the transcript does not support. {CITATION_RULE}
 
-Items without a valid citation:
+Items to re-cite (`ranges` is how many separate places the item cites now):
 """
 
 
@@ -3425,9 +3430,10 @@ def resolve_citations(
     raw: Any, anchors: list[dict[str, Any]], anchor_index: dict[str, int]
 ) -> tuple[list[str], int]:
     """Anchor IDs that exist, plus `sA-sB` ranges of at most
-    CITATION_MAX_LINES lines and CITATION_MAX_SECONDS. The anchors carry the
-    times, so no cited range can extend past the recording."""
-    positions: set[int] = set()
+    CITATION_MAX_LINES lines and CITATION_MAX_SECONDS, in the order the model
+    cited them. The anchors carry the times, so no cited range can extend past
+    the recording."""
+    positions: list[int] = []
     dropped = 0
     anchor_id = r"[sa]\d+(?:\.\d+)?"
     for item in raw if isinstance(raw, list) else []:
@@ -3438,23 +3444,25 @@ def resolve_citations(
                 (anchor_index[span.group(1)], anchor_index[span.group(2)])
             )
             if citation_fits(anchors[first], anchors[last], last - first + 1):
-                positions.update(range(first, last + 1))
+                positions.extend(range(first, last + 1))
                 continue
         elif text in anchor_index:
-            positions.add(anchor_index[text])
+            positions.append(anchor_index[text])
             continue
         dropped += 1
     by_position = {position: anchor for anchor, position in anchor_index.items()}
-    return [by_position[position] for position in sorted(positions)], dropped
+    return [by_position[position] for position in dict.fromkeys(positions)], dropped
 
 
-def citation_ranges(
+def citation_groups(
     anchor_ids: list[str], anchors: list[dict[str, Any]], anchor_index: dict[str, int]
-) -> list[dict[str, float]]:
-    """Group cited lines into displayed ranges, starting a new range rather
-    than letting one exceed CITATION_MAX_LINES or CITATION_MAX_SECONDS."""
+) -> list[list[int]]:
+    """Cited lines in time order, grouped into displayed ranges: consecutive
+    lines up to CITATION_MAX_LINES and CITATION_MAX_SECONDS, then neighbouring
+    groups within CITATION_MERGE_GAP_SECONDS joined while the whole stays
+    within CITATION_MERGED_MAX_SECONDS."""
     groups: list[list[int]] = []
-    for position in (anchor_index[anchor_id] for anchor_id in anchor_ids):
+    for position in sorted(anchor_index[anchor_id] for anchor_id in anchor_ids):
         group = groups[-1] if groups else None
         if (
             group is not None
@@ -3464,12 +3472,31 @@ def citation_ranges(
             group.append(position)
         else:
             groups.append([position])
+    merged: list[list[int]] = []
+    for group in groups:
+        previous = merged[-1] if merged else None
+        if (
+            previous is not None
+            and anchors[group[0]]["start"] - anchors[previous[-1]]["end"]
+            <= CITATION_MERGE_GAP_SECONDS
+            and anchors[group[-1]]["end"] - anchors[previous[0]]["start"]
+            <= CITATION_MERGED_MAX_SECONDS
+        ):
+            previous.extend(group)
+        else:
+            merged.append(list(group))
+    return merged
+
+
+def citation_ranges(
+    anchor_ids: list[str], anchors: list[dict[str, Any]], anchor_index: dict[str, int]
+) -> list[dict[str, float]]:
     return [
         {
             "start": round(anchors[group[0]]["start"], 1),
             "end": round(anchors[group[-1]]["end"], 1),
         }
-        for group in groups
+        for group in citation_groups(anchor_ids, anchors, anchor_index)
     ]
 
 
@@ -3479,11 +3506,38 @@ def cite(
     anchors: list[dict[str, Any]],
     anchor_index: dict[str, int],
 ) -> int:
+    """Resolve an item's citations into at most CITATION_MAX_RANGES ranges.
+    When more remain after merging, the ranges holding the earliest-cited
+    lines are kept, and `cited_ranges` records how many there were."""
     anchor_ids, dropped = resolve_citations(raw, anchors, anchor_index)
-    item["anchors"] = anchor_ids
-    item["citations"] = citation_ranges(anchor_ids, anchors, anchor_index)
-    item["citation_status"] = "verified" if anchor_ids else "missing"
+    priority = {
+        anchor_index[anchor_id]: rank for rank, anchor_id in enumerate(anchor_ids)
+    }
+    groups = citation_groups(anchor_ids, anchors, anchor_index)
+    kept = sorted(
+        sorted(groups, key=lambda group: min(priority[position] for position in group))[
+            :CITATION_MAX_RANGES
+        ]
+    )
+    by_position = {position: anchor for anchor, position in anchor_index.items()}
+    item["anchors"] = [by_position[position] for group in kept for position in group]
+    item["citations"] = [
+        {
+            "start": round(anchors[group[0]]["start"], 1),
+            "end": round(anchors[group[-1]]["end"], 1),
+        }
+        for group in kept
+    ]
+    item["cited_ranges"] = len(groups)
+    item["citation_status"] = "verified" if kept else "missing"
     return dropped
+
+
+def needs_recitation(item: dict[str, Any]) -> bool:
+    return (
+        item["citation_status"] != "verified"
+        or item.get("cited_ranges", 0) > CITATION_MAX_RANGES
+    )
 
 
 def normalize_owner(
@@ -3749,23 +3803,37 @@ def resume_stage(
 
 def repair_citations(run: MeetingRun, minutes: dict[str, Any]) -> dict[str, Any]:
     """One bounded pass in the same session for items without a valid
-    citation. Whatever it cannot support stays visibly marked as uncited."""
-    missing = {
-        path: item
-        for path, item in cited_entries(minutes)
-        if item["citation_status"] != "verified"
+    citation or with more than CITATION_MAX_RANGES places cited. An item
+    still uncited stays visibly marked; one still over the limit keeps the
+    ranges it cited first, and is listed as trimmed."""
+    pending = {
+        path: item for path, item in cited_entries(minutes) if needs_recitation(item)
     }
-    if not missing:
-        return {"status": "not_needed", "requested": 0, "repaired": 0, "unresolved": 0}
+    if not pending:
+        return {
+            "status": "not_needed",
+            "requested": 0,
+            "repaired": 0,
+            "unresolved": 0,
+            "unresolved_items": [],
+            "trimmed_items": [],
+        }
     run.on_phase("generating", "Repairing meeting note citations")
     listing = json.dumps(
-        [{"item": path, "text": entry_text(item)} for path, item in missing.items()],
+        [
+            {
+                "item": path,
+                "text": entry_text(item),
+                "ranges": item.get("cited_ranges", 0),
+            }
+            for path, item in pending.items()
+        ],
         ensure_ascii=False,
         indent=2,
     )
     anchors = run.anchors
     anchor_index = {anchor["id"]: position for position, anchor in enumerate(anchors)}
-    outcome: dict[str, Any] = {"status": "completed", "requested": len(missing)}
+    outcome: dict[str, Any] = {"status": "completed", "requested": len(pending)}
     try:
         payload = resume_stage(
             run,
@@ -3776,19 +3844,33 @@ def repair_citations(run: MeetingRun, minutes: dict[str, Any]) -> dict[str, Any]
         for repair in payload.get("repairs") or []:
             if not isinstance(repair, dict):
                 continue
-            item = missing.get(clean_text(repair.get("item")))
-            if item is not None and item["citation_status"] != "verified":
-                cite(item, repair.get("citations"), anchors, anchor_index)
+            item = pending.get(clean_text(repair.get("item")))
+            if item is None or not needs_recitation(item):
+                continue
+            candidate: dict[str, Any] = {}
+            cite(candidate, repair.get("citations"), anchors, anchor_index)
+            if candidate["citation_status"] == "verified" and (
+                item["citation_status"] != "verified"
+                or candidate["cited_ranges"] <= CITATION_MAX_RANGES
+            ):
+                item.update(candidate)
     except (MeetingMinutesError, OSError, subprocess.SubprocessError) as error:
         outcome = {**outcome, "status": "failed", "error": str(error)[:1000]}
     unresolved = [
-        path for path, item in missing.items() if item["citation_status"] != "verified"
+        path for path, item in pending.items() if item["citation_status"] != "verified"
+    ]
+    trimmed = [
+        path
+        for path, item in pending.items()
+        if item["citation_status"] == "verified"
+        and item["cited_ranges"] > CITATION_MAX_RANGES
     ]
     return {
         **outcome,
-        "repaired": len(missing) - len(unresolved),
+        "repaired": len(pending) - len(unresolved) - len(trimmed),
         "unresolved": len(unresolved),
         "unresolved_items": unresolved,
+        "trimmed_items": trimmed,
     }
 
 
@@ -3986,6 +4068,12 @@ def run_minutes_pipeline(
         minutes = draft
         review = {"status": "failed", "error": str(error)[:1000]}
     citation_repair = repair_citations(run, minutes)
+    entries = dict(cited_entries(minutes))
+    warnings += [
+        f"{path}: kept the first {CITATION_MAX_RANGES} of "
+        f"{entries[path]['cited_ranges']} cited ranges"
+        for path in citation_repair["trimmed_items"]
+    ]
 
     match = minutes.pop("calendar_match")
     matched = calendar["candidates"][match] if match >= 0 else None

@@ -810,6 +810,7 @@ def test_regenerate_writes_cited_minutes_without_touching_the_vault(
         "repaired": 1,
         "unresolved": 1,
         "unresolved_items": ["decisions[0]"],
+        "trimmed_items": [],
     }
     bullets = result["minutes"]["topics"][0]["bullets"]
     assert bullets[1]["anchors"] == ["s0", "s1", "s1.1"]
@@ -1507,10 +1508,7 @@ def test_citation_ranges_are_capped_at_three_lines_and_sixty_seconds(
     assert resolve(["s0-s2"], short, index) == (["s0", "s1", "s2"], 0)
     assert resolve(["s0-s3"], short, index) == ([], 1)
     singles, _ = resolve(["s0", "s1", "s2", "s3", "s4"], short, index)
-    assert ranges(singles, short, index) == [
-        {"start": 0.0, "end": 29.0},
-        {"start": 30.0, "end": 49.0},
-    ]
+    assert ranges(singles, short, index) == [{"start": 0.0, "end": 49.0}]
 
     long = [
         {
@@ -1525,9 +1523,10 @@ def test_citation_ranges_are_capped_at_three_lines_and_sixty_seconds(
     long_index = {anchor["id"]: position for position, anchor in enumerate(long)}
     assert resolve(["s0-s1"], long, long_index) == (["s0", "s1"], 0)
     assert resolve(["s0-s2"], long, long_index) == ([], 1)
-    assert ranges(["s0", "s1", "s2"], long, long_index) == [
+    assert ranges(["s0", "s1", "s2"], long, long_index) == [{"start": 0.0, "end": 74.0}]
+    assert ranges(["s0", "s1", "s2", "s3"], long, long_index) == [
         {"start": 0.0, "end": 49.0},
-        {"start": 50.0, "end": 74.0},
+        {"start": 50.0, "end": 99.0},
     ]
     assert "at most 3 consecutive lines and 60 seconds" in namespace["CITATION_RULE"]
     assert namespace["CITATION_RULE"] in namespace["CITATION_REPAIR_PROMPT"]
@@ -1748,3 +1747,125 @@ def test_codex_config_outside_the_pipeline_home_stops_the_run(
     ) as raised:
         namespace["prepare_codex_home"]()
     assert expected in str(raised.value)
+
+
+def spaced_anchors(
+    starts: list[float], length: float = 5.0
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    anchors = [
+        {
+            "id": f"s{index}",
+            "start": start,
+            "end": start + length,
+            "speaker": "A",
+            "text": "x",
+        }
+        for index, start in enumerate(starts)
+    ]
+    return anchors, {anchor["id"]: position for position, anchor in enumerate(anchors)}
+
+
+def test_nearby_citations_merge_into_one_range_of_at_most_ninety_seconds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env, _, _, _ = pipeline_env(tmp_path)
+    namespace = load_script(env, monkeypatch)
+    ranges = namespace["citation_ranges"]
+    anchors, index = spaced_anchors([0.0, 12.0, 30.0, 45.0, 60.0, 75.0, 200.0])
+
+    assert ranges(["s0", "s1"], anchors, index) == [{"start": 0.0, "end": 17.0}]
+    assert ranges(["s0", "s2"], anchors, index) == [
+        {"start": 0.0, "end": 5.0},
+        {"start": 30.0, "end": 35.0},
+    ]
+    assert ranges(["s1", "s2", "s3", "s4", "s5"], anchors, index) == [
+        {"start": 12.0, "end": 80.0}
+    ]
+    assert ranges(["s0", "s1", "s2", "s3", "s4", "s5"], anchors, index) == [
+        {"start": 0.0, "end": 80.0}
+    ]
+    wide, wide_index = spaced_anchors([0.0, 25.0, 50.0, 75.0, 100.0], length=24.0)
+    assert ranges([anchor["id"] for anchor in wide], wide, wide_index) == [
+        {"start": 0.0, "end": 49.0},
+        {"start": 50.0, "end": 124.0},
+    ]
+
+
+def test_items_keep_at_most_three_ranges_favouring_the_first_cited(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env, _, _, _ = pipeline_env(tmp_path)
+    namespace = load_script(env, monkeypatch)
+    anchors, index = spaced_anchors([0.0, 100.0, 200.0, 300.0, 400.0, 405.0])
+    item: dict[str, Any] = {}
+
+    namespace["cite"](item, ["s3", "s0", "s5", "s4", "s1", "s2"], anchors, index)
+
+    assert item["cited_ranges"] == 5
+    assert item["citations"] == [
+        {"start": 0.0, "end": 5.0},
+        {"start": 300.0, "end": 305.0},
+        {"start": 400.0, "end": 410.0},
+    ]
+    assert item["anchors"] == ["s0", "s3", "s4", "s5"]
+    assert namespace["needs_recitation"](item)
+    namespace["cite"](item, ["s4", "s5", "s0"], anchors, index)
+    assert item["cited_ranges"] == 2 and not namespace["needs_recitation"](item)
+    rule = namespace["CITATION_RULE"]
+    assert (
+        "strongest evidence" in rule and "10 seconds" in rule and "90 seconds" in rule
+    )
+    assert (
+        "cite more separate places than allowed" in namespace["CITATION_REPAIR_PROMPT"]
+    )
+
+
+def test_repair_pass_recites_items_over_the_range_limit(
+    tmp_path: Path, executor: FakeExecutor
+) -> None:
+    env, vault, media, fixtures = pipeline_env(tmp_path, executor)
+    scattered = json.loads(json.dumps(REVIEWED))
+    scattered["topics"][0]["bullets"][0]["citations"] = ["s0", "s2", "s3", "s5"]
+    scattered["ideas"][0]["citations"] = ["s5", "s0", "s2", "s3"]
+    write_fixtures(
+        fixtures,
+        speakers=SPEAKERS,
+        minutes=MINUTES,
+        reviewed=scattered,
+        repair={
+            "repairs": [
+                {"item": "topics[0].bullets[0]", "citations": ["s0"]},
+                {"item": "ideas[0]", "citations": ["s5", "s0", "s2", "s3"]},
+                {"item": "topics[0].bullets[2]", "citations": ["s1"]},
+            ]
+        },
+    )
+    note = meeting_note(vault, media)
+    out = tmp_path / "eval"
+
+    regenerate(env, note.stem, "--out", str(out))
+
+    result = json.loads((out / f"{note.stem}.minutes.json").read_text())
+    repair = result["citation_repair"]
+    assert repair["requested"] == 4
+    assert repair["trimmed_items"] == ["ideas[0]"]
+    assert repair["unresolved_items"] == ["decisions[0]"]
+    minutes = result["minutes"]
+    assert minutes["topics"][0]["bullets"][0]["citations"] == [
+        {"start": 1.0, "end": 12.0}
+    ]
+    idea = minutes["ideas"][0]
+    assert len(idea["citations"]) == 3 and idea["cited_ranges"] == 4
+    assert idea["anchors"] == ["s0", "s2", "s5"]
+    assert (
+        "ideas[0]: kept the first 3 of 4 cited ranges"
+        in result["validation"]["warnings"]
+    )
+    for item in [
+        *minutes["topics"][0]["bullets"],
+        *minutes["ideas"],
+        *minutes["follow_ups"],
+    ]:
+        assert len(item["citations"]) <= 3
+    repair_call = calls(fixtures)[-1]
+    assert '"ranges": 4' in repair_call["prompt"]
