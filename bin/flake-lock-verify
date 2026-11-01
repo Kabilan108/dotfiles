@@ -1,0 +1,395 @@
+#!/usr/bin/env python3
+"""Check that a flake update PR only moves inputs forward along the refs they track.
+
+Run this on jacurutu from a trusted checkout of the base branch. The PR, its
+lock files and its description were written on sietch, so none of them are
+trusted. GitHub and the upstream repositories are.
+
+For every input whose lock entry differs from the base branch, the check
+requires that:
+
+- the locked GitHub repository is the one named in the lock's `original`;
+- the new rev is reachable from the tracked ref (`original.ref`, or the
+  repository's default branch), or equals `original.rev` when one is pinned;
+- the new rev descends from the rev the same input path had on the base branch;
+- the narHash matches the source GitHub serves for that rev, since Nix
+  substitutes locked inputs by narHash without looking at the rev.
+
+Inputs are matched by their path from the root (`home-manager/nixpkgs`), so
+rewiring an input to another existing node counts as a change.
+
+Exit status: 0 when every changed input passes, 1 on any failure, 2 when the
+only open items are inputs that need a manual check (not hosted on GitHub).
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import subprocess
+import sys
+import urllib.parse
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from typing import Any
+
+LOCK_FILES = ("flake.lock", "raspi/flake.lock")
+REV_RE = re.compile(r"^[0-9a-f]{40}$")
+REF_RE = re.compile(r"^[A-Za-z0-9._/+-]+$")
+MAX_DEPTH = 32
+
+PASS = "PASS"
+FAIL = "FAIL"
+MANUAL = "MANUAL"
+
+Node = dict[str, Any]
+Lock = dict[str, Any]
+
+
+class VerifyError(Exception):
+    pass
+
+
+@dataclass
+class Result:
+    status: str
+    lock: str
+    paths: list[str]
+    summary: str
+    notes: list[str] = field(default_factory=list)
+
+
+def run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
+    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if check and proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout).strip()
+        raise VerifyError(f"{' '.join(cmd)} failed (exit {proc.returncode}): {detail}")
+    return proc
+
+
+class GitHub:
+    def __init__(self) -> None:
+        self._default_branches: dict[str, str] = {}
+
+    def _api(self, path: str) -> Any:
+        proc = run(["gh", "api", path], check=False)
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout).strip().splitlines()
+            raise VerifyError(f"GitHub API {path}: {detail[-1] if detail else 'failed'}")
+        return json.loads(proc.stdout)
+
+    def default_branch(self, owner: str, repo: str) -> str:
+        key = f"{owner}/{repo}".lower()
+        if key not in self._default_branches:
+            self._default_branches[key] = self._api(f"repos/{owner}/{repo}")["default_branch"]
+        return self._default_branches[key]
+
+    def compare(self, owner: str, repo: str, base: str, head: str) -> str:
+        """Return GitHub's compare status: ahead means base is an ancestor of head."""
+        span = f"{urllib.parse.quote(base, safe='/')}...{urllib.parse.quote(head, safe='/')}"
+        return self._api(f"repos/{owner}/{repo}/compare/{span}?per_page=1")["status"]
+
+
+def prefetch_nar_hash(owner: str, repo: str, rev: str) -> str:
+    proc = run(["nix", "flake", "prefetch", "--json", f"github:{owner}/{repo}/{rev}"])
+    return json.loads(proc.stdout)["hash"]
+
+
+def resolve(lock: Lock, path: list[str], depth: int = 0) -> str:
+    if depth > MAX_DEPTH:
+        raise VerifyError(f"follows chain too deep at {'/'.join(path)}")
+    nodes = lock["nodes"]
+    current = lock["root"]
+    for step in path:
+        target = nodes[current].get("inputs", {}).get(step)
+        if target is None:
+            raise KeyError("/".join(path))
+        current = resolve(lock, target, depth + 1) if isinstance(target, list) else target
+    return current
+
+
+def input_paths(lock: Lock) -> dict[str, str]:
+    """Map every input path reachable from the root to the node it resolves to."""
+    paths: dict[str, str] = {}
+    stack: list[tuple[list[str], str]] = [([], lock["root"])]
+    while stack:
+        prefix, name = stack.pop()
+        if len(prefix) > MAX_DEPTH:
+            raise VerifyError(f"input graph too deep at {'/'.join(prefix)}")
+        for step, target in lock["nodes"][name].get("inputs", {}).items():
+            path = [*prefix, step]
+            if isinstance(target, list):
+                paths["/".join(path)] = resolve(lock, target)
+            else:
+                paths["/".join(path)] = target
+                stack.append((path, target))
+    return paths
+
+
+def short(rev: str | None) -> str:
+    return rev[:9] if rev else "?"
+
+
+def describe(node: Node) -> str:
+    locked = node.get("locked", {})
+    kind = locked.get("type", "?")
+    if kind in ("github", "gitlab", "sourcehut"):
+        host = locked.get("host") or node.get("original", {}).get("host")
+        where = f"{host}:" if host else ""
+        return f"{kind} {where}{locked.get('owner')}/{locked.get('repo')} {short(locked.get('rev'))}"
+    if "url" in locked:
+        return f"{kind} {locked['url']}"
+    return kind
+
+
+class Reject(Exception):
+    pass
+
+
+class Verifier:
+    def __init__(self, github: GitHub, check_nar_hash: bool) -> None:
+        self.github = github
+        self.check_nar_hash = check_nar_hash
+
+    def verify(self, lock_name: str, paths: list[str], new: Node, old: Node | None) -> Result:
+        change = f"{describe(old) if old else 'new input'} -> {describe(new)}"
+        try:
+            status, notes = self._verify(new, old)
+        except Reject as err:
+            return Result(FAIL, lock_name, paths, f"{change}: {err}")
+        except VerifyError as err:
+            return Result(FAIL, lock_name, paths, f"{change}: could not verify: {err}")
+        return Result(status, lock_name, paths, change, notes)
+
+    def _verify(self, new: Node, old: Node | None) -> tuple[str, list[str]]:
+        locked = new.get("locked", {})
+        original = new.get("original", {})
+        locked_type = locked.get("type")
+        original_type = original.get("type")
+
+        if original_type == "indirect":
+            return MANUAL, ["original is a registry reference, check by hand"]
+        if locked_type != original_type:
+            raise Reject(f"locked type {locked_type} does not match original type {original_type}")
+        if locked_type != "github":
+            return MANUAL, ["not on GitHub, check by hand"]
+        for host in (locked.get("host"), original.get("host")):
+            if host and host.lower() != "github.com":
+                return MANUAL, [f"hosted on {host}, check by hand"]
+
+        owner, repo, rev = locked.get("owner", ""), locked.get("repo", ""), locked.get("rev", "")
+        tracked = (original.get("owner", ""), original.get("repo", ""))
+        if (owner.lower(), repo.lower()) != (tracked[0].lower(), tracked[1].lower()):
+            raise Reject(f"locked repo {owner}/{repo} is not the tracked repo {tracked[0]}/{tracked[1]}")
+        if not REV_RE.fullmatch(rev):
+            raise Reject(f"locked rev {rev!r} is not a full commit hash")
+
+        notes = [self._tracked(owner, repo, rev, original)]
+        notes.append(self._ancestry(old, new))
+        if self.check_nar_hash:
+            served = prefetch_nar_hash(owner, repo, rev)
+            if served != locked.get("narHash"):
+                raise Reject(f"narHash {locked.get('narHash')} does not match GitHub's source {served}")
+            notes.append("narHash matches")
+        else:
+            notes.append("narHash not checked")
+        return PASS, notes
+
+    def _tracked(self, owner: str, repo: str, rev: str, original: Node) -> str:
+        pinned = original.get("rev")
+        if pinned:
+            if pinned != rev:
+                raise Reject(f"locked rev differs from the pinned rev {short(pinned)}")
+            return f"pinned to {short(pinned)}"
+        ref = original.get("ref")
+        label = f"on {ref}"
+        if not ref:
+            ref = self.github.default_branch(owner, repo)
+            label = f"on default branch {ref}"
+        if not REF_RE.fullmatch(ref) or ".." in ref:
+            raise Reject(f"tracked ref {ref!r} has unexpected characters")
+        status = self.github.compare(owner, repo, rev, ref)
+        if status not in ("ahead", "identical"):
+            raise Reject(f"rev is not reachable from {ref} (compare status: {status})")
+        return label
+
+    def _ancestry(self, old: Node | None, new: Node) -> str:
+        if old is None:
+            return "new input path, no previous rev"
+        old_locked, new_locked = old.get("locked", {}), new["locked"]
+        if old.get("original") != new.get("original") or old_locked.get("type") != "github":
+            return "tracked source changed, no ancestry check against the old rev"
+        old_rev, new_rev = old_locked.get("rev", ""), new_locked["rev"]
+        if old_rev == new_rev:
+            if old_locked.get("narHash") != new_locked.get("narHash"):
+                raise Reject("narHash changed while the rev stayed the same")
+            return "same rev"
+        status = self.github.compare(new_locked["owner"], new_locked["repo"], old_rev, new_rev)
+        if status != "ahead":
+            raise Reject(
+                f"new rev does not descend from the old rev {short(old_rev)} (compare status: {status})"
+            )
+        return f"descends from {short(old_rev)}"
+
+
+def changed_inputs(base: Lock | None, pr: Lock) -> list[tuple[list[str], Node, Node | None]]:
+    """Group changed input paths by the (new node, old node) pair they resolve to."""
+    pr_paths = input_paths(pr)
+    groups: dict[tuple[str, str | None], list[str]] = {}
+    for path, name in sorted(pr_paths.items()):
+        old_name: str | None = None
+        if base is not None:
+            try:
+                old_name = resolve(base, path.split("/"))
+            except KeyError:
+                old_name = None
+        new_node = pr["nodes"][name]
+        if "locked" not in new_node:
+            continue
+        old_node = base["nodes"][old_name] if base is not None and old_name else None
+        if old_node is not None and old_node.get("locked") == new_node["locked"]:
+            continue
+        groups.setdefault((name, old_name), []).append(path)
+    changes = []
+    for (name, old_name), paths in groups.items():
+        old_node = base["nodes"][old_name] if base is not None and old_name else None
+        changes.append((paths, pr["nodes"][name], old_node))
+    return changes
+
+
+def git_show(ref: str, path: str) -> str | None:
+    proc = run(["git", "show", f"{ref}:{path}"], check=False)
+    return proc.stdout if proc.returncode == 0 else None
+
+
+def load_lock(text: str | None, label: str) -> Lock | None:
+    if text is None:
+        return None
+    try:
+        lock = json.loads(text)
+    except json.JSONDecodeError as err:
+        raise VerifyError(f"{label} is not valid JSON: {err}") from err
+    if not isinstance(lock, dict) or "nodes" not in lock or "root" not in lock:
+        raise VerifyError(f"{label} is not a flake lock file")
+    return lock
+
+
+def resolve_pr(pr: str, remote: str) -> tuple[str, str, int]:
+    """Fetch the PR head GitHub has and return (label, commit, number)."""
+    view = run(
+        ["gh", "pr", "view", pr, "--json", "number,url,state,headRefName,headRefOid,baseRefName"]
+    )
+    info = json.loads(view.stdout)
+    if info["state"] != "OPEN":
+        print(f"note: PR #{info['number']} is {info['state'].lower()}")
+    run(["git", "fetch", "--no-tags", "--quiet", remote, f"refs/pull/{info['number']}/head"])
+    fetched = run(["git", "rev-parse", "FETCH_HEAD"]).stdout.strip()
+    if fetched != info["headRefOid"]:
+        raise VerifyError(
+            f"PR head moved while fetching ({info['headRefOid'][:12]} vs {fetched[:12]}); run again"
+        )
+    label = f"PR #{info['number']} ({info['headRefName']} -> {info['baseRefName']}) {info['url']}"
+    return label, fetched, info["number"]
+
+
+def changed_files(base: str, head: str) -> list[str]:
+    merge_base = run(["git", "merge-base", base, head]).stdout.strip()
+    out = run(["git", "diff", "--name-only", "-z", merge_base, head]).stdout
+    return [name for name in out.split("\0") if name]
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Check that a flake update PR moves each input along the ref it tracks.",
+    )
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument("pr", nargs="?", help="PR number, URL or branch")
+    target.add_argument("--head", help="check a local commit instead of a PR")
+    parser.add_argument("--base", default="nixos", help="trusted base ref (default: nixos)")
+    parser.add_argument("--remote", default="origin", help="git remote for the PR (default: origin)")
+    parser.add_argument(
+        "--no-nar-hash",
+        dest="nar_hash",
+        action="store_false",
+        help="skip re-fetching sources to compare narHash (faster, weaker)",
+    )
+    args = parser.parse_args(argv)
+
+    try:
+        number: int | None = None
+        if args.head:
+            label = args.head
+            head = run(["git", "rev-parse", "--verify", f"{args.head}^{{commit}}"]).stdout.strip()
+        else:
+            label, head, number = resolve_pr(args.pr, args.remote)
+        base = run(["git", "rev-parse", "--verify", f"{args.base}^{{commit}}"]).stdout.strip()
+        print(f"Checking {label}")
+        print(f"  head {head}")
+        print(f"  base {args.base} at {base}\n")
+
+        results: list[Result] = []
+        extra = [name for name in changed_files(base, head) if name not in LOCK_FILES]
+        if extra:
+            results.append(
+                Result(
+                    FAIL,
+                    "(files)",
+                    [],
+                    "PR changes files other than lock files: "
+                    + ", ".join(extra)
+                    + f". If these come from {args.base} commits you have not pulled, pull and run again.",
+                )
+            )
+
+        verifier = Verifier(GitHub(), args.nar_hash)
+        jobs: list[tuple[str, list[str], Node, Node | None]] = []
+        for lock_name in LOCK_FILES:
+            base_lock = load_lock(git_show(base, lock_name), f"{args.base}:{lock_name}")
+            pr_lock = load_lock(git_show(head, lock_name), f"head:{lock_name}")
+            if pr_lock is None:
+                if base_lock is not None:
+                    results.append(Result(FAIL, lock_name, [], "lock file removed"))
+                continue
+            for paths, new, old in changed_inputs(base_lock, pr_lock):
+                jobs.append((lock_name, paths, new, old))
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            results.extend(pool.map(lambda job: verifier.verify(*job), jobs))
+    except VerifyError as err:
+        print(f"error: {err}", file=sys.stderr)
+        return 1
+
+    for lock_name in ["(files)", *LOCK_FILES]:
+        group = [r for r in results if r.lock == lock_name]
+        if not group:
+            continue
+        print(lock_name)
+        for r in group:
+            where = ", ".join(r.paths)
+            print(f"  {r.status:<6} {where + ': ' if where else ''}{r.summary}")
+            if r.notes:
+                print(f"         {'; '.join(r.notes)}")
+        print()
+
+    counts = {s: sum(r.status == s for r in results) for s in (PASS, FAIL, MANUAL)}
+    if not results:
+        print("No lock entries changed.")
+    print(f"{counts[PASS]} pass, {counts[FAIL]} fail, {counts[MANUAL]} manual")
+    if counts[FAIL]:
+        print("Result: FAIL. Do not merge.")
+        return 1
+    merge = f"gh pr merge {number} --merge --match-head-commit {head}" if number else ""
+    if counts[MANUAL]:
+        print("Result: GitHub inputs pass. Check the MANUAL inputs by hand before merging.")
+        if merge:
+            print(f"Then merge exactly the checked commit: {merge}")
+        return 2
+    print("Result: PASS.")
+    if merge:
+        print(f"Merge exactly the checked commit: {merge}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

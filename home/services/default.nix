@@ -6,6 +6,7 @@
     ./cliproxyapi.nix
     ./codex-desktop.nix
     ./dictator.nix
+    ./flake-update.nix
     ./grok-bot.nix
     ./install-tools.nix
     ./meeting-minutes.nix

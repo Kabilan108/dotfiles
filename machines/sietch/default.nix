@@ -66,6 +66,7 @@
   home-manager.users.kabilan = {
     dotfiles.services = {
       claude-keepalive.enable = true;
+      flake-update.enable = true;
       russ-playlist-sync.enable = true;
       moberg.devMaintenance.enable = true;
       moberg.devCheckouts.enable = true;
