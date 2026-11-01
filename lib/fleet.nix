@@ -43,6 +43,8 @@ rec {
         "moberg-status-jacurutu"
         "yk-nfc"
         "yk-nano"
+        "yk-nfc-deploy"
+        "yk-nano-deploy"
       ];
     };
 
