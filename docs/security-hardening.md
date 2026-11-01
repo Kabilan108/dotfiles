@@ -210,14 +210,40 @@ confirm `libfido2` present when generating the first sk key.
   commit statuses, metadata and repository hooks. Read and write: contents,
   issues, pull requests, Dependabot alerts and Workflows. No account
   permissions. It never gets Secrets, Variables, Administration or Deployments.
-- Environments protect workflow secrets; token scopes don't. dotfiles has a
-  `cache-publish` environment with me as the required reviewer, administrator
-  bypass off, and deployments only from the `nixos` branch. When the CI build
-  work starts, the Cachix push token goes in as a secret of that environment, so
-  every run that uses it waits for my approval in GitHub's web UI.
-- Repos whose workflows hold release secrets of their own use the same pattern.
-- Open: if the CI work publishes from signed tags rather than from `nixos`, add
-  a tag rule to `cache-publish`.
+- Environments protect workflow secrets; token scopes don't. Repos whose
+  workflows hold release secrets of their own use an environment too.
+
+## Binary cache (decided 2026-11-01)
+
+CI builds the expensive packages (`ci/cache-packages`) on free GitHub runners
+and publishes them to `kabilan108.cachix.org`. There is no cache on sietch:
+sietch runs agents, so a cache it signed would let them choose what jacurutu
+installs. ghostty comes from `ghostty.cachix.org`; niri.cachix.org is off,
+since niri builds against our nixpkgs and that cache only ever served crate
+tarballs.
+
+GitHub runs the workflow file from the commit that triggered the run, so
+whoever creates the trigger chooses the code that gets the push token. A
+check inside the workflow can't stop that, because the pushed commit can
+delete the check. The gate is in GitHub's settings, which agents can't change:
+
+- Only deploy tags publish (`.github/workflows/cache.yml`). Pull requests
+  build the same packages without the token.
+- The `deploy tags` ruleset (`refs/tags/deploy/**/*`) blocks creating,
+  updating and deleting deploy tags for everyone but the repo's deploy keys.
+  The deploy keys are the two YubiKey signer keys, so `deploy-tag push` takes a
+  touch. Agents push as my account, not as a deploy key, so they can't create
+  a deploy tag; neither can the Actions token.
+- The `cache-publish` environment holds the Cachix push token (with an expiry)
+  and accepts only `deploy/*/*` refs. Administrator bypass is off. I keep
+  myself as required reviewer until a test confirms an agent can't create a
+  deploy tag, then drop it: the YubiKey touch is the approval.
+- The workflow never restores an Actions cache or another run's artifacts. A
+  branch run could have written them.
+
+What this doesn't stop: a bad workflow change inside a commit I deploy.
+`deploy` and `rebuild` list `.github/` changes on their own line for that
+reason. Nor does it stop a compromise of GitHub, Cachix or a pinned action.
 
 ---
 
