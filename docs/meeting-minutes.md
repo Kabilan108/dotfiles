@@ -2,7 +2,9 @@
 
 `bin/meeting-minutes` turns a Stillsuit recording into a Coppermind meeting note. The jacurutu user service `meeting-minutes-worker` runs it straight from the dotfiles checkout. Siren transcribes the recording, fixed Python code reads calendar, Google Meet notes, and Slack through Executor, and Codex identifies speakers and writes the minutes. Notes go to `01-logs/meetings/`; the structured result, transcript, recording, and split audio tracks go to `~/media/meetings/` and move to Sietch. Agent-facing details of the note format live in `agents/skills/coppermind/references/meeting-artifacts.md`.
 
-`meeting-minutes regenerate <note-or-stem> --out <dir>` reruns generation for an existing meeting without touching the vault, proposals, weekly log, or job queue.
+`meeting-minutes regenerate <note-or-stem> --out <dir>` reruns generation for an existing meeting without touching the vault, proposals, weekly log, or job queue. When Tony knows who spoke, `--speaker SPEAKER_01=ethan-moyer` (a registry id, a name, or `unknown`) fixes a label with `confidence: high` and evidence "Confirmed by Tony", `--attendee <person>` confirms someone attended, and `--absent <person>` keeps someone out of the mapping, the likely candidates, and the attendee list. All three are repeatable and part of the run's recorded inputs.
+
+`meeting-minutes publish <regen-dir>...` installs reviewed `regenerate` outputs as the production notes they replace. It keeps the existing note's `pipeline_job`, `recording_identity`, `recording`, and `transcript`, writes `<stem>.minutes.json` next to the transcript in the media store, installs the screenshots the new note embeds, and removes the old note's screenshots only when no other note links them. It refuses a directory whose transcript or recording identity differs from the existing note, and backs up every file it replaces to `/vault/scratch/meeting-publish-backup/<stem>/` first (`MEETING_MINUTES_PUBLISH_BACKUP`). It writes no proposals and leaves the weekly log alone. `--dry-run` prints the plan.
 
 ## Isolation
 

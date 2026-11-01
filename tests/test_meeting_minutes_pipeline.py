@@ -86,7 +86,7 @@ TRANSCRIPT: dict[str, Any] = {
             "start": 91.0,
             "end": 150.0,
             "speaker": "SPEAKER_02",
-            "text": "Hospitals want to own their data, so adoption is slow.",
+            "text": "I'm Margaret Hamilton. Hospitals want to own their data, so adoption is slow.",
         },
         {"id": 4, "start": 151.0, "end": 152.0, "speaker": "SPEAKER_03", "text": "Mm."},
         {
