@@ -31,9 +31,15 @@
         options = "--delete-older-than 7d";
       };
       settings = {
-        extra-substituters = [ "https://kabilan108.cachix.org" ];
+        # kabilan108: CI builds from YubiKey-signed deploy tags
+        # (.github/workflows/cache.yml). ghostty: its flake's own builds.
+        extra-substituters = [
+          "https://kabilan108.cachix.org"
+          "https://ghostty.cachix.org"
+        ];
         extra-trusted-public-keys = [
           "kabilan108.cachix.org-1:g8OqmhpqE1Bz9DjKTV17uQ3yzsfGcDB5fDgGfVC4t/o="
+          "ghostty.cachix.org-1:QB389yTa6gTyneehvqG58y0WnHjQOqgnA+wBnpWWxns="
         ];
         experimental-features = [
           "nix-command"

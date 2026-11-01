@@ -136,6 +136,7 @@
     "niri-flake" = {
       url = "github:sodiboo/niri-flake";
       inputs.niri-unstable.url = "github:niri-wm/niri";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     stylix = {
       url = "github:nix-community/stylix";
