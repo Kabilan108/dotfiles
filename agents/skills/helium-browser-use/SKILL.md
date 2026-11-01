@@ -77,7 +77,7 @@ curl -fsS "http://127.0.0.1:${port}/json/list"
 
 Agent-browser may create or focus an agent-owned `about:blank` target even when raw CDP shows other Helium tabs. That is expected. Prefer the agent-owned tab unless the user requested work in a specific existing tab.
 
-If agent-browser reports that `/run/user/$UID/agent-browser` is read-only, request the required sandbox permission and retry. This is a local runtime-socket permission problem, not evidence that Helium or CDP is unavailable.
+If agent-browser reports that `/run/user/$UID/agent-browser` is read-only, or localhost CDP ports refuse connections while Tony says the tunnel is up, you are inside Codex's sandbox (T3's Auto mode). It blocks the runtime socket and localhost. Tell Tony the thread needs Full access. Neither error means Helium or CDP is unavailable.
 
 ## State And Privacy
 

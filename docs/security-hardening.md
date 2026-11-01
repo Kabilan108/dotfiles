@@ -284,11 +284,14 @@ a single choke point for what agents may invoke.
 
 ## Isolation / sandboxing (separate deep-dive)
 
-- Altitude: **bubblewrap** (or `systemd-run --user` with `ProtectHome`/`BindPaths`,
-  or rootless podman) to lock agents to their project dir. Firecracker/microVMs are
-  overkill unless running genuinely hostile, escape-attempting code.
-- This is the track that actually addresses the primary threat (malware-as-me) —
-  prioritize alongside getting secrets off disk.
+- Decided 2026-11-01: the boundary is a separate agent account on sietch, with
+  credentials moved off sietch and later a credential broker. Agents run without
+  harness sandboxes: Claude defaults to auto mode (its classifier, sandbox off) and
+  may bypass; Codex runs in full access, since its auto review only works inside
+  its sandbox. The harness sandboxes broke too much (localhost CDP tunnels,
+  agent-browser's runtime socket, tool caches).
+- A bubblewrap launcher for every harness (#34) is deferred until the agent account
+  has been lived with. Firecracker/microVMs stay reserved for hostile repos.
 
 ### R9: Docker access remains an agent-sandbox escape
 
@@ -394,7 +397,7 @@ For each account in Vaultwarden:
 - [ ] Git signing config for published repos.
 
 **Phase 4 — isolation + backups** (separate sessions)
-- [ ] Bubblewrap/sandbox for agent workdirs.
+- [ ] Agent account on sietch (bubblewrap launcher deferred, #34).
 - [ ] Backup overhaul (NAS, encryption, offsite).
 
 **Phase 5 — when 3rd key arrives**
