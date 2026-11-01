@@ -36,7 +36,7 @@ let
     fi
   '';
 
-  # The principal is the key's comment (yk-nfc, yk-nano).
+  # The principal is the key's comment (yk-nfc-deploy, yk-nano-deploy).
   allowedSigners = pkgs.writeText "deploy-signers" (
     lib.concatMapStrings (
       key: "${lib.last (lib.splitString " " key)} namespaces=\"git\" ${key}\n"

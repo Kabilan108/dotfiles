@@ -60,8 +60,8 @@ Tony approves a commit by signing a git tag, `deploy/<host>/<UTC time>`, with
 his YubiKey. Hosts build only signed tags.
 
 - `deploy <host>` runs on jacurutu. It fetches `origin/nixos`, lists the
-  commits since the host's last signed tag, asks, signs a new tag (a YubiKey
-  touch), pushes it, and starts the host's receiver over SSH. With nothing new
+  commits since the host's last signed tag, asks, signs a new tag (the YubiKey
+  PIN and a touch), pushes it, and starts the host's receiver over SSH. With nothing new
   it skips the signing and only starts the receiver.
 - You may run `deploy` on jacurutu, but only Tony can touch the key, and the
   new keys also need their PIN typed in a terminal. Start it in a tmux pane he

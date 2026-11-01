@@ -24,9 +24,7 @@ rec {
       hostPubkey = null;
       keys = {
         # hardware only: yk-nfc travels with the user, yk-nano is the backup in
-        # storage. Both also sign deploy tags (deploy.signers), so swapping a
-        # line here swaps it for SSH logins and deploys. id_ed25519 is the
-        # agenix identity, never a login key.
+        # storage. id_ed25519 is the agenix identity, never a login key.
         human = [
           "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIAU2WbCLrvbZce+BFRjxjqGfc2atw+UW1OzuUL0xoQP0AAAABHNzaDo= yk-nfc"
           "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIC2osOfuEavgTyeKIekDC3QRInB5F7+OwbNr8rI0gxeOAAAABHNzaDo= yk-nano"
@@ -155,10 +153,16 @@ rec {
     # tleilax joins both lists once it builds from the root flake.
     receivers = [ "sietch" ];
     gatedAgentLogins = [ ];
-    signers = hosts.jacurutu.keys.human;
-    # Also require the PIN flag in signatures. Turn on once every signer key
-    # was made with `ssh-keygen -O verify-required`.
-    requirePin = false;
+    # One key per YubiKey, made with `ssh-keygen -t ed25519-sk -O
+    # verify-required`. They are separate from the touch-only login keys in
+    # hosts.jacurutu.keys.human. Each key's comment is its allowed-signers
+    # principal.
+    signers = [
+      "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAINdYzCkPMjG7hmNBaBJnsvrlIae82j9oTFWAMqzLY1IjAAAABHNzaDo= yk-nfc-deploy"
+      "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIDJI4FILtC/aP8+XHS/nviSP9oI/S9Nj8iGq/khkaLLmAAAABHNzaDo= yk-nano-deploy"
+    ];
+    # Also require the PIN flag in signatures.
+    requirePin = true;
   };
 
   accessorsOf =

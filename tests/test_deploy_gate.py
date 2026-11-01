@@ -13,13 +13,17 @@ and flock. Set
 DEPLOY_TEST_OPENSSH to a built tests/sk-dummy.nix to skip the nix build.
 """
 
+import base64
 import fcntl
 import os
 import pty
 import shutil
+import socketserver
+import struct
 import subprocess
 import tempfile
 import termios
+import threading
 import unittest
 from pathlib import Path
 
@@ -145,6 +149,46 @@ def setUpModule() -> None:
 
 def tearDownModule() -> None:
     SHARED.cleanup()
+
+
+class RefusingAgent(socketserver.ThreadingUnixStreamServer):
+    """An ssh-agent that lists one key and refuses every request to sign.
+
+    GNOME Keyring's agent does this with a PIN key: it lists every ~/.ssh key
+    with a .pub file but can't ask for the PIN.
+    """
+
+    daemon_threads = True
+
+    def __init__(self, path: Path, key: Path) -> None:
+        blob = base64.b64decode(key.with_suffix(".pub").read_text().split()[1])
+        self.identities = bytes([12]) + struct.pack(">I", 1) + _string(blob) + _string(b"agent")
+        self.sign_requests = 0
+        super().__init__(str(path), _AgentHandler)
+        threading.Thread(target=self.serve_forever, daemon=True).start()
+
+    def close(self) -> None:
+        self.shutdown()
+        self.server_close()
+
+
+def _string(data: bytes) -> bytes:
+    return struct.pack(">I", len(data)) + data
+
+
+class _AgentHandler(socketserver.StreamRequestHandler):
+    server: RefusingAgent
+
+    def handle(self) -> None:
+        while len(header := self.rfile.read(4)) == 4:
+            message = self.rfile.read(struct.unpack(">I", header)[0])
+            if message[:1] == bytes([11]):
+                reply = self.server.identities
+            else:
+                if message[:1] == bytes([13]):
+                    self.server.sign_requests += 1
+                reply = bytes([5])
+            self.wfile.write(_string(reply))
 
 
 class DeployGate(unittest.TestCase):
@@ -617,6 +661,45 @@ class DeployTag(DeployGate):
         self.assertIn("failed its own check and was deleted", r.stderr)
         self.assertEqual(self.git("tag", "-l"), "")
 
+    def test_sign_refuses_a_key_without_the_pin_when_it_is_required(self) -> None:
+        r = self.run_cmd(
+            ["deploy-tag", "sign", "--key", str(KEYS["yk"]), "sietch", "HEAD"],
+            extra_env={"DEPLOY_REQUIRE_PIN": "1"},
+        )
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("signed without the PIN", r.stderr)
+        self.assertIn("failed its own check and was deleted", r.stderr)
+        self.assertEqual(self.git("tag", "-l"), "")
+
+    def test_sign_bypasses_an_agent_that_lists_the_key(self) -> None:
+        agent = RefusingAgent(self.tmp / "agent.sock", KEYS["pin"])
+        self.addCleanup(agent.close)
+        with_agent = {"SSH_AUTH_SOCK": str(self.tmp / "agent.sock"), "DEPLOY_REQUIRE_PIN": "1"}
+        (self.tmp / "payload").write_text("payload\n")
+        direct = self.run_cmd(
+            ["ssh-keygen", "-Y", "sign", "-n", "git", "-f", str(KEYS["pin"]), "payload"],
+            cwd=self.tmp,
+            stdin="1234\n",
+            extra_env=with_agent,
+        )
+        self.assertNotEqual(direct.returncode, 0, "ssh-keygen should sign through the agent")
+        self.assertIn("agent refused operation", direct.stderr)
+        self.assertEqual(agent.sign_requests, 1)
+
+        r = self.run_cmd(
+            ["deploy-tag", "sign", "--key", str(KEYS["pin"]), "sietch", "HEAD"],
+            stdin="1234\n",
+            extra_env=with_agent,
+        )
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("Enter the YubiKey PIN when asked, then touch the key", r.stderr)
+        tag = r.stdout.strip()
+        self.assertEqual(self.git("tag", "-l"), tag)
+        self.assertEqual(self.rev(f"{tag}^{{commit}}"), self.tip)
+        verify = self.run_cmd(["deploy-tag", "verify", tag], extra_env=with_agent)
+        self.assertEqual(verify.returncode, 0, verify.stderr)
+        self.assertEqual(agent.sign_requests, 1)
+
 
 class Deploy(DeployGate):
     def deployed_tags(self) -> list[str]:
@@ -645,6 +728,19 @@ class Deploy(DeployGate):
         self.assertNotIn(" two\n", r.stdout)
         self.assertEqual(len(self.deployed_tags()), 2)
         self.assertEqual(self.rebuilds()[-2:], self.deploy_lines(self.rev("HEAD")))
+
+    def test_signs_with_yk_nfc_deploy_by_default(self) -> None:
+        ssh_dir = self.tmp / "home/.ssh"
+        ssh_dir.mkdir()
+        shutil.copy(KEYS["pin"], ssh_dir / "yk-nfc-deploy")
+        r = self.run_cmd(
+            ["bash", str(SCRIPTS / "deploy.sh"), "--yes", "sietch"],
+            stdin="1234\n",
+            extra_env={"DEPLOY_REQUIRE_PIN": "1"},
+        )
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        [tag] = self.deployed_tags()
+        self.assertTrue(r.stdout.endswith(f"sietch runs {tag}.\n"), r.stdout)
 
     def at_terminal(self, cmd: list[str], typed: str) -> tuple[int, str]:
         """Run cmd with a pseudo-terminal as its controlling terminal."""
@@ -908,7 +1004,7 @@ class Rebuild(DeployGate):
     def give_key(self, key: str = "yk") -> None:
         ssh_dir = self.tmp / "home/.ssh"
         ssh_dir.mkdir(exist_ok=True)
-        shutil.copy(KEYS[key], ssh_dir / "yk-nfc")
+        shutil.copy(KEYS[key], ssh_dir / "yk-nfc-deploy")
 
     def test_a_failed_signature_stops_the_build(self) -> None:
         self.give_key("evil")
@@ -981,11 +1077,15 @@ class Rebuild(DeployGate):
 
     def test_before_deploy_tag_is_installed(self) -> None:
         (self.tmp / "bin/deploy-tag").unlink()
-        r = self.rebuild()
+        # A host that already has deploy-tag installed mustn't lend it here.
+        path = ":".join(
+            d for d in self.env["PATH"].split(":") if not (Path(d) / "deploy-tag").exists()
+        )
+        r = self.rebuild(PATH=path)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("deploy-tag isn't installed yet", r.stdout)
         self.assertEqual(self.sudo_calls(), [f"nixos-rebuild switch --flake {self.work}#jacurutu"])
-        r = self.rebuild(args=("boot",))
+        r = self.rebuild(args=("boot",), PATH=path)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(
             self.sudo_calls()[1:], [f"nixos-rebuild boot --flake {self.work}#jacurutu"]
