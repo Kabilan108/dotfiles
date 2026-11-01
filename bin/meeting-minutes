@@ -104,7 +104,7 @@ EXECUTOR_KEY_FILE = Path(
 ).expanduser()
 RESULT_SCHEMA_VERSION = 3
 # Bump when a prompt or validation rule changes so cached results regenerate.
-GENERATION_VERSION = "2026-11-01.1"
+GENERATION_VERSION = "2026-11-01.2"
 # Unknown speakers below this much talk time are usually diarization noise
 # (cross-talk, a cough); they stay in the result JSON but not in attendees.
 UNKNOWN_SPEAKER_MIN_SECONDS = 15.0
@@ -3330,7 +3330,7 @@ def speaker_mapping_text(speakers: list[dict[str, Any]]) -> str:
     )
 
 
-CITATION_RULE = """Citations are anchor IDs from the start of transcript lines (`s1234`, or `s1234.1` for a later part of a long turn), never clock times. Cite the specific lines where the point was said. A range such as `s120-s122` may cover at most 3 consecutive lines and 60 seconds. Cite only the strongest evidence, strongest first, and keep each item to at most 3 places in the transcript. Prefer one wider stretch to scattered spots: citations within about 10 seconds of each other are joined into a single range of up to 90 seconds, so to cover a longer passage cite neighbouring short ranges such as `s120-s122` and `s123-s125`."""
+CITATION_RULE = """Citations are anchor IDs from the start of transcript lines (`s1234`, or `s1234.1` for a later part of a long turn), never clock times. Cite the specific lines where the point was said. A range such as `s120-s122` covers consecutive lines: at most 3 lines and 60 seconds, or a longer stretch of lines with no pause over 10 seconds that lasts at most 90 seconds. Cite only the strongest evidence, strongest first, and keep each item to at most 3 places in the transcript. Prefer one wider stretch to scattered spots: citations within about 10 seconds of each other are joined into a single range of up to 90 seconds."""
 
 
 def minutes_prompt(
@@ -3426,13 +3426,26 @@ def citation_fits(first: dict[str, Any], last: dict[str, Any], lines: int) -> bo
     )
 
 
+def unbroken_stretch(anchors: list[dict[str, Any]], first: int, last: int) -> bool:
+    """Lines that would merge into one displayed range anyway: no gap over
+    CITATION_MERGE_GAP_SECONDS, at most CITATION_MERGED_MAX_SECONDS in all."""
+    return anchors[last]["end"] - anchors[first][
+        "start"
+    ] <= CITATION_MERGED_MAX_SECONDS and all(
+        anchors[position + 1]["start"] - anchors[position]["end"]
+        <= CITATION_MERGE_GAP_SECONDS
+        for position in range(first, last)
+    )
+
+
 def resolve_citations(
     raw: Any, anchors: list[dict[str, Any]], anchor_index: dict[str, int]
 ) -> tuple[list[str], int]:
-    """Anchor IDs that exist, plus `sA-sB` ranges of at most
-    CITATION_MAX_LINES lines and CITATION_MAX_SECONDS, in the order the model
-    cited them. The anchors carry the times, so no cited range can extend past
-    the recording."""
+    """Anchor IDs that exist, plus `sA-sB` ranges, in the order the model
+    cited them. A range is either at most CITATION_MAX_LINES lines and
+    CITATION_MAX_SECONDS, or an unbroken stretch that merging would display
+    as one range anyway. The anchors carry the times, so no cited range can
+    extend past the recording."""
     positions: list[int] = []
     dropped = 0
     anchor_id = r"[sa]\d+(?:\.\d+)?"
@@ -3443,7 +3456,9 @@ def resolve_citations(
             first, last = sorted(
                 (anchor_index[span.group(1)], anchor_index[span.group(2)])
             )
-            if citation_fits(anchors[first], anchors[last], last - first + 1):
+            if citation_fits(
+                anchors[first], anchors[last], last - first + 1
+            ) or unbroken_stretch(anchors, first, last):
                 positions.extend(range(first, last + 1))
                 continue
         elif text in anchor_index:

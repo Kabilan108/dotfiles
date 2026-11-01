@@ -1506,7 +1506,7 @@ def test_citation_ranges_are_capped_at_three_lines_and_sixty_seconds(
     index = {anchor["id"]: position for position, anchor in enumerate(short)}
 
     assert resolve(["s0-s2"], short, index) == (["s0", "s1", "s2"], 0)
-    assert resolve(["s0-s3"], short, index) == ([], 1)
+    assert resolve(["s0-s3"], short, index) == (["s0", "s1", "s2", "s3"], 0)
     singles, _ = resolve(["s0", "s1", "s2", "s3", "s4"], short, index)
     assert ranges(singles, short, index) == [{"start": 0.0, "end": 49.0}]
 
@@ -1522,13 +1522,14 @@ def test_citation_ranges_are_capped_at_three_lines_and_sixty_seconds(
     ]
     long_index = {anchor["id"]: position for position, anchor in enumerate(long)}
     assert resolve(["s0-s1"], long, long_index) == (["s0", "s1"], 0)
-    assert resolve(["s0-s2"], long, long_index) == ([], 1)
+    assert resolve(["s0-s2"], long, long_index) == (["s0", "s1", "s2"], 0)
+    assert resolve(["s0-s3"], long, long_index) == ([], 1)
     assert ranges(["s0", "s1", "s2"], long, long_index) == [{"start": 0.0, "end": 74.0}]
     assert ranges(["s0", "s1", "s2", "s3"], long, long_index) == [
         {"start": 0.0, "end": 49.0},
         {"start": 50.0, "end": 99.0},
     ]
-    assert "at most 3 consecutive lines and 60 seconds" in namespace["CITATION_RULE"]
+    assert "at most 3 lines and 60 seconds" in namespace["CITATION_RULE"]
     assert namespace["CITATION_RULE"] in namespace["CITATION_REPAIR_PROMPT"]
 
 
@@ -1811,6 +1812,18 @@ def test_items_keep_at_most_three_ranges_favouring_the_first_cited(
     assert namespace["needs_recitation"](item)
     namespace["cite"](item, ["s4", "s5", "s0"], anchors, index)
     assert item["cited_ranges"] == 2 and not namespace["needs_recitation"](item)
+    stretch, stretch_index = spaced_anchors([0.0, 6.0, 12.0, 18.0, 24.0, 40.0])
+    resolve = namespace["resolve_citations"]
+    assert resolve(["s0-s4"], stretch, stretch_index) == (
+        ["s0", "s1", "s2", "s3", "s4"],
+        0,
+    )
+    assert namespace["citation_ranges"](
+        ["s0", "s1", "s2", "s3", "s4"], stretch, stretch_index
+    ) == [{"start": 0.0, "end": 29.0}]
+    assert resolve(["s1-s5"], stretch, stretch_index) == ([], 1)
+    long_stretch, long_index = spaced_anchors([index * 8.0 for index in range(14)])
+    assert resolve(["s0-s11"], long_stretch, long_index) == ([], 1)
     rule = namespace["CITATION_RULE"]
     assert (
         "strongest evidence" in rule and "10 seconds" in rule and "90 seconds" in rule
