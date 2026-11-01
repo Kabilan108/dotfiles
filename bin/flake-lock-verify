@@ -96,7 +96,6 @@ class Result:
 class Change:
     lock: str
     paths: list[str]
-    canonical: list[str]
     new: Node
     old: Node | None
 
@@ -119,6 +118,31 @@ def policy(node: Node) -> tuple[str, bool]:
 
 def content(node: Node) -> dict[str, Any]:
     return {k: v for k, v in node.items() if k != "inputs"}
+
+
+def normalize(original: dict[str, Any]) -> str:
+    """Compare sources the way Nix writes them into `original`."""
+    source = dict(original)
+    if source.get("dir") == "":
+        del source["dir"]
+    if source.get("type") == "file":
+        source["type"] = "tarball"
+    return json.dumps(source, sort_keys=True)
+
+
+@dataclass
+class Declaration:
+    where: str
+    follows: list[str] | None
+    source: dict[str, Any] | None
+    flake: bool = True
+
+
+class Inherit(Exception):
+    def __init__(self, status: str, note: str) -> None:
+        super().__init__(note)
+        self.status = status
+        self.note = note
 
 
 @dataclass(frozen=True)
@@ -194,8 +218,8 @@ class Nix:
         return json.loads(run(["nix", "flake", "prefetch", "--json", flakeref]).stdout)["hash"]
 
     def node_inputs(self, node: Node) -> dict[str, Any]:
-        locked = json.dumps(node["locked"], sort_keys=True)
-        dir_ = node.get("original", {}).get("dir", "")
+        locked = json.dumps({k: v for k, v in node["locked"].items() if k != "dir"}, sort_keys=True)
+        dir_ = node["locked"].get("dir") or node.get("original", {}).get("dir", "")
         key = f"{locked}#{dir_}"
         if key not in self._inputs:
             self._inputs[key] = self._instantiate(NODE_INPUTS_EXPR, True, locked=locked, dir=dir_)
@@ -252,18 +276,13 @@ def resolve(lock: Lock, path: list[str], depth: int = 0) -> str:
     return current
 
 
-def input_paths(lock: Lock) -> tuple[dict[str, str], dict[str, list[str]]]:
-    """Map every input path to its node, descending through follows aliases too.
-
-    Also returns, per node, the shortest path made only of direct edges: the
-    place the node was locked, which is where its declaration lives.
-    """
+def input_paths(lock: Lock) -> dict[str, str]:
+    """Map every input path to its node, descending through follows aliases too."""
     paths: dict[str, str] = {}
-    canonical: dict[str, list[str]] = {}
     root = lock["root"]
-    stack: list[tuple[list[str], str, frozenset[str], bool]] = [([], root, frozenset([root]), True)]
+    stack: list[tuple[list[str], str, frozenset[str]]] = [([], root, frozenset([root]))]
     while stack:
-        prefix, name, chain, direct = stack.pop()
+        prefix, name, chain = stack.pop()
         for step, target in lock["nodes"][name].get("inputs", {}).items():
             path = [*prefix, step]
             node = resolve(lock, target) if isinstance(target, list) else target
@@ -272,16 +291,12 @@ def input_paths(lock: Lock) -> tuple[dict[str, str], dict[str, list[str]]]:
             paths["/".join(path)] = node
             if len(paths) > MAX_PATHS:
                 raise VerifyError("input graph has too many paths")
-            is_direct = direct and isinstance(target, str)
-            if is_direct and (node not in canonical or len(path) < len(canonical[node])):
-                canonical[node] = path
-            stack.append((path, node, chain | {node}, is_direct))
-    return paths, canonical
+            stack.append((path, node, chain | {node}))
+    return paths
 
 
-def changed_inputs(lock_name: str, base: Lock | None, pr: Lock) -> list[Change]:
+def changed_inputs(lock_name: str, base: Lock | None, pr: Lock, pr_paths: dict[str, str]) -> list[Change]:
     """Group changed input paths by the (new node, old node) pair they resolve to."""
-    pr_paths, canonical = input_paths(pr)
     groups: dict[tuple[str, str | None], list[str]] = {}
     for path, name in sorted(pr_paths.items()):
         old_name: str | None = None
@@ -294,13 +309,10 @@ def changed_inputs(lock_name: str, base: Lock | None, pr: Lock) -> list[Change]:
         if old is not None and content(old) == content(pr["nodes"][name]):
             continue
         groups.setdefault((name, old_name), []).append(path)
-    changes = []
-    for (name, old_name), paths in groups.items():
-        old = base["nodes"][old_name] if base is not None and old_name else None
-        if name not in canonical:
-            raise VerifyError(f"node {name} is only reachable through follows")
-        changes.append(Change(lock_name, paths, canonical[name], pr["nodes"][name], old))
-    return changes
+    return [
+        Change(lock_name, paths, pr["nodes"][name], base["nodes"][old_name] if base is not None and old_name else None)
+        for (name, old_name), paths in groups.items()
+    ]
 
 
 def short(rev: str | None) -> str:
@@ -426,50 +438,96 @@ class Verifier:
             raise Reject(f"new rev does not descend from the old rev {short(old_rev)} ({said})")
         return f"descends from {short(old_rev)}"
 
-    def authenticate(
-        self,
-        change: Change,
-        pr: Lock,
-        root_flake: Path,
-        status_of: dict[str, str],
-    ) -> tuple[str, str]:
-        """Check a changed `original` against the flake.nix files that declare it.
+    def _declared_inputs(
+        self, pr: Lock, path: list[str], depth: int, root_flake: Path, path_status: dict[str, str]
+    ) -> tuple[dict[str, Any], str]:
+        if depth == 0:
+            return self.nix.file_inputs(root_flake), "the root flake.nix"
+        prefix = "/".join(path[:depth])
+        status = path_status.get(prefix, PASS)
+        if status != PASS:
+            raise Inherit(status, f"declared under {prefix}, which is {status}")
+        ancestor = pr["nodes"][resolve(pr, path[:depth])]
+        return self.nix.node_inputs(ancestor), f"{prefix} at {short(ancestor['locked'].get('rev'))}"
+
+    def declaration(
+        self, pr: Lock, path: list[str], root_flake: Path, path_status: dict[str, str]
+    ) -> Declaration | None:
+        """Find how the flake.nix files declare the input at `path`.
 
         Overrides win from the outside in, as in Nix: the root flake.nix can
         set `inputs.a.inputs.b.url`, which beats what `a` declares for `b`.
+        Follows are relative to the flake that declares them. The `flake`
+        flag comes from the input's own declaration even when an override
+        supplies the source.
         """
-        path = change.canonical
+        found: Declaration | None = None
+        own_flake = True
         for depth in range(len(path)):
-            if depth == 0:
-                declared = self.nix.file_inputs(root_flake)
-                where = "the root flake.nix"
-            else:
-                ancestor_path = "/".join(path[:depth])
-                ancestor_status = status_of.get(ancestor_path, PASS)
-                if ancestor_status != PASS:
-                    return ancestor_status, f"declared by {ancestor_path}, which is {ancestor_status}"
-                ancestor = pr["nodes"][resolve(pr, path[:depth])]
-                declared = self.nix.node_inputs(ancestor)
-                where = f"{ancestor_path} at {short(ancestor['locked'].get('rev'))}"
+            declared, where = self._declared_inputs(pr, path, depth, root_flake, path_status)
             spec: Any = declared.get(path[depth])
             for step in path[depth + 1 :]:
                 spec = spec.get("inputs", {}).get(step) if isinstance(spec, dict) else None
             if not isinstance(spec, dict):
                 continue
-            if "follows" in spec:
-                return FAIL, f"{where} declares it as follows {spec['follows']!r}, not its own input"
-            source = {k: v for k, v in spec.items() if k not in ("inputs", "flake", "follows")}
-            if not source and depth < len(path) - 1:
+            own = depth == len(path) - 1
+            if own:
+                own_flake = spec.get("flake", True)
+            if found is not None:
                 continue
+            if "follows" in spec:
+                target = [step for step in spec["follows"].split("/") if step]
+                return Declaration(where, [*path[:depth], *target], None)
+            source = {k: v for k, v in spec.items() if k not in ("inputs", "flake", "follows")}
             if "url" in source:
                 source = {**self.nix.parse_ref(source.pop("url")), **source}
-            elif not source:
-                source = {"id": path[-1], "type": "indirect"}
-            expected = (json.dumps(source, sort_keys=True), spec.get("flake", True))
-            if expected != policy(change.new):
-                return FAIL, f"original does not match {where}, which declares {source}"
-            return PASS, f"source declared by {where}"
-        return FAIL, "no flake.nix declares this input"
+            if source:
+                found = Declaration(where, None, source)
+            elif own:
+                found = Declaration(where, None, {"id": path[-1], "type": "indirect"})
+        if found is not None:
+            found.flake = own_flake
+        return found
+
+    def authenticate_binding(
+        self, pr: Lock, path: list[str], root_flake: Path, path_status: dict[str, str]
+    ) -> tuple[str, str]:
+        """Check that the lock binds `path` the way the flake.nix files declare it."""
+        try:
+            decl = self.declaration(pr, path, root_flake, path_status)
+        except Inherit as err:
+            return err.status, err.note
+        if decl is None:
+            return FAIL, f"{'/'.join(path)}: no flake.nix declares this input"
+        edge = pr["nodes"][resolve(pr, path[:-1])]["inputs"][path[-1]]
+        name = "/".join(path)
+        if decl.follows is not None:
+            declared = "/".join(decl.follows)
+            # Nix may record a follows chain already resolved one step, so
+            # compare where the two paths lead. The target's own binding is
+            # checked separately.
+            if not isinstance(edge, list) or resolve(pr, edge) != resolve(pr, decl.follows):
+                return FAIL, f"{name}: {decl.where} declares follows {declared!r}, the lock has {edge!r}"
+            return PASS, f"{name}: follows {declared} as {decl.where} declares"
+        if isinstance(edge, list):
+            return FAIL, f"{name}: {decl.where} declares its own source, the lock follows {'/'.join(edge)}"
+        node = pr["nodes"][edge]
+        assert decl.source is not None
+        if (normalize(decl.source), decl.flake) != (normalize(node["original"]), node.get("flake", True)):
+            flake = "" if decl.flake else " with flake = false"
+            return FAIL, f"{name}: original does not match {decl.where}, which declares {decl.source}{flake}"
+        return PASS, f"{name}: source declared by {decl.where}"
+
+    def authenticate_removal(
+        self, pr: Lock, path: list[str], root_flake: Path, path_status: dict[str, str]
+    ) -> tuple[str, str]:
+        try:
+            decl = self.declaration(pr, path, root_flake, path_status)
+        except Inherit as err:
+            return err.status, err.note
+        if decl is not None:
+            return FAIL, f"removed from the lock, but {decl.where} still declares it"
+        return PASS, "no flake.nix declares it any more"
 
 
 def git_show(ref: str, path: str) -> str | None:
@@ -520,7 +578,8 @@ def check_lock(
     if problems:
         return [Result(FAIL, lock_name, [], problem) for problem in problems]
 
-    changes = changed_inputs(lock_name, base_lock, pr_lock)
+    pr_paths = input_paths(pr_lock)
+    changes = changed_inputs(lock_name, base_lock, pr_lock, pr_paths)
     with ThreadPoolExecutor(max_workers=4) as pool:
         results = list(pool.map(verifier.verify, changes))
 
@@ -528,20 +587,40 @@ def check_lock(
     root_flake = scratch / lock_name.replace("/", "-").replace(".lock", ".nix")
     if flake_text is not None:
         root_flake.write_text(flake_text)
-    status_of = {path: r.status for r, c in zip(results, changes) for path in c.paths}
-    for change, result in sorted(zip(changes, results), key=lambda pair: len(pair[0].canonical)):
+
+    # Each binding is checked in its own context, shallowest first, so a
+    # child sees the final status of the binding above it.
+    path_status = {path: r.status for r, c in zip(results, changes) for path in c.paths}
+    bindings = sorted(
+        ((path, change, result) for change, result in zip(changes, results) for path in change.paths),
+        key=lambda item: item[0].count("/"),
+    )
+    for path, change, result in bindings:
         if result.status == FAIL or not change.policy_changed:
             continue
         if flake_text is None:
-            result.escalate(FAIL, f"base has no {LOCK_FILES[lock_name]} to check the source against")
+            status, note = FAIL, f"base has no {LOCK_FILES[lock_name]} to check the source against"
         else:
             try:
-                status, note = verifier.authenticate(change, pr_lock, root_flake, status_of)
+                status, note = verifier.authenticate_binding(pr_lock, path.split("/"), root_flake, path_status)
             except (VerifyError, KeyError) as err:
-                status, note = FAIL, f"could not check the declared source: {err}"
-            result.escalate(status, note)
-        for path in change.paths:
-            status_of[path] = result.status
+                status, note = FAIL, f"{path}: could not check the declared source: {err}"
+        result.escalate(status, note)
+        path_status[path] = status if RANK[status] > RANK[path_status[path]] else path_status[path]
+
+    if base_lock is not None:
+        for path in sorted(set(input_paths(base_lock)) - set(pr_paths), key=lambda p: p.count("/")):
+            parent = path.rpartition("/")[0]
+            if parent and parent not in pr_paths:
+                continue
+            if flake_text is None:
+                status, note = FAIL, f"base has no {LOCK_FILES[lock_name]} to check the removal against"
+            else:
+                try:
+                    status, note = verifier.authenticate_removal(pr_lock, path.split("/"), root_flake, path_status)
+                except (VerifyError, KeyError) as err:
+                    status, note = FAIL, f"could not check the removal: {err}"
+            results.append(Result(status, lock_name, [path], "input removed", [note]))
     return results
 
 

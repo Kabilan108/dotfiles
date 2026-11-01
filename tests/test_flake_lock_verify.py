@@ -123,14 +123,23 @@ FAKE_NIX_INSTANTIATE = GRAPH_HELPERS + textwrap.dedent(
     elif "file" in named:
         print(json.dumps(json.load(open(named["file"]))["inputs"]))
     else:
-        rev = json.loads(named["locked"])["rev"]
-        print(json.dumps(forge["flakes"].get(rev, {})))
+        locked = json.loads(named["locked"])
+        if "dir" in locked:
+            print("error: input attribute 'dir' not supported by scheme", file=sys.stderr)
+            sys.exit(1)
+        print(json.dumps(forge["flakes"].get(locked["rev"], {})))
     """
 )
 
 
 def gh_node(
-    owner: str, repo: str, locked_rev: str, inputs: dict[str, Any] | None = None, kind: str = "github", **original: str
+    owner: str,
+    repo: str,
+    locked_rev: str,
+    inputs: dict[str, Any] | None = None,
+    kind: str = "github",
+    flake: bool = True,
+    **original: str,
 ) -> dict[str, Any]:
     node: dict[str, Any] = {
         "locked": {
@@ -143,6 +152,10 @@ def gh_node(
         },
         "original": {"owner": owner, "repo": repo, "type": kind, **original},
     }
+    if "dir" in original:
+        node["locked"]["dir"] = original["dir"]
+    if not flake:
+        node["flake"] = False
     if inputs:
         node["inputs"] = inputs
     return node
@@ -155,7 +168,8 @@ def lock(nodes: dict[str, Any], root_inputs: dict[str, Any]) -> dict[str, Any]:
 # NixOS/nixpkgs: n1 <- n2 <- n3 on nixos-unstable; master runs one commit
 # ahead (m4), and "fork" only exists in a fork, on top of n3.
 N1, N2, N3, M4, FORK = (sha(x) for x in ("n1", "n2", "n3", "m4", "fork"))
-H1, H2, H3 = sha("h1"), sha("h2"), sha("h3")
+H1, H2, H3, H4 = sha("h1"), sha("h2"), sha("h3"), sha("h4")
+D1 = sha("d1")
 P1 = sha("pinned")
 G1, G2, GFORK = sha("g1"), sha("g2"), sha("gfork")
 A1 = sha("a1")
@@ -163,6 +177,7 @@ A1 = sha("a1")
 HM_INPUTS = {
     "nixpkgs": {"url": "github:NixOS/nixpkgs/nixos-unstable"},
     "old": {"url": "github:NixOS/nixpkgs/nixos-unstable"},
+    "data": {"url": "github:o/other", "flake": False},
 }
 FORGE: dict[str, Any] = {
     "github": {
@@ -173,9 +188,10 @@ FORGE: dict[str, Any] = {
         },
         "nix-community/home-manager": {
             "default_branch": "master",
-            "refs": {"master": H3},
-            "parents": {H1: [], H2: [H1], H3: [H2]},
+            "refs": {"master": H4},
+            "parents": {H1: [], H2: [H1], H3: [H2], H4: [H3]},
         },
+        "o/data": {"default_branch": "main", "refs": {"main": D1}, "parents": {D1: []}},
         "attacker/nixpkgs": {
             "default_branch": "master",
             "refs": {"master": FORK},
@@ -189,21 +205,28 @@ FORGE: dict[str, Any] = {
             "parents": {G1: [], G2: [G1], GFORK: [G1]},
         },
     },
-    # Declared inputs per rev. At h3, home-manager moved `old` to master.
+    # Declared inputs per rev. At h3, home-manager moved `old` to master; at
+    # h4 it dropped `old`.
     "flakes": {
         H1: HM_INPUTS,
         H2: HM_INPUTS,
         H3: {**HM_INPUTS, "old": {"url": "github:NixOS/nixpkgs/master"}},
+        H4: {"nixpkgs": HM_INPUTS["nixpkgs"]},
+        G2: {"nixpkgs": {"url": "github:NixOS/nixpkgs/nixos-unstable"}},
     },
 }
 
 ROOT_FLAKE = {
     "inputs": {
         "nixpkgs": {"url": "github:NixOS/nixpkgs/nixos-unstable"},
-        "home-manager": {"url": "github:nix-community/home-manager", "inputs": {"nixpkgs": {"follows": "nixpkgs"}}},
+        "home-manager": {
+            "url": "github:nix-community/home-manager",
+            "inputs": {"nixpkgs": {"follows": "nixpkgs"}, "data": {"url": "github:o/data"}},
+        },
         "boot-nixpkgs": {"url": f"github:NixOS/nixpkgs/{P1}"},
-        "firefox-addons": {"url": "gitlab:rycee/nur"},
+        "firefox-addons": {"url": "gitlab:rycee/nur?dir=pkgs/ff"},
         "channel": {"url": "https://channels.nixos.org/x"},
+        "blob": {"url": "https://example.org/blob.txt", "flake": False},
         "a": {"url": "github:o/a"},
         "b": {"url": "github:o/a"},
     }
@@ -227,7 +250,7 @@ def base_root_lock() -> dict[str, Any]:
                 "nix-community", "home-manager", H1, inputs={"nixpkgs": ["nixpkgs"], "old": "nixpkgs_2"}
             ),
             "boot-nixpkgs": gh_node("NixOS", "nixpkgs", P1, rev=P1),
-            "firefox-addons": gh_node("rycee", "nur", G1, kind="gitlab"),
+            "firefox-addons": gh_node("rycee", "nur", G1, kind="gitlab", dir="pkgs/ff"),
             "channel": tarball("https://releases.nixos.org/x-1"),
         },
         {
@@ -251,7 +274,7 @@ def updated_root_lock() -> dict[str, Any]:
         "nix-community", "home-manager", H2, inputs={"nixpkgs": ["nixpkgs"], "old": "nixpkgs_3"}
     )
     updated["nodes"]["nixpkgs_3"] = updated["nodes"].pop("nixpkgs_2")
-    updated["nodes"]["firefox-addons"] = gh_node("rycee", "nur", G2, kind="gitlab")
+    updated["nodes"]["firefox-addons"] = gh_node("rycee", "nur", G2, kind="gitlab", dir="pkgs/ff")
     return updated
 
 
@@ -379,7 +402,7 @@ class FlakeLockVerify(unittest.TestCase):
 
     def test_gitlab_fork_commit_fails(self) -> None:
         root = updated_root_lock()
-        root["nodes"]["firefox-addons"] = gh_node("rycee", "nur", GFORK, kind="gitlab")
+        root["nodes"]["firefox-addons"] = gh_node("rycee", "nur", GFORK, kind="gitlab", dir="pkgs/ff")
         self.open_pr(root, updated_raspi_lock())
         self.assertIn("rev is not reachable from master (merge base:", self.verify("7", code=1))
 
@@ -476,6 +499,80 @@ class FlakeLockVerify(unittest.TestCase):
         self.assertIn("PASS   home-manager/old:", out)
         self.assertIn("tracked source changed, no ancestry check", out)
         self.assertIn(f"source declared by home-manager at {H3[:9]}", out)
+
+    def test_shared_node_is_checked_against_each_binding(self) -> None:
+        # boot-nixpkgs is a valid root input, but home-manager declares `old`
+        # as nixos-unstable, so binding it there must fail.
+        root = updated_root_lock()
+        root["nodes"]["home-manager"]["inputs"]["old"] = "boot-nixpkgs"
+        del root["nodes"]["nixpkgs_3"]
+        self.open_pr(root, updated_raspi_lock())
+        out = self.verify("7", code=1)
+        self.assertIn("home-manager/old: original does not match home-manager at", out)
+
+    def test_redirected_follows_fails(self) -> None:
+        root = updated_root_lock()
+        root["nodes"]["home-manager"]["inputs"]["nixpkgs"] = ["boot-nixpkgs"]
+        self.open_pr(root, updated_raspi_lock())
+        out = self.verify("7", code=1)
+        self.assertIn("home-manager/nixpkgs: the root flake.nix declares follows 'nixpkgs', the lock has ['boot-nixpkgs']", out)
+
+    def test_flake_flag_comes_from_the_own_declaration(self) -> None:
+        # The root overrides home-manager's `data` source; home-manager
+        # declares it flake = false, and Nix keeps that flag.
+        base = base_root_lock()
+        base["nodes"]["data"] = gh_node("o", "data", D1, flake=False)
+        base["nodes"]["home-manager"]["inputs"]["data"] = "data"
+        self.set_base(base, base_raspi_lock())
+        pr = copy.deepcopy(base)
+        del pr["nodes"]["data"]["flake"]
+        self.open_pr(pr, base_raspi_lock())
+        out = self.verify("7", code=1)
+        self.assertIn("home-manager/data: original does not match the root flake.nix", out)
+        self.assertIn("with flake = false", out)
+
+    def test_new_input_with_overridden_source_passes(self) -> None:
+        root = updated_root_lock()
+        root["nodes"]["data"] = gh_node("o", "data", D1, flake=False)
+        root["nodes"]["home-manager"]["inputs"]["data"] = "data"
+        self.open_pr(root, updated_raspi_lock())
+        out = self.verify("7", code=0)
+        self.assertIn("home-manager/data: source declared by the root flake.nix", out)
+
+    def test_removed_input_still_declared_fails(self) -> None:
+        root = updated_root_lock()
+        del root["nodes"]["home-manager"]["inputs"]["old"], root["nodes"]["nixpkgs_3"]
+        self.open_pr(root, updated_raspi_lock())
+        out = self.verify("7", code=1)
+        self.assertIn("FAIL   home-manager/old: input removed", out)
+        self.assertIn("still declares it", out)
+
+    def test_input_dropped_upstream_may_be_removed(self) -> None:
+        root = updated_root_lock()
+        root["nodes"]["home-manager"] = gh_node("nix-community", "home-manager", H4, inputs={"nixpkgs": ["nixpkgs"]})
+        del root["nodes"]["nixpkgs_3"]
+        self.open_pr(root, updated_raspi_lock())
+        out = self.verify("7", code=0)
+        self.assertIn("PASS   home-manager/old: input removed", out)
+
+    def test_new_input_under_an_ancestor_with_dir(self) -> None:
+        root = updated_root_lock()
+        root["nodes"]["firefox-addons"]["inputs"] = {"nixpkgs": "nixpkgs"}
+        self.open_pr(root, updated_raspi_lock())
+        out = self.verify("7", code=0)
+        self.assertIn(f"firefox-addons/nixpkgs: source declared by firefox-addons at {G2[:9]}", out)
+
+    def test_plain_file_input_is_manual_not_failed(self) -> None:
+        root = updated_root_lock()
+        root["nodes"]["blob"] = {
+            "flake": False,
+            "locked": {"narHash": "sha256-blob", "type": "file", "url": "https://example.org/blob.txt"},
+            "original": {"type": "file", "url": "https://example.org/blob.txt"},
+        }
+        root["nodes"]["root"]["inputs"]["blob"] = "blob"
+        self.open_pr(root, updated_raspi_lock())
+        out = self.verify("7", code=2)
+        self.assertIn("blob: source declared by the root flake.nix", out)
 
     def test_cycle_fails(self) -> None:
         root = base_root_lock()

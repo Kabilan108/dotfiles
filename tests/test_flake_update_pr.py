@@ -56,6 +56,16 @@ class FlakeUpdatePr(unittest.TestCase):
         self.assertIn("`gitlab:rycee/nur-expressions/8172` 2026-11-01", table)
         self.assertIn("| `niri-flake/extra` | (new) |", table)
 
+    def test_build_is_skipped_once_the_budget_is_spent(self) -> None:
+        saved = job.deadline
+        job.deadline = 0.0
+        try:
+            step = job.build_step(["false"], self.dir / "build.log")
+        finally:
+            job.deadline = saved
+        self.assertFalse(step.ok)
+        self.assertIn("build budget is used up", (self.dir / "build.log").read_text())
+
     def test_strips_colour_codes(self) -> None:
         self.assertEqual(job.ANSI_RE.sub("", "btop: 1.4.7 \u2192 1.4.8, \x1b[32;1m-52.6 KiB\x1b[0m"), "btop: 1.4.7 \u2192 1.4.8, -52.6 KiB")
 

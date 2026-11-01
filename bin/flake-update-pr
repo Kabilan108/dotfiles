@@ -17,6 +17,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import time
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
@@ -25,8 +26,12 @@ from pathlib import Path
 HOSTS = ("sietch", "jacurutu")
 BRANCH_PREFIX = "auto/flake-update-"
 KEEP_RUNS = 8
-# Three builds at most; home/services/flake-update.nix allows 10h for the unit.
 BUILD_TIMEOUT = 3 * 3600
+# Every build shares this budget; home/services/flake-update.nix allows 10h,
+# which leaves time to report and clean up.
+JOB_BUDGET = 9 * 3600
+RETRY_MIN_LEFT = 30 * 60
+deadline = time.monotonic() + JOB_BUDGET
 BODY_LIMIT = 60_000
 SECTION_LIMIT = 12_000
 LOG_TAIL = 80
@@ -50,6 +55,19 @@ class Build:
     old: str | None
     diff: str | None
     retried: Path | None = None
+
+
+def time_left() -> int:
+    return int(deadline - time.monotonic())
+
+
+def build_step(cmd: list[str], log: Path) -> Step:
+    """Run a build within both the per-build limit and the job's shared budget."""
+    timeout = min(BUILD_TIMEOUT, time_left())
+    if timeout <= 0:
+        log.write_text(f"$ {' '.join(cmd)}\nskipped: the job's {JOB_BUDGET // 3600}h build budget is used up\n")
+        return Step(False, log, "")
+    return run_step(cmd, log, timeout=timeout)
 
 
 def run_step(cmd: list[str], log: Path, cwd: Path | None = None, timeout: int | None = None) -> Step:
@@ -166,12 +184,12 @@ def toplevel(flake: Path, host: str) -> str:
 def build_host(worktree: Path, run_dir: Path, state_dir: Path, host: str, old: str | None) -> Build:
     link = state_dir / f"result-{host}-new"
     cmd = ["nix", "build", "--keep-going", "--print-out-paths", "--out-link", str(link), toplevel(worktree, host)]
-    step = run_step(cmd, run_dir / f"build-{host}.log", timeout=BUILD_TIMEOUT)
+    step = build_step(cmd, run_dir / f"build-{host}.log")
     retried = None
-    if not step.ok:
+    if not step.ok and time_left() > RETRY_MIN_LEFT:
         # Upstream test suites flake; a second try rebuilds only what failed.
         retried = step.log
-        step = run_step(cmd, run_dir / f"build-{host}-retry.log", timeout=BUILD_TIMEOUT)
+        step = build_step(cmd, run_dir / f"build-{host}-retry.log")
     diff = None
     if step.ok and old:
         diff_step = run_step(
@@ -185,7 +203,7 @@ def build_host(worktree: Path, run_dir: Path, state_dir: Path, host: str, old: s
 def old_closure(worktree: Path, run_dir: Path, state_dir: Path, host: str) -> tuple[str | None, str]:
     if host == socket.gethostname():
         return os.path.realpath("/run/current-system"), "the running system"
-    step = run_step(
+    step = build_step(
         [
             "nix",
             "build",
@@ -195,7 +213,6 @@ def old_closure(worktree: Path, run_dir: Path, state_dir: Path, host: str) -> tu
             toplevel(worktree, host),
         ],
         run_dir / f"build-{host}-base.log",
-        timeout=BUILD_TIMEOUT,
     )
     if step.ok:
         return step.output, "the base branch build"
