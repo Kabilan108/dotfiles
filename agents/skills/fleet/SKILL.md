@@ -47,15 +47,8 @@ inspecting or changing policy.
   worktree is fine, and is often what Tony asks for.
 - On any branch other than `nixos`, commit and push freely, so Tony can review
   and merge on GitHub instead of hunting for worktree paths.
-- Pushing to `nixos` depends on the deploy gate below:
-  - Until the deploy gate is merged and sietch and jacurutu are both rebuilt
-    with it, commit on `nixos` and leave pushing to Tony.
-  - After that, you may push to `nixos`. Nothing builds an unsigned commit:
-    hosts deploy only tags Tony signed, and `rebuild` lists unsigned commits
-    and asks first.
-  - A rebuilt host has `deploy-tag` on PATH. From jacurutu, check both with
-    `command -v deploy-tag && ssh sietch-agent command -v deploy-tag`. From
-    sietch, ask Tony unless he has said both are rebuilt.
+- You may push to `nixos`. Nothing builds an unsigned commit: hosts deploy
+  only tags Tony signed, and `rebuild` lists unsigned commits and asks first.
 - Anything new that acts on a push to `nixos` (a CI build, a cache publish, an
   ACL apply) must first check for a signed tag against an allowed-signers list
   kept outside the branch, so a push can't approve itself.
