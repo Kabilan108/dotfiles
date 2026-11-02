@@ -7,8 +7,8 @@
 		// coding agents on dedicated agent boxes (none today)
 		"tag:agent": ["autogroup:admin"],
 
-		// tleilax: credential services (Vaultwarden, Executor). The only tag
-		// that may advertise svc:vault and svc:executor.
+		// tleilax: credential services (Vaultwarden, Executor). Once they move
+		// (stage 5), the only tag that may advertise svc:vault and svc:executor.
 		"tag:credentials": ["autogroup:admin"],
 
 		// machines that exclusively need media (sietch::jellyfin) access
@@ -26,12 +26,14 @@
 			"svc:blocky":      ["tag:server"],
 			"svc:cliproxyapi": ["tag:server"],
 			"svc:cpa-admin":   ["tag:server"],
-			"svc:executor":    ["tag:credentials"],
+			// tag:server stays until Vaultwarden and Executor leave sietch
+			// (stage 5); drop it in the same change that retires sietch's copy.
+			"svc:executor":    ["tag:server", "tag:credentials"],
 			"svc:hark":        ["tag:server"],
 			"svc:jellyfin":    ["tag:server"],
 			"svc:llamacpp":    ["tag:server"],
 			"svc:siren":       ["tag:server"],
-			"svc:vault":       ["tag:credentials"],
+			"svc:vault":       ["tag:server", "tag:credentials"],
 		},
 	},
 

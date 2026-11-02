@@ -159,17 +159,13 @@ step 7.
 ## 4. Tailnet policy and the first-boot key (Tailscale admin console)
 
 1. Paste `docs/tailscale-policy.jsonc` into the policy editor and save. It
-   adds `tag:credentials`, the only tag allowed to advertise `svc:vault` and
-   `svc:executor`. It drops sietch's grant to tleilax and lets
-   `tag:credentials` reach `svc:hark` for alerts.
-2. Check Vaultwarden right away. It still runs on sietch until stage 5, and
-   sietch's `tag:server` no longer auto-approves `svc:vault` or
-   `svc:executor`. On the Services page, sietch should still be an approved
-   host of both. Open the vault in a browser or sync a Bitwarden client.
-   **Unverified:** Tailscale's docs say auto-approval happens only when a
-   service is first advertised, but not whether removing an approver revokes
-   an existing approval. If sietch shows as pending, approve it by hand on
-   the Services page. The policy file stays as it is.
+   adds `tag:credentials`, drops sietch's grant to tleilax and lets
+   `tag:credentials` reach `svc:hark` for alerts. `tag:server` (sietch)
+   stays an approver for `svc:vault` and `svc:executor` until those services
+   move in stage 5, so Vaultwarden keeps working through this install.
+   Removing `tag:server` there is part of stage 5.
+2. Check Vaultwarden anyway: open the vault in a browser or sync a Bitwarden
+   client.
 3. Settings, Keys: generate an auth key. Not reusable, not ephemeral,
    pre-approved, tag `tag:credentials`, expiring in a day. Keep it on screen
    for step 6. It is used once, at tleilax's first boot.
@@ -574,8 +570,6 @@ the first one expired or was used up.
 ## Unverified
 
 - That this Pi's EEPROM boots from USB and reads GPT (steps 1 and 12).
-- Whether removing `tag:server` as auto-approver revokes sietch's existing
-  approval for `svc:vault` and `svc:executor` (step 4).
 - The Hydra jobset name for the aarch64 installer image (step 5).
 - That Ethernet and the USB SSD come up in the boot environment, and that the
   boot key copy runs before sshd (step 8). The module names were checked
