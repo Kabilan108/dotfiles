@@ -8,7 +8,6 @@
 # - ghostty: ghostty.cachix.org has its flake's builds;
 # - plain downloads (bun, gogcli) and cheap builds.
 niri
-mise
 dictator-gui
 dictator
 disktree

@@ -16,7 +16,8 @@
 #       Check TAG and push it to DEPLOY_PUSH_URL, authenticating with FILE.
 #       GitHub's tag ruleset lets only the repo's deploy keys create deploy/*
 #       tags, and the signer keys are those deploy keys, so an agent pushing
-#       as the account can't create one. Pushing takes a second touch.
+#       as the account can't create one. Pushing takes the PIN and a touch
+#       again.
 #
 # A valid tag is an annotated tag on a commit whose embedded name matches its
 # ref, with exactly one SSH signature by a key in DEPLOY_SIGNERS and nothing
@@ -228,7 +229,7 @@ push() {
   : "${DEPLOY_PUSH_KNOWN_HOSTS:?DEPLOY_PUSH_KNOWN_HOSTS must name a known_hosts file}"
   [[ -r $key && $key != *"'"* ]] || die "can't use key file $key"
   verify "$tag" || die "won't push $tag"
-  echo "Touch $(basename "$key") again to push $tag." >&2
+  echo "Enter the PIN and touch $(basename "$key") again to push $tag." >&2
   # Only this key, never the account key from ~/.ssh/config or the agent:
   # GitHub would accept that key, then refuse the tag.
   g -c core.sshCommand="ssh -F /dev/null -i '$key' -o IdentitiesOnly=yes -o IdentityAgent=none \
