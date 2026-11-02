@@ -5,7 +5,7 @@ A user timer on sietch (`flake-update`, Saturdays around 04:00) runs
 
 1. Makes a detached worktree of `origin/nixos` in `/tmp`.
 2. Builds jacurutu's current toplevel from `nixos`, for the closure diff.
-3. Runs `nix flake update` at the root and `nix flake update nixpkgs` in `raspi/`.
+3. Runs `nix flake update`. All three hosts share the root `flake.lock`.
 4. Builds the sietch and jacurutu toplevels, retrying a failed build once
    (upstream tests flake), and evaluates tleilax's `drvPath`. sietch can't
    build aarch64, so tleilax only gets evaluated.
@@ -32,7 +32,7 @@ bin/flake-lock-verify <PR number or branch>
 ```
 
 Run it from your `nixos` checkout so the script itself comes from a trusted
-tree. It compares the PR's `flake.lock` and `raspi/flake.lock` with `nixos`'s.
+tree. It compares the PR's `flake.lock` with `nixos`'s.
 It matches inputs by path from the root (`home-manager/nixpkgs`), including
 paths through `follows`, so pointing an input at another node counts as a
 change. For every changed GitHub or GitLab input, it checks that:
@@ -69,11 +69,11 @@ fails on any non-lock file, so run it before your fix, not after.
 
 ## After merging
 
-Pull and rebuild sietch and jacurutu. tleilax builds its own closure:
+Pull and rebuild sietch and jacurutu. tleilax takes signed deploys and builds
+its own closure. From jacurutu:
 
 ```sh
-nixos-rebuild switch --flake ~/dotfiles/raspi#tleilax \
-  --build-host tleilax-agent --target-host tleilax-agent --sudo
+deploy tleilax
 ```
 
 ## Running it by hand

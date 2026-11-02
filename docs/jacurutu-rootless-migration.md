@@ -10,8 +10,7 @@ was repaired before Home Manager linked Docker's configuration. Its inode and
 secret-file contents were preserved.
 Rebuilds and reboot are human-operated under `AGENTS.md`.
 
-The root flake covers Sietch and Jacurutu. The separate `raspi` flake is outside
-this migration. Shared development defaults enable rootless Docker and deny
+This migration covers Sietch and Jacurutu. Tleilax is outside it. Shared development defaults enable rootless Docker and deny
 Docker-group membership. Jacurutu's additive generation temporarily granted
 privileged Docker access for export and validation. That override was removed,
 and human activation and reboot are complete. Fresh ordinary-user access to

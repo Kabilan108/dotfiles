@@ -44,8 +44,15 @@ in
     };
   };
 
+  # The YubiKeys' age identities (PIV) go through pcscd. agenix finds
+  # age-plugin-yubikey on PATH when a recipient is an age1yubikey1... key.
+  services.pcscd.enable = true;
+
   environment = {
-    systemPackages = with pkgs; [ fprintd ];
+    systemPackages = with pkgs; [
+      age-plugin-yubikey
+      fprintd
+    ];
   };
 
   home-manager.users.kabilan = {

@@ -9,9 +9,10 @@ It includes a suite of custom tools, bash scripts, and a custom quickshell deskt
 
 The main branch is `nixos`.
 
-sietch and jacurutu are built from the root `flake.nix`. tleilax is built from the
-separate flake in `raspi/`, which has its own `raspi/flake.lock`. Updating the root
-flake's inputs does not update tleilax; bump `raspi/flake.lock` too.
+All three machines build from the root `flake.nix` and its one `flake.lock`: sietch
+and jacurutu through `makeSystem`, tleilax (an aarch64 Raspberry Pi) from
+`machines/tleilax`. tleilax is a locked-down box for credential services; its install
+and recovery runbook is `docs/tleilax-install.md`.
 
 ## Self-Hosted Services
 

@@ -321,7 +321,6 @@ in
     ripgrep
     sd
     tabiew
-    tmux
     tree
     tree-sitter
     vhs

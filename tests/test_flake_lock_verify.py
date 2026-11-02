@@ -231,7 +231,6 @@ ROOT_FLAKE = {
         "b": {"url": "github:o/a"},
     }
 }
-RASPI_FLAKE = {"inputs": {"nixpkgs": {"url": "github:NixOS/nixpkgs/nixos-unstable"}}}
 
 
 def tarball(url: str) -> dict[str, Any]:
@@ -263,9 +262,6 @@ def base_root_lock() -> dict[str, Any]:
     )
 
 
-def base_raspi_lock() -> dict[str, Any]:
-    return lock({"nixpkgs": gh_node("NixOS", "nixpkgs", N2, ref="nixos-unstable")}, {"nixpkgs": "nixpkgs"})
-
 
 def updated_root_lock() -> dict[str, Any]:
     updated = base_root_lock()
@@ -277,9 +273,6 @@ def updated_root_lock() -> dict[str, Any]:
     updated["nodes"]["firefox-addons"] = gh_node("rycee", "nur", G2, kind="gitlab", dir="pkgs/ff")
     return updated
 
-
-def updated_raspi_lock() -> dict[str, Any]:
-    return lock({"nixpkgs": gh_node("NixOS", "nixpkgs", N3, ref="nixos-unstable")}, {"nixpkgs": "nixpkgs"})
 
 
 class FlakeLockVerify(unittest.TestCase):
@@ -300,10 +293,8 @@ class FlakeLockVerify(unittest.TestCase):
         self.git("init", "--quiet", "-b", "nixos", str(self.work), cwd=self.dir)
         self.git("remote", "add", "origin", str(self.dir / "origin.git"))
         (self.work / "README.md").write_text("dotfiles\n")
-        (self.work / "raspi").mkdir()
         (self.work / "flake.nix").write_text(json.dumps(ROOT_FLAKE))
-        (self.work / "raspi/flake.nix").write_text(json.dumps(RASPI_FLAKE))
-        self.set_base(base_root_lock(), base_raspi_lock())
+        self.set_base(base_root_lock())
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -318,23 +309,22 @@ class FlakeLockVerify(unittest.TestCase):
         )
         return proc.stdout.strip()
 
-    def write_locks(self, root: dict[str, Any], raspi: dict[str, Any]) -> None:
+    def write_locks(self, root: dict[str, Any]) -> None:
         (self.work / "flake.lock").write_text(json.dumps(root, indent=2))
-        (self.work / "raspi/flake.lock").write_text(json.dumps(raspi, indent=2))
 
     def commit(self, message: str) -> str:
         self.git("add", "-A")
         self.git("commit", "--quiet", "--allow-empty", "-m", message)
         return self.git("rev-parse", "HEAD")
 
-    def set_base(self, root: dict[str, Any], raspi: dict[str, Any]) -> None:
-        self.write_locks(root, raspi)
+    def set_base(self, root: dict[str, Any]) -> None:
+        self.write_locks(root)
         self.commit("base")
         self.git("push", "--quiet", "origin", "nixos")
 
-    def open_pr(self, root: dict[str, Any], raspi: dict[str, Any], extra: dict[str, str] | None = None) -> str:
+    def open_pr(self, root: dict[str, Any], extra: dict[str, str] | None = None) -> str:
         self.git("switch", "--quiet", "-c", "auto/flake-update")
-        self.write_locks(root, raspi)
+        self.write_locks(root)
         for name, text in (extra or {}).items():
             (self.work / name).write_text(text)
         head = self.commit("update")
@@ -371,22 +361,21 @@ class FlakeLockVerify(unittest.TestCase):
         return output
 
     def test_forward_update_passes(self) -> None:
-        head = self.open_pr(updated_root_lock(), updated_raspi_lock())
+        head = self.open_pr(updated_root_lock())
         out = self.verify("7", code=0)
         self.assertIn("PASS   home-manager/nixpkgs, nixpkgs:", out)
         self.assertIn("on nixos-unstable; descends from", out)
         self.assertIn("PASS   home-manager:", out)
         self.assertIn("on default branch master", out)
         self.assertIn("PASS   firefox-addons: gitlab rycee/nur", out)
-        self.assertIn("raspi/flake.lock\n  PASS   nixpkgs:", out)
         self.assertNotIn("home-manager/old", out, "renamed node with the same lock is unchanged")
         self.assertIn(f"gh pr merge 7 --merge --match-head-commit {head}", out)
-        self.assertIn("4 pass, 0 fail, 0 manual", out)
+        self.assertIn("3 pass, 0 fail, 0 manual", out)
 
     def test_fork_only_commit_fails(self) -> None:
         root = updated_root_lock()
         root["nodes"]["nixpkgs"] = gh_node("NixOS", "nixpkgs", FORK, ref="nixos-unstable")
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         out = self.verify("7", code=1)
         self.assertIn("rev is not reachable from nixos-unstable (compare status: behind)", out)
         self.assertNotIn(f"github:NixOS/nixpkgs/{FORK}", self.log.read_text(), "no prefetch after a failure")
@@ -396,51 +385,45 @@ class FlakeLockVerify(unittest.TestCase):
     def test_commit_from_another_branch_fails(self) -> None:
         root = updated_root_lock()
         root["nodes"]["nixpkgs"] = gh_node("NixOS", "nixpkgs", M4, ref="nixos-unstable")
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         self.assertIn("not reachable from nixos-unstable", self.verify("7", code=1))
 
     def test_gitlab_fork_commit_fails(self) -> None:
         root = updated_root_lock()
         root["nodes"]["firefox-addons"] = gh_node("rycee", "nur", GFORK, kind="gitlab", dir="pkgs/ff")
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         self.assertIn("rev is not reachable from master (merge base:", self.verify("7", code=1))
-
-    def test_raspi_lock_is_checked(self) -> None:
-        raspi = lock({"nixpkgs": gh_node("NixOS", "nixpkgs", FORK, ref="nixos-unstable")}, {"nixpkgs": "nixpkgs"})
-        self.open_pr(updated_root_lock(), raspi)
-        out = self.verify("7", code=1)
-        self.assertIn("raspi/flake.lock\n  FAIL   nixpkgs:", out)
 
     def test_locked_repo_must_match_original(self) -> None:
         root = updated_root_lock()
         node = gh_node("NixOS", "nixpkgs", FORK, ref="nixos-unstable")
         node["locked"]["owner"] = "attacker"
         root["nodes"]["nixpkgs"] = node
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         self.assertIn("locked repo attacker/nixpkgs is not the tracked repo NixOS/nixpkgs", self.verify("7", code=1))
 
     def test_nar_hash_must_match_served_source(self) -> None:
         root = updated_root_lock()
         root["nodes"]["nixpkgs"]["locked"]["narHash"] = "sha256-somethingelse"
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         self.assertIn("does not match the forge's source", self.verify("7", code=1))
 
     def test_same_rev_with_new_nar_hash_fails_without_prefetch(self) -> None:
         root = base_root_lock()
         root["nodes"]["nixpkgs"]["locked"]["narHash"] = "sha256-somethingelse"
-        self.open_pr(root, base_raspi_lock())
+        self.open_pr(root)
         self.assertIn("narHash changed while the rev stayed the same", self.verify("7", "--no-nar-hash", code=1))
 
     def test_legacy_info_field_fails(self) -> None:
         root = base_root_lock()
         root["nodes"]["nixpkgs"]["info"] = {"rev": FORK, "narHash": "sha256-evil"}
-        self.open_pr(root, base_raspi_lock())
+        self.open_pr(root)
         self.assertIn("node nixpkgs has fields Nix may read as source: info", self.verify("7", code=1))
 
     def test_rewiring_to_an_older_node_fails(self) -> None:
         root = base_root_lock()
         root["nodes"]["root"]["inputs"]["nixpkgs"] = "nixpkgs_2"
-        self.open_pr(root, base_raspi_lock())
+        self.open_pr(root)
         out = self.verify("7", code=1)
         self.assertIn("does not descend from the old rev", out)
 
@@ -455,11 +438,11 @@ class FlakeLockVerify(unittest.TestCase):
             c_old=gh_node("NixOS", "nixpkgs", N1, ref="nixos-unstable"),
         )
         base["nodes"]["root"]["inputs"].update(a="a", b="b")
-        self.set_base(base, base_raspi_lock())
+        self.set_base(base)
         pr = copy.deepcopy(base)
         pr["nodes"]["root"]["inputs"]["a"] = ["b"]
         del pr["nodes"]["a"], pr["nodes"]["c_new"]
-        self.open_pr(pr, base_raspi_lock())
+        self.open_pr(pr)
         out = self.verify("7", code=1)
         self.assertIn("FAIL   a/child:", out)
         self.assertIn("does not descend from the old rev", out)
@@ -467,7 +450,7 @@ class FlakeLockVerify(unittest.TestCase):
     def test_transitive_original_pinned_to_fork_fails(self) -> None:
         root = updated_root_lock()
         root["nodes"]["nixpkgs_3"] = gh_node("NixOS", "nixpkgs", FORK, rev=FORK)
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         out = self.verify("7", code=1)
         self.assertIn("FAIL   home-manager/old:", out)
         self.assertIn("original does not match home-manager at", out)
@@ -475,7 +458,7 @@ class FlakeLockVerify(unittest.TestCase):
     def test_transitive_original_moved_to_attacker_repo_fails(self) -> None:
         root = updated_root_lock()
         root["nodes"]["nixpkgs_3"] = gh_node("attacker", "nixpkgs", FORK)
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         self.assertIn("original does not match home-manager at", self.verify("7", code=1))
 
     def test_original_swapped_to_registry_reference_fails(self) -> None:
@@ -483,7 +466,7 @@ class FlakeLockVerify(unittest.TestCase):
         node = gh_node("attacker", "nixpkgs", FORK)
         node["original"] = {"id": "nixpkgs", "type": "indirect"}
         root["nodes"]["nixpkgs_3"] = node
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         out = self.verify("7", code=1)
         self.assertIn("FAIL   home-manager/old:", out)
 
@@ -493,7 +476,7 @@ class FlakeLockVerify(unittest.TestCase):
             "nix-community", "home-manager", H3, inputs={"nixpkgs": ["nixpkgs"], "old": "nixpkgs_3"}
         )
         root["nodes"]["nixpkgs_3"] = gh_node("NixOS", "nixpkgs", M4, ref="master")
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         out = self.verify("7", code=0)
         self.assertIn("PASS   home-manager/old:", out)
         self.assertIn("tracked source changed, no ancestry check", out)
@@ -505,14 +488,14 @@ class FlakeLockVerify(unittest.TestCase):
         root = updated_root_lock()
         root["nodes"]["home-manager"]["inputs"]["old"] = "boot-nixpkgs"
         del root["nodes"]["nixpkgs_3"]
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         out = self.verify("7", code=1)
         self.assertIn("home-manager/old: original does not match home-manager at", out)
 
     def test_redirected_follows_fails(self) -> None:
         root = updated_root_lock()
         root["nodes"]["home-manager"]["inputs"]["nixpkgs"] = ["boot-nixpkgs"]
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         out = self.verify("7", code=1)
         self.assertIn("home-manager/nixpkgs: the root flake.nix declares follows 'nixpkgs', the lock has ['boot-nixpkgs']", out)
 
@@ -521,12 +504,12 @@ class FlakeLockVerify(unittest.TestCase):
         # node behind home-manager/old instead of the root nixpkgs it follows.
         base = base_root_lock()
         base["nodes"]["nixpkgs"] = gh_node("NixOS", "nixpkgs", N1, ref="nixos-unstable")
-        self.set_base(base, base_raspi_lock())
+        self.set_base(base)
         pr = updated_root_lock()
         pr["nodes"]["nixpkgs"] = gh_node("NixOS", "nixpkgs", N2, ref="nixos-unstable")
         pr["nodes"]["nixpkgs_3"] = gh_node("NixOS", "nixpkgs", N3, ref="nixos-unstable")
         pr["nodes"]["home-manager"]["inputs"]["nixpkgs"] = ["home-manager", "old"]
-        self.open_pr(pr, updated_raspi_lock())
+        self.open_pr(pr)
         out = self.verify("7", code=1)
         self.assertIn("home-manager/nixpkgs: the root flake.nix declares follows 'nixpkgs'", out)
 
@@ -535,11 +518,11 @@ class FlakeLockVerify(unittest.TestCase):
         base = base_root_lock()
         base["nodes"]["data"] = gh_node("o", "data", D1, flake=False)
         base["nodes"]["home-manager"]["inputs"]["data"] = "data"
-        self.set_base(base, base_raspi_lock())
+        self.set_base(base)
         pr = updated_root_lock()
         pr["nodes"]["home-manager"] = gh_node("nix-community", "home-manager", H4, inputs={"nixpkgs": ["nixpkgs"]})
         del pr["nodes"]["nixpkgs_3"]
-        self.open_pr(pr, updated_raspi_lock())
+        self.open_pr(pr)
         out = self.verify("7", code=0)
         self.assertIn("PASS   home-manager/data: input removed", out)
 
@@ -554,14 +537,14 @@ class FlakeLockVerify(unittest.TestCase):
         (self.work / "flake.nix").write_text(json.dumps(flake))
         base = base_root_lock()
         base["nodes"]["root"]["inputs"]["alias"] = ["home-manager"]
-        self.set_base(base, base_raspi_lock())
+        self.set_base(base)
         pr = updated_root_lock()
         pr["nodes"]["root"]["inputs"]["alias"] = ["home-manager"]
         pr["nodes"]["home-manager"] = gh_node(
             "nix-community", "home-manager", H3, inputs={"nixpkgs": ["nixpkgs"], "old": "nixpkgs_3"}
         )
         pr["nodes"]["nixpkgs_3"] = gh_node("NixOS", "nixpkgs", M4, ref="master")
-        self.open_pr(pr, updated_raspi_lock())
+        self.open_pr(pr)
         out = self.verify("7", code=0)
         self.assertIn(f"home-manager/old: source declared by home-manager at {H3[:9]}", out)
 
@@ -571,10 +554,10 @@ class FlakeLockVerify(unittest.TestCase):
         base = base_root_lock()
         base["nodes"]["data"] = gh_node("o", "data", D1, flake=False)
         base["nodes"]["home-manager"]["inputs"]["data"] = "data"
-        self.set_base(base, base_raspi_lock())
+        self.set_base(base)
         pr = copy.deepcopy(base)
         del pr["nodes"]["data"]["flake"]
-        self.open_pr(pr, base_raspi_lock())
+        self.open_pr(pr)
         out = self.verify("7", code=1)
         self.assertIn("home-manager/data: original does not match the root flake.nix", out)
         self.assertIn("with flake = false", out)
@@ -583,14 +566,14 @@ class FlakeLockVerify(unittest.TestCase):
         root = updated_root_lock()
         root["nodes"]["data"] = gh_node("o", "data", D1, flake=False)
         root["nodes"]["home-manager"]["inputs"]["data"] = "data"
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         out = self.verify("7", code=0)
         self.assertIn("home-manager/data: source declared by the root flake.nix", out)
 
     def test_removed_input_still_declared_fails(self) -> None:
         root = updated_root_lock()
         del root["nodes"]["home-manager"]["inputs"]["old"], root["nodes"]["nixpkgs_3"]
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         out = self.verify("7", code=1)
         self.assertIn("FAIL   home-manager/old: input removed", out)
         self.assertIn("still declares it", out)
@@ -599,14 +582,14 @@ class FlakeLockVerify(unittest.TestCase):
         root = updated_root_lock()
         root["nodes"]["home-manager"] = gh_node("nix-community", "home-manager", H4, inputs={"nixpkgs": ["nixpkgs"]})
         del root["nodes"]["nixpkgs_3"]
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         out = self.verify("7", code=0)
         self.assertIn("PASS   home-manager/old: input removed", out)
 
     def test_new_input_under_an_ancestor_with_dir(self) -> None:
         root = updated_root_lock()
         root["nodes"]["firefox-addons"]["inputs"] = {"nixpkgs": "nixpkgs"}
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         out = self.verify("7", code=0)
         self.assertIn(f"firefox-addons/nixpkgs: source declared by firefox-addons at {G2[:9]}", out)
 
@@ -618,26 +601,26 @@ class FlakeLockVerify(unittest.TestCase):
             "original": {"type": "file", "url": "https://example.org/blob.txt"},
         }
         root["nodes"]["root"]["inputs"]["blob"] = "blob"
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         out = self.verify("7", code=2)
         self.assertIn("blob: source declared by the root flake.nix", out)
 
     def test_cycle_fails(self) -> None:
         root = base_root_lock()
         root["nodes"]["home-manager"]["inputs"]["self"] = ["home-manager"]
-        self.open_pr(root, base_raspi_lock())
+        self.open_pr(root)
         self.assertIn("input graph has a cycle at home-manager/self", self.verify("7", code=1))
 
     def test_pinned_rev_must_match(self) -> None:
         root = updated_root_lock()
         root["nodes"]["boot-nixpkgs"] = gh_node("NixOS", "nixpkgs", N3, rev=P1)
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         self.assertIn("locked rev differs from the pinned rev", self.verify("7", code=1))
 
     def test_tarball_input_needs_manual_check(self) -> None:
         root = updated_root_lock()
         root["nodes"]["channel"] = tarball("https://releases.nixos.org/x-2")
-        head = self.open_pr(root, updated_raspi_lock())
+        head = self.open_pr(root)
         out = self.verify("7", code=2)
         self.assertIn("MANUAL channel: tarball https://releases.nixos.org/x-1 -> tarball https://releases.nixos.org/x-2", out)
         self.assertIn("1 input(s) need a manual check", out)
@@ -646,22 +629,22 @@ class FlakeLockVerify(unittest.TestCase):
     def test_manual_entry_names_changed_fields(self) -> None:
         root = updated_root_lock()
         root["nodes"]["channel"]["locked"]["narHash"] = "sha256-other"
-        self.open_pr(root, updated_raspi_lock())
+        self.open_pr(root)
         out = self.verify("7", code=2)
         self.assertIn("(changed: locked.narHash)", out)
 
     def test_other_changed_files_fail(self) -> None:
-        self.open_pr(updated_root_lock(), updated_raspi_lock(), extra={"README.md": "changed\n"})
+        self.open_pr(updated_root_lock(), extra={"README.md": "changed\n"})
         self.assertIn("PR changes files other than lock files: README.md", self.verify("7", code=1))
 
     def test_pr_head_moved_after_view(self) -> None:
-        self.open_pr(updated_root_lock(), updated_raspi_lock())
+        self.open_pr(updated_root_lock())
         self.set_pr_head(sha("other"))
         self.assertIn("PR head moved while fetching", self.verify("7", code=1))
 
     def test_local_head_mode(self) -> None:
         self.git("switch", "--quiet", "-c", "local")
-        self.write_locks(updated_root_lock(), updated_raspi_lock())
+        self.write_locks(updated_root_lock())
         self.commit("update")
         self.set_pr_head(sha("unused"))
         out = self.verify("--head", "local", code=0)

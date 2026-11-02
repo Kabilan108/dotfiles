@@ -86,7 +86,6 @@ class FlakeUpdatePr(unittest.TestCase):
             base="nixos",
             base_sha=OLD,
             root_changes=job.input_changes(self.write("update.log", UPDATE_LOG)),
-            raspi_changes=[],
             builds=builds,
             old_notes={"sietch": "the running system", "jacurutu": "the base branch build"},
             tleilax=job.Step(True, ok_log, "/nix/store/t.drv"),

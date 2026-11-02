@@ -63,7 +63,8 @@ rec {
         "~/dotfiles"
         "~/repos"
       ];
-      canAccess = [ "tleilax" ];
+      # Nothing: sietch runs coding agents, so it gets no way into tleilax.
+      canAccess = [ ];
       hostPubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK4epXn3of3DRuL94bGopsFYecrci2nviKPJdibX3T0r";
       keys = {
         human = [
@@ -83,8 +84,8 @@ rec {
     };
 
     tleilax = {
-      role = "appliance";
-      description = "Raspberry Pi 4; airplay/jellyfin remote today, first dedicated agent box later. Accesses nothing.";
+      role = "credentials";
+      description = "Raspberry Pi 4 on Ethernet; locked-down box for credential services (Vaultwarden and Executor, once they move). No coding agents run here. Only jacurutu reaches it; it accesses nothing.";
       tailscaleIp = "100.73.84.103";
       user = "kabilan";
       color = {
@@ -92,16 +93,33 @@ rec {
         hex = "#a6e3a1";
         ansi = "1;32";
       };
-      roots = [ "~/dotfiles" ];
+      roots = [ ];
       canAccess = [ ];
+      # Generated at install (docs/tleilax-install.md); agenix decrypts with it.
       hostPubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILrTgetUqAUt7NEK+51GGGEOgea/uME+vlOJpOdggJB2";
       keys = {
         human = [ ];
         agent = [ ];
       };
       sshKeyFiles = [ ];
+      # SSH into the boot environment to type the disk passphrase
+      # (machines/tleilax/initrd-unlock.nix). The host key is separate from
+      # hostPubkey and lives on the unencrypted boot partition. lanAddress
+      # and hostPubkey are filled in during the install. Away from home the
+      # connection jumps through jumpHost, which only forwards it.
+      initrdUnlock = {
+        port = 2222;
+        lanAddress = null;
+        hostPubkey = null;
+        jumpHost = "sietch";
+      };
     };
   };
+
+  # age-plugin-yubikey recipients (age1yubikey1...), one per YubiKey: yk-nfc
+  # and yk-nano. Tony edits secrets with them; hosts decrypt with their SSH
+  # host keys. Empty until the identities exist (docs/tleilax-install.md).
+  ageRecipients = [ ];
 
   # Non-SSH devices belong in the inventory without entering the access matrix.
   devices = {
@@ -156,9 +174,12 @@ rec {
     pushKnownHosts = "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n";
     branch = "nixos";
     controller = "jacurutu";
-    # tleilax joins both lists once it builds from the root flake.
-    receivers = [ "sietch" ];
-    gatedAgentLogins = [ ];
+    receivers = [
+      "sietch"
+      "tleilax"
+    ];
+    # Gated hosts also need sessionizer in their system packages.
+    gatedAgentLogins = [ "tleilax" ];
     # One key per YubiKey, made with `ssh-keygen -t ed25519-sk -O
     # verify-required`. They are separate from the touch-only login keys in
     # hosts.jacurutu.keys.human. Each key's comment is its allowed-signers
