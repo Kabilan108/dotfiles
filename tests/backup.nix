@@ -97,14 +97,16 @@ pkgs.testers.runNixOSTest {
         return json.loads(out) or []
 
     def run_to_failure(job):
+        """Start a job that fails every attempt; wait for its retries and alert."""
+        before = alert_count(f"The {job} backup job failed")
         machine.fail(f"systemctl start restic-backups-{job}.service")
         machine.wait_until_succeeds(
-            f"systemctl show -P ActiveState restic-backups-{job}.service | grep -qx failed", timeout=60
+            f"test $(grep -c 'The {job} backup job failed' /var/lib/alerts.log) -gt {before}", timeout=60
         )
-        machine.wait_until_succeeds(
-            f"test \"$(systemctl show -P ActiveState backup-alert@restic-backups-{job}.service)\" != activating",
-            timeout=30,
-        )
+        machine.wait_until_succeeds(f"! systemctl is-active -q backup-retry-{job}.timer", timeout=10)
+        machine.succeed(f"test ! -e /run/backup-retry/{job}")
+        machine.sleep(4)
+        assert alert_count(f"The {job} backup job failed") == before + 1, alerts()
 
     machine.wait_for_unit("multi-user.target")
     machine.succeed("echo REPLACE_ME > /var/lib/backup-password && chmod 0400 /var/lib/backup-password")
@@ -113,11 +115,16 @@ pkgs.testers.runNixOSTest {
 
     with subtest("the placeholder password blocks the run; retries end in one alert"):
         run_to_failure("files")
-        attempts = int(machine.succeed(
-            "journalctl -u restic-backups-files.service | grep -c 'still the placeholder'"
-        ).strip())
-        assert attempts == 3, f"expected 3 attempts, saw {attempts}"
+        def attempts():
+            return int(machine.succeed(
+                "journalctl -u restic-backups-files.service | grep -c 'still the placeholder'"
+            ).strip())
+        assert attempts() == 3, f"expected 3 attempts, saw {attempts()}"
         assert alert_count("The files backup job failed") == 1, alerts()
+        # The count resets after the alert: the next run gets a full budget.
+        run_to_failure("files")
+        assert attempts() == 6, f"expected 6 attempts, saw {attempts()}"
+        assert alert_count("The files backup job failed") == 2, alerts()
         assert machine.succeed("systemctl show -P User backup-alert@restic-backups-files.service").strip() == "kabilan"
         assert status("files")["last_result"] != "success"
         assert status("files")["last_success"] is None
@@ -128,6 +135,7 @@ pkgs.testers.runNixOSTest {
 
     with subtest("a backup succeeds and records its status"):
         machine.succeed("systemctl start restic-backups-files.service")
+        machine.succeed("test ! -e /run/backup-retry/files")
         s = status("files")
         assert s["last_result"] == "success", s
         assert s["last_success"] is not None, s

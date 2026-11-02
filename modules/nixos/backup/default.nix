@@ -18,6 +18,7 @@ let
   mountPoint = "${stateDir}/nas";
   stagingDir = "/var/lib/backup-staging";
   statusDir = "/var/lib/backup-status";
+  retryDir = "/run/backup-retry";
   hostKey = "/etc/ssh/ssh_host_ed25519_key";
 
   sqliteType = lib.types.submodule {
@@ -101,6 +102,20 @@ let
     text = builtins.readFile ./status.sh;
   };
 
+  retry = pkgs.writeShellApplication {
+    name = "backup-retry";
+    runtimeInputs = [
+      pkgs.coreutils
+      config.systemd.package
+    ];
+    runtimeEnv = {
+      BACKUP_RETRY_DIR = retryDir;
+      BACKUP_RETRY_ATTEMPTS = toString cfg.retry.attempts;
+      BACKUP_RETRY_DELAY_SEC = toString cfg.retry.delaySec;
+    };
+    text = builtins.readFile ./retry.sh;
+  };
+
   statusReceive = pkgs.writeShellApplication {
     name = "backup-status-receive";
     runtimeInputs = [
@@ -118,20 +133,10 @@ let
     fi
   '';
 
-  startLimitSec = (cfg.retry.attempts + 1) * cfg.retry.delaySec + 3600;
-  unitHardening = {
-    unitConfig = {
-      OnFailure = "backup-alert@%N.service";
-      StartLimitIntervalSec = startLimitSec;
-      StartLimitBurst = cfg.retry.attempts + 1;
-    };
-    serviceConfig = {
-      Restart = "on-failure";
-      # Retries skip the failed state, so OnFailure fires once, after the last.
-      RestartMode = "direct";
-      RestartSec = cfg.retry.delaySec;
-    };
-  };
+  # Retries are counted by backup-retry, not systemd's Restart=: its start
+  # limit is a time window, which slow attempts (a lock wait, a long upload)
+  # outlast, so it would retry forever without alerting.
+  retryCommand = name: "${lib.getExe retry} ${name}";
 
   resticJob = name: job: {
     inherit (cfg) passwordFile repository inhibitsSleep;
@@ -166,6 +171,7 @@ let
     backupCleanupCommand = ''
       ${lib.optionalString (job.sqlite != { }) "rm -rf -- ${stagingDir}/${name}"}
       ${lib.getExe status} ${name} || echo "backup: recording the status failed" >&2
+      ${retryCommand name}
     '';
   };
 in
@@ -345,6 +351,7 @@ in
         "d ${stateDir} 0700 root root -"
         "d ${stagingDir} 0711 root root -"
         "d ${statusDir} 0755 root root -"
+        "d ${retryDir} 0700 root root -"
       ];
 
       fileSystems = lib.mkIf (cfg.nas != null) {
@@ -387,23 +394,20 @@ in
             ];
             timerConfig = cfg.check.timer;
             backupPrepareCommand = "${guard}";
+            backupCleanupCommand = retryCommand "check";
           };
         };
 
-      systemd.services =
-        lib.mapAttrs' (name: _: lib.nameValuePair "restic-backups-${name}" unitHardening) (
-          cfg.jobs // lib.optionalAttrs cfg.check.enable { check = { }; }
-        )
-        // {
-          "backup-alert@" = {
-            description = "Send a backup alert to Hark";
-            serviceConfig = {
-              Type = "oneshot";
-              User = cfg.alert.user;
-              ExecStart = "${lib.getExe alert} %i";
-            };
+      systemd.services = {
+        "backup-alert@" = {
+          description = "Send a backup alert to Hark";
+          serviceConfig = {
+            Type = "oneshot";
+            User = cfg.alert.user;
+            ExecStart = "${lib.getExe alert} %i";
           };
         };
+      };
 
       environment.systemPackages = [ pkgs.restic ];
     })
