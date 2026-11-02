@@ -3,8 +3,11 @@
 # Only deploy tags publish. The "deploy tags" ruleset lets only the repo's
 # deploy keys (Tony's YubiKeys) create deploy/** tags, and the cache-publish
 # environment, which holds the push token, accepts only deploy/*/* refs. So
-# the token reaches only workflow code from a commit Tony signed. Pull
-# requests build the same packages without the environment or the token.
+# the token reaches only workflow code from a commit Tony signed.
+#
+# Only deploy tags build, too. Pull requests run just the plan job, which
+# catches eval and planning failures before merge. A pull request build
+# could not seed the cache, so the deploy run would repeat it anyway.
 #
 # Nothing here may restore an Actions cache or another run's artifacts: a
 # branch run could have written them, and publishing them would poison the
@@ -58,7 +61,7 @@ jobs:
 
   build:
     needs: plan
-    if: needs.plan.outputs.packages != '[]'
+    if: github.event_name == 'push' && needs.plan.outputs.packages != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     environment: ${{ github.event_name == 'push' && 'cache-publish' || '' }}
