@@ -37,6 +37,19 @@ show_log() {
   g log --no-decorate --format='  %h %<(16,trunc)%an %s' "$@"
 }
 
+# A deploy tag also lets that commit's CI publish to the binary cache, so
+# workflow changes get their own line.
+show_ci_changes() {
+  local changed file
+  changed=$(g log --format= --name-only "$@" -- .github | sed '/^$/d' | sort -u)
+  if [[ -n $changed ]]; then
+    echo "These commits change CI, which publishes to the binary cache once the tag is pushed:"
+    while IFS= read -r file; do
+      echo "  $file"
+    done <<<"$changed"
+  fi
+}
+
 # Ask on the terminal. --yes answers for us, except for a rewritten history
 # or a rollback.
 confirm() {
@@ -112,6 +125,7 @@ else
     echo "Commits that come in:"
     show_log "$range"
   fi
+  show_ci_changes "$range"
   if ((allow_rollback)); then
     echo "This tag lets $host move to ${target:0:12} even if that rolls back the commit it runs."
   fi
@@ -126,7 +140,7 @@ else
     g log --no-decorate --format='%h %s' -50 "$range" | tr -d '\r'
   )
   tag=$(deploy-tag -C "$repo" sign --key "$key_file" --message "$message" "$host" "$target")
-  g push --quiet origin "refs/tags/$tag"
+  deploy-tag -C "$repo" push --key "$key_file" "$tag"
   echo "Pushed $tag."
 fi
 

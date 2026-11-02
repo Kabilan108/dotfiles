@@ -1,0 +1,92 @@
+# Builds ci/cache-packages and publishes them to kabilan108.cachix.org.
+#
+# Only deploy tags publish. The "deploy tags" ruleset lets only the repo's
+# deploy keys (Tony's YubiKeys) create deploy/** tags, and the cache-publish
+# environment, which holds the push token, accepts only deploy/*/* refs. So
+# the token reaches only workflow code from a commit Tony signed. Pull
+# requests build the same packages without the environment or the token.
+#
+# Nothing here may restore an Actions cache or another run's artifacts: a
+# branch run could have written them, and publishing them would poison the
+# cache.
+name: cache
+
+on:
+  push:
+    tags: ["deploy/**"]
+  pull_request:
+    paths:
+      - flake.lock
+      - flake.nix
+      - packages/**
+      - modules/nixos/wayland/niri.nix
+      - ci/**
+      - .github/workflows/cache.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cache-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# An explicit bash gets -o pipefail.
+defaults:
+  run:
+    shell: bash
+
+env:
+  NIX_CONFIG: |
+    extra-substituters = https://kabilan108.cachix.org
+    extra-trusted-public-keys = kabilan108.cachix.org-1:g8OqmhpqE1Bz9DjKTV17uQ3yzsfGcDB5fDgGfVC4t/o=
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      packages: ${{ steps.plan.outputs.packages }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+      - id: plan
+        run: |
+          packages=$(python3 ci/cache-targets.py plan)
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.packages != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    environment: ${{ github.event_name == 'push' && 'cache-publish' || '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.plan.outputs.packages) }}
+    name: build ${{ matrix.package }}
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          df -h /
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+      - name: Build
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: |
+          python3 ci/cache-targets.py drvs "$PACKAGE" > "$RUNNER_TEMP/drvs"
+          mapfile -t drvs < "$RUNNER_TEMP/drvs"
+          nix build --no-link --print-out-paths -L "${drvs[@]/%/^*}" | tee "$RUNNER_TEMP/outputs"
+      - name: Publish
+        if: startsWith(github.ref, 'refs/tags/deploy/')
+        env:
+          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+        run: |
+          mapfile -t outputs < "$RUNNER_TEMP/outputs"
+          nix run --inputs-from . nixpkgs#cachix -- push --compression-level 8 kabilan108 "${outputs[@]}"

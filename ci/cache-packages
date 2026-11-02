@@ -1,0 +1,22 @@
+# Packages CI builds from deploy tags and publishes to kabilan108.cachix.org,
+# by pname, slowest build first. ci/cache-targets.py finds each one's exact
+# derivations in the sietch and jacurutu systems.
+#
+# Only free software that no trusted cache has. Left out on purpose:
+# - unfree packages (NVIDIA, CUDA builds such as llama-cpp-cuda, Slack, Chrome,
+#   firmware): a public cache must not redistribute them;
+# - ghostty: ghostty.cachix.org has its flake's builds;
+# - plain downloads (bun, gogcli) and cheap builds.
+niri
+dictator-gui
+dictator
+disktree
+pagebin
+cliproxyapi
+harkctl
+hark-server
+tracer
+atlas
+scout
+omasnap
+omarecord

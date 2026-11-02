@@ -12,6 +12,12 @@
 #   deploy-tag [-C DIR] sign --key FILE [--message TEXT] HOST REV
 #       Sign the next deploy/HOST tag at REV with FILE, never an ssh-agent,
 #       check it, and print its name.
+#   deploy-tag [-C DIR] push --key FILE TAG
+#       Check TAG and push it to DEPLOY_PUSH_URL, authenticating with FILE.
+#       GitHub's tag ruleset lets only the repo's deploy keys create deploy/*
+#       tags, and the signer keys are those deploy keys, so an agent pushing
+#       as the account can't create one. Pushing takes the PIN and a touch
+#       again.
 #
 # A valid tag is an annotated tag on a commit whose embedded name matches its
 # ref, with exactly one SSH signature by a key in DEPLOY_SIGNERS and nothing
@@ -39,6 +45,7 @@ usage: deploy-tag [-C DIR] latest HOST
        deploy-tag [-C DIR] verify TAG
        deploy-tag [-C DIR] allows-rollback TAG
        deploy-tag [-C DIR] sign --key FILE [--message TEXT] HOST REV
+       deploy-tag [-C DIR] push --key FILE TAG
 EOF
   exit 2
 }
@@ -216,6 +223,20 @@ if [[ ${1:-} == -C ]]; then
   shift 2
 fi
 
+push() {
+  local key=$1 tag=$2
+  : "${DEPLOY_PUSH_URL:?DEPLOY_PUSH_URL must name the repo to push to}"
+  : "${DEPLOY_PUSH_KNOWN_HOSTS:?DEPLOY_PUSH_KNOWN_HOSTS must name a known_hosts file}"
+  [[ -r $key && $key != *"'"* ]] || die "can't use key file $key"
+  verify "$tag" || die "won't push $tag"
+  echo "Enter the PIN and touch $(basename "$key") again to push $tag." >&2
+  # Only this key, never the account key from ~/.ssh/config or the agent:
+  # GitHub would accept that key, then refuse the tag.
+  g -c core.sshCommand="ssh -F /dev/null -i '$key' -o IdentitiesOnly=yes -o IdentityAgent=none \
+-o UserKnownHostsFile='$DEPLOY_PUSH_KNOWN_HOSTS' -o StrictHostKeyChecking=yes" \
+    push --quiet "$DEPLOY_PUSH_URL" "refs/tags/$tag"
+}
+
 case ${1:-} in
 latest)
   [[ $# -eq 2 ]] || usage
@@ -247,6 +268,10 @@ sign)
   done
   [[ -n $key && $# -eq 2 ]] || usage
   sign "$key" "$message" "$1" "$2"
+  ;;
+push)
+  [[ $# -eq 4 && $2 == --key && -n $3 ]] || usage
+  push "$3" "$4"
   ;;
 *) usage ;;
 esac

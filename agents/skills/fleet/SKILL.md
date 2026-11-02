@@ -51,7 +51,11 @@ inspecting or changing policy.
   only tags Tony signed, and `rebuild` lists unsigned commits and asks first.
 - Anything new that acts on a push to `nixos` (a CI build, a cache publish, an
   ACL apply) must first check for a signed tag against an allowed-signers list
-  kept outside the branch, so a push can't approve itself.
+  kept outside the branch, so a push can't approve itself. The check has to
+  run outside the pushed code: the receiver on a host, or GitHub settings for
+  CI. A workflow can't check its own trigger, because the push can edit the
+  workflow. The binary cache publishes only from deploy tags, which only
+  Tony's YubiKeys can create (`docs/security-hardening.md`, "Binary cache").
 - Never copy or patch uncommitted edits into another machine's checkout.
 
 ## Deploying
@@ -61,8 +65,10 @@ his YubiKey. Hosts build only signed tags.
 
 - `deploy <host>` runs on jacurutu. It fetches `origin/nixos`, lists the
   commits since the host's last signed tag, asks, signs a new tag (the YubiKey
-  PIN and a touch), pushes it, and starts the host's receiver over SSH. With nothing new
-  it skips the signing and only starts the receiver.
+  PIN and a touch), pushes it with the same key (the PIN and a touch again,
+  since only the repo's deploy keys may create deploy tags), and starts the
+  host's receiver over SSH. The tag also starts CI's binary cache publish.
+  With nothing new it skips the signing and only starts the receiver.
 - You may run `deploy` on jacurutu, but only Tony can touch the key, and the
   new keys also need their PIN typed in a terminal. Start it in a tmux pane he
   can attach to and tell him with `notify-send`. `--yes` skips the question,

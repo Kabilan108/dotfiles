@@ -9,13 +9,12 @@
     inputs."niri-flake".overlays.niri
     (_final: prev: {
       # This Niri revision requires 0.2, removed from newer Nixpkgs.
-      libdisplay-info_0_2 = prev.callPackage (
-        inputs."niri-flake".inputs.nixpkgs + "/pkgs/by-name/li/libdisplay-info/0.2.nix"
-      ) { };
+      libdisplay-info_0_2 = prev.callPackage ../../../packages/libdisplay-info/0.2.nix { };
     })
   ];
 
-  niri-flake.cache.enable = true;
+  # niri is built against our nixpkgs, so niri.cachix.org never has it.
+  niri-flake.cache.enable = false;
 
   programs.niri = {
     enable = true;

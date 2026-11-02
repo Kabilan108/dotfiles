@@ -54,6 +54,18 @@ show_log() {
   git -C "$repo" --no-pager log --no-decorate --format='  %h %<(16,trunc)%an %s' "$@"
 }
 
+# A signed tag also lets that commit's CI publish to the binary cache.
+show_ci_changes() {
+  local changed file
+  changed=$(git -C "$repo" log --format= --name-only "$@" -- .github | sed '/^$/d' | sort -u)
+  if [[ -n $changed ]]; then
+    echo "These commits change CI, which publishes to the binary cache once the tag is pushed:"
+    while IFS= read -r file; do
+      echo "  $file"
+    done <<<"$changed"
+  fi
+}
+
 # Returns 0 to build. Each failure returns explicitly: errexit is off inside
 # a function called from `if`.
 review() {
@@ -72,15 +84,18 @@ review() {
     if [[ -z $last_tag ]]; then
       echo "No signed deploy tag for $host_name yet. The last 20 commits:"
       show_log -20 HEAD
+      show_ci_changes -20 HEAD
     elif git -C "$repo" merge-base --is-ancestor "$last_commit" HEAD; then
       echo "Commits since $last_tag:"
       show_log "$last_commit..HEAD"
+      show_ci_changes "$last_commit..HEAD"
     else
       echo "HEAD doesn't contain $last_tag (${last_commit:0:12})."
       echo "Commits that drop out:"
       show_log "HEAD..$last_commit"
       echo "Commits that come in:"
       show_log "$last_commit..HEAD"
+      show_ci_changes "$last_commit..HEAD"
     fi
   fi
   if [[ -n $dirty ]]; then
@@ -97,8 +112,8 @@ review() {
     case $answer in
     [yY]*)
       tag=$(deploy-tag -C "$repo" sign --key "$key_file" --message "rebuild $host_name" "$host_name" "$head") || return 1
-      if ! git -C "$repo" push --quiet origin "refs/tags/$tag"; then
-        echo "Couldn't push $tag; building anyway. Push it later with: git push origin $tag"
+      if ! deploy-tag -C "$repo" push --key "$key_file" "$tag"; then
+        echo "Couldn't push $tag; building anyway. Push it later with: deploy-tag -C $repo push --key $key_file $tag"
       fi
       return 0
       ;;
