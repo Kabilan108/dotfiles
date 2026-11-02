@@ -8,6 +8,16 @@
 let
   cfg = config.dotfiles.services.dictator;
   systemName = pkgs.stdenv.hostPlatform.system;
+  # dictator probes for a notification server once at startup and stays silent
+  # for its whole run if none is registered yet, which happens when a switch
+  # restarts it alongside the shell. Give the shell a moment, then start anyway.
+  waitForNotifications = pkgs.writeShellScript "dictator-wait-for-notifications" ''
+    for _ in $(${pkgs.coreutils}/bin/seq 50); do
+      ${pkgs.systemd}/bin/busctl --user status org.freedesktop.Notifications >/dev/null 2>&1 && exit 0
+      ${pkgs.coreutils}/bin/sleep 0.2
+    done
+    echo "no notification server after 10s; starting without desktop notifications"
+  '';
 in
 {
   imports = [ inputs.dictator.homeManagerModules.dictator ];
@@ -64,5 +74,12 @@ in
     systemd.user.services.dictator.Unit.X-Restart-Triggers = [
       config.home.file."${config.xdg.configHome}/dictator/config.json".source
     ];
+
+    # The dictator module sets ExecStartPre as a single string; a drop-in adds a
+    # second one after it.
+    xdg.configFile."systemd/user/dictator.service.d/wait-for-notifications.conf".text = ''
+      [Service]
+      ExecStartPre=${waitForNotifications}
+    '';
   };
 }
