@@ -467,7 +467,7 @@ binds {
     Mod+Grave hotkey-overlay-title="Toggle Agent Panel" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-agent-panel" "toggle"; }
 
     // lock
-    Mod+Alt+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "swaylock"; }
+    Mod+Alt+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "lock-screen"; }
 
     // launch programs
     Mod+Return hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty" "+new-window"; }

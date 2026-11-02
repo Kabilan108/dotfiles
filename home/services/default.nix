@@ -10,7 +10,6 @@
     ./meeting-minutes.nix
     ./mic-volume-enforce.nix
     ./moberg.nix
-    ./parakeet-redux.nix
     ./russ-playlist-sync.nix
     ./solaar.nix
     ./storage-maintenance.nix

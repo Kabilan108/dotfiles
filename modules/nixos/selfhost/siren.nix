@@ -15,7 +15,47 @@
   };
 
   systemd.services.siren.environment = {
-    SIREN_PARAKEET_CLAUDE_HINT = "true";
+    # Default Parakeet boost list for requests without a `vocabulary` field.
+    # Terms and weights come from the Nov 2026 dictation evaluation
+    # (~/.local/state/vocab-eval/report.md on jacurutu): a low first-token weight
+    # keeps stray capitalisation down while later tokens still pull whole terms in.
+    SIREN_PARAKEET_BOOST_TERMS = builtins.toJSON [
+      "Claude"
+      "Claude Code"
+      "Codex"
+      "OpenCode"
+      "CodeRabbit"
+      "T3 Code"
+      "Niri"
+      "Hyprland"
+      "Omarchy"
+      "Ghostty"
+      "Tailscale"
+      "agenix"
+      "Stillsuit"
+      "PageBin"
+      "Hark"
+      "Jacurutu"
+      "Jupyter"
+      "Vaultwarden"
+      "Bitbucket"
+      "Moberg"
+      "qEEG"
+      "CNSUtils"
+      "E-BOOST"
+      "PRECICECAP"
+      "TrackTBI"
+      "IntelliVue"
+      "Masimo"
+      "Zujun"
+      "Ribal"
+      "Arpit"
+      "Hruday"
+      "Sai"
+    ];
+    SIREN_PARAKEET_BOOST_CONTEXT_SCORE = "0.05";
+    SIREN_PARAKEET_BOOST_DEPTH_SCALING = "40.0";
+    SIREN_PARAKEET_BOOST_ALPHA = "1.0";
     SIREN_SPEAKER_SMOOTHING = "true";
     TRITON_LIBCUDA_PATH = "/run/opengl-driver/lib";
     # The venv's certifi comes from siren's uv.lock; trust the NixOS store instead

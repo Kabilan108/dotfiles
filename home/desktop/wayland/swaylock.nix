@@ -6,6 +6,14 @@
 }:
 let
   colors = config.lib.stylix.colors;
+  # Dictator keeps its microphone open while the session is unlocked; release
+  # it for the lock and resume it afterwards. Failures never block locking.
+  dictatorEnabled = config.services.dictator.enable or false;
+  dictatorMic =
+    action:
+    lib.optionalString dictatorEnabled ''
+      ${pkgs.coreutils}/bin/timeout 3 ${lib.getExe config.services.dictator.package} mic ${action} >/dev/null 2>&1 || true
+    '';
   lockScreen = pkgs.writeShellScriptBin "lock-screen" ''
     export XDG_RUNTIME_DIR="''${XDG_RUNTIME_DIR:-/run/user/$(${pkgs.coreutils}/bin/id -u)}"
 
@@ -22,7 +30,9 @@ let
       done
     fi
 
-    exec ${pkgs.swaylock-effects}/bin/swaylock "$@"
+    ${lib.optionalString dictatorEnabled "trap '${dictatorMic "resume"}' EXIT"}
+    ${dictatorMic "release"}
+    ${pkgs.swaylock-effects}/bin/swaylock "$@"
   '';
   lockscreenImage =
     if lib.hasPrefix "$HOME/" config.dotfiles.wallpaper.lockscreen then
