@@ -23,6 +23,8 @@ let
     "/v0/management/"
     "/v8/management/"
   ];
+  # SSE streams and Codex's Responses websocket (GET /v1/responses) stay open
+  # for whole turns, so upgrades pass through and nothing is buffered.
   cpaProxy = {
     proxyPass = "http://127.0.0.1:${toString apiPort}";
     proxyWebsockets = true;
@@ -73,6 +75,14 @@ in
       {
         "= /".return = "302 /management.html";
         "= /management.html" = cpaProxy;
+        # The dashboard's model list card reads this one inference route.
+        "= /v1/models" = cpaProxy // {
+          extraConfig = cpaProxy.extraConfig + ''
+            limit_except GET {
+              deny all;
+            }
+          '';
+        };
       }
       // lib.genAttrs adminPrefixes (_: cpaProxy)
     );
