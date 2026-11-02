@@ -1,6 +1,6 @@
 # NAS network access policy
 
-Last reviewed: 2026-08-05
+Last reviewed: 2026-11-01
 
 This document is the durable network and access policy for `dar-es-balat`, the
 Synology NAS. Tailscale policy remains authoritative in the admin console, with
@@ -89,7 +89,10 @@ than NFS for backups and private multi-user data.
   ordinary agent sessions.
 - Retain immutable Btrfs snapshots. A compromised source with write access can
   damage its live backup share but must not be able to delete protected
-  snapshots.
+  snapshots. Restic clients never prune; the snapshots are what protect older
+  restore points ([`backups.md`](./backups.md)).
+- Keep the recycle bin off on backup shares: Restic deletes its lock file on
+  every run, and the snapshots already provide undo.
 - Add an encrypted off-NAS backup for irreplaceable data. Mirroring and SHR are
   not backups.
 
@@ -224,6 +227,32 @@ On 2026-08-04, with final rollout validation on 2026-08-05:
   seven days, retention is 14 daily/8 weekly/12 monthly, and the five latest
   snapshots are always retained.
 
+### 2026-11-01 review
+
+A read-only DSM survey, followed by the changes Tony approved:
+
+- DS225+ (Celeron J4125, 2 GB RAM), DSM 7.4.1-90080 Update 1. Container
+  Manager is available but not installed.
+- One pool, `primary-shr`, **SHR without data protection** on a single 8 TB
+  WD Red Plus; one encrypted Btrfs volume. Nothing is replicated off the NAS.
+  A second drive is planned.
+- `backup-sietch` and `backup-jacurutu` snapshot every 6 hours (01:05, 07:05,
+  13:05, 19:05), immutable for 7 days, kept 14 daily / 8 weekly / 12 monthly
+  plus the 5 latest. "Make snapshot visible" is off on every share. `homes` has
+  no snapshots.
+- `svc-backup-sietch` and `svc-backup-jacurutu` have SMB only, Read/Write on
+  their own share and No Access elsewhere. `svc-backup-jacurutu` was Read Only
+  until this review.
+- Firewall unchanged from the baseline above. The Tailscale package doesn't
+  show whether it runs in userspace mode; if jacurutu reaches SMB over the
+  tailnet despite the deny-all rule, userspace mode is the likely reason, and
+  the tailnet policy is then the only filter on that path.
+- SMB transport encryption is client defined; the backup clients request it.
+- Changed: time zone from fixed UTC−5 (Bogota) to Eastern Time; recycle bin off
+  on `backup-jacurutu`; monthly data scrubbing on (DSM's timing, first run
+  December 1, 00:00); a monthly S.M.A.R.T. extended test on the 15th at 03:00.
+  Scrubbing had never run; one extended test passed on 2026-07-29.
+
 ## Remaining implementation
 
 - **Completed:** verify a fresh `nas-admin` login and recovery path; demote
@@ -244,8 +273,7 @@ On 2026-08-04, with final rollout validation on 2026-08-05:
   matching backup share.
 - **Agent:** configure the read-only NFS export and `sietch` mount when Jellyfin
   migration begins.
-- **Agent + user, later:** store the scoped backup credentials as root-owned
-  secrets and configure and test the per-machine backup clients.
+- **In progress:** per-machine Restic clients ([`backups.md`](./backups.md)).
 - **Completed by user:** perform the external cellular-data exposure check.
 - **User housekeeping:** delete the two disabled broad DSM firewall rules after
   preserving the narrow active rules and final deny rule. The disabled rules do

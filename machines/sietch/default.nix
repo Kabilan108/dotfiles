@@ -85,6 +85,56 @@
     dotfiles.wallpaper.lockscreen = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
   };
 
+  # docs/backups.md. Off until the placeholder secrets hold real values.
+  age.secrets = lib.mkIf config.dotfiles.backup.enable {
+    backup-smb.file = ../../secrets/backup/sietch-smb.age;
+    backup-restic.file = ../../secrets/backup/sietch-restic.age;
+  };
+  dotfiles.backup = {
+    enable = false;
+    nas = {
+      address = "10.0.0.240";
+      share = "backup-sietch";
+      credentialsFile = config.age.secrets.backup-smb.path;
+    };
+    passwordFile = config.age.secrets.backup-restic.path;
+    statusReceive = [ "jacurutu" ];
+    jobs = {
+      files.paths = [
+        "/vault/notes/coppermind"
+        "/vault/userdata/media"
+      ];
+      services = {
+        paths = [
+          "/var/lib/vaultwarden"
+          "/var/lib/executor"
+          "/vault/userdata/hark-server"
+        ];
+        exclude = [
+          "/var/lib/vaultwarden/db.sqlite3*"
+          "/var/lib/vaultwarden/icon_cache"
+          "/var/lib/executor/data.db*"
+          "/vault/userdata/hark-server/hark.sqlite*"
+        ];
+        sqlite = {
+          vaultwarden = {
+            database = "/var/lib/vaultwarden/db.sqlite3";
+            user = "vaultwarden";
+          };
+          # The container's distroless nonroot user, with no entry on the host.
+          executor = {
+            database = "/var/lib/executor/data.db";
+            user = "65532";
+          };
+          hark = {
+            database = "/vault/userdata/hark-server/hark.sqlite";
+            user = "hark";
+          };
+        };
+      };
+    };
+  };
+
   services = {
     hardware.openrgb.enable = true;
     openssh = {

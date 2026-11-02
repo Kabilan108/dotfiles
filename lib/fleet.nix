@@ -133,7 +133,7 @@ rec {
     };
     dar-es-balat = {
       role = "nas";
-      model = "Synology (model not recorded; placeholder)";
+      model = "Synology DS225+";
       os = "Synology DSM";
       tailscaleIp = "100.70.188.62";
       description = "Synology NAS, tagged tag:nas. Agents work on it only interactively with Tony, through a browser. Network and access rules: ~/dotfiles/docs/nas-network-policy.md.";
