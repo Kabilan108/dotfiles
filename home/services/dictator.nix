@@ -7,7 +7,6 @@
 }:
 let
   cfg = config.dotfiles.services.dictator;
-  parakeetReduxCfg = config.dotfiles.services.parakeet-redux;
   systemName = pkgs.stdenv.hostPlatform.system;
 in
 {
@@ -19,7 +18,6 @@ in
     activeProvider = lib.mkOption {
       type = lib.types.enum [
         "openai"
-        "parakeet-redux"
         "siren"
       ];
       default = "siren";
@@ -28,13 +26,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    assertions = [
-      {
-        assertion = cfg.activeProvider != "parakeet-redux" || parakeetReduxCfg.enable;
-        message = "Selecting the parakeet-redux Dictator provider requires dotfiles.services.parakeet-redux.enable = true.";
-      }
-    ];
-
     services.dictator = {
       enable = true;
       package = inputs.dictator.packages.${systemName}.default;
@@ -52,11 +43,6 @@ in
               key = "\${env:OPENAI_API_KEY}";
               model = "gpt-4o-transcribe";
             };
-            "parakeet-redux" = {
-              endpoint = "http://127.0.0.1:${toString parakeetReduxCfg.port}/v1/audio/transcriptions";
-              key = "local";
-              model = "moondream/parakeet-redux";
-            };
             siren = {
               endpoint = "https://siren.sole-pierce.ts.net/v1/audio/transcriptions";
               key = "\${env:SIREN_API_KEY}";
@@ -66,7 +52,7 @@ in
         };
         enable_osd = true;
         notifications = "errors_only";
-        audio.max_duration_min = 30;
+        audio.max_duration_min = 15;
         typing = {
           shortcut = "ctrl_shift_v";
           niri_app_shortcuts."com.t3tools.T3Code" = "ctrl_v";
