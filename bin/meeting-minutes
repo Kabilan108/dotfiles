@@ -104,7 +104,7 @@ EXECUTOR_KEY_FILE = Path(
 ).expanduser()
 RESULT_SCHEMA_VERSION = 3
 # Bump when a prompt or validation rule changes so cached results regenerate.
-GENERATION_VERSION = "2026-11-02.1"
+GENERATION_VERSION = "2026-11-03.1"
 # Unknown speakers below this much talk time are usually diarization noise
 # (cross-talk, a cough); they stay in the result JSON but not in attendees.
 UNKNOWN_SPEAKER_MIN_SECONDS = 15.0
@@ -292,6 +292,9 @@ SPEAKER_SCHEMA: dict[str, Any] = {
     ),
 }
 
+GLOSSARY_SOURCES = ("slack", "meet", "calendar", "registry")
+APPROXIMATE_MARKER = "[approximate transcription]"
+
 MINUTES_SCHEMA: dict[str, Any] = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     **strict_object(
@@ -352,6 +355,17 @@ MINUTES_SCHEMA: dict[str, Any] = {
                         "topic_index": {"type": "integer", "minimum": 0},
                         "bullet_index": {"type": "integer", "minimum": 0},
                         "reason": STRING,
+                    }
+                ),
+            },
+            "glossary_candidates": {
+                "type": "array",
+                "items": strict_object(
+                    {
+                        "heard_as": STRING,
+                        "term": STRING,
+                        "source": {"type": "string", "enum": list(GLOSSARY_SOURCES)},
+                        "quote": STRING,
                     }
                 ),
             },
@@ -3591,6 +3605,8 @@ Use the timestamped transcript to identify optional screenshot candidates. The b
 
 Set `visual_mode` to none when no screenshot would materially improve the note, ordinary for a typical meeting, or visual_review when the meeting substantially works through code, architecture, diagrams, implementation details, errors, or changing UI states over an extended stretch. Candidate timestamps (in seconds) must point to moments when the speakers are discussing visible content — especially deictic moments ("right here", "this line", "that function") where the durable detail lives on the screen rather than in the words. Reject talking heads, generic screen-sharing, and visuals that would merely repeat the prose. Order candidates from most to least valuable. Return at most 3 candidates for an ordinary meeting and at most 8 for a visual_review. Every candidate must capture an artifact or state materially distinct from every other candidate; several views of the same document, spreadsheet, dashboard, or screen are ONE candidate. `topic_index` and `bullet_index` are the zero-based position of the bullet the image would support. A later visual pass inspects the frames and may reject every candidate.
 
+`glossary_candidates`: spelling corrections worth adding to the glossary. For each term you marked "[approximate transcription]" whose correct spelling appears in a gathered source (a Slack message, the Meet notes or transcript, the calendar event, or the people registry), return `heard_as` (the form in the transcript), `term` (the correct spelling, exactly as the source writes it), `source` (`slack`, `meet`, `calendar`, or `registry`), and `quote` (the source text containing the term, copied exactly, at most 200 characters). Leave out terms already in the spelling glossary and any term no gathered source spells out; an empty list is normal.
+
 Spelling glossary:
 {glossary_prompt_text(glossary)}
 
@@ -3985,6 +4001,14 @@ def validate_minutes(
         "follow_ups": cited_items("follow_ups", follow_up),
         "visual_mode": visual_mode,
         "visual_candidates": candidates,
+        "glossary_candidates": [
+            {
+                key: clean_text(raw.get(key))
+                for key in ("heard_as", "term", "source", "quote")
+            }
+            for raw in payload.get("glossary_candidates") or []
+            if isinstance(raw, dict)
+        ],
     }
     return minutes, warnings
 
@@ -4004,6 +4028,122 @@ def cited_entries(minutes: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
 
 def entry_text(item: dict[str, Any]) -> str:
     return str(item.get("text") or item.get("action") or "")
+
+
+def glossary_source_records(
+    calendar: dict[str, Any], context: dict[str, Any], registry: Registry
+) -> dict[str, list[tuple[str, str]]]:
+    """Each corroborating source as (where, text) records a quote must fall
+    inside: a Slack message, the Meet notes or a Meet utterance, a calendar
+    event, or a registry person."""
+    meet = context.get("meet") or {}
+    slack = context.get("slack") or {}
+    return {
+        "slack": [
+            (
+                f"Slack message from {message.get('author') or 'unknown'} in "
+                f"{message.get('channel') or 'Slack'} at {message.get('timestamp') or ''}"
+                + (f" ({message['permalink']})" if message.get("permalink") else ""),
+                str(message.get("text") or ""),
+            )
+            for message in slack.get("messages") or []
+        ],
+        "meet": [
+            (
+                f"Google Meet notes {meet.get('title') or ''}".strip(),
+                str(meet.get("notes") or ""),
+            ),
+            *(
+                (
+                    f"Google Meet transcript, {speaker.get('name')} at {sample.get('timestamp')}",
+                    f"{speaker.get('name')}: {sample.get('text')}",
+                )
+                for speaker in meet.get("speakers") or []
+                for sample in speaker.get("samples") or []
+            ),
+        ],
+        "calendar": [
+            (
+                f"Calendar event {candidate.get('title')!r} ({candidate.get('start')})",
+                " ".join(
+                    [
+                        str(candidate.get("title") or ""),
+                        *map(str, candidate.get("attendees") or []),
+                        str(candidate.get("calendar") or ""),
+                    ]
+                ),
+            )
+            for candidate in calendar.get("candidates") or []
+        ],
+        "registry": [
+            (
+                f"People registry entry `{person.id}`",
+                " ".join([person.name, *person.aliases, person.org, person.role]),
+            )
+            for person in registry.everyone()
+        ],
+    }
+
+
+def verify_glossary_candidates(
+    candidates: list[dict[str, str]],
+    minutes: dict[str, Any],
+    run: MeetingRun,
+    calendar: dict[str, Any],
+    context: dict[str, Any],
+    registry: Registry,
+) -> list[dict[str, Any]]:
+    """Check each spelling the model proposes against the data, not its own
+    account: the term was marked approximate in the minutes, the heard-as
+    form is in the transcript, and the quote is in the named source and
+    spells the term exactly."""
+    records = glossary_source_records(calendar, context, registry)
+    transcript = clean_text(transcript_text(run.transcript)).casefold()
+    marked = [
+        text
+        for _, item in cited_entries(minutes)
+        for text in [entry_text(item)]
+        if APPROXIMATE_MARKER in text
+    ] + [
+        topic["detail"]
+        for topic in minutes["topics"]
+        if APPROXIMATE_MARKER in topic["detail"]
+    ]
+    verified: list[dict[str, Any]] = []
+    for candidate in candidates:
+        heard_as, term = candidate["heard_as"], candidate["term"]
+        quote, source = candidate["quote"], candidate["source"]
+        location = next(
+            (
+                where
+                for where, text in records.get(source, [])
+                if quote and quote in clean_text(text)
+            ),
+            "",
+        )
+        if not (heard_as and term and quote) or heard_as.casefold() == term.casefold():
+            reason = "incomplete or unchanged spelling"
+        elif heard_as.casefold() not in transcript:
+            reason = "heard-as form is not in the transcript"
+        elif not any(
+            heard_as.casefold() in text.casefold() or term in text for text in marked
+        ):
+            reason = "the minutes do not mark it as an approximate transcription"
+        elif not location:
+            reason = f"quote not found in the {source} data"
+        elif term not in quote:
+            reason = "quote does not spell the term"
+        else:
+            reason = ""
+        verified.append(
+            {
+                **candidate,
+                "verified": not reason,
+                "location": location,
+                "reason": reason,
+            }
+        )
+    return verified
 
 
 def bullet_count(minutes: dict[str, Any]) -> int:
@@ -4312,6 +4452,9 @@ def run_minutes_pipeline(
         for path in citation_repair["trimmed_items"]
     ]
 
+    glossary_candidates = verify_glossary_candidates(
+        minutes.pop("glossary_candidates"), minutes, run, calendar, context, registry
+    )
     match = minutes.pop("calendar_match")
     matched = calendar["candidates"][match] if match >= 0 else None
     if calendar["status"] != "available":
@@ -4348,6 +4491,7 @@ def run_minutes_pipeline(
             for anchor in run.anchors
         ],
         "minutes": minutes,
+        "glossary_candidates": glossary_candidates,
         "coverage_review": review,
         "citation_repair": citation_repair,
         "validation": {
@@ -4690,6 +4834,65 @@ def propose_new_people(job: dict[str, Any], result: dict[str, Any]) -> None:
             f"[[01-logs/meetings/{job['canonical_stem']}|{minutes['title']}]], "
             f"a `{minutes['context']}` meeting. Role and relationship need Tony's confirmation.\n\n"
             f"Evidence:\n{evidence}"
+        )
+        atomic_write_text(path, content)
+        reconcile_vault_paths(path)
+
+
+def glossary_known(
+    term: str, heard_as: list[str], glossary: list[dict[str, Any]]
+) -> bool:
+    known = {
+        form.casefold()
+        for entry in glossary
+        for form in [entry["term"], *entry["heard_as"]]
+    }
+    return any(form.casefold() in known for form in [term, *heard_as])
+
+
+def propose_glossary_terms(job: dict[str, Any], result: dict[str, Any]) -> None:
+    """Verified spellings become glossary proposals, one file per term,
+    unless the glossary or an earlier proposal already has the term."""
+    try:
+        target = str(GLOSSARY_PATH.relative_to(VAULT_ROOT))
+    except ValueError:
+        target = str(GLOSSARY_PATH)
+    proposals = VAULT_ROOT / "04-projects/_pipeline/proposals"
+    glossary = load_glossary()
+    minutes = result["minutes"]
+    by_term: dict[str, list[dict[str, Any]]] = {}
+    for candidate in result.get("glossary_candidates") or []:
+        if candidate.get("verified"):
+            by_term.setdefault(candidate["term"], []).append(candidate)
+    for term, candidates in by_term.items():
+        heard_as = list(
+            dict.fromkeys(candidate["heard_as"] for candidate in candidates)
+        )
+        path = proposals / f"meeting-glossary-{slugify(term)}.md"
+        if path.exists() or glossary_known(term, heard_as, glossary):
+            continue
+        entry = (
+            "[[terms]]\n"
+            f"term = {toml_value(term)}\n"
+            f"heard_as = {toml_value(heard_as)}\n"
+            'note = ""\n'
+        )
+        corroboration = "".join(
+            f"- {candidate['location']}:\n\n  > {candidate['quote']}\n"
+            for candidate in candidates
+        )
+        content = (
+            "---\n"
+            "type: glossary-addition\n"
+            f"target: {yaml_scalar(target)}\n"
+            f"meeting_job: {yaml_scalar(str(job['job_id']))}\n"
+            "status: proposed\n"
+            "---\n"
+            f"# Proposed glossary term: {term}\n\n"
+            f"Transcribed as {', '.join(f'`{form}`' for form in heard_as)} in "
+            f"[[01-logs/meetings/{job['canonical_stem']}|{minutes['title']}]].\n\n"
+            f"```toml\n{entry}```\n\n"
+            f"Corroborated by:\n\n{corroboration}"
         )
         atomic_write_text(path, content)
         reconcile_vault_paths(path)
@@ -5070,6 +5273,7 @@ def finalize_artifacts(
     job["minutes_data_path"] = str(final_minutes)
     save_job(job)
     propose_new_people(job, result)
+    propose_glossary_terms(job, result)
     append_weekly_backlink(job, minutes)
 
 
