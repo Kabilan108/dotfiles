@@ -213,6 +213,8 @@ alias tk="tmuxk"
 
 alias cc="claude --dangerously-skip-permissions"
 alias cx="codex --yolo"
+alias cc-cpa="claude-cpa --dangerously-skip-permissions"
+alias cx-cpa="codex-cpa --yolo"
 alias cxf="codex --yolo --model gpt-6.1-sol --config model_reasoning_effort=low --config service_tier=fast"
 alias oc="OPENCODE_EXPERIMENTAL=true opencode"
 

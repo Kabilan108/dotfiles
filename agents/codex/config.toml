@@ -40,6 +40,17 @@ max_concurrent_threads_per_session = 12
 [history]
 persistence = "save-all"
 
+# Used only by the codex-cpa wrapper, which selects it with -c.
+[model_providers.cpa]
+name = "CLIProxyAPI"
+base_url = "https://cliproxyapi.sole-pierce.ts.net/v1"
+env_key = "CPA_API_KEY"
+wire_api = "responses"
+requires_openai_auth = false
+# Needs CPA 8.0.46 or later (PR #46) and "websockets": true on each Codex
+# auth file in CPA.
+supports_websockets = true
+
 [mcp_servers.executor]
 url = "https://executor.sole-pierce.ts.net/mcp"
 
