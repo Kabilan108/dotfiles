@@ -1,18 +1,15 @@
 {
   "lastChangelogVersion": "1.4.0",
   "defaultThinkingLevel": "high",
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.5",
+  "defaultProvider": "cliproxyapi",
+  "defaultModel": "gpt-6.1-sol",
   "hideThinkingBlock": false,
   "enabledModels": [
-    "openai-codex/gpt-5.4",
-    "openai-codex/gpt-5.4-mini",
-    "anthropic/claude-opus-4-6",
-    "anthropic/claude-sonnet-4-6",
-    "openai-codex/gpt-5.5"
+    "cliproxyapi/*"
   ],
   "theme": "dark",
   "editorPaddingX": 2,
   "doubleEscapeAction": "tree",
-  "treeFilterMode": "default"
+  "treeFilterMode": "default",
+  "transport": "auto"
 }
