@@ -8,16 +8,22 @@ let
   cliproxyapi = pkgs.callPackage ../../../packages/cliproxyapi.nix { };
   configPath = "/var/lib/cliproxyapi/config.yaml";
   # CPA serves inference and management on one listener. Local callers such as
-  # sera use it directly; the tailnet reaches only the inference front.
+  # sera use it directly; each tailnet service reaches only its own front.
   apiPort = 8317;
   inferencePort = 8320;
+  adminPort = 8321;
   inferencePrefixes = [
     "/v1/"
     "/v1beta/"
     "/openai/v1/"
     "/backend-api/codex/"
   ];
-  inferenceProxy = {
+  # The dashboard calls /v8/management and probes /v0/management for old backends.
+  adminPrefixes = [
+    "/v0/management/"
+    "/v8/management/"
+  ];
+  cpaProxy = {
     proxyPass = "http://127.0.0.1:${toString apiPort}";
     proxyWebsockets = true;
     extraConfig = ''
@@ -30,33 +36,46 @@ let
       client_max_body_size 0;
     '';
   };
+  loopbackVhost = port: locations: {
+    listen = [
+      {
+        addr = "127.0.0.1";
+        inherit port;
+      }
+    ];
+    serverName = "_";
+    # Tailscale Serve terminates TLS, so redirects must stay relative.
+    extraConfig = ''
+      access_log off;
+      absolute_redirect off;
+    '';
+    locations = {
+      "/".return = "404";
+    }
+    // locations;
+  };
 in
 {
   age.secrets.selfhost-cliproxyapi-env.file = ../../../secrets/selfhost/cliproxyapi-env.age;
 
   selfhost.tailnetServices.cliproxyapi.port = inferencePort;
+  selfhost.tailnetServices.cpa-admin.port = adminPort;
 
   # Tailscale Serve proxies from loopback, so CPA sees every tailnet request as
-  # local and allow-remote alone cannot refuse it. Forward inference routes only.
+  # local and allow-remote alone cannot refuse it. Each front forwards only its
+  # own routes; the management key is still checked by CPA.
   services.nginx = {
     enable = true;
-    virtualHosts.cliproxyapi-inference = {
-      listen = [
-        {
-          addr = "127.0.0.1";
-          port = inferencePort;
-        }
-      ];
-      serverName = "_";
-      extraConfig = ''
-        access_log off;
-      '';
-      locations = {
-        "/".return = "404";
-        "= /healthz" = inferenceProxy;
+    virtualHosts.cliproxyapi-inference = loopbackVhost inferencePort (
+      { "= /healthz" = cpaProxy; } // lib.genAttrs inferencePrefixes (_: cpaProxy)
+    );
+    virtualHosts.cliproxyapi-admin = loopbackVhost adminPort (
+      {
+        "= /".return = "302 /management.html";
+        "= /management.html" = cpaProxy;
       }
-      // lib.genAttrs inferencePrefixes (_: inferenceProxy);
-    };
+      // lib.genAttrs adminPrefixes (_: cpaProxy)
+    );
   };
 
   users.users.cliproxyapi = {
