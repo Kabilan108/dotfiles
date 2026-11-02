@@ -1,17 +1,20 @@
 ---
 name: sietch-vm
-description: Disposable VMs on sietch through the agent-vm launcher. Use when testing a compositor, desktop shell, session or installer inside a VM, or when inspecting, stopping or cleaning up an agent VM.
+description: Disposable VMs on sietch, run directly or through the agent-vm launcher. Use when testing a compositor, desktop shell, session or installer inside a VM, or when inspecting, stopping or cleaning up an agent VM.
 metadata:
   fleet-hosts: sietch
 ---
 
 # Sietch VMs
 
-Agent VMs on sietch run as per-slot `agentvm<N>` users, launched through the `agent-vm` slot sockets. Root-owned config sets those users' limits. The launcher is the supported way to get a VM with a display, SSH and QMP.
+Pick the path by what the guest runs:
 
-Use these VMs for unfamiliar repos and sketchy code. Keep credentials out of them: no tokens, keys or password-manager data go into a guest or its share directory.
+- **Trusted guest:** built from a config you or Tony wrote, running only code from this repo or the project under test (a compositor or shell test VM, for example). Run the `system.build.vm` runner directly as your own account; you are in the `kvm` group. A guest escape gets your account's files and network, so keep anything else out of the guest. Host fixtures on `127.0.0.1` work on this path. Stop the VM when you finish.
+- **Risky guest:** an unfamiliar repo, an installer ISO, a `curl | bash` setup, anything nobody reviewed. Use the launcher. It runs the VM as a per-slot `agentvm<N>` user with the limits below, so an escape gets much less than your account.
 
-Running `qemu-system-*` as your own user still works, because `/dev/kvm` is open to everyone. It skips the guest containment, caps and cleanup below, so reach for it only when Tony asks.
+Keep credentials out of every guest: no tokens, keys or password-manager data go into a guest or its share directory.
+
+The rest of this skill covers the launcher.
 
 ## What the host enforces
 
@@ -59,6 +62,6 @@ Running `qemu-system-*` as your own user still works, because `/dev/kvm` is open
 
 ## When something is refused
 
-Run test fixtures, such as a throwaway server, inside the guest. The guest cannot reach host loopback.
+In a launcher VM, run test fixtures, such as a throwaway server, inside the guest. The guest cannot reach host loopback.
 
 Treat a refusal from the table above as the answer. If the task truly needs more, such as bridged networking, IPv6, USB or PCI passthrough, rootful libvirt, larger caps or a tailnet-visible display, stop and ask Tony. Say which boundary the task hits and why.

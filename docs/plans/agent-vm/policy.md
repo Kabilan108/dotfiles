@@ -1,6 +1,6 @@
 # Agent VM policy for sietch
 
-Status: proposal, updated 2026-10-29. This branch applies no host change.
+Status: proposal, updated 2026-11-01. This branch applies no host change.
 The 2026-10-04 evidence comes from read-only inspection of sietch, the locked
 nixpkgs of that date, agent session transcripts and an isolated NixOS probe
 (`docs/plans/agent-vm/probe.nix`, results at the end).
@@ -12,11 +12,11 @@ stays the spec for them; this branch implements neither.
 
 | Stage | What | Owner | State |
 |---|---|---|---|
-| A | drop kabilan from `libvirtd`, `runAsRoot = false`, polkit password rule | fleet-security, "cheap fixes" PR on `security/cheap-fixes` (commit `76b965c3`) | in progress; Tony undefined the `downloads` pool on 2026-10-29 |
-| B | `agent-vm` launcher | this branch | later work, not started |
-| C | group-only `/dev/kvm` and GPU nodes, separate agent account | fleet-security, sietch agent-account step | depends on the agent user that step creates |
+| A | drop kabilan from `libvirtd`, `runAsRoot = false`, polkit password rule | fleet-security (commits `76b965c3`, `dec24dac`) | shipped on `nixos`; Tony undefined the `downloads` pool on 2026-10-29 |
+| B | `agent-vm` launcher for risky guests | this branch | not started; whether to build it is open |
+| C | `/dev/kvm` `0660 root:kvm`; the agent account joins `kvm` | fleet-security, sietch agent-account step | waits for the agent account |
 
-Agent VMs exist for unfamiliar repos and sketchy work. They are not a home for
+Launcher VMs exist for unfamiliar repos and sketchy work. No VM is a home for
 credential services. Vaultwarden and Executor are moving to the Pi, and no
 credential service will run in a VM on sietch.
 
@@ -26,18 +26,30 @@ is a separate track.
 
 ## Recommendation
 
-Stage A (fleet-security) removes ambient root through system libvirt: kabilan
-leaves `libvirtd`, QEMU stops running as root, and polkit asks for a wheel
-password on every connection. No agent workflow used that path.
+Stage A (shipped) removed ambient root through system libvirt: kabilan left
+`libvirtd`, QEMU stopped running as root, and polkit asks for a wheel
+password on every connection. No agent workflow used that path. The same
+change set dropped kabilan from `nix.settings.trusted-users` (`dec24dac`),
+which closed a second route to root through the Nix daemon.
 
-Stage A does not by itself leave same-user agents without host-root
-authority. On 2026-10-04 `nix.settings.trusted-users` also listed kabilan,
-which is another route to root through the Nix daemon. The same cheap-fixes
-PR drops it (commit `dec24dac`). Credential and account isolation belong to the
-fleet-security workstream.
+Once the agent account exists, it is the boundary for agents (fleet-security
+design, section 7). Tony decided the account joins `kvm`, so agents can run
+QEMU themselves. A guest that escapes such a VM lands as the agent account,
+with that account's files and network reach.
 
-Agents keep running VMs the way they already do, as raw QEMU from a
-Nix-built runner. Stage B moves those runs into root-defined systemd units
+That leaves two VM paths:
+
+- **Trusted test guests** run as raw QEMU under the agent account. A trusted
+  guest is one built from a config the agent or Tony wrote, running only
+  code from this repo or the project under test. The Stillsuit harness and
+  the niri agent-seat VM are examples. Host-loopback fixtures, such as a
+  throwaway server on `127.0.0.1`, work on this path.
+- **Risky guests** run code nobody has reviewed: an unfamiliar repo, an
+  installer ISO, a `curl | bash` setup. They use the Stage B launcher, which
+  runs each VM as a slot user below the agent account. Whether to build
+  Stage B is still open.
+
+Stage B moves risky runs into root-defined systemd units
 that run as dedicated per-slot `agentvm<N>` users, with a root-enforced egress filter,
 memory, CPU, disk and concurrency caps, a TTL and cleanup. Agents launch
 through root-owned slot sockets that only the `agent-vm` group can open
@@ -45,7 +57,7 @@ through root-owned slot sockets that only the `agent-vm` group can open
 keyed on unit names would also authorize root transient units under any
 matching name, and the probe reproduced that (R10g).
 
-The skill routes agents to that path. The enforcement is the uid, the unit
+The skill routes agents between the two paths. The launcher's enforcement is the uid, the unit
 sandbox, iptables and the socket's group. The skill text adds none.
 
 ## Evidence (sietch, 2026-10-04 snapshot)
@@ -94,8 +106,8 @@ How agents actually run VMs here (transcript survey):
   follows the same pattern: a NixOS guest with niri, a virtiofs share of the
   worktree, real QEMU input, screenshots and recordings. One probe ran a
   throwaway Vaultwarden on host `127.0.0.1` and reached it from the guest
-  through a forwarder. Stage B's egress filter blocks that pattern by design
-  (choice C12).
+  through a forwarder. That is a trusted guest, so it stays on the raw-QEMU
+  path, where host-loopback fixtures keep working.
 - The Android emulator for hark is also raw QEMU on `/dev/kvm`.
 - Agents use libvirt `qemu:///system` only on a remote Moberg host over SSH.
   On sietch, only Tony uses it, through virt-manager.
@@ -216,17 +228,17 @@ matching.
 | A. `runAsRoot = false` only | no | partial (QEMU uid) | no | yes | not a client boundary (R10b) |
 | B. Drop group, password-gate system libvirt | fixed | no | no | yes; agents never used it | Stage A (fleet-security) |
 | C. `qemu:///session` for agents | n/a | none; runs as kabilan | no | yes, adds libvirt for no gain | skip as the agent path |
-| D. Raw QEMU as kabilan plus a user-level wrapper (`systemd-run --user`) | n/a | none; a compromised QEMU can leave its cgroup and read `~` | advisory only | yes | interim only |
+| D. Raw QEMU as the caller (kabilan today, the agent account after Stage C) | n/a | none below the caller; an escape gets the caller's files and network | advisory only | yes | trusted test guests |
 | E. Root-defined `agent-vm@` template as `agentvm`, started through a polkit `manage-units` grant | n/a | root-enforced | root-enforced | yes | rejected: name-matched grant reaches root transient units (R10g) |
 | F. Group-restricted slot sockets, `Accept=yes`, one unit instance per VM as a per-slot `agentvm<N>`; uid egress filter; slice, disk and slot caps | n/a | root-enforced | root-enforced, including concurrency | yes, with the path changes below | Stage B |
 | G. Per-UUID libvirt ACLs (`access_drivers = ["polkit"]`) | fixed for listed VMs | depends on reviewed XML | libvirt only | only for rootful features | exception path; not needed today |
-| H. Restrict `/dev/kvm` and GPU nodes to groups | n/a | makes F the only fast path for the agent account | n/a | breaks VMs run by an account outside the groups; nixbld KVM tests need care | Stage C (fleet-security) |
+| H. `/dev/kvm` `0660 root:kvm`; kabilan, the agent account, Nix build users and slot users in `kvm` | n/a | keeps KVM from service accounts; agents keep direct access | n/a | Nix build users must join `kvm` | Stage C (fleet-security) |
 
-F beats D because only a separate uid holds up when a guest escapes QEMU.
-Root-owned slice limits and the iptables owner match can't be undone from
-inside the VM process. F does not constrain a malicious agent running as
-kabilan, which can still start QEMU directly. Nothing at the VM layer can.
-That belongs to the fleet-security agent account and option H (Stage C).
+For risky guests, F beats D because only a separate uid holds up when a
+guest escapes QEMU. Root-owned slice limits and the iptables owner match
+can't be undone from inside the VM process. F is not a gate on the agent,
+which can still start QEMU directly. The agent account is the boundary for
+the agent itself.
 
 F beats E for two reasons. The socket's file mode is the whole grant, with
 no polkit rule that could be widened by accident (R10g). And
@@ -243,11 +255,10 @@ Stage A closes system libvirt.
 Principle: a VM never holds more authority than the uid that runs it, and
 agent VMs run as a uid with less authority than kabilan.
 
-### Stage A: remove ambient system libvirt authority (owned by fleet-security)
+### Stage A: remove ambient system libvirt authority (shipped)
 
-Spec only. The fleet-security workstream implements it in the cheap-fixes
-PR (`security/cheap-fixes`, commit `76b965c3`). As of 2026-10-29 that branch
-differs from the spec below in three ways:
+Shipped on `nixos` by the fleet-security workstream (`76b965c3`). The shipped
+module differs from the spec below in three ways:
 
 - its polkit rule also gates `org.libvirt.unix.monitor` (read-only
   connections), which closes R10f's first item;
@@ -293,13 +304,14 @@ Notes:
 - virt-manager's password prompt needs a polkit agent (choice C2). `virsh`
   in a terminal spawns `pkttyagent` itself.
 
-### Stage B: `agent-vm` launcher (this branch; later work)
+### Stage B: `agent-vm` launcher for risky guests (this branch; not started)
 
 New `modules/nixos/agent-vm.nix`, imported from `machines/sietch/default.nix`.
-It is for VMs that run unfamiliar repos or sketchy code. Nothing that holds
-credentials runs in it. Stage B assumes Stage A has shipped. Until Stage C
-lands, launcher membership goes to kabilan. Afterwards it goes to the
-fleet-security agent account.
+It is for VMs that run unfamiliar repos or sketchy code. Trusted test guests
+keep running as raw QEMU under the agent account. Nothing that holds
+credentials runs in a launcher VM. Launcher membership (`agent-vm`) goes to
+the agent account and to kabilan for Tony's own use. Whether to build Stage B
+is open.
 
 - **Identities.** One static system user per VM slot, `agentvm0` to
   `agentvm2`, with contiguous uids (for example 9800 to 9802), group
@@ -463,18 +475,34 @@ guest only sees its own closure. It builds an erofs image of the closure on
 every launch into `TMPDIR`, which costs time and space on the capped
 filesystem.
 
-### Stage C: agent account and exclusive accelerator access (owned by fleet-security)
+### Stage C: `kvm` group access (owned by fleet-security)
 
-The fleet-security workstream's sietch agent-account step owns this, because
-it depends on the separate agent user that step creates. Stage C uses that
-account and creates no other general agent identity. The `agentvm<N>` slot
-users remain VM-layer identities owned by Stage B.
+The fleet-security workstream's sietch agent-account step owns this. Source:
+`fleet-agent-account-design.md`, section 7. The `agentvm<N>` slot users stay
+VM-layer identities owned by Stage B.
 
-Spec: `/dev/kvm` and the GPU nodes become `0660` to groups the agent account
-lacks. Only the slot users, `nixbld` (KVM NixOS tests) and Tony's interactive
-uid keep access. The agent account joins `agent-vm`, which makes the launcher
-its only fast path to a VM. Until that lands, the launcher is the recommended
-path, and the skill says so without claiming it is the only one.
+Spec:
+
+- A udev rule makes `/dev/kvm` `0660 root:kvm`. Today it is `0666`, the
+  systemd default.
+- `kvm` members: kabilan (Tony's VMs and the Android emulator T3 starts), the
+  agent account, the Nix build users, and later the `agentvm<N>` slot users.
+- Nix build users need an explicit entry. On sietch today `nixbld1` is only in
+  `nixbld`, and Nix KVM builds (`requiredSystemFeatures = [ "kvm" ]`, such as
+  NixOS tests and `probe.nix`) work only because `/dev/kvm` is world-writable.
+  Nix applies a build user's supplementary groups, so adding the `nixbld*`
+  users to `kvm` keeps those builds on KVM.
+- GPU nodes (`/dev/dri/renderD128`, `/dev/nvidia*`) stay `0666` for now.
+- Group changes take effect after the user manager restarts or the host
+  reboots. kabilan has linger on, so `user@1000` and T3 keep their old groups
+  until then.
+
+What it protects: service accounts (jellyfin, hark, siren, the selfhost
+daemons) and other local users lose KVM, a kernel interface none of them
+need. It does not keep KVM from agents.
+
+Open for fleet-security: `/dev/vhost-net` and `/dev/vhost-vsock` are also
+`root:kvm 0666`. Same treatment, or leave them?
 
 ## Privileged exceptions: reviewed system VMs
 
@@ -551,17 +579,24 @@ macvtap).
    - `id` no longer lists `libvirtd` after relogin and a tmux restart;
    - `virsh -c qemu:///session list` still works.
 
-Rollout keeps desktop QA working throughout. Stage A goes first through the
-cheap-fixes PR, because no agent uses system libvirt. Agents keep running raw
-QEMU as kabilan until Stage B passes step 3. Then the skill ships and agents
-switch. Stage C follows the agent account.
+5. **Stage C checks on sietch after its rebuild and a user-manager restart**
+   (fleet-security):
+   - `/dev/kvm` is `crw-rw---- root kvm`;
+   - a fresh agent-account shell can open it, and a service user can't;
+   - a `probe.nix` build still runs its test VMs on KVM, not TCG
+     emulation.
+
+Rollout keeps desktop QA working throughout. Stage A has shipped. Stage C
+follows the agent account. Trusted test guests keep running as raw QEMU,
+first as kabilan and then as the agent account. Risky guests use Stage B if
+it is built and passes step 3.
 
 Recovery: `sudo systemctl stop agentvm.slice` stops every agent VM.
 Instances never autostart. Root `virsh` works throughout.
 
 ## Patch inventory
 
-This branch (Stage B, later work):
+This branch (Stage B, if built):
 
 | File | Change |
 |---|---|
@@ -575,15 +610,15 @@ Fleet-security workstream (for reference):
 
 | File | Change | Stage |
 |---|---|---|
-| `modules/nixos/virt-manager.nix` | group line dropped, `runAsRoot = false`, `mkBefore` polkit rule | A (`security/cheap-fixes`) |
-| `configuration.nix` | kabilan dropped from `trusted-users` | cheap fixes, related |
-| agent account, device groups for `/dev/kvm` and GPU nodes | new account; `0660` nodes | C |
+| `modules/nixos/virt-manager.nix` | group line dropped, `runAsRoot = false`, `mkBefore` polkit rule | A, shipped (`76b965c3`) |
+| `configuration.nix` | kabilan dropped from `trusted-users` | shipped (`dec24dac`) |
+| new agent-account module | agent account in `kvm`; udev rule for `/dev/kvm`; `nixbld*` users in `kvm` | C |
 
 ## Choices for Tony
 
 Settled or owned elsewhere:
 
-- **C1. System libvirt for yourself.** Password-gated (Stage A, fleet-security).
+- **C1. System libvirt for yourself.** Password-gated (Stage A, shipped).
 - **C2. Polkit agent** for virt-manager prompts. Fleet-security. Sietch runs
   niri only now, and `sudo virsh` from a fresh terminal avoids the prompt
   (R10c).
@@ -591,7 +626,7 @@ Settled or owned elsewhere:
   fleet-security workstream. The cheap-fixes branch leaves both as they are.
 - **C10. `downloads` pool.** Done: Tony undefined it on 2026-10-29.
 
-Open for Stage B:
+Open for Stage B, if it is built:
 
 - **C5. GPU for agent VMs.** Allow the render and NVIDIA nodes in a GPU
   profile (the proven niri flow needs virgl), or default to llvmpipe with GPU
@@ -610,11 +645,9 @@ Open for Stage B:
   `RestrictNetworkInterfaces=~tailscale0`. That restriction stops an escaped
   guest from serving on the tailnet, so keep it unless direct viewing is
   worth that exposure.
-- **C12. Host-side test fixtures.** The Stillsuit harness reached a
-  throwaway Vaultwarden on host `127.0.0.1` from the guest. Stage B blocks
-  guest connections to host loopback. Options: run fixtures inside the guest
-  (recommended), or add a per-request allowlist of host loopback ports. An
-  allowlist reopens the path R10d closes, so each entry needs care.
+- **C12. Host-side test fixtures.** Settled: trusted guests that need a
+  fixture on host `127.0.0.1` run as raw QEMU. Launcher VMs keep host
+  loopback blocked and run fixtures inside the guest.
 
 
 ## Probe results
