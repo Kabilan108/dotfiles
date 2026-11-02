@@ -79,8 +79,10 @@ his YubiKey. Hosts build only signed tags.
   never reads `~/dotfiles`, so an edit there deploys nothing.
 - A host only moves forward: the signed commit must descend from the one it
   runs, including Tony's manual rebuilds, and its `flake.lock` must be
-  complete. A deliberate rollback takes `deploy --allow-rollback <host>`,
-  which asks on the terminal even with `--yes`; that's Tony's call.
+  complete. `deploy` always signs the tip of `origin/nixos`, so undo a bad
+  change with a revert, which moves forward. Only when `nixos` itself was
+  moved back does it take `deploy --allow-rollback <host>`, which asks on
+  the terminal even with `--yes`; that's Tony's call.
 - sietch and tleilax take deploys. tleilax builds its own aarch64 closure, so
   its deploys are slow. Nothing else changes tleilax: no `nixos-rebuild
   --target-host`, no copied closures.

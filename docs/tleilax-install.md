@@ -543,8 +543,11 @@ That hash is the last `nixos` commit with `raspi/`. The image lands under
   failed. Fix the config on jacurutu, then reinstall from the installer
   (below).
 - **A later generation is broken.** At the u-boot menu, pick an older one
-  with the keyboard. Then `deploy --allow-rollback tleilax` to an older
-  commit, or fix forward with a normal deploy.
+  with the keyboard. The Pi then runs that older commit. Revert the bad
+  change on `nixos`, push, and run `deploy tleilax`. The revert descends from
+  the commit the Pi runs, so it needs no `--allow-rollback`. `deploy` always
+  signs the tip of `origin/nixos`; `--allow-rollback` only lets that tip be
+  older than what the host runs, it doesn't choose a commit.
 
 **Mount the installed system from the installer:**
 
