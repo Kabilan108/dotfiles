@@ -61,6 +61,7 @@ The codebase is ALWAYS the more accurate source for how code works right now. A 
 - Body: `## notes` / `## decisions` / `## follow-ups`; pipeline notes add `###` topic sections under notes and an `## ideas raised` section. Follow-up checkboxes describe meeting content; create or link TaskNotes tasks when requested instead of assuming checkbox discovery.
 - Pipeline exception (meeting-minutes agent): it may APPEND one backlink bullet under today's heading in the weekly log — append-only, never edit existing text. This is the only sanctioned automated write to a weekly log.
 - Unknown names in pipeline-written `attendees` → propose a `people.toml` addition via `_pipeline/proposals/`, don't add directly. `Unknown (likely …)` placeholders are unidentified speakers, not names to propose. The pipeline proposes only people who spoke in a meeting where Tony also spoke.
+- The pipeline also proposes `glossary.toml` additions (`meeting-glossary-<slug>.md`, `type: glossary-addition`) for terms it marked `[approximate transcription]` when Slack, the Meet notes, the calendar event, or the people registry shows the correct spelling; the proposal quotes that source. Apply an approved glossary proposal the same way as an approved people proposal: add its `[[terms]]` entry to `04-projects/glossary.toml`, merging `heard_as` forms into an existing entry for the same term.
 
 ## Obsidian CLI
 
