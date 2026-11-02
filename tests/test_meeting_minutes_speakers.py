@@ -253,23 +253,46 @@ def test_likely_candidates_need_a_tie_to_the_meeting(workshop: dict[str, Any]) -
     assert addressed["SPEAKER_03"]["likely"] == ["Tony Kabilan Okeke"]
 
 
-def test_unregistered_new_people_need_an_introduction_or_two_references(
+def test_unregistered_names_need_an_introduction_or_an_outside_source(
     workshop: dict[str, Any],
 ) -> None:
     speakers = mapped(workshop, model_answer())
 
-    assert speakers["SPEAKER_01"]["status"] == "unknown"
-    assert speakers["SPEAKER_01"]["display"] == "Unknown (likely Peter)"
     assert speakers["SPEAKER_04"]["status"] == "new_person"
     assert speakers["SPEAKER_04"]["display"] == "Rina Patel"
-    assert speakers["SPEAKER_05"]["status"] == "new_person"
-    assert speakers["SPEAKER_05"]["display"] == "Omar"
+    for label in ("SPEAKER_01", "SPEAKER_05"):
+        assert speakers[label]["status"] == "unknown"
+        assert speakers[label]["display"] == "Unknown speaker"
 
     calendar = {"candidates": [{"title": "Prep with Peter", "attendees": []}]}
     assert (
         mapped(workshop, model_answer(), calendar=calendar)["SPEAKER_01"]["status"]
         == "new_person"
     )
+    slack = {
+        "meet": {},
+        "slack": {"messages": [{"author": "Omar", "participants": "", "text": "hi"}]},
+    }
+    assert (
+        mapped(workshop, model_answer(), context=slack)["SPEAKER_05"]["status"]
+        == "new_person"
+    )
+
+
+def test_names_only_said_in_the_transcript_are_not_likely_candidates(
+    workshop: dict[str, Any],
+) -> None:
+    talked_about = mapped(
+        workshop, model_answer(SPEAKER_03={"likely": ["Omar", "Peter"]})
+    )
+    assert talked_about["SPEAKER_03"]["display"] == "Unknown speaker"
+
+    introduced = mapped(workshop, model_answer(SPEAKER_03={"likely": ["Rina Patel"]}))
+    assert introduced["SPEAKER_03"]["likely"] == ["Rina Patel"]
+    confirmed = mapped(
+        workshop, model_answer(SPEAKER_03={"likely": ["Omar"]}), attendees=["Omar"]
+    )
+    assert confirmed["SPEAKER_03"]["likely"] == ["Omar"]
 
 
 def test_forced_mappings_replace_the_model_answer(workshop: dict[str, Any]) -> None:

@@ -3237,8 +3237,8 @@ Tony (Tony Kabilan Okeke, registry id `tony`) is the vault owner and recorded th
 
 For each label return:
 - status `identified` with `person_id` set to the registry id, and `name` set to that person's name, when the evidence supports one registry person with at least medium confidence.
-- status `new_person` only when the speaker is a specific named person who is not in the registry and either introduces themselves or is named at least twice independently (two separate direct addresses, or an address plus the calendar, Meet notes, or Slack). One possibly misheard address is not enough. Set `name` to their name as fully as known, leave `person_id` empty, and give the naming evidence.
-- status `unknown` otherwise, with empty `person_id` and `name`, and up to three names in `likely`, most likely first. List a person as likely only when something ties that specific person to this meeting: a calendar or Meet attendee, Slack around the meeting, a confirmed attendee, or being addressed or introduced in the transcript. Fitting the topic or role is not enough; with no such tie, leave `likely` empty.
+- status `new_person` only when the speaker is a specific named person who is not in the registry and either introduces themselves or is named both in the transcript and in the calendar, Meet notes, or Slack. Names said only in the transcript are not enough: people often talk about partners, friends, and colleagues who are not there, and transcription mishears names. Set `name` to their name as fully as known, leave `person_id` empty, and give the naming evidence.
+- status `unknown` otherwise, with empty `person_id` and `name`, and up to three names in `likely`, most likely first. List a person as likely only when something ties that specific person to this meeting: a calendar or Meet attendee, Slack around the meeting, a confirmed attendee, or a self-introduction. A registry person also counts when addressed in the transcript; someone outside the registry who is only named in the transcript does not. Fitting the topic or role is not enough; with no such tie, leave `likely` empty.
 `confidence` is high when a decisive source (Meet transcript match, self-introduction, direct address) or two independent sources agree, medium for a single indirect clue, low for a guess. Identifications need at least one `evidence` item; low-confidence or evidence-free identifications are recorded as unknown. Each evidence item is a short concrete statement citing anchor IDs or the context source, for example "Tony addresses them as 'Ethan' at s412". Diarization can split one person across two labels, so two labels may map to the same person; a label with only seconds of speech may be cross-talk, but return it too. {UNTRUSTED_CONTEXT_RULE}
 
 {speaker_hint_text(run.hints, registry)}Speech time per label (seconds): {json.dumps(seconds)}
@@ -3334,7 +3334,11 @@ class MeetingTies:
             1 for text in self.sources.values() if self.mentions(text, name)
         )
 
-    def self_introduced(self, label: str, name: str) -> bool:
+    def named_outside(self, name: str) -> bool:
+        return any(self.mentions(text, name) for text in self.sources.values())
+
+    def self_introduced(self, label: str | None, name: str) -> bool:
+        """`label` None accepts an introduction by any speaker."""
         return any(
             re.search(
                 rf"\b(?:i'm|i am|my name is|this is|it's)\s+{re.escape(form)}\b",
@@ -3342,7 +3346,7 @@ class MeetingTies:
                 flags=re.IGNORECASE,
             )
             for anchor in self.anchors
-            if anchor["speaker"] == label
+            if label is None or anchor["speaker"] == label
             for form in self.forms(name)
         )
 
@@ -3351,12 +3355,15 @@ class MeetingTies:
         return (person.id if person else clean_text(name).casefold()) in self.confirmed
 
     def tied(self, name: str) -> bool:
+        """Someone the registry has never seen needs a source outside the
+        transcript or a self-introduction: names said in conversation are
+        often people being talked about, not people in the room."""
         person = self.registry.resolve(name)
-        return (
-            person is self.registry.owner
-            or self.confirmed_attendee(name)
-            or self.references(name) > 0
-        )
+        if person is self.registry.owner or self.confirmed_attendee(name):
+            return True
+        if person is not None:
+            return self.references(name) > 0
+        return self.named_outside(name) or self.self_introduced(None, name)
 
 
 def same_person(registry: Registry, first: str, second: str) -> bool:
@@ -3461,9 +3468,8 @@ def validate_speaker_map(
         ):
             status, name, person = "unknown", "", None
         if person is None and status == "new_person" and name and ties is not None:
-            if (
-                not ties.self_introduced(label, name)
-                and ties.references(name, label) < 2
+            if not ties.self_introduced(label, name) and not (
+                ties.named_outside(name) and ties.references(name, label) >= 2
             ):
                 likely.insert(0, name)
                 status, name = "unknown", ""
@@ -3560,6 +3566,9 @@ def speaker_mapping_text(speakers: list[dict[str, Any]]) -> str:
 CITATION_RULE = """Citations are anchor IDs from the start of transcript lines (`s1234`, or `s1234.1` for a later part of a long turn), never clock times. Cite the specific lines where the point was said. A range such as `s120-s122` covers consecutive lines: at most 3 lines and 60 seconds, or a longer stretch of lines with no pause over 10 seconds that lasts at most 90 seconds. Cite only the strongest evidence, strongest first, and keep each item to at most 3 places in the transcript. Prefer one wider stretch to scattered spots: citations within about 10 seconds of each other are joined into a single range of up to 90 seconds."""
 
 
+PERSONAL_RULE = """In a meeting that is not itself personal (any context other than personal), personal conversation stays out of the minutes. This means talk about someone's private life that has nothing to do with work: partners, family, friends, dating, health, moving house, weekend plans, usually chat before or after the call. Leave it out of every field, and do not name people who appear only in it. The rule is narrow. Keep everything else even when it comes up casually or off the call: work talk before the call starts or after it ends, conference and travel news, who knows or works with whom professionally, background on collaborators, customers, and companies, and opinions about work. When a stretch mixes the two, keep the work part. When unsure, keep it."""
+
+
 def minutes_prompt(
     speakers: list[dict[str, Any]], glossary: list[dict[str, Any]]
 ) -> str:
@@ -3590,6 +3599,8 @@ Choose exactly one `context` from moberg, xploit, personal, or tooling. When a c
 {CITATION_RULE} Decisions, ideas, and follow-ups carry citations too.
 
 Coverage rule: keep every material point, including tangents and remarks made in passing, that touches Tony's employer Moberg Analytics (its products, customers, sites, competitors, market traction, or reputation), any project in the manifest, any person in the people registry, or any commitment. For example, a participant's aside about why a hospital is or is not adopting Moberg's product belongs in the notes. Brevity is never a reason to drop such a point.
+
+{PERSONAL_RULE}
 
 Preserve concrete specifics verbatim instead of paraphrasing them away: exact file names and paths, function/class/variable names, line numbers, error messages, config keys, flag names, numeric thresholds, versions, and other identifiers. When a specific was clearly spoken but garbled by transcription (for example "region 550" for "line 550", or a mangled name), preserve it and append "[approximate transcription]" rather than dropping it; prefer the glossary's spelling when a garbled term matches a glossary entry. Do not invent identifiers. Do not include Markdown bullet prefixes in any string.
 
@@ -3623,6 +3634,7 @@ Work through the transcript from start to end and find every material point the 
 - fix wrong attributions, and citations that do not point at the supporting lines;
 - remove decisions that are not explicit conclusions;
 - make sure no SPEAKER_NN label remains and that follow-up owners use the speaker mapping names.
+{PERSONAL_RULE} Personal conversation is not a coverage gap.
 {CITATION_RULE}
 Keep everything that is already correct, including wording, order, and screenshot candidates (update their topic_index and bullet_index if positions change)."""
 
