@@ -18,7 +18,8 @@ record-claude
 
 rewrite
   Replace saved Claude and Codex commands with commands that resume the exact
-  session active in each pane.
+  session active in each pane. Agents that went through CPA come back through
+  claude-cpa or codex-cpa.
 EOF
 }
 
@@ -55,6 +56,57 @@ descendant_pids() {
       done
     fi
   done
+}
+
+readonly cpa_url='https://cliproxyapi.sole-pierce.ts.net'
+
+# First process under the pane whose name is $2.
+agent_pid() {
+  local pane_pid=$1 name=$2 pid
+
+  while IFS= read -r pid; do
+    [[ -r "/proc/$pid/comm" ]] || continue
+    if [[ "$(<"/proc/$pid/comm")" == "$name" ]]; then
+      printf '%s\n' "$pid"
+      return 0
+    fi
+  done < <(descendant_pids "$pane_pid")
+
+  return 1
+}
+
+# Whether the agent process was started by claude-cpa or codex-cpa, which
+# put the CPA settings in its environment.
+uses_cpa() {
+  local agent=$1 pid=$2 entry
+
+  [[ -r "/proc/$pid/environ" ]] || return 1
+  while IFS= read -r -d '' entry; do
+    case "$agent:$entry" in
+      "claude:ANTHROPIC_BASE_URL=$cpa_url" | codex:CPA_API_KEY=*) return 0 ;;
+    esac
+  done <"/proc/$pid/environ"
+
+  return 1
+}
+
+# Start the saved command with the CPA wrapper instead of the binary the
+# wrapper exec'd. codex-cpa adds its own provider override, so drop that.
+cpa_command() {
+  local agent=$1 command=$2 args=
+
+  if [[ "$command" == *" "* ]]; then
+    args=${command#* }
+  fi
+  if [[ "$agent" == codex ]]; then
+    case "$args" in
+      '-c model_provider="cpa"'*) args=${args#'-c model_provider="cpa"'} ;;
+      '-c model_provider=cpa'*) args=${args#'-c model_provider=cpa'} ;;
+    esac
+    args=${args# }
+  fi
+
+  printf '%s-cpa%s\n' "$agent" "${args:+ $args}"
 }
 
 codex_session_id() {
@@ -114,7 +166,7 @@ rewrite_resurrect_file() {
   local resurrect_file=$1
   local mappings_file rewritten_file
   local session_name window_index pane_index pane_id pane_pid pane_command
-  local pane_session agent session_id saved_command
+  local pane_session agent session_id saved_command pid
 
   [[ -f "$resurrect_file" ]] || {
     printf 'tmux-resurrect-agents: file not found: %s\n' "$resurrect_file" >&2
@@ -158,6 +210,9 @@ rewrite_resurrect_file() {
       ' "$resurrect_file")
     [[ -n "$saved_command" ]] || continue
 
+    if pid=$(agent_pid "$pane_pid" "$agent") && uses_cpa "$agent" "$pid"; then
+      saved_command=$(cpa_command "$agent" "$saved_command")
+    fi
     saved_command=$(resume_command "$agent" "$saved_command" "$session_id")
     printf '%s\t%s\t%s\t%s\n' \
       "$session_name" "$window_index" "$pane_index" "$saved_command" >>"$mappings_file"
