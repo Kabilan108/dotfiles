@@ -68,6 +68,7 @@ in
     ../modules/home/agent-browser.nix
     ../modules/home/appimages.nix
     ../modules/home/btop.nix
+    ../modules/home/cpa-clients.nix
     ../modules/home/fleet.nix
     ../modules/home/fonts.nix
     ../modules/home/gogcli.nix
