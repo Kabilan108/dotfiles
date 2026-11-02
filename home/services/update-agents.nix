@@ -51,7 +51,6 @@ let
       return 0
     }
 
-    update_agent amp amp update
     update_agent opencode opencode upgrade
     update_agent codex codex update
     update_agent pi pi update
