@@ -1,5 +1,12 @@
-{ inputs, pkgs, ... }:
+{
+  config,
+  inputs,
+  lib,
+  pkgs,
+  ...
+}:
 let
+  fleet = import ../../lib/fleet.nix;
   spotifyAudioCacheBytes = 2 * 1000 * 1000 * 1000;
   bootPkgs = import inputs.jacurutu-boot-nixpkgs {
     system = pkgs.stdenv.hostPlatform.system;
@@ -46,6 +53,28 @@ in
 
   environment = {
     systemPackages = with pkgs; [ fprintd ];
+  };
+
+  # docs/backups.md. Off until the rollout on jacurutu: its host key goes into
+  # lib/fleet.nix, then the placeholder secrets get real values.
+  age.secrets = lib.mkIf config.dotfiles.backup.enable {
+    backup-smb.file = ../../secrets/backup/jacurutu-smb.age;
+    backup-restic.file = ../../secrets/backup/jacurutu-restic.age;
+  };
+  dotfiles.backup = {
+    enable = false;
+    nas = {
+      address = fleet.devices.dar-es-balat.tailscaleIp;
+      share = "backup-jacurutu";
+      credentialsFile = config.age.secrets.backup-smb.path;
+    };
+    passwordFile = config.age.secrets.backup-restic.path;
+    inhibitsSleep = true;
+    statusPush.host = "sietch";
+    jobs.files.paths = [
+      "/vault/notes/coppermind"
+      "/vault/userdata/media"
+    ];
   };
 
   home-manager.users.kabilan = {
