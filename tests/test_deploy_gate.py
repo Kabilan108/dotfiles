@@ -994,11 +994,12 @@ class Trigger(DeployGate):
         self.git("push", "-q", "origin", "HEAD:nixos")
         self.sign(T2, "yk")
         # SIGKILL the receiver and run-record.sh too: job 2 records only its
-        # start, while job 1's success stays in the record.
+        # start, while job 1's success stays in the record. ps pads PIDs under
+        # seven digits with a space, which `ps -p` rejects.
         r = self.broker(
             TEST_DURING_BUILD=(
-                'receiver=$(ps -o ppid= -p "$PPID"); '
-                'kill -9 "$(ps -o ppid= -p "$receiver")" "$receiver"'
+                'receiver=$(ps -o ppid= -p "$PPID" | tr -d " "); '
+                'kill -9 "$(ps -o ppid= -p "$receiver" | tr -d " ")" "$receiver"'
             )
         )
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
