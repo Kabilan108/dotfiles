@@ -3,7 +3,6 @@
     ./backup.nix
     ./battery-watcher.nix
     ./claude-keepalive.nix
-    ./cliproxyapi.nix
     ./codex-desktop.nix
     ./dictator.nix
     ./flake-update.nix
@@ -26,7 +25,6 @@
   dotfiles.services = {
     backup.enable = true;
     battery-watcher.enable = true;
-    cliproxyapi.enable = true;
     install-tools.enable = true;
     meeting-minutes.enable = true;
     storage-maintenance.enable = true;
