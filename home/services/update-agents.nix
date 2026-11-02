@@ -28,7 +28,6 @@ let
 
   updateAgents = pkgs.writeShellScript "update-agents" ''
     set -euo pipefail
-    source "$HOME/.bashenv"
 
     failures=()
     update_agent() {

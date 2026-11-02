@@ -158,12 +158,6 @@ precmd() {
 __bash_prompt 0
 export PROMPT_DIRTRIM=2
 
-### -> ENVIRONMENT
-
-if [ -f "$HOME/.bashenv" ]; then
-  source "$HOME/.bashenv"
-fi
-
 #### --> FUNCTIONS
 
 function tmuxa() {

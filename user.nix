@@ -46,14 +46,14 @@ in
   age = {
     identityPaths = [ "${home}/.ssh/id_ed25519" ];
     secretsDir = "/run/agenix";
-    secrets."secrets/bashenv.age" = {
-      file = ./secrets/bashenv.age;
-      path = "${home}/.bashenv";
+    # Replace the encrypted placeholder with the auth profiles' key before activation.
+    secrets."secrets/agent-browser-encryption-key.age" = {
+      file = ./secrets/agent-browser-encryption-key.age;
+      path = "${home}/.agent-browser/.encryption-key";
       mode = "0600";
       owner = "kabilan";
       group = "users";
     };
-    # Keep the bashenv credentials until every host uses PageBin's config file.
     secrets."secrets/pagebin/env.age" = {
       file = ./secrets/pagebin/env.age;
       path = "${home}/.config/pagebin/env";

@@ -82,10 +82,10 @@ not host root. It can still exercise that user's filesystem authority.
 
 After Docker completion, launch a separate planning thread. Inventory credential
 names, scopes, consumers, ownership, and inherited environment without printing
-values. Agenix currently uses the user-readable Sietch SSH identity; the T3
-launcher sources `.bashenv`. Root-only plaintext alone therefore does not prevent
-decryption or inherited access. Consider scoped development credentials, dedicated
-service identities, a separate agent account, and narrow operation brokers.
+values. Agenix currently uses the user-readable Sietch SSH identity. Root-only
+plaintext alone therefore does not prevent decryption. Consider scoped development
+credentials, dedicated service identities, a separate agent account, and narrow
+operation brokers.
 
 Changing recipients does not revoke the existing key's access to encrypted copies
 in Git history. Re-encrypting unchanged values leaves those historical values

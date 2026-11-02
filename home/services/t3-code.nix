@@ -36,7 +36,6 @@ let
 
   t3CodeStart = pkgs.writeShellScript "t3-code-start" ''
     set -eu
-    source "$HOME/.bashenv"
 
     ${lib.optionalString cfg.android.enable ''
       export ANDROID_HOME=${lib.escapeShellArg androidSdk}

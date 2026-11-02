@@ -3,7 +3,7 @@ let
   jacurutu = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPN/jpn1y7lmxhrBSmApiVvA+H2YN3AFkczBJbKIGVUe kabilan@jacurutu";
 in
 {
-  "secrets/bashenv.age".publicKeys = [
+  "secrets/agent-browser-encryption-key.age".publicKeys = [
     sietch
     jacurutu
   ];

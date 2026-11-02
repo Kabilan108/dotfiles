@@ -12,7 +12,6 @@ let
   eboostReviewerReport = pkgs.writeShellScript "eboost-reviewer-report" ''
     set -euo pipefail
     cd ${lib.escapeShellArg devServerCheckout}
-    source "$HOME/.bashenv"
     export PATH="${lib.makeBinPath [ pkgs.curl ]}:$PATH"
 
     exec ${pkgs.direnv}/bin/direnv exec . \
@@ -22,7 +21,6 @@ let
   devMaintenance = pkgs.writeShellScript "moberg-dev-maintenance" ''
     set -euo pipefail
     cd ${lib.escapeShellArg cfg.devMaintenance.checkout}
-    source "$HOME/.bashenv"
     ${lib.optionalString (cfg.devMaintenance.dockerHost != null) ''
       export DEV_DOCKER_HOST=${lib.escapeShellArg cfg.devMaintenance.dockerHost}
       export DOCKER_HOST="$DEV_DOCKER_HOST"

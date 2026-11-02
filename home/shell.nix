@@ -65,6 +65,7 @@ in
 
   home.sessionVariables = systemCaEnv // rec {
     FZF_DEFAULT_OPTS = "--reverse";
+    LLAMA_SERVER_URL = "https://sietch.sole-pierce.ts.net/llama-server";
 
     BLEND_CACHE_DIR = "/vault/userdata/cache/blender";
     BUN_INSTALL_CACHE_DIR = "/vault/userdata/cache/bun-install";
