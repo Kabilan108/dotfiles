@@ -185,10 +185,14 @@ in
         ' > "$CLIPROXY_CONFIG"
       fi
 
+      # Logs go to stdout and the journal. The v8 path overrides the legacy
+      # top-level key on load, so set it whatever the file's layout.
       yq -i '
         .routing.strategy = "round-robin" |
         .routing."session-affinity" = true |
-        .routing."session-affinity-ttl" = "1h"
+        .routing."session-affinity-ttl" = "1h" |
+        del(."logging-to-file") |
+        .observability.logs."logging-to-file" = false
       ' "$CLIPROXY_CONFIG"
 
       # Keep existing files in their current layout until a v8 API write migrates them.
