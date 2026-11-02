@@ -23,6 +23,18 @@ HOSTS = ["sietch", "jacurutu"]
 CACHE = "https://kabilan108.cachix.org"
 UPSTREAM = "https://cache.nixos.org"
 
+# A host's system before system.replaceDependencies grafts it. The graft
+# rewrites built outputs, not derivations, so this closure holds the same
+# package builds the host uses. Evaluating the grafted toplevel needs
+# import-from-derivation of the whole system closure, which would build every
+# package during the plan step. IFD stays off so that any other IFD fails the
+# eval at once instead of building inside it.
+UNGRAFTED_TOPLEVEL = """
+host: (host.extendModules {
+  modules = [ ({ lib, ... }: { system.replaceDependencies.replacements = lib.mkForce [ ]; }) ];
+}).config.system.build.toplevel.drvPath
+"""
+
 
 def packages() -> list[str]:
     lines = (ROOT / "ci/cache-packages").read_text().splitlines()
@@ -54,8 +66,12 @@ def targets(names: list[str]) -> dict[str, dict[str, list[str]]]:
     )
     candidates: set[str] = set()
     for host in HOSTS:
-        attr = f"{ROOT}#nixosConfigurations.{host}.config.system.build.toplevel.drvPath"
-        top = run("nix", "eval", "--raw", attr)
+        top = run(
+            "nix", "eval", "--raw",
+            "--option", "allow-import-from-derivation", "false",
+            "--apply", UNGRAFTED_TOPLEVEL,
+            f"{ROOT}#nixosConfigurations.{host}",
+        )
         closure = run("nix-store", "--query", "--requisites", top).split()
         candidates.update(p for p in closure if name_re.search(p))
 
