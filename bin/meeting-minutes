@@ -1622,6 +1622,7 @@ class MeetingRun:
     on_phase: Callable[[str, str], None] = lambda phase, label: None
     extra_inputs: dict[str, str] = field(default_factory=dict)
     hints: SpeakerHints = field(default_factory=SpeakerHints)
+    transcript_digest: str = ""
 
     @property
     def start(self) -> datetime:
@@ -4305,7 +4306,8 @@ def registry_digest() -> str:
 def generation_inputs(run: MeetingRun) -> dict[str, str]:
     return {
         "generation_version": GENERATION_VERSION,
-        "transcript": digest(json.dumps(run.transcript, sort_keys=True).encode()),
+        "transcript": run.transcript_digest
+        or digest(json.dumps(run.transcript, sort_keys=True).encode()),
         "started_at": f"{run.started_at:.3f}",
         "duration": f"{run.duration:.3f}",
         "registry": registry_digest(),
@@ -5603,6 +5605,92 @@ def transcript_started_at(transcript: dict[str, Any]) -> float | None:
         return None
 
 
+SPEAKER_RANGE = re.compile(r"\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*=\s*(.+)")
+
+
+def apply_speaker_ranges(
+    transcript: dict[str, Any], entries: list[str]
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Reassign the segments lying wholly inside each `START-END=PERSON`
+    range to a new diarization label, one per person, in a copy of the
+    transcript. The file on disk is never changed; the overrides are
+    returned so the result can record them."""
+    if not entries:
+        return transcript, []
+    segments = transcript.get("segments")
+    if not isinstance(segments, list):
+        raise MeetingMinutesError("--speaker-range needs a transcript with segments")
+    numbers = [
+        int(label.removeprefix("SPEAKER_"))
+        for label in speaker_seconds(transcript)
+        if re.fullmatch(r"SPEAKER_\d+", label)
+    ]
+    next_number = max(numbers, default=-1) + 1
+    registry = load_registry()
+    copy = json.loads(json.dumps(transcript))
+    labels: dict[str, str] = {}
+    claimed: dict[int, str] = {}
+    overrides: list[dict[str, Any]] = []
+    for entry in entries:
+        match = SPEAKER_RANGE.fullmatch(entry)
+        if match is None:
+            raise MeetingMinutesError(
+                f"--speaker-range expects START-END=person, got {entry!r}"
+            )
+        start, end, person = (
+            float(match.group(1)),
+            float(match.group(2)),
+            clean_text(match.group(3)),
+        )
+        if end <= start:
+            raise MeetingMinutesError(
+                f"--speaker-range {entry!r}: END must be after START"
+            )
+        inside = [
+            index
+            for index, segment in enumerate(copy["segments"])
+            if isinstance(segment, dict)
+            and not isinstance(bounds := segment_bounds(segment, 0.0), str)
+            and start <= bounds[0]
+            and bounds[1] <= end
+        ]
+        if not inside:
+            raise MeetingMinutesError(
+                f"--speaker-range {entry!r}: no segment lies inside it"
+            )
+        for index in inside:
+            if index in claimed:
+                raise MeetingMinutesError(
+                    f"--speaker-range {entry!r} overlaps {claimed[index]!r}"
+                )
+            claimed[index] = entry
+        resolved = registry.resolve(person)
+        key = resolved.id if resolved else person.casefold()
+        if key not in labels:
+            labels[key] = f"SPEAKER_{next_number:02d}"
+            next_number += 1
+        original = sorted(
+            {str(copy["segments"][index].get("speaker") or "") for index in inside}
+        )
+        for index in inside:
+            copy["segments"][index]["speaker"] = labels[key]
+        overrides.append(
+            {
+                "start": start,
+                "end": end,
+                "person": person,
+                "label": labels[key],
+                "segments": [
+                    copy["segments"][index].get("id", index) for index in inside
+                ],
+                "original_labels": original,
+            }
+        )
+    if isinstance(copy.get("speakers"), list):
+        copy["speakers"] = [*copy["speakers"], *sorted(set(labels.values()))]
+    return copy, overrides
+
+
 def speaker_hints(args: argparse.Namespace, transcript: dict[str, Any]) -> SpeakerHints:
     """Parse --speaker/--attendee/--absent into hints, refusing labels the
     transcript does not have and people marked both present and absent."""
@@ -5619,6 +5707,8 @@ def speaker_hints(args: argparse.Namespace, transcript: dict[str, Any]) -> Speak
                 f"--speaker {label}: not a speaker in this transcript ({sorted(labels)})"
             )
         forced[label] = value
+    for override in getattr(args, "speaker_overrides", []):
+        forced[override["label"]] = override["person"]
     hints = SpeakerHints(
         forced=forced,
         attendees=[
@@ -5660,10 +5750,15 @@ def regenerate(args: argparse.Namespace) -> dict[str, Any]:
         )
         if not reused:
             raise MeetingMinutesError(f"No calendar or context results in {previous}")
+    source_digest = digest(json.dumps(transcript, sort_keys=True).encode())
+    effective, overrides = apply_speaker_ranges(transcript, args.speaker_range or [])
+    args.speaker_overrides = overrides
     hints = speaker_hints(args, transcript)
     extra_inputs = {}
     if hints:
         extra_inputs["speaker_hints"] = hints.fingerprint()
+    if overrides:
+        extra_inputs["speaker_ranges"] = json.dumps(overrides, sort_keys=True)
     if reused:
         extra_inputs["reused_context"] = digest(
             b"\0".join(
@@ -5682,13 +5777,14 @@ def regenerate(args: argparse.Namespace) -> dict[str, Any]:
 
     run = MeetingRun(
         work=out,
-        transcript=transcript,
+        transcript=effective,
         started_at=float(started_at),
         duration=probed_duration(source.recording) or transcript_duration(transcript),
         recording=source.recording,
         on_phase=lambda phase, label: print(f"{phase}: {label}", file=sys.stderr),
         extra_inputs=extra_inputs,
         hints=hints,
+        transcript_digest=source_digest,
     )
     prepare_generation(run, on_input_change="reset" if args.fresh else "reject")
     for path in reused:
@@ -5707,6 +5803,7 @@ def regenerate(args: argparse.Namespace) -> dict[str, Any]:
             copy_atomically(Path(selection["source_path"]), destination)
             published.append(published_screenshot(selection, asset_name, destination))
     result["screenshots"] = published
+    result["speaker_overrides"] = overrides
     minutes_path = out / f"{source.stem}.minutes.json"
     note_path = out / f"{source.stem}.md"
     result["artifacts"] = {
@@ -5965,6 +6062,13 @@ def parser() -> argparse.ArgumentParser:
         action="append",
         metavar="PERSON",
         help="a registry id or name confirmed not to have attended",
+    )
+    regenerate_command.add_argument(
+        "--speaker-range",
+        action="append",
+        metavar="START-END=PERSON",
+        help="reassign the segments inside START-END seconds to a registry id, "
+        "a name, or `unknown`; wins over --speaker for those segments",
     )
     regenerate_command.add_argument(
         "--fresh",
