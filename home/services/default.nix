@@ -2,7 +2,6 @@
   imports = [
     ./backup.nix
     ./battery-watcher.nix
-    ./claude-keepalive.nix
     ./codex-desktop.nix
     ./dictator.nix
     ./flake-update.nix
