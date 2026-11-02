@@ -1,0 +1,746 @@
+#!/usr/bin/env python3
+"""Check that a flake update PR only moves inputs forward along the refs they track.
+
+Run this on jacurutu from a trusted checkout of the base branch. The PR, its
+lock files and its description were written on sietch, so none of them are
+trusted. GitHub, GitLab and the upstream repositories are.
+
+Inputs are compared by their path from the root (`home-manager/nixpkgs`),
+including paths that pass through `follows`. For every path whose lock entry
+differs from the base branch, the check requires that:
+
+- lock nodes carry only the fields Nix reads (a legacy `info` field would
+  override `locked`);
+- the input's `original` equals the base lock's at that path, or equals what
+  the declaring flake.nix says at its locked rev, with the root flake.nix's
+  overrides. Nix reuses transitive originals from the lock without rereading
+  the parent's declarations, so the PR must not choose them;
+- the locked repo, host and dir are the ones `original` names;
+- the new rev is reachable from the tracked ref (`original.ref`, or the
+  default branch), or equals `original.rev` when one is pinned;
+- the new rev descends from the old rev, when the tracked source didn't change;
+- the narHash matches the source the forge serves for that rev, since Nix
+  substitutes locked inputs by narHash without looking at the rev.
+
+GitHub and GitLab inputs are checked. Other sources (tarballs, plain git,
+paths, registry references) are reported for a manual check.
+
+Exit status: 0 when every changed input passes, 1 on any failure, 2 when some
+inputs need a manual check and none failed.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import subprocess
+import sys
+import tempfile
+import urllib.parse
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+LOCK_FILES = {"flake.lock": "flake.nix", "raspi/flake.lock": "raspi/flake.nix"}
+LOCK_KEYS = {"nodes", "root", "version"}
+NODE_KEYS = {"inputs", "locked", "original", "flake"}
+FORGE_LOCKED_KEYS = {"type", "owner", "repo", "rev", "narHash", "lastModified", "host", "dir"}
+FORGES = ("github", "gitlab")
+DEFAULT_HOSTS = {"github": "github.com", "gitlab": "gitlab.com"}
+REV_RE = re.compile(r"^[0-9a-f]{40}$")
+REF_RE = re.compile(r"^[A-Za-z0-9._/+-]+$")
+MAX_DEPTH = 32
+MAX_PATHS = 20_000
+
+PASS = "PASS"
+FAIL = "FAIL"
+MANUAL = "MANUAL"
+RANK = {PASS: 0, MANUAL: 1, FAIL: 2}
+
+NODE_INPUTS_EXPR = (
+    "{ locked, dir }: let src = builtins.fetchTree (builtins.fromJSON locked); in "
+    '(import (src.outPath + (if dir == "" then "" else "/" + dir) + "/flake.nix")).inputs or { }'
+)
+FILE_INPUTS_EXPR = "{ file }: (import file).inputs or { }"
+PARSE_REF_EXPR = "{ url }: builtins.parseFlakeRef url"
+
+Node = dict[str, Any]
+Lock = dict[str, Any]
+
+
+class VerifyError(Exception):
+    pass
+
+
+class Reject(Exception):
+    pass
+
+
+@dataclass
+class Result:
+    status: str
+    lock: str
+    paths: list[str]
+    summary: str
+    notes: list[str] = field(default_factory=list)
+
+    def escalate(self, status: str, note: str) -> None:
+        if RANK[status] > RANK[self.status]:
+            self.status = status
+        self.notes.append(note)
+
+
+@dataclass
+class Change:
+    lock: str
+    paths: list[str]
+    new: Node
+    old: Node | None
+
+    @property
+    def policy_changed(self) -> bool:
+        return self.old is None or policy(self.old) != policy(self.new)
+
+
+def run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
+    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if check and proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout).strip().splitlines()
+        raise VerifyError(f"{cmd[0]} {cmd[1]} failed (exit {proc.returncode}): {detail[-1] if detail else ''}")
+    return proc
+
+
+def policy(node: Node) -> tuple[str, bool]:
+    return json.dumps(node.get("original"), sort_keys=True), node.get("flake", True)
+
+
+def content(node: Node) -> dict[str, Any]:
+    return {k: v for k, v in node.items() if k != "inputs"}
+
+
+def normalize(original: dict[str, Any]) -> str:
+    """Compare sources the way Nix writes them into `original`."""
+    source = dict(original)
+    if source.get("dir") == "":
+        del source["dir"]
+    if source.get("type") == "file":
+        source["type"] = "tarball"
+    return json.dumps(source, sort_keys=True)
+
+
+@dataclass
+class Declaration:
+    where: str
+    follows: list[str] | None
+    source: dict[str, Any] | None
+    flake: bool = True
+
+
+class Inherit(Exception):
+    def __init__(self, status: str, note: str) -> None:
+        super().__init__(note)
+        self.status = status
+        self.note = note
+
+
+@dataclass(frozen=True)
+class Repo:
+    kind: str
+    host: str
+    owner: str
+    name: str
+
+    def __str__(self) -> str:
+        prefix = "" if self.host == DEFAULT_HOSTS[self.kind] else f"{self.host}:"
+        return f"{self.kind} {prefix}{self.owner}/{self.name}"
+
+
+class Forge:
+    def __init__(self) -> None:
+        self._default_branches: dict[Repo, str] = {}
+
+    def _github(self, path: str) -> Any:
+        proc = run(["gh", "api", path], check=False)
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout).strip().splitlines()
+            raise VerifyError(f"GitHub API {path}: {detail[-1] if detail else 'failed'}")
+        return json.loads(proc.stdout)
+
+    def _gitlab(self, repo: Repo, path: str) -> Any:
+        project = urllib.parse.quote(f"{repo.owner}/{repo.name}", safe="")
+        url = f"https://{repo.host}/api/v4/projects/{project}{path}"
+        proc = run(["curl", "-sSfL", "--max-time", "60", url], check=False)
+        if proc.returncode != 0:
+            raise VerifyError(f"GitLab API {url}: {proc.stderr.strip() or 'failed'}")
+        return json.loads(proc.stdout)
+
+    def default_branch(self, repo: Repo) -> str:
+        if repo not in self._default_branches:
+            if repo.kind == "github":
+                info = self._github(f"repos/{repo.owner}/{repo.name}")
+            else:
+                info = self._gitlab(repo, "")
+            self._default_branches[repo] = info["default_branch"]
+        return self._default_branches[repo]
+
+    def is_ancestor(self, repo: Repo, ancestor: str, ref: str) -> tuple[bool, str]:
+        """Whether commit `ancestor` is reachable from `ref`, plus what the forge said."""
+        if repo.kind == "github":
+            span = f"{urllib.parse.quote(ancestor, safe='/')}...{urllib.parse.quote(ref, safe='/')}"
+            status = self._github(f"repos/{repo.owner}/{repo.name}/compare/{span}?per_page=1")["status"]
+            return status in ("ahead", "identical"), f"compare status: {status}"
+        query = urllib.parse.urlencode([("refs[]", ancestor), ("refs[]", ref)])
+        base = self._gitlab(repo, f"/repository/merge_base?{query}")["id"]
+        return base == ancestor, f"merge base: {base[:9]}"
+
+    def flakeref(self, repo: Repo, rev: str) -> str:
+        query = "" if repo.host == DEFAULT_HOSTS[repo.kind] else f"?host={repo.host}"
+        return f"{repo.kind}:{repo.owner}/{repo.name}/{rev}{query}"
+
+
+class Nix:
+    def __init__(self) -> None:
+        self._inputs: dict[str, Any] = {}
+        self._refs: dict[str, Any] = {}
+
+    def _instantiate(self, expr: str, pure: bool, **args: str) -> Any:
+        cmd = ["nix-instantiate", "--eval", "--strict", "--json"]
+        if pure:
+            cmd += ["--option", "pure-eval", "true"]
+        cmd += ["--expr", expr]
+        for name, value in args.items():
+            cmd += ["--argstr", name, value]
+        return json.loads(run(cmd).stdout)
+
+    def nar_hash(self, flakeref: str) -> str:
+        return json.loads(run(["nix", "flake", "prefetch", "--json", flakeref]).stdout)["hash"]
+
+    def node_inputs(self, node: Node) -> dict[str, Any]:
+        locked = json.dumps({k: v for k, v in node["locked"].items() if k != "dir"}, sort_keys=True)
+        dir_ = node["locked"].get("dir") or node.get("original", {}).get("dir", "")
+        key = f"{locked}#{dir_}"
+        if key not in self._inputs:
+            self._inputs[key] = self._instantiate(NODE_INPUTS_EXPR, True, locked=locked, dir=dir_)
+        return self._inputs[key]
+
+    def file_inputs(self, path: Path) -> dict[str, Any]:
+        key = f"file:{path}"
+        if key not in self._inputs:
+            self._inputs[key] = self._instantiate(FILE_INPUTS_EXPR, False, file=str(path))
+        return self._inputs[key]
+
+    def parse_ref(self, url: str) -> dict[str, Any]:
+        if url not in self._refs:
+            self._refs[url] = self._instantiate(PARSE_REF_EXPR, True, url=url)
+        return self._refs[url]
+
+
+def schema_problems(lock: Lock) -> list[str]:
+    problems = []
+    if set(lock) - LOCK_KEYS:
+        problems.append(f"unexpected top-level fields: {', '.join(sorted(set(lock) - LOCK_KEYS))}")
+    if lock.get("version") != 7:
+        problems.append(f"lock version {lock.get('version')!r}, expected 7")
+    nodes = lock.get("nodes")
+    if not isinstance(nodes, dict) or lock.get("root") not in nodes:
+        return [*problems, "missing nodes or root"]
+    for name, node in nodes.items():
+        if not isinstance(node, dict):
+            problems.append(f"node {name} is not an object")
+            continue
+        allowed = {"inputs"} if name == lock["root"] else NODE_KEYS
+        extra = set(node) - allowed
+        if extra:
+            problems.append(f"node {name} has fields Nix may read as source: {', '.join(sorted(extra))}")
+        if name != lock["root"] and not ("locked" in node and "original" in node):
+            problems.append(f"node {name} lacks locked or original")
+        for step, target in node.get("inputs", {}).items():
+            targets = target if isinstance(target, list) else [target]
+            if not all(isinstance(t, str) for t in targets) or (isinstance(target, str) and target not in nodes):
+                problems.append(f"node {name} input {step} points at an unknown node")
+    return problems
+
+
+def resolve(lock: Lock, path: list[str], depth: int = 0) -> str:
+    if depth > MAX_DEPTH:
+        raise VerifyError(f"follows chain too deep at {'/'.join(path)}")
+    nodes = lock["nodes"]
+    current = lock["root"]
+    for step in path:
+        target = nodes[current].get("inputs", {}).get(step)
+        if target is None:
+            raise KeyError("/".join(path))
+        current = resolve(lock, target, depth + 1) if isinstance(target, list) else target
+    return current
+
+
+def input_paths(lock: Lock) -> dict[str, str]:
+    """Map every input path to its node, descending through follows aliases too."""
+    paths: dict[str, str] = {}
+    root = lock["root"]
+    stack: list[tuple[list[str], str, frozenset[str]]] = [([], root, frozenset([root]))]
+    while stack:
+        prefix, name, chain = stack.pop()
+        for step, target in lock["nodes"][name].get("inputs", {}).items():
+            path = [*prefix, step]
+            node = resolve(lock, target) if isinstance(target, list) else target
+            if node in chain:
+                raise VerifyError(f"input graph has a cycle at {'/'.join(path)}")
+            paths["/".join(path)] = node
+            if len(paths) > MAX_PATHS:
+                raise VerifyError("input graph has too many paths")
+            stack.append((path, node, chain | {node}))
+    return paths
+
+
+def real_path(lock: Lock, path: list[str], depth: int = 0) -> list[str]:
+    """Where Nix instantiates the input at `path`.
+
+    A follows alias reuses the followed input rather than making another copy
+    of its flake, so a path below an alias lives at the followed path.
+    """
+    if depth > MAX_DEPTH:
+        raise VerifyError(f"follows chain too deep at {'/'.join(path)}")
+    real: list[str] = []
+    for i, step in enumerate(path):
+        target = lock["nodes"][resolve(lock, real)].get("inputs", {}).get(step)
+        if target is None:
+            raise KeyError("/".join(path))
+        real = real_path(lock, target, depth + 1) if isinstance(target, list) and i < len(path) - 1 else [*real, step]
+    return real
+
+
+def changed_inputs(lock_name: str, base: Lock | None, pr: Lock, pr_paths: dict[str, str]) -> list[Change]:
+    """Group changed input paths by the (new node, old node) pair they resolve to."""
+    groups: dict[tuple[str, str | None], list[str]] = {}
+    for path, name in sorted(pr_paths.items()):
+        old_name: str | None = None
+        if base is not None:
+            try:
+                old_name = resolve(base, path.split("/"))
+            except KeyError:
+                old_name = None
+        old = base["nodes"][old_name] if base is not None and old_name else None
+        if old is not None and content(old) == content(pr["nodes"][name]):
+            continue
+        groups.setdefault((name, old_name), []).append(path)
+    return [
+        Change(lock_name, paths, pr["nodes"][name], base["nodes"][old_name] if base is not None and old_name else None)
+        for (name, old_name), paths in groups.items()
+    ]
+
+
+def short(rev: str | None) -> str:
+    return rev[:9] if rev else "?"
+
+
+def describe(node: Node) -> str:
+    locked = node.get("locked", {})
+    kind = locked.get("type", "?")
+    if kind in FORGES:
+        host = locked.get("host")
+        where = f"{host}:" if host else ""
+        return f"{kind} {where}{locked.get('owner')}/{locked.get('repo')} {short(locked.get('rev'))}"
+    if "url" in locked:
+        return f"{kind} {locked['url']}"
+    return kind
+
+
+def summarize(change: Change) -> str:
+    old, new = change.old, change.new
+    text = f"{describe(old) if old else 'new input'} -> {describe(new)}"
+    if old is not None and describe(old) == describe(new):
+        before, after = content(old), content(new)
+        fields = sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
+        if fields == ["locked"]:
+            fields = sorted(
+                f"locked.{k}"
+                for k in before["locked"].keys() | after["locked"].keys()
+                if before["locked"].get(k) != after["locked"].get(k)
+            )
+        text += f" (changed: {', '.join(fields)})"
+    return text
+
+
+class Verifier:
+    def __init__(self, forge: Forge, nix: Nix, check_nar_hash: bool) -> None:
+        self.forge = forge
+        self.nix = nix
+        self.check_nar_hash = check_nar_hash
+
+    def verify(self, change: Change) -> Result:
+        """Check the locked source against the change's `original`."""
+        try:
+            status, notes = self._verify(change)
+        except Reject as err:
+            return Result(FAIL, change.lock, change.paths, f"{summarize(change)}: {err}")
+        except VerifyError as err:
+            return Result(FAIL, change.lock, change.paths, f"{summarize(change)}: could not verify: {err}")
+        return Result(status, change.lock, change.paths, summarize(change), notes)
+
+    def _verify(self, change: Change) -> tuple[str, list[str]]:
+        new, old = change.new, change.old
+        locked = new["locked"]
+        original = new["original"]
+        kind = locked.get("type")
+
+        if original.get("type") == "indirect":
+            return MANUAL, ["original is a registry reference, check by hand"]
+        if kind != original.get("type"):
+            raise Reject(f"locked type {kind} does not match original type {original.get('type')}")
+        if kind not in FORGES:
+            return MANUAL, [f"{kind} source, check by hand"]
+
+        extra = set(locked) - FORGE_LOCKED_KEYS
+        if extra:
+            raise Reject(f"unexpected locked fields: {', '.join(sorted(extra))}")
+        for key in ("host", "dir"):
+            if locked.get(key) != original.get(key):
+                raise Reject(f"locked {key} {locked.get(key)!r} differs from original {original.get(key)!r}")
+        host = locked.get("host") or DEFAULT_HOSTS[kind]
+        if kind == "github" and host.lower() != "github.com":
+            return MANUAL, [f"hosted on {host}, check by hand"]
+
+        repo = Repo(kind, host, locked.get("owner", ""), locked.get("repo", ""))
+        tracked = (original.get("owner", ""), original.get("repo", ""))
+        if (repo.owner.lower(), repo.name.lower()) != (tracked[0].lower(), tracked[1].lower()):
+            raise Reject(f"locked repo {repo.owner}/{repo.name} is not the tracked repo {tracked[0]}/{tracked[1]}")
+        rev = locked.get("rev", "")
+        if not REV_RE.fullmatch(rev):
+            raise Reject(f"locked rev {rev!r} is not a full commit hash")
+
+        notes = [self._tracked(repo, rev, original), self._ancestry(change, repo)]
+        if self.check_nar_hash:
+            served = self.nix.nar_hash(self.forge.flakeref(repo, rev))
+            if served != locked.get("narHash"):
+                raise Reject(f"narHash {locked.get('narHash')} does not match the forge's source {served}")
+            notes.append("narHash matches")
+        else:
+            notes.append("narHash not checked")
+        return PASS, notes
+
+    def _tracked(self, repo: Repo, rev: str, original: Node) -> str:
+        pinned = original.get("rev")
+        if pinned:
+            if pinned != rev:
+                raise Reject(f"locked rev differs from the pinned rev {short(pinned)}")
+            return f"pinned to {short(pinned)}"
+        ref = original.get("ref")
+        label = f"on {ref}"
+        if not ref:
+            ref = self.forge.default_branch(repo)
+            label = f"on default branch {ref}"
+        if not REF_RE.fullmatch(ref) or ".." in ref:
+            raise Reject(f"tracked ref {ref!r} has unexpected characters")
+        reachable, said = self.forge.is_ancestor(repo, rev, ref)
+        if not reachable:
+            raise Reject(f"rev is not reachable from {ref} ({said})")
+        return label
+
+    def _ancestry(self, change: Change, repo: Repo) -> str:
+        if change.old is None:
+            return "new input path, no previous rev"
+        if change.policy_changed:
+            return "tracked source changed, no ancestry check against the old rev"
+        old_locked, new_locked = change.old["locked"], change.new["locked"]
+        old_rev, new_rev = old_locked.get("rev", ""), new_locked["rev"]
+        if old_rev == new_rev:
+            if old_locked.get("narHash") != new_locked.get("narHash"):
+                raise Reject("narHash changed while the rev stayed the same")
+            return "same rev"
+        descends, said = self.forge.is_ancestor(repo, old_rev, new_rev)
+        if not descends:
+            raise Reject(f"new rev does not descend from the old rev {short(old_rev)} ({said})")
+        return f"descends from {short(old_rev)}"
+
+    def _declared_inputs(
+        self, pr: Lock, path: list[str], depth: int, root_flake: Path, path_status: dict[str, str]
+    ) -> tuple[dict[str, Any], str]:
+        if depth == 0:
+            return self.nix.file_inputs(root_flake), "the root flake.nix"
+        prefix = "/".join(path[:depth])
+        status = path_status.get(prefix, PASS)
+        if status != PASS:
+            raise Inherit(status, f"declared under {prefix}, which is {status}")
+        ancestor = pr["nodes"][resolve(pr, path[:depth])]
+        return self.nix.node_inputs(ancestor), f"{prefix} at {short(ancestor['locked'].get('rev'))}"
+
+    def declaration(
+        self, pr: Lock, path: list[str], root_flake: Path, path_status: dict[str, str]
+    ) -> Declaration | None:
+        """Find how the flake.nix files declare the input at `path`.
+
+        Overrides win from the outside in, as in Nix: the root flake.nix can
+        set `inputs.a.inputs.b.url`, which beats what `a` declares for `b`.
+        Follows are relative to the flake that declares them. The `flake`
+        flag comes from the input's own declaration even when an override
+        supplies the source.
+        """
+        specs: list[tuple[dict[str, Any] | None, str]] = []
+        for depth in range(len(path)):
+            declared, where = self._declared_inputs(pr, path, depth, root_flake, path_status)
+            spec: Any = declared.get(path[depth])
+            for step in path[depth + 1 :]:
+                spec = spec.get("inputs", {}).get(step) if isinstance(spec, dict) else None
+            specs.append((spec if isinstance(spec, dict) else None, where))
+        own, own_where = specs[-1]
+        if own is None:
+            # Nix ignores overrides for inputs the flake doesn't declare.
+            return None
+        flake = own.get("flake", True)
+        for depth, (spec, where) in enumerate(specs):
+            if spec is None:
+                continue
+            if "follows" in spec:
+                target = [step for step in spec["follows"].split("/") if step]
+                return Declaration(where, [*path[:depth], *target], None)
+            source = {k: v for k, v in spec.items() if k not in ("inputs", "flake", "follows")}
+            if "url" in source:
+                source = {**self.nix.parse_ref(source.pop("url")), **source}
+            if source:
+                return Declaration(where, None, source, flake)
+        return Declaration(own_where, None, {"id": path[-1], "type": "indirect"}, flake)
+
+    def authenticate_binding(
+        self, pr: Lock, path: list[str], root_flake: Path, path_status: dict[str, str], trust_source: bool
+    ) -> tuple[str, str]:
+        """Check that the lock binds `path` the way the flake.nix files declare it.
+
+        `trust_source` skips the source comparison when the base lock already
+        had the same source at this path; the binding's shape is still checked.
+        """
+        try:
+            decl = self.declaration(pr, path, root_flake, path_status)
+        except Inherit as err:
+            return err.status, err.note
+        if decl is None:
+            return FAIL, f"{'/'.join(path)}: no flake.nix declares this input"
+        edge = pr["nodes"][resolve(pr, path[:-1])]["inputs"][path[-1]]
+        name = "/".join(path)
+        if decl.follows is not None:
+            declared = "/".join(decl.follows)
+            # Nix may record a follows chain already resolved one step, so
+            # compare where the two paths lead. The target's own binding is
+            # checked separately.
+            if not isinstance(edge, list) or resolve(pr, edge) != resolve(pr, decl.follows):
+                return FAIL, f"{name}: {decl.where} declares follows {declared!r}, the lock has {edge!r}"
+            return PASS, f"{name}: follows {declared} as {decl.where} declares"
+        if isinstance(edge, list):
+            return FAIL, f"{name}: {decl.where} declares its own source, the lock follows {'/'.join(edge)}"
+        if trust_source:
+            return PASS, f"{name}: bound as {decl.where} declares, source unchanged"
+        node = pr["nodes"][edge]
+        assert decl.source is not None
+        if (normalize(decl.source), decl.flake) != (normalize(node["original"]), node.get("flake", True)):
+            flake = "" if decl.flake else " with flake = false"
+            return FAIL, f"{name}: original does not match {decl.where}, which declares {decl.source}{flake}"
+        return PASS, f"{name}: source declared by {decl.where}"
+
+    def authenticate_removal(
+        self, pr: Lock, path: list[str], root_flake: Path, path_status: dict[str, str]
+    ) -> tuple[str, str]:
+        try:
+            decl = self.declaration(pr, path, root_flake, path_status)
+        except Inherit as err:
+            return err.status, err.note
+        if decl is not None:
+            return FAIL, f"removed from the lock, but {decl.where} still declares it"
+        return PASS, "no flake.nix declares it any more"
+
+
+def git_show(ref: str, path: str) -> str | None:
+    proc = run(["git", "show", f"{ref}:{path}"], check=False)
+    return proc.stdout if proc.returncode == 0 else None
+
+
+def load_lock(text: str | None, label: str) -> Lock | None:
+    if text is None:
+        return None
+    try:
+        lock = json.loads(text)
+    except json.JSONDecodeError as err:
+        raise VerifyError(f"{label} is not valid JSON: {err}") from err
+    if not isinstance(lock, dict):
+        raise VerifyError(f"{label} is not a flake lock file")
+    return lock
+
+
+def resolve_pr(pr: str, remote: str) -> tuple[str, str, int]:
+    """Fetch the PR head GitHub has and return (label, commit, number)."""
+    view = run(["gh", "pr", "view", pr, "--json", "number,url,state,headRefName,headRefOid,baseRefName"])
+    info = json.loads(view.stdout)
+    if info["state"] != "OPEN":
+        print(f"note: PR #{info['number']} is {info['state'].lower()}")
+    run(["git", "fetch", "--no-tags", "--quiet", remote, f"refs/pull/{info['number']}/head"])
+    fetched = run(["git", "rev-parse", "FETCH_HEAD"]).stdout.strip()
+    if fetched != info["headRefOid"]:
+        raise VerifyError(f"PR head moved while fetching ({info['headRefOid'][:12]} vs {fetched[:12]}); run again")
+    label = f"PR #{info['number']} ({info['headRefName']} -> {info['baseRefName']}) {info['url']}"
+    return label, fetched, info["number"]
+
+
+def changed_files(base: str, head: str) -> list[str]:
+    merge_base = run(["git", "merge-base", base, head]).stdout.strip()
+    out = run(["git", "diff", "--name-only", "-z", merge_base, head]).stdout
+    return [name for name in out.split("\0") if name]
+
+
+def check_lock(
+    lock_name: str, base: str, head: str, verifier: Verifier, scratch: Path
+) -> list[Result]:
+    base_lock = load_lock(git_show(base, lock_name), f"base:{lock_name}")
+    pr_lock = load_lock(git_show(head, lock_name), f"head:{lock_name}")
+    if pr_lock is None:
+        return [Result(FAIL, lock_name, [], "lock file removed")] if base_lock is not None else []
+    problems = schema_problems(pr_lock)
+    if problems:
+        return [Result(FAIL, lock_name, [], problem) for problem in problems]
+
+    pr_paths = input_paths(pr_lock)
+    changes = changed_inputs(lock_name, base_lock, pr_lock, pr_paths)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        results = list(pool.map(verifier.verify, changes))
+
+    flake_text = git_show(base, LOCK_FILES[lock_name])
+    root_flake = scratch / lock_name.replace("/", "-").replace(".lock", ".nix")
+    if flake_text is not None:
+        root_flake.write_text(flake_text)
+
+    # Each binding is checked in its own context, shallowest first, so a
+    # child sees the final status of the binding above it. Paths below a
+    # follows alias are checked where Nix instantiates them.
+    path_status = {path: r.status for r, c in zip(results, changes) for path in c.paths}
+    bindings: dict[str, tuple[Change, Result]] = {}
+    for change, result in zip(changes, results):
+        for path in change.paths:
+            real = "/".join(real_path(pr_lock, path.split("/")))
+            bindings.setdefault(real, (change, result))
+            path_status.setdefault(real, result.status)
+    for real in sorted(bindings, key=lambda p: p.count("/")):
+        change, result = bindings[real]
+        if result.status == FAIL:
+            continue
+        new = pr_lock["nodes"][resolve(pr_lock, real.split("/"))]
+        try:
+            old = base_lock["nodes"][resolve(base_lock, real.split("/"))] if base_lock else None
+        except KeyError:
+            old = None
+        trust_source = old is not None and policy(old) == policy(new)
+        if flake_text is None:
+            status, note = FAIL, f"base has no {LOCK_FILES[lock_name]} to check the binding against"
+        else:
+            try:
+                status, note = verifier.authenticate_binding(
+                    pr_lock, real.split("/"), root_flake, path_status, trust_source
+                )
+            except (VerifyError, KeyError) as err:
+                status, note = FAIL, f"{real}: could not check the declared source: {err}"
+        if status != PASS or not trust_source:
+            result.escalate(status, note)
+        for path in [real, *change.paths]:
+            if RANK[status] > RANK[path_status.get(path, PASS)]:
+                path_status[path] = status
+
+    if base_lock is not None:
+        for path in sorted(set(input_paths(base_lock)) - set(pr_paths), key=lambda p: p.count("/")):
+            parent = path.rpartition("/")[0]
+            if parent and parent not in pr_paths:
+                continue
+            real = [*real_path(pr_lock, parent.split("/")), path.rpartition("/")[2]] if parent else [path]
+            if flake_text is None:
+                status, note = FAIL, f"base has no {LOCK_FILES[lock_name]} to check the removal against"
+            else:
+                try:
+                    status, note = verifier.authenticate_removal(pr_lock, real, root_flake, path_status)
+                except (VerifyError, KeyError) as err:
+                    status, note = FAIL, f"could not check the removal: {err}"
+            results.append(Result(status, lock_name, [path], "input removed", [note]))
+    return results
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Check that a flake update PR moves each input along the ref it tracks.",
+    )
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument("pr", nargs="?", help="PR number, URL or branch")
+    target.add_argument("--head", help="check a local commit instead of a PR")
+    parser.add_argument("--base", default="nixos", help="trusted base ref (default: nixos)")
+    parser.add_argument("--remote", default="origin", help="git remote for the PR (default: origin)")
+    parser.add_argument(
+        "--no-nar-hash",
+        dest="nar_hash",
+        action="store_false",
+        help="skip re-fetching sources to compare narHash (faster, weaker)",
+    )
+    args = parser.parse_args(argv)
+
+    results: list[Result] = []
+    try:
+        number: int | None = None
+        if args.head:
+            label = args.head
+            head = run(["git", "rev-parse", "--verify", f"{args.head}^{{commit}}"]).stdout.strip()
+        else:
+            label, head, number = resolve_pr(args.pr, args.remote)
+        base = run(["git", "rev-parse", "--verify", f"{args.base}^{{commit}}"]).stdout.strip()
+        print(f"Checking {label}")
+        print(f"  head {head}")
+        print(f"  base {args.base} at {base}\n")
+
+        extra = [name for name in changed_files(base, head) if name not in LOCK_FILES]
+        if extra:
+            results.append(
+                Result(
+                    FAIL,
+                    "(files)",
+                    [],
+                    "PR changes files other than lock files: "
+                    + ", ".join(extra)
+                    + f". If these come from {args.base} commits you have not pulled, pull and run again.",
+                )
+            )
+
+        verifier = Verifier(Forge(), Nix(), args.nar_hash)
+        with tempfile.TemporaryDirectory(prefix="flake-lock-verify-") as scratch:
+            for lock_name in LOCK_FILES:
+                results.extend(check_lock(lock_name, base, head, verifier, Path(scratch)))
+    except VerifyError as err:
+        print(f"error: {err}", file=sys.stderr)
+        return 1
+
+    for lock_name in ["(files)", *LOCK_FILES]:
+        group = [r for r in results if r.lock == lock_name]
+        if not group:
+            continue
+        print(lock_name)
+        for r in group:
+            where = ", ".join(r.paths)
+            print(f"  {r.status:<6} {where + ': ' if where else ''}{r.summary}")
+            if r.notes:
+                print(f"         {'; '.join(r.notes)}")
+        print()
+
+    counts = {s: sum(r.status == s for r in results) for s in (PASS, FAIL, MANUAL)}
+    if not results:
+        print("No lock entries changed.")
+    print(f"{counts[PASS]} pass, {counts[FAIL]} fail, {counts[MANUAL]} manual")
+    if counts[FAIL]:
+        print("Result: FAIL. Do not merge.")
+        return 1
+    merge = f"gh pr merge {number} --merge --match-head-commit {head}" if number else ""
+    if counts[MANUAL]:
+        print(f"Result: {counts[MANUAL]} input(s) need a manual check. Don't merge until you've checked them.")
+        if merge:
+            print(f"Then merge exactly the checked commit: {merge}")
+        return 2
+    print("Result: PASS.")
+    if merge:
+        print(f"Merge exactly the checked commit: {merge}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

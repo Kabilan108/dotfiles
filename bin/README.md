@@ -28,3 +28,9 @@ useful bash tools. some of these are used as part of my desktop env others are j
 
 - [volctl](./volctl):
   adjusts audio volume and mute/unmute status with notifications; handles mic as well.
+
+- [flake-update-pr](./flake-update-pr):
+  sietch's weekly job. Updates the flake locks in a fresh worktree, builds the hosts, and opens a PR. See `docs/flake-update.md`.
+
+- [flake-lock-verify](./flake-lock-verify):
+  run on jacurutu before merging a flake update PR. Checks that each changed input moves forward along the ref it tracks and that its narHash matches the source GitHub or GitLab serves.
