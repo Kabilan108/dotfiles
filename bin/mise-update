@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "${1:?usage: mise-update REPO}"
+exec 9>"$(git rev-parse --git-path mise-update.lock)"
+flock -n 9 || exit 0
+
+if [[ $(git branch --show-current) != nixos ]]; then
+  echo 'Skipping mise update: checkout must be on nixos.'
+  exit 0
+fi
+if [[ -n $(git status --porcelain --untracked-files=all -- config/mise) ]]; then
+  echo 'Skipping mise update: config/mise has local changes.'
+  exit 0
+fi
+
+export GIT_TERMINAL_PROMPT=0
+export GIT_SSH_COMMAND='ssh -o BatchMode=yes'
+git fetch origin refs/heads/nixos
+base=$(git rev-parse FETCH_HEAD)
+if [[ $(git rev-parse HEAD) != "$base" ]]; then
+  echo 'Skipping mise update: HEAD differs from origin/nixos. Pull or resolve pending commits first.'
+  exit 0
+fi
+
+export MISE_GLOBAL_CONFIG_FILE="$PWD/config/mise/config.toml"
+export MISE_CEILING_PATHS="$PWD"
+mise upgrade --global agent-browser
+mise install --locked agent-browser
+mise exec --locked -- agent-browser --version
+
+if git diff --quiet -- config/mise/mise.lock; then
+  echo 'Mise lock is already current.'
+  exit 0
+fi
+# Commit only this lock, preserving unrelated staged and unstaged work.
+git -c commit.gpgsign=false commit --only -m 'chore: update mise tool lock' -- config/mise/mise.lock
+# No force or rebase. A rejected push leaves the commit for manual recovery.
+git push origin HEAD:refs/heads/nixos

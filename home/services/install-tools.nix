@@ -33,11 +33,11 @@ let
       update_tool "$package" ${pkgs.pnpm}/bin/pnpm add -g -y "$package"
     done
 
-    # Advance the lock to the newest release past mise's release-age delay.
+    # Install the shared lock without selecting releases or modifying Git files.
     update_tool agent-browser ${pkgs.coreutils}/bin/env \
       MISE_GLOBAL_CONFIG_FILE=${lib.escapeShellArg "${homeDir}/dotfiles/config/mise/config.toml"} \
       MISE_CEILING_PATHS="$PWD" \
-      ${lib.getExe pkgs.mise} upgrade --global agent-browser
+      ${lib.getExe pkgs.mise} install --locked agent-browser
 
     if (( ''${#failures[@]} )); then
       printf 'Tool updates failed: %s\n' "''${failures[*]}" >&2

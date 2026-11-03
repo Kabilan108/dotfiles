@@ -50,6 +50,7 @@ in
 
   home-manager.users.kabilan = {
     dotfiles.services = {
+      mise-update.enable = true;
       codex-desktop.enable = true;
       dictator = {
         enable = true;

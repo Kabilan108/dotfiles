@@ -6,6 +6,7 @@
     ./dictator.nix
     ./flake-update.nix
     ./grok-bot.nix
+    ./mise-update.nix
     ./install-tools.nix
     ./meeting-minutes.nix
     ./mic-volume-enforce.nix
