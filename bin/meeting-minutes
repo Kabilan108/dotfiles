@@ -5096,6 +5096,17 @@ def render_note(
         calendar_errors_yaml = "calendar_errors:\n" + "".join(
             f"  - {yaml_scalar(error[:300])}\n" for error in calendar_errors
         )
+    meeting_frontmatter = ""
+    meeting = result.get("meeting") or {}
+    if meeting.get("started_at") and meeting.get("duration_seconds") is not None:
+        started_at = datetime.fromisoformat(meeting["started_at"])
+        duration = float(meeting["duration_seconds"])
+        ended_at = started_at + timedelta(seconds=duration)
+        meeting_frontmatter = (
+            f"start_time: {yaml_scalar(started_at.isoformat())}\n"
+            f"end_time: {yaml_scalar(ended_at.isoformat())}\n"
+            f"duration_seconds: {duration}\n"
+        )
     optional_frontmatter = "".join(
         f"{key}: {yaml_scalar(value)}\n"
         for key, value in (
@@ -5108,6 +5119,7 @@ def render_note(
     note = (
         "---\n"
         f"date: {artifacts.date}\n"
+        f"{meeting_frontmatter}"
         f"project: {yaml_scalar(str(minutes['project']))}\n"
         f"{attendee_yaml}"
         f"summary: {yaml_scalar(summary)}\n"

@@ -1042,12 +1042,19 @@ def test_partial_calendar_failure_keeps_candidates_and_notifies(
             "follow_ups": [],
         },
         "calendar": {**calendar, "status": "no_match", "matched_event": None},
+        "meeting": {
+            "started_at": "2026-10-13T23:50:00-04:00",
+            "duration_seconds": 1200.5,
+        },
         "speakers": [],
     }
     note = namespace["render_note"](
         result, namespace["NoteArtifacts"]("2026-10-13", "r", "t", "m"), []
     )
     assert 'calendar_errors:\n  - "google: partial (Broken:' in note
+    assert 'start_time: "2026-10-13T23:50:00-04:00"\n' in note
+    assert 'end_time: "2026-10-14T00:10:00.500000-04:00"\n' in note
+    assert "duration_seconds: 1200.5\n" in note
 
 
 def test_missing_executor_key_marks_calendar_and_context_unavailable(
