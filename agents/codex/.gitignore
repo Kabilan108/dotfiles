@@ -45,3 +45,4 @@ dictation-history/
 memories.lock
 auth.lock
 *.lock
+mention_usage.json
