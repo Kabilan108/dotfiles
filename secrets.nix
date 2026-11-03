@@ -1,8 +1,13 @@
 let
   sietch = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDW1t7U7qDPNYEVWqnxivPK21jkOM5OFwQRmlrQh7XoE kabilan@sietch";
   jacurutu = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPN/jpn1y7lmxhrBSmApiVvA+H2YN3AFkczBJbKIGVUe kabilan@jacurutu";
+  sietchHost = (import ./lib/fleet.nix).hosts.sietch.hostPubkey;
 in
 {
+  # Root-only host key, never a user key; edit with sudo on that host
+  # (docs/backups.md).
+  "secrets/backup/sietch-smb.age".publicKeys = [ sietchHost ];
+  "secrets/backup/sietch-restic.age".publicKeys = [ sietchHost ];
   "secrets/agent-browser-encryption-key.age".publicKeys = [
     sietch
     jacurutu

@@ -48,6 +48,7 @@
             # CVE-2026-111497. TODO: remove once nixos-unstable ships brotli >= 1.2.1.
             ./modules/nixos/brotli-cve.nix
             ./modules/nixos/fleet.nix
+            ./modules/nixos/backup
             ./modules/nixos/deploy
             ./modules/nixos/moberg-vpn.nix
             ./modules/nixos/moberg-tailscale.nix
