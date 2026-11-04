@@ -123,8 +123,13 @@ change them. The defaults are PIN `123456` and PUK `12345678`.
 ```sh
 ykman piv access change-pin
 ykman piv access change-puk
-ykman piv access change-management-key --generate --protect
+ykman piv access change-management-key -a TDES --generate --protect
 ```
+
+`-a TDES` matters: age-plugin-yubikey can't use a PIN-protected management
+key with the AES algorithm ykman picks by default on newer YubiKeys
+(str4d/age-plugin-yubikey#92). If a key already has a protected AES key, run
+the same command again to switch it.
 
 Then make the identity. It asks for the PIV PIN and a touch.
 
