@@ -1,6 +1,6 @@
 ---
 name: nix-flakes
-description: Use when setting up a project's dev environment (dev shell, .envrc), creating, packaging, or changing one of Tony's tool flakes, wiring a flake into ~/dotfiles, or pushing a security fix for a runtime or dependency out to those tools.
+description: Use when setting up a project's dev environment (dev shell, .envrc), creating, packaging, or changing one of Tony's tool flakes, wiring a flake into ~/dotfiles, setting up CI that builds or publishes them, or pushing a security fix for a runtime or dependency out to those tools.
 ---
 
 # Tony's tool flakes
@@ -23,7 +23,13 @@ Reference implementation: `~/repos/cli/pagebin` (`flake.nix`, `nix/package.nix`,
 - Reference the tool as `pkgs.<name>` everywhere (`home.packages`, `runtimeInputs`). `inputs.<name>.packages.${system}.default` is built from the producer's own nixpkgs instance, so it misses dotfiles' overlays.
 - A flake with no overlay yet can be overridden in place (`.overrideAttrs { nativeBuildInputs = [ final.bun ]; }`) as a stopgap. Then file the producer refactor.
 
-Following dotfiles' nixpkgs gives up the producer's Cachix hits, because derivation hashes change. Accept that cost; sietch's binary cache (Kabilan108/dotfiles#28) is the plan for build cost.
+Following dotfiles' nixpkgs gives up the producer's Cachix hits, because derivation hashes change. Accept that cost. dotfiles' CI rebuilds the expensive tools against its own nixpkgs on every `deploy/*` tag and pushes them to `kabilan108.cachix.org`, so hosts download them instead of compiling.
+
+## CI that publishes
+
+- Tool repos don't push to Cachix. dotfiles' CI builds and publishes them.
+- A workflow that needs a secret (a Cachix or release token) reads it from a GitHub environment, never a repository secret. Only Tony can open that environment: he is its required reviewer, or, as in dotfiles, it accepts only tags his YubiKey deploy keys alone can create.
+- Agent GitHub tokens can't create secrets or environments, so ask Tony to add them. Agent tokens never get the Deployments permission.
 
 ## Embedded runtimes and lockfile trust
 
