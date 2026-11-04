@@ -130,8 +130,8 @@ id→URL cache). Actual pagebin CLI changes happen in that repo, not here.
   LIVE on jacurutu (three listeners as of 2026-07-12) — identify owner via
   `sudo lsof` before removal.
 - ~~tleilax host key for knownHosts~~ — captured 2026-07-12 (Pi is online);
-  in the registry. Pi still needs a rebuild from raspi/ to pick up the
-  agent@sietch authorized key.
+  in the registry. Superseded: tleilax moved to the root flake with no sietch
+  keys at all (`docs/tleilax-install.md`).
 - Post-ACL regression, fixed in the reference policy 2026-07-12: sietch
   (tagged) lost `svc:` access when allow-all was removed, breaking dictator →
   siren on sietch. Add the `tag:server → svc:siren` grant in the console.

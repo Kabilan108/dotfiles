@@ -1,8 +1,22 @@
 let
+  fleet = import ./lib/fleet.nix;
   sietch = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDW1t7U7qDPNYEVWqnxivPK21jkOM5OFwQRmlrQh7XoE kabilan@sietch";
   jacurutu = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPN/jpn1y7lmxhrBSmApiVvA+H2YN3AFkczBJbKIGVUe kabilan@jacurutu";
+  # tleilax's files: its SSH host key plus both YubiKey age identities, and no
+  # user keys. The rules appear only once both identities are recorded, so
+  # nothing gets encrypted without them (docs/tleilax-install.md).
+  tleilax = [ fleet.hosts.tleilax.hostPubkey ] ++ fleet.ageRecipients;
+  tleilaxReady = builtins.length fleet.ageRecipients >= 2;
 in
-{
+(
+  if tleilaxReady then
+    {
+      "secrets/hark/tleilax-alerts.curl.age".publicKeys = tleilax;
+    }
+  else
+    { }
+)
+// {
   "secrets/agent-browser-encryption-key.age".publicKeys = [
     sietch
     jacurutu

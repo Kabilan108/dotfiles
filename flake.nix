@@ -24,6 +24,11 @@
         inputs.tracer.overlays.default
       ];
 
+      # The deploy receiver only moves forward from this commit.
+      configurationRevision = {
+        system.configurationRevision = self.rev or self.dirtyRev or null;
+      };
+
       makeSystem =
         {
           name,
@@ -38,9 +43,8 @@
                 config.allowUnfree = true;
                 inherit overlays;
               };
-              # The deploy receiver only moves forward from this commit.
-              system.configurationRevision = self.rev or self.dirtyRev or null;
             }
+            configurationRevision
             (./. + "/machines/${name}")
             ./configuration.nix
             ./user.nix
@@ -75,6 +79,20 @@
           ];
         };
         jacurutu = makeSystem { name = "jacurutu"; };
+        # The Pi keeps none of the desktop modules or overlays above.
+        tleilax = nixpkgs.lib.nixosSystem {
+          specialArgs = { inherit inputs; };
+          modules = [
+            {
+              nixpkgs = {
+                hostPlatform = "aarch64-linux";
+                overlays = [ (import ./packages/security-overrides.nix) ];
+              };
+            }
+            configurationRevision
+            ./machines/tleilax
+          ];
+        };
       };
 
       templates.devshell = {
@@ -113,6 +131,11 @@
     # 3rd party flakes
     agenix = {
       url = "github:ryantm/agenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    # tleilax's disk layout, used once at install and for its fileSystems.
+    disko = {
+      url = "github:nix-community/disko/latest";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     firefox-addons = {

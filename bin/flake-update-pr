@@ -248,7 +248,6 @@ def render_body(
     base: str,
     base_sha: str,
     root_changes: list[Change],
-    raspi_changes: list[Change],
     builds: list[Build],
     old_notes: dict[str, str],
     tleilax: Step,
@@ -267,8 +266,6 @@ def render_body(
         "## Input changes",
         "",
         changes_table("flake.lock", root_changes),
-        "",
-        changes_table("raspi/flake.lock (nixpkgs only)", raspi_changes),
         "",
         "## Build results",
         "",
@@ -307,9 +304,8 @@ def render_body(
     lines += [
         "## After merging",
         "",
-        "Rebuild sietch and jacurutu. tleilax builds its own closure: "
-        "`nixos-rebuild switch --flake ~/dotfiles/raspi#tleilax --build-host tleilax-agent "
-        "--target-host tleilax-agent --sudo`.",
+        "Rebuild sietch and jacurutu. tleilax takes signed deploys and builds its own "
+        "closure: run `deploy tleilax` on jacurutu.",
         "",
         f"Full logs on sietch: `{run_dir}`.",
     ]
@@ -379,17 +375,13 @@ def update(args: argparse.Namespace, run_dir: Path, state_dir: Path, now: dateti
             old[host], old_notes[host] = old_closure(worktree, run_dir, state_dir, host)
 
         root_update = run_step(["nix", "flake", "update"], run_dir / "update-root.log", cwd=worktree)
-        raspi_update = run_step(
-            ["nix", "flake", "update", "nixpkgs"], run_dir / "update-raspi.log", cwd=worktree / "raspi"
-        )
-        if not (root_update.ok and raspi_update.ok):
-            failed = root_update if not root_update.ok else raspi_update
+        if not root_update.ok:
             notify(
-                f"nix flake update failed, no PR opened. Log on sietch: {failed.log}",
+                f"nix flake update failed, no PR opened. Log on sietch: {root_update.log}",
                 "Flake update failed",
                 key,
             )
-            print(tail(failed.log), file=sys.stderr)
+            print(tail(root_update.log), file=sys.stderr)
             return 1
 
         if not git("status", "--porcelain", cwd=worktree):
@@ -397,7 +389,7 @@ def update(args: argparse.Namespace, run_dir: Path, state_dir: Path, now: dateti
             print("no input changes")
             return 0
 
-        git("add", "flake.lock", "raspi/flake.lock", cwd=worktree)
+        git("add", "flake.lock", cwd=worktree)
         git("commit", "--quiet", "-m", f"flake.lock: weekly update {date}", cwd=worktree)
         head = git("rev-parse", "HEAD", cwd=worktree)
 
@@ -405,7 +397,7 @@ def update(args: argparse.Namespace, run_dir: Path, state_dir: Path, now: dateti
         tleilax = run_step(
             [
                 "nix", "eval", "--raw",
-                f"{worktree / 'raspi'}#nixosConfigurations.tleilax.config.system.build.toplevel.drvPath",
+                f"{worktree}#nixosConfigurations.tleilax.config.system.build.toplevel.drvPath",
             ],
             run_dir / "eval-tleilax.log",
         )
@@ -418,7 +410,6 @@ def update(args: argparse.Namespace, run_dir: Path, state_dir: Path, now: dateti
             base=args.base,
             base_sha=base_sha,
             root_changes=input_changes(root_update.log),
-            raspi_changes=input_changes(raspi_update.log),
             builds=builds,
             old_notes=old_notes,
             tleilax=tleilax,

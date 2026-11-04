@@ -41,6 +41,41 @@ let
     }
   ) reachable;
 
+  # Boot-time disk unlock (lib/fleet.nix initrdUnlock), with the hardware
+  # keys only. The boot environment's host key is pinned under
+  # <host>-initrd in /etc/ssh/ssh_known_hosts (modules/nixos/fleet.nix); any
+  # other key is refused. The -away alias jumps through initrdUnlock.jumpHost,
+  # which only forwards the encrypted connection.
+  unlockTargets = lib.filterAttrs (_: host: (host.initrdUnlock.lanAddress or null) != null) reachable;
+  unlockSshSettings = lib.concatMapAttrs (
+    name: host:
+    let
+      unlock = host.initrdUnlock;
+      direct = {
+        HostName = unlock.lanAddress;
+        Port = unlock.port;
+        User = "root";
+        HostKeyAlias = "${name}-initrd";
+        StrictHostKeyChecking = "yes";
+        UserKnownHostsFile = "/dev/null";
+        IdentityFile = [
+          "~/.ssh/yk-nfc"
+          "~/.ssh/yk-nano"
+        ];
+        IdentitiesOnly = "yes";
+        RequestTTY = "yes";
+        ControlMaster = "no";
+        ControlPath = "none";
+      };
+    in
+    {
+      "${name}-unlock" = direct;
+      "${name}-unlock-away" = direct // {
+        ProxyJump = unlock.jumpHost;
+      };
+    }
+  ) unlockTargets;
+
   renderHost = name: host: ''
     ## ${name} (${host.role})
 
@@ -114,6 +149,7 @@ in
     settings =
       fleetSshSettings
       // agentSshSettings
+      // unlockSshSettings
       // {
         "github.com" = {
           User = "git";
@@ -147,17 +183,6 @@ in
       )
     '';
   };
-
-  home.sessionVariables = {
-    FLEET_HOST_ANSI = self.color.ansi;
-    FLEET_HOST_HEX = self.color.hex;
-  };
-
-  home.file.".config/tmux/host.conf".text = ''
-    set -g @host_color '${self.color.hex}'
-    set -g pane-active-border-style 'fg=${self.color.hex}'
-    set -g status-right '#[fg=#{@thm_yellow},bg=default]#{?client_prefix,PREFIX ,}#{?pane_in_mode,COPY ,}#{?window_zoomed_flag,ZOOM ,}#[bg=default] #[fg=#{@thm_crust},bg=${self.color.hex},bold] #S #[fg=${self.color.hex},bg=#{@thm_surface_0}] 󰒋 ${thisHost} '
-  '';
 
   home.file.".config/fleet/computers.md".text = computersMd;
 

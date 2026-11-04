@@ -43,7 +43,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-LOCK_FILES = {"flake.lock": "flake.nix", "raspi/flake.lock": "raspi/flake.nix"}
+LOCK_FILES = {"flake.lock": "flake.nix"}
 LOCK_KEYS = {"nodes", "root", "version"}
 NODE_KEYS = {"inputs", "locked", "original", "flake"}
 FORGE_LOCKED_KEYS = {"type", "owner", "repo", "rev", "narHash", "lastModified", "host", "dir"}

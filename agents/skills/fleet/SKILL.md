@@ -6,8 +6,9 @@ description: Use when a task involves a machine in the fleet (jacurutu, sietch, 
 ## Fleet
 
 Fleet configuration lives in `~/dotfiles`, a NixOS flake whose main branch is
-`nixos`. sietch and jacurutu build from the root `flake.nix`; tleilax builds
-from the separate flake in `~/dotfiles/raspi/`, which has its own lock.
+`nixos`. All three machines build from the root `flake.nix` and its one lock:
+sietch and jacurutu through `makeSystem`, tleilax (aarch64) from
+`machines/tleilax`.
 
 Read `~/.config/fleet/computers.md` first. It is generated from
 `lib/fleet.nix` and lists every machine's role, tailnet address, repo roots,
@@ -78,12 +79,16 @@ his YubiKey. Hosts build only signed tags.
   never reads `~/dotfiles`, so an edit there deploys nothing.
 - A host only moves forward: the signed commit must descend from the one it
   runs, including Tony's manual rebuilds, and its `flake.lock` must be
-  complete. A deliberate rollback takes `deploy --allow-rollback <host>`,
-  which asks on the terminal even with `--yes`; that's Tony's call.
-- sietch takes deploys now. tleilax takes them once it builds from the root
-  flake; until then `deploy` refuses it, and with Tony's explicit approval you
-  rebuild it from jacurutu:
-  `nixos-rebuild switch --flake ~/dotfiles/raspi#tleilax --build-host tleilax-agent --target-host tleilax-agent --sudo`
+  complete. `deploy` always signs the tip of `origin/nixos`, so undo a bad
+  change with a revert, which moves forward. Only when `nixos` itself was
+  moved back does it take `deploy --allow-rollback <host>`, which asks on
+  the terminal even with `--yes`; that's Tony's call.
+- sietch and tleilax take deploys. tleilax builds its own aarch64 closure, so
+  its deploys are slow. Nothing else changes tleilax: no `nixos-rebuild
+  --target-host`, no copied closures.
+- `tleilax-agent` runs only two commands, `deploy-trigger` (what `deploy` uses)
+  and sessionizer's inventory listing; it refuses everything else, including a
+  shell. Don't try other commands there.
 - `rebuild` is Tony's manual rebuild of the host he's on, from `~/dotfiles`.
   It lists the commits since that host's last signed tag and asks; on jacurutu,
   approving signs and pushes a tag. Leave it to him.
@@ -94,8 +99,16 @@ his YubiKey. Hosts build only signed tags.
 ## Placement
 
 - sietch takes heavy or parallel agent work and anything needing `/vault`
-  data; jacurutu takes interactive and desktop tasks only; tleilax is a
-  low-power Pi for status and appliance jobs.
+  data; jacurutu takes interactive and desktop tasks only.
+- tleilax is a locked-down Pi for credential services (Vaultwarden and
+  Executor move there). No agent work runs on it, and sietch has no access to
+  it at all: no SSH key, no tailnet grant, no secret it can decrypt. Its secrets
+  are encrypted to its host key and Tony's YubiKeys only.
+- After a reboot tleilax waits at boot for its disk passphrase, which Tony
+  types over SSH with a YubiKey (`ssh tleilax-unlock` at home,
+  `ssh tleilax-unlock-away` through sietch). If tleilax is unreachable after a
+  power cut, tell Tony; agents can't unlock it. Its failed units alert Tony in
+  Hark under the "Fleet" project.
 - Long jobs on sietch end with an artifact the user can find: a pagebin URL,
   a file path, or a Hark notification (see the notify skill).
 

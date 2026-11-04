@@ -155,7 +155,7 @@ Status: OpenSSH 10.3 supports `sk-ssh-ed25519` ✓. `ykman` not installed yet;
 confirm `libfido2` present when generating the first sk key.
 
 ### Split: interactive vs automation
-- **Interactive (human → sietch/jacurutu/raspi):** `ed25519-sk` hardware key, touch
+- **Interactive (human → sietch/jacurutu/tleilax):** `ed25519-sk` hardware key, touch
   per login. Generate one sk key per YubiKey, add both pubkeys to `authorized_keys`.
   Consider `-O resident` so the key can be re-derived onto a fresh machine via
   `ssh-keygen -K`.

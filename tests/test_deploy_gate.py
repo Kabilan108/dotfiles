@@ -880,9 +880,9 @@ class Deploy(DeployGate):
         self.assertIn("the deploy on sietch failed", r.stderr)
 
     def test_unknown_host(self) -> None:
-        r = self.deploy("--yes", "tleilax")
+        r = self.deploy("--yes", "arrakis")
         self.assertEqual(r.returncode, 1)
-        self.assertIn("tleilax doesn't take deploys", r.stderr)
+        self.assertIn("arrakis doesn't take deploys", r.stderr)
 
     def test_needs_a_terminal_without_yes(self) -> None:
         r = self.deploy("--key", str(KEYS["yk"]), "sietch")

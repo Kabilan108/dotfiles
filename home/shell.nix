@@ -47,6 +47,7 @@ let
 in
 {
   imports = [
+    ../modules/home/shell-base.nix
     inputs.try.homeModules.default
   ];
 
@@ -106,7 +107,6 @@ in
 
     ".gitconfig".source = cfgLink ".gitconfig";
     ".ipython/profile_default/ipython_config.py".source = cfgLink "ipython_config.py";
-    ".tmux.conf".source = cfgLink ".tmux.conf";
 
     ".config/backup".source = cfgLink "backup";
     ".config/Code/User".source = cfgLink "vscode";
@@ -130,11 +130,6 @@ in
   home.activation.syncAgentSkills = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     PATH="${pkgs.jq}/bin:$PATH" $DRY_RUN_CMD ${homeDir}/dotfiles/bin/sync-agent-skills
   '';
-
-  programs.bash = {
-    enable = true;
-    initExtra = builtins.readFile ../config/.bashrc;
-  };
 
   # nix-direnv
   programs.direnv = {

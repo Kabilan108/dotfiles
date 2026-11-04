@@ -13,6 +13,7 @@ let
   inherit (fleet) deploy;
   thisHost = config.networking.hostName;
   isReceiver = builtins.elem thisHost deploy.receivers;
+  isGated = builtins.elem thisHost deploy.gatedAgentLogins;
   stateDir = "/var/lib/deploy-receiver";
   triggerSocket = "/run/deploy-trigger.sock";
   runningNixosVersion = "/run/current-system/sw/bin/nixos-version";
@@ -163,6 +164,12 @@ in
         assertion = lib.hasInfix switchLock (builtins.readFile ../../../bin/rebuild);
         message = "bin/rebuild must switch under the same lock as the receiver (${switchLock}).";
       }
+      {
+        # deploy-gate runs /run/current-system/sw/bin/sessionizer --inventory.
+        assertion =
+          !isGated || builtins.any (pkg: lib.getName pkg == "sessionizer") config.environment.systemPackages;
+        message = "${thisHost} is in lib/fleet.nix deploy.gatedAgentLogins, so it needs sessionizer in environment.systemPackages.";
+      }
     ];
 
     # Root-only, so no one else can open it to hold the lock.
@@ -173,7 +180,7 @@ in
     ]
     ++ lib.optional (thisHost == deploy.controller) deployCommand
     ++ lib.optional isReceiver trigger
-    ++ lib.optional (builtins.elem thisHost deploy.gatedAgentLogins) gate;
+    ++ lib.optional isGated gate;
 
     systemd.services.deploy-receiver = lib.mkIf isReceiver {
       description = "Build and switch to the newest signed deploy tag";
