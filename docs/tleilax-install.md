@@ -237,10 +237,45 @@ the console before you answer yes:
 ssh -o UserKnownHostsFile=/dev/null nixos@LAN_IP
 ```
 
+**Without a monitor.** The installer also accepts SSH keys placed on the card
+before its first boot. With the flashed card still in jacurutu (`/dev/sdX`
+from above; partition 2 is the installer's root):
+
+```sh
+sudo mkdir -p /mnt/installer
+sudo mount /dev/sdX2 /mnt/installer
+sudo install -d -m 700 /mnt/installer/root/.ssh
+{ ssh-keygen -y -f ~/.ssh/yk-nfc; ssh-keygen -y -f ~/.ssh/yk-nano; } |
+  sudo tee /mnt/installer/root/.ssh/authorized_keys >/dev/null
+sudo chmod 600 /mnt/installer/root/.ssh/authorized_keys
+sudo umount /mnt/installer
+```
+
+Boot the Pi from the card, find its address and MAC in the router's DHCP
+client list (hostname `nixos`), reserve it, and connect as root with a touch:
+
+```sh
+ssh -i ~/.ssh/yk-nfc -o IdentitiesOnly=yes -o UserKnownHostsFile=/dev/null root@LAN_IP
+```
+
+There is no console fingerprint to compare, so this first connection trusts
+the LAN. While you're in, check that the Pi's bootloader can boot from USB.
+`BOOT_ORDER` should contain a `4` (for example `0xf41`), and the bootloader
+should date from late 2020 or later:
+
+```sh
+nix --extra-experimental-features 'nix-command flakes' shell nixpkgs#libraspberrypi \
+  -c sh -c 'vcgencmd bootloader_version; vcgencmd bootloader_config'
+```
+
+Without a monitor, a boot that stops before the network comes up (step 8)
+can only be diagnosed by attaching one, so keep a micro-HDMI adapter in
+reach.
+
 Everything in steps 6 and 7 runs in that session as root:
 
 ```sh
-sudo -i
+sudo -i   # not needed if you connected as root
 export NIX_CONFIG="experimental-features = nix-command flakes"
 ```
 
