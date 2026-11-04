@@ -157,9 +157,10 @@ Put both recipients in `lib/fleet.nix`:
   ];
 ```
 
-`secrets.nix` only offers tleilax's secret rules once both are listed, so
-nothing gets encrypted without them. Commit this together with the keys in
-step 7.
+Commit and push it now or with step 7; either is fine. Once both are listed,
+`secrets.nix` offers tleilax's secret rules, but nothing is encrypted until
+step 9. Don't run `agenix -e` on a tleilax file before step 7: until then,
+`hostPubkey` still holds the old Pi's key.
 
 ## 4. Tailnet policy and the first-boot key (Tailscale admin console)
 
@@ -171,23 +172,35 @@ step 7.
    Removing `tag:server` there is part of stage 5.
 2. Check Vaultwarden anyway: open the vault in a browser or sync a Bitwarden
    client.
-3. Settings, Keys: generate an auth key. Not reusable, not ephemeral,
-   pre-approved, tag `tag:credentials`, expiring in a day. Keep it on screen
-   for step 6. It is used once, at tleilax's first boot.
+3. Make the key tleilax uses to join the tailnet on its first boot. Go to
+   **Settings → Keys → Generate auth key** and set:
+   - **Description:** `tleilax first boot`
+   - **Reusable:** off
+   - **Expiration:** 1 day
+   - **Ephemeral:** off
+   - **Pre-approved:** on (it only appears if device approval is on)
+   - **Tags:** on, `tag:credentials`
+
+   Click **Generate key** and copy the `tskey-auth-...` value. The console
+   shows it once. Keep it somewhere private until step 6, which writes it to
+   the SSD. After step 8 the Pi deletes it, and an unused key expires anyway.
 
 ## 5. Start the installer on the Pi
 
-On jacurutu, download the NixOS aarch64 SD image from Hydra. Use the latest
-successful build of `nixos.sd_image.aarch64-linux`, for example at
-<https://hydra.nixos.org/job/nixos/trunk-combined/nixos.sd_image.aarch64-linux>.
-Check the file's SHA-256 against the one Hydra lists. **Unverified:** the exact
-jobset name; nix.dev's Raspberry Pi guide links the current one.
+On jacurutu, download the NixOS aarch64 SD image from Hydra. Open
+<https://hydra.nixos.org/job/nixos/trunk-combined/nixos.sd_image.aarch64-linux/latest>,
+which redirects to the latest successful build, and download the `sd-image`
+file it lists. Check the file's SHA-256 against the one on that page:
+
+```sh
+sha256sum nixos-image-sd-card-*-aarch64-linux.img.zst
+```
 
 Flash it. Check with `lsblk` that `/dev/sdX` is the SD card reader and not
 another disk:
 
 ```sh
-zstd -d nixos-sd-image-*-aarch64-linux.img.zst -o /tmp/installer.img
+zstd -d nixos-image-sd-card-*-aarch64-linux.img.zst -o /tmp/installer.img
 lsblk
 sudo dd if=/tmp/installer.img of=/dev/sdX bs=4M conv=fsync status=progress
 ```
@@ -196,7 +209,8 @@ At the Pi:
 
 1. Power off. Insert the installer SD card and connect Ethernet, HDMI and the
    keyboard.
-2. Power on. The installer logs in as `nixos` on the console.
+2. Power on. The installer logs in as `nixos` on the console and starts
+   SSH, which accepts a password once you set one below.
 3. If the Pi boots the old system from the SSD instead, its boot order tries
    USB first. Unplug the SSD, power-cycle, and plug the SSD back in once the
    installer is up.
@@ -578,7 +592,6 @@ the first one expired or was used up.
 ## Unverified
 
 - That this Pi's EEPROM boots from USB and reads GPT (steps 1 and 12).
-- The Hydra jobset name for the aarch64 installer image (step 5).
 - That Ethernet and the USB SSD come up in the boot environment, and that the
   boot key copy runs before sshd (step 8). The module names were checked
   against the pinned aarch64 kernel, not on the Pi.
