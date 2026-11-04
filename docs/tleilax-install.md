@@ -460,10 +460,12 @@ jacurutu:
 tailscale status | grep tleilax
 ```
 
-It should show `tleilax` tagged `tag:credentials`. If its address isn't
-`100.73.84.103`, set it back in the admin console (the machine's menu, Edit
-IPv4 address). **Unverified:** that the console lets a new node take a deleted
-node's address. Otherwise put the new address in `lib/fleet.nix`
+It should show `tleilax` tagged `tag:credentials`. On the 2026-11-03 install
+it came up as `tleilax-1` with a new address, because the old machine was
+deleted after the new one registered. Fix both in the admin console, from
+the machine's menu: **Edit machine name** (turn off auto-generate, set
+`tleilax`) and **Edit IPv4 address** (`100.73.84.103`). The console accepted
+the old address. If it ever refuses, put the new address in `lib/fleet.nix`
 (`tailscaleIp`) and in the policy's `hosts`, paste the policy, and rebuild
 jacurutu.
 
@@ -626,13 +628,11 @@ the first one expired or was used up.
 
 ## Unverified
 
-- That this Pi's EEPROM boots from USB and reads GPT (steps 1 and 12).
-- That Ethernet and the USB SSD come up in the boot environment, and that the
-  boot key copy runs before sshd (step 8). The module names were checked
-  against the pinned aarch64 kernel, not on the Pi.
-- That u-boot reads the T5 over USB. The NixOS SD image uses the same u-boot,
-  but this layout puts it on the SSD.
+Confirmed by the 2026-11-03 install, done without a monitor: the Pi's
+bootloader (2023-01-11, default boot order) boots the T5 over USB from GPT;
+Ethernet, the SSD and the boot-time SSH come up before the unlock;
+`ssh tleilax-unlock` opens the disk; the console lets the new node reuse
+`100.73.84.103`. Still untested:
+
 - The `ssh -J sietch` jump with sietch's SSH settings and Mullvad (step 8).
-- That the admin console lets the new node reuse `100.73.84.103` (step 8).
 - That Hark creates the "Fleet" project from the first alert (step 10).
-- Nothing in this file has been run end to end.
