@@ -101,6 +101,12 @@ in
       dotfiles.shellBase.fromCheckout = false;
       # The laptop's picker attaches through "$HOME/bin/sessionizer".
       home.file."bin/sessionizer".source = "${sessionizer}/bin/sessionizer";
+      # Sessions only: deploy-gate refuses the laptop agent's requests to
+      # preview or create directory sessions, so offer no directories.
+      xdg.configFile."sessionizer/config.json".text = builtins.toJSON {
+        search_paths = [ ];
+        remote_hosts = [ ];
+      };
       home.stateVersion = "26.11";
     };
   };
