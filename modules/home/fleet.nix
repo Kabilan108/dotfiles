@@ -188,9 +188,17 @@ in
 
   home.file.".config/fleet/fleet.json".text = fleetJson;
 
+  # name, color, Tailscale IP, then "gated" for hosts in
+  # deploy.gatedAgentLogins: sessionizer previews and creates sessions there
+  # over the login connection, since the agent key only gets the inventory.
   home.file.".config/fleet/hosts".text =
+    let
+      agentAccess = name: if builtins.elem name fleet.deploy.gatedAgentLogins then "gated" else "ungated";
+    in
     lib.concatStringsSep "\n" (
-      lib.mapAttrsToList (name: host: "${name}\t${host.color.hex}\t${host.tailscaleIp}") reachable
+      lib.mapAttrsToList (
+        name: host: "${name}\t${host.color.hex}\t${host.tailscaleIp}\t${agentAccess name}"
+      ) reachable
     )
     + "\n";
 }

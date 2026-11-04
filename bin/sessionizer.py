@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, NoReturn
 
-VERSION = "0.7.0"
+VERSION = "0.8.0"
 
 MACHINE_COLUMN_WIDTH = 9
 SESSION_COLUMN_WIDTH = 34
@@ -97,6 +97,7 @@ class FleetHost:
     name: str
     color: str
     address: str
+    gated: bool = False
 
 
 @dataclass(frozen=True)
@@ -302,12 +303,14 @@ def run(
     check: bool = True,
     timeout: float | None = 10,
     env: dict[str, str] | None = None,
+    show_stderr: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     try:
         result = subprocess.run(
             command,
             check=False,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=None if show_stderr else subprocess.PIPE,
             text=True,
             timeout=timeout,
             env=env,
@@ -315,7 +318,9 @@ def run(
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise SessionizerError(f"failed to run {shlex.join(command)}: {exc}") from exc
     if check and result.returncode != 0:
-        message = result.stderr.strip() or result.stdout.strip() or "command failed"
+        message = (
+            (result.stderr or "").strip() or result.stdout.strip() or "command failed"
+        )
         raise SessionizerError(f"{shlex.join(command)}: {message}")
     return result
 
@@ -342,20 +347,83 @@ def current_client_name() -> str:
     return tmux("display-message", "-p", "#{client_name}", check=False)
 
 
-def fleet_hosts(allowed_hosts: tuple[str, ...] | None = None) -> list[FleetHost]:
-    key_path = Path.home() / ".ssh" / f"agent-{socket.gethostname()}"
-    if not FLEET_HOSTS_PATH.exists() or not key_path.exists():
+def read_fleet_hosts() -> list[FleetHost]:
+    try:
+        text = FLEET_HOSTS_PATH.read_text(encoding="utf-8")
+    except OSError:
         return []
 
     result: list[FleetHost] = []
-    for line in FLEET_HOSTS_PATH.read_text(encoding="utf-8").splitlines():
+    for line in text.splitlines():
         fields = line.split("\t")
-        if len(fields) != 3 or not re.fullmatch(r"[A-Za-z0-9_-]+", fields[0]):
+        if len(fields) < 3 or not re.fullmatch(r"[A-Za-z0-9_-]+", fields[0]):
             continue
-        if allowed_hosts is not None and fields[0] not in allowed_hosts:
-            continue
-        result.append(FleetHost(fields[0], fields[1], fields[2]))
+        gated = len(fields) > 3 and fields[3] == "gated"
+        result.append(FleetHost(fields[0], fields[1], fields[2], gated))
     return result
+
+
+def fleet_hosts(allowed_hosts: tuple[str, ...] | None = None) -> list[FleetHost]:
+    key_path = Path.home() / ".ssh" / f"agent-{socket.gethostname()}"
+    if not key_path.exists():
+        return []
+    return [
+        host
+        for host in read_fleet_hosts()
+        if allowed_hosts is None or host.name in allowed_hosts
+    ]
+
+
+def is_gated_host(name: str) -> bool:
+    return any(host.gated for host in read_fleet_hosts() if host.name == name)
+
+
+def agent_ssh_command(host: str, remote: str) -> list[str]:
+    return [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=2",
+        f"{host}-agent",
+        remote,
+    ]
+
+
+def login_master_running(host: str) -> bool:
+    try:
+        return run(["ssh", "-O", "check", host], check=False, timeout=3).returncode == 0
+    except SessionizerError:
+        return False
+
+
+def remote_preview_output(host: str, remote: str) -> str | None:
+    """Run a preview command on host, or return None when that needs a touch.
+
+    Gated hosts refuse the agent key, so previews ride the login connection's
+    master and never open a connection of their own.
+    """
+    if not is_gated_host(host):
+        return run(agent_ssh_command(host, remote), check=False, timeout=5).stdout
+    if not login_master_running(host):
+        return None
+    # If the master exits after the check, fail instead of asking for a touch.
+    command = [
+        "ssh",
+        "-T",
+        "-n",
+        "-o",
+        "ControlMaster=no",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "PubkeyAuthentication=no",
+        "-o",
+        "ConnectTimeout=2",
+        host,
+        remote,
+    ]
+    return run(command, check=False, timeout=5).stdout
 
 
 def colorize(text: str, color: str) -> str:
@@ -530,15 +598,7 @@ def refresh_remote_host(host: FleetHost) -> None:
         previous = read_remote_cache(host)
         try:
             result = run(
-                [
-                    "ssh",
-                    "-o",
-                    "BatchMode=yes",
-                    "-o",
-                    "ConnectTimeout=2",
-                    f"{host.name}-agent",
-                    remote_sessionizer_command("--inventory"),
-                ],
+                agent_ssh_command(host.name, remote_sessionizer_command("--inventory")),
                 check=False,
                 timeout=15,
             )
@@ -670,12 +730,15 @@ def directory_candidates(
         root, depth = parse_search_path(value, config.max_depth)
         if not root.is_dir():
             continue
-        command = [fd, "-L", "-I", "-t", "d", "-d", str(depth)]
-        for pattern in config.ignore:
-            command.extend(["-E", pattern])
-        command.extend([".", str(root)])
-        listing = run(command, check=False).stdout
-        for line in listing.splitlines():
+        if depth == 0:
+            found = [str(root)]
+        else:
+            command = [fd, "-L", "-I", "-t", "d", "-d", str(depth)]
+            for pattern in config.ignore:
+                command.extend(["-E", pattern])
+            command.extend([".", str(root)])
+            found = run(command, check=False).stdout.splitlines()
+        for line in found:
             path = Path(line).expanduser().resolve()
             if path in seen or path in used_paths or not path.is_dir():
                 continue
@@ -1175,7 +1238,7 @@ def abbreviated_path(value: str) -> str:
     return value
 
 
-def session_panes(candidate: Candidate) -> tuple[list[Pane], bool]:
+def session_panes(candidate: Candidate) -> list[Pane] | None:
     if candidate.kind == "local":
         output = tmux(
             "list-panes",
@@ -1186,7 +1249,7 @@ def session_panes(candidate: Candidate) -> tuple[list[Pane], bool]:
             PANE_FORMAT,
             check=False,
         )
-        return parse_panes(output), True
+        return parse_panes(output)
 
     remote_command = (
         shlex.join(
@@ -1194,20 +1257,8 @@ def session_panes(candidate: Candidate) -> tuple[list[Pane], bool]:
         )
         + " 2>/dev/null"
     )
-    result = run(
-        [
-            "ssh",
-            "-o",
-            "BatchMode=yes",
-            "-o",
-            "ConnectTimeout=2",
-            f"{candidate.host}-agent",
-            remote_command,
-        ],
-        check=False,
-        timeout=5,
-    )
-    return parse_panes(result.stdout), False
+    output = remote_preview_output(candidate.host, remote_command)
+    return None if output is None else parse_panes(output)
 
 
 BOLD = "\033[1m"
@@ -1232,8 +1283,21 @@ def preview_field(label: str, value: str) -> None:
     print(f"{colorize(label.ljust(9), DIRECTORY_COLOR)}{value}")
 
 
+def print_login_hint(candidate: Candidate) -> None:
+    print()
+    print(colorize(f"attach to {candidate.host} once to enable previews", MUTED_COLOR))
+
+
 def render_session_preview(candidate: Candidate) -> None:
-    panes, inspect_processes = session_panes(candidate)
+    panes = session_panes(candidate)
+    if panes is None:
+        preview_title(candidate, "session")
+        print()
+        if candidate.path:
+            preview_field("path", abbreviated_path(candidate.path))
+        print_login_hint(candidate)
+        return
+    inspect_processes = candidate.kind == "local"
     agents_by_pane = {
         (pane.window_index, pane.pane_index): detect_agents(
             pane, inspect_processes=inspect_processes
@@ -1338,20 +1402,14 @@ def render_directory_preview(candidate: Candidate) -> None:
     print()
     preview_field("path", abbreviated_path(candidate.target))
     if candidate.kind == "remote-directory":
-        result = run(
-            [
-                "ssh",
-                "-o",
-                "BatchMode=yes",
-                "-o",
-                "ConnectTimeout=2",
-                f"{candidate.host}-agent",
-                remote_sessionizer_command("--preview-directory", candidate.target),
-            ],
-            check=False,
-            timeout=5,
+        output = remote_preview_output(
+            candidate.host,
+            remote_sessionizer_command("--preview-directory", candidate.target),
         )
-        print(result.stdout, end="")
+        if output is None:
+            print_login_hint(candidate)
+        else:
+            print(output, end="")
         return
     print_directory_preview(candidate.target)
 
@@ -1428,22 +1486,21 @@ def remote_command(target: str) -> str:
 
 
 def ensure_remote_directory_session(candidate: Candidate) -> Candidate:
-    result = run(
-        [
-            "ssh",
-            "-o",
-            "BatchMode=yes",
-            "-o",
-            "ConnectTimeout=2",
-            f"{candidate.host}-agent",
-            remote_sessionizer_command("--ensure-directory-session", candidate.target),
-        ],
-        check=False,
-        timeout=15,
-    )
+    remote = remote_sessionizer_command("--ensure-directory-session", candidate.target)
+    if is_gated_host(candidate.host):
+        # Over the login connection, which may need a touch: leave stderr on
+        # the terminal so the security key prompt shows.
+        result = run(
+            ["ssh", "-T", "-n", "-o", "ConnectTimeout=5", candidate.host, remote],
+            check=False,
+            timeout=60,
+            show_stderr=True,
+        )
+    else:
+        result = run(agent_ssh_command(candidate.host, remote), check=False, timeout=15)
     target = result.stdout.strip()
     if result.returncode != 0 or not re.fullmatch(r"\$\d+", target):
-        message = result.stderr.strip() or "remote session creation failed"
+        message = (result.stderr or "").strip() or "remote session creation failed"
         raise SessionizerError(
             f"could not open {candidate.target} on {candidate.host}: {message}"
         )

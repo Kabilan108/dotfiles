@@ -101,10 +101,13 @@ in
       dotfiles.shellBase.fromCheckout = false;
       # The laptop's picker attaches through "$HOME/bin/sessionizer".
       home.file."bin/sessionizer".source = "${sessionizer}/bin/sessionizer";
-      # Sessions only: deploy-gate refuses the laptop agent's requests to
-      # preview or create directory sessions, so offer no directories.
+      # Offer only the home directory. deploy-gate gives the laptop's agent
+      # key the inventory alone, so the laptop's picker previews and creates
+      # sessions here over Tony's login connection. Depth 0 means the search
+      # path itself.
       xdg.configFile."sessionizer/config.json".text = builtins.toJSON {
-        search_paths = [ ];
+        search_paths = [ "~" ];
+        max_depth = 0;
         remote_hosts = [ ];
       };
       home.stateVersion = "26.11";
