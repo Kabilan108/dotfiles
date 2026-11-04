@@ -96,7 +96,7 @@ rec {
       roots = [ ];
       canAccess = [ ];
       # Generated at install (docs/tleilax-install.md); agenix decrypts with it.
-      hostPubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILrTgetUqAUt7NEK+51GGGEOgea/uME+vlOJpOdggJB2";
+      hostPubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOKfdOeSaXW6GgykD4yw5OR9Vx4DgHOymTtWqLcHP27V";
       keys = {
         human = [ ];
         agent = [ ];
@@ -109,8 +109,8 @@ rec {
       # connection jumps through jumpHost, which only forwards it.
       initrdUnlock = {
         port = 2222;
-        lanAddress = null;
-        hostPubkey = null;
+        lanAddress = "10.0.0.67";
+        hostPubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIErYgLuP4LaU+jIb7dzXCsn55aqePJ1CBPHPgn61NQJS";
         jumpHost = "sietch";
       };
     };
