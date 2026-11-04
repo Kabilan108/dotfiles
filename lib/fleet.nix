@@ -116,10 +116,11 @@ rec {
     };
   };
 
-  # age-plugin-yubikey recipients (age1yubikey1...), one per YubiKey: yk-nfc
-  # and yk-nano. Tony edits secrets with them; hosts decrypt with their SSH
-  # host keys. Empty until the identities exist (docs/tleilax-install.md).
-  ageRecipients = [ ];
+  # age-plugin-yubikey recipients (nano, nfc)
+  ageRecipients = [
+    "age1yubikey1qdk0g0dsffy22c3e239vwkymlncwh5jsktgmcm7pel3e852vwz2uk75d858"
+    "age1yubikey1qgcaju2dyk8wjlpdweh2rqs9tx48x2rn9c6836kkhhg22ludqnxrcjqgglw"
+  ];
 
   # Non-SSH devices belong in the inventory without entering the access matrix.
   devices = {
