@@ -35,9 +35,8 @@ output "eDP-1" {
     position x=0 y=0
 }
 
-// TODO: replace display name with output name from `niri msg outputs`
 // Single Ultrawide, above laptop
-output "DP-4" {
+output "PNP(AOC) CU34G2XP 1Q1R6HA001347" {
   mode "3440x1440@100.000"
   scale 1
   position x=0 y=-1504
