@@ -85,7 +85,13 @@ STUBS = {
         'job=$(cat "{tmp}/unit/Job" 2>/dev/null || true)\n'
         'case "$*" in\n'
         '"show --property=Job --value deploy-receiver.service") echo "$job" ;;\n'
-        '"list-jobs --no-legend") [[ -z $job ]] || echo "$job deploy-receiver.service start running" ;;\n'
+        '"list-jobs --no-legend")\n'
+        '  if [[ -n ${{TEST_LIST_JOBS_DISCONNECT:-}} && ! -e "{tmp}/disconnected" ]]; then\n'
+        '    touch "{tmp}/disconnected"\n'
+        '    echo "Failed to list jobs: Remote peer disconnected" >&2\n'
+        '    exit 1\n'
+        '  fi\n'
+        '  [[ -z $job ]] || echo "$job deploy-receiver.service start running" ;;\n'
         "*) exit 98 ;;\n"
         "esac"
     ),
@@ -975,6 +981,14 @@ class Trigger(DeployGate):
         self.assertEqual(r.returncode, 1)
         self.assertIn(f"refusing {T2}", r.stdout)
         self.assertIn("the receiver run for job 2 failed (exit 1)", r.stderr)
+
+    def test_retries_a_status_query_disconnected_during_activation(self) -> None:
+        self.sign(T1, "yk")
+        r = self.broker(TEST_DURING_BUILD="sleep 3", TEST_LIST_JOBS_DISCONNECT="1")
+        self.assertIn("Failed to list jobs: Remote peer disconnected", r.stderr)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"sietch deployed {T1} {self.tip}", r.stdout)
+        self.assertRegex(self.runs()[-1], r"^1 [0-9]+ exit:0$")
 
     def test_a_killed_receiver_is_a_failure(self) -> None:
         self.sign(T1, "yk")

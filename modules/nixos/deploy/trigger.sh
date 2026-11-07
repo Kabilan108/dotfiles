@@ -24,7 +24,13 @@ run_record() {
 }
 
 job_pending() {
-  systemctl list-jobs --no-legend | awk -v job="$job" '$1 == job { found = 1 } END { exit !found }'
+  local jobs
+  # Activation can restart systemd and disconnect this query. Only a
+  # successful query can tell us the job is gone; retry failures next poll.
+  if ! jobs=$(systemctl list-jobs --no-legend); then
+    return 0
+  fi
+  awk -v job="$job" '$1 == job { found = 1 } END { exit !found }' <<<"$jobs"
 }
 
 invocation="" state="" follower=""
