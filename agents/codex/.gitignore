@@ -46,3 +46,4 @@ memories.lock
 auth.lock
 *.lock
 mention_usage.json
+memories_v2/
