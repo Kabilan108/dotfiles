@@ -91,7 +91,7 @@
     backup-restic.file = ../../secrets/backup/sietch-restic.age;
   };
   dotfiles.backup = {
-    enable = false;
+    enable = true;
     nas = {
       address = "10.0.0.240";
       share = "backup-sietch";
