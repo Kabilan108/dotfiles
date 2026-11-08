@@ -90,7 +90,12 @@ func startProxy(host, origin, spec string, replace bool) error {
 		args = append(args, ";", "set-option", "-t", target, option[0], option[1])
 	}
 	// A failed ssh (no touch, host down) keeps its pane so the error shows.
-	args = append(args, ";", "set-option", "-w", "-t", target, "remain-on-exit", "failed")
+	// The proxy has no prefix, so any key, M-s included, closes it.
+	deadMessage := fmt.Sprintf("#[reverse] ssh to %s ended (status #{pane_dead_status}). Press any key to close this proxy. #[default]", host)
+	args = append(args,
+		";", "set-option", "-w", "-t", target, "remain-on-exit", "failed-key",
+		";", "set-option", "-w", "-t", target, "remain-on-exit-format", deadMessage,
+	)
 	_, err := tmux(args...)
 	return err
 }
