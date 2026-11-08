@@ -57,6 +57,9 @@ repo plus the keystore in agenix and Vaultwarden).
 - A failed run retries 3 times, 15 minutes apart. After the last retry,
   `backup-alert@` sends one Hark alert. An incomplete backup (Restic exit 3,
   such as an unreadable file) counts as a failure.
+- A run whose repository isn't reachable (the NAS mount failed) fails in
+  seconds, before Restic starts, instead of Restic retrying it for many
+  minutes per attempt.
 - Alerts run as `kabilan`, through the Fleet maintenance webhook. Root never
   reads that user-writable curl config.
 - Monthly, on the 8th, `restic-backups-check` reads back 5% of the stored data.
@@ -69,6 +72,11 @@ repo plus the keystore in agenix and Vaultwarden).
   `~kabilan/.local/state/backup-status/jacurutu-<job>.json`. It connects with
   its host key, which sietch accepts only for that forced command, only from
   jacurutu's tailnet address.
+- jacurutu's own alerts reach Hark only over the tailnet, so an offline laptop
+  can't send them. Instead, sietch's daily `backup-stale-check` (as `kabilan`,
+  around noon) alerts once when a received job hasn't succeeded in 72 hours,
+  or when jacurutu has sent no status at all. It alerts again only after a
+  fresh success; a failed alert is retried the next day.
 
 ## Commands
 
@@ -82,6 +90,7 @@ journalctl -u restic-backups-files             # its log
 sudo restic-files snapshots                    # list restore points
 sudo restic-files restore latest --tag files --target /tmp/restore --include /vault/notes/coppermind/some-note.md
 cat /var/lib/backup-status/*.json              # last results
+sudo systemctl start backup-stale-check        # sietch: check jacurutu's status now
 ```
 
 Restored files land under the target with their full path. Restore into a
@@ -170,8 +179,11 @@ For an agent on jacurutu, with Tony. Don't do any of this from sietch.
    rebuilds jacurutu, and deploys sietch so sietch accepts jacurutu's status.
 6. `sudo restic-files init`, then run the first backup. It goes over the
    tailnet and may take a while; Restic resumes an interrupted first run.
-7. Checks: a restore into `/tmp`, the status file on sietch, and an offline
-   run (Tailscale down: the run fails, retries, then alerts).
+7. Checks: a restore into `/tmp`, the status file on sietch, and a failed
+   run that retries, then alerts. Block only the NAS so the alert can reach
+   Hark: `sudo ip rule add to <NAS tailnet IP> prohibit priority 100`, and
+   `ip rule del` the same rule afterwards. With Tailscale down the alert
+   can't be sent; sietch's stale check covers that case.
 
 ## Later
 

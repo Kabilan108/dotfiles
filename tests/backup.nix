@@ -191,6 +191,15 @@ pkgs.testers.runNixOSTest {
         assert len(snapshots("missing")) == 0
         machine.succeed("systemctl reset-failed")
 
+    with subtest("an unreachable repository fails fast"):
+        machine.succeed("mv /srv/restic /srv/restic.away")
+        run_to_failure("files")
+        machine.succeed("journalctl -u restic-backups-files.service | grep > /dev/null 'repository /srv/restic is not reachable'")
+        machine.fail("journalctl -u restic-backups-files.service | grep 'returned error, retrying'")
+        machine.succeed("mv /srv/restic.away /srv/restic")
+        machine.succeed("systemctl reset-failed")
+        machine.succeed("systemctl start restic-backups-files.service")
+
     with subtest("the monthly check passes"):
         machine.succeed("systemctl start restic-backups-check.service")
 
@@ -211,5 +220,42 @@ pkgs.testers.runNixOSTest {
         machine.fail(f"head -c 70000 /dev/zero | su - kabilan -c '{receiver}'")
         bad_job = json.dumps({"host": "sietch", "job": "../x"})
         machine.fail(f"echo '{bad_job}' | su - kabilan -c '{receiver}'")
+
+    def receive(**fields):
+        body = json.dumps({"host": "sietch", "job": "files", **fields})
+        machine.succeed(f"echo '{body}' | su - kabilan -c '{receiver}'")
+
+    def stale_check():
+        # Back-to-back starts here would trip systemd's start limit.
+        machine.succeed("systemctl reset-failed backup-stale-check.service")
+        machine.succeed("systemctl start backup-stale-check.service")
+
+    stale_files = "The files backup job on sietch last succeeded"
+
+    with subtest("a received status that never succeeded alerts once"):
+        assert machine.succeed("systemctl show -P User backup-stale-check.service").strip() == "kabilan"
+        machine.succeed("systemctl list-timers backup-stale-check.timer | grep -q backup-stale-check")
+        receive(last_result="exit-code", last_success=None)
+        stale_check()
+        assert alert_count(stale_files + " never") == 1, alerts()
+        stale_check()
+        assert alert_count(stale_files) == 1, alerts()
+
+    with subtest("a fresh success clears the mark; a stale one alerts again"):
+        now = machine.succeed("date -Is").strip()
+        receive(last_result="success", last_success=now)
+        stale_check()
+        assert alert_count(stale_files) == 1, alerts()
+        machine.succeed("test ! -e /home/kabilan/.local/state/backup-status/.stale-alerted/sietch-files")
+        receive(last_result="exit-code", last_success="2000-01-01T00:00:00+00:00")
+        stale_check()
+        stale_check()
+        assert alert_count(stale_files + " 2000-01-01T00:00:00+00:00") == 1, alerts()
+
+    with subtest("a host that sent no status alerts once"):
+        machine.succeed("rm /home/kabilan/.local/state/backup-status/sietch-*.json")
+        stale_check()
+        stale_check()
+        assert alert_count("testhost has received no backup status from sietch") == 1, alerts()
   '';
 }

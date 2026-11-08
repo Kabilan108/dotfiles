@@ -20,6 +20,8 @@ let
   statusDir = "/var/lib/backup-status";
   retryDir = "/run/backup-retry";
   hostKey = "/etc/ssh/ssh_host_ed25519_key";
+  # Where backup-status-receive stores other hosts' status files.
+  receivedDir = "${config.users.users.kabilan.home}/.local/state/backup-status";
 
   sqliteType = lib.types.submodule {
     options = {
@@ -75,8 +77,24 @@ let
       BACKUP_ALERT_CURL_CONFIG = cfg.alert.curlConfig;
       BACKUP_ALERT_PROJECT = cfg.alert.project;
       BACKUP_ALERT_OUTPUT = lib.optionalString (cfg.alert.outputFile != null) cfg.alert.outputFile;
+      BACKUP_RECEIVED_DIR = receivedDir;
     };
     text = builtins.readFile ./alert.sh;
+  };
+
+  staleCheck = pkgs.writeShellApplication {
+    name = "backup-stale-check";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.jq
+    ];
+    runtimeEnv = {
+      BACKUP_RECEIVED_DIR = receivedDir;
+      BACKUP_STALE_HOSTS = lib.concatStringsSep " " cfg.statusReceive;
+      BACKUP_STALE_AFTER_SEC = toString (cfg.staleness.afterHours * 3600);
+      BACKUP_ALERT = lib.getExe alert;
+    };
+    text = builtins.readFile ./stale.sh;
   };
 
   status = pkgs.writeShellApplication {
@@ -133,6 +151,15 @@ let
     fi
   '';
 
+  # Fails in seconds when the NAS is unreachable. Restic itself would keep
+  # retrying the missing config with backoff for many minutes per attempt.
+  repositoryCheck = ''
+    if [ ! -e ${lib.escapeShellArg cfg.repository}/config ]; then
+      echo "backup: repository ${cfg.repository} is not reachable" >&2
+      exit 1
+    fi
+  '';
+
   # Retries are counted by backup-retry, not systemd's Restart=: its start
   # limit is a time window, which slow attempts (a lock wait, a long upload)
   # outlast, so it would retry forever without alerting.
@@ -155,6 +182,7 @@ let
     # that matches nothing, so a moved source would otherwise back up nothing.
     backupPrepareCommand = ''
       ${guard}
+      ${repositoryCheck}
       for path in ${lib.escapeShellArgs job.paths}; do
         if [ ! -e "$path" ]; then
           echo "backup: source $path does not exist" >&2
@@ -311,6 +339,22 @@ in
       default = [ ];
       description = "Fleet hosts whose host key may write their status file here, as kabilan.";
     };
+
+    staleness = {
+      afterHours = lib.mkOption {
+        type = lib.types.ints.positive;
+        default = 72;
+        description = "Alert once when a received host's job hasn't succeeded for this long, or the host has sent no status.";
+      };
+      timer = lib.mkOption {
+        type = lib.types.attrsOf lib.types.str;
+        default = {
+          OnCalendar = "12:00";
+          RandomizedDelaySec = "1h";
+          Persistent = "true";
+        };
+      };
+    };
   };
 
   config = lib.mkMerge [
@@ -396,7 +440,10 @@ in
               "--read-data-subset=${cfg.check.readDataSubset}"
             ];
             timerConfig = cfg.check.timer;
-            backupPrepareCommand = "${guard}";
+            backupPrepareCommand = ''
+              ${guard}
+              ${repositoryCheck}
+            '';
             backupCleanupCommand = retryCommand "check";
           };
         };
@@ -409,6 +456,23 @@ in
             User = cfg.alert.user;
             ExecStart = "${lib.getExe alert} %i";
           };
+        };
+      }
+      // lib.optionalAttrs (cfg.statusReceive != [ ]) {
+        backup-stale-check = {
+          description = "Alert when a host's received backup status goes stale";
+          serviceConfig = {
+            Type = "oneshot";
+            User = cfg.alert.user;
+            ExecStart = lib.getExe staleCheck;
+          };
+        };
+      };
+
+      systemd.timers = lib.mkIf (cfg.statusReceive != [ ]) {
+        backup-stale-check = {
+          wantedBy = [ "timers.target" ];
+          timerConfig = cfg.staleness.timer;
         };
       };
 

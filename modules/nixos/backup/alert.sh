@@ -1,7 +1,9 @@
-# backup-alert INSTANCE
-# Runs as the alert user (backup-alert@.service), never as root.
+# backup-alert INSTANCE [ARGS]
+# Runs as the alert user (backup-alert@.service or backup-stale-check), never
+# as root.
 #   restic-backups-<job>  the job failed after all its retries
 #   threshold-<job>       the job's status crossed a size or free-space threshold
+#   stale HOST [JOB]      HOST's received JOB status is stale, or HOST sent none
 
 instance="$1"
 
@@ -21,6 +23,19 @@ case "$instance" in
       + (if .over_size then " The repository passed its size threshold: time to consider pruning." else "" end)
       + (if .low_free then " NAS free space is below its threshold." else "" end)
     ' "$file")"
+    ;;
+  stale)
+    host="$2"
+    job="${3:-}"
+    instance="stale-$host-$job"
+    title="Backups stale for $host"
+    if [ -z "$job" ]; then
+      body="$BACKUP_HOST has received no backup status from $host."
+    else
+      body="$(jq -r --arg host "$host" '
+        "The \(.job) backup job on \($host) last succeeded \(.last_success // "never"). Its last reported attempt was \(.last_attempt // "unknown") (\(.last_result // "unknown"))."
+      ' "$BACKUP_RECEIVED_DIR/$host-$job.json") Check \`journalctl -u restic-backups-$job\` on $host."
+    fi
     ;;
   *)
     echo "backup-alert: unknown instance $instance" >&2
