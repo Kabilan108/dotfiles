@@ -241,3 +241,51 @@ func TestRunGitAgainstRealRepository(t *testing.T) {
 		t.Fatalf("git status rewrote the index, so the cache would always miss: %s then %s", before, after)
 	}
 }
+
+func TestGitCacheTTL(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".git/HEAD"), "ref: refs/heads/main\n")
+	repo, _ := openRepo(dir)
+	base := time.Unix(1_700_000_000, 0)
+	cases := []struct {
+		name  string
+		read  int64
+		age   time.Duration
+		reran bool
+	}{
+		{name: "just read", read: base.Unix(), reran: false},
+		{name: "just under ten minutes", read: base.Unix(), age: gitCacheTTL - time.Second, reran: false},
+		{name: "ten minutes", read: base.Unix(), age: gitCacheTTL, reran: true},
+		{name: "an hour", read: base.Unix(), age: time.Hour, reran: true},
+		{name: "entry from before entries had a read time", read: 0, reran: true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			runs := 0
+			cache := loadGitCache(filepath.Join(t.TempDir(), "git.json"))
+			cache.now = func() time.Time { return base.Add(c.age) }
+			cache.run = func(context.Context, string) (*GitDetails, string) {
+				runs++
+				return &GitDetails{Dirty: 7}, ""
+			}
+			cache.entries[dir] = gitCacheEntry{Fingerprint: repo.fingerprint(""), Read: c.read, Details: &GitDetails{Dirty: 1}}
+			details := cache.details(context.Background(), dir, repo)
+			if reran := runs == 1; reran != c.reran {
+				t.Fatalf("ran git %d times, want rerun %v", runs, c.reran)
+			}
+			want := 1
+			if c.reran {
+				want = 7
+				if cache.entries[dir].Read != base.Add(c.age).Unix() {
+					t.Fatalf("a rerun should restamp the entry: %+v", cache.entries[dir])
+				}
+			}
+			if details == nil || details.Dirty != want {
+				t.Fatalf("details %+v, want dirty %d", details, want)
+			}
+			if cached, ok := cache.cached(dir, repo); !ok || cached.Dirty != want {
+				t.Fatalf("an unchanged repository's details should still show however old: %+v %v", cached, ok)
+			}
+		})
+	}
+}

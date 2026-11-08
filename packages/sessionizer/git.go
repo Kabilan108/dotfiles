@@ -13,7 +13,10 @@ import (
 )
 
 const (
-	gitTimeout  = 2 * time.Second
+	gitTimeout = 2 * time.Second
+	// gitCacheTTL bounds how stale cached details get for edits the
+	// fingerprint can't see, such as unstaged changes to tracked files.
+	gitCacheTTL = 10 * time.Minute
 	gitWorkers  = 8
 	gitCacheVer = 1
 )
@@ -230,6 +233,7 @@ func runGit(ctx context.Context, path string) (*GitDetails, string) {
 type gitCacheEntry struct {
 	Fingerprint string      `json:"fingerprint"`
 	Upstream    string      `json:"upstream,omitempty"`
+	Read        int64       `json:"read"`
 	Details     *GitDetails `json:"details"`
 }
 
@@ -238,14 +242,15 @@ type gitCacheFile struct {
 	Entries map[string]gitCacheEntry `json:"entries"`
 }
 
-// gitCache keeps git details per directory so an unchanged repository never
-// runs git twice.
+// gitCache keeps git details per directory so an unchanged repository runs
+// git at most once per gitCacheTTL.
 type gitCache struct {
 	path    string
 	mu      sync.Mutex
 	entries map[string]gitCacheEntry
 	changed map[string]bool
 	run     func(context.Context, string) (*GitDetails, string)
+	now     func() time.Time
 }
 
 func gitCachePath() string {
@@ -265,25 +270,37 @@ func readGitCacheEntries(path string) map[string]gitCacheEntry {
 }
 
 func loadGitCache(path string) *gitCache {
-	return &gitCache{path: path, entries: readGitCacheEntries(path), changed: map[string]bool{}, run: runGit}
+	return &gitCache{path: path, entries: readGitCacheEntries(path), changed: map[string]bool{}, run: runGit, now: time.Now}
 }
 
 // cached returns the stored details for path when its repository has not
-// changed since they were read.
+// changed since they were read, however long ago that was.
 func (c *gitCache) cached(path string, repo gitRepo) (*GitDetails, bool) {
+	entry, ok := c.matching(path, repo)
+	return entry.Details, ok
+}
+
+func (c *gitCache) matching(path string, repo gitRepo) (gitCacheEntry, bool) {
 	c.mu.Lock()
 	entry, ok := c.entries[path]
 	c.mu.Unlock()
 	if !ok || entry.Fingerprint != repo.fingerprint(entry.Upstream) {
-		return nil, false
+		return gitCacheEntry{}, false
 	}
-	return entry.Details, true
+	return entry, true
 }
 
+// details returns cached details while they are unchanged and younger than
+// gitCacheTTL, and runs git otherwise.
 func (c *gitCache) details(ctx context.Context, path string, repo gitRepo) *GitDetails {
-	if details, ok := c.cached(path, repo); ok {
-		return details
+	if entry, ok := c.matching(path, repo); ok && c.now().Sub(time.Unix(entry.Read, 0)) < gitCacheTTL {
+		return entry.Details
 	}
+	return c.reread(ctx, path, repo)
+}
+
+// reread runs git for path and caches the result, whatever the cache holds.
+func (c *gitCache) reread(ctx context.Context, path string, repo gitRepo) *GitDetails {
 	c.mu.Lock()
 	previous := c.entries[path].Upstream
 	c.mu.Unlock()
@@ -297,7 +314,7 @@ func (c *gitCache) details(ctx context.Context, path string, repo gitRepo) *GitD
 		fingerprint = repo.fingerprint(upstream)
 	}
 	c.mu.Lock()
-	c.entries[path] = gitCacheEntry{Fingerprint: fingerprint, Upstream: upstream, Details: details}
+	c.entries[path] = gitCacheEntry{Fingerprint: fingerprint, Upstream: upstream, Read: c.now().Unix(), Details: details}
 	c.changed[path] = true
 	c.mu.Unlock()
 	return details

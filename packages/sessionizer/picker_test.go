@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -305,5 +307,133 @@ func TestOlderInventoryRenders(t *testing.T) {
 	for range rows {
 		model.View()
 		model.move(1)
+	}
+}
+
+// drain runs cmd and everything it leads to, feeding each message back to
+// the model.
+func drain(model *pickerModel, cmd tea.Cmd) {
+	pending := []tea.Cmd{cmd}
+	for len(pending) > 0 {
+		next := pending[0]
+		pending = pending[1:]
+		if next == nil {
+			continue
+		}
+		msg := next()
+		if batch, ok := msg.(tea.BatchMsg); ok {
+			pending = append(pending, batch...)
+			continue
+		}
+		_, follow := model.Update(msg)
+		pending = append(pending, follow)
+	}
+}
+
+func TestSelectedDirectoryRereadsGit(t *testing.T) {
+	down := tea.KeyMsg{Type: tea.KeyDown}
+	up := tea.KeyMsg{Type: tea.KeyUp}
+	cases := []struct {
+		name string
+		// seed puts a matching cache entry with dirty 99 in place first.
+		seed   bool
+		fail   bool
+		drive  func(t *testing.T, model *pickerModel)
+		before int
+		after  int
+		runs   int
+	}{
+		{
+			name: "cached details show at once, then the fresh read replaces them", seed: true,
+			drive:  func(_ *testing.T, model *pickerModel) { _, cmd := model.Update(down); drain(model, cmd) },
+			before: 99, after: 1, runs: 1,
+		},
+		{
+			name:  "without a cache entry the fresh read fills the preview",
+			drive: func(_ *testing.T, model *pickerModel) { _, cmd := model.Update(down); drain(model, cmd) },
+			after: 1, runs: 1,
+		},
+		{
+			name: "a failed read keeps the cached details", seed: true, fail: true,
+			drive:  func(_ *testing.T, model *pickerModel) { _, cmd := model.Update(down); drain(model, cmd) },
+			before: 99, after: 99, runs: 1,
+		},
+		{
+			name: "moving on before the cursor settles runs no git", seed: true,
+			drive: func(_ *testing.T, model *pickerModel) {
+				_, tick := model.Update(down)
+				model.Update(up)
+				drain(model, tick)
+				model.Update(down)
+			},
+			before: 99, after: 99, runs: 0,
+		},
+		{
+			name: "one read in flight per directory", seed: true,
+			drive: func(t *testing.T, model *pickerModel) {
+				_, tick := model.Update(down)
+				_, read := model.Update(tick())
+				if read == nil {
+					t.Fatal("the settled cursor should start a read")
+				}
+				model.Update(up)
+				_, again := model.Update(down)
+				if _, second := model.Update(again()); second != nil {
+					t.Fatal("a second read started while the first runs")
+				}
+				drain(model, read)
+			},
+			before: 99, after: 1, runs: 1,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeFile(t, filepath.Join(dir, ".git/HEAD"), "ref: refs/heads/main\n")
+			writeFile(t, filepath.Join(dir, ".git/index"), "index")
+			repo, _ := openRepo(dir)
+			cachePath := filepath.Join(t.TempDir(), "git.json")
+			cache := loadGitCache(cachePath)
+			runs := 0
+			cache.run = func(context.Context, string) (*GitDetails, string) {
+				runs++
+				if c.fail {
+					return nil, ""
+				}
+				return &GitDetails{Dirty: runs}, ""
+			}
+			if c.seed {
+				cache.entries[dir] = gitCacheEntry{Fingerprint: repo.fingerprint(""), Read: time.Now().Unix(), Details: &GitDetails{Dirty: 99}}
+			}
+			row := directory("jacurutu", dir)
+			row.Local, row.Git = true, true
+			model := newPickerModel([]Row{session("jacurutu", "$1", 900), row}, "jacurutu", "", nil, map[string]hostCache{}, map[string]bool{})
+			model.git, model.gitDebounce = cache, 0
+			model.Update(tea.WindowSizeMsg{Width: 120, Height: 20})
+			dirty := func() int {
+				summary := model.rows[1].Summary
+				if summary == nil || summary.Git == nil {
+					return 0
+				}
+				return summary.Git.Dirty
+			}
+			model.Update(down)
+			if got := dirty(); got != c.before {
+				t.Fatalf("on selection the preview shows dirty %d, want %d", got, c.before)
+			}
+			model.Update(up)
+			c.drive(t, model)
+			if got := dirty(); got != c.after || runs != c.runs {
+				t.Fatalf("after: dirty %d (want %d), %d git runs (want %d)", got, c.after, runs, c.runs)
+			}
+			if len(model.gitPending) != 0 {
+				t.Fatalf("reads still marked running: %v", model.gitPending)
+			}
+			if c.runs > 0 && !c.fail {
+				if entry := readGitCacheEntries(cachePath)[dir]; entry.Details == nil || entry.Details.Dirty != c.after {
+					t.Fatalf("the fresh read should be saved: %+v", entry)
+				}
+			}
+		})
 	}
 }
