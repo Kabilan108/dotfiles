@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 )
 
 type DirEntry struct {
@@ -13,13 +17,23 @@ type DirEntry struct {
 }
 
 type DirSummary struct {
-	Branch  string     `json:"branch,omitempty"`
-	Visible int        `json:"visible"`
-	Hidden  int        `json:"hidden"`
-	Entries []DirEntry `json:"entries"`
+	Branch  string      `json:"branch,omitempty"`
+	Visible int         `json:"visible"`
+	Hidden  int         `json:"hidden"`
+	Entries []DirEntry  `json:"entries"`
+	Readme  string      `json:"readme,omitempty"`
+	Git     *GitDetails `json:"git,omitempty"`
 }
 
-const previewEntryLimit = 40
+const (
+	previewEntryLimit = 40
+	readmeReadLimit   = 8 << 10
+	readmeLineLimit   = 200
+	// gitBudget caps the git phase of one inventory, so a cold cache on a
+	// host with many repositories still answers well inside the picker's
+	// ssh timeout. Repositories it skips are read on a later run.
+	gitBudget = 5 * time.Second
+)
 
 type foundDirectory struct {
 	Name string
@@ -118,6 +132,8 @@ func ignored(name, relative string, patterns []string) bool {
 	return false
 }
 
+// summarizeDirectory lists path for the preview. It reads no git state but
+// the branch; addGitDetails fills in the rest.
 func summarizeDirectory(path string) *DirSummary {
 	entries, err := os.ReadDir(path)
 	if err != nil {
@@ -125,18 +141,23 @@ func summarizeDirectory(path string) *DirSummary {
 	}
 	summary := &DirSummary{Branch: gitBranch(path)}
 	var visible []DirEntry
+	readme := ""
 	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), ".") {
+		name := entry.Name()
+		if strings.HasPrefix(name, ".") {
 			summary.Hidden++
 			continue
 		}
 		isDir := entry.IsDir()
 		if entry.Type()&os.ModeSymlink != 0 {
-			if info, err := os.Stat(filepath.Join(path, entry.Name())); err == nil {
+			if info, err := os.Stat(filepath.Join(path, name)); err == nil {
 				isDir = info.IsDir()
 			}
 		}
-		visible = append(visible, DirEntry{Name: entry.Name(), Dir: isDir})
+		if !isDir && readme == "" && strings.HasPrefix(strings.ToLower(name), "readme") {
+			readme = name
+		}
+		visible = append(visible, DirEntry{Name: name, Dir: isDir})
 	}
 	sort.SliceStable(visible, func(i, j int) bool {
 		if visible[i].Dir != visible[j].Dir {
@@ -149,43 +170,90 @@ func summarizeDirectory(path string) *DirSummary {
 		visible = visible[:previewEntryLimit]
 	}
 	summary.Entries = visible
+	if readme != "" {
+		summary.Readme = readmeLine(readHead(filepath.Join(path, readme), readmeReadLimit), filepath.Base(path))
+	}
 	return summary
 }
 
-func gitBranch(path string) string {
-	gitPath := filepath.Join(path, ".git")
-	info, err := os.Stat(gitPath)
+func readHead(path string, limit int) string {
+	file, err := os.Open(path)
 	if err != nil {
 		return ""
 	}
-	headPath := filepath.Join(gitPath, "HEAD")
-	if !info.IsDir() {
-		data, err := os.ReadFile(gitPath)
-		if err != nil {
-			return ""
+	defer file.Close()
+	data, _ := io.ReadAll(io.LimitReader(file, int64(limit)))
+	return string(data)
+}
+
+// readmeLine picks the first line of a README that says something: not
+// blank, not a badge, image, HTML, or rule, and not a heading that only
+// repeats the directory's name.
+func readmeLine(text, name string) string {
+	inComment := false
+	for _, raw := range strings.Split(text, "\n") {
+		line := strings.TrimSpace(raw)
+		if inComment {
+			inComment = !strings.Contains(line, "-->")
+			continue
 		}
-		gitDir, ok := strings.CutPrefix(strings.TrimSpace(string(data)), "gitdir: ")
-		if !ok {
-			return ""
+		if strings.HasPrefix(line, "<!--") {
+			inComment = !strings.Contains(line, "-->")
+			continue
 		}
-		if !filepath.IsAbs(gitDir) {
-			gitDir = filepath.Join(path, gitDir)
+		if line == "" || strings.HasPrefix(line, "<") || strings.HasPrefix(line, "![") ||
+			strings.HasPrefix(line, "[!") || strings.HasPrefix(line, "```") ||
+			strings.Trim(line, "-=*_~ ") == "" {
+			continue
 		}
-		headPath = filepath.Join(gitDir, "HEAD")
+		line = strings.TrimSpace(strings.TrimLeft(line, "#"))
+		if line == "" || strings.EqualFold(line, name) {
+			continue
+		}
+		line = sanitize(line)
+		if len([]rune(line)) > readmeLineLimit {
+			line = string([]rune(line)[:readmeLineLimit])
+		}
+		return line
 	}
-	data, err := os.ReadFile(headPath)
-	if err != nil {
-		return ""
+	return ""
+}
+
+// addGitDetails fills in summary.Git for a repository, from cache when the
+// repository hasn't changed.
+func addGitDetails(ctx context.Context, summary *DirSummary, path string, cache *gitCache) {
+	if summary == nil || cache == nil {
+		return
 	}
-	head := strings.TrimSpace(string(data))
-	if branch, ok := strings.CutPrefix(head, "ref: refs/heads/"); ok {
-		return branch
+	repo, ok := openRepo(path)
+	if !ok {
+		return
 	}
-	if strings.HasPrefix(head, "ref:") {
-		return strings.TrimSpace(strings.TrimPrefix(head, "ref:"))
+	summary.Git = cache.details(ctx, path, repo)
+}
+
+// summarizeDirectories summarizes every directory with bounded parallelism,
+// keeping paths' order.
+func summarizeDirectories(paths []string, cache *gitCache) []*DirSummary {
+	ctx, cancel := context.WithTimeout(context.Background(), gitBudget)
+	defer cancel()
+	summaries := make([]*DirSummary, len(paths))
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	for range min(gitWorkers, len(paths)) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range jobs {
+				summaries[i] = summarizeDirectory(paths[i])
+				addGitDetails(ctx, summaries[i], paths[i], cache)
+			}
+		}()
 	}
-	if len(head) > 7 {
-		return head[:7]
+	for i := range paths {
+		jobs <- i
 	}
-	return head
+	close(jobs)
+	wg.Wait()
+	return summaries
 }
