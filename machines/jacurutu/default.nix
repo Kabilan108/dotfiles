@@ -62,14 +62,13 @@ in
     ];
   };
 
-  # docs/backups.md. Off until the rollout on jacurutu: its host key goes into
-  # lib/fleet.nix, then the placeholder secrets get real values.
+  # docs/backups.md
   age.secrets = lib.mkIf config.dotfiles.backup.enable {
     backup-smb.file = ../../secrets/backup/jacurutu-smb.age;
     backup-restic.file = ../../secrets/backup/jacurutu-restic.age;
   };
   dotfiles.backup = {
-    enable = false;
+    enable = true;
     nas = {
       address = fleet.devices.dar-es-balat.tailscaleIp;
       share = "backup-jacurutu";

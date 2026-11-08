@@ -8,6 +8,7 @@ let
   tleilax = [ fleet.hosts.tleilax.hostPubkey ] ++ fleet.ageRecipients;
   tleilaxReady = builtins.length fleet.ageRecipients >= 2;
   backupSietch = [ fleet.hosts.sietch.hostPubkey ] ++ fleet.ageRecipients;
+  backupJacurutu = [ fleet.hosts.jacurutu.hostPubkey ] ++ fleet.ageRecipients;
 in
 (
   if tleilaxReady then
@@ -22,6 +23,8 @@ in
   # (docs/backups.md).
   "secrets/backup/sietch-smb.age".publicKeys = backupSietch;
   "secrets/backup/sietch-restic.age".publicKeys = backupSietch;
+  "secrets/backup/jacurutu-smb.age".publicKeys = backupJacurutu;
+  "secrets/backup/jacurutu-restic.age".publicKeys = backupJacurutu;
   "secrets/agent-browser-encryption-key.age".publicKeys = [
     sietch
     jacurutu
