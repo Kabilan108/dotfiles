@@ -17,6 +17,7 @@ type previewContext struct {
 	width   int
 	pending bool
 	updated int64
+	loading bool
 }
 
 func relativeAge(timestamp int64, now time.Time) string {
@@ -204,7 +205,9 @@ func directoryPreview(row Row, ctx previewContext) ([]string, string) {
 	hint := paint(colorOverlay0, "enter creates session "+directorySessionName(row.Target)+" on "+row.Host)
 	summary := row.Summary
 	if summary == nil {
-		if row.Local {
+		if row.Local && ctx.loading {
+			lines = append(lines, "", paint(colorOverlay1, "reading…"))
+		} else if row.Local {
 			lines = append(lines, "", paint(colorOverlay1, "cannot read this directory"))
 		} else {
 			lines = append(lines, "", paint(colorOverlay1, row.Host+" sent no listing; it may run an older sessionizer"))

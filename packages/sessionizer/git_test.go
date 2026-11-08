@@ -2,9 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -81,7 +86,7 @@ func TestParsePorcelainV2(t *testing.T) {
 				"? untracked.txt\n! ignored.log\n",
 			porcelainStatus{upstream: "origin/main", ahead: 3, behind: 2, dirty: 4},
 		},
-		{"no upstream", "# branch.oid (initial)\n# branch.head main\n? a\n? b\n", porcelainStatus{dirty: 2}},
+		{"unborn, no upstream", "# branch.oid (initial)\n# branch.head main\n? a\n? b\n", porcelainStatus{unborn: true, dirty: 2}},
 		{"detached", "# branch.oid 1234\n# branch.head (detached)\n1 M. N... 1 1 1 a a f\n", porcelainStatus{dirty: 1}},
 	}
 	for _, c := range cases {
@@ -107,9 +112,9 @@ func TestGitCache(t *testing.T) {
 	cachePath := filepath.Join(root, "cache", "git.json")
 
 	runs := 0
-	fake := func(_ context.Context, _ string) (*GitDetails, string) {
+	fake := func(_ context.Context, _ string) gitResult {
 		runs++
-		return &GitDetails{Dirty: runs}, "origin/main"
+		return gitResult{details: &GitDetails{Dirty: runs}, upstream: "origin/main", complete: true}
 	}
 	cache := loadGitCache(cachePath)
 	cache.run = fake
@@ -164,7 +169,7 @@ func TestGitCache(t *testing.T) {
 	}
 
 	failing := loadGitCache(cachePath)
-	failing.run = func(context.Context, string) (*GitDetails, string) { return nil, "" }
+	failing.run = func(context.Context, string) gitResult { return gitResult{} }
 	writeFile(t, filepath.Join(root, "other/.git/HEAD"), "ref: refs/heads/main\n")
 	other, _ := openRepo(filepath.Join(root, "other"))
 	if details := failing.details(context.Background(), filepath.Join(root, "other"), other); details != nil || len(failing.changed) != 0 {
@@ -233,9 +238,10 @@ func TestRunGitAgainstRealRepository(t *testing.T) {
 		t.Fatal("no repository")
 	}
 	before := repo.fingerprint("")
-	details, upstream := runGit(context.Background(), dir)
-	if details == nil || details.Dirty != 2 || details.Subject != "first commit" || details.Commit == "" || details.Time == 0 || upstream != "" {
-		t.Fatalf("details %+v, upstream %q", details, upstream)
+	result := runGit(context.Background(), dir)
+	details := result.details
+	if details == nil || details.Dirty != 2 || details.Subject != "first commit" || details.Commit == "" || details.Time == 0 || result.upstream != "" || !result.complete {
+		t.Fatalf("result %+v, details %+v", result, details)
 	}
 	if after := repo.fingerprint(""); after != before {
 		t.Fatalf("git status rewrote the index, so the cache would always miss: %s then %s", before, after)
@@ -264,9 +270,9 @@ func TestGitCacheTTL(t *testing.T) {
 			runs := 0
 			cache := loadGitCache(filepath.Join(t.TempDir(), "git.json"))
 			cache.now = func() time.Time { return base.Add(c.age) }
-			cache.run = func(context.Context, string) (*GitDetails, string) {
+			cache.run = func(context.Context, string) gitResult {
 				runs++
-				return &GitDetails{Dirty: 7}, ""
+				return gitResult{details: &GitDetails{Dirty: 7}, complete: true}
 			}
 			cache.entries[dir] = gitCacheEntry{Fingerprint: repo.fingerprint(""), Read: c.read, Details: &GitDetails{Dirty: 1}}
 			details := cache.details(context.Background(), dir, repo)
@@ -287,5 +293,254 @@ func TestGitCacheTTL(t *testing.T) {
 				t.Fatalf("an unchanged repository's details should still show however old: %+v %v", cached, ok)
 			}
 		})
+	}
+}
+
+// fakeGit puts a git on PATH that runs script with the subcommand in $cmd and
+// logs each subcommand to the returned file.
+func fakeGit(t *testing.T, script string) string {
+	t.Helper()
+	dir := t.TempDir()
+	calls := filepath.Join(dir, "calls")
+	body := "#!/bin/sh\ncmd=\nfor a; do case $a in status|log) cmd=$a; break;; esac; done\necho $cmd >> " + calls + "\n" + script
+	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(body), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+":"+os.Getenv("PATH"))
+	return calls
+}
+
+func gitCalls(t *testing.T, calls string) string {
+	t.Helper()
+	data, err := os.ReadFile(calls)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	return strings.Join(strings.Fields(string(data)), " ")
+}
+
+const (
+	fakeStatus = `printf '# branch.oid abc\n# branch.head main\n1 .M N... 1 1 1 a a f\n'`
+	fakeLog    = `printf 'abc1234\037%s\037subject\n' 1700000000`
+)
+
+func TestRunGitResults(t *testing.T) {
+	cases := []struct {
+		name     string
+		script   string
+		deadline time.Duration
+		within   time.Duration
+		details  bool
+		commit   string
+		complete bool
+		calls    string
+	}{
+		{
+			name:   "status and log",
+			script: "case $cmd in status) " + fakeStatus + ";; log) " + fakeLog + ";; esac\n",
+			within: time.Second, details: true, commit: "abc1234", complete: true, calls: "status log",
+		},
+		{
+			name:   "a failing log leaves the read incomplete",
+			script: "case $cmd in status) " + fakeStatus + ";; log) exit 1;; esac\n",
+			within: time.Second, details: true, calls: "status log",
+		},
+		{
+			name:   "an unborn repository has no commit to read",
+			script: "case $cmd in status) printf '# branch.oid (initial)\\n# branch.head main\\n? new\\n';; log) exit 128;; esac\n",
+			within: time.Second, details: true, complete: true, calls: "status",
+		},
+		{
+			name:   "a failing status gives nothing",
+			script: "exit 128\n",
+			within: time.Second, calls: "status",
+		},
+		{
+			name:     "status and log share the caller's deadline",
+			script:   "sleep 0.18\ncase $cmd in status) " + fakeStatus + ";; log) " + fakeLog + ";; esac\n",
+			deadline: 250 * time.Millisecond,
+			within:   400 * time.Millisecond, details: true, calls: "status log",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			calls := fakeGit(t, c.script)
+			ctx := context.Background()
+			if c.deadline > 0 {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, c.deadline)
+				defer cancel()
+			}
+			start := time.Now()
+			result := runGit(ctx, t.TempDir())
+			if elapsed := time.Since(start); elapsed > c.within {
+				t.Fatalf("took %s, want under %s", elapsed, c.within)
+			}
+			if (result.details != nil) != c.details || result.complete != c.complete {
+				t.Fatalf("result %+v, want details %v complete %v", result, c.details, c.complete)
+			}
+			if c.details && result.details.Commit != c.commit {
+				t.Fatalf("commit %q, want %q", result.details.Commit, c.commit)
+			}
+			if got := gitCalls(t, calls); got != c.calls {
+				t.Fatalf("git ran %q, want %q", got, c.calls)
+			}
+		})
+	}
+}
+
+// processGone reports whether pid has exited, counting an unreaped zombie
+// as gone.
+func processGone(pid int) bool {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	if err != nil {
+		return true
+	}
+	stat := string(data)
+	return strings.HasPrefix(strings.TrimSpace(stat[strings.LastIndex(stat, ")")+1:]), "Z")
+}
+
+func TestGitHelpersDieWithGit(t *testing.T) {
+	cases := []struct {
+		name     string
+		script   string
+		deadline time.Duration
+		details  bool
+	}{
+		{
+			name:     "a helper holding the pipes is killed at the deadline",
+			script:   "sleep 3 &\necho $! > $HELPER\nwait\n",
+			deadline: 150 * time.Millisecond,
+		},
+		{
+			name:     "a helper left behind by a git that exited is killed",
+			script:   "sleep 3 &\necho $! > $HELPER\ncase $cmd in status) " + fakeStatus + ";; log) " + fakeLog + ";; esac\n",
+			deadline: 2 * time.Second,
+			details:  true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			helper := filepath.Join(t.TempDir(), "helper")
+			t.Setenv("HELPER", helper)
+			fakeGit(t, c.script)
+			ctx, cancel := context.WithTimeout(context.Background(), c.deadline)
+			defer cancel()
+			start := time.Now()
+			result := runGit(ctx, t.TempDir())
+			if elapsed := time.Since(start); elapsed > c.deadline+time.Second {
+				t.Fatalf("took %s with a %s deadline", elapsed, c.deadline)
+			}
+			if (result.details != nil) != c.details {
+				t.Fatalf("result %+v, want details %v", result, c.details)
+			}
+			data, err := os.ReadFile(helper)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pid, err := strconv.Atoi(strings.TrimSpace(strings.Split(string(data), "\n")[0]))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for range 50 {
+				if processGone(pid) {
+					return
+				}
+				time.Sleep(20 * time.Millisecond)
+			}
+			syscall.Kill(pid, syscall.SIGKILL)
+			t.Fatalf("helper %d outlived git", pid)
+		})
+	}
+}
+
+func TestRealGitSkipsSlowFsmonitor(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	dir := t.TempDir()
+	for _, args := range [][]string{{"init", "-q"}, {"config", "core.fsmonitor", filepath.Join(dir, "monitor")}} {
+		if out, err := run(runOptions{}, append([]string{"git", "-C", dir}, args...)...); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	writeFile(t, filepath.Join(dir, "tracked"), "x")
+	if out, err := run(runOptions{}, "git", "-C", dir, "-c", "core.fsmonitor=false", "add", "tracked"); err != nil {
+		t.Fatalf("git add: %v %s", err, out)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "monitor"), []byte("#!/bin/sh\nsleep 3\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	result := runGit(context.Background(), dir)
+	if elapsed := time.Since(start); elapsed > time.Second || result.details == nil {
+		t.Fatalf("a configured fsmonitor ran: took %s, result %+v", elapsed, result)
+	}
+}
+
+func TestGitCachePartialReads(t *testing.T) {
+	cases := []struct {
+		name     string
+		complete bool
+		reruns   bool
+	}{
+		{name: "a complete read is fresh for the TTL", complete: true, reruns: false},
+		{name: "a read missing its commit is retried next time", complete: false, reruns: true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeFile(t, filepath.Join(dir, ".git/HEAD"), "ref: refs/heads/main\n")
+			repo, _ := openRepo(dir)
+			runs := 0
+			cache := loadGitCache(filepath.Join(t.TempDir(), "git.json"))
+			cache.run = func(context.Context, string) gitResult {
+				runs++
+				return gitResult{details: &GitDetails{Dirty: 3}, complete: c.complete}
+			}
+			if details := cache.details(context.Background(), dir, repo); details == nil || details.Dirty != 3 {
+				t.Fatalf("the partial status should still show: %+v", details)
+			}
+			if shown, ok := cache.cached(dir, repo); !ok || shown.Dirty != 3 {
+				t.Fatalf("the preview should find the stored read: %+v %v", shown, ok)
+			}
+			cache.details(context.Background(), dir, repo)
+			if reran := runs == 2; reran != c.reruns {
+				t.Fatalf("git ran %d times, want rerun %v", runs, c.reruns)
+			}
+		})
+	}
+}
+
+func TestGitCacheSavesAcrossWriters(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "git.json")
+	const writers, entries = 4, 5000
+	caches := make([]*gitCache, writers)
+	for w := range caches {
+		caches[w] = loadGitCache(path)
+		for i := range entries {
+			key := fmt.Sprintf("/%d/%d", w, i)
+			caches[w].entries[key] = gitCacheEntry{Read: 1, Details: &GitDetails{Dirty: i}}
+			caches[w].changed[key] = true
+		}
+	}
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for _, cache := range caches {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			if err := cache.save(nil); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	if got := len(readGitCacheEntries(path)); got != writers*entries {
+		t.Fatalf("kept %d of %d entries written at once", got, writers*entries)
 	}
 }

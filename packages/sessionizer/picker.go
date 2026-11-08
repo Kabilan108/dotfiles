@@ -48,6 +48,11 @@ type gitTickMsg struct {
 	id string
 }
 
+type summaryMsg struct {
+	id      string
+	summary *DirSummary
+}
+
 // listItem is one entry of the drawn list: a section header, or the row at
 // visible[row].
 type listItem struct {
@@ -94,22 +99,28 @@ type pickerModel struct {
 	git         *gitCache
 	gitDebounce time.Duration
 	// gitSelected is the selection a git read was last scheduled for;
-	// gitPending holds the rows whose read is running.
+	// gitPending holds the rows whose read is running, and freshGit the
+	// latest read for each row, which wins over a summary landing later.
 	gitSelected string
 	gitPending  map[string]bool
+	freshGit    map[string]*GitDetails
+	// summaryLoading holds the local directories whose listing is being read.
+	summaryLoading map[string]bool
 }
 
 func newPickerModel(rows []Row, localHost, localColor string, hosts []FleetHost, caches map[string]hostCache, favorites map[string]bool) *pickerModel {
 	model := &pickerModel{
-		rows:        rows,
-		machines:    []string{"", localHost},
-		colors:      map[string]string{localHost: localColor},
-		rank:        newHostRank(localHost, hosts),
-		favorites:   favorites,
-		now:         time.Now,
-		refresh:     refreshHost,
-		gitDebounce: gitDebounce,
-		gitPending:  map[string]bool{},
+		rows:           rows,
+		machines:       []string{"", localHost},
+		colors:         map[string]string{localHost: localColor},
+		rank:           newHostRank(localHost, hosts),
+		favorites:      favorites,
+		now:            time.Now,
+		refresh:        refreshHost,
+		gitDebounce:    gitDebounce,
+		gitPending:     map[string]bool{},
+		freshGit:       map[string]*GitDetails{},
+		summaryLoading: map[string]bool{},
 	}
 	for _, host := range hosts {
 		model.machines = append(model.machines, host.Name)
@@ -148,6 +159,8 @@ func (m *pickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.applyGit(msg)
 	case gitTickMsg:
 		command = m.startGit(msg)
+	case summaryMsg:
+		m.applySummary(msg)
 	case tea.KeyMsg:
 		command = m.handleKey(msg)
 	}
@@ -167,8 +180,22 @@ func (m *pickerModel) applyRefresh(msg refreshMsg) {
 	}
 	keep := m.selectedID()
 	fresh := remoteRows(msg.host, msg.cache, m.favorites)
-	m.rows = m.rank.mergeHostRows(m.rows, msg.host.Name, fresh)
+	m.rows = m.rank.mergeHostRows(m.rows, msg.host.Name, fresh, keep)
 	m.refilter(keep)
+}
+
+func (m *pickerModel) applySummary(msg summaryMsg) {
+	delete(m.summaryLoading, msg.id)
+	for i := range m.rows {
+		if m.rows[i].ID != msg.id || m.rows[i].Summary != nil || msg.summary == nil {
+			continue
+		}
+		summary := *msg.summary
+		if details, ok := m.freshGit[msg.id]; ok {
+			summary.Git = details
+		}
+		m.rows[i].Summary = &summary
+	}
 }
 
 func (m *pickerModel) applyGit(msg gitMsg) {
@@ -176,6 +203,7 @@ func (m *pickerModel) applyGit(msg gitMsg) {
 	if msg.details == nil {
 		return
 	}
+	m.freshGit[msg.id] = msg.details
 	for i := range m.rows {
 		if m.rows[i].ID == msg.id && m.rows[i].Summary != nil {
 			summary := *m.rows[i].Summary
@@ -185,36 +213,40 @@ func (m *pickerModel) applyGit(msg gitMsg) {
 	}
 }
 
-// loadSelected reads the selected local directory for the preview. Cached
-// git details show at once when the repository hasn't changed; either way a
-// fresh read follows in the background once the cursor settles, because the
-// cache can't see unstaged edits.
+// loadSelected reads the selected local directory for the preview, off the
+// update loop, since a directory can sit on a slow or hung filesystem.
+// Cached git details show as soon as the listing does when the repository
+// hasn't changed; either way a fresh read follows once the cursor settles,
+// because the cache can't see unstaged edits.
 func (m *pickerModel) loadSelected() tea.Cmd {
 	if m.cursor < 0 || m.cursor >= len(m.visible) {
 		return nil
 	}
-	row := &m.rows[m.visible[m.cursor]]
+	row := m.rows[m.visible[m.cursor]]
 	if row.Session || !row.Local {
 		m.gitSelected = row.ID
 		return nil
 	}
-	if row.Summary == nil {
-		row.Summary = summarizeDirectory(row.Path)
-		if row.Summary == nil {
-			return nil
-		}
-		if repo, ok := openRepo(row.Path); ok && m.git != nil {
-			if details, ok := m.git.cached(row.Path, repo); ok {
-				row.Summary.Git = details
+	var commands []tea.Cmd
+	if row.Summary == nil && !m.summaryLoading[row.ID] {
+		m.summaryLoading[row.ID] = true
+		id, path, cache := row.ID, row.Path, m.git
+		commands = append(commands, func() tea.Msg {
+			summary := summarizeDirectory(path)
+			if summary != nil && cache != nil {
+				if repo, ok := openRepo(path); ok {
+					summary.Git, _ = cache.cached(path, repo)
+				}
 			}
-		}
+			return summaryMsg{id: id, summary: summary}
+		})
 	}
-	if m.git == nil || !row.Git || m.gitSelected == row.ID {
-		return nil
+	if m.git != nil && row.Git && m.gitSelected != row.ID {
+		m.gitSelected = row.ID
+		id := row.ID
+		commands = append(commands, tea.Tick(m.gitDebounce, func(time.Time) tea.Msg { return gitTickMsg{id: id} }))
 	}
-	m.gitSelected = row.ID
-	id := row.ID
-	return tea.Tick(m.gitDebounce, func(time.Time) tea.Msg { return gitTickMsg{id: id} })
+	return tea.Batch(commands...)
 }
 
 // startGit reads the selected directory's git status once the cursor has

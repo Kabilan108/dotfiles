@@ -277,9 +277,10 @@ func (rank hostRank) sortRows(rows []Row) {
 
 // mergeHostRows folds a host's fresh rows into an open picker without moving
 // rows that are already shown. Rows the host no longer has drop out, except
-// the current one, which can be newer than a cached inventory. New sessions
-// go after the last session and new directories at the end.
-func (rank hostRank) mergeHostRows(rows []Row, host string, fresh []Row) []Row {
+// the current one, which can be newer than a cached inventory, and the
+// selected one, so a refresh never moves the cursor. New sessions go after
+// the last session and new directories at the end.
+func (rank hostRank) mergeHostRows(rows []Row, host string, fresh []Row, selected string) []Row {
 	freshByID := make(map[string]Row, len(fresh))
 	for _, row := range fresh {
 		freshByID[row.ID] = row
@@ -292,7 +293,7 @@ func (rank hostRank) mergeHostRows(rows []Row, host string, fresh []Row) []Row {
 		}
 		update, ok := freshByID[row.ID]
 		if !ok {
-			if row.Current {
+			if row.Current || row.ID == selected {
 				merged = append(merged, row)
 			}
 			continue

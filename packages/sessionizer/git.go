@@ -1,14 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -18,7 +22,10 @@ const (
 	// fingerprint can't see, such as unstaged changes to tracked files.
 	gitCacheTTL = 10 * time.Minute
 	gitWorkers  = 8
-	gitCacheVer = 1
+	// gitWaitDelay bounds the wait for git's output once git has exited or
+	// been killed, in case a child it left behind holds the pipe open.
+	gitWaitDelay = 100 * time.Millisecond
+	gitCacheVer  = 1
 )
 
 // gitRepo locates a repository's metadata without running git. dir holds
@@ -164,6 +171,7 @@ type GitDetails struct {
 }
 
 type porcelainStatus struct {
+	unborn   bool
 	upstream string
 	ahead    int
 	behind   int
@@ -174,6 +182,8 @@ func parsePorcelainV2(out string) porcelainStatus {
 	var status porcelainStatus
 	for _, line := range strings.Split(out, "\n") {
 		switch {
+		case line == "# branch.oid (initial)":
+			status.unborn = true
 		case strings.HasPrefix(line, "# branch.upstream "):
 			status.upstream = strings.TrimPrefix(line, "# branch.upstream ")
 		case strings.HasPrefix(line, "# branch.ab "):
@@ -207,27 +217,66 @@ func parseLastCommit(out string, details *GitDetails) {
 	details.Subject = fields[2]
 }
 
-// runGit reads a repository's status and last commit. It returns nil when
-// git is missing, fails, or runs out of time, so nothing wrong is cached.
-func runGit(ctx context.Context, path string) (*GitDetails, string) {
-	timeout := gitTimeout
-	if deadline, ok := ctx.Deadline(); ok {
-		timeout = min(timeout, time.Until(deadline))
+// gitCommand runs git in dir in its own process group, which is killed when
+// the context ends and again once git is done, so no helper git started
+// outlives it or keeps its output pipe open. Hooks such as fsmonitor are
+// turned off so they don't start at all.
+func gitCommand(ctx context.Context, dir string, args ...string) (string, error) {
+	args = append([]string{"--no-optional-locks", "-c", "core.fsmonitor=false", "-C", dir}, args...)
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0", "GIT_TERMINAL_PROMPT=0")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	cmd.WaitDelay = gitWaitDelay
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	if err := cmd.Start(); err != nil {
+		return "", err
 	}
-	if timeout <= 0 {
-		return nil, ""
+	group := cmd.Process.Pid
+	err := cmd.Wait()
+	syscall.Kill(-group, syscall.SIGKILL)
+	if ctx.Err() != nil {
+		return "", ctx.Err()
 	}
-	options := runOptions{timeout: timeout}
-	out, err := run(options, "git", "--no-optional-locks", "-C", path, "status", "--porcelain=v2", "--branch")
+	if err != nil && !errors.Is(err, exec.ErrWaitDelay) {
+		return "", err
+	}
+	return stdout.String(), nil
+}
+
+// gitResult is one read of a repository. complete is false when git log
+// failed or ran out of time, so the details lack the last commit.
+type gitResult struct {
+	details  *GitDetails
+	upstream string
+	complete bool
+}
+
+// runGit reads a repository's status and last commit within gitTimeout and
+// whatever deadline ctx carries. Details are nil when git is missing, fails,
+// or runs out of time before the status is in.
+func runGit(ctx context.Context, path string) gitResult {
+	ctx, cancel := context.WithTimeout(ctx, gitTimeout)
+	defer cancel()
+	out, err := gitCommand(ctx, path, "status", "--porcelain=v2", "--branch")
 	if err != nil {
-		return nil, ""
+		return gitResult{}
 	}
 	status := parsePorcelainV2(out)
-	details := &GitDetails{Dirty: status.dirty, Ahead: status.ahead, Behind: status.behind}
-	if out, err := run(options, "git", "--no-optional-locks", "-C", path, "log", "-1", "--format=%h%x1f%ct%x1f%s"); err == nil {
-		parseLastCommit(out, details)
+	result := gitResult{
+		details:  &GitDetails{Dirty: status.dirty, Ahead: status.ahead, Behind: status.behind},
+		upstream: status.upstream,
+		complete: status.unborn,
 	}
-	return details, status.upstream
+	if status.unborn {
+		return result
+	}
+	if out, err := gitCommand(ctx, path, "log", "-1", "--format=%h%x1f%ct%x1f%s"); err == nil {
+		parseLastCommit(out, result.details)
+		result.complete = true
+	}
+	return result
 }
 
 type gitCacheEntry struct {
@@ -249,7 +298,7 @@ type gitCache struct {
 	mu      sync.Mutex
 	entries map[string]gitCacheEntry
 	changed map[string]bool
-	run     func(context.Context, string) (*GitDetails, string)
+	run     func(context.Context, string) gitResult
 	now     func() time.Time
 }
 
@@ -305,27 +354,46 @@ func (c *gitCache) reread(ctx context.Context, path string, repo gitRepo) *GitDe
 	previous := c.entries[path].Upstream
 	c.mu.Unlock()
 	before := repo.fingerprint(previous)
-	details, upstream := c.run(ctx, path)
-	if details == nil {
+	result := c.run(ctx, path)
+	if result.details == nil {
 		return nil
 	}
 	fingerprint := before
-	if upstream != previous {
-		fingerprint = repo.fingerprint(upstream)
+	if result.upstream != previous {
+		fingerprint = repo.fingerprint(result.upstream)
+	}
+	// A partial read is kept so the preview shows it, but stamped as never
+	// read so the next lookup runs git again.
+	read := int64(0)
+	if result.complete {
+		read = c.now().Unix()
 	}
 	c.mu.Lock()
-	c.entries[path] = gitCacheEntry{Fingerprint: fingerprint, Upstream: upstream, Read: c.now().Unix(), Details: details}
+	c.entries[path] = gitCacheEntry{Fingerprint: fingerprint, Upstream: result.upstream, Read: read, Details: result.details}
 	c.changed[path] = true
 	c.mu.Unlock()
-	return details
+	return result.details
 }
 
-// save writes this run's new entries over what is on disk now, so pickers
-// and inventories running at once don't drop each other's work. With keep,
-// entries for other directories are pruned.
+// save writes this run's new entries over what is on disk now, under a lock
+// shared with other processes, so pickers and inventories running at once
+// don't drop each other's work. With keep, entries for other directories are
+// pruned.
 func (c *gitCache) save(keep map[string]bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if err := os.MkdirAll(filepath.Dir(c.path), 0o700); err != nil {
+		return err
+	}
+	lock, err := os.OpenFile(c.path+".lock", os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
+		return err
+	}
+	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
 	disk := readGitCacheEntries(c.path)
 	pruned := false
 	if keep != nil {
@@ -345,9 +413,6 @@ func (c *gitCache) save(keep map[string]bool) error {
 	c.changed = map[string]bool{}
 	data, err := json.Marshal(gitCacheFile{Version: gitCacheVer, Entries: disk})
 	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(c.path), 0o700); err != nil {
 		return err
 	}
 	return writeFileAtomic(c.path, data, 0o600)

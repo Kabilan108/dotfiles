@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 	"unicode"
 )
@@ -150,13 +151,13 @@ func summarizeDirectory(path string) *DirSummary {
 			summary.Hidden++
 			continue
 		}
-		isDir := entry.IsDir()
+		isDir, regular := entry.IsDir(), entry.Type().IsRegular()
 		if entry.Type()&os.ModeSymlink != 0 {
 			if info, err := os.Stat(filepath.Join(path, name)); err == nil {
-				isDir = info.IsDir()
+				isDir, regular = info.IsDir(), info.Mode().IsRegular()
 			}
 		}
-		if !isDir && readme == "" && strings.HasPrefix(strings.ToLower(name), "readme") {
+		if regular && readme == "" && strings.HasPrefix(strings.ToLower(name), "readme") {
 			readme = name
 		}
 		visible = append(visible, DirEntry{Name: name, Dir: isDir})
@@ -173,17 +174,23 @@ func summarizeDirectory(path string) *DirSummary {
 	}
 	summary.Entries = visible
 	if readme != "" {
-		summary.Readme = readmeLine(readHead(filepath.Join(path, readme), readmeReadLimit), filepath.Base(path))
+		summary.Readme = readmeLine(readRegularHead(filepath.Join(path, readme), readmeReadLimit), filepath.Base(path))
 	}
 	return summary
 }
 
-func readHead(path string, limit int) string {
-	file, err := os.Open(path)
+// readRegularHead reads up to limit bytes of a regular file. The open
+// doesn't block and the type is checked again on the open file, so a FIFO
+// or device swapped in after the directory listing can't hang the caller.
+func readRegularHead(path string, limit int) string {
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOCTTY, 0)
 	if err != nil {
 		return ""
 	}
 	defer file.Close()
+	if info, err := file.Stat(); err != nil || !info.Mode().IsRegular() {
+		return ""
+	}
 	data, _ := io.ReadAll(io.LimitReader(file, int64(limit)))
 	return string(data)
 }

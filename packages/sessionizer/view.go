@@ -333,7 +333,7 @@ func (m *pickerModel) previewColumn(width int) []string {
 	var lines []string
 	hint := ""
 	if row, ok := m.current(); ok {
-		ctx := previewContext{now: m.now(), width: inner}
+		ctx := previewContext{now: m.now(), width: inner, loading: m.summaryLoading[row.ID]}
 		if state, ok := m.hostState(row.Host); ok {
 			ctx.pending, ctx.updated = state.pending, state.updated
 		}

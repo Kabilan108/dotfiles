@@ -312,7 +312,10 @@ func TestOlderInventoryRenders(t *testing.T) {
 
 // drain runs cmd and everything it leads to, feeding each message back to
 // the model.
-func drain(model *pickerModel, cmd tea.Cmd) {
+func drain(model *pickerModel, cmd tea.Cmd) { drainExcept(model, cmd, nil) }
+
+// drainExcept is drain, dropping the messages drop matches.
+func drainExcept(model *pickerModel, cmd tea.Cmd, drop func(tea.Msg) bool) {
 	pending := []tea.Cmd{cmd}
 	for len(pending) > 0 {
 		next := pending[0]
@@ -323,6 +326,9 @@ func drain(model *pickerModel, cmd tea.Cmd) {
 		msg := next()
 		if batch, ok := msg.(tea.BatchMsg); ok {
 			pending = append(pending, batch...)
+			continue
+		}
+		if drop != nil && drop(msg) {
 			continue
 		}
 		_, follow := model.Update(msg)
@@ -395,12 +401,12 @@ func TestSelectedDirectoryRereadsGit(t *testing.T) {
 			cachePath := filepath.Join(t.TempDir(), "git.json")
 			cache := loadGitCache(cachePath)
 			runs := 0
-			cache.run = func(context.Context, string) (*GitDetails, string) {
+			cache.run = func(context.Context, string) gitResult {
 				runs++
 				if c.fail {
-					return nil, ""
+					return gitResult{}
 				}
-				return &GitDetails{Dirty: runs}, ""
+				return gitResult{details: &GitDetails{Dirty: runs}, complete: true}
 			}
 			if c.seed {
 				cache.entries[dir] = gitCacheEntry{Fingerprint: repo.fingerprint(""), Read: time.Now().Unix(), Details: &GitDetails{Dirty: 99}}
@@ -417,7 +423,8 @@ func TestSelectedDirectoryRereadsGit(t *testing.T) {
 				}
 				return summary.Git.Dirty
 			}
-			model.Update(down)
+			_, load := model.Update(down)
+			drainExcept(model, load, func(msg tea.Msg) bool { _, tick := msg.(gitTickMsg); return tick })
 			if got := dirty(); got != c.before {
 				t.Fatalf("on selection the preview shows dirty %d, want %d", got, c.before)
 			}
@@ -435,5 +442,50 @@ func TestSelectedDirectoryRereadsGit(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSelectedDirectoryLoadsOffUpdate(t *testing.T) {
+	dir := t.TempDir()
+	mkfifo(t, filepath.Join(dir, "README"))
+	writeFile(t, filepath.Join(dir, "main.go"), "")
+	row := directory("jacurutu", dir)
+	row.Local = true
+	model := newPickerModel([]Row{session("jacurutu", "$1", 900), row}, "jacurutu", "", nil, map[string]hostCache{}, map[string]bool{})
+	model.Update(tea.WindowSizeMsg{Width: 120, Height: 20})
+	done := make(chan tea.Cmd, 1)
+	go func() { _, cmd := model.Update(tea.KeyMsg{Type: tea.KeyDown}); done <- cmd }()
+	var load tea.Cmd
+	select {
+	case load = <-done:
+	case <-time.After(time.Second):
+		t.Fatal("the down key waited on the directory")
+	}
+	if model.rows[1].Summary != nil || load == nil {
+		t.Fatalf("the listing should be read by a command, not in Update: summary %+v", model.rows[1].Summary)
+	}
+	if view := ansi.Strip(model.View()); !strings.Contains(view, "reading…") {
+		t.Fatalf("the preview should say it is reading:\n%s", view)
+	}
+	drain(model, load)
+	if summary := model.rows[1].Summary; summary == nil || summary.Visible != 2 || summary.Readme != "" {
+		t.Fatalf("summary %+v", summary)
+	}
+	if view := ansi.Strip(model.View()); strings.Contains(view, "reading…") || !strings.Contains(view, "CONTENTS 2") {
+		t.Fatalf("the preview should show the listing:\n%s", view)
+	}
+}
+
+func TestRefreshKeepsSelectedRowItOmits(t *testing.T) {
+	sietch := FleetHost{Name: "sietch"}
+	model := testModel([]Row{session("jacurutu", "$1", 900), session("sietch", "$2", 800), session("sietch", "$3", 700)}, sietch)
+	model.move(1)
+	cursor, selected := model.cursor, model.selectedID()
+	model.Update(refreshMsg{host: sietch, cache: hostCache{Status: statusOnline, Sessions: []InventorySession{}}})
+	if model.cursor != cursor || model.selectedID() != selected {
+		t.Fatalf("refresh moved the cursor from %d %s to %d %s", cursor, selected, model.cursor, model.selectedID())
+	}
+	if got := ids(model.rows); !slices.Equal(got, []string{"session:jacurutu:$1", "session:sietch:$2"}) {
+		t.Fatalf("rows %v", got)
 	}
 }

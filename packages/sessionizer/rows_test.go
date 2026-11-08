@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"syscall"
 	"testing"
+	"time"
 )
 
 func ids(rows []Row) []string {
@@ -72,7 +74,7 @@ func TestMergeHostRowsKeepsPositions(t *testing.T) {
 		directory("sietch", "/s/new"),
 	}
 	fresh[0].Windows = "7"
-	merged := rank.mergeHostRows(rows, "sietch", fresh)
+	merged := rank.mergeHostRows(rows, "sietch", fresh, "")
 	want := []string{
 		"session:jacurutu:$1",
 		"session:sietch:$4",
@@ -94,7 +96,7 @@ func TestMergeKeepsCurrentRowMissingFromStaleCache(t *testing.T) {
 	current := session("sietch", "$9", 900)
 	current.Current = true
 	rows := []Row{current, session("jacurutu", "$1", 500)}
-	merged := rank.mergeHostRows(rows, "sietch", []Row{session("sietch", "$3", 100)})
+	merged := rank.mergeHostRows(rows, "sietch", []Row{session("sietch", "$3", 100)}, "")
 	if got := ids(merged); !slices.Equal(got, []string{"session:sietch:$9", "session:jacurutu:$1", "session:sietch:$3"}) {
 		t.Fatalf("got %v", got)
 	}
@@ -216,5 +218,77 @@ func TestInventoryCommandMatchesDeployGate(t *testing.T) {
 	t.Setenv("SESSIONIZER_REMOTE_PROGRAM", "")
 	if got := remoteSessionizer("--inventory"); got != `"$HOME/bin/sessionizer" --inventory` {
 		t.Fatalf("deploy-gate allows only the exact inventory command, got %s", got)
+	}
+}
+
+func TestReadmeOnlyFromRegularFiles(t *testing.T) {
+	cases := []struct {
+		name  string
+		setup func(t *testing.T, dir string)
+		want  string
+	}{
+		{"regular file", func(t *testing.T, dir string) { writeFile(t, filepath.Join(dir, "README.md"), "Real text\n") }, "Real text"},
+		{"fifo", func(t *testing.T, dir string) { mkfifo(t, filepath.Join(dir, "README")) }, ""},
+		{"symlink to a fifo", func(t *testing.T, dir string) {
+			mkfifo(t, filepath.Join(dir, ".pipe"))
+			symlink(t, filepath.Join(dir, ".pipe"), filepath.Join(dir, "README"))
+		}, ""},
+		{"symlink to a device", func(t *testing.T, dir string) { symlink(t, "/dev/zero", filepath.Join(dir, "README")) }, ""},
+		{"symlink to a regular file", func(t *testing.T, dir string) {
+			writeFile(t, filepath.Join(dir, ".real"), "Linked text\n")
+			symlink(t, filepath.Join(dir, ".real"), filepath.Join(dir, "README"))
+		}, "Linked text"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			c.setup(t, dir)
+			done := make(chan *DirSummary, 1)
+			go func() { done <- summarizeDirectory(dir) }()
+			select {
+			case summary := <-done:
+				if summary == nil || summary.Readme != c.want {
+					t.Fatalf("summary %+v, want readme %q", summary, c.want)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("summarizing blocked on the README")
+			}
+		})
+	}
+	if got := readRegularHead("/dev/zero", 16); got != "" {
+		t.Fatalf("read a device: %q", got)
+	}
+}
+
+func mkfifo(t *testing.T, path string) {
+	t.Helper()
+	if err := syscall.Mkfifo(path, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func symlink(t *testing.T, target, path string) {
+	t.Helper()
+	if err := os.Symlink(target, path); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMergeKeepsSelectedRowMissingFromRefresh(t *testing.T) {
+	rank := newHostRank("jacurutu", []FleetHost{{Name: "sietch"}})
+	rows := []Row{session("jacurutu", "$1", 500), session("sietch", "$2", 400), session("sietch", "$3", 300)}
+	cases := []struct {
+		name     string
+		selected string
+		want     []string
+	}{
+		{"selected row stays", "session:sietch:$2", []string{"session:jacurutu:$1", "session:sietch:$2"}},
+		{"unselected rows drop", "session:jacurutu:$1", []string{"session:jacurutu:$1"}},
+		{"nothing selected", "", []string{"session:jacurutu:$1"}},
+	}
+	for _, c := range cases {
+		if got := ids(rank.mergeHostRows(slices.Clone(rows), "sietch", nil, c.selected)); !slices.Equal(got, c.want) {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+		}
 	}
 }
