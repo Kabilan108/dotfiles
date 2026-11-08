@@ -25,9 +25,10 @@ a DS225+). Module: `modules/nixos/backup`. NAS access rules:
   which waits until a size alert says it's needed. The repositories are never
   initialised automatically, so a deleted repository fails the next run instead
   of being replaced by an empty one.
-- Backup secrets are encrypted only to the machine's root-only SSH host key
-  (`/etc/ssh/ssh_host_ed25519_key`), never to a user key. Agents running as
-  `kabilan` can't read them.
+- Backup secrets are encrypted to the machine's root-only SSH host key
+  (`/etc/ssh/ssh_host_ed25519_key`) and Tony's two YubiKey age identities
+  (`ageRecipients` in `lib/fleet.nix`), never to a user key. Agents running
+  as `kabilan` can't read them; Tony edits them on jacurutu with a YubiKey.
 
 ## What each machine backs up
 
@@ -125,13 +126,15 @@ Copy the share, NAS account and Restic password onto the paper recovery sheet.
 
 ### Secrets
 
-On that machine, in `~/dotfiles`:
+On jacurutu, in `~/dotfiles`, with a YubiKey plugged in (PIN once, then a
+touch per decryption):
 
 ```sh
-sudo env EDITOR=nvim agenix -e secrets/backup/<host>-smb.age -i /etc/ssh/ssh_host_ed25519_key
-sudo env EDITOR=nvim agenix -e secrets/backup/<host>-restic.age -i /etc/ssh/ssh_host_ed25519_key
-sudo chown kabilan:users secrets/backup/<host>-*.age
+agenix -e secrets/backup/<host>-smb.age -i ~/.config/age/yk-nfc.txt
+agenix -e secrets/backup/<host>-restic.age -i ~/.config/age/yk-nfc.txt
 ```
+
+Use `yk-nano.txt` with the other key.
 
 The `smb` file holds `username=svc-backup-<host>` and `password=REPLACE_ME`;
 replace only `REPLACE_ME` with the NAS password. The `restic` file holds only
@@ -139,7 +142,7 @@ replace only `REPLACE_ME` with the NAS password. The `restic` file holds only
 its Restic password is still the placeholder.
 
 Then set `dotfiles.backup.enable = true` in `machines/<host>/default.nix`,
-commit, and rebuild. Afterwards:
+commit, push, and deploy that host. Afterwards, on it:
 
 ```sh
 sudo restic-files init                  # once, after the real password is in
@@ -155,9 +158,9 @@ For an agent on jacurutu, with Tony. Don't do any of this from sietch.
 2. Put the public key (`cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub`) in
    `lib/fleet.nix` as `hosts.jacurutu.hostPubkey`.
 3. In `secrets.nix`, add
-   `jacurutuHost = (import ./lib/fleet.nix).hosts.jacurutu.hostPubkey;` and
-   entries for `secrets/backup/jacurutu-smb.age` and
-   `secrets/backup/jacurutu-restic.age` with `[ jacurutuHost ]`. Create the
+   `backupJacurutu = [ fleet.hosts.jacurutu.hostPubkey ] ++ fleet.ageRecipients;`
+   beside `backupSietch`, and entries for `secrets/backup/jacurutu-smb.age`
+   and `secrets/backup/jacurutu-restic.age` with `backupJacurutu`. Create the
    placeholders without a terminal (agenix reads stdin):
    `printf 'username=svc-backup-jacurutu\npassword=REPLACE_ME\n' | agenix -e secrets/backup/jacurutu-smb.age`
    and `printf 'REPLACE_ME\n' | agenix -e secrets/backup/jacurutu-restic.age`.
@@ -173,7 +176,7 @@ For an agent on jacurutu, with Tony. Don't do any of this from sietch.
 ## Later
 
 - tleilax gets its own share, NAS account and job after its rebuild; its
-  secrets are encrypted only to its own host key.
+  secrets are encrypted to its own host key and the YubiKeys, never sietch's.
 - Pruning (14 daily / 8 weekly / 12 monthly, plus `--keep-tag archive`), when
   the size alert asks for it. With pruning on, use `--keep-within-*` rules so
   a compromised machine can't push real snapshots out with fake ones.
