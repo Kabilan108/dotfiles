@@ -159,6 +159,7 @@ pkgs.testers.runNixOSTest {
         assert "/var/lib/backup-staging/services/svc/live.sqlite" in listing, listing
         assert "/var/lib/backup-staging/services/num/data.db" in listing, listing
         assert "/srv/svc/attachment.bin" in listing, listing
+        assert "-wal" not in listing and "-shm" not in listing, listing
         assert "/srv/svc/live.sqlite\n" not in listing and "/srv/num/data.db\n" not in listing, listing
         machine.succeed("test ! -e /var/lib/backup-staging/services")
         machine.succeed("restic-files restore latest --tag services --target /restore")

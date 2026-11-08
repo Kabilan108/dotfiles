@@ -141,6 +141,9 @@ let
   resticJob = name: job: {
     inherit (cfg) passwordFile repository inhibitsSleep;
     initialize = false;
+    # Without a terminal restic reports nothing until it ends; one line a
+    # minute shows a long first run moving in the journal.
+    progressFps = 1.0 / 60;
     paths = job.paths ++ lib.optional (job.sqlite != { }) "${stagingDir}/${name}";
     inherit (job) exclude;
     extraBackupArgs = [
