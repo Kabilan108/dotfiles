@@ -24,7 +24,7 @@ useful bash tools. some of these are used as part of my desktop env others are j
   uses fzf to select directories or ssh hosts, and opens them in a new or split tmux window.
 
 - [sessionizer](./sessionizer):
-  fleet-aware tmux session manager and project directory jumper with an fzf picker. It lists sessions and unused project directories from reachable machines, sessions first and ordered by most recent use. Tab and Shift-Tab cycle the machine filter, Ctrl-S cycles sessions/directories, and Ctrl-F (or `f` in normal mode) pins a favorite to the top; favorites live in `~/.local/state/sessionizer/favorites.json`. Remote selections replace the local tmux client over SSH and can return to the origin machine's picker without mirroring tmux state.
+  fleet-aware tmux session manager and project directory jumper; the Go source is in [packages/sessionizer](../packages/sessionizer). It lists sessions and unused project directories from reachable machines: the current session first, then favorites, then sessions by when you last visited them, then directories with this machine's first. Rows stay put while the picker is open, and the cursor starts on the previous session. Tab and Shift-Tab cycle the machine filter, Ctrl-S cycles all/sessions/directories, and Ctrl-F (or `f` in normal mode) pins a favorite to the top; favorites live in `~/.local/state/sessionizer/favorites.json`. A remote session shows through a local proxy session (`sessionizer-<host>`) whose pane is a tmux client of that host; M-s inside it opens the local picker, every other key goes to the remote tmux, and the remote prefix + d closes it.
 
 - [volctl](./volctl):
   adjusts audio volume and mute/unmute status with notifications; handles mic as well.

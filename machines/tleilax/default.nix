@@ -8,7 +8,7 @@
   ...
 }:
 let
-  sessionizer = pkgs.callPackage ../../packages/sessionizer.nix { };
+  sessionizer = pkgs.callPackage ../../packages/sessionizer { };
 in
 {
   imports = [
@@ -102,9 +102,9 @@ in
       # The laptop's picker attaches through "$HOME/bin/sessionizer".
       home.file."bin/sessionizer".source = "${sessionizer}/bin/sessionizer";
       # Offer only the home directory. deploy-gate gives the laptop's agent
-      # key the inventory alone, so the laptop's picker previews and creates
-      # sessions here over Tony's login connection. Depth 0 means the search
-      # path itself.
+      # key the inventory alone, which carries the picker's previews; opening
+      # a session here goes over Tony's login connection. Depth 0 means the
+      # search path itself.
       xdg.configFile."sessionizer/config.json".text = builtins.toJSON {
         search_paths = [ "~" ];
         max_depth = 0;

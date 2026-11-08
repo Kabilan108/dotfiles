@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
-
+# Other hosts run "$HOME/bin/sessionizer"; the build comes from
+# packages/sessionizer through home-manager.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-exec "$SCRIPT_DIR/sessionizer.py" "$@"
+for candidate in "/etc/profiles/per-user/$USER/bin/sessionizer" "$HOME/.nix-profile/bin/sessionizer"; do
+  if [ -x "$candidate" ]; then
+    exec "$candidate" "$@"
+  fi
+done
+echo "sessionizer: not installed; rebuild home-manager" >&2
+exit 1
