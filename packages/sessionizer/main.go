@@ -109,7 +109,8 @@ func runPicker(overrides []string) error {
 	hosts := remoteHosts(config)
 
 	dirs := scanDirectories(config, overrides, state.usedPaths())
-	rows := localRows(state, localHost, os.Getenv("FLEET_HOST_HEX"), dirs, favorites)
+	localColor := os.Getenv("FLEET_HOST_HEX")
+	rows := localRows(state, localHost, localColor, dirs, favorites)
 	caches := map[string]hostCache{}
 	for _, host := range hosts {
 		caches[host.Name] = readHostCache(host.Name)
@@ -119,7 +120,8 @@ func runPicker(overrides []string) error {
 	newHostRank(localHost, hosts).sortRows(rows)
 
 	lipgloss.SetColorProfile(termenv.TrueColor)
-	model := newPickerModel(rows, localHost, hosts, caches, favorites)
+	model := newPickerModel(rows, localHost, localColor, hosts, caches, favorites)
+	model.git = loadGitCache(gitCachePath())
 	if _, err := tea.NewProgram(model, tea.WithAltScreen()).Run(); err != nil {
 		return err
 	}
