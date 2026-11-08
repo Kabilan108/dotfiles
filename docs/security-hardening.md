@@ -100,7 +100,7 @@ secondary layer. The real attack surface is the **decrypted client session**.
 - [x] Argon2-hashed `ADMIN_TOKEN` via agenix, Tailscale-only
 - [x] `SIGNUPS_ALLOWED: false`
 - [x] Tailscale-only access (svc:vault, localhost-bound backend, 80/443 closed)
-- [ ] Ensure `/var/lib/vaultwarden` is in the backup set (see Backups / issue #7).
+- [x] `/var/lib/vaultwarden` is in sietch's `services` backup job (`docs/backups.md`).
 
 ### Client side (where it actually matters)
 - [x] **WebAuthn 2FA, both keys**. Re-registered 2026-07-08 against the new
@@ -367,14 +367,13 @@ elevated host access.
 
 ## Backups (separate deep-dive — own session/agents)
 
-Current `bin/backup` only pushes screenshots/recordings to Google Drive — inadequate.
+Restic to the NAS replaced the Google Drive screenshot job (`docs/backups.md`).
 
-Open items:
-- [ ] Include the `vaultwarden-data` volume.
-- [ ] 3-2-1 strategy: NAS at home (both machines), offsite later this year.
-- [ ] Encrypt backups at rest (esp. anything leaving the house / Google Drive).
-- [ ] Immutable / offline copy specifically to survive destructive (wipe) payloads.
-- [ ] Reconsider Google Drive as the target.
+- [x] Vaultwarden, Executor and Hark state in sietch's `services` job.
+- [x] Encrypted at rest (Restic) and in transit (SMB 3.1.1 encryption).
+- [x] Older restore points survive a wiped client: the NAS's immutable snapshots.
+- [x] Google Drive dropped as a target.
+- [ ] Offsite copy, and a second NAS disk (the pool has one today).
 
 ---
 
@@ -435,5 +434,4 @@ For each account in Vaultwarden:
 - Bank of America: passkey / security-key support?
 - Desktop secrets broker: Infisical vs 1Password CLI vs agenix-at-runtime?
 - Tailscale SSH vs raw sshd for the human + agent split?
-- Backup target if not Google Drive; backup encryption scheme.
 - Bitbucket helper tool: how to broker its secret without exposing it to a shell?

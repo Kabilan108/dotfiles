@@ -1,6 +1,5 @@
 {
   imports = [
-    ./backup.nix
     ./battery-watcher.nix
     ./codex-desktop.nix
     ./dictator.nix
@@ -22,7 +21,6 @@
   ];
 
   dotfiles.services = {
-    backup.enable = true;
     battery-watcher.enable = true;
     install-tools.enable = true;
     meeting-minutes.enable = true;

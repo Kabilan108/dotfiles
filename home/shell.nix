@@ -108,7 +108,6 @@ in
     ".gitconfig".source = cfgLink ".gitconfig";
     ".ipython/profile_default/ipython_config.py".source = cfgLink "ipython_config.py";
 
-    ".config/backup".source = cfgLink "backup";
     ".config/Code/User".source = cfgLink "vscode";
     ".config/sessionizer".source = cfgLink "sessionizer";
     ".config/uv/uv.toml".source = cfgLink "uv/uv.toml";

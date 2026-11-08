@@ -7,6 +7,7 @@ let
   # nothing gets encrypted without them (docs/tleilax-install.md).
   tleilax = [ fleet.hosts.tleilax.hostPubkey ] ++ fleet.ageRecipients;
   tleilaxReady = builtins.length fleet.ageRecipients >= 2;
+  backupSietch = [ fleet.hosts.sietch.hostPubkey ] ++ fleet.ageRecipients;
 in
 (
   if tleilaxReady then
@@ -17,6 +18,10 @@ in
     { }
 )
 // {
+  # Root-only host key plus both YubiKey age identities, never a user key
+  # (docs/backups.md).
+  "secrets/backup/sietch-smb.age".publicKeys = backupSietch;
+  "secrets/backup/sietch-restic.age".publicKeys = backupSietch;
   "secrets/agent-browser-encryption-key.age".publicKeys = [
     sietch
     jacurutu
