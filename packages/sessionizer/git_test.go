@@ -195,6 +195,10 @@ func TestReadmeLine(t *testing.T) {
 		{"rules and fences", "---\n```sh\nmake\n", "make"},
 		{"crlf", "\r\n# Title\r\n", "Title"},
 		{"only noise", "# llm-tmux\n\n![x](y)\n", ""},
+		{"title spelled differently", "# LLM Tmux\nPipe panes.\n", "Pipe panes."},
+		{"inline markdown", "**⚡ Quick:** a plugin for [Claude Code](https://x) and `tmux`\n", "⚡ Quick: a plugin for Claude Code and tmux"},
+		{"bare url", "https://github.com/user-attachments/assets/7a92\nA coding agent.\n", "A coding agent."},
+		{"inline html", "English | <a href=\"zh.md\">简体中文</a>\n", "English | 简体中文"},
 	}
 	for _, c := range cases {
 		if got := readmeLine(c.text, "llm-tmux"); got != c.want {

@@ -5,10 +5,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 type DirEntry struct {
@@ -206,8 +208,10 @@ func readmeLine(text, name string) string {
 			strings.Trim(line, "-=*_~ ") == "" {
 			continue
 		}
-		line = strings.TrimSpace(strings.TrimLeft(line, "#"))
-		if line == "" || strings.EqualFold(line, name) {
+		line = markdownLink.ReplaceAllString(strings.TrimLeft(line, "#"), "$1")
+		line = htmlTag.ReplaceAllString(line, "")
+		line = strings.TrimSpace(strings.NewReplacer("**", "", "__", "", "`", "").Replace(line))
+		if line == "" || nameKey(line) == nameKey(name) || bareURL(line) {
 			continue
 		}
 		line = sanitize(line)
@@ -217,6 +221,27 @@ func readmeLine(text, name string) string {
 		return line
 	}
 	return ""
+}
+
+var (
+	markdownLink = regexp.MustCompile(`!?\[([^\]]*)\]\([^)]*\)`)
+	htmlTag      = regexp.MustCompile(`<[^>]*>`)
+)
+
+// nameKey compares names the way a title restates a directory name: "T3
+// Code" for t3code, "Pre-commit Hooks" for pre-commit-hooks.
+func nameKey(name string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return unicode.ToLower(r)
+		}
+		return -1
+	}, name)
+}
+
+// bareURL is a line that only links somewhere, like a pasted video.
+func bareURL(line string) bool {
+	return !strings.Contains(line, " ") && (strings.HasPrefix(line, "https://") || strings.HasPrefix(line, "http://"))
 }
 
 // addGitDetails fills in summary.Git for a repository, from cache when the
