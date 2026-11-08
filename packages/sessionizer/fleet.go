@@ -67,9 +67,14 @@ func remoteHosts(config Config) []FleetHost {
 
 // remoteSessionizer is the command another host runs. deploy-gate on gated
 // hosts allows exactly `"$HOME/bin/sessionizer" --inventory`, so keep that
-// spelling.
+// spelling. SESSIONIZER_REMOTE_PROGRAM swaps in another build on the remote
+// side for testing; gated hosts then refuse the inventory.
 func remoteSessionizer(args ...string) string {
-	return `"$HOME/bin/sessionizer" ` + shellJoin(args)
+	program := `"$HOME/bin/sessionizer"`
+	if override := os.Getenv("SESSIONIZER_REMOTE_PROGRAM"); override != "" {
+		program = override
+	}
+	return program + " " + shellJoin(args)
 }
 
 func agentSSH(host, remote string) []string {

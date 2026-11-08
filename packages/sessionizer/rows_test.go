@@ -191,3 +191,10 @@ func TestSummarizeDirectory(t *testing.T) {
 		t.Fatalf("unexpected summary: %+v", summary)
 	}
 }
+
+func TestInventoryCommandMatchesDeployGate(t *testing.T) {
+	t.Setenv("SESSIONIZER_REMOTE_PROGRAM", "")
+	if got := remoteSessionizer("--inventory"); got != `"$HOME/bin/sessionizer" --inventory` {
+		t.Fatalf("deploy-gate allows only the exact inventory command, got %s", got)
+	}
+}
