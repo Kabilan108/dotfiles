@@ -31,7 +31,6 @@ let
         foreground
       ]
       heliumIcon;
-  heliumAgentsIcon = mkHeliumIconVariant "#12343b" "#e9c46a";
   heliumAgentsDevtoolsIcon = mkHeliumIconVariant "#2b1b17" "#f4a261";
 in
 {
@@ -48,18 +47,6 @@ in
       desktopName = "Helium";
       icon = "helium";
       startupWMClass = "Helium";
-    };
-    helium-agents = heliumAppImage // {
-      desktopName = "Helium Agents";
-      icon = "helium-agents";
-      startupWMClass = "HeliumAgents";
-      preExec = ''
-        mkdir -p ${lib.escapeShellArg heliumAgentsProfile}
-      '';
-      args = [
-        "--user-data-dir=${heliumAgentsProfile}"
-        "--class=HeliumAgents"
-      ];
     };
     helium-agents-devtools = heliumAppImage // {
       desktopName = "Helium Agents DevTools";
@@ -97,8 +84,8 @@ in
         fi
 
         if $profileInUse; then
-          ${lib.getExe pkgs.libnotify} -u critical "Helium Agents DevTools" "Close Helium Agents before launching the CDP-enabled instance."
-          printf '%s\n' "helium-agents-devtools: close Helium Agents before launching the CDP-enabled instance." >&2
+          ${lib.getExe pkgs.libnotify} -u critical "Helium Agents DevTools" "Another Helium instance is using the agents profile. Close it first."
+          printf '%s\n' "helium-agents-devtools: another Helium instance is using the agents profile; close it first." >&2
           exit 1
         fi
       '';
@@ -113,7 +100,6 @@ in
 
   xdg.dataFile = {
     "icons/hicolor/scalable/apps/helium.svg".text = heliumIcon;
-    "icons/hicolor/scalable/apps/helium-agents.svg".text = heliumAgentsIcon;
     "icons/hicolor/scalable/apps/helium-agents-devtools.svg".text = heliumAgentsDevtoolsIcon;
   };
 }
