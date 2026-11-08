@@ -21,7 +21,7 @@ rec {
         "sietch"
         "tleilax"
       ];
-      hostPubkey = null;
+      hostPubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMq054yvlbd3s0Zm6ElHrs7PfAVnWzP7Yboy6HzXu2t2";
       keys = {
         # hardware only: yk-nfc travels with the user, yk-nano is the backup in
         # storage. id_ed25519 is the agenix identity, never a login key.
