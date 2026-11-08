@@ -4,6 +4,7 @@
 {
   lib,
   buildGoModule,
+  git,
   makeWrapper,
   openssh,
   tmux,
@@ -31,13 +32,15 @@ buildGoModule {
   ];
 
   # Suffix, not prefix: the picker must talk to the tmux server with the
-  # user's own tmux. deploy-gate runs it with a bare PATH.
+  # user's own tmux. deploy-gate runs it with a bare PATH, and the inventory
+  # needs git for directory status.
   postInstall = ''
     wrapProgram $out/bin/sessionizer \
       --suffix PATH : ${
         lib.makeBinPath [
           tmux
           openssh
+          git
         ]
       }
   '';

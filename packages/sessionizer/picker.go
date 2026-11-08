@@ -1,25 +1,22 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/ansi"
 )
 
 const (
-	machineColumnWidth = 9
-	maxNameWidth       = 34
-	minNameWidth       = 12
-	// pointer, star, glyph, and their gaps; then " │ " and a detail like
-	// "2 win · attached  5h".
-	rowPrefixWidth  = 6
-	minDetailWidth  = 22
-	chromeLines     = 4
+	// host chips, prompt, and a rule above the list; a rule and the key
+	// hints below it.
+	chromeLines     = 5
 	minPreviewWidth = 70
+	listPercent     = 53
+	// gitDebounce waits for the cursor to settle before reading a
+	// directory's git status, so scrolling past repositories runs no git.
+	gitDebounce = 150 * time.Millisecond
 )
 
 type kindFilter int
@@ -33,6 +30,7 @@ const (
 type hostState struct {
 	host    FleetHost
 	status  string
+	updated int64
 	pending bool
 }
 
@@ -41,45 +39,99 @@ type refreshMsg struct {
 	cache hostCache
 }
 
-type pickerModel struct {
-	rows      []Row
-	visible   []int
-	cursor    int
-	offset    int
-	query     []rune
-	normal    bool
-	machines  []string
-	machine   int
-	kind      kindFilter
-	width     int
-	height    int
-	nameWidth int
-	hosts     []hostState
-	rank      hostRank
-	favorites map[string]bool
-	selected  *Row
-	message   string
-	now       func() time.Time
-	refresh   func(FleetHost) hostCache
+type gitMsg struct {
+	id      string
+	details *GitDetails
 }
 
-func newPickerModel(rows []Row, localHost string, hosts []FleetHost, caches map[string]hostCache, favorites map[string]bool) *pickerModel {
+type gitTickMsg struct {
+	id string
+}
+
+type summaryMsg struct {
+	id      string
+	summary *DirSummary
+}
+
+// listItem is one entry of the drawn list: a section header, or the row at
+// visible[row].
+type listItem struct {
+	section section
+	count   int
+	row     int
+}
+
+func (item listItem) header() bool { return item.row < 0 }
+
+func (item listItem) height() int {
+	if item.header() {
+		return 1
+	}
+	return 2
+}
+
+type pickerModel struct {
+	rows    []Row
+	visible []int
+	items   []listItem
+	// itemOf maps a visible position to its item; lineStart[i] is the line
+	// item i starts on, with the total line count at the end.
+	itemOf      []int
+	lineStart   []int
+	hostCounts  map[string]int
+	cursor      int
+	top         int
+	query       []rune
+	normal      bool
+	machines    []string
+	colors      map[string]string
+	machine     int
+	kind        kindFilter
+	width       int
+	height      int
+	hosts       []hostState
+	rank        hostRank
+	favorites   map[string]bool
+	selected    *Row
+	message     string
+	now         func() time.Time
+	refresh     func(FleetHost) hostCache
+	git         *gitCache
+	gitDebounce time.Duration
+	// gitSelected is the selection a git read was last scheduled for;
+	// gitPending holds the rows whose read is running, and freshGit the
+	// latest read for each row, which wins over a summary landing later.
+	gitSelected string
+	gitPending  map[string]bool
+	freshGit    map[string]*GitDetails
+	// summaryLoading holds the local directories whose listing is being read.
+	summaryLoading map[string]bool
+}
+
+func newPickerModel(rows []Row, localHost, localColor string, hosts []FleetHost, caches map[string]hostCache, favorites map[string]bool) *pickerModel {
 	model := &pickerModel{
-		rows:      rows,
-		machines:  []string{"", localHost},
-		rank:      newHostRank(localHost, hosts),
-		favorites: favorites,
-		nameWidth: maxNameWidth,
-		now:       time.Now,
-		refresh:   refreshHost,
+		rows:           rows,
+		machines:       []string{"", localHost},
+		colors:         map[string]string{localHost: localColor},
+		rank:           newHostRank(localHost, hosts),
+		favorites:      favorites,
+		now:            time.Now,
+		refresh:        refreshHost,
+		gitDebounce:    gitDebounce,
+		gitPending:     map[string]bool{},
+		freshGit:       map[string]*GitDetails{},
+		summaryLoading: map[string]bool{},
 	}
 	for _, host := range hosts {
 		model.machines = append(model.machines, host.Name)
-		model.hosts = append(model.hosts, hostState{host: host, status: caches[host.Name].Status, pending: true})
+		model.colors[host.Name] = host.Color
+		cache := caches[host.Name]
+		model.hosts = append(model.hosts, hostState{host: host, status: cache.Status, updated: cache.Updated, pending: true})
 	}
 	model.refilter("")
 	if len(model.visible) > 1 && model.rows[model.visible[0]].Current {
 		model.cursor = 1
+		model.scrollToCursor()
 	}
 	return model
 }
@@ -96,18 +148,26 @@ func (m *pickerModel) Init() tea.Cmd {
 }
 
 func (m *pickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var command tea.Cmd
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		listWidth, _ := m.columns()
-		m.nameWidth = max(minNameWidth, min(maxNameWidth, listWidth-rowPrefixWidth-machineColumnWidth-1-3-minDetailWidth))
 		m.scrollToCursor()
 	case refreshMsg:
 		m.applyRefresh(msg)
+	case gitMsg:
+		m.applyGit(msg)
+	case gitTickMsg:
+		command = m.startGit(msg)
+	case summaryMsg:
+		m.applySummary(msg)
 	case tea.KeyMsg:
-		return m, m.handleKey(msg)
+		command = m.handleKey(msg)
 	}
-	return m, nil
+	if m.selected != nil {
+		return m, command
+	}
+	return m, tea.Batch(command, m.loadSelected())
 }
 
 func (m *pickerModel) applyRefresh(msg refreshMsg) {
@@ -115,12 +175,97 @@ func (m *pickerModel) applyRefresh(msg refreshMsg) {
 		if m.hosts[i].host.Name == msg.host.Name {
 			m.hosts[i].pending = false
 			m.hosts[i].status = msg.cache.Status
+			m.hosts[i].updated = msg.cache.Updated
 		}
 	}
 	keep := m.selectedID()
 	fresh := remoteRows(msg.host, msg.cache, m.favorites)
-	m.rows = m.rank.mergeHostRows(m.rows, msg.host.Name, fresh)
+	m.rows = m.rank.mergeHostRows(m.rows, msg.host.Name, fresh, keep)
 	m.refilter(keep)
+}
+
+func (m *pickerModel) applySummary(msg summaryMsg) {
+	delete(m.summaryLoading, msg.id)
+	for i := range m.rows {
+		if m.rows[i].ID != msg.id || m.rows[i].Summary != nil || msg.summary == nil {
+			continue
+		}
+		summary := *msg.summary
+		if details, ok := m.freshGit[msg.id]; ok {
+			summary.Git = details
+		}
+		m.rows[i].Summary = &summary
+	}
+}
+
+func (m *pickerModel) applyGit(msg gitMsg) {
+	delete(m.gitPending, msg.id)
+	if msg.details == nil {
+		return
+	}
+	m.freshGit[msg.id] = msg.details
+	for i := range m.rows {
+		if m.rows[i].ID == msg.id && m.rows[i].Summary != nil {
+			summary := *m.rows[i].Summary
+			summary.Git = msg.details
+			m.rows[i].Summary = &summary
+		}
+	}
+}
+
+// loadSelected reads the selected local directory for the preview, off the
+// update loop, since a directory can sit on a slow or hung filesystem.
+// Cached git details show as soon as the listing does when the repository
+// hasn't changed; either way a fresh read follows once the cursor settles,
+// because the cache can't see unstaged edits.
+func (m *pickerModel) loadSelected() tea.Cmd {
+	if m.cursor < 0 || m.cursor >= len(m.visible) {
+		return nil
+	}
+	row := m.rows[m.visible[m.cursor]]
+	if row.Session || !row.Local {
+		m.gitSelected = row.ID
+		return nil
+	}
+	var commands []tea.Cmd
+	if row.Summary == nil && !m.summaryLoading[row.ID] {
+		m.summaryLoading[row.ID] = true
+		id, path, cache := row.ID, row.Path, m.git
+		commands = append(commands, func() tea.Msg {
+			summary := summarizeDirectory(path)
+			if summary != nil && cache != nil {
+				if repo, ok := openRepo(path); ok {
+					summary.Git, _ = cache.cached(path, repo)
+				}
+			}
+			return summaryMsg{id: id, summary: summary}
+		})
+	}
+	if m.git != nil && row.Git && m.gitSelected != row.ID {
+		m.gitSelected = row.ID
+		id := row.ID
+		commands = append(commands, tea.Tick(m.gitDebounce, func(time.Time) tea.Msg { return gitTickMsg{id: id} }))
+	}
+	return tea.Batch(commands...)
+}
+
+// startGit reads the selected directory's git status once the cursor has
+// rested on it, unless a read for it is already running.
+func (m *pickerModel) startGit(msg gitTickMsg) tea.Cmd {
+	row, ok := m.current()
+	if !ok || row.ID != msg.id || m.gitPending[msg.id] || m.git == nil {
+		return nil
+	}
+	m.gitPending[msg.id] = true
+	path, cache := row.Path, m.git
+	return func() tea.Msg {
+		var details *GitDetails
+		if repo, ok := openRepo(path); ok {
+			details = cache.reread(context.Background(), path, repo)
+		}
+		cache.save(nil)
+		return gitMsg{id: msg.id, details: details}
+	}
 }
 
 func (m *pickerModel) handleKey(key tea.KeyMsg) tea.Cmd {
@@ -141,10 +286,10 @@ func (m *pickerModel) handleKey(key tea.KeyMsg) tea.Cmd {
 		m.move(1)
 		return nil
 	case "pgup":
-		m.page(-m.listHeight())
+		m.page(-m.pageRows())
 		return nil
 	case "pgdown":
-		m.page(m.listHeight())
+		m.page(m.pageRows())
 		return nil
 	case "tab":
 		m.cycleMachine(1)
@@ -178,9 +323,9 @@ func (m *pickerModel) handleNormalKey(key tea.KeyMsg) tea.Cmd {
 	case "G":
 		m.jump(len(m.visible) - 1)
 	case "ctrl+d":
-		m.page(m.listHeight() / 2)
+		m.page(m.pageRows() / 2)
 	case "ctrl+u":
-		m.page(-m.listHeight() / 2)
+		m.page(-m.pageRows() / 2)
 	case "i", "/":
 		m.normal = false
 	case "f":
@@ -241,28 +386,57 @@ func (m *pickerModel) selectedID() string {
 	return ""
 }
 
-// refilter recomputes the visible rows. The cursor stays on keep when it is
-// still visible and goes to the first row otherwise.
+func (m *pickerModel) kindAllows(row Row) bool {
+	switch m.kind {
+	case kindSessions:
+		return row.Session
+	case kindDirectories:
+		return !row.Session
+	}
+	return true
+}
+
+// refilter recomputes the visible rows, grouped by section in row order.
+// The cursor stays on keep when it is still visible and goes to the first
+// row otherwise.
 func (m *pickerModel) refilter(keep string) {
 	terms := parseQuery(string(m.query))
 	machine := m.machines[m.machine]
-	m.visible = m.visible[:0]
-	cursor := 0
+	var sections [sectionCount][]int
+	m.hostCounts = map[string]int{}
 	for i, row := range m.rows {
+		if !m.kindAllows(row) || !row.matches(terms) {
+			continue
+		}
+		m.hostCounts[row.Host]++
 		if machine != "" && row.Host != machine {
 			continue
 		}
-		if m.kind == kindSessions && !row.Session || m.kind == kindDirectories && row.Session {
-			continue
-		}
-		if !row.matches(terms) {
-			continue
-		}
-		if row.ID == keep && keep != "" {
-			cursor = len(m.visible)
-		}
-		m.visible = append(m.visible, i)
+		sections[row.section()] = append(sections[row.section()], i)
 	}
+	m.visible, m.items, m.itemOf = m.visible[:0], m.items[:0], m.itemOf[:0]
+	cursor := 0
+	for kind, indexes := range sections {
+		if len(indexes) == 0 {
+			continue
+		}
+		m.items = append(m.items, listItem{section: section(kind), count: len(indexes), row: -1})
+		for _, index := range indexes {
+			if keep != "" && m.rows[index].ID == keep {
+				cursor = len(m.visible)
+			}
+			m.itemOf = append(m.itemOf, len(m.items))
+			m.items = append(m.items, listItem{section: section(kind), row: len(m.visible)})
+			m.visible = append(m.visible, index)
+		}
+	}
+	m.lineStart = m.lineStart[:0]
+	line := 0
+	for _, item := range m.items {
+		m.lineStart = append(m.lineStart, line)
+		line += item.height()
+	}
+	m.lineStart = append(m.lineStart, line)
 	m.cursor = cursor
 	m.scrollToCursor()
 }
@@ -292,15 +466,49 @@ func (m *pickerModel) listHeight() int {
 	return max(1, m.height-chromeLines)
 }
 
+func (m *pickerModel) pageRows() int {
+	return max(1, m.listHeight()/2)
+}
+
+// linesBetween counts the lines items first through last take.
+func (m *pickerModel) linesBetween(first, last int) int {
+	return m.lineStart[last+1] - m.lineStart[first]
+}
+
+// scrollToCursor moves the top of the list as little as it can to show the
+// cursor's row whole, with its section header when it is the section's
+// first row. The list always starts on a whole item.
 func (m *pickerModel) scrollToCursor() {
+	if len(m.items) == 0 || len(m.visible) == 0 {
+		m.top = 0
+		return
+	}
 	height := m.listHeight()
-	if m.cursor < m.offset {
-		m.offset = m.cursor
+	target := m.itemOf[m.cursor]
+	first := target
+	if first > 0 && m.items[first-1].header() {
+		first--
 	}
-	if m.cursor >= m.offset+height {
-		m.offset = m.cursor - height + 1
+	if first < m.top {
+		m.top = first
 	}
-	m.offset = max(0, min(m.offset, len(m.visible)-height))
+	for m.top < target && m.linesBetween(m.top, target) > height {
+		m.top++
+	}
+	last := len(m.items) - 1
+	for m.top > 0 && m.linesBetween(m.top-1, last) <= height {
+		m.top--
+	}
+}
+
+// shownItems is the range of items that fit whole from the top.
+func (m *pickerModel) shownItems() (int, int) {
+	height := m.listHeight()
+	end := m.top
+	for end < len(m.items) && m.linesBetween(m.top, end) <= height {
+		end++
+	}
+	return m.top, end
 }
 
 func (m *pickerModel) cycleMachine(direction int) {
@@ -331,270 +539,19 @@ func (m *pickerModel) toggleFavorite() {
 	m.refilter(row.ID)
 }
 
+func (m *pickerModel) hostState(name string) (hostState, bool) {
+	for _, state := range m.hosts {
+		if state.host.Name == name {
+			return state, true
+		}
+	}
+	return hostState{}, false
+}
+
 func (m *pickerModel) columns() (listWidth, previewWidth int) {
 	if m.width < minPreviewWidth {
 		return m.width, 0
 	}
-	previewWidth = m.width * 45 / 100
-	return m.width - previewWidth, previewWidth
-}
-
-func (m *pickerModel) View() string {
-	if m.width == 0 || m.height == 0 {
-		return ""
-	}
-	listWidth, previewWidth := m.columns()
-	left := m.listLines(listWidth)
-	var right []string
-	if previewWidth > 0 {
-		right = m.previewColumn(previewWidth)
-	}
-	var out strings.Builder
-	for i := 0; i < m.height; i++ {
-		line := ""
-		if i < len(left) {
-			line = left[i]
-		}
-		out.WriteString(padTo(line, listWidth))
-		if previewWidth > 0 {
-			out.WriteString(right[i])
-		}
-		if i < m.height-1 {
-			out.WriteByte('\n')
-		}
-	}
-	return out.String()
-}
-
-func (m *pickerModel) listLines(width int) []string {
-	lines := []string{m.promptLine(width), m.columnHeader(), m.hintLine(), paint(colorBorder, strings.Repeat("─", width))}
-	terms := parseQuery(string(m.query))
-	end := min(len(m.visible), m.offset+m.listHeight())
-	for position := m.offset; position < end; position++ {
-		row := m.rows[m.visible[position]]
-		lines = append(lines, m.renderRow(row, position == m.cursor, terms, width))
-	}
-	return lines
-}
-
-func (m *pickerModel) promptLine(width int) string {
-	label := "insert> "
-	if m.normal {
-		label = "normal> "
-	}
-	prompt := paint(colorPointer, label) + string(m.query)
-	if !m.normal {
-		prompt += lipgloss.NewStyle().Reverse(true).Render(" ")
-	}
-	info := fmt.Sprintf("%d/%d", len(m.visible), len(m.rows))
-	var pending []string
-	for _, state := range m.hosts {
-		if state.pending {
-			pending = append(pending, state.host.Name)
-		}
-	}
-	if len(pending) > 0 {
-		info = "⟳ " + strings.Join(pending, " ") + "  " + info
-	}
-	info = paint(colorMuted, info)
-	gap := width - ansi.StringWidth(prompt) - ansi.StringWidth(info) - 1
-	if gap < 1 {
-		return truncate(prompt, width)
-	}
-	return prompt + strings.Repeat(" ", gap) + info
-}
-
-func (m *pickerModel) columnHeader() string {
-	machine := "ALL"
-	if name := m.machines[m.machine]; name != "" {
-		machine = strings.ToUpper(name)
-	}
-	kind := [...]string{"SESSIONS + DIRS", "SESSIONS", "DIRS"}[m.kind]
-	return "      " + fit(machine, machineColumnWidth) + " " + fit(kind, m.nameWidth) + " │ DETAILS"
-}
-
-func (m *pickerModel) hintLine() string {
-	if m.message != "" {
-		return paint(colorWarning, m.message)
-	}
-	hint := "tab machine · ctrl-s kind · ctrl-f favorite · esc normal mode"
-	if m.normal {
-		hint = "j/k move · f favorite · s kind · i insert · q quit"
-	}
-	line := paint(colorDirectory, hint)
-	for _, state := range m.hosts {
-		if !state.pending && state.status == statusOffline {
-			line += "  " + paint(colorWarning, state.host.Name+" offline")
-		}
-	}
-	return line
-}
-
-type segment struct {
-	color string
-	text  string
-	bold  bool
-}
-
-func (m *pickerModel) renderRow(row Row, selected bool, terms []queryTerm, width int) string {
-	pointer := segment{text: " "}
-	if selected {
-		pointer = segment{color: colorPointer, text: "▌"}
-	}
-	star := segment{text: " "}
-	if row.Favorite {
-		star = segment{color: colorFavorite, text: "★"}
-	}
-	glyph := segment{color: colorDirectory, text: "·"}
-	nameColor := colorDirectory
-	if row.Session {
-		glyph = segment{color: row.Color, text: "●"}
-		nameColor = ""
-	}
-	segments := []segment{pointer, {text: " "}, star, {text: " "}, glyph, {text: " "},
-		{color: row.Color, text: fit(row.Host, machineColumnWidth)}, {text: " "}}
-	segments = append(segments, highlightMatches(fit(row.Name, m.nameWidth), terms, nameColor)...)
-	segments = append(segments, segment{color: colorBorder, text: " │ "})
-	segments = append(segments, m.rowDetail(row)...)
-
-	background := lipgloss.NewStyle()
-	if selected {
-		background = background.Background(lipgloss.Color(colorSelection))
-	}
-	var out strings.Builder
-	used := 0
-	for _, part := range segments {
-		text := part.text
-		remaining := width - used
-		if remaining <= 0 {
-			break
-		}
-		if ansi.StringWidth(text) > remaining {
-			text = ansi.Truncate(text, remaining, "…")
-		}
-		style := background
-		if hexColor.MatchString(part.color) {
-			style = style.Foreground(lipgloss.Color(part.color))
-		}
-		if part.bold {
-			style = style.Bold(true)
-		}
-		out.WriteString(style.Render(text))
-		used += ansi.StringWidth(text)
-	}
-	if used < width {
-		out.WriteString(background.Render(strings.Repeat(" ", width-used)))
-	}
-	return out.String()
-}
-
-func (m *pickerModel) rowDetail(row Row) []segment {
-	if !row.Session {
-		return []segment{{color: colorDirectory, text: abbreviatePath(sanitize(row.Path))}}
-	}
-	parts := []string{row.Windows + " win"}
-	if row.Current {
-		parts = append(parts, "here")
-	} else if row.Attached {
-		parts = append(parts, "attached")
-	}
-	if row.Status == statusOffline {
-		parts = append(parts, "cached")
-	}
-	segments := []segment{{color: colorMuted, text: strings.Join(parts, " · ")}}
-	if age := relativeAge(row.Recency, m.now()); age != "" {
-		segments = append(segments, segment{color: colorDirectory, text: "  " + age})
-	}
-	return segments
-}
-
-// highlightMatches splits text into segments, marking where query terms
-// match.
-func highlightMatches(text string, terms []queryTerm, color string) []segment {
-	runes := []rune(text)
-	marked := make([]bool, len(runes))
-	lower := []rune(strings.ToLower(text))
-	if len(lower) != len(runes) {
-		lower = runes
-	}
-	for _, term := range terms {
-		if term.negate || term.text == "" {
-			continue
-		}
-		haystack := lower
-		if term.caseSensitive {
-			haystack = runes
-		}
-		needle := []rune(term.text)
-		for start := 0; start+len(needle) <= len(haystack); start++ {
-			if string(haystack[start:start+len(needle)]) == term.text {
-				for i := start; i < start+len(needle); i++ {
-					marked[i] = true
-				}
-				break
-			}
-		}
-	}
-	var segments []segment
-	for i := 0; i < len(runes); {
-		j := i
-		for j < len(runes) && marked[j] == marked[i] {
-			j++
-		}
-		part := segment{color: color, text: string(runes[i:j])}
-		if marked[i] {
-			part = segment{color: colorMatch, text: part.text, bold: true}
-		}
-		segments = append(segments, part)
-		i = j
-	}
-	return segments
-}
-
-func (m *pickerModel) previewColumn(width int) []string {
-	border := paint(colorBorder, "│") + " "
-	inner := width - 2
-	var lines []string
-	if row, ok := m.current(); ok {
-		if !row.Session && row.Local && row.Summary == nil {
-			m.rows[m.visible[m.cursor]].Summary = summarizeDirectory(row.Path)
-			row = m.rows[m.visible[m.cursor]]
-		}
-		for _, line := range previewLines(row, m.now()) {
-			wrapped := ansi.Wrap(line, inner, "")
-			lines = append(lines, strings.Split(wrapped, "\n")...)
-		}
-	}
-	column := make([]string, m.height)
-	for i := range column {
-		line := ""
-		if i < len(lines) {
-			line = truncate(lines[i], inner)
-		}
-		column[i] = border + padTo(line, inner)
-	}
-	return column
-}
-
-func fit(value string, width int) string {
-	value = sanitize(value)
-	if ansi.StringWidth(value) > width {
-		return ansi.Truncate(value, width, "…")
-	}
-	return value + strings.Repeat(" ", width-ansi.StringWidth(value))
-}
-
-func truncate(line string, width int) string {
-	if ansi.StringWidth(line) > width {
-		return ansi.Truncate(line, width, "…")
-	}
-	return line
-}
-
-func padTo(line string, width int) string {
-	line = truncate(line, width)
-	if gap := width - ansi.StringWidth(line); gap > 0 {
-		return line + strings.Repeat(" ", gap)
-	}
-	return line
+	listWidth = m.width * listPercent / 100
+	return listWidth, m.width - listWidth
 }

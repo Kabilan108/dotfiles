@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -31,6 +32,34 @@ func detectAgents(pane Pane) []string {
 		}
 	}
 	return found
+}
+
+// uniqueAgents lists each agent a session's panes run once, in the order
+// they first appear.
+func uniqueAgents(panes []Pane) []string {
+	var agents []string
+	for _, pane := range panes {
+		for _, agent := range pane.Agents {
+			if !slices.Contains(agents, agent) {
+				agents = append(agents, agent)
+			}
+		}
+	}
+	return agents
+}
+
+var agentColors = map[string]string{
+	"claude":    colorPeach,
+	"codex":     colorTeal,
+	"opencode":  colorSky,
+	"opencode2": colorSapphire,
+}
+
+func agentColor(agent string) string {
+	if color, ok := agentColors[agent]; ok {
+		return color
+	}
+	return colorGreen
 }
 
 func descendantProcessText(pid int) string {

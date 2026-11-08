@@ -21,6 +21,9 @@ type Row struct {
 	Windows  string
 	Attached bool
 	Recency  int64
+	Created  int64
+	Branch   string
+	Git      bool
 	Favorite bool
 	Current  bool
 	// Status is the remote host's cache status; empty for local rows.
@@ -82,6 +85,8 @@ func localRows(state localState, host, color string, dirs []foundDirectory, favo
 			Windows:  session.Windows,
 			Attached: session.Attached,
 			Recency:  session.Recency(),
+			Created:  session.Created,
+			Branch:   sessionBranch(session.Path()),
 			Panes:    state.panes[session.ID],
 			HasPanes: true,
 		}
@@ -97,6 +102,10 @@ func localRows(state localState, host, color string, dirs []foundDirectory, favo
 			Name:   dir.Name,
 			Target: dir.Path,
 			Path:   dir.Path,
+		}
+		if repo, ok := openRepo(dir.Path); ok {
+			row.Git = true
+			row.Branch = repo.branch()
 		}
 		row.Favorite = row.isFavorite(favorites)
 		rows = append(rows, row)
@@ -121,6 +130,8 @@ func remoteRows(host FleetHost, cache hostCache, favorites map[string]bool) []Ro
 			Windows:  string(session.Windows),
 			Attached: string(session.Attached) != "" && string(session.Attached) != "0",
 			Recency:  session.Recency(),
+			Created:  session.Created,
+			Branch:   session.Branch,
 			Status:   cache.Status,
 			Panes:    session.Panes,
 			HasPanes: session.Panes != nil,
@@ -141,6 +152,10 @@ func remoteRows(host FleetHost, cache hostCache, favorites map[string]bool) []Ro
 			Path:    dir.Path,
 			Status:  cache.Status,
 			Summary: dir.Summary,
+		}
+		if dir.Summary != nil && dir.Summary.Branch != "" {
+			row.Git = true
+			row.Branch = dir.Summary.Branch
 		}
 		row.Favorite = row.isFavorite(favorites)
 		rows = append(rows, row)
@@ -186,6 +201,31 @@ func markCurrent(rows []Row, state localState, localHost string, hosts []FleetHo
 		rows[i].Current = current != "" && rows[i].ID == current
 	}
 	return rows
+}
+
+// section is the list heading a row sits under.
+type section int
+
+const (
+	sectionHere section = iota
+	sectionFavorites
+	sectionSessions
+	sectionDirectories
+	sectionCount
+)
+
+var sectionTitles = [sectionCount]string{"HERE", "FAVORITES", "SESSIONS", "DIRECTORIES"}
+
+func (r Row) section() section {
+	switch {
+	case r.Current:
+		return sectionHere
+	case r.Favorite:
+		return sectionFavorites
+	case r.Session:
+		return sectionSessions
+	}
+	return sectionDirectories
 }
 
 // hostRank orders machines: this one first, then remote hosts in fleet order.
@@ -237,9 +277,10 @@ func (rank hostRank) sortRows(rows []Row) {
 
 // mergeHostRows folds a host's fresh rows into an open picker without moving
 // rows that are already shown. Rows the host no longer has drop out, except
-// the current one, which can be newer than a cached inventory. New sessions
-// go after the last session and new directories at the end.
-func (rank hostRank) mergeHostRows(rows []Row, host string, fresh []Row) []Row {
+// the current one, which can be newer than a cached inventory, and the
+// selected one, so a refresh never moves the cursor. New sessions go after
+// the last session and new directories at the end.
+func (rank hostRank) mergeHostRows(rows []Row, host string, fresh []Row, selected string) []Row {
 	freshByID := make(map[string]Row, len(fresh))
 	for _, row := range fresh {
 		freshByID[row.ID] = row
@@ -252,7 +293,7 @@ func (rank hostRank) mergeHostRows(rows []Row, host string, fresh []Row) []Row {
 		}
 		update, ok := freshByID[row.ID]
 		if !ok {
-			if row.Current {
+			if row.Current || row.ID == selected {
 				merged = append(merged, row)
 			}
 			continue

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -26,6 +27,7 @@ type InventorySession struct {
 	Path         string     `json:"path"`
 	LastAttached int64      `json:"last_attached,omitempty"`
 	Created      int64      `json:"created,omitempty"`
+	Branch       string     `json:"branch,omitempty"`
 	Panes        []Pane     `json:"panes,omitempty"`
 }
 
@@ -118,6 +120,7 @@ func (s localState) inventorySession(session tmuxSession) InventorySession {
 		Path:         session.Path(),
 		LastAttached: session.LastAttached,
 		Created:      session.Created,
+		Branch:       sessionBranch(session.Path()),
 		Panes:        s.panes[session.ID],
 	}
 }
@@ -128,11 +131,23 @@ func buildInventory(config Config) Inventory {
 	for _, session := range state.userSessions() {
 		inventory.Sessions = append(inventory.Sessions, state.inventorySession(session))
 	}
-	for _, dir := range scanDirectories(config, nil, state.usedPaths()) {
+	dirs := scanDirectories(config, nil, state.usedPaths())
+	paths := make([]string, len(dirs))
+	keep := make(map[string]bool, len(dirs))
+	for i, dir := range dirs {
+		paths[i] = dir.Path
+		keep[dir.Path] = true
+	}
+	cache := loadGitCache(gitCachePath())
+	summaries := summarizeDirectories(paths, cache)
+	if err := cache.save(keep); err != nil {
+		fmt.Fprintln(os.Stderr, "sessionizer: could not save the git cache:", err)
+	}
+	for i, dir := range dirs {
 		inventory.Directories = append(inventory.Directories, InventoryDirectory{
 			Name:    dir.Name,
 			Path:    dir.Path,
-			Summary: summarizeDirectory(dir.Path),
+			Summary: summaries[i],
 		})
 	}
 	return inventory
