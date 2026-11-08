@@ -38,6 +38,15 @@ let
       IdentityFile = "~/.ssh/agent-${thisHost}";
       IdentitiesOnly = "yes";
       BatchMode = "yes";
+      # Share one connection between agent-key commands, like the sessionizer
+      # inventory. The socket path must differ from the login connection's
+      # cm-%r@%h-%p, or agent-key commands would ride a hardware-key login.
+      # Anything that can use the socket can already read the key.
+      ControlMaster = "auto";
+      ControlPath = "~/.ssh/cm-agent-%r@%h-%p";
+      ControlPersist = "10m";
+      ServerAliveInterval = 15;
+      ServerAliveCountMax = 2;
     }
   ) reachable;
 
@@ -188,17 +197,10 @@ in
 
   home.file.".config/fleet/fleet.json".text = fleetJson;
 
-  # name, color, Tailscale IP, then "gated" for hosts in
-  # deploy.gatedAgentLogins: sessionizer previews and creates sessions there
-  # over the login connection, since the agent key only gets the inventory.
+  # name, color, Tailscale IP: the remote hosts sessionizer lists.
   home.file.".config/fleet/hosts".text =
-    let
-      agentAccess = name: if builtins.elem name fleet.deploy.gatedAgentLogins then "gated" else "ungated";
-    in
     lib.concatStringsSep "\n" (
-      lib.mapAttrsToList (
-        name: host: "${name}\t${host.color.hex}\t${host.tailscaleIp}\t${agentAccess name}"
-      ) reachable
+      lib.mapAttrsToList (name: host: "${name}\t${host.color.hex}\t${host.tailscaleIp}") reachable
     )
     + "\n";
 }

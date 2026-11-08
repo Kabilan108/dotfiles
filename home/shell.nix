@@ -122,6 +122,9 @@ in
     "media".source = config.lib.file.mkOutOfStoreSymlink "/vault/userdata/media";
   };
 
+  # bin/sessionizer runs this build. See packages/sessionizer.
+  home.packages = [ (pkgs.callPackage ../packages/sessionizer { }) ];
+
   home.file.".sessionizer".text = ''
     #!/usr/bin/env bash
     tmux rename-window -t 0 driver 2>/dev/null
