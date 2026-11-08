@@ -26,6 +26,8 @@ while IFS=$'\t' read -r name user database; do
     exit 1
   fi
   as_owner sqlite3 -init /dev/null -bail "$database" ".backup '$copy'"
+  # The copy inherits WAL mode; leave it as one self-contained file.
+  as_owner sqlite3 -init /dev/null -bail "$copy" 'PRAGMA journal_mode=DELETE;' > /dev/null
   result="$(as_owner sqlite3 -init /dev/null -readonly "$copy" 'PRAGMA quick_check;')"
   if [ "$result" != ok ]; then
     echo "backup-capture: $name: quick_check on the copy said: $result" >&2
