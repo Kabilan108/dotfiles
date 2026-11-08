@@ -89,6 +89,17 @@ func TestMergeHostRowsKeepsPositions(t *testing.T) {
 	}
 }
 
+func TestMergeKeepsCurrentRowMissingFromStaleCache(t *testing.T) {
+	rank := newHostRank("jacurutu", []FleetHost{{Name: "sietch"}})
+	current := session("sietch", "$9", 900)
+	current.Current = true
+	rows := []Row{current, session("jacurutu", "$1", 500)}
+	merged := rank.mergeHostRows(rows, "sietch", []Row{session("sietch", "$3", 100)})
+	if got := ids(merged); !slices.Equal(got, []string{"session:sietch:$9", "session:jacurutu:$1", "session:sietch:$3"}) {
+		t.Fatalf("got %v", got)
+	}
+}
+
 func TestQueryMatching(t *testing.T) {
 	row := Row{Host: "sietch", Name: "Dotfiles"}
 	cases := []struct {
@@ -176,6 +187,15 @@ func TestScanDirectories(t *testing.T) {
 	want = []string{"repos/a", "repos/a/deep", "repos/b"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("depth 2: got %v, want %v", got, want)
+	}
+	t.Chdir(root)
+	got = nil
+	for _, dir := range scanDirectories(config, []string{"repos"}, used) {
+		rel, _ := filepath.Rel(root, dir.Path)
+		got = append(got, rel)
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("relative override: got %v, want %v", got, want)
 	}
 }
 

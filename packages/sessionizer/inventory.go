@@ -104,25 +104,29 @@ func (s localState) usedPaths() map[string]bool {
 	return used
 }
 
+func (s localState) inventorySession(session tmuxSession) InventorySession {
+	attached := "0"
+	if session.Attached {
+		attached = "1"
+	}
+	return InventorySession{
+		ID:           session.ID,
+		Name:         session.Name,
+		Windows:      flexString(session.Windows),
+		Attached:     flexString(attached),
+		Activity:     max(session.Activity, session.LastAttached),
+		Path:         session.Path(),
+		LastAttached: session.LastAttached,
+		Created:      session.Created,
+		Panes:        s.panes[session.ID],
+	}
+}
+
 func buildInventory(config Config) Inventory {
 	state := readLocalState()
 	inventory := Inventory{Sessions: []InventorySession{}, Directories: []InventoryDirectory{}}
 	for _, session := range state.userSessions() {
-		attached := "0"
-		if session.Attached {
-			attached = "1"
-		}
-		inventory.Sessions = append(inventory.Sessions, InventorySession{
-			ID:           session.ID,
-			Name:         session.Name,
-			Windows:      flexString(session.Windows),
-			Attached:     flexString(attached),
-			Activity:     max(session.Activity, session.LastAttached),
-			Path:         session.Path(),
-			LastAttached: session.LastAttached,
-			Created:      session.Created,
-			Panes:        state.panes[session.ID],
-		})
+		inventory.Sessions = append(inventory.Sessions, state.inventorySession(session))
 	}
 	for _, dir := range scanDirectories(config, nil, state.usedPaths()) {
 		inventory.Directories = append(inventory.Directories, InventoryDirectory{

@@ -28,6 +28,7 @@ Host-to-host commands:
   --ensure-directory-session PATH   create or find PATH's session, print its id
   --proxy-attach ORIGIN TARGET      attach ORIGIN's proxy client to TARGET
   --proxy-switch ORIGIN TARGET      move ORIGIN's proxy client to TARGET
+  --proxy-current ORIGIN            print the session ORIGIN's proxy client shows
 `
 
 func main() {
@@ -88,6 +89,11 @@ func dispatch(args []string) error {
 			return err
 		}
 		return proxySwitch(args[1], args[2])
+	case "--proxy-current":
+		if err := need(1); err != nil {
+			return err
+		}
+		return proxyCurrent(args[1])
 	}
 	return fmt.Errorf("unknown option %s\n\n%s", args[0], usage)
 }
@@ -109,11 +115,7 @@ func runPicker(overrides []string) error {
 		caches[host.Name] = readHostCache(host.Name)
 		rows = append(rows, remoteRows(host, caches[host.Name], favorites)...)
 	}
-	if current := currentRowID(state, localHost); current != "" {
-		for i := range rows {
-			rows[i].Current = rows[i].ID == current
-		}
-	}
+	rows = markCurrent(rows, state, localHost, hosts, favorites)
 	newHostRank(localHost, hosts).sortRows(rows)
 
 	lipgloss.SetColorProfile(termenv.TrueColor)

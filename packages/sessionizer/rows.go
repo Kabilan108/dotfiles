@@ -148,25 +148,44 @@ func remoteRows(host FleetHost, cache hostCache, favorites map[string]bool) []Ro
 	return rows
 }
 
-// currentRowID names the row for the session this client shows: a local
-// session, or through a proxy, the remote session it last switched to.
-func currentRowID(state localState, localHost string) string {
+// markCurrent flags the row for the session this client shows: a local
+// session, or through a proxy, the remote session that proxy shows. A remote
+// session the cache doesn't have yet is added.
+func markCurrent(rows []Row, state localState, localHost string, hosts []FleetHost, favorites map[string]bool) []Row {
 	id := tmuxDisplay("#{session_id}")
 	if id == "" {
-		return ""
+		return rows
 	}
+	current := ""
 	for _, session := range state.sessions {
 		if session.ID != id {
 			continue
 		}
-		if session.ProxyHost == "" {
-			return sessionRowID(localHost, id)
-		}
-		if session.RemoteTarget != "" {
-			return sessionRowID(session.ProxyHost, session.RemoteTarget)
+		switch {
+		case session.ProxyHost == "":
+			current = sessionRowID(localHost, id)
+		default:
+			remote, ok := proxyShows(session.ProxyHost)
+			if !ok {
+				if session.RemoteTarget != "" {
+					current = sessionRowID(session.ProxyHost, session.RemoteTarget)
+				}
+				break
+			}
+			current = sessionRowID(session.ProxyHost, remote.ID)
+			if !slices.ContainsFunc(rows, func(row Row) bool { return row.ID == current }) {
+				for _, host := range hosts {
+					if host.Name == session.ProxyHost {
+						rows = append(rows, remoteRows(host, hostCache{Status: statusOnline, Sessions: []InventorySession{remote}}, favorites)...)
+					}
+				}
+			}
 		}
 	}
-	return ""
+	for i := range rows {
+		rows[i].Current = current != "" && rows[i].ID == current
+	}
+	return rows
 }
 
 // hostRank orders machines: this one first, then remote hosts in fleet order.
@@ -217,8 +236,9 @@ func (rank hostRank) sortRows(rows []Row) {
 }
 
 // mergeHostRows folds a host's fresh rows into an open picker without moving
-// rows that are already shown. Rows the host no longer has drop out; new
-// sessions go after the last session and new directories at the end.
+// rows that are already shown. Rows the host no longer has drop out, except
+// the current one, which can be newer than a cached inventory. New sessions
+// go after the last session and new directories at the end.
 func (rank hostRank) mergeHostRows(rows []Row, host string, fresh []Row) []Row {
 	freshByID := make(map[string]Row, len(fresh))
 	for _, row := range fresh {
@@ -232,6 +252,9 @@ func (rank hostRank) mergeHostRows(rows []Row, host string, fresh []Row) []Row {
 		}
 		update, ok := freshByID[row.ID]
 		if !ok {
+			if row.Current {
+				merged = append(merged, row)
+			}
 			continue
 		}
 		update.Favorite = row.Favorite

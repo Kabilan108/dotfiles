@@ -53,8 +53,8 @@ func scanDirectories(config Config, overrides []string, used map[string]bool) []
 	}
 	for _, value := range roots {
 		root, depth := parseSearchPath(value, config.MaxDepth)
-		root = filepath.Clean(root)
-		if !filepath.IsAbs(root) {
+		root, err := filepath.Abs(root)
+		if err != nil {
 			continue
 		}
 		if info, err := os.Stat(root); err != nil || !info.IsDir() {

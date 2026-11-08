@@ -45,6 +45,9 @@ func openRemote(host, spec string) error {
 	target := "=" + proxySessionName(host)
 	exists := sessionExists(target)
 	if exists {
+		if marker, _ := tmux("show-options", "-qv", "-t", optionTarget(host), "@sessionizer-proxy-host"); marker != host {
+			return fmt.Errorf("a session named %s already exists and is not a sessionizer proxy; rename it", proxySessionName(host))
+		}
 		out, err := run(runOptions{timeout: 20 * time.Second}, masterSSH(host, remoteSessionizer("--proxy-switch", origin, spec))...)
 		if err == nil {
 			id := strings.TrimSpace(out)
@@ -183,6 +186,38 @@ func proxySwitch(origin, spec string) error {
 	}
 	fmt.Println(id)
 	return nil
+}
+
+// proxyCurrent runs on the remote host and prints, as inventory JSON, the
+// session the origin's proxy client shows. It may differ from the last one
+// the picker chose, and may be newer than the origin's cached inventory.
+func proxyCurrent(origin string) error {
+	tty, ok := liveProxyClient(origin)
+	if !ok {
+		return exitStatus(exitNoProxyClient)
+	}
+	id, err := tmux("display-message", "-c", tty, "-p", "#{session_id}")
+	if err != nil {
+		return err
+	}
+	state := readLocalState()
+	for _, session := range state.sessions {
+		if session.ID == id {
+			return json.NewEncoder(os.Stdout).Encode(state.inventorySession(session))
+		}
+	}
+	return fmt.Errorf("session %s vanished", id)
+}
+
+// proxyShows asks host which session its proxy client shows, over the login
+// connection the proxy keeps open.
+func proxyShows(host string) (InventorySession, bool) {
+	out, err := run(runOptions{timeout: 3 * time.Second}, masterSSH(host, remoteSessionizer("--proxy-current", localHostname()))...)
+	var session InventorySession
+	if err != nil || json.Unmarshal([]byte(out), &session) != nil || !sessionIDPattern.MatchString(session.ID) {
+		return InventorySession{}, false
+	}
+	return session, true
 }
 
 func liveProxyClient(origin string) (string, bool) {
