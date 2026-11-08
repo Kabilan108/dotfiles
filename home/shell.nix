@@ -191,14 +191,14 @@ in
 
   programs.lazygit = {
     enable = true;
-    settings.git.pagers = [
-      { pager = "delta --paging=never"; }
+    settings.git.diffRenderers = [
+      { command = "delta --paging=never"; }
     ];
     settings.gui = {
-      authorColors = {
+      theme.authorColors = {
         "*" = colors.base07;
       };
-      branchColorPatterns = {
+      theme.branchColorPatterns = {
         "^main$" = colors.base0C;
         "^master$" = colors.base0C;
         "^feat[ure]?/" = colors.base0D;
