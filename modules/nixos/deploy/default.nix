@@ -1,7 +1,8 @@
 # YubiKey-signed deploys; lib/fleet.nix `deploy` says which host plays which
 # part. Every host gets deploy-tag, which bin/rebuild uses. The controller gets
-# `deploy` and deploy-key, which both commands use to pick the plugged-in key. Receivers build signed tags through deploy-receiver.service, which
-# the deploy-trigger socket starts and deploy-receiver-run records.
+# `deploy` and deploy-key, which both commands use to pick the plugged-in key.
+# Receivers build signed tags through deploy-receiver.service, which the
+# deploy-trigger socket starts and deploy-receiver-run records.
 {
   config,
   lib,
