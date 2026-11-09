@@ -41,8 +41,25 @@ assert.deepEqual(decks.map(deck => [deck.key, deck.rows.length]), [
     ["app:signal", 2],
     ["app:ghostty", 1]
 ])
-const closed = Layout.placements(decks[0].rows, "", { cardHeight: 100 })
-assert.equal(closed.placements["2"].y, 10)
-assert.equal(closed.height, 110)
+
+// Slack's "[workspace] in #channel" titles become sender, message, and channel.
+assert.deepEqual(Source.slackMessage("[anomaly] in #abattoir", "Dax: ship it: today"), {
+    context: "#abattoir",
+    summary: "Dax",
+    body: "ship it: today"
+})
+assert.deepEqual(Source.slackMessage("[anomaly] from Dax", "lunch?"), {
+    context: "Direct message",
+    summary: "Dax",
+    body: "lunch?"
+})
+assert.equal(Source.slackMessage("[anomaly] in #general", "no sender here"), null)
+assert.equal(Source.slackMessage("Dax", "hi"), null, "an already-rewritten title is left alone")
+assert(Source.isSlack(Source.identify({ appName: "Slack" })))
+assert(Source.isSlack(Source.identify({
+    appName: "Chromium",
+    body: '<a href="https://app.slack.com/">app.slack.com</a> hi'
+})))
+assert(!Source.isSlack(Source.identify({ appName: "Signal" })))
 
 console.log("source-links-layout: ok")

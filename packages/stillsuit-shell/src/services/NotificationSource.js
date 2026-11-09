@@ -55,7 +55,28 @@ function identify(snapshot) {
     }
 }
 
+// Slack titles every message "[workspace] in #channel" (or "[workspace] from
+// Name") and puts "Sender: message" in the body. A card reads better as the
+// sender, the message, and the channel beside the app's name (after Hokum).
+function slackMessage(summary, body) {
+    var title = text(summary).match(/^\[[^\]]*\] (in|from) (.+)$/)
+    if (!title) return null
+    if (title[1] === "from")
+        return { context: "Direct message", summary: title[2], body: text(body) }
+    var split = text(body).indexOf(": ")
+    var sender = split > 0 ? text(body).slice(0, split) : ""
+    if (!sender || sender.length > 80) return null
+    return { context: title[2], summary: sender, body: text(body).slice(split + 2) }
+}
+
+function isSlack(identified) {
+    var row = identified || {}
+    return row.key === "app:slack" || row.key === "app:com-slack-slack" || row.hostname === "app.slack.com"
+}
+
 if (typeof module !== "undefined") module.exports = {
+    slackMessage: slackMessage,
+    isSlack: isSlack,
     hostname: hostname,
     hostOf: hostOf,
     liftBrowserOrigin: liftBrowserOrigin,

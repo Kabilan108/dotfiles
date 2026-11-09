@@ -8,42 +8,46 @@ ShellRoot {
     id: fixture
 
     property int toastViewCount: 0
-    property int centerViewCount: 0
     property int widgetViewCount: 0
     property var fixtureTheme: ({})
     property bool themeReady: false
-    property bool rowsSeeded: false
     property var toastViews: []
-    property var centerViews: []
-    property var capturedDeck: null
-    property var capturedCard: null
+    property var widgets: []
+    property var captured: ({})
 
-    function descendants(node, predicate, found) {
-        if (!node || found.seen.indexOf(node) !== -1) return found
-        found.seen.push(node)
-        if (predicate(node)) found.items.push(node)
-        var children = node.children || []
-        for (var index = 0; index < children.length; index++)
-            descendants(children[index], predicate, found)
-        return found
+    function firstOutputId() {
+        return Quickshell.screens.length > 0 ? Quickshell.screens[0].name : ""
+    }
+
+    function firstView() {
+        return toastViews.filter(function(view) { return view.outputId === firstOutputId() })[0] || null
     }
 
     function decksOf(view) {
         var decks = []
-        for (var index = 0; index < view.deckInstances.count; index++)
+        for (var index = 0; view && index < view.deckInstances.count; index++)
             decks.push(view.deckInstances.itemAt(index))
-        return decks
+        return decks.filter(function(deck) { return deck !== null })
     }
 
-    function expandedCardsOf(deck) {
-        return descendants(deck, function(node) {
-            return node.snapshot !== undefined && node.dismissGesturesEnabled !== undefined
-                && node.parent !== deck
-        }, { seen: [], items: [] }).items
+    function slotsOf(deck) {
+        var slots = []
+        for (var index = 0; deck && index < deck.slotInstances.count; index++)
+            slots.push(deck.slotInstances.itemAt(index))
+        return slots.filter(function(slot) { return slot !== null })
     }
 
-    function firstOutputId() {
-        return Quickshell.screens.length > 0 ? Quickshell.screens[0].name : ""
+    function deckByKey(key) {
+        return decksOf(firstView()).filter(function(deck) { return deck.deckKey === key })[0] || null
+    }
+
+    function slotByKey(key) {
+        var decks = decksOf(firstView())
+        for (var index = 0; index < decks.length; index++) {
+            var slot = slotsOf(decks[index]).filter(function(candidate) { return candidate.rowKey === key })[0]
+            if (slot) return slot
+        }
+        return null
     }
 
     function toastRow(key, sourceKey, offsetMs) {
@@ -53,7 +57,7 @@ ShellRoot {
             originalId: 10,
             appName: sourceKey,
             summary: key,
-            body: "",
+            body: "Body for " + key,
             urgency: 1,
             actions: [],
             hints: ({}),
@@ -63,73 +67,41 @@ ShellRoot {
             quietClass: "visible",
             sourceKey: sourceKey,
             sourceLabel: sourceKey,
-            closeReason: "",
-            read: false,
-            readAt: 0
+            context: "",
+            link: null,
+            heldReason: ""
         }
     }
 
-    function deckReport() {
-        var view = toastViews.filter(function(candidate) {
-            return candidate.outputId === firstOutputId()
-        })[0]
-        var decks = view ? decksOf(view) : []
-        var tracked = fixture.capturedDeck
-            ? decks.filter(function(deck) { return deck === fixture.capturedDeck })[0] : null
-        var cards = tracked ? expandedCardsOf(tracked) : []
+    function report() {
+        var view = firstView()
         return {
-            deckKeys: decks.map(function(deck) { return deck.deck.key }),
-            capturedDeckAlive: tracked !== null && tracked !== undefined,
-            capturedRows: tracked ? tracked.rows.map(function(row) { return row.key }) : [],
-            capturedRead: tracked ? tracked.rows.map(function(row) { return row.read === true }) : [],
-            capturedSummaries: tracked ? tracked.rows.map(function(row) { return row.summary }) : [],
-            expandedCards: cards.length,
-            capturedCardAlive: fixture.capturedCard !== null
-                && cards.some(function(card) { return card === fixture.capturedCard }),
-            enteredAll: decks.every(function(deck) { return deck.entered === true })
-        }
-    }
-
-    function frontCardOf(deck) {
-        return descendants(deck, function(node) {
-            return node.parent === deck && node.snapshot !== undefined
-                && node.dismissGesturesEnabled !== undefined
-        }, { seen: [], items: [] }).items[0] || null
-    }
-
-    function deckByKey(key) {
-        var view = toastViews.filter(function(candidate) {
-            return candidate.outputId === firstOutputId()
-        })[0]
-        return (view ? decksOf(view) : []).filter(function(deck) { return deck.deck.key === key })[0] || null
-    }
-
-    function swipeReport(sourceKey) {
-        var deck = deckByKey(sourceKey)
-        var card = deck ? frontCardOf(deck) : null
-        return {
-            deckAlive: deck !== null && deck === fixture.capturedDeck,
-            frontKey: card ? card.snapshotKey : "",
-            frontDragOffset: card ? card.dragOffset : -1,
+            rendered: view ? view.rendered : [],
+            extent: view ? view.extent : 0,
+            decks: decksOf(view).map(function(deck) {
+                return {
+                    key: deck.deckKey,
+                    exiting: deck.exiting,
+                    y: Math.round(deck.y),
+                    targetY: Math.round(deck.targetY),
+                    layoutHeight: Math.round(deck.layoutHeight),
+                    expanded: deck.expanded,
+                    slots: slotsOf(deck).map(function(slot) {
+                        return {
+                            key: slot.rowKey,
+                            exiting: slot.exiting,
+                            presence: Math.round(slot.presence * 1000) / 1000,
+                            offsetX: Math.round(slot.offsetX),
+                            y: Math.round(slot.y),
+                            alive: fixture.captured[slot.rowKey] === slot
+                        }
+                    })
+                }
+            }),
+            quiet: notificationService.quiet,
             popups: notificationService.popups.map(function(row) { return row.key }),
-            dismissed: notificationService.history.filter(function(row) {
-                return row.closeReason === "dismissed"
-            }).map(function(row) { return row.key })
+            held: notificationService.held.map(function(row) { return row.key })
         }
-    }
-
-    Timer {
-        id: arrivalDuringSwipe
-        interval: 30
-        repeat: false
-        onTriggered: notificationService.insertPopup(fixture.toastRow("new-arrival", "app:other", 2000))
-    }
-
-    function centerReport() {
-        return fixture.centerViews.map(function(view) {
-            return { outputId: view.outputId, presented: view.presented, rows: view.rows.length,
-                sections: view.sections.length }
-        })
     }
 
     FileView {
@@ -194,30 +166,16 @@ ShellRoot {
     Variants {
         model: fixture.themeReady ? Quickshell.screens : []
         delegate: Component {
-            Notifications.NotificationCenter {
-                id: centerView
-                required property var modelData
-                context: fixtureContext
-                service: notificationService
-                screen: modelData
-                Component.onCompleted: {
-                    fixture.centerViewCount += 1
-                    fixture.centerViews = fixture.centerViews.concat([centerView])
-                }
-                Component.onDestruction: fixture.centerViewCount -= 1
-            }
-        }
-    }
-
-    Variants {
-        model: fixture.themeReady ? Quickshell.screens : []
-        delegate: Component {
             Notifications.Widget {
+                id: widget
                 required property var modelData
                 context: fixtureContext
                 service: notificationService
                 outputId: modelData.name
-                Component.onCompleted: fixture.widgetViewCount += 1
+                Component.onCompleted: {
+                    fixture.widgetViewCount += 1
+                    fixture.widgets = fixture.widgets.concat([widget])
+                }
                 Component.onDestruction: fixture.widgetViewCount -= 1
             }
         }
@@ -229,126 +187,80 @@ ShellRoot {
             var screenCount = Quickshell.screens.length
             return fixture.themeReady && notificationService.ready && notificationService.serverActive
                 && fixture.toastViewCount === screenCount
-                && fixture.centerViewCount === screenCount
                 && fixture.widgetViewCount === screenCount ? "ready" : "loading"
         }
-        function seedRows(): string {
-            var outputId = Quickshell.screens.length > 0 ? Quickshell.screens[0].name : ""
-            var now = Date.now()
-            notificationService.popups = [{
-                key: "toast-row",
-                originalId: 1,
-                appName: "Fixture",
-                summary: "Toast row",
-                body: "Visible toast body",
-                urgency: 1,
-                actions: [],
-                hints: ({}),
-                timestamp: now,
-                deadline: now + 60000,
-                outputId: outputId,
-                quietClass: "visible",
-                sourceKey: "app:fixture",
-                sourceLabel: "Fixture",
-                closeReason: "",
-                read: false,
-                readAt: 0
-            }]
-            notificationService.history = [{
-                key: "history-row",
-                originalId: 2,
-                appName: "Fixture",
-                summary: "History row",
-                body: "Visible history body",
-                urgency: 1,
-                actions: [],
-                hints: ({}),
-                timestamp: now - 1000,
-                deadline: 0,
-                outputId: outputId,
-                quietClass: "visible",
-                sourceKey: "app:fixture",
-                sourceLabel: "Fixture",
-                closeReason: "dismissed",
-                read: false,
-                readAt: 0
-            }]
-            notificationService.revision += 1
-            notificationService.openCenter(outputId)
-            notificationService.closeCenter(outputId)
-            fixture.rowsSeeded = true
-            return "ok"
+        function topology(): string {
+            return JSON.stringify({
+                outputs: Quickshell.screens.length,
+                toastViews: fixture.toastViewCount,
+                widgetViews: fixture.widgetViewCount
+            })
         }
-        function captureDeck(): string {
-            var view = fixture.toastViews.filter(function(candidate) {
-                return candidate.outputId === fixture.firstOutputId()
-            })[0]
-            var decks = view ? fixture.decksOf(view) : []
-            fixture.capturedDeck = decks.length > 0 ? decks[0] : null
-            fixture.capturedCard = fixture.capturedDeck
-                ? fixture.expandedCardsOf(fixture.capturedDeck)[0] || null : null
-            return JSON.stringify(fixture.deckReport())
+        function add(key: string, sourceKey: string): string {
+            notificationService.insertPopup(fixture.toastRow(key, sourceKey, 0))
+            return JSON.stringify(fixture.report())
         }
-        function decks(): string {
-            return JSON.stringify(fixture.deckReport())
-        }
-        function markToastsRead(): string {
-            notificationService.markRowsRead(notificationService.popups.map(function(row) {
-                return row.key
-            }), Date.now())
-            return JSON.stringify(fixture.deckReport())
-        }
-        function touchToast(key: string): string {
+        function touch(key: string): string {
             notificationService.popups = notificationService.popups.map(function(row) {
                 return row.key === key ? Object.assign({}, row, { summary: row.summary + " (updated)" }) : row
             })
             notificationService.revision += 1
-            return JSON.stringify(fixture.deckReport())
+            return JSON.stringify(fixture.report())
         }
-        function addToast(key: string, sourceKey: string): string {
-            notificationService.insertPopup(fixture.toastRow(key, sourceKey, 1000))
-            return JSON.stringify(fixture.deckReport())
+        function capture(): string {
+            var decks = fixture.decksOf(fixture.firstView())
+            var next = {}
+            for (var index = 0; index < decks.length; index++) {
+                next["deck:" + decks[index].deckKey] = decks[index]
+                var slots = fixture.slotsOf(decks[index])
+                for (var slotIndex = 0; slotIndex < slots.length; slotIndex++)
+                    next[slots[slotIndex].rowKey] = slots[slotIndex]
+            }
+            fixture.captured = next
+            return JSON.stringify(fixture.report())
         }
-        function swipeWithArrival(sourceKey: string): string {
-            var deck = fixture.deckByKey(sourceKey)
-            var card = deck ? fixture.frontCardOf(deck) : null
-            if (!card) return "unknown"
-            fixture.capturedDeck = deck
-            var swipedKey = card.snapshotKey
-            card.dismissWithSlide(1)
-            arrivalDuringSwipe.start()
-            return swipedKey
+        function decksAlive(): string {
+            return JSON.stringify(fixture.decksOf(fixture.firstView()).map(function(deck) {
+                return { key: deck.deckKey, alive: fixture.captured["deck:" + deck.deckKey] === deck }
+            }))
         }
-        function swipeState(sourceKey: string): string {
-            return JSON.stringify(fixture.swipeReport(sourceKey))
+        function dismiss(key: string): string {
+            notificationService.dismiss(key)
+            return JSON.stringify(fixture.report())
         }
-        function centers(): string {
-            return JSON.stringify({ trackedCount: notificationService.trackedCount,
-                views: fixture.centerReport() })
+        // A flick: the card was dragged 120 pt and let go at 1500 pt/s.
+        function swipe(key: string): string {
+            var slot = fixture.slotByKey(key)
+            if (!slot) return "unknown"
+            slot.card.dragOffset = 120
+            slot.card.swipeEnded(true, 1, 1500)
+            return JSON.stringify(fixture.report())
         }
-        function openCenter(): string {
-            notificationService.openCenter(fixture.firstOutputId())
-            return JSON.stringify({ trackedCount: notificationService.trackedCount,
-                views: fixture.centerReport() })
+        function snapBack(key: string): string {
+            var slot = fixture.slotByKey(key)
+            if (!slot) return "unknown"
+            slot.card.dragOffset = 40
+            slot.card.swipeEnded(false, 1, 0)
+            return JSON.stringify(fixture.report())
         }
-        function closeCenter(): string {
-            notificationService.closeCenter(fixture.firstOutputId())
-            return JSON.stringify({ trackedCount: notificationService.trackedCount,
-                views: fixture.centerReport() })
+        function expand(sourceKey: string): string {
+            notificationService.beginDeckInteraction(sourceKey)
+            return JSON.stringify(fixture.report())
         }
-        function topology(): string {
-            var outputId = Quickshell.screens.length > 0 ? Quickshell.screens[0].name : ""
+        function collapse(): string {
+            notificationService.endDeckInteraction()
+            return JSON.stringify(fixture.report())
+        }
+        function clickWidget(): string {
+            fixture.widgets[0].clicked()
             return JSON.stringify({
-                serviceInstances: 1,
-                outputs: Quickshell.screens.length,
-                toastViews: fixture.toastViewCount,
-                centerViews: fixture.centerViewCount,
-                widgetViews: fixture.widgetViewCount,
-                rowsSeeded: fixture.rowsSeeded,
-                centerRows: notificationService.centerRows().length,
-                toastRows: outputId === "" ? 0
-                    : notificationService.toastsForOutput(outputId).length
+                quiet: notificationService.quiet,
+                icon: fixture.widgets[0].iconName,
+                label: fixture.widgets[0].label
             })
+        }
+        function state(): string {
+            return JSON.stringify(fixture.report())
         }
     }
 }
