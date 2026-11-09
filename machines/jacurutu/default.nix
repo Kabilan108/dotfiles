@@ -31,10 +31,11 @@ in
      KEYBOARD_KEY_100c6=reserved
   '';
 
-  # Test the main package set's kernel for the security update. The earlier
-  # disk-unlock freeze remains unresolved; retain generation 1141 for recovery.
+  # Main nixpkgs kernel (linuxPackages / linux_6_18). The boot pin's
+  # linuxPackages is still 6.18.52, which does not include CVE-2026-99284.
+  # The Oct 2 disk-unlock freeze is unresolved; keep generation 1141 to recover.
   boot.kernelPackages = pkgs.linuxPackages;
-  # Keep the working firmware from generation 1141 during the kernel boot test.
+  # Firmware stays on the boot pin until the laptop boot stack is tested.
   nixpkgs.overlays = [
     (_final: _prev: { linux-firmware = bootPkgs.linux-firmware; })
   ];
