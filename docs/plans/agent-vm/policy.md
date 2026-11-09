@@ -1,6 +1,11 @@
 # Agent VM policy for sietch
 
-Status: proposal, updated 2026-11-01. This branch applies no host change.
+Status: closed 2026-11-09. Tony shelved the Stage B launcher after an audit of
+agent sessions (2026-10-04 to 11-08) found no agent running unreviewed code in
+a VM. The `/dev/kvm` part of Stage C, a VM resource slice and a `vms` skill
+shipped in PR #63 instead. The rest of this document stays as reference.
+
+Previous status: proposal, updated 2026-11-01. This branch applies no host change.
 The 2026-10-04 evidence comes from read-only inspection of sietch, the locked
 nixpkgs of that date, agent session transcripts and an isolated NixOS probe
 (`docs/plans/agent-vm/probe.nix`, results at the end).
