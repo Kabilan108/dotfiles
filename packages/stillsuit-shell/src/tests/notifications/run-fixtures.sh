@@ -328,22 +328,6 @@ jq -e '.quiet and .popups[0].quietClass == "bypass"' >/dev/null <<<"$raised"
 [[ $(ipc toggleQuiet) == off ]]
 ipc dismissAll >/dev/null
 
-# A muted source is held while others show, and replays when unmuted.
-send_notification -a source-one -t 5000 "source-one-before"
-source_state=$(wait_for_json '.popups[0].summary == "source-one-before"')
-source_key=$(jq -r '.popups[0].sourceKey' <<<"$source_state")
-until_ms=$(ipc muteFirstSource)
-[[ $until_ms =~ ^[0-9]+$ ]]
-send_notification -a source-one -t 5000 "source-one-held"
-send_notification -a source-two -t 5000 "source-two-visible"
-muted=$(wait_for_json '.popups[0].summary == "source-two-visible" and (.held | length) == 2')
-jq -e '.held | all(.heldReason == "source-mute")' >/dev/null <<<"$muted"
-jq -e '.heldBadgeText == ""' >/dev/null <<<"$muted"
-[[ $(ipc unmute "$source_key") == ok ]]
-wait_for_json '(.held | length) == 0 and (.popups | length) == 3' >/dev/null
-[[ $(ipc unmute "$source_key") == inactive ]]
-ipc dismissAll >/dev/null
-
 # At most five sources show, each with at most eight rows; the stalest go.
 for index in {1..7}; do
   send_notification -a "deck-$index" -t 60000 "deck-$index"
@@ -389,8 +373,7 @@ wait_for_json '.popups[0].summary == "restart-deadline"' >/dev/null
 [[ $(ipc firstActionState) == none ]]
 wait_for_json '(.popups | length) == 0' >/dev/null
 
-# A version 2 file loses its history and finite global snooze; its source
-# snoozes become mutes.
+# A version 2 file loses its history and every snooze.
 stop_shell
 future=$(( $(date +%s) * 1000 + 600000 ))
 jq -n --argjson until "$future" '{
@@ -400,12 +383,13 @@ jq -n --argjson until "$future" '{
   history: [{ key: "old-history", summary: "old-history", timestamp: 1 }]
 }' >"$state_dir/notifications-v1.json"
 start_shell
-migrated=$(wait_for_json '(.quiet | not) and (.mutes | keys) == ["app:signal"]')
+migrated=$(wait_for_json '(.quiet | not)')
 jq -e '(.held | length) == 0 and (.popups | length) == 0' >/dev/null <<<"$migrated"
-wait_for_state_file '.schemaVersion == 3 and has("history") == false and has("snoozes") == false'
-ipc unmute app:signal >/dev/null
+wait_for_state_file '.schemaVersion == 3 and has("history") == false and has("snoozes") == false
+  and has("mutes") == false'
 
-# Held rows whose mute expired while the shell was down replay on start.
+# Held rows replay on start when quiet was turned off while the shell was
+# down, including rows an early schema 3 file held for a per-source mute.
 stop_shell
 now_ms=$(( $(date +%s) * 1000 ))
 jq -n --argjson now "$now_ms" '{
@@ -418,7 +402,7 @@ jq -n --argjson now "$now_ms" '{
 }' >"$state_dir/notifications-v1.json"
 start_shell
 released=$(wait_for_json '(.held | length) == 0 and .popups[0].summary == "expired-mute"')
-jq -e '.popups[0].deadline > 0 and .mutes == {}' >/dev/null <<<"$released"
+jq -e '.popups[0].deadline > 0' >/dev/null <<<"$released"
 ipc dismissAll >/dev/null
 
 # Runtime cleanup drops an old live popup, closes its sender, and releases its ref.

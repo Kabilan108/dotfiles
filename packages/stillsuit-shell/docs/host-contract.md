@@ -38,9 +38,9 @@ surface opened purely via IPC — the panel falls back to the right edge.
 
 A banner dismisses a non-notification panel on its own output, not another
 output. There is no notification center or history. Quiet mode (an indefinite
-switch on the bell and `toggleQuiet`) and one-hour per-source mutes take
-banners off screen at once and hold non-transient rows, which replay as banners
-when quiet ends or the mute expires; critical rows still show. Tooltips neither focus nor dismiss panels. Banners go to the notification's
+switch on the bell and `toggleQuiet`) takes banners off screen at once and
+holds non-transient rows, which replay as banners when quiet ends; critical
+rows still show. Tooltips neither focus nor dismiss panels. Banners go to the notification's
 saved output, else the focused output, minus any listed in the
 `notifications.avoidOutputs` setting while another output remains.
 
@@ -504,7 +504,7 @@ The agent-panel methods pass one literal action to the fixed helper. They do
 not accept a command, working directory, prompt, or extra argument.
 
 The notification status method is read-only. It reports counts, whether quiet
-mode is on and since when, the number of muted sources, source grouping keys,
+mode is on and since when, source grouping keys,
 output placement, and interaction state. It does not expose notification text,
 URLs, images, raw hints, sender PIDs, action labels, or persistence paths. The
 only mutation is the quiet switch; nothing over IPC dismisses, invokes, or

@@ -183,10 +183,7 @@ Item {
 
             transform: Translate { x: slot.offsetX }
 
-            onExitingChanged: {
-                if (exiting) card.showOverflow = false
-                Qt.callLater(root.syncHovered)
-            }
+            onExitingChanged: Qt.callLater(root.syncHovered)
 
             SpringValue {
                 id: appear

@@ -34,7 +34,6 @@ function notificationsPolicy(settings) {
         lowTimeoutMs: boundedNumber(values.lowTimeoutMs, 4000, 1, 24 * 60 * 60 * 1000),
         actionTimeoutMs: boundedNumber(values.actionTimeoutMs, 10000, 1, 24 * 60 * 60 * 1000),
         hoverGraceMs: boundedNumber(values.hoverGraceMs, 1200, 0, 60 * 1000),
-        muteMs: boundedNumber(values.muteMs, 60 * 60 * 1000, 60 * 1000, 24 * 60 * 60 * 1000),
         quietBypass: {
             critical: bypass.critical === undefined ? true : !!bypass.critical,
             appNames: listValue(bypass.appNames) || ["battery", "Battery"],

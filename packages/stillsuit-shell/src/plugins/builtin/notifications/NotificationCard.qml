@@ -13,7 +13,6 @@ Ui.ShellSurface {
     required property var context
     required property var service
     required property var snapshot
-    property bool showOverflow: false
     property bool interactive: true
     property real contentOpacity: 1
     // The horizontal drag, and its speed in points per second.
@@ -28,8 +27,6 @@ Ui.ShellSurface {
     readonly property var buttonActions: actions.filter(function(action) {
         return String(action.identifier || "") !== "default" && !root.isSettingsAction(action)
     })
-    readonly property var primaryActions: buttonActions.slice(0, 2)
-    readonly property var overflowActions: buttonActions.slice(2)
     readonly property var defaultAction: actions.find(function(action) {
         return String(action.identifier || "") === "default"
     })
@@ -83,8 +80,6 @@ Ui.ShellSurface {
         if (root.canActivate) root.service.invokeAction(root.snapshot.key, "default")
         else root.service.dismiss(root.snapshot.key)
     }
-
-    onSnapshotChanged: if (!snapshot || !snapshot.key) showOverflow = false
 
     MouseArea {
         id: gestureMouse
@@ -247,25 +242,6 @@ Ui.ShellSurface {
             Ui.ShellButton {
                 theme: root.theme
                 label: ""
-                iconName: "more"
-                compact: true
-                ghost: true
-                active: root.showOverflow
-                opacity: root.hovered || root.showOverflow ? 1 : 0
-                enabled: opacity > 0
-                accessibleName: "More notification options"
-                onClicked: root.showOverflow = !root.showOverflow
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: root.reducedMotion ? 0 : root.theme.motion.normal
-                        easing.type: Easing.OutCubic
-                    }
-                }
-            }
-
-            Ui.ShellButton {
-                theme: root.theme
-                label: ""
                 iconName: "close"
                 compact: true
                 ghost: true
@@ -310,16 +286,29 @@ Ui.ShellSurface {
             }
         }
 
-        RowLayout {
-            Layout.fillWidth: true
+        // Buttons sit right-aligned on one line; when they need more room the
+        // row takes the card's width and wraps.
+        Flow {
+            id: buttonFlow
+            readonly property real naturalWidth: {
+                var total = 0
+                var shown = 0
+                for (var index = 0; index < children.length; index++) {
+                    var child = children[index]
+                    if (!child.visible || child.implicitWidth <= 0) continue
+                    total += child.implicitWidth
+                    shown += 1
+                }
+                return total + Math.max(0, shown - 1) * spacing
+            }
+            Layout.alignment: Qt.AlignRight
+            Layout.preferredWidth: Math.min(naturalWidth, contentColumn.width)
             spacing: 6
             visible: root.snapshot.link !== null
-                || (root.primaryActions.length > 0 && root.actionState === "available")
-
-            Item { Layout.fillWidth: true }
+                || (root.buttonActions.length > 0 && root.actionState === "available")
 
             Repeater {
-                model: root.actionState === "available" ? root.primaryActions : []
+                model: root.actionState === "available" ? root.buttonActions : []
 
                 Ui.ShellButton {
                     required property var modelData
@@ -339,40 +328,6 @@ Ui.ShellSurface {
                 iconName: root.snapshot.link && root.snapshot.link.meeting ? "notifications" : "chevron-right"
                 compact: true
                 onClicked: if (root.snapshot.link) Qt.openUrlExternally(root.snapshot.link.url)
-            }
-        }
-
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 6
-            visible: root.showOverflow
-
-            Repeater {
-                model: root.actionState === "available" ? root.overflowActions : []
-
-                Ui.ShellButton {
-                    required property var modelData
-                    Layout.fillWidth: true
-                    theme: root.theme
-                    label: modelData.text || modelData.identifier
-                    accessibleName: label
-                    compact: true
-                    ghost: true
-                    onClicked: root.service.invokeAction(root.snapshot.key, modelData.identifier)
-                }
-            }
-
-            Ui.ShellButton {
-                Layout.fillWidth: true
-                theme: root.theme
-                label: "Mute " + (root.snapshot.sourceLabel || "this app") + " for 1 hour"
-                iconName: "notifications-off"
-                compact: true
-                ghost: true
-                onClicked: {
-                    root.showOverflow = false
-                    root.service.muteSource(root.snapshot.sourceKey)
-                }
             }
         }
 

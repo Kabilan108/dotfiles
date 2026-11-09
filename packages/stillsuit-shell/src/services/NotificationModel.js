@@ -198,30 +198,12 @@ function pruneSnapshots(snapshots, now, maxAgeMs, limit) {
     return result
 }
 
-// Per-source mutes are finite; quiet mode is one indefinite switch.
-function validMutes(value, now) {
-    var result = {}
-    if (!value || typeof value !== "object" || Array.isArray(value)) return result
-    for (var key in value) {
-        if (!Object.prototype.hasOwnProperty.call(value, key)) continue
-        if (key === "*" || key === "__proto__" || key === "constructor" || key === "prototype") continue
-        var entry = value[key] || {}
-        var until = finiteNumber(entry.until, 0)
-        if (!safeString(key) || until <= now) continue
-        result[safeString(key)] = {
-            until: until,
-            startedAt: Math.max(0, finiteNumber(entry.startedAt, now))
-        }
-    }
-    return result
-}
-
 function emptyState() {
-    return { quiet: false, quietSince: 0, mutes: {}, popups: [], held: [], corrupt: false }
+    return { quiet: false, quietSince: 0, popups: [], held: [], corrupt: false }
 }
 
-// Reads every schema this file has had. Version 2 kept history and finite
-// global snoozes; neither survives, but its per-source snoozes become mutes.
+// Reads every schema this file has had. Version 2's history, finite snoozes,
+// and per-source mutes from early version 3 files are all dropped.
 function parseState(raw, limits, now) {
     var bounds = limits || {}
     var popupLimit = Math.max(1, Math.round(finiteNumber(bounds.popupRows, 40)))
@@ -240,7 +222,6 @@ function parseState(raw, limits, now) {
         }
         result.quiet = parsed.quiet === true || parsed.dnd === true
         result.quietSince = result.quiet ? finiteNumber(parsed.quietSince, referenceTime) : 0
-        result.mutes = validMutes(parsed.mutes || parsed.snoozes, referenceTime)
         var isolatedPopups = isolateRecords(parsed.popups, popupLimit)
         result.popups = pruneSnapshots(isolatedPopups, referenceTime, maxAgeMs, popupLimit)
         var isolatedHeld = isolateRecords(parsed.held, heldLimit)
@@ -260,7 +241,6 @@ function serializeState(state) {
         schemaVersion: STATE_SCHEMA_VERSION,
         quiet: value.quiet === true,
         quietSince: value.quiet === true ? finiteNumber(value.quietSince, 0) : 0,
-        mutes: value.mutes || {},
         popups: Array.isArray(value.popups) ? value.popups : [],
         held: Array.isArray(value.held) ? value.held : []
     }, null, 2) + "\n"
@@ -299,7 +279,6 @@ if (typeof module !== "undefined") {
         parseState: parseState,
         serializeState: serializeState,
         pruneSnapshots: pruneSnapshots,
-        validMutes: validMutes,
         keysRemoved: keysRemoved
     }
 }
