@@ -13,6 +13,11 @@ let
     "nosuid"
     "noexec"
     "_netdev"
+    # With seal, each request is encrypted in a buffer sized from rsize/wsize.
+    # At the 4 MiB default that is an order-4 allocation, which failed under
+    # memory fragmentation mid-copy (ENOMEM on close). 1 MiB keeps it small.
+    "rsize=1048576"
+    "wsize=1048576"
   ];
 
   # Mounted on first use, so a missing NAS or placeholder credentials fail the
