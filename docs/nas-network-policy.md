@@ -79,10 +79,14 @@ two accounts and no NFS. NFS stays disabled.
   (`secrets/library/sietch-{ro,rw}-smb.age`), mounted by
   `modules/nixos/selfhost/library.nix`.
 - The media is all replaceable, so the share has NAS snapshots and nothing
-  more: no Restic, no off-NAS copy. Snapshots run daily at 01:00 and stay
-  immutable for 7 days. Approved on 2026-11-08 but not yet applied in DSM:
-  keep 14 daily / 8 weekly / 3 monthly (now 12 monthly), a 1.5 TB quota (now
-  none), and a 30-day recycle bin cleanup.
+  more: no Restic, no off-NAS copy. Snapshots run daily at 01:00, stay
+  immutable for 7 days, and are kept 14 daily / 8 weekly / 3 monthly plus the
+  5 latest. Three months instead of the other shares' twelve, so deleted media
+  frees its space sooner.
+- The share has a 1536 GB quota, so a runaway writer can't fill the pool.
+- The recycle bin is admins only. The Task Scheduler job "library recycle bin
+  cleanup" runs daily at 02:30 and deletes recycled files older than 30 days,
+  from `library` only.
 
 SMB replaced the earlier plan of a read-only NFSv4 export. The share now has a
 writer as well as a reader, SMB checks a password per account where NFS trusts
@@ -284,7 +288,7 @@ A read-only DSM survey, followed by the changes Tony approved:
   `svc-backup-jacurutu` accounts and grant each account SMB access only to its
   matching backup share.
 - **In progress:** move sietch's media library onto the `library` share over
-  SMB ("Media library" above). Accounts created 2026-11-08.
+  SMB ("Media library" above). Accounts and share settings done 2026-11-08.
 - **In progress:** per-machine Restic clients ([`backups.md`](./backups.md)).
 - **Completed by user:** perform the external cellular-data exposure check.
 - **User housekeeping:** delete the two disabled broad DSM firewall rules after
