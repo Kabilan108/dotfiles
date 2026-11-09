@@ -1,6 +1,6 @@
 # YubiKey-signed deploys; lib/fleet.nix `deploy` says which host plays which
 # part. Every host gets deploy-tag, which bin/rebuild uses. The controller gets
-# `deploy`. Receivers build signed tags through deploy-receiver.service, which
+# `deploy` and deploy-key, which both commands use to pick the plugged-in key. Receivers build signed tags through deploy-receiver.service, which
 # the deploy-trigger socket starts and deploy-receiver-run records.
 {
   config,
@@ -64,9 +64,24 @@ let
     text = builtins.readFile ./deploy-tag.sh;
   };
 
+  signerNames = map (key: lib.last (lib.splitString " " key)) deploy.signers;
+
+  deployKey = pkgs.writeShellApplication {
+    name = "deploy-key";
+    runtimeInputs = [ pkgs.yubikey-manager ];
+    runtimeEnv = {
+      DEPLOY_KEY_SERIALS = lib.concatStringsSep " " (
+        lib.mapAttrsToList (name: serial: "${toString serial}=${name}") deploy.signerYubiKeys
+      );
+      DEPLOY_DEFAULT_KEY = deploy.defaultSigner;
+    };
+    text = builtins.readFile ./deploy-key.sh;
+  };
+
   deployCommand = pkgs.writeShellApplication {
     name = "deploy";
     runtimeInputs = [
+      deployKey
       deployTag
       pkgs.coreutils
       pkgs.git
@@ -161,6 +176,12 @@ in
         message = "lib/fleet.nix deploy.signers must all be security keys (sk-...).";
       }
       {
+        assertion =
+          lib.all (name: builtins.elem name signerNames) (builtins.attrNames deploy.signerYubiKeys)
+          && deploy.signerYubiKeys ? ${deploy.defaultSigner};
+        message = "lib/fleet.nix deploy.signerYubiKeys must name only keys in deploy.signers, and include deploy.defaultSigner.";
+      }
+      {
         assertion = lib.hasInfix switchLock (builtins.readFile ../../../bin/rebuild);
         message = "bin/rebuild must switch under the same lock as the receiver (${switchLock}).";
       }
@@ -178,7 +199,10 @@ in
     environment.systemPackages = [
       deployTag
     ]
-    ++ lib.optional (thisHost == deploy.controller) deployCommand
+    ++ lib.optionals (thisHost == deploy.controller) [
+      deployCommand
+      deployKey
+    ]
     ++ lib.optional isReceiver trigger
     ++ lib.optional isGated gate;
 
