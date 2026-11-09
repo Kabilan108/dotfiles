@@ -379,6 +379,9 @@ trust_level = "trusted"
 [projects."/vault/repos/scout"]
 trust_level = "trusted"
 
+[projects."/home/kabilan/.t3/scratch/2026-11-05-we-building-a-new-app-d3a49eed"]
+trust_level = "trusted"
+
 [tui]
 screen_reader_detection_done = true
 
