@@ -47,7 +47,10 @@ is never reused. The live files are excluded.
 
 Not backed up: `/vault/userdata/hark/` (reproducible builds, a test database,
 dev files) and `/vault/userdata/hark-downloads/` (APKs rebuilt from the Hark
-repo plus the keystore in agenix and Vaultwarden).
+repo plus the keystore in agenix and Vaultwarden). The media library lives on
+the NAS's `library` share, not on sietch; it can all be downloaded again, so
+it has NAS snapshots only ([`nas-network-policy.md`](./nas-network-policy.md),
+"Media library").
 
 ## Schedule, retries and alerts
 

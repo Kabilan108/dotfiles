@@ -67,7 +67,7 @@ two accounts and no NFS. NFS stays disabled.
 
 | Account | `library` | Other shares | sietch mount |
 | --- | --- | --- | --- |
-| `svc-library-ro` | Read only | No access | read-only, Jellyfin's library after the cutover |
+| `svc-library-ro` | Read only | No access | `/library`, read-only, mounted at boot; Jellyfin reads it as `/media` |
 | `svc-library-rw` | Read/Write | No access | `/library-rw`, mounted on first use |
 
 - Both accounts are SMB only: every other application is denied, they belong
@@ -287,8 +287,8 @@ A read-only DSM survey, followed by the changes Tony approved:
 - **Completed:** create scoped `svc-backup-sietch` and
   `svc-backup-jacurutu` accounts and grant each account SMB access only to its
   matching backup share.
-- **In progress:** move sietch's media library onto the `library` share over
-  SMB ("Media library" above). Accounts and share settings done 2026-11-08.
+- **Completed:** move sietch's media library onto the `library` share over
+  SMB ("Media library" above). The local media LV went to `/vault`.
 - **In progress:** per-machine Restic clients ([`backups.md`](./backups.md)).
 - **Completed by user:** perform the external cellular-data exposure check.
 - **User housekeeping:** delete the two disabled broad DSM firewall rules after

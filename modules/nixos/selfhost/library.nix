@@ -50,19 +50,19 @@ in
       ];
   };
 
-  # svc-library-ro: Read Only on the share. Verifies the copy until the cutover
-  # moves Jellyfin's /library here.
-  fileSystems."/library-nas" = {
+  # svc-library-ro: Read Only on the share. Jellyfin reads it through the
+  # /media bind. Mounted at boot and `hard`, so while the NAS is away reads
+  # wait instead of failing and a library scan can't see files vanish.
+  fileSystems."/library" = {
     device = share;
     fsType = "cifs";
-    options =
-      common
-      ++ onDemand
-      ++ [
-        "credentials=${config.age.secrets.library-ro-smb.path}"
-        "ro"
-        "file_mode=0444"
-        "dir_mode=0555"
-      ];
+    options = common ++ [
+      "credentials=${config.age.secrets.library-ro-smb.path}"
+      "ro"
+      "hard"
+      "file_mode=0444"
+      "dir_mode=0555"
+      "x-systemd.mount-timeout=60s"
+    ];
   };
 }
