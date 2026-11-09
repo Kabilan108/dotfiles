@@ -3,14 +3,7 @@
   "cleanupPeriodDays": 99999999,
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_CODE_NO_FLICKER": "1",
-    "API_TIMEOUT_MS": "600000",
-    "BASH_DEFAULT_TIMEOUT_MS": "600000",
-    "BASH_MAX_TIMEOUT_MS": "600000",
-    "CLAUDE_API_TIMEOUT": "600000",
-    "DISABLE_TELEMETRY": "1",
-    "MCP_TIMEOUT": "30000",
-    "MCP_TOOL_TIMEOUT": "600000"
+    "CLAUDE_CODE_NO_FLICKER": "1"
   },
   "permissions": {
     "allow": [
@@ -76,7 +69,7 @@
     ],
     "defaultMode": "auto"
   },
-  "model": "opus[1m]",
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -137,6 +130,9 @@
   "modelSettings": {
     "claude-fable-5-1": {
       "effortLevel": "medium"
+    },
+    "claude-opus-5-5": {
+      "effortLevel": "high"
     }
   },
   "voice": {
