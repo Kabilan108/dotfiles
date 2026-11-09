@@ -9,13 +9,11 @@
     ./blocky.nix
     ./sera.nix
     ./cliproxyapi.nix
-    ./executor.nix
     ./hark.nix
     ./jellyfin.nix
     ./library.nix
     ./llamacpp.nix
     ./siren.nix
-    ./vaultwarden.nix
   ];
 
   config = lib.mkIf (config.selfhost.tailnetServices != { }) {

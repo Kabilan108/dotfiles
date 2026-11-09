@@ -85,7 +85,7 @@ rec {
 
     tleilax = {
       role = "credentials";
-      description = "Raspberry Pi 4 on Ethernet; locked-down box for credential services (Vaultwarden and Executor, once they move). No coding agents run here. Only jacurutu reaches it; it accesses nothing.";
+      description = "Raspberry Pi 4 on Ethernet; locked-down box for credential services (Vaultwarden and Executor). No coding agents run here. Only jacurutu reaches it; it accesses nothing.";
       tailscaleIp = "100.73.84.103";
       user = "kabilan";
       color = {

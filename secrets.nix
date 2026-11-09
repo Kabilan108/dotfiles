@@ -14,6 +14,11 @@ in
   if tleilaxReady then
     {
       "secrets/hark/tleilax-alerts.curl.age".publicKeys = tleilax;
+      # docs/tleilax-credentials-move.md. The VPN file has no placeholder:
+      # the tunnel is off until it exists.
+      "secrets/tleilax/vaultwarden-env.age".publicKeys = tleilax;
+      "secrets/tleilax/executor-env.age".publicKeys = tleilax;
+      "secrets/tleilax/executor-vpn.age".publicKeys = tleilax;
     }
   else
     { }

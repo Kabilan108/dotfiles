@@ -35,13 +35,18 @@ a DS225+). Module: `modules/nixos/backup`. NAS access rules:
 | Machine | Job | Contents |
 |---|---|---|
 | sietch | `files` | `/vault/notes/coppermind` (the whole vault, including `.git` and ignored files), `/vault/userdata/media` |
-| sietch | `services` | Vaultwarden (`db.sqlite3` copy, attachments, sends, `config.json`, `rsa_key*`), Executor (`data.db` copy and the rest of its state), Hark (`hark.sqlite` copy and `backups/`) |
+| sietch | `services` | Hark (`hark.sqlite` copy and `backups/`) |
 | jacurutu | `files` | `/vault/notes/coppermind`, `/vault/userdata/media` |
-| tleilax | later | Vaultwarden and Executor, after its rebuild |
+| tleilax | later | Vaultwarden and Executor, which moved there in stage 5 |
+
+sietch's `services` job also held Vaultwarden and Executor until they moved
+to tleilax. Their last sietch state is the snapshot tagged `stage5-final`
+and `archive`, taken with both stopped
+([`tleilax-credentials-move.md`](./tleilax-credentials-move.md), step 5).
 
 Live SQLite databases are never read directly. Before each `services` run,
 SQLite's online `.backup` copies each one into a fresh staging directory, run
-as the database's owner (`vaultwarden`, UID 65532 for Executor, `hark`), and
+as the database's owner (`hark`), and
 `PRAGMA quick_check` checks the copy. A failed copy fails the run; a stale copy
 is never reused. The live files are excluded.
 
@@ -100,9 +105,9 @@ temporary directory, never over live data.
 
 Restore the `services` snapshot, then use the copy under
 `/var/lib/backup-staging/services/<name>/` in the restored tree. Run
-`sqlite3 <copy> 'PRAGMA integrity_check;'` before using it. Executor also needs
-`EXECUTOR_SECRET_KEY` from `secrets/selfhost/executor-env.age` to read its
-data.
+`sqlite3 <copy> 'PRAGMA integrity_check;'` before using it. sietch's old
+Executor data in `stage5-final` also needs `EXECUTOR_SECRET_KEY` from
+`secrets/selfhost/executor-env.age`. tleilax's Executor uses a different key.
 
 ### Restoring without the machine
 
@@ -187,8 +192,11 @@ For an agent on jacurutu, with Tony. Don't do any of this from sietch.
 
 ## Later
 
-- tleilax gets its own share, NAS account and job after its rebuild; its
-  secrets are encrypted to its own host key and the YubiKeys, never sietch's.
+- tleilax gets its own share, NAS account and job for Vaultwarden and
+  Executor; its secrets are encrypted to its own host key and the YubiKeys,
+  never sietch's. Once it passes a restore check, sietch's leftover copies go
+  ([`tleilax-credentials-move.md`](./tleilax-credentials-move.md), "What stays
+  on sietch").
 - Pruning (14 daily / 8 weekly / 12 monthly, plus `--keep-tag archive`), when
   the size alert asks for it. With pruning on, use `--keep-within-*` rules so
   a compromised machine can't push real snapshots out with fake ones.

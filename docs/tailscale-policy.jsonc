@@ -5,8 +5,8 @@
 		// coding agents on dedicated agent boxes (none today)
 		"tag:agent": ["autogroup:admin"],
 
-		// tleilax: credential services (Vaultwarden, Executor). Once they move
-		// (stage 5), the only tag that may advertise svc:vault and svc:executor.
+		// tleilax: credential services (Vaultwarden, Executor). The only tag
+		// that may advertise svc:vault and svc:executor.
 		"tag:credentials": ["autogroup:admin"],
 
 		// machines that exclusively need media (sietch::jellyfin) access
@@ -24,14 +24,12 @@
 			"svc:blocky":      ["tag:server"],
 			"svc:cliproxyapi": ["tag:server"],
 			"svc:cpa-admin":   ["tag:server"],
-			// tag:server stays until Vaultwarden and Executor leave sietch
-			// (stage 5); drop it in the same change that retires sietch's copy.
-			"svc:executor": ["tag:server", "tag:credentials"],
+			"svc:executor": ["tag:credentials"],
 			"svc:hark":     ["tag:server"],
 			"svc:jellyfin": ["tag:server"],
 			"svc:llamacpp": ["tag:server"],
 			"svc:siren":    ["tag:server"],
-			"svc:vault":    ["tag:server", "tag:credentials"],
+			"svc:vault":    ["tag:credentials"],
 		},
 	},
 
@@ -106,6 +104,8 @@
 		// sietch is tagged, so autogroup:member above does not cover it; its
 		// own consumers use the svc names too (dictator -> siren). Keep this
 		// minimal - add services only when something on sietch needs them.
+		// svc:vault and svc:executor stay after they moved to tleilax: agents
+		// on sietch use Executor, and may get their own Vaultwarden account.
 		{
 			"src": ["tag:server"],
 			"dst": ["svc:cliproxyapi", "svc:siren", "svc:executor", "svc:vault", "svc:hark"],
@@ -169,11 +169,13 @@
 				"svc:blocky:443",
 				"svc:cliproxyapi:443",
 				"svc:cpa-admin:443",
+				"svc:vault:443",
+				"svc:executor:443",
 			],
 		},
 		{
 			"src":    "sietch",
-			"accept": ["pixel-9:40000", "svc:cliproxyapi:443"],
+			"accept": ["pixel-9:40000", "svc:cliproxyapi:443", "svc:vault:443", "svc:executor:443"],
 			"deny": [
 				"tleilax:22",
 				"tleilax:443",
@@ -193,6 +195,7 @@
 				"jacurutu:22",
 				"tag:nas:443",
 				"svc:vault:443",
+				"svc:executor:443",
 				"svc:cliproxyapi:443",
 				"svc:cpa-admin:443",
 			],

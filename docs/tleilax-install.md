@@ -16,6 +16,9 @@ running on the Pi), or the **Tailscale admin console**.
 Lines marked **Unverified** describe things nobody has tested on this Pi yet.
 They are collected again at the end.
 
+Moving Vaultwarden and Executor onto the installed Pi is a separate runbook:
+[`tleilax-credentials-move.md`](./tleilax-credentials-move.md).
+
 ## Before you start
 
 You need:
@@ -169,7 +172,8 @@ step 9. Don't run `agenix -e` on a tleilax file before step 7: until then,
    `tag:credentials` reach `svc:hark` for alerts. `tag:server` (sietch)
    stays an approver for `svc:vault` and `svc:executor` until those services
    move in stage 5, so Vaultwarden keeps working through this install.
-   Removing `tag:server` there is part of stage 5.
+   Removing `tag:server` there is part of stage 5
+   ([`tleilax-credentials-move.md`](./tleilax-credentials-move.md), step 8).
 2. Check Vaultwarden anyway: open the vault in a browser or sync a Bitwarden
    client.
 3. Make the key tleilax uses to join the tailnet on its first boot. Go to

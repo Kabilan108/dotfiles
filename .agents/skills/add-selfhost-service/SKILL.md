@@ -12,7 +12,7 @@ Every persistent service on sietch follows one architecture:
 - no firewall ports open, no reverse proxy, no manual certs
 - secrets come from agenix (`secrets/selfhost/*.age`)
 
-All service definitions live in `modules/nixos/selfhost/` (imported by `machines/sietch/default.nix`). Read `default.nix` there first — it defines `selfhost.tailnetServices` and applies serve config via the tailscale CLI.
+All service definitions live in `modules/nixos/selfhost/` (imported by `machines/sietch/default.nix`). Credential services (Vaultwarden, Executor) run on tleilax instead, from `machines/tleilax/services.nix`; see `docs/tleilax-credentials-move.md`. Read `default.nix` there first — it defines `selfhost.tailnetServices` and applies serve config via the tailscale CLI.
 
 ## Steps
 
@@ -20,8 +20,8 @@ All service definitions live in `modules/nixos/selfhost/` (imported by `machines
 
 - Prefer a **native NixOS module** (`services.<name>`) when nixpkgs has one — better integration, no image drift.
 - For your own projects, expose a `nixosModules.default` from the project's flake and consume it as a flake input (see `siren.nix` + the siren repo's flake; updates = `nix flake update <input>`).
-- Otherwise use `virtualisation.oci-containers.containers.<name>` (backend is docker on this host; see `executor.nix`). Digest-pin third-party images (`update-image-pins` skill).
-- Pick a free localhost port in the 83xx range (`ss -tln | grep 83`). Current allocations: 8096 jellyfin, 8222 vaultwarden, 8301 siren, 8302 executor.
+- Otherwise use `virtualisation.oci-containers.containers.<name>` (backend is docker on this host). Digest-pin third-party images (`update-image-pins` skill).
+- Pick a free localhost port in the 83xx range (`ss -tln | grep 83`). Current allocations: 8096 jellyfin, 8301 siren. 8222 and 8302 were vaultwarden and executor, which moved to tleilax.
 
 ### 2. Secrets (if the service needs any)
 
@@ -65,7 +65,7 @@ Create `modules/nixos/selfhost/<name>.nix` and add it to `imports` in `modules/n
 }
 ```
 
-For a native module, set its listen address/port to `127.0.0.1:83XX` and point `selfhost.tailnetServices.<name>.port` at it (see `vaultwarden.nix` and `jellyfin.nix`).
+For a native module, set its listen address/port to `127.0.0.1:83XX` and point `selfhost.tailnetServices.<name>.port` at it (see `jellyfin.nix`).
 
 Filesystem access for the service user follows the rules in `docs/security-hardening.md` ("Selfhost service permission model"): ownership for the owner, group for peers, tmpfiles `A+` ACLs for the exception (e.g. siren on the shared HF cache).
 

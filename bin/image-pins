@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Check or update digest pins for oci-container images in modules/nixos/selfhost.
+# Check or update digest pins for oci-container images in modules/nixos/selfhost
+# (sietch) and machines/tleilax.
 # Pins use the form: image = "<name>:<tag>@sha256:<digest>";
 #
 #   image-pins check          show pinned vs upstream digests
 #   image-pins update [name]  rewrite drifted pins (all, or one image by substring)
 set -euo pipefail
 
-dir="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)/modules/nixos/selfhost"
+root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 action="${1:-check}"
 filter="${2:-}"
 
@@ -31,9 +32,9 @@ while IFS=: read -r file line; do
       echo "         updated $file"
     fi
   fi
-done < <(grep -nE 'image = "[^"]+@sha256:[0-9a-f]{64}"' "$dir"/*.nix | cut -d: -f1,2)
+done < <(grep -nE 'image = "[^"]+@sha256:[0-9a-f]{64}"' "$root"/modules/nixos/selfhost/*.nix "$root"/machines/tleilax/*.nix | cut -d: -f1,2)
 
 if [[ "$drift" == 1 && "$action" == "update" ]]; then
   echo
-  echo "pins updated -- review release notes, then: sudo nixos-rebuild switch --flake ~/dotfiles#sietch"
+  echo "pins updated -- review release notes, then deploy the host that runs each image"
 fi

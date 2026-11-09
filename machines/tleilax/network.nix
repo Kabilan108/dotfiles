@@ -3,8 +3,7 @@
 # policy lets jacurutu in and keeps sietch out (docs/tailscale-policy.jsonc).
 { ... }:
 let
-  # Xfinity default gateway. If the LAN subnet changes, update this.
-  gateway = "10.0.0.1";
+  inherit (import ./lan.nix) gateway;
 in
 {
   networking.useNetworkd = true;
