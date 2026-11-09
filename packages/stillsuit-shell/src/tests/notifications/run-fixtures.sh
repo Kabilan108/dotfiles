@@ -318,6 +318,16 @@ wait_for_json '.popups[0].summary == "replayed-action"' >/dev/null
 wait "$replayed_pid"
 [[ $(<"$tmp_dir/replayed.out") == default ]]
 
+# A held row its sender raises to critical breaks through quiet at once.
+[[ $(ipc toggleQuiet) == on ]]
+raised_id=$(send_notification -p -a chat-app -t 5000 "raise-me")
+wait_for_json '(.held | length) == 1' >/dev/null
+send_notification -a chat-app -r "$raised_id" -u critical -t 5000 "raised"
+raised=$(wait_for_json '(.held | length) == 0 and .popups[0].summary == "raised"')
+jq -e '.quiet and .popups[0].quietClass == "bypass"' >/dev/null <<<"$raised"
+[[ $(ipc toggleQuiet) == off ]]
+ipc dismissAll >/dev/null
+
 # A muted source is held while others show, and replays when unmuted.
 send_notification -a source-one -t 5000 "source-one-before"
 source_state=$(wait_for_json '.popups[0].summary == "source-one-before"')
@@ -394,6 +404,22 @@ migrated=$(wait_for_json '(.quiet | not) and (.mutes | keys) == ["app:signal"]')
 jq -e '(.held | length) == 0 and (.popups | length) == 0' >/dev/null <<<"$migrated"
 wait_for_state_file '.schemaVersion == 3 and has("history") == false and has("snoozes") == false'
 ipc unmute app:signal >/dev/null
+
+# Held rows whose mute expired while the shell was down replay on start.
+stop_shell
+now_ms=$(( $(date +%s) * 1000 ))
+jq -n --argjson now "$now_ms" '{
+  schemaVersion: 3,
+  quiet: false,
+  mutes: { "app:signal": { until: ($now - 1000), startedAt: ($now - 3600000) } },
+  popups: [],
+  held: [{ key: "expired-mute", summary: "expired-mute", appName: "signal", timestamp: ($now - 5000),
+    sourceKey: "app:signal", sourceLabel: "signal", heldReason: "source-mute" }]
+}' >"$state_dir/notifications-v1.json"
+start_shell
+released=$(wait_for_json '(.held | length) == 0 and .popups[0].summary == "expired-mute"')
+jq -e '.popups[0].deadline > 0 and .mutes == {}' >/dev/null <<<"$released"
+ipc dismissAll >/dev/null
 
 # Runtime cleanup drops an old live popup, closes its sender, and releases its ref.
 send_notification -u critical -a lane-e -t 0 -A default=Open "old-live-cleanup" \

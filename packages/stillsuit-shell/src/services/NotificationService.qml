@@ -243,6 +243,9 @@ Scope {
         held = held.slice(0, policy.heldLimit)
         hydrating = false
         ready = true
+        // A mute that expired, or quiet that ended, while the shell was down
+        // releases its rows now.
+        replayHeld()
         revision += 1
         restartDeadlineTimer()
         restartMuteTimer()
@@ -592,6 +595,14 @@ Scope {
             popups = replaceIn(popups, key, updated)
         } else if (indexByKey(queuedArrivals, key) >= 0) {
             queuedArrivals = replaceIn(queuedArrivals, key, updated)
+        } else if (NotificationPolicy.quietClass(updated, true, settings) === "bypass") {
+            // A held row that its sender raised to critical breaks through now.
+            held = held.filter(function(row) { return row.key !== key })
+            updated.heldReason = ""
+            updated.quietClass = "bypass"
+            updated.deadline = deadlineFor(updated, Date.now())
+            if (activeDeckKey !== "") queueArrival(updated)
+            else insertPopup(updated)
         } else {
             updated.deadline = 0
             held = replaceIn(held, key, updated)
