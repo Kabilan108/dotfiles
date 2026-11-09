@@ -1,54 +1,58 @@
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import "../../../ui" as Ui
+import "Motion.js" as Motion
 
+// One notification. The card draws and reports gestures; the deck's slot
+// around it owns every position, scale, and opacity change.
 Ui.ShellSurface {
     id: root
 
     required property var context
     required property var service
     required property var snapshot
-    property bool inline: false
-    property string timeText: ""
     property bool showOverflow: false
-    property bool dismissGesturesEnabled: true
+    property bool interactive: true
+    property real contentOpacity: 1
+    // The horizontal drag, and its speed in points per second.
     property real dragOffset: 0
+    property real dragVelocity: 0
+    readonly property bool dragging: gestureMouse.dragging
+
+    signal swipeEnded(bool dismissed, real direction, real velocity)
 
     theme: context.theme
     readonly property var actions: Array.isArray(snapshot.actions) ? snapshot.actions : []
-    readonly property var primaryActions: actions.filter(function(action) {
-        return !root.isSettingsAction(action)
-    }).slice(0, 2)
-    readonly property var overflowActions: actions.filter(function(action, index) {
-        return root.isSettingsAction(action) || actions.filter(function(candidate) {
-            return !root.isSettingsAction(candidate)
-        }).indexOf(action) >= 2
+    readonly property var buttonActions: actions.filter(function(action) {
+        return String(action.identifier || "") !== "default" && !root.isSettingsAction(action)
     })
+    readonly property var primaryActions: buttonActions.slice(0, 2)
+    readonly property var overflowActions: buttonActions.slice(2)
     readonly property var defaultAction: actions.find(function(action) {
         return String(action.identifier || "") === "default"
     })
     readonly property string actionState: service ? service.actionState(snapshot.key) : "expired"
+    readonly property bool canActivate: actionState === "available" && defaultAction !== undefined
     readonly property string stateRole: service ? service.viewState(snapshot) : "info"
-    readonly property color stateColor: theme.component.notification[stateRole]
+    readonly property color stateColor: stateRole === "info" && service && snapshot.sourceKey
+        ? service.sourceTint(snapshot.sourceKey)
+        : theme.component.notification[stateRole]
+    readonly property string imageSource: service ? service.imageForSnapshot(snapshot) : ""
+    readonly property real progress: service ? service.progressFor(snapshot) : -1
     readonly property bool reducedMotion: context.settings
         && context.settings.values
         && context.settings.values.reducedMotion === true
-    readonly property int fastMotionDuration: reducedMotion ? 0 : theme.motion.fast
-    readonly property int dismissMotionDuration: reducedMotion ? 0 : theme.motion.normal
     readonly property real dismissThreshold: Math.min(width * 0.25, 80)
     readonly property real flickVelocity: 420
     readonly property bool hovered: hoverMouse.containsMouse
-    readonly property string snapshotKey: String((snapshot || {}).key || "")
+    readonly property string sourceText: (snapshot.sourceLabel || snapshot.appName || "Notification")
+        + (snapshot.context ? " · " + snapshot.context : "")
 
     kind: "notification"
     implicitWidth: theme.metrics.panelWidth - theme.metrics.panelPadding * 2
     implicitHeight: contentColumn.implicitHeight + 24
-    opacity: 1 - Math.min(Math.abs(dragOffset) / Math.max(width, 1), 0.48)
-
-    transform: Translate {
-        x: root.dragOffset
-    }
 
     function cleanBody(value) {
         return String(value || "").replace(/<img[^>]*>/gi, "").trim()
@@ -73,92 +77,22 @@ Ui.ShellSurface {
         return Qt.rgba(parsed.r, parsed.g, parsed.b, Math.max(0, Math.min(1, alpha)))
     }
 
-    function dismissKey(key) {
-        if (!root.service || !key) return
-        if (root.inline)
-            root.service.deleteHistory(key)
-        else
-            root.service.dismiss(key)
+    // A click opens the sender when it has a default action, else dismisses.
+    function activate() {
+        if (!root.service) return
+        if (root.canActivate) root.service.invokeAction(root.snapshot.key, "default")
+        else root.service.dismiss(root.snapshot.key)
     }
 
-    // The swipe dismisses the notification it started on, even if a newer
-    // one from the same source has taken over this card in the meantime.
-    function dismissSwiped() {
-        var key = slideAwayAnimation.dismissedKey
-        slideAwayAnimation.dismissedKey = ""
-        dismissKey(key)
-    }
-
-    function dismissWithSlide(direction) {
-        if (!root.dismissGesturesEnabled || slideAwayAnimation.running) return
-        slideAwayAnimation.targetOffset = direction * (root.width + 56)
-        slideAwayAnimation.dismissedKey = root.snapshotKey
-        slideAwayAnimation.start()
-    }
-
-    // A toast deck's front card outlives the notification it shows, so no
-    // gesture, press, or menu begun on one notification may act on the next.
-    // Toggling enabled drops any in-flight pointer grab, so a release that
-    // lands after the swap produces no click.
-    function resetInteraction() {
-        gestureMouse.enabled = false
-        gestureMouse.enabled = true
-        contentColumn.enabled = false
-        contentColumn.enabled = true
-        snapBackAnimation.stop()
-        dragOffset = 0
-        showOverflow = false
-    }
-
-    onSnapshotKeyChanged: {
-        if (slideAwayAnimation.running && slideAwayAnimation.dismissedKey !== "") {
-            slideAwayAnimation.stop()
-            dismissSwiped()
-        }
-        resetInteraction()
-    }
-
-    function snapBack() {
-        snapBackAnimation.stop()
-        snapBackAnimation.from = root.dragOffset
-        snapBackAnimation.start()
-    }
-
-    NumberAnimation {
-        id: snapBackAnimation
-        target: root
-        property: "dragOffset"
-        to: 0
-        duration: root.fastMotionDuration
-        easing.type: Easing.OutCubic
-    }
-
-    SequentialAnimation {
-        id: slideAwayAnimation
-        property real targetOffset: 0
-        property string dismissedKey: ""
-
-        NumberAnimation {
-            target: root
-            property: "dragOffset"
-            to: slideAwayAnimation.targetOffset
-            duration: root.dismissMotionDuration
-            easing.type: Easing.OutCubic
-        }
-
-        ScriptAction {
-            script: root.dismissSwiped()
-        }
-    }
+    onSnapshotChanged: if (!snapshot || !snapshot.key) showOverflow = false
 
     MouseArea {
         id: gestureMouse
         anchors.fill: parent
         hoverEnabled: true
-        acceptedButtons: root.dismissGesturesEnabled ? Qt.LeftButton : Qt.NoButton
-        cursorShape: root.actionState === "available" && root.defaultAction !== undefined
-            ? Qt.PointingHandCursor
-            : Qt.ArrowCursor
+        enabled: root.interactive
+        acceptedButtons: Qt.LeftButton
+        cursorShape: Qt.PointingHandCursor
         preventStealing: dragging
         property real pressX: 0
         property real pressY: 0
@@ -166,22 +100,19 @@ Ui.ShellSurface {
         property bool gestureConsumed: false
         property real lastX: 0
         property real lastT: 0
-        property real velocity: 0
 
         onPressed: mouse => {
-            snapBackAnimation.stop()
-            slideAwayAnimation.stop()
             pressX = mouse.x
             pressY = mouse.y
             lastX = mouse.x
             lastT = Date.now()
-            velocity = 0
+            root.dragVelocity = 0
             dragging = false
             gestureConsumed = false
         }
 
         onPositionChanged: mouse => {
-            if (!pressed || !root.dismissGesturesEnabled) return
+            if (!pressed) return
 
             var dx = mouse.x - pressX
             var dy = mouse.y - pressY
@@ -196,7 +127,7 @@ Ui.ShellSurface {
                 var dt = now - lastT
                 if (dt > 0) {
                     var instant = (mouse.x - lastX) / dt * 1000
-                    velocity = velocity * 0.6 + instant * 0.4
+                    root.dragVelocity = root.dragVelocity * 0.6 + instant * 0.4
                     lastX = mouse.x
                     lastT = now
                 }
@@ -206,56 +137,86 @@ Ui.ShellSurface {
 
         onReleased: {
             if (!dragging) return
-
-            var direction = root.dragOffset < 0 ? -1 : 1
-            var flicked = Math.abs(velocity) >= root.flickVelocity
-                && ((velocity < 0) === (root.dragOffset < 0))
-            if (flicked || Math.abs(root.dragOffset) >= root.dismissThreshold)
-                root.dismissWithSlide(direction)
-            else
-                root.snapBack()
+            var offset = root.dragOffset
+            var direction = offset < 0 ? -1 : 1
+            var flicked = Math.abs(root.dragVelocity) >= root.flickVelocity
+                && ((root.dragVelocity < 0) === (offset < 0))
             dragging = false
+            root.swipeEnded(flicked || Math.abs(offset) >= root.dismissThreshold,
+                direction, root.dragVelocity)
         }
 
         onCanceled: {
-            if (dragging) root.snapBack()
-            dragging = false
+            if (dragging) {
+                dragging = false
+                root.swipeEnded(false, root.dragOffset < 0 ? -1 : 1, 0)
+            }
         }
 
-        onClicked: {
-            if (!gestureConsumed && root.actionState === "available"
-                    && root.defaultAction !== undefined)
-                root.service.invokeAction(root.snapshot.key, "default")
-        }
+        onClicked: if (!gestureConsumed) root.activate()
     }
 
     ColumnLayout {
         id: contentColumn
 
         anchors {
-            fill: parent
+            left: parent.left
+            right: parent.right
+            top: parent.top
             margins: 12
         }
         spacing: 8
+        opacity: root.contentOpacity
+        enabled: root.interactive
 
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
 
             Rectangle {
+                id: leadingTile
                 Layout.preferredWidth: 30
                 Layout.preferredHeight: 30
                 Layout.alignment: Qt.AlignTop
                 radius: root.theme.metrics.radiusSmall
-                color: root.withAlpha(root.stateColor, 0.16)
+                color: picture.status === Image.Ready ? "transparent" : root.withAlpha(root.stateColor, 0.16)
 
                 Ui.ShellIcon {
                     anchors.centerIn: parent
+                    visible: picture.status !== Image.Ready
                     theme: root.theme
                     name: root.iconForState(root.stateRole)
                     color: root.stateColor
                     accessibleName: root.stateRole + " notification"
                     source: root.service ? root.service.iconForSnapshot(root.snapshot) : ""
+                }
+
+                Image {
+                    id: picture
+                    anchors.fill: parent
+                    visible: false
+                    source: root.imageSource
+                    sourceSize.width: 60
+                    sourceSize.height: 60
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    layer.enabled: status === Image.Ready
+                }
+
+                Rectangle {
+                    id: pictureMask
+                    anchors.fill: parent
+                    visible: false
+                    radius: parent.radius
+                    layer.enabled: true
+                }
+
+                MultiEffect {
+                    anchors.fill: parent
+                    visible: picture.status === Image.Ready
+                    source: picture
+                    maskEnabled: true
+                    maskSource: pictureMask
                 }
             }
 
@@ -266,7 +227,7 @@ Ui.ShellSurface {
                 Ui.ShellText {
                     Layout.fillWidth: true
                     theme: root.theme
-                    text: root.snapshot.sourceLabel || root.snapshot.appName || "Notification"
+                    text: root.sourceText
                     sizeRole: "caption"
                     color: root.stateColor
                     elide: Text.ElideRight
@@ -283,29 +244,33 @@ Ui.ShellSurface {
                 }
             }
 
-            Ui.ShellText {
-                visible: root.timeText !== ""
+            Ui.ShellButton {
                 theme: root.theme
-                text: root.timeText
-                sizeRole: "caption"
-                role: "muted"
-                monospace: true
+                label: ""
+                iconName: "more"
+                compact: true
+                ghost: true
+                active: root.showOverflow
+                opacity: root.hovered || root.showOverflow ? 1 : 0
+                enabled: opacity > 0
+                accessibleName: "More notification options"
+                onClicked: root.showOverflow = !root.showOverflow
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: root.reducedMotion ? 0 : root.theme.motion.normal
+                        easing.type: Easing.OutCubic
+                    }
+                }
             }
 
             Ui.ShellButton {
                 theme: root.theme
                 label: ""
-                iconName: root.inline ? "delete" : "close"
+                iconName: "close"
                 compact: true
                 ghost: true
-                destructive: root.inline
-                accessibleName: root.inline ? "Delete notification" : "Dismiss notification"
-                onClicked: {
-                    if (root.inline)
-                        root.service.deleteHistory(root.snapshot.key)
-                    else
-                        root.service.dismiss(root.snapshot.key)
-                }
+                accessibleName: "Dismiss notification"
+                onClicked: root.service.dismiss(root.snapshot.key)
             }
         }
 
@@ -317,32 +282,44 @@ Ui.ShellSurface {
             role: "secondary"
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
-            maximumLineCount: root.inline ? 5 : 3
+            maximumLineCount: 3
             elide: Text.ElideRight
         }
 
-        Ui.ShellText {
-            visible: root.inline && String(root.snapshot.heldReason || "") !== ""
+        Rectangle {
+            id: progressTrack
+            visible: root.progress >= 0
             Layout.fillWidth: true
-            theme: root.theme
-            text: root.snapshot.heldReason === "global-snooze"
-                ? "Held during global quiet"
-                : "Held while this source was snoozed"
-            sizeRole: "caption"
-            role: "muted"
+            Layout.preferredHeight: 4
+            radius: 2
+            color: root.withAlpha(root.stateColor, 0.18)
+
+            Rectangle {
+                height: parent.height
+                radius: parent.radius
+                width: parent.width * Math.max(0, Math.min(1, progressSpring.value))
+                color: root.stateColor
+            }
+
+            SpringValue {
+                id: progressSpring
+                spring: Motion.LAYOUT
+                target: Math.max(0, root.progress)
+                epsilon: 0.001
+                instant: root.reducedMotion
+            }
         }
 
         RowLayout {
             Layout.fillWidth: true
             spacing: 6
             visible: root.snapshot.link !== null
-                || ((root.primaryActions.length > 0 || root.overflowActions.length > 0)
-                    && root.actionState === "available")
+                || (root.primaryActions.length > 0 && root.actionState === "available")
 
             Item { Layout.fillWidth: true }
 
             Repeater {
-                model: root.primaryActions
+                model: root.actionState === "available" ? root.primaryActions : []
 
                 Ui.ShellButton {
                     required property var modelData
@@ -351,12 +328,9 @@ Ui.ShellSurface {
                     label: modelData.text || modelData.identifier
                     accessibleName: label
                     compact: true
-                    active: modelData.identifier === "default"
-                    visible: root.actionState === "available"
                     onClicked: root.service.invokeAction(root.snapshot.key, modelData.identifier)
                 }
             }
-
 
             Ui.ShellButton {
                 visible: root.snapshot.link !== null
@@ -366,26 +340,15 @@ Ui.ShellSurface {
                 compact: true
                 onClicked: if (root.snapshot.link) Qt.openUrlExternally(root.snapshot.link.url)
             }
-
-            Ui.ShellButton {
-                visible: root.actionState === "available" && (root.overflowActions.length > 0 || root.inline)
-                theme: root.theme
-                label: "More"
-                iconName: "more"
-                compact: true
-                ghost: true
-                active: root.showOverflow
-                onClicked: root.showOverflow = !root.showOverflow
-            }
         }
 
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 6
-            visible: root.showOverflow && root.actionState === "available"
+            visible: root.showOverflow
 
             Repeater {
-                model: root.overflowActions
+                model: root.actionState === "available" ? root.overflowActions : []
 
                 Ui.ShellButton {
                     required property var modelData
@@ -399,6 +362,18 @@ Ui.ShellSurface {
                 }
             }
 
+            Ui.ShellButton {
+                Layout.fillWidth: true
+                theme: root.theme
+                label: "Mute " + (root.snapshot.sourceLabel || "this app") + " for 1 hour"
+                iconName: "notifications-off"
+                compact: true
+                ghost: true
+                onClicked: {
+                    root.showOverflow = false
+                    root.service.muteSource(root.snapshot.sourceKey)
+                }
+            }
         }
 
         RowLayout {
@@ -428,5 +403,4 @@ Ui.ShellSurface {
         hoverEnabled: true
         acceptedButtons: Qt.NoButton
     }
-
 }

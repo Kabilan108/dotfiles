@@ -6,9 +6,9 @@ import "services" as Services
 ShellRoot {
     id: fixture
 
-    readonly property int historyLimit: {
-        var configured = Number(Quickshell.env("STILLSUIT_NOTIFICATION_HISTORY_LIMIT"))
-        return isFinite(configured) && configured > 0 ? Math.round(configured) : 100
+    readonly property int heldLimit: {
+        var configured = Number(Quickshell.env("STILLSUIT_NOTIFICATION_HELD_LIMIT"))
+        return isFinite(configured) && configured > 0 ? Math.round(configured) : 50
     }
 
     QtObject {
@@ -19,7 +19,8 @@ ShellRoot {
                 claimNotificationBus: true,
                 notifications: {
                     popupLimit: 5,
-                    historyLimit: fixture.historyLimit,
+                    deckRowLimit: 8,
+                    heldLimit: fixture.heldLimit,
                     normalTimeoutMs: 5000,
                     lowTimeoutMs: 4000
                 }
@@ -54,21 +55,23 @@ ShellRoot {
 
         function state(): string {
             return JSON.stringify({
-                snoozes: notificationService.snoozes,
-                quietActive: notificationService.quietActive,
+                quiet: notificationService.quiet,
+                mutes: notificationService.mutes,
                 popups: notificationService.popups,
-                history: notificationService.history,
-                heldArrivals: notificationService.heldArrivals,
-                trackedCount: notificationService.trackedCount,
-                unreadCount: notificationService.unreadCount,
-                unreadBadgeText: notificationService.unreadBadgeText,
+                held: notificationService.held,
+                queuedArrivals: notificationService.queuedArrivals,
+                heldBadgeText: notificationService.heldBadgeText,
+                decks: notificationService.toastDecksForOutput("output-a").map(function(deck) {
+                    return { key: deck.key, rows: deck.rows.length }
+                }),
                 liveRefCount: Object.keys(notificationService.liveRefs).length,
-                stateWrites: notificationService.stateWrites
+                stateWrites: notificationService.stateWrites,
+                now: Date.now()
             })
         }
 
         function firstKey(): string {
-            var rows = notificationService.centerRows()
+            var rows = notificationService.popups.length ? notificationService.popups : notificationService.held
             return rows.length > 0 ? rows[0].key : ""
         }
 
@@ -87,19 +90,6 @@ ShellRoot {
             return key ? notificationService.dismiss(key) : "unknown"
         }
 
-        function deleteFirst(): string {
-            var key = firstKey()
-            return key ? notificationService.deleteHistory(key) : "unknown"
-        }
-
-        function openCenter(): string {
-            return notificationService.openCenter("output-a")
-        }
-
-        function closeCenter(): string {
-            return notificationService.closeCenter("output-a")
-        }
-
         function dismissPopups(): string {
             var writesBefore = notificationService.stateWrites
             var keys = notificationService.popups.map(function(row) { return row.key })
@@ -115,25 +105,17 @@ ShellRoot {
             return notificationService.dismissAll()
         }
 
-        function clearSource(key: string): string {
-            return notificationService.clearSource(key)
+        function toggleQuiet(): string {
+            return notificationService.toggleQuiet()
         }
 
-        function snoozeAll(preset: string): string {
-            return notificationService.snooze("*", preset)
+        function muteFirstSource(): string {
+            var rows = notificationService.popups
+            return rows.length ? notificationService.muteSource(rows[0].sourceKey) : "unknown"
         }
 
-        function snoozeFirstSource(preset: string): string {
-            var rows = notificationService.centerRows()
-            return rows.length ? notificationService.snooze(rows[0].sourceKey, preset) : "unknown"
-        }
-
-        function wake(key: string): string {
-            return notificationService.wake(key)
-        }
-
-        function wakeEverything(): string {
-            return notificationService.wakeEverything()
+        function unmute(key: string): string {
+            return notificationService.unmuteSource(key)
         }
 
         function hoverFirst(value: string): string {
@@ -144,14 +126,13 @@ ShellRoot {
         }
 
         function pruneAt(timestamp: string): string {
-            return String(notificationService.pruneHistoryAt(Number(timestamp)))
+            return String(notificationService.pruneAt(Number(timestamp)))
         }
 
         function presentationProof(): string {
             var rowsA = notificationService.toastsForOutput("output-a")
             var rowsB = notificationService.toastsForOutput("output-b")
             return JSON.stringify({
-                serviceInstances: 1,
                 outputA: rowsA.length,
                 outputB: rowsB.length,
                 overlap: rowsA.filter(function(left) {

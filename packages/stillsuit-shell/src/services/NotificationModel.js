@@ -4,14 +4,17 @@
 
 var SNAPSHOT_ROLES = [
     "appName", "appIcon", "summary", "body", "image", "urgency",
-    "expireTimeout", "actions", "hints", "sourceKey", "sourceLabel",
-    "sourceKind", "sourceHostname", "link"
+    "expireTimeout", "actions", "hints", "resident", "sourceKey", "sourceLabel",
+    "sourceKind", "sourceHostname", "context", "link"
 ]
 
-var HINT_ALLOWLIST = ["transient", "desktop-entry", "x-stillsuit-state"]
+var HINT_ALLOWLIST = [
+    "transient", "desktop-entry", "x-stillsuit-state", "value",
+    "x-dunst-stack-tag", "x-canonical-private-synchronous"
+]
 
-var DEFAULT_HISTORY_LIMIT = 100
-var DEFAULT_HISTORY_MAX_AGE_MS = 24 * 60 * 60 * 1000
+var STATE_SCHEMA_VERSION = 3
+var DEFAULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 function safeString(value) {
     if (value === undefined || value === null) return ""
@@ -65,6 +68,27 @@ function actionSnapshots(actions) {
     return result
 }
 
+// The spec's `value` hint, 0 to 100, as a fraction; -1 when there is none.
+function progressOf(snapshot) {
+    var hints = (snapshot || {}).hints || {}
+    if (hints.value === undefined || hints.value === null || hints.value === "") return -1
+    var value = Number(hints.value)
+    return isFinite(value) ? Math.max(0, Math.min(1, value / 100)) : -1
+}
+
+// Volume and brightness tools reuse one card through a stack tag instead of
+// a replaces_id they would have to remember.
+function stackTagOf(snapshot) {
+    var hints = (snapshot || {}).hints || {}
+    return safeString(hints["x-dunst-stack-tag"] || hints["x-canonical-private-synchronous"])
+}
+
+function sameStack(left, right) {
+    var tag = stackTagOf(right)
+    return tag !== "" && stackTagOf(left) === tag
+        && safeString((left || {}).appName) === safeString((right || {}).appName)
+}
+
 function snapshotOf(notification, identity) {
     var source = notification || {}
     var meta = identity || {}
@@ -86,17 +110,16 @@ function snapshotOf(notification, identity) {
         expireTimeout: Math.round(expireTimeout),
         actions: actionSnapshots(source.actions),
         hints: inertHints(source.hints),
+        resident: source.resident === true,
         timestamp: timestamp,
         deadline: finiteNumber(meta.deadline, 0),
         outputId: safeString(meta.outputId),
-        quietClass: safeString(meta.quietClass || meta.dndClass || source.quietClass || "visible"),
-        closeReason: safeString(meta.closeReason),
-        read: meta.read === true,
-        readAt: Math.max(0, finiteNumber(meta.readAt, 0)),
+        quietClass: safeString(meta.quietClass || source.quietClass || "visible"),
         sourceKey: safeString(meta.sourceKey || source.sourceKey),
         sourceLabel: safeString(meta.sourceLabel || source.sourceLabel),
         sourceKind: safeString(meta.sourceKind || source.sourceKind),
         sourceHostname: safeString(meta.sourceHostname || source.sourceHostname),
+        context: safeString(meta.context || source.context),
         link: source.link && typeof source.link === "object" ? {
             url: safeString(source.link.url),
             label: safeString(source.link.label),
@@ -106,23 +129,25 @@ function snapshotOf(notification, identity) {
     }
 }
 
-function replacementSnapshot(notification, previous) {
+function identityOf(previous) {
     var old = previous || {}
-    return snapshotOf(notification, {
+    return {
         key: old.key,
         timestamp: old.timestamp,
         outputId: old.outputId,
         deadline: old.deadline,
         quietClass: old.quietClass,
-        closeReason: old.closeReason,
-        read: old.read,
-        readAt: old.readAt,
         sourceKey: old.sourceKey,
         sourceLabel: old.sourceLabel,
         sourceKind: old.sourceKind,
         sourceHostname: old.sourceHostname,
+        context: old.context,
         heldReason: old.heldReason
-    })
+    }
+}
+
+function replacementSnapshot(notification, previous) {
+    return snapshotOf(notification, identityOf(previous))
 }
 
 function snapshotChanged(previous, next) {
@@ -139,21 +164,9 @@ function validSnapshot(value) {
     if (!value || typeof value !== "object" || Array.isArray(value)) return null
     if (!safeString(value.key) || !isFinite(Number(value.timestamp))) return null
 
-    return snapshotOf(value, {
-        key: value.key,
-        timestamp: Number(value.timestamp),
-        outputId: value.outputId,
-        deadline: value.deadline,
-        quietClass: value.quietClass || value.dndClass,
-        closeReason: value.closeReason,
-        read: value.read,
-        readAt: value.readAt,
-        sourceKey: value.sourceKey,
-        sourceLabel: value.sourceLabel,
-        sourceKind: value.sourceKind,
-        sourceHostname: value.sourceHostname,
-        heldReason: value.heldReason
-    })
+    var identity = identityOf(value)
+    identity.timestamp = Number(value.timestamp)
+    return snapshotOf(value, identity)
 }
 
 function isolateRecords(values, limit) {
@@ -166,78 +179,11 @@ function isolateRecords(values, limit) {
     return result
 }
 
-function tomorrowMorning(now) {
-    var date = new Date(finiteNumber(now, Date.now()))
-    date.setDate(date.getDate() + 1)
-    date.setHours(8, 0, 0, 0)
-    return date.getTime()
-}
-
-function validSnoozes(value, now) {
-    var result = {}
-    if (!value || typeof value !== "object" || Array.isArray(value)) return result
-    for (var key in value) {
-        if (!Object.prototype.hasOwnProperty.call(value, key)) continue
-        if (key === "__proto__" || key === "constructor" || key === "prototype") continue
-        var entry = value[key] || {}
-        var until = finiteNumber(entry.until, 0)
-        if (!safeString(key) || until <= now) continue
-        result[safeString(key)] = {
-            until: until,
-            startedAt: Math.max(0, finiteNumber(entry.startedAt, now))
-        }
-    }
-    return result
-}
-
-function parseState(raw, popupLimit, historyLimit, now, historyMaxAgeMs) {
-    var referenceTime = finiteNumber(now, Date.now())
-    var result = { snoozes: {}, migratedDnd: false, popups: [], history: [], corrupt: false }
-    var text = safeString(raw).trim()
-    if (!text) return result
-
-    try {
-        var parsed = JSON.parse(text)
-        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-            result.corrupt = true
-            return result
-        }
-        result.snoozes = validSnoozes(parsed.snoozes, referenceTime)
-        if (parsed.dnd === true && !result.snoozes["*"]) {
-            result.snoozes["*"] = { until: tomorrowMorning(referenceTime), startedAt: referenceTime }
-            result.migratedDnd = true
-        }
-        var isolatedPopups = isolateRecords(parsed.popups, popupLimit)
-        result.popups = pruneSnapshots(isolatedPopups, now, historyMaxAgeMs, popupLimit)
-        var isolatedHistory = isolateRecords(parsed.history, historyLimit)
-        result.history = pruneHistory(isolatedHistory, now, historyMaxAgeMs, historyLimit)
-        result.corrupt = isolatedPopups.length !== (Array.isArray(parsed.popups) ? Math.min(parsed.popups.length, popupLimit) : 0)
-            || isolatedHistory.length !== (Array.isArray(parsed.history) ? Math.min(parsed.history.length, historyLimit) : 0)
-        return result
-    } catch (error) {
-        result.corrupt = true
-        return result
-    }
-}
-
-function boundedHistory(history, snapshot, limit) {
-    var key = safeString((snapshot || {}).key)
-    var result = []
-    if (snapshot) result.push(snapshot)
-    var rows = Array.isArray(history) ? history : []
-    for (var index = 0; index < rows.length && result.length < limit; index++) {
-        if (safeString(rows[index].key) !== key) result.push(rows[index])
-    }
-    return result
-}
-
 function pruneSnapshots(snapshots, now, maxAgeMs, limit) {
     var rows = Array.isArray(snapshots) ? snapshots : []
     var referenceTime = finiteNumber(now, Date.now())
-    var ageLimit = Math.max(1, finiteNumber(maxAgeMs, DEFAULT_HISTORY_MAX_AGE_MS))
-    var rowLimit = Math.max(1, Math.min(DEFAULT_HISTORY_LIMIT,
-        Math.round(finiteNumber(limit, DEFAULT_HISTORY_LIMIT))))
-    var oldestTimestamp = referenceTime - ageLimit
+    var oldestTimestamp = referenceTime - Math.max(1, finiteNumber(maxAgeMs, DEFAULT_MAX_AGE_MS))
+    var rowLimit = Math.max(1, Math.round(finiteNumber(limit, 100)))
     var result = []
     var seen = {}
 
@@ -252,121 +198,108 @@ function pruneSnapshots(snapshots, now, maxAgeMs, limit) {
     return result
 }
 
-function pruneHistory(history, now, maxAgeMs, limit) {
-    return pruneSnapshots(history, now, maxAgeMs, limit)
-}
-
-function retainedHistory(popups, history, limit, now, maxAgeMs) {
-    var popupRows = Array.isArray(popups) ? popups : []
-    var popupKeys = {}
-    var popupCount = 0
-    for (var popupIndex = 0; popupIndex < popupRows.length; popupIndex++) {
-        var popupKey = safeString((popupRows[popupIndex] || {}).key)
-        if (!popupKey || popupKeys[popupKey]) continue
-        popupKeys[popupKey] = true
-        popupCount += 1
-    }
-
-    var totalLimit = Math.max(1, Math.min(DEFAULT_HISTORY_LIMIT,
-        Math.round(finiteNumber(limit, DEFAULT_HISTORY_LIMIT))))
-    var available = Math.max(0, totalLimit - popupCount)
-    var pruned = pruneHistory(history, now, maxAgeMs, totalLimit)
-    var result = []
-    for (var index = 0; index < pruned.length && result.length < available; index++) {
-        if (!popupKeys[safeString(pruned[index].key)]) result.push(pruned[index])
+// Per-source mutes are finite; quiet mode is one indefinite switch.
+function validMutes(value, now) {
+    var result = {}
+    if (!value || typeof value !== "object" || Array.isArray(value)) return result
+    for (var key in value) {
+        if (!Object.prototype.hasOwnProperty.call(value, key)) continue
+        if (key === "*" || key === "__proto__" || key === "constructor" || key === "prototype") continue
+        var entry = value[key] || {}
+        var until = finiteNumber(entry.until, 0)
+        if (!safeString(key) || until <= now) continue
+        result[safeString(key)] = {
+            until: until,
+            startedAt: Math.max(0, finiteNumber(entry.startedAt, now))
+        }
     }
     return result
 }
 
-function markRead(rows, keys, timestamp) {
-    var source = Array.isArray(rows) ? rows : []
-    var selected = {}
-    var keyRows = Array.isArray(keys) ? keys : []
-    for (var keyIndex = 0; keyIndex < keyRows.length; keyIndex++)
-        selected[safeString(keyRows[keyIndex])] = true
-
-    var readAt = finiteNumber(timestamp, Date.now())
-    var changed = false
-    var result = source.map(function(row) {
-        if (!row || row.read === true || !selected[safeString(row.key)]) return row
-        changed = true
-        return Object.assign({}, row, { read: true, readAt: readAt })
-    })
-    return changed ? result : source
+function emptyState() {
+    return { quiet: false, quietSince: 0, mutes: {}, popups: [], held: [], corrupt: false }
 }
 
-function unreadIn(rows) {
-    var source = Array.isArray(rows) ? rows : []
-    var count = 0
-    for (var index = 0; index < source.length; index++)
-        if (source[index] && source[index].read !== true) count++
-    return count
-}
+// Reads every schema this file has had. Version 2 kept history and finite
+// global snoozes; neither survives, but its per-source snoozes become mutes.
+function parseState(raw, limits, now) {
+    var bounds = limits || {}
+    var popupLimit = Math.max(1, Math.round(finiteNumber(bounds.popupRows, 40)))
+    var heldLimit = Math.max(1, Math.round(finiteNumber(bounds.held, 50)))
+    var maxAgeMs = finiteNumber(bounds.maxAgeMs, DEFAULT_MAX_AGE_MS)
+    var referenceTime = finiteNumber(now, Date.now())
+    var result = emptyState()
+    var text = safeString(raw).trim()
+    if (!text) return result
 
-function unreadCount(popups, history, limit) {
-    return unreadIn(centerRows(popups, history, limit))
-}
-
-function historyKeysRemoved(previous, next) {
-    var retainedKeys = []
-    var nextRows = Array.isArray(next) ? next : []
-    for (var nextIndex = 0; nextIndex < nextRows.length; nextIndex++) {
-        var retainedKey = safeString((nextRows[nextIndex] || {}).key)
-        if (retainedKey && retainedKeys.indexOf(retainedKey) === -1)
-            retainedKeys.push(retainedKey)
+    try {
+        var parsed = JSON.parse(text)
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+            result.corrupt = true
+            return result
+        }
+        result.quiet = parsed.quiet === true || parsed.dnd === true
+        result.quietSince = result.quiet ? finiteNumber(parsed.quietSince, referenceTime) : 0
+        result.mutes = validMutes(parsed.mutes || parsed.snoozes, referenceTime)
+        var isolatedPopups = isolateRecords(parsed.popups, popupLimit)
+        result.popups = pruneSnapshots(isolatedPopups, referenceTime, maxAgeMs, popupLimit)
+        var isolatedHeld = isolateRecords(parsed.held, heldLimit)
+        result.held = pruneSnapshots(isolatedHeld, referenceTime, maxAgeMs, heldLimit)
+        result.corrupt = isolatedPopups.length !== (Array.isArray(parsed.popups) ? Math.min(parsed.popups.length, popupLimit) : 0)
+            || isolatedHeld.length !== (Array.isArray(parsed.held) ? Math.min(parsed.held.length, heldLimit) : 0)
+        return result
+    } catch (error) {
+        result.corrupt = true
+        return result
     }
+}
 
-    var removedKeys = []
+function serializeState(state) {
+    var value = state || {}
+    return JSON.stringify({
+        schemaVersion: STATE_SCHEMA_VERSION,
+        quiet: value.quiet === true,
+        quietSince: value.quiet === true ? finiteNumber(value.quietSince, 0) : 0,
+        mutes: value.mutes || {},
+        popups: Array.isArray(value.popups) ? value.popups : [],
+        held: Array.isArray(value.held) ? value.held : []
+    }, null, 2) + "\n"
+}
+
+// Keys present in `previous` and missing from `next`.
+function keysRemoved(previous, next) {
+    var retained = {}
+    var nextRows = Array.isArray(next) ? next : []
+    for (var nextIndex = 0; nextIndex < nextRows.length; nextIndex++)
+        retained[safeString((nextRows[nextIndex] || {}).key)] = true
+
+    var removed = []
     var previousRows = Array.isArray(previous) ? previous : []
     for (var previousIndex = 0; previousIndex < previousRows.length; previousIndex++) {
-        var previousKey = safeString((previousRows[previousIndex] || {}).key)
-        if (previousKey && retainedKeys.indexOf(previousKey) === -1
-                && removedKeys.indexOf(previousKey) === -1)
-            removedKeys.push(previousKey)
+        var key = safeString((previousRows[previousIndex] || {}).key)
+        if (key && !retained[key] && removed.indexOf(key) === -1) removed.push(key)
     }
-    return removedKeys
-}
-
-function centerRows(popups, history, limit) {
-    var result = []
-    var seen = {}
-    var sources = [Array.isArray(popups) ? popups : [], Array.isArray(history) ? history : []]
-    for (var sourceIndex = 0; sourceIndex < sources.length; sourceIndex++) {
-        var rows = sources[sourceIndex]
-        for (var index = 0; index < rows.length && result.length < limit; index++) {
-            var row = rows[index]
-            if (!row || seen[row.key]) continue
-            seen[row.key] = true
-            result.push(row)
-        }
-    }
-    result.sort(function(left, right) { return Number(right.timestamp || 0) - Number(left.timestamp || 0) })
-    return result.slice(0, limit)
+    return removed
 }
 
 if (typeof module !== "undefined") {
     module.exports = {
         SNAPSHOT_ROLES: SNAPSHOT_ROLES,
         HINT_ALLOWLIST: HINT_ALLOWLIST,
+        STATE_SCHEMA_VERSION: STATE_SCHEMA_VERSION,
         inertHints: inertHints,
         actionSnapshots: actionSnapshots,
+        progressOf: progressOf,
+        stackTagOf: stackTagOf,
+        sameStack: sameStack,
         snapshotOf: snapshotOf,
         replacementSnapshot: replacementSnapshot,
         snapshotChanged: snapshotChanged,
         validSnapshot: validSnapshot,
         parseState: parseState,
-        boundedHistory: boundedHistory,
+        serializeState: serializeState,
         pruneSnapshots: pruneSnapshots,
-        pruneHistory: pruneHistory,
-        retainedHistory: retainedHistory,
-        markRead: markRead,
-        unreadIn: unreadIn,
-        unreadCount: unreadCount,
-        historyKeysRemoved: historyKeysRemoved,
-        centerRows: centerRows,
-        tomorrowMorning: tomorrowMorning,
-        validSnoozes: validSnoozes,
-        DEFAULT_HISTORY_LIMIT: DEFAULT_HISTORY_LIMIT,
-        DEFAULT_HISTORY_MAX_AGE_MS: DEFAULT_HISTORY_MAX_AGE_MS
+        validMutes: validMutes,
+        keysRemoved: keysRemoved
     }
 }

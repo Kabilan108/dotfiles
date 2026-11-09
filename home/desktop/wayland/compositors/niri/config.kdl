@@ -462,7 +462,7 @@ binds {
     // quickshell panels
     Mod+A hotkey-overlay-title="Audio Mixer" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.audio" "{}"; }
     Mod+Alt+B hotkey-overlay-title="Bluetooth" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.bluetooth" "{}"; }
-    Mod+N hotkey-overlay-title="Notification Center" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.notifications" "{}"; }
+    Mod+N hotkey-overlay-title="Toggle Quiet Mode" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-notifications" "toggleQuiet"; }
     Mod+Alt+R hotkey-overlay-title="Screen Recording" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-surface" "toggle" "stillsuit.recording" "{}"; }
     Mod+Grave hotkey-overlay-title="Toggle Agent Panel" { spawn "qs" "ipc" "-c" "stillsuit-next" "call" "stillsuit-agent-panel" "toggle"; }
 

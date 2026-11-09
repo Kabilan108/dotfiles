@@ -37,10 +37,10 @@ a panel near an edge is never cut off. Without an anchor — no bar entry, or a
 surface opened purely via IPC — the panel falls back to the right edge.
 
 A banner dismisses a non-notification panel on its own output, not another
-output. Opening the notification center suppresses banners on that output;
-incoming rows still enter history. Finite global and per-source snoozes suppress
-visible banners immediately while retaining non-transient rows in history.
-Tooltips neither focus nor dismiss panels. Banners go to the notification's
+output. There is no notification center or history. Quiet mode (an indefinite
+switch on the bell and `toggleQuiet`) and one-hour per-source mutes take
+banners off screen at once and hold non-transient rows, which replay as banners
+when quiet ends or the mute expires; critical rows still show. Tooltips neither focus nor dismiss panels. Banners go to the notification's
 saved output, else the focused output, minus any listed in the
 `notifications.avoidOutputs` setting while another output remains.
 
@@ -497,14 +497,18 @@ or whole-shell kill endpoint.
 | `stillsuit-agent-panel` | `status` | none | structured helper status JSON |
 | `stillsuit-agent-panel` | `terminate` | none | helper status |
 | `stillsuit-notifications` | `status` | none | versioned, redacted notification presentation status JSON |
+| `stillsuit-notifications` | `toggleQuiet` | none | `on` or `off`, the new quiet state |
+| `stillsuit-notifications` | `setQuiet` | `on` or `off` | the quiet state, or `invalid` |
 
 The agent-panel methods pass one literal action to the fixed helper. They do
 not accept a command, working directory, prompt, or extra argument.
 
-The notification status method is read-only. It reports counts, quiet-mode
-deadlines, source grouping keys, output placement, and interaction state. It
-does not expose notification text, URLs, images, raw hints, sender PIDs, action
-labels, persistence paths, or mutation methods.
+The notification status method is read-only. It reports counts, whether quiet
+mode is on and since when, the number of muted sources, source grouping keys,
+output placement, and interaction state. It does not expose notification text,
+URLs, images, raw hints, sender PIDs, action labels, or persistence paths. The
+only mutation is the quiet switch; nothing over IPC dismisses, invokes, or
+reads a notification.
 
 ## Failure containment and fallback
 

@@ -10,13 +10,16 @@ const notification = {
     body: "body",
     urgency: 1,
     expireTimeout: 1234,
+    resident: true,
     actions: [
         { identifier: "default", text: "Open" },
         { identifier: "reply", text: "Reply" }
     ],
     hints: {
         "untrusted-command": "touch /tmp/this-must-never-run",
-        transient: false
+        transient: false,
+        value: 62,
+        "x-dunst-stack-tag": "volume"
     }
 }
 
@@ -28,8 +31,17 @@ const first = Model.snapshotOf(notification, {
 assert.equal(first.expireTimeout, 1234, "requested timeout stays in milliseconds")
 assert.deepEqual(first.actions.map(action => action.identifier), ["default", "reply"])
 assert.equal(first.hints["untrusted-command"], undefined, "unknown hints are discarded")
-assert.equal(first.read, false, "new notifications start unread")
-assert.equal(Policy.viewState(first), "unread")
+assert.equal(first.resident, true)
+assert.equal(first.read, undefined, "snapshots carry no read state")
+assert.equal(Policy.viewState(first), "info")
+assert.equal(Model.progressOf(first), 0.62, "the value hint is a 0-100 progress")
+assert.equal(Model.progressOf({ hints: {} }), -1)
+assert.equal(Model.progressOf({ hints: { value: 250 } }), 1, "progress clamps")
+assert.equal(Model.stackTagOf(first), "volume")
+assert.equal(Model.stackTagOf({ hints: { "x-canonical-private-synchronous": "brightness" } }), "brightness")
+assert(Model.sameStack(first, { ...first, key: "next" }), "same app and tag continue one card")
+assert(!Model.sameStack(first, { ...first, appName: "other" }), "a tag is scoped to its app")
+assert(!Model.sameStack({ ...first, hints: {} }, { ...first, hints: {} }), "untagged rows never stack")
 
 const replaced = Model.replacementSnapshot({ ...notification, summary: "after", expireTimeout: 2500 }, first)
 assert.equal(replaced.key, first.key, "replacement preserves identity")
@@ -37,21 +49,52 @@ assert.equal(replaced.timestamp, first.timestamp, "replacement preserves arrival
 assert.equal(replaced.outputId, first.outputId, "replacement stays on its arrival output")
 assert(Model.snapshotChanged(first, replaced), "replacement-only content is detected")
 assert.equal(Policy.durationFor(replaced, {}), 2500, "replacement timeout remains milliseconds")
-assert.equal(
-    Policy.notificationsPolicy({ notifications: { historyLimit: 500 } }).historyLimit,
-    100,
-    "settings cannot raise the persistent history cap above 100"
-)
+
+const defaults = Policy.notificationsPolicy({})
+assert.equal(defaults.popupLimit, 5)
+assert.equal(defaults.deckRowLimit, 8)
+assert.equal(defaults.heldLimit, 50)
+assert.equal(defaults.hoverGraceMs, 1200)
+assert.equal(defaults.muteMs, 60 * 60 * 1000)
 assert.equal(
     Policy.notificationsPolicy({ notifications: { popupLimit: "invalid" } }).popupLimit,
     5,
     "malformed numeric settings fall back safely"
 )
 
+// Cards with buttons stay long enough to reach them; an explicit timeout wins.
+const plain = { urgency: 1, expireTimeout: 0, actions: [] }
+assert.equal(Policy.durationFor(plain, {}), 5000)
+assert.equal(Policy.durationFor({ ...plain, actions: [{ identifier: "default", text: "Open" }] }, {}), 5000,
+    "a default action alone is a click, not a button")
+assert.equal(Policy.durationFor({ ...plain, actions: [{ identifier: "settings", text: "Settings" }] }, {}), 5000,
+    "Chromium's settings button does not count")
+assert.equal(Policy.durationFor({ ...plain, actions: [{ identifier: "reply", text: "Reply" }] }, {}), 10000)
+assert.equal(Policy.durationFor({ ...plain, expireTimeout: 3000, actions: [{ identifier: "reply", text: "Reply" }] }, {}), 3000)
+assert.equal(Policy.durationFor({ ...plain, urgency: 2, actions: [{ identifier: "reply", text: "Reply" }] }, {}), 0)
+assert.deepEqual(Policy.buttonActions(notification.actions).map(action => action.identifier), ["reply"])
+
+// Hover resumes with what was left, and at least the grace period.
+assert.equal(Policy.resumedDeadline(1100, 1000, 5000, {}), 6200, "100 ms left becomes the 1.2 s grace")
+assert.equal(Policy.resumedDeadline(4000, 1000, 5000, {}), 8000, "3 s left stays 3 s")
+assert.equal(Policy.resumedDeadline(0, 1000, 5000, {}), 0, "sticky rows stay sticky")
+
 assert.equal(Policy.quietClass({ ...first, urgency: 2 }, true, {}), "bypass")
-assert.equal(Policy.quietClass(first, true, {}), "silenced-retained")
+assert.equal(Policy.quietClass({ ...first, hints: {} }, true, {}), "silenced-retained")
 assert.equal(Policy.quietClass({ ...first, hints: { transient: true } }, true, {}), "silenced-ephemeral")
+assert.equal(Policy.quietClass(first, true, {}), "silenced-ephemeral", "stacked status cards are not replayed")
 assert.equal(Policy.quietClass(first, false, {}), "visible")
+
+assert.equal(Policy.viewState({ ...first, urgency: 2 }), "danger")
+assert.equal(Policy.viewState({ ...first, urgency: 0 }), "muted")
+assert.equal(Policy.viewState({ ...first, hints: { "x-stillsuit-state": "success" } }), "success")
+assert.equal(Policy.viewState({ ...first, hints: { "x-stillsuit-state": "warning" } }), "warning")
+
+assert.match(Policy.sourceTint("app:slack"), /^#[0-9a-f]{6}$/)
+assert.equal(Policy.sourceTint("app:slack"), Policy.sourceTint("app:slack"), "a source keeps its colour")
+assert.notEqual(Policy.sourceTint("app:slack"), Policy.sourceTint("app:firefox"))
+assert.equal(Policy.oklchHex(1, 0, 0), "#ffffff")
+assert.equal(Policy.oklchHex(0, 0, 0), "#000000")
 
 assert.equal(Policy.presentationOutput(first, ["DP-1", "DP-2"], "DP-2"), "DP-1")
 assert(Policy.shouldPresentOn(first, "DP-1", ["DP-1", "DP-2"], "DP-2"))
@@ -77,112 +120,55 @@ assert.deepEqual(Policy.notificationsPolicy({ notifications: { quietBypass: { ap
 assert.equal(Policy.listValue("DP-4"), null, "strings are not lists")
 assert.equal(Policy.listValue({ a: 1 }), null, "plain objects are not lists")
 
-const good = { ...first, key: "good" }
-const parsed = Model.parseState(JSON.stringify({
-    dnd: true,
-    popups: [good, null, "bad"],
-    history: [{ ...good, key: "history" }, { summary: "missing identity" }]
-}), 5, 100, 100)
-assert.equal(parsed.migratedDnd, true)
-assert(parsed.snoozes["*"].until > 100, "legacy DND migrates to a finite global snooze")
-assert.equal(parsed.popups.length, 1, "malformed popup records are isolated")
-assert.equal(parsed.history.length, 1, "malformed history records are isolated")
-assert.equal(parsed.corrupt, true)
-assert.equal(Model.parseState("{broken", 5, 100).corrupt, true)
-
-const readAtOpen = Model.markRead([first], [first.key], 150)
-const arrivedAfterOpen = { ...first, key: "after-open", timestamp: 151 }
-assert.equal(readAtOpen[0].read, true)
-assert.equal(readAtOpen[0].readAt, 150)
-assert.equal(
-    Model.unreadCount([], [arrivedAfterOpen, ...readAtOpen], 100),
-    1,
-    "an arrival after the center-open snapshot remains unread"
-)
-assert.equal(
-    Model.unreadIn(Model.centerRows([], [arrivedAfterOpen, ...readAtOpen], 100)),
-    Model.unreadCount([], [arrivedAfterOpen, ...readAtOpen], 100),
-    "counting unread over shared center rows matches the standalone count"
-)
-assert.equal(Model.unreadIn(null), 0)
-assert.equal(Policy.viewState(readAtOpen[0]), "info")
-assert.equal(Policy.viewState({ ...readAtOpen[0], urgency: 2 }), "danger")
-assert.equal(Policy.viewState({ ...readAtOpen[0], urgency: 0 }), "muted")
-assert.equal(Policy.viewState({
-    ...readAtOpen[0],
-    hints: { "x-stillsuit-state": "success" }
-}), "success")
-assert.equal(Policy.viewState({
-    ...readAtOpen[0],
-    hints: { "x-stillsuit-state": "warning" }
-}), "warning")
-
-let history = []
-for (let index = 0; index < 150; index++)
-    history = Model.boundedHistory(history, { ...good, key: String(index), timestamp: index }, 100)
-assert.equal(history.length, 100, "history remains bounded during a burst")
-assert.equal(history[0].key, "149")
-assert.equal(history[99].key, "50")
-
+// State: quiet is one indefinite switch; held rows survive a restart.
 const day = 24 * 60 * 60 * 1000
-const pruningNow = 2 * day
-const agePruned = Model.pruneHistory([
-    { ...good, key: "inside", timestamp: pruningNow - day },
-    { ...good, key: "outside", timestamp: pruningNow - day - 1 }
-], pruningNow, day, 100)
-assert.deepEqual(agePruned.map(row => row.key), ["inside"], "history prunes after 24 hours")
+const now = 10 * day
+const good = { ...first, key: "good", timestamp: now - 1000 }
+const limits = { popupRows: 40, held: 50, maxAgeMs: day }
+const parsed = Model.parseState(JSON.stringify({
+    schemaVersion: 3,
+    quiet: true,
+    quietSince: now - 5000,
+    mutes: { "app:slack": { until: now + 1000, startedAt: now }, "app:gone": { until: now - 1 } },
+    popups: [good, null, "bad"],
+    held: [{ ...good, key: "held" }, { summary: "missing identity" }]
+}), limits, now)
+assert.equal(parsed.quiet, true)
+assert.equal(parsed.quietSince, now - 5000)
+assert.deepEqual(Object.keys(parsed.mutes), ["app:slack"], "expired mutes are dropped")
+assert.equal(parsed.popups.length, 1, "malformed popup records are isolated")
+assert.equal(parsed.held.length, 1, "malformed held records are isolated")
+assert.equal(parsed.corrupt, true)
+assert.equal(Model.parseState("{broken", limits, now).corrupt, true)
 
-const restartedWithOldPersistentPopup = Model.parseState(JSON.stringify({
-    dnd: false,
-    popups: [{
-        ...good,
-        key: "old-persistent-popup",
-        timestamp: pruningNow - day - 1,
-        deadline: 0
-    }],
-    history: []
-}), 5, 100, pruningNow, day)
-assert.equal(
-    restartedWithOldPersistentPopup.popups.length,
-    0,
-    "restart drops a deadline-zero popup older than 24 hours"
-)
-assert.equal(restartedWithOldPersistentPopup.history.length, 0)
-assert.equal(restartedWithOldPersistentPopup.corrupt, false, "age pruning is not state corruption")
+// Version 2 files: history and the finite global snooze go; source snoozes become mutes.
+const migrated = Model.parseState(JSON.stringify({
+    schemaVersion: 2,
+    snoozes: { "*": { until: now + 1000 }, "app:signal": { until: now + 1000, startedAt: now } },
+    popups: [good],
+    history: [{ ...good, key: "old-history" }]
+}), limits, now)
+assert.equal(migrated.quiet, false, "a finite v2 snooze does not become indefinite quiet")
+assert.deepEqual(Object.keys(migrated.mutes), ["app:signal"])
+assert.equal(migrated.held.length, 0, "v2 history is not replayed")
+assert.equal(migrated.popups.length, 1)
+assert.equal(migrated.corrupt, false)
+assert.equal(Model.parseState(JSON.stringify({ dnd: true }), limits, now).quiet, true, "v1 DND carries over")
 
-const popupRows = Array.from({ length: 5 }, (_, index) => ({
-    ...good,
-    key: `popup-${index}`,
-    timestamp: 1000 - index
-}))
-const historyRows = Array.from({ length: 100 }, (_, index) => ({
-    ...good,
-    key: `history-${index}`,
-    timestamp: 900 - index
-}))
-assert.equal(
-    Model.retainedHistory(popupRows, historyRows, 100, 1000, day).length,
-    95,
-    "live popups and persistent history share the 100-item cap"
-)
+const old = Model.parseState(JSON.stringify({
+    held: [{ ...good, key: "stale", timestamp: now - day - 1 }]
+}), limits, now)
+assert.equal(old.held.length, 0, "held rows older than a day are dropped")
+assert.equal(old.corrupt, false, "age pruning is not state corruption")
 
-const previousHistory = [
-    { ...good, key: "newer", timestamp: 2 },
-    { ...good, key: "oldest", timestamp: 1 }
-]
-const nextHistory = Model.boundedHistory(
-    previousHistory,
-    { ...good, key: "newest", timestamp: 3 },
-    2
-)
-assert.deepEqual(
-    Model.historyKeysRemoved(previousHistory, nextHistory),
-    ["oldest"],
-    "bounded history reports the key whose final row was evicted"
-)
+const serialized = JSON.parse(Model.serializeState({ quiet: true, quietSince: 5, mutes: {}, popups: [first], held: [] }))
+assert.equal(serialized.schemaVersion, 3)
+assert.equal(serialized.quiet, true)
+assert.equal(serialized.history, undefined)
+const restarted = Model.parseState(Model.serializeState({ popups: [], held: [first] }), limits, 200)
+assert.equal(restarted.held[0].hints["untrusted-command"], undefined)
+assert.equal(restarted.held[0].hints.value, 62)
 
-const persisted = JSON.stringify({ snoozes: {}, popups: [], history: [first] })
-const restarted = Model.parseState(persisted, 5, 100, 100)
-assert.equal(restarted.history[0].hints["untrusted-command"], undefined)
+assert.deepEqual(Model.keysRemoved([{ key: "a" }, { key: "b" }], [{ key: "b" }]), ["a"])
 
 console.log("model-policy: ok")
