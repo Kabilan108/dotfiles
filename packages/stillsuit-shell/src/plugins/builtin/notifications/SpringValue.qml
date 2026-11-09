@@ -13,6 +13,9 @@ Item {
     property real from: NaN
     property real epsilon: 0.25
     property bool instant: false
+    // Holds the value where it is until released, e.g. until the surface
+    // that shows it has presented a frame.
+    property bool hold: false
     property real value: 0
     property real velocity: 0
     readonly property bool moving: frame.running
@@ -41,7 +44,7 @@ Item {
     }
 
     function retarget() {
-        if (!_ready) return
+        if (!_ready || hold) return
         var offset = value - target
         if (instant || (Math.abs(offset) < epsilon && Math.abs(velocity) < epsilon * 10)) {
             var wasMoving = frame.running
@@ -58,6 +61,7 @@ Item {
 
     onTargetChanged: retarget()
     onInstantChanged: retarget()
+    onHoldChanged: retarget()
 
     FrameAnimation {
         id: frame

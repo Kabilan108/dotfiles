@@ -49,8 +49,11 @@ assert.match(cardSource, /readonly property bool hovered:\s*hoverMouse\.contains
 // Every card and deck keeps its delegate by key, including while it leaves.
 assert.match(toastsSource, /Motion\.merge\(rendered, decks\.map/)
 assert.match(toastsSource, /model:\s*deckKeys/)
-assert.match(toastsSource, /visible:\s*root\.rendered\.length > 0/,
+assert.match(toastsSource, /overlayVisible:\s*rendered\.length > 0/,
     "the overlay stays mapped until the last exit finishes")
+assert.match(toastsSource, /visible:\s*root\.overlayVisible/)
+assert.match(toastsSource, /function onFrameSwapped\(\) \{ root\.surfaceReady = true \}/,
+    "entrances wait for the overlay's first presented frame")
 assert.match(toastsSource, /aboveWindows:\s*true/)
 assert.match(toastsSource, /WlrLayershell\.layer:\s*WlrLayer\.Overlay/)
 assert.match(toastsSource, /WlrLayershell\.namespace:\s*"stillsuit\.notifications"/)

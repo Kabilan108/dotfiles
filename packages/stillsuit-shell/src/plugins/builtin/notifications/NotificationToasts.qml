@@ -24,6 +24,12 @@ Scope {
     property var rendered: []
     property var deckCache: ({})
     property real extent: 0
+    // False from the moment the overlay maps until it has presented a frame,
+    // so an entrance starts on screen instead of during the map.
+    property bool surfaceReady: false
+    readonly property bool overlayVisible: rendered.length > 0
+
+    onOverlayVisibleChanged: if (!overlayVisible) surfaceReady = false
 
     function syncDecks() {
         var cache = Object.assign({}, deckCache)
@@ -92,7 +98,7 @@ Scope {
 
     PanelWindow {
         screen: root.screen
-        visible: root.rendered.length > 0
+        visible: root.overlayVisible
         anchors {
             top: true
             right: true
@@ -122,6 +128,11 @@ Scope {
             height: Math.max(1, root.extent)
         }
 
+        Connections {
+            target: root.overlayVisible && !root.surfaceReady ? stack.Window.window : null
+            function onFrameSwapped() { root.surfaceReady = true }
+        }
+
         Item {
             id: stack
             x: root.slack
@@ -134,6 +145,7 @@ Scope {
 
                 NotificationDeck {
                     required property string modelData
+                    surfaceReady: root.surfaceReady
                     context: root.context
                     service: root.service
                     deck: root.deckCache[modelData] || ({ key: modelData, label: "", rows: [] })

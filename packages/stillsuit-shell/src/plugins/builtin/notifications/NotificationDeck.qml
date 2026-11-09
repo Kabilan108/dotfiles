@@ -15,6 +15,7 @@ Item {
     property bool exiting: false
     property real targetY: 0
     property bool positioned: false
+    property bool surfaceReady: true
 
     readonly property string deckKey: String((deck || {}).key || "")
     readonly property bool reducedMotion: context.settings
@@ -194,6 +195,7 @@ Item {
                 target: slot.exiting ? 0 : 1
                 epsilon: 0.002
                 instant: root.reducedMotion
+                hold: !root.surfaceReady
                 onSettled: if (slot.exiting && value === 0) root.dropRow(slot.rowKey)
             }
 
@@ -203,6 +205,7 @@ Item {
                 from: Motion.ENTER_OFFSET
                 target: slot.exiting ? slot.exitDirection * (slot.width + 56) : 0
                 instant: root.reducedMotion
+                hold: !root.surfaceReady
             }
 
             SpringValue {
