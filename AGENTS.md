@@ -33,3 +33,6 @@ skill and `bin/image-pins`.
   `--marionette` against a real profile. Automation mode can leave test prefs in
   `prefs.js` that disable Safe Browsing and revocation updates. Use a copy of the
   profile or a fresh one.
+- Never evaluate or build sietch's config (`nixosConfigurations.sietch`, any attribute) on
+  jacurutu. It saturates the laptop's disk I/O while I'm using it. Check sietch changes on
+  sietch, or report them as unverified.
