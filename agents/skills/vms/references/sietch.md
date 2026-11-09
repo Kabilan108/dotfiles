@@ -41,5 +41,6 @@ For raw QEMU, use `-nic user,restrict=on,hostfwd=tcp:127.0.0.1:<port>-:22` and `
 
 ## When it fails
 
-- `/dev/kvm` missing or permission denied: the Codex sandbox hides it. The thread needs Full access. Outside a sandbox, check `id` lists `kvm`.
+- `/dev/kvm` permission denied: run `id`. Without `kvm`, the session started before Tony's account joined the group; it needs a reboot or a fresh login, so tell Tony.
+- `/dev/kvm` missing: the Codex sandbox hides it. The thread needs Full access.
 - Guest killed with no error: the slice hit its memory cap. Check `systemctl --user status vms.slice`.

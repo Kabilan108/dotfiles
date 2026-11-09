@@ -87,6 +87,13 @@ pkgs.testers.runNixOSTest {
         out = control.succeed("runuser -u kabilan -- nix-build /etc/kvm-probe.nix --no-out-link").strip()
         assert control.succeed(f"head -1 {out}").strip() == "denied"
 
+    with subtest("a udevd restart keeps /dev/kvm closed and the nixbld ACL in place"):
+        machine.succeed("systemctl restart systemd-udevd")
+        machine.wait_for_unit("systemd-udevd.service")
+        acl = machine.succeed("getfacl -p /dev/kvm")
+        assert "group:nixbld:rw-" in acl and "other::---" in acl, acl
+        machine.fail("runuser -u svc -- bash -c 'exec 3<>/dev/kvm'")
+
     with subtest("libvirt starts a KVM guest as qemu-libvirtd"):
         machine.succeed("virsh -c qemu:///system define /etc/probe-domain.xml")
         machine.succeed("virsh -c qemu:///system start probe")
