@@ -655,7 +655,6 @@
       "required": [
         "background",
         "border",
-        "unread",
         "info",
         "success",
         "warning",
@@ -667,9 +666,6 @@
           "$ref": "#/$defs/color"
         },
         "border": {
-          "$ref": "#/$defs/color"
-        },
-        "unread": {
           "$ref": "#/$defs/color"
         },
         "info": {

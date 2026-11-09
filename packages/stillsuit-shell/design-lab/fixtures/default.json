@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "default",
   "name": "Default",
-  "description": "Everyday steady state: charged, on Wi-Fi, media paused, two unread notifications.",
+  "description": "Everyday steady state: charged, on Wi-Fi, media paused, two notifications.",
   "compositor": {
     "focusedOutputId": "WB-1",
     "workspaces": [

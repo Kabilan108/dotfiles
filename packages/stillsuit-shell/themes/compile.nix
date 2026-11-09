@@ -99,7 +99,6 @@ input
     notification = {
       background = semantic.surface.panel;
       border = semantic.outline.default;
-      unread = semantic.accent.primary;
       info = semantic.accent.primary;
       inherit (semantic.status) success warning danger;
       muted = semantic.content.disabled;

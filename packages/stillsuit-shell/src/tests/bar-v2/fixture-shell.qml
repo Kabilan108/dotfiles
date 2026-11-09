@@ -179,7 +179,7 @@ ShellRoot {
                     onActive: "#11111b"
                 },
                 notification: {
-                    background: "#181825", border: "#45475a", unread: "#89b4fa",
+                    background: "#181825", border: "#45475a",
                     info: "#89b4fa", success: "#a6e3a1", warning: "#f9e2af",
                     danger: "#f38ba8", muted: "#6c7086"
                 },

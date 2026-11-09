@@ -122,7 +122,6 @@
     "notification": {
       "background": "#12161a",
       "border": "#35404a",
-      "unread": "#69c4d2",
       "info": "#69c4d2",
       "success": "#86c69b",
       "warning": "#d6b86a",

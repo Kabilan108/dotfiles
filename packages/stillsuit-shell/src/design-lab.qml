@@ -207,7 +207,6 @@ ShellRoot {
         next.component.bar.workspaceActive = accentChoice
         next.component.control.active = accentChoice
         next.component.control.focus = accentChoice
-        next.component.notification.unread = accentChoice
         next.component.osd.fill = accentChoice
 
         next.semantic.surface.panel = panelChoice
@@ -841,7 +840,6 @@ ShellRoot {
                                     { name: "status.success", value: lab.theme.semantic.status.success },
                                     { name: "status.warning", value: lab.theme.semantic.status.warning },
                                     { name: "status.danger", value: lab.theme.semantic.status.danger },
-                                    { name: "notification.unread", value: lab.theme.component.notification.unread },
                                     { name: "notification.muted", value: lab.theme.component.notification.muted },
                                     { name: "signal.audio", value: lab.theme.semantic.signal.audio },
                                     { name: "signal.brightness", value: lab.theme.semantic.signal.brightness },

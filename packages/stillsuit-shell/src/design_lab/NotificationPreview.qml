@@ -10,16 +10,6 @@ ColumnLayout {
     property bool dndEnabled: false
     readonly property var states: [
         {
-            label: "Unread",
-            colorRole: "unread",
-            icon: "notifications",
-            title: "Meeting notes are ready",
-            body: "The transcript, summary, and task candidates passed validation.",
-            time: "now",
-            secondaryAction: "Dismiss",
-            primaryAction: "Open"
-        },
-        {
             label: "Info",
             colorRole: "info",
             icon: "info",
@@ -63,11 +53,11 @@ ColumnLayout {
             label: "Quiet",
             colorRole: "muted",
             icon: "notifications",
-            title: "Notification retained",
-            body: "Do not disturb hid the toast. The item remains in history.",
+            title: "Notification held",
+            body: "Quiet mode held this toast. It replays when quiet ends.",
             time: "8m",
-            secondaryAction: "Clear",
-            primaryAction: "View"
+            secondaryAction: "Dismiss",
+            primaryAction: "Open"
         }
     ]
     readonly property var stateData: states[stateIndex]
@@ -77,7 +67,7 @@ ColumnLayout {
 
     Ui.ShellText {
         theme: root.theme
-        text: "NOTIFICATION PANEL CONTROL"
+        text: "NOTIFICATION CONTROLS"
         sizeRole: "caption"
         role: "muted"
         monospace: true
@@ -86,8 +76,8 @@ ColumnLayout {
     Ui.ShellToggle {
         Layout.fillWidth: true
         theme: root.theme
-        label: "Do not disturb"
-        description: "Retain alerts without showing toasts"
+        label: "Quiet mode"
+        description: "Hold toasts until quiet ends"
         checked: root.dndEnabled
         onToggled: checked => root.dndEnabled = checked
     }
