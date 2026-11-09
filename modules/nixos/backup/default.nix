@@ -6,6 +6,7 @@
   lib,
   options,
   pkgs,
+  utils,
   ...
 }:
 let
@@ -151,9 +152,18 @@ let
     fi
   '';
 
+  # A burst of failed mounts during an outage trips the mount's start limit,
+  # which leaves the automount failed and the share's path an empty local
+  # directory until something resets it. Each run resets it first.
+  mountUnit = utils.escapeSystemdPath mountPoint;
+  mountReset = lib.optionalString (cfg.nas != null) ''
+    ${config.systemd.package}/bin/systemctl reset-failed ${mountUnit}.mount ${mountUnit}.automount || true
+    ${config.systemd.package}/bin/systemctl start ${mountUnit}.automount || true
+  '';
+
   # Fails in seconds when the NAS is unreachable. Restic itself would keep
   # retrying the missing config with backoff for many minutes per attempt.
-  repositoryCheck = ''
+  repositoryCheck = mountReset + ''
     if [ ! -e ${lib.escapeShellArg cfg.repository}/config ]; then
       echo "backup: repository ${cfg.repository} is not reachable" >&2
       exit 1
