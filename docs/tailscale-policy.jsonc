@@ -121,11 +121,6 @@
 			"ip":  ["tcp:443"],
 		},
 
-		// sietch mounts the media library over NFSv4. Backup transport gets
-		// its own narrow grant once selected; the NAS receives no outbound
-		// fleet grant.
-		{"src": ["tag:server"], "dst": ["tag:nas"], "ip": ["tcp:2049"]},
-
 		// tleilax sends failed-unit alerts to Hark and reaches nothing else.
 		{"src": ["tag:credentials"], "dst": ["svc:hark"], "ip": ["tcp:443"]},
 
@@ -180,8 +175,8 @@
 		},
 		{
 			"src":    "sietch",
-			"accept": ["pixel-9:40000", "tag:nas:2049", "svc:cliproxyapi:443"],
-			"deny":   ["tleilax:22", "tleilax:443", "jacurutu:22", "jacurutu:443", "tag:nas:443", "svc:blocky:443", "svc:cpa-admin:443"],
+			"accept": ["pixel-9:40000", "svc:cliproxyapi:443"],
+			"deny":   ["tleilax:22", "tleilax:443", "jacurutu:22", "jacurutu:443", "tag:nas:443", "tag:nas:2049", "svc:blocky:443", "svc:cpa-admin:443"],
 		},
 		{
 			"src":    "tag:credentials",

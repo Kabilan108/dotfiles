@@ -25,6 +25,10 @@ in
   "secrets/backup/sietch-restic.age".publicKeys = backupSietch;
   "secrets/backup/jacurutu-smb.age".publicKeys = backupJacurutu;
   "secrets/backup/jacurutu-restic.age".publicKeys = backupJacurutu;
+  # The media library's NAS accounts (docs/nas-network-policy.md, "Media
+  # library"), with the same root-only recipients as sietch's backups.
+  "secrets/library/sietch-ro-smb.age".publicKeys = backupSietch;
+  "secrets/library/sietch-rw-smb.age".publicKeys = backupSietch;
   "secrets/agent-browser-encryption-key.age".publicKeys = [
     sietch
     jacurutu
