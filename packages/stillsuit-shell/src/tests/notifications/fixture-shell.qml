@@ -56,7 +56,6 @@ ShellRoot {
         function state(): string {
             return JSON.stringify({
                 quiet: notificationService.quiet,
-                mutes: notificationService.mutes,
                 popups: notificationService.popups,
                 held: notificationService.held,
                 queuedArrivals: notificationService.queuedArrivals,
@@ -107,15 +106,6 @@ ShellRoot {
 
         function toggleQuiet(): string {
             return notificationService.toggleQuiet()
-        }
-
-        function muteFirstSource(): string {
-            var rows = notificationService.popups
-            return rows.length ? notificationService.muteSource(rows[0].sourceKey) : "unknown"
-        }
-
-        function unmute(key: string): string {
-            return notificationService.unmuteSource(key)
         }
 
         function hoverFirst(value: string): string {

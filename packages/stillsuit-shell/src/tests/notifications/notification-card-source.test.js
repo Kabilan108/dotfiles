@@ -39,7 +39,10 @@ assert.doesNotMatch(cardSource + deckSource + toastsSource, /theme\.colors|theme
 
 // A click opens the sender, or dismisses a card that has nothing to open.
 assert.match(cardSource, /if \(root\.canActivate\) root\.service\.invokeAction\(root\.snapshot\.key, "default"\)\s*else root\.service\.dismiss\(root\.snapshot\.key\)/)
-assert.match(cardSource, /root\.service\.muteSource\(root\.snapshot\.sourceKey\)/)
+assert.doesNotMatch(cardSource + serviceSource, /mute(Source|s\b)|showOverflow|"more"/,
+    "no per-source mutes and no overflow menu")
+assert.match(cardSource, /Flow \{[\s\S]*model:\s*root\.actionState === "available" \? root\.buttonActions : \[\]/,
+    "every button shows inline, wrapping when needed")
 assert.match(cardSource, /dismissThreshold:\s*Math\.min\(width \* 0\.25, 80\)/)
 assert.match(cardSource, /flickVelocity:\s*420/)
 assert.match(cardSource, /Math\.abs\(dx\) > Math\.abs\(dy\) \* 1\.2/)

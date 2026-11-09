@@ -26,23 +26,15 @@ Scope {
     readonly property int heldCount: held.length
     readonly property string heldBadgeText: !quiet || heldCount === 0 ? "" : heldCount > 9 ? "9+" : String(heldCount)
     readonly property bool quietActive: quiet
-    readonly property int mutedSourceCount: {
-        void(revision)
-        var now = Date.now()
-        return Object.keys(mutes).filter(function(key) {
-            return Number((mutes[key] || {}).until || 0) > now
-        }).length
-    }
 
     property bool ready: false
     property bool popupsVisible: true
-    // Newest first. Popups show as toasts; held rows wait for quiet mode or a
-    // source mute to end and then replay as toasts.
+    // Newest first. Popups show as toasts; held rows wait for quiet mode to
+    // end and then replay as toasts.
     property var popups: []
     property var held: []
     property bool quiet: false
     property double quietSince: 0
-    property var mutes: ({})
     // Arrivals wait here while the pointer is over a deck, so nothing moves
     // under it.
     property var queuedArrivals: []
@@ -201,7 +193,6 @@ Scope {
         stateFile.setText(NotificationModel.serializeState({
             quiet: quiet,
             quietSince: quietSince,
-            mutes: mutes,
             popups: popups,
             held: held
         }))
@@ -225,13 +216,12 @@ Scope {
         }, now)
         quiet = restored.quiet
         quietSince = restored.quietSince
-        mutes = restored.mutes
         held = restored.held.map(function(row) { return enrichSnapshot(row, true) })
         popups = []
         for (var index = restored.popups.length - 1; index >= 0; index--) {
             var snapshot = enrichSnapshot(restored.popups[index], true)
             if (snapshot.deadline > 0 && snapshot.deadline <= now) continue
-            var reason = holdReason(snapshot, now)
+            var reason = holdReason()
             if (reason !== "") {
                 snapshot.heldReason = reason
                 snapshot.deadline = 0
@@ -243,12 +233,10 @@ Scope {
         held = held.slice(0, policy.heldLimit)
         hydrating = false
         ready = true
-        // A mute that expired, or quiet that ended, while the shell was down
-        // releases its rows now.
+        // Quiet that ended while the shell was down releases its rows now.
         replayHeld()
         revision += 1
         restartDeadlineTimer()
-        restartMuteTimer()
         if (restored.corrupt)
             logWarning("recovered notification state while isolating malformed records")
         persist()
@@ -406,10 +394,8 @@ Scope {
         return "ok"
     }
 
-    function holdReason(snapshot, now) {
-        if (quiet) return "quiet"
-        var mute = mutes[String((snapshot || {}).sourceKey || "")] || {}
-        return Number(mute.until || 0) > Number(now || Date.now()) ? "source-mute" : ""
+    function holdReason() {
+        return quiet ? "quiet" : ""
     }
 
     // Moves a row into the held list. Held rows keep their live reference so
@@ -428,14 +414,14 @@ Scope {
             closeLive(releaseLive(evicted[index].key), true, "held overflow")
     }
 
-    // Holds what is on screen (and waiting behind a hovered deck) that the
-    // current quiet state and mutes now block.
+    // Holds what is on screen and waiting behind a hovered deck, now that
+    // quiet mode is on.
     function holdBlockedRows() {
         var now = Date.now()
         var visible = popups.concat(queuedArrivals)
         for (var index = visible.length - 1; index >= 0; index--) {
             var row = visible[index]
-            var reason = holdReason(row, now)
+            var reason = holdReason()
             if (reason === "") continue
             var quietClass = NotificationPolicy.quietClass(row, true, settings)
             if (quietClass === "bypass") continue
@@ -448,13 +434,13 @@ Scope {
         endInteractionIfEmpty()
     }
 
-    // Replays held rows that nothing blocks any more, oldest first so the
-    // newest lands on top.
+    // Replays every held row once quiet is off, oldest first so the newest
+    // lands on top.
     function replayHeld() {
+        if (quiet || held.length === 0) return 0
         var now = Date.now()
-        var replay = held.filter(function(row) { return holdReason(row, now) === "" })
-        if (replay.length === 0) return 0
-        held = held.filter(function(row) { return holdReason(row, now) !== "" })
+        var replay = held
+        held = []
         for (var index = replay.length - 1; index >= 0; index--) {
             var row = Object.assign({}, replay[index], { heldReason: "", quietClass: "visible" })
             row.deadline = deadlineFor(row, now)
@@ -484,59 +470,6 @@ Scope {
         return setQuiet(!quiet)
     }
 
-    function muteSource(sourceKey) {
-        var key = String(sourceKey || "")
-        if (!key) return "unknown"
-        var now = Date.now()
-        var next = Object.assign({}, mutes)
-        next[key] = { until: now + policy.muteMs, startedAt: now }
-        mutes = next
-        holdBlockedRows()
-        revision += 1
-        persist()
-        restartDeadlineTimer()
-        restartMuteTimer()
-        return String(next[key].until)
-    }
-
-    function unmuteSource(sourceKey) {
-        var key = String(sourceKey || "")
-        if (!mutes[key]) return "inactive"
-        var next = Object.assign({}, mutes)
-        delete next[key]
-        mutes = next
-        replayHeld()
-        revision += 1
-        persist()
-        restartMuteTimer()
-        return "ok"
-    }
-
-    function pruneMutes() {
-        var next = NotificationModel.validMutes(mutes, Date.now())
-        if (JSON.stringify(next) !== JSON.stringify(mutes)) {
-            mutes = next
-            replayHeld()
-            revision += 1
-            persist()
-        }
-        restartMuteTimer()
-    }
-
-    function restartMuteTimer() {
-        var keys = Object.keys(mutes)
-        var earliest = 0
-        var now = Date.now()
-        for (var index = 0; index < keys.length; index++) {
-            var until = Number((mutes[keys[index]] || {}).until || 0)
-            if (until > now && (earliest === 0 || until < earliest)) earliest = until
-        }
-        muteTimer.stop()
-        if (earliest > 0) {
-            muteTimer.interval = Math.max(1, earliest - now)
-            muteTimer.start()
-        }
-    }
 
     function pruneAt(now) {
         var reference = Number(now)
@@ -641,7 +574,7 @@ Scope {
             timestamp: now,
             outputId: focusedOutputId()
         }))
-        var reason = holdReason(snapshot, now)
+        var reason = holdReason()
         snapshot.quietClass = NotificationPolicy.quietClass(snapshot, reason !== "", settings)
         snapshot.deadline = deadlineFor(snapshot, now)
 
@@ -795,8 +728,7 @@ Scope {
             },
             quiet: {
                 active: quiet,
-                since: quietSince,
-                mutedSourceCount: mutedSourceCount
+                since: quietSince
             },
             presentation: {
                 activeDeckKey: activeDeckKey,
@@ -829,11 +761,6 @@ Scope {
         onTriggered: root.expireDue()
     }
 
-    Timer {
-        id: muteTimer
-        repeat: false
-        onTriggered: root.pruneMutes()
-    }
 
     Timer {
         id: hoverIntentTimer

@@ -55,7 +55,6 @@ assert.equal(defaults.popupLimit, 5)
 assert.equal(defaults.deckRowLimit, 8)
 assert.equal(defaults.heldLimit, 50)
 assert.equal(defaults.hoverGraceMs, 1200)
-assert.equal(defaults.muteMs, 60 * 60 * 1000)
 assert.equal(
     Policy.notificationsPolicy({ notifications: { popupLimit: "invalid" } }).popupLimit,
     5,
@@ -129,19 +128,19 @@ const parsed = Model.parseState(JSON.stringify({
     schemaVersion: 3,
     quiet: true,
     quietSince: now - 5000,
-    mutes: { "app:slack": { until: now + 1000, startedAt: now }, "app:gone": { until: now - 1 } },
+    mutes: { "app:slack": { until: now + 1000, startedAt: now } },
     popups: [good, null, "bad"],
     held: [{ ...good, key: "held" }, { summary: "missing identity" }]
 }), limits, now)
 assert.equal(parsed.quiet, true)
 assert.equal(parsed.quietSince, now - 5000)
-assert.deepEqual(Object.keys(parsed.mutes), ["app:slack"], "expired mutes are dropped")
+assert.equal(parsed.mutes, undefined, "per-source mutes from early schema 3 files are dropped")
 assert.equal(parsed.popups.length, 1, "malformed popup records are isolated")
 assert.equal(parsed.held.length, 1, "malformed held records are isolated")
 assert.equal(parsed.corrupt, true)
 assert.equal(Model.parseState("{broken", limits, now).corrupt, true)
 
-// Version 2 files: history and the finite global snooze go; source snoozes become mutes.
+// Version 2 files: history and every snooze go.
 const migrated = Model.parseState(JSON.stringify({
     schemaVersion: 2,
     snoozes: { "*": { until: now + 1000 }, "app:signal": { until: now + 1000, startedAt: now } },
@@ -149,7 +148,7 @@ const migrated = Model.parseState(JSON.stringify({
     history: [{ ...good, key: "old-history" }]
 }), limits, now)
 assert.equal(migrated.quiet, false, "a finite v2 snooze does not become indefinite quiet")
-assert.deepEqual(Object.keys(migrated.mutes), ["app:signal"])
+assert.equal(migrated.mutes, undefined)
 assert.equal(migrated.held.length, 0, "v2 history is not replayed")
 assert.equal(migrated.popups.length, 1)
 assert.equal(migrated.corrupt, false)
@@ -161,10 +160,11 @@ const old = Model.parseState(JSON.stringify({
 assert.equal(old.held.length, 0, "held rows older than a day are dropped")
 assert.equal(old.corrupt, false, "age pruning is not state corruption")
 
-const serialized = JSON.parse(Model.serializeState({ quiet: true, quietSince: 5, mutes: {}, popups: [first], held: [] }))
+const serialized = JSON.parse(Model.serializeState({ quiet: true, quietSince: 5, popups: [first], held: [] }))
 assert.equal(serialized.schemaVersion, 3)
 assert.equal(serialized.quiet, true)
 assert.equal(serialized.history, undefined)
+assert.equal(serialized.mutes, undefined)
 const restarted = Model.parseState(Model.serializeState({ popups: [], held: [first] }), limits, 200)
 assert.equal(restarted.held[0].hints["untrusted-command"], undefined)
 assert.equal(restarted.held[0].hints.value, 62)
