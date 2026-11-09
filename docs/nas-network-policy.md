@@ -11,8 +11,8 @@ copy. DSM firewall and shared-folder permissions are configured on the NAS.
 
 - Use **Tailscale as the control plane**: DSM administration, Synology Photos,
   and access while away from home.
-- Use the **wired LAN as the high-throughput data plane**: read-only media over
-  NFSv4 and per-machine backups over SMB3.
+- Use the **wired LAN as the high-throughput data plane**: the media library and
+  per-machine backups, both over SMB3.
 - Treat Tailscale and the LAN as separate authorization surfaces. Tailscale
   grants do not restrict traffic sent directly to `10.0.0.240`.
 - Default-deny at the NAS firewall. Do not equate membership in the home `/24`
@@ -26,7 +26,7 @@ copy. DSM firewall and shared-folder permissions are configured on the NAS.
 | `jacurutu` | Tailscale | NAS HTTPS, TCP 443 | DSM administration and Photos |
 | `jacurutu` dock Ethernet | LAN | SMB3, TCP 445 | `backup-jacurutu` only |
 | `jacurutu` dock Ethernet | LAN | DSM HTTPS, TCP 5001 | Optional break-glass administration only |
-| `sietch` wired Ethernet | LAN | NFSv4, TCP 2049 | Read-only `library` export |
+| `sietch` wired Ethernet | LAN | SMB3, TCP 445 | `library` (`svc-library-ro`, `svc-library-rw`) |
 | `sietch` wired Ethernet | LAN | SMB3, TCP 445 | `backup-sietch` only |
 | Pixel 9 | Tailscale | NAS HTTPS, TCP 443 | Synology Photos |
 | `tleilax` | Either | None by default | Add a narrow rule only for a concrete service |
@@ -43,13 +43,12 @@ Before replacing the broad LAN rule, reserve stable DHCP addresses for
 `sietch`'s wired NIC and `jacurutu`'s future dock NIC. Apply DSM firewall rules
 top-to-bottom:
 
-1. Allow `sietch` wired IP to TCP 2049.
-2. Allow `sietch` wired IP to TCP 445.
-3. Allow `jacurutu` dock IP to TCP 445.
-4. Optionally allow `jacurutu` dock IP to TCP 5001 for break-glass DSM access.
-5. Preserve Tailscale HTTPS and the UDP traffic required for direct Tailscale
+1. Allow `sietch` wired IP to TCP 445.
+2. Allow `jacurutu` dock IP to TCP 445.
+3. Optionally allow `jacurutu` dock IP to TCP 5001 for break-glass DSM access.
+4. Preserve Tailscale HTTPS and the UDP traffic required for direct Tailscale
    connectivity.
-6. Deny all other inbound traffic.
+5. Deny all other inbound traffic.
 
 Do not expose LAN HTTP 80, DSM HTTP 5000, NetBIOS/SMB 139, SSH 22, FTP,
 WebDAV, rsync, or NFS to the full subnet. Disable IPv6 on the NAS unless a
@@ -61,20 +60,33 @@ loopback as its backend; blocking LAN TCP 5000 must not block loopback.
 
 ## Service policy
 
-### NFS
+### Media library
 
-- Enable NFS only when the Jellyfin mount is ready to be configured.
-- Use NFSv4 and export only `library`.
-- Restrict the export to `sietch`'s reserved wired IP.
-- Make the export read-only.
-- Do not allow non-privileged source ports.
-- Do not map users or root to the NAS administrator.
-- Once LAN NFS is verified, remove the redundant `tag:server` to `tag:nas`
-  TCP 2049 tailnet grant.
+sietch reads and writes the `library` share over SMB3 on the wired LAN, with
+two accounts and no NFS. NFS stays disabled.
 
-NFS is acceptable for this purpose because the exported media is not secret,
-the mount is read-only, and the client is fixed. Use authenticated SMB rather
-than NFS for backups and private multi-user data.
+| Account | `library` | Other shares | sietch mount |
+| --- | --- | --- | --- |
+| `svc-library-ro` | Read only | No access | read-only, Jellyfin's library after the cutover |
+| `svc-library-rw` | Read/Write | No access | `/library-rw`, mounted on first use |
+
+- Both accounts are SMB only: every other application is denied, they belong
+  to `users` alone, and they can't change their passwords. Same shape as the
+  backup accounts.
+- Only these two accounts and the `administrators` group have permissions on
+  `library`. The recycle bin is admins only.
+- Credentials are root-only agenix secrets on sietch
+  (`secrets/library/sietch-{ro,rw}-smb.age`), mounted by
+  `modules/nixos/selfhost/library.nix`.
+- The media is all replaceable, so the share has NAS snapshots and nothing
+  more: no Restic, no off-NAS copy. Snapshots run daily at 01:00 and stay
+  immutable for 7 days. Approved on 2026-11-08 but not yet applied in DSM:
+  keep 14 daily / 8 weekly / 3 monthly (now 12 monthly), a 1.5 TB quota (now
+  none), and a 30-day recycle bin cleanup.
+
+SMB replaced the earlier plan of a read-only NFSv4 export. The share now has a
+writer as well as a reader, SMB checks a password per account where NFS trusts
+the source IP and client UID, and TCP 445 from sietch was already allowed.
 
 ### SMB backups
 
@@ -271,8 +283,8 @@ A read-only DSM survey, followed by the changes Tony approved:
 - **Completed:** create scoped `svc-backup-sietch` and
   `svc-backup-jacurutu` accounts and grant each account SMB access only to its
   matching backup share.
-- **Agent:** configure the read-only NFS export and `sietch` mount when Jellyfin
-  migration begins.
+- **In progress:** move sietch's media library onto the `library` share over
+  SMB ("Media library" above). Accounts created 2026-11-08.
 - **In progress:** per-machine Restic clients ([`backups.md`](./backups.md)).
 - **Completed by user:** perform the external cellular-data exposure check.
 - **User housekeeping:** delete the two disabled broad DSM firewall rules after
@@ -283,6 +295,6 @@ A read-only DSM survey, followed by the changes Tony approved:
 
 The initial NAS rollout is complete. Deferred work is tracked in GitHub issues
 #12 and #13 and in the Google Photos Takeout handoff under `docs/handoffs/`.
-That work includes per-machine backup clients, the Takeout import, Jellyfin/NFS,
+That work includes per-machine backup clients, the Takeout import, the media library move,
 an encrypted off-NAS backup, a second SHR drive, a future `jacurutu` wired
 reservation, and eventual IoT segmentation.

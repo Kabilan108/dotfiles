@@ -12,6 +12,7 @@
     ./executor.nix
     ./hark.nix
     ./jellyfin.nix
+    ./library.nix
     ./llamacpp.nix
     ./siren.nix
     ./vaultwarden.nix
