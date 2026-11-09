@@ -56,7 +56,8 @@ in
       };
 
       systemd.services.vaultwarden = {
-        unitConfig.ConditionPathExists = database;
+        # A zero-byte file is what an interrupted copy can leave behind.
+        unitConfig.ConditionFileNotEmpty = database;
         serviceConfig.ExecStartPre = [ checkAdminToken ];
       };
     }

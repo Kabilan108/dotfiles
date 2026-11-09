@@ -9,6 +9,30 @@ let
   tailscale = config.services.tailscale.package;
   systemctl = "${config.systemd.package}/bin/systemctl";
 
+  # Each `tailscale serve` call reads and rewrites the node's whole serve
+  # config, so two at once can lose one's change: a rollback that stops both
+  # backends could leave a stopped service advertised. Every unit here takes
+  # this lock first.
+  takeServeLock = ''
+    exec 9>/run/tailscale-serve.lock
+    ${pkgs.util-linux}/bin/flock -w 120 9
+  '';
+
+  # Without the leading "-", a failed clear fails the unit, which raises the
+  # host's failed-unit alert instead of leaving the service advertised quietly.
+  clearScript =
+    name:
+    pkgs.writeShellScript "tailscale-serve-clear-${name}" ''
+      set -eu
+      ${takeServeLock}
+      for attempt in 1 2 3; do
+        ${tailscale}/bin/tailscale serve clear svc:${name} && exit 0
+        echo "tailscale serve clear svc:${name} failed (attempt $attempt)" >&2
+        sleep 2
+      done
+      exit 1
+    '';
+
   boundServices = lib.filterAttrs (_: svc: svc.bindsTo != null) services;
   unboundServices = lib.filterAttrs (_: svc: svc.bindsTo == null) services;
 
@@ -68,6 +92,7 @@ in
           RemainAfterExit = true;
         };
         script = ''
+          ${takeServeLock}
           ${waitForTailscale}
 
           declared=(${lib.concatStringsSep " " (lib.attrNames services)})
@@ -113,9 +138,10 @@ in
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
-          ExecStop = "-${tailscale}/bin/tailscale serve clear svc:${name}";
+          ExecStop = clearScript name;
         };
         script = ''
+          ${takeServeLock}
           ${waitForTailscale}
           ${serve name svc}
         '';

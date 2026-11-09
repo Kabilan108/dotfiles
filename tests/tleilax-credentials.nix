@@ -326,9 +326,17 @@ pkgs.testers.runNixOSTest {
             assert pi.succeed(f"systemctl show -P ConditionResult {unit}").strip() == "no", unit
         assert advertised() == [], advertised()
 
-    with subtest("Vaultwarden refuses a placeholder admin token"):
+    with subtest("a zero-byte database doesn't count as copied data"):
         pi.succeed("install -d -o vaultwarden -g vaultwarden -m 0700 /var/lib/vaultwarden")
         pi.succeed("install -o vaultwarden -g vaultwarden -m 0600 /dev/null /var/lib/vaultwarden/db.sqlite3")
+        pi.succeed("systemctl start vaultwarden.service")
+        assert unit_state("vaultwarden.service") == "inactive", unit_state("vaultwarden.service")
+        assert pi.succeed("systemctl show -P ConditionResult vaultwarden.service").strip() == "no"
+        assert advertised() == [], advertised()
+
+    with subtest("Vaultwarden refuses a placeholder admin token"):
+        pi.succeed("${pkgs.sqlite}/bin/sqlite3 /var/lib/vaultwarden/db.sqlite3 'PRAGMA journal_mode=WAL;'")
+        pi.succeed("chown -R vaultwarden:vaultwarden /var/lib/vaultwarden")
         pi.succeed("printf 'ADMIN_TOKEN=REPLACE_ME\\n' > /var/lib/test-secrets/vaultwarden.env")
         pi.fail("systemctl start vaultwarden.service")
         pi.wait_until_succeeds("journalctl -u vaultwarden.service | grep -q 'must be an Argon2id PHC string'")

@@ -245,18 +245,34 @@ Executor on sietch first.
 
 ## 5. Stop both on sietch and take the final snapshot (sietch)
 
+First pause the nightly backup and let any run in progress finish. If you
+started the backup while a run was still going, systemd would hand you that
+run, which copied the databases before you stopped the services.
+
+```sh
+sudo systemctl stop restic-backups-services.timer
+until systemctl show -P ActiveState restic-backups-services | grep -qxE 'inactive|failed'; do sleep 5; done
+```
+
+Success: the loop returns, at once if no backup was running.
+
+Then stop both services and start a new backup run:
+
 ```sh
 sudo systemctl stop vaultwarden docker-executor
 systemctl is-active vaultwarden docker-executor
+date
 sudo systemctl start restic-backups-services
 systemctl show -p Result restic-backups-services
 sudo restic-services snapshots --tag services --latest 1
+sudo systemctl start restic-backups-services.timer
 ```
 
 Success: `inactive` twice, the backup returns within a few minutes, then
-`Result=success` and one snapshot from just now. If the backup fails, start
-both again (`sudo systemctl start vaultwarden docker-executor`) and stop
-here.
+`Result=success` and one snapshot whose time is later than what `date`
+printed. If the backup fails, start everything again
+(`sudo systemctl start vaultwarden docker-executor restic-backups-services.timer`)
+and stop here.
 
 Tag it, so pruning keeps it if pruning is ever switched on:
 
@@ -294,8 +310,21 @@ ssh -T sietch 'systemctl is-active vaultwarden docker-executor; tailscale serve 
 Success: `inactive` twice, a service list without `svc:vault` and
 `svc:executor`, and both directories still there.
 
-If the deploy fails, run `sudo systemctl start vaultwarden docker-executor`
-on sietch and stop here. Nothing else has changed.
+If the deploy fails, check whether sietch switched to the new config before
+it failed:
+
+```sh
+ssh -T sietch 'systemctl cat vaultwarden.service docker-executor.service >/dev/null 2>&1 && echo "old config" || echo "new config"'
+```
+
+- `old config`: the deploy failed before switching. Run
+  `sudo systemctl start vaultwarden docker-executor` on sietch and stop here.
+- `new config`: sietch switched, then something else failed. The old units
+  and their secrets are gone, so they can't be started by hand. The data is
+  untouched. If the failure is unrelated (`systemctl --failed` on sietch),
+  fix it and carry on with step 7. To put both services back on sietch
+  instead, follow [Rollback](#rollback) steps 3 to 5. Skip steps 1 and 2:
+  tleilax has no data yet and the policy isn't pasted.
 
 ## 7. Copy Vaultwarden's data (jacurutu)
 
@@ -320,31 +349,58 @@ Success: `exit=0`, `no rsa_key`, and a listing with `vaultwarden/db.sqlite3`,
 owned by `992/989`, with modes `-rw-------` and `drwx------`. `icon_cache` is
 a cache and comes back on its own.
 
-Write it to tleilax. Nothing should be there yet:
+Check the copy on jacurutu before sending it:
+
+```sh
+tar -xOf ~/stage5/vaultwarden.tar vaultwarden/db.sqlite3 | sha256sum
+mkdir -p ~/stage5/check
+tar -C ~/stage5/check -xf ~/stage5/vaultwarden.tar
+nix shell nixpkgs#sqlite -c sqlite3 ~/stage5/check/vaultwarden/db.sqlite3 'PRAGMA integrity_check'
+rm -rf ~/stage5/check
+```
+
+Success: a checksum, then `ok`. Keep the checksum on screen. It comes from
+the archive itself, because the integrity check can rewrite its own copy.
+
+Write it to tleilax. It goes into a staging directory first.
+`/var/lib/vaultwarden` appears only once the data is complete and cleaned
+up, in one rename. tleilax starts Vaultwarden at boot as soon as that
+directory holds a database, so a half-written copy there could start after a
+power cut. Nothing should be there yet:
 
 ```sh
 ssh -T tleilax 'sudo test -e /var/lib/vaultwarden && echo "already there; stop and look" || echo "empty"'
-ssh -T tleilax 'sudo tar -C /var/lib --numeric-owner -xpf - && sudo chown -R vaultwarden:vaultwarden /var/lib/vaultwarden' \
+ssh -T tleilax 'set -e; sudo rm -rf /var/lib/vaultwarden.import; sudo install -d -m 0700 /var/lib/vaultwarden.import; sudo tar -C /var/lib/vaultwarden.import --numeric-owner -xpf -; echo "tar exit=0"' \
   < ~/stage5/vaultwarden.tar
-ssh -T tleilax 'sudo find /var/lib/vaultwarden -maxdepth 1 -printf "%M %u %g %p\n"'
+ssh -T tleilax 'sudo sha256sum /var/lib/vaultwarden.import/vaultwarden/db.sqlite3'
 ```
 
-Success: `empty`, then a listing owned by `vaultwarden vaultwarden` with the
-same modes, including `db.sqlite3` and no `rsa_key`.
+Success: `empty`, `tar exit=0`, and the same checksum as on jacurutu. If
+either is missing, run the second command again.
 
 Vaultwarden lets settings saved from the admin page override the
 environment, including the admin token. List the saved keys, without values:
 
 ```sh
-ssh -T tleilax 'sudo test -e /var/lib/vaultwarden/config.json && sudo jq -r "keys[]" /var/lib/vaultwarden/config.json'
+ssh -T tleilax 'sudo test -e /var/lib/vaultwarden.import/vaultwarden/config.json && sudo jq -r "keys[]" /var/lib/vaultwarden.import/vaultwarden/config.json'
 ```
 
 If it lists `admin_token` or `disable_admin_token`, remove them, or the old
 token keeps working and the new one doesn't:
 
 ```sh
-ssh -T tleilax "sudo sh -c 'cd /var/lib/vaultwarden && jq \"del(.admin_token, .disable_admin_token)\" config.json > config.json.new && chown vaultwarden:vaultwarden config.json.new && chmod 0600 config.json.new && mv config.json.new config.json'"
+ssh -T tleilax "sudo sh -c 'cd /var/lib/vaultwarden.import/vaultwarden && jq \"del(.admin_token, .disable_admin_token)\" config.json > config.json.new && chmod 0600 config.json.new && mv config.json.new config.json'"
 ```
+
+Then hand it to tleilax's `vaultwarden` user and move it into place:
+
+```sh
+ssh -T tleilax 'set -e; sudo chown -R vaultwarden:vaultwarden /var/lib/vaultwarden.import/vaultwarden; sudo mv -T /var/lib/vaultwarden.import/vaultwarden /var/lib/vaultwarden; sudo rmdir /var/lib/vaultwarden.import; sync'
+ssh -T tleilax 'sudo find /var/lib/vaultwarden -maxdepth 1 -printf "%M %u %g %p\n"'
+```
+
+Success: a listing owned by `vaultwarden vaultwarden` with the same modes,
+including `db.sqlite3` and no `rsa_key`.
 
 ## 8. Paste the policy (admin console)
 
