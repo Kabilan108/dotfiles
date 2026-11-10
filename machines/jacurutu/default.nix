@@ -86,6 +86,7 @@ in
   home-manager.users.kabilan = {
     dotfiles.services = {
       mise-update.enable = true;
+      update-app-pins.enable = true;
       codex-desktop.enable = true;
       dictator = {
         enable = true;

@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Update the prebuilt app pins, build each changed package, commit and push.
+# Deployment stays manual: the notification asks for a rebuild.
+set -euo pipefail
+
+cd "${1:?usage: update-app-pins REPO}"
+exec 9>"$(git rev-parse --git-path update-app-pins.lock)"
+flock -n 9 || exit 0
+
+# name, updater, pin file, package attribute
+apps=(
+  "Helium:update-helium:packages/helium-version.json:helium"
+  "ChatGPT desktop:update-chatgpt-desktop:packages/chatgpt-desktop-version.json:chatgpt-desktop"
+  "Grok bot:update-grok-bot:packages/grok-bot-version.json:grok-bot"
+)
+# Builds read the working tree, so its package inputs must match HEAD.
+build_inputs=(packages flake.nix flake.lock bin/update-helium bin/update-chatgpt-desktop bin/update-grok-bot)
+
+if [[ $(git branch --show-current) != nixos ]]; then
+  echo 'Skipping app pin update: checkout must be on nixos.'
+  exit 0
+fi
+if [[ -n $(git status --porcelain --untracked-files=all -- "${build_inputs[@]}") ]]; then
+  echo 'Skipping app pin update: package inputs have local changes.'
+  exit 0
+fi
+
+export GIT_TERMINAL_PROMPT=0
+export GIT_SSH_COMMAND='ssh -o BatchMode=yes'
+git fetch origin refs/heads/nixos
+if [[ $(git rev-parse HEAD) != "$(git rev-parse FETCH_HEAD)" ]]; then
+  echo 'Skipping app pin update: HEAD differs from origin/nixos. Pull or resolve pending commits first.'
+  exit 0
+fi
+
+join_list() {
+  local out
+  printf -v out '%s, ' "$@"
+  echo "${out%, }"
+}
+
+updated=()
+failed=()
+for entry in "${apps[@]}"; do
+  IFS=: read -r name updater pin attr <<< "$entry"
+  echo "== $name"
+  if ! "bin/$updater" --write; then
+    git checkout -- "$pin"
+    failed+=("$name: update check failed")
+    continue
+  fi
+  if git diff --quiet -- "$pin"; then
+    continue
+  fi
+  version=$(jq -er .version "$pin")
+  if ! nix build --no-link "git+file://$PWD#nixosConfigurations.jacurutu.pkgs.$attr"; then
+    git checkout -- "$pin"
+    failed+=("$name $version: build failed")
+    continue
+  fi
+  git -c commit.gpgsign=false commit --only -m "chore: update $attr to $version" -- "$pin"
+  updated+=("$name $version")
+done
+
+pushed=true
+if ((${#updated[@]})); then
+  # No force or rebase. A rejected push leaves the commits for manual recovery.
+  git push origin HEAD:refs/heads/nixos || pushed=false
+fi
+
+if ((${#updated[@]} + ${#failed[@]} == 0)); then
+  echo 'All app pins are current.'
+  exit 0
+fi
+
+message=""
+if ((${#updated[@]})); then
+  message+="Updated: $(join_list "${updated[@]}"). Run rebuild to deploy."$'\n'
+  if ! $pushed; then
+    message+="Push to origin/nixos failed; the commits are local only."$'\n'
+  fi
+fi
+if ((${#failed[@]})); then
+  message+="Failed: $(join_list "${failed[@]}"). See journalctl --user -u update-app-pins."$'\n'
+fi
+printf '%s' "$message"
+
+title='App updates ready'
+if ((${#failed[@]})) || ! $pushed; then
+  title='App update problems'
+fi
+harkctl notify "$message" --title "$title" --project dotfiles \
+  --idempotency-key "update-app-pins-$(git rev-parse --short HEAD)-$(date +%F)" \
+  || echo 'harkctl notify failed' >&2
+
+if ((${#failed[@]})) || ! $pushed; then
+  exit 1
+fi

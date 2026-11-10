@@ -17,6 +17,7 @@
     ./tracer-digest.nix
     ./tracer-sync.nix
     ./update-agents.nix
+    ./update-app-pins.nix
     ./wayvnc.nix
   ];
 
