@@ -10,7 +10,7 @@ let
     # Use the fleet pin, even inside projects with their own mise toolchain.
     export MISE_GLOBAL_CONFIG_FILE=${lib.escapeShellArg "${miseConfigDir}/config.toml"}
     export MISE_CEILING_PATHS="$PWD"
-    export AGENT_BROWSER_EXECUTABLE_PATH=${lib.getExe pkgs.google-chrome}
+    export AGENT_BROWSER_EXECUTABLE_PATH=${lib.getExe pkgs.helium}
     export PATH=${lib.makeBinPath [ pkgs.ffmpeg-full ]}:"$PATH"
     exec ${lib.getExe pkgs.mise} exec --locked -- agent-browser "$@"
   '';

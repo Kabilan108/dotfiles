@@ -13,7 +13,7 @@ binary directly, without Node, npm installation, or package lifecycle scripts.
 The executable and `skills get core` guides therefore come from one version.
 
 The launcher uses the fleet pin regardless of project-local mise configuration,
-supplies Nix Chrome and FFmpeg, and preserves the caller's working directory.
+supplies the Nix-packaged Helium (`packages/helium.nix`) and FFmpeg, and preserves the caller's working directory.
 Use `--executable-path` for an explicit alternative browser or `--cdp` to attach
 to a shared browser. Helium remains the intentional shared-session path.
 

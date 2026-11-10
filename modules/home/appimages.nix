@@ -222,11 +222,6 @@ in
               default = null;
               description = "StartupWMClass value for the desktop entry";
             };
-            executableSessionVariable = lib.mkOption {
-              type = lib.types.nullOr lib.types.str;
-              default = null;
-              description = "Session variable that should point to this app's generated wrapper executable";
-            };
             categories = lib.mkOption {
               type = lib.types.listOf lib.types.str;
               default = [ "Application" ];
@@ -240,10 +235,6 @@ in
 
   config = lib.mkIf cfg.enable {
     home.packages = lib.attrValues wrappers;
-
-    home.sessionVariables = lib.mapAttrs' (
-      name: app: lib.nameValuePair app.executableSessionVariable "${wrappers.${name}}/bin/${name}"
-    ) (lib.filterAttrs (_: app: app.executableSessionVariable != null) cfg.apps);
 
     xdg.desktopEntries = lib.mapAttrs (
       name: app:

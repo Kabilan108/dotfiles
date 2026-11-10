@@ -248,8 +248,7 @@ in
       "x-scheme-handler/https" = defaultBrowserDesktop;
       "x-scheme-handler/mailto" = defaultBrowserDesktop;
 
-      # chromium
-      "x-scheme-handler/chrome" = "google-chrome.desktop";
+      "x-scheme-handler/chrome" = defaultBrowserDesktop;
 
       "x-scheme-handler/tg" = "org.telegram.desktop.desktop";
       "x-scheme-handler/tonsite" = "org.telegram.desktop.desktop";

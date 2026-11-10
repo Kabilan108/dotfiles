@@ -14,6 +14,7 @@
           ghostty = inputs.ghostty.packages.${final.stdenv.hostPlatform.system}.default;
           chatgpt-desktop = import ./packages/chatgpt-desktop.nix { pkgs = final; };
           grok-bot = import ./packages/grok-bot.nix { pkgs = final; };
+          helium = import ./packages/helium.nix { pkgs = final; };
         })
         (import ./packages/security-overrides.nix)
         # Builds pagebin with this overlay set's bun, which `bun build --compile` embeds.

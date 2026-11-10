@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd -- "$(dirname -- "$(readlink -f -- "$0")")/.." && pwd)"
+pin_file="$repo_root/packages/helium-version.json"
+signing_key="$repo_root/packages/helium-signing-key.asc"
+mode="${1:---check}"
+if [[ $# -gt 1 || ( "$mode" != --check && "$mode" != --write ) ]]; then
+  echo 'Usage: update-helium [--check|--write]' >&2
+  exit 2
+fi
+
+# Resolve tools from this repository's pinned nixpkgs, without a system rebuild.
+if ! command -v gpgv >/dev/null || ! command -v jq >/dev/null || ! command -v gh >/dev/null; then
+  tools_expr="let p = (builtins.getFlake \"git+file://$repo_root\").nixosConfigurations.jacurutu.pkgs; in p.buildEnv { name = \"helium-update-tools\"; paths = [ p.gh p.gnupg p.jq ]; }"
+  exec direnv exec "$repo_root" nix shell --impure --expr "$tools_expr" --command "$0" "$mode"
+fi
+
+current_version="$(jq -er .version "$pin_file")"
+version="$(gh api repos/imputnet/helium-linux/releases/latest --jq .tag_name)"
+if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){3}$ ]]; then
+  echo "Unexpected release tag '$version'; pin was not changed." >&2
+  exit 1
+fi
+printf 'Pinned: %s\nPublished: %s\n' "$current_version" "$version"
+if [[ "$version" == "$current_version" ]]; then
+  echo 'Already current.'
+  exit 0
+fi
+if [[ "$(printf '%s\n%s\n' "$current_version" "$version" | sort -V | tail -n 1)" != "$version" ]]; then
+  echo "Latest release $version is older than pinned $current_version; pin was not changed." >&2
+  exit 1
+fi
+if [[ "$mode" == --check ]]; then
+  echo 'Run update-helium --write to update the pin, then build and rebuild.'
+  exit 0
+fi
+
+url="https://github.com/imputnet/helium-linux/releases/download/$version/helium-$version-x86_64_linux.tar.xz"
+tarball="$(nix store prefetch-file --json "$url")"
+signature="$(nix store prefetch-file --json "$url.asc")"
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+gpg --homedir "$work" --dearmor < "$signing_key" > "$work/helium.gpg"
+if ! gpgv --keyring "$work/helium.gpg" "$(jq -er .storePath <<< "$signature")" "$(jq -er .storePath <<< "$tarball")"; then
+  echo 'Signature check failed; pin was not changed.' >&2
+  exit 1
+fi
+
+candidate="$(mktemp "$pin_file.candidate.XXXXXX")"
+trap 'rm -rf "$work" "$candidate"' EXIT
+jq -n --arg version "$version" \
+  --arg hash "$(jq -er .hash <<< "$tarball")" \
+  --arg signatureHash "$(jq -er .hash <<< "$signature")" \
+  '{version: $version, hash: $hash, signatureHash: $signatureHash}' > "$candidate"
+chmod --reference="$pin_file" "$candidate"
+mv -- "$candidate" "$pin_file"
+echo "Updated $pin_file. Review the diff and build before rebuilding."

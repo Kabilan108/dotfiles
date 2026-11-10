@@ -20,7 +20,7 @@ let
       profile = app.profile;
       cats = app.categories;
       iconPath = "${iconDir}/${iconSlug}.png";
-      exec = "${pkgs.google-chrome}/bin/google-chrome-stable --profile-directory=${profile} --class=${wmClass} --new-window --app=${url}";
+      exec = "${lib.getExe pkgs.helium} --profile-directory=${profile} --class=${wmClass} --new-window --app=${url}";
     in
     {
       name = lib.replaceStrings [ " " ] [ "-" ] (lib.toLower name);
@@ -98,8 +98,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ pkgs.google-chrome ];
-
     # create .desktop entries
     xdg.desktopEntries = builtins.listToAttrs (map mkEntry cfg.apps);
 
