@@ -257,8 +257,7 @@ for filesystem access, in priority order:
    `/var/lib/<name>` state dir (0700 where the module supports it). If you
    control the module, set its user/group — never solve access with mode bits.
 2. **Group for peers.** Two principals genuinely co-owning a tree → purpose
-   group + setgid dirs (e.g. `/library/downloads` is `users`-group-writable for
-   jellyfin's yt-dlp plugin).
+   group + setgid dirs.
 3. **ACL for the exception.** One extra principal needing access to a tree owned
    by someone else → POSIX ACL, declaratively via tmpfiles:
    `"A+ /path - - - - u:svc:rwX,d:u:svc:rwX"` (recursive; `d:` entries make new
@@ -282,7 +281,6 @@ Accepted trade-offs (deliberate, revisit if threat model shifts):
   tools): a compromised siren could poison a cached model another tool later
   loads (model archives can carry code). Accepted for storage economy; the
   docker group is a far larger hole today.
-- **jellyfin in the `users` group** for `/library/downloads` writes.
 
 What none of this addresses: code running **as kabilan** (the primary threat
 above) — service hardening protects services from the world, not service data
