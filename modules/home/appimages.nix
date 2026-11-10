@@ -55,7 +55,6 @@ let
         local releases
         local release
         local tag
-        local cutoff_epoch
         local newest_local
         local target
         local staging_dir
@@ -67,13 +66,11 @@ let
           return
         fi
 
-        # Apps that release more often than weekly would never pass a latest-only age check.
-        cutoff_epoch=$(( $(date +%s) - 7 * 24 * 60 * 60 ))
-        tag=$(jq -r --argjson cutoff "$cutoff_epoch" \
-          '[.[] | select((.publishedAt | fromdateiso8601) < $cutoff)] | sort_by(.publishedAt) | last | .tagName // empty' \
+        tag=$(jq -r \
+          'sort_by(.publishedAt) | last | .tagName // empty' \
           <<< "$releases")
         if [[ -z "$tag" ]]; then
-          printf '%s has no release older than seven days\n' "$display_name"
+          printf '%s has no stable release\n' "$display_name"
           return
         fi
 
@@ -281,10 +278,10 @@ in
     };
 
     systemd.user.timers.update-appimages = lib.mkIf (autoUpdateApps != { }) {
-      Unit.Description = "Weekly managed AppImage update check";
+      Unit.Description = "Daily managed AppImage update check";
       Timer = {
-        OnCalendar = "weekly";
-        RandomizedDelaySec = "2h";
+        OnCalendar = "daily";
+        RandomizedDelaySec = "5m";
         Persistent = true;
       };
       Install.WantedBy = [ "timers.target" ];
