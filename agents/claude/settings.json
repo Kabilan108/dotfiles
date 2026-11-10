@@ -87,7 +87,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/nix/store/8s2p4wcwda0bfbh8d5cx3akr047n5ipy-atuin-18.24.2/bin/atuin hook claude-code"
+            "command": "/etc/profiles/per-user/kabilan/bin/atuin hook claude-code"
           }
         ]
       }
@@ -98,7 +98,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/nix/store/8s2p4wcwda0bfbh8d5cx3akr047n5ipy-atuin-18.24.2/bin/atuin hook claude-code"
+            "command": "/etc/profiles/per-user/kabilan/bin/atuin hook claude-code"
           }
         ]
       }
@@ -109,7 +109,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/nix/store/8s2p4wcwda0bfbh8d5cx3akr047n5ipy-atuin-18.24.2/bin/atuin hook claude-code"
+            "command": "/etc/profiles/per-user/kabilan/bin/atuin hook claude-code"
           }
         ]
       }

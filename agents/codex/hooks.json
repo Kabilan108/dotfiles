@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/nix/store/8s2p4wcwda0bfbh8d5cx3akr047n5ipy-atuin-18.24.2/bin/atuin hook codex"
+            "command": "/etc/profiles/per-user/kabilan/bin/atuin hook codex"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/nix/store/8s2p4wcwda0bfbh8d5cx3akr047n5ipy-atuin-18.24.2/bin/atuin hook codex"
+            "command": "/etc/profiles/per-user/kabilan/bin/atuin hook codex"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/nix/store/8s2p4wcwda0bfbh8d5cx3akr047n5ipy-atuin-18.24.2/bin/atuin hook codex"
+            "command": "/etc/profiles/per-user/kabilan/bin/atuin hook codex"
           }
         ]
       }
