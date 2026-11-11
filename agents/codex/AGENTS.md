@@ -86,3 +86,9 @@ Use `uv` for dependency management:
 | `uvx <cmd>` | Run arbitrary python executable without installing |
 
 Always use `uv add` to add dependencies rather than editing `pyproject.toml` manually.
+
+## Temporary: Git submodule RCE (CVE-2026-111760), until git >= 2.56.1
+The system git (2.56.0) has a bug where a malicious repo can run code through its submodules. Until this note is removed:
+- Never use `git clone --recurse-submodules` / `--recursive`, `git submodule update` / `init` / `sync`, or `git pull` / `fetch` / `checkout` with `--recurse-submodules` on any repo Tony doesn't own.
+- Clone untrusted repos with a plain `git clone` (no submodules). If submodules are truly needed, stop and ask Tony first.
+- Don't set `submodule.recurse=true` or change git config to enable it.
