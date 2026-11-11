@@ -3,7 +3,6 @@ certs/
 
 .envrc
 !templates/devshell/.envrc
-CLAUDE.md
 
 **/vscode/History/
 **/vscode/globalStorage/
