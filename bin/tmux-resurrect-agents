@@ -19,7 +19,9 @@ record-claude
 rewrite
   Replace saved Claude and Codex commands with commands that resume the exact
   session active in each pane. Agents that went through CPA come back through
-  claude-cpa or codex-cpa.
+  claude-cpa or codex-cpa. Sessionizer proxy sessions are dropped: each is a
+  live ssh client with tmux options resurrect cannot restore, and sessionizer
+  starts a fresh one on demand.
 EOF
 }
 
@@ -164,7 +166,7 @@ resume_command() {
 
 rewrite_resurrect_file() {
   local resurrect_file=$1
-  local mappings_file rewritten_file
+  local mappings_file proxies_file rewritten_file
   local session_name window_index pane_index pane_id pane_pid pane_command
   local pane_session agent session_id saved_command pid
 
@@ -174,10 +176,14 @@ rewrite_resurrect_file() {
   }
 
   mappings_file=$(mktemp)
+  proxies_file=$(mktemp)
   rewritten_file=$(mktemp)
   # Expand the local paths now so they remain available when the process exits.
   # shellcheck disable=SC2064
-  trap "rm -f '$mappings_file' '$rewritten_file'" EXIT
+  trap "rm -f '$mappings_file' '$proxies_file' '$rewritten_file'" EXIT
+
+  tmux list-sessions -F '#{session_name}	#{@sessionizer-proxy-host}' |
+    awk -F '\t' '$2 != "" { print $1 }' >"$proxies_file"
 
   while IFS=$'\t' read -r session_name window_index pane_index pane_id pane_pid pane_command; do
     agent=
@@ -223,10 +229,16 @@ rewrite_resurrect_file() {
 
   awk -F '\t' -v OFS='\t' '
     FILENAME == ARGV[1] {
+      proxy[$1] = 1
+      next
+    }
+    FILENAME == ARGV[2] {
       key = $1 SUBSEP $2 SUBSEP $3
       command[key] = $4
       next
     }
+    ($1 == "pane" || $1 == "window") && ($2 in proxy) { next }
+    $1 == "grouped_session" && ($2 in proxy || $3 in proxy) { next }
     $1 == "pane" {
       key = $2 SUBSEP $3 SUBSEP $6
       if (key in command) {
@@ -234,7 +246,7 @@ rewrite_resurrect_file() {
       }
     }
     { print }
-  ' "$mappings_file" "$resurrect_file" >"$rewritten_file"
+  ' "$proxies_file" "$mappings_file" "$resurrect_file" >"$rewritten_file"
 
   if ! cmp -s "$resurrect_file" "$rewritten_file"; then
     chmod --reference="$resurrect_file" "$rewritten_file"
