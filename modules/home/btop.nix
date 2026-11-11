@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   btopWithRuntimeGpuLibraries = pkgs.symlinkJoin {
     name = "btop-with-runtime-gpu-libraries";

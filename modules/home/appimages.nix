@@ -158,7 +158,7 @@ let
     mkdir -p "${appDir}"
 
     ${lib.concatStringsSep "\n" (
-      lib.mapAttrsToList (name: app: ''
+      lib.mapAttrsToList (_name: app: ''
         if ! find "${appDir}" -maxdepth 1 -name '${app.pattern}' -type f 2>/dev/null | grep -q .; then
           echo "Bootstrapping ${app.desktopName}..."
           ${lib.getExe pkgs.gh} release download --repo ${app.repo} \
@@ -243,11 +243,10 @@ in
         exec = "${name} %U";
         terminal = false;
         type = "Application";
-        comment = app.comment;
-        categories = app.categories;
+        inherit (app) comment categories;
       }
       // lib.optionalAttrs (app.icon != null) {
-        icon = app.icon;
+        inherit (app) icon;
       }
       // lib.optionalAttrs (app.startupWMClass != null) {
         settings = {

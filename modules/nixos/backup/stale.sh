@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # backup-stale-check
 # Runs daily as the alert user on the host that receives other hosts' status
 # files. An offline laptop can't alert for itself, so this alerts once when a

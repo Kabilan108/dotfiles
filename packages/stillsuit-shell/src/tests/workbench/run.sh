@@ -27,7 +27,7 @@ status() { "${workbench[@]}" status --json 2>/dev/null; }
 call() { "${workbench[@]}" call "$@" 2>/dev/null; }
 wait_for() {
     local description=$1 expression=$2 attempt
-    for attempt in $(seq 1 200); do
+    for ((attempt = 0; attempt < 200; attempt++)); do
         if status | jq -e "$expression" > /dev/null 2>&1; then return 0; fi
         if ! kill -0 "$launcher_pid" 2>/dev/null; then cat "$sandbox/launcher.log"; echo "launcher exited while waiting for $description"; exit 1; fi
         sleep 0.1

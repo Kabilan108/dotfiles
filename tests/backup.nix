@@ -5,7 +5,7 @@
 pkgs.testers.runNixOSTest {
   name = "backup";
   nodes.machine =
-    { lib, pkgs, ... }:
+    { pkgs, ... }:
     {
       imports = [ ../modules/nixos/backup ];
       networking.hostName = "testhost";

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Pure model/schema checks only. Runtime and performance fixtures are explicit.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+tests=packages/stillsuit-shell/src/tests
+for suite in syntax query matcher history providers engine remmina; do
+    node "$tests/launcher/$suite.test.js"
+done
+node "$tests/clipboard/model.test.js"
+for test_file in "$tests"/notifications/*.test.js; do
+    node "$test_file"
+done
+node "$tests/d1-bar/run-fixtures.mjs"
+node "$tests/bar-v2/run-contracts.mjs"
+python3 "$tests/schema-theme/manifest-schema.test.py"

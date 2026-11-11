@@ -7,7 +7,7 @@ let
     background = {
       canvas = neutral.crust;
       desktop = neutral.base;
-      scrim = neutral.scrim;
+      inherit (neutral) scrim;
     };
     surface = {
       bar = neutral.mantle;

@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # backup-alert INSTANCE [ARGS]
 # Runs as the alert user (backup-alert@.service or backup-stale-check), never
 # as root.

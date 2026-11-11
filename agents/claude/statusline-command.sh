@@ -22,7 +22,7 @@ if [ -n "$project_dir" ] && [ "$project_dir" != "null" ]; then
 fi
 
 # Change to workspace directory for git operations
-cd "$workspace_dir" 2>/dev/null || cd "$HOME"
+cd "$workspace_dir" 2>/dev/null || cd "$HOME" || exit 1
 
 # Get worktree information
 worktree_path=$(git --no-optional-locks rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
@@ -61,10 +61,10 @@ if [ -n "$branch" ]; then
     fi
 
     # Check for upstream differences
-    upstream=$(git --no-optional-locks rev-parse --abbrev-ref @{upstream} 2>/dev/null)
+    upstream=$(git --no-optional-locks rev-parse --abbrev-ref "@{upstream}" 2>/dev/null)
     if [ -n "$upstream" ]; then
-        ahead=$(git --no-optional-locks rev-list --count @{upstream}..HEAD 2>/dev/null)
-        behind=$(git --no-optional-locks rev-list --count HEAD..@{upstream} 2>/dev/null)
+        ahead=$(git --no-optional-locks rev-list --count "@{upstream}..HEAD" 2>/dev/null)
+        behind=$(git --no-optional-locks rev-list --count "HEAD..@{upstream}" 2>/dev/null)
 
         if [ "$ahead" -gt 0 ]; then
             indicators="${indicators}↑$ahead "

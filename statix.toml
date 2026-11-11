@@ -1,0 +1,4 @@
+# Dotted option declarations are conventional in NixOS and Home Manager modules.
+# Keep the conventional { ... }: signature for modules without named arguments.
+disabled = ["repeated_keys", "empty_pattern"]
+ignore = [".direnv"]

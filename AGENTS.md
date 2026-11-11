@@ -25,6 +25,35 @@ skill when setting up a new service.
 if you need to update images for self-hosted containers, refer to the `update-image-pins`
 skill and `bin/image-pins`.
 
+## Temporary security overrides
+
+When the pinned nixpkgs lacks a vulnerability fix, put temporary package overrides
+in `packages/security-overrides.nix` and import that overlay in both the shared
+`overlays` list in `flake.nix` and tleilax's separate `nixpkgs.overlays`.
+
+- Record the CVE, upstream fix, pinned source or patch hash, and removal condition.
+  Use `prev.<package>.overrideAttrs` so the override does not recurse through itself.
+- For a version bump, guard it with
+  `if prev.lib.versionAtLeast prev.<package>.version fixedVersion then throw "Remove the obsolete security override for <package>" else ...`.
+  For a backported patch, use an upstream-fix condition appropriate to that patch.
+- Build the affected packages on the appropriate hosts and check that applications
+  use the patched dependency. Report validation separately from activation.
+- Once nixpkgs includes the fix, remove the override. When the overlay becomes
+  empty, remove its file and both imports. For an obsolete override during an
+  automated update, follow [the flake-update runbook](docs/flake-update.md).
+
+## Commit checks and Stillsuit tests
+
+Run project checks through `direnv exec "$PWD"`. Commit hooks check formatting and
+lint selected files without rewriting them, and run Stillsuit's pure model/schema
+tests for relevant changes. Setup and manual commands are in
+[docs/testing.md](docs/testing.md).
+
+Before committing Stillsuit behavior changes, run the affected feature's runtime
+fixture too. For shared core, UI or bar changes, expand coverage as described in
+the testing guide. Report skipped or unavailable runtime checks and their reasons;
+passing the fast hook alone does not establish runtime behavior.
+
 ## Rules
 
 - Give every systemd timer an explicit `RandomizedDelaySec` appropriate to its latency

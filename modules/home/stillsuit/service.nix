@@ -52,7 +52,7 @@ let
       preferences = "${config.xdg.configHome}/stillsuit/plugins.json";
       profiles = cfg.profiles.definitionsPath;
       activeProfile = cfg.profiles.activeProfilePath;
-      requiredPlugins = stillsuitRegistry.requiredPlugins;
+      inherit (stillsuitRegistry) requiredPlugins;
     }
   );
 in
@@ -109,9 +109,9 @@ in
               "STILLSUIT_PLUGIN_HELPER=${lib.getExe pluginHelper}"
               "QML_IMPORT_PATH=${cfg.package}/share/stillsuit-shell/qml"
             ]
-            ++ lib.optional (agentPanelHelper != null) (
-              "STILLSUIT_AGENT_PANEL_HELPER=${lib.getExe agentPanelHelper}"
-            );
+            ++ lib.optional (
+              agentPanelHelper != null
+            ) "STILLSUIT_AGENT_PANEL_HELPER=${lib.getExe agentPanelHelper}";
           };
 
           Install.WantedBy = [ "graphical-session.target" ];

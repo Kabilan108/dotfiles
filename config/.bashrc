@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # vim: syn=bash ft=bash
 
 # if not running interactively, don't do anything
@@ -193,7 +194,8 @@ function tmuxk() {
 }
 
 function fvi() {
-  local file=$(fd --hidden --type f --exclude .git |
+  local file
+  file=$(fd --hidden --type f --exclude .git |
     fzf --height 40% --layout=reverse --border \
       --preview "bat --style=numbers --color=always {}") || return
   nvim -- "$file"

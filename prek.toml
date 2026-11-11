@@ -4,9 +4,79 @@ default_stages = ["pre-commit"]
 repo = "local"
 
 [[repos.hooks]]
+id = "nixfmt"
+name = "nixfmt (check only)"
+entry = "direnv exec . nixfmt --check"
+language = "system"
+require_serial = true
+files = "\\.nix$"
+
+[[repos.hooks]]
+id = "statix"
+name = "statix"
+entry = "direnv exec . scripts/statix-check"
+language = "system"
+require_serial = true
+files = "\\.nix$"
+
+[[repos.hooks]]
+id = "deadnix"
+name = "deadnix"
+entry = "direnv exec . deadnix --fail"
+language = "system"
+require_serial = true
+files = "\\.nix$"
+
+[[repos.hooks]]
+id = "shellcheck"
+name = "ShellCheck (including extensionless scripts)"
+entry = "direnv exec . shellcheck --external-sources --source-path=SCRIPTDIR --severity=warning"
+language = "system"
+require_serial = true
+types = ["shell"]
+
+[[repos.hooks]]
+id = "qmlformat"
+name = "qmlformat (check only)"
+entry = "direnv exec . scripts/qml-check format"
+language = "system"
+require_serial = true
+files = "\\.qml$"
+exclude = "^packages/stillsuit-shell/src/tests/fixtures/plugins/(broken-bar|broken-panel|broken-widget)/Broken\\.qml$"
+
+[[repos.hooks]]
+id = "qml-syntax"
+name = "QML syntax"
+entry = "direnv exec . scripts/qml-check syntax"
+language = "system"
+require_serial = true
+files = "\\.qml$"
+exclude = "^packages/stillsuit-shell/src/tests/fixtures/plugins/(broken-bar|broken-panel|broken-widget)/Broken\\.qml$"
+
+[[repos.hooks]]
+id = "qmllint"
+name = "qmllint (full diagnostics, manual)"
+entry = "direnv exec . scripts/qml-check lint"
+language = "system"
+require_serial = true
+files = "\\.qml$"
+exclude = "^packages/stillsuit-shell/src/tests/fixtures/plugins/(broken-bar|broken-panel|broken-widget)/Broken\\.qml$"
+stages = ["manual"]
+
+[[repos.hooks]]
+id = "stillsuit-fast"
+name = "Stillsuit model and schema tests"
+entry = "direnv exec . scripts/stillsuit-check-fast"
+language = "system"
+require_serial = true
+files = "^(packages/stillsuit-shell/|modules/home/stillsuit/|scripts/stillsuit-check-fast$|flake\\.(nix|lock)$)"
+pass_filenames = false
+
+[[repos.hooks]]
 id = "niri-validate"
 name = "niri validate"
-entry = "scripts/niri-validate"
+entry = "direnv exec . scripts/niri-validate"
 language = "system"
+require_serial = true
 files = "^home/desktop/wayland/compositors/niri/.*\\.kdl$"
 pass_filenames = false

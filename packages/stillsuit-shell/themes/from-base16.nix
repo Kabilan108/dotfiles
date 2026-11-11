@@ -6,7 +6,7 @@
 }:
 let
   color = value: if builtins.substring 0 1 value == "#" then value else "#${value}";
-  p = builtins.mapAttrs (_: value: color value) (
+  p = builtins.mapAttrs (_: color) (
     builtins.intersectAttrs {
       base00 = null;
       base01 = null;

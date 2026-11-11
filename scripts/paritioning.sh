@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # this script provides an example for partitioning a drive for a nixos install
 # using a LVM group with FDE (LUKS)
 #

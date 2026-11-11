@@ -40,7 +40,7 @@ in
   dconf.settings = {
     "org/gnome/desktop/interface" = {
       color-scheme = "prefer-dark";
-      gtk-theme = gtk-theme;
+      inherit gtk-theme;
     };
   };
 

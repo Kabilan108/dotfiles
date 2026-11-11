@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Statix accepts one target per invocation; prek can pass several staged files.
+status=0
+for file in "$@"; do
+    statix check "$file" || status=1
+done
+exit "$status"

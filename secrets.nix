@@ -139,6 +139,12 @@ in
   "secrets/selfhost/hark-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/hark-fcm-service-account.age".publicKeys = [ sietch ];
 
-  "secrets/executor/russ-playlist-sync.age".publicKeys = [ sietch jacurutu ];
-  "secrets/executor/meeting-minutes.age".publicKeys = [ sietch jacurutu ];
+  "secrets/executor/russ-playlist-sync.age".publicKeys = [
+    sietch
+    jacurutu
+  ];
+  "secrets/executor/meeting-minutes.age".publicKeys = [
+    sietch
+    jacurutu
+  ];
 }

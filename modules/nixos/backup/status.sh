@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # backup-status JOB
 # Runs after every attempt of a backup job (ExecStopPost). Records the result
 # in $BACKUP_STATUS_DIR/<host>-<job>.json, keeping the last success time across

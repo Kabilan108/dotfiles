@@ -7,7 +7,6 @@
 }:
 let
   fleet = import ../../lib/fleet.nix;
-  spotifyAudioCacheBytes = 2 * 1000 * 1000 * 1000;
   bootPkgs = import inputs.jacurutu-boot-nixpkgs {
     system = pkgs.stdenv.hostPlatform.system;
     config.allowUnfree = true;
@@ -36,7 +35,7 @@ in
   boot.kernelPackages = pkgs.linuxPackages;
   # Keep the working firmware from generation 1141 during the kernel boot test.
   nixpkgs.overlays = [
-    (_final: _prev: { linux-firmware = bootPkgs.linux-firmware; })
+    (_final: _prev: { inherit (bootPkgs) linux-firmware; })
     inputs.spindle.overlays.default
   ];
   # External GUI flakes still use glibc 2.42 and cannot load the new Mesa.

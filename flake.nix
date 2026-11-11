@@ -10,13 +10,12 @@
     let
       system = "x86_64-linux";
       overlays = [
-        (final: prev: {
+        (final: _prev: {
           ghostty = inputs.ghostty.packages.${final.stdenv.hostPlatform.system}.default;
           chatgpt-desktop = import ./packages/chatgpt-desktop.nix { pkgs = final; };
           grok-bot = import ./packages/grok-bot.nix { pkgs = final; };
           helium = import ./packages/helium.nix { pkgs = final; };
         })
-        (import ./packages/security-overrides.nix)
         # Builds pagebin with this overlay set's bun, which `bun build --compile` embeds.
         inputs.pagebin.overlays.default
         inputs.atlas.overlays.default
@@ -88,7 +87,6 @@
             {
               nixpkgs = {
                 hostPlatform = "aarch64-linux";
-                overlays = [ (import ./packages/security-overrides.nix) ];
               };
             }
             configurationRevision
@@ -110,6 +108,7 @@
           };
         in
         pkgs.mkShell {
+          DOTFILES_QML_IMPORT_PATH = "${pkgs.qt6.qtdeclarative}/lib/qt-6/qml:${pkgs.quickshell}/lib/qt-6/qml";
           packages = [
             (pkgs.python3.withPackages (ps: [ ps.jsonschema ]))
             pkgs.quickshell
@@ -118,6 +117,12 @@
             pkgs.ripgrep
             pkgs.libnotify
             pkgs.nixfmt
+            pkgs.statix
+            pkgs.deadnix
+            pkgs.shellcheck
+            pkgs.prek
+            pkgs.nodejs
+            pkgs.qt6.qtdeclarative
           ];
         };
     };

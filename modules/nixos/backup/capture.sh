@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # backup-capture STAGE SPEC
 # Copies each live SQLite database in SPEC (lines of "name<TAB>user<TAB>path")
 # into a fresh STAGE with SQLite's online backup, run as the database's owner,

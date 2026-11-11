@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # backup-retry JOB
 # Runs after every attempt of a job (ExecStopPost). Counts failed attempts in
 # $BACKUP_RETRY_DIR/JOB, independent of how long each one took. A failure with

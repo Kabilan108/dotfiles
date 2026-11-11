@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode=${1:?usage: qml-check format|syntax|lint FILE...}
+shift
+if (($# == 0)); then exit 0; fi
+
+case "$mode" in
+    format)
+        formatted=$(mktemp)
+        trap 'rm -f -- "$formatted"' EXIT
+        status=0
+        for file in "$@"; do
+            if ! qmlformat "$file" > "$formatted"; then
+                status=1
+            elif ! diff -u --label "$file" --label "$file (qmlformat)" "$file" "$formatted"; then
+                printf 'Format with: direnv exec . qmlformat -i %q\n' "$file" >&2
+                status=1
+            fi
+        done
+        exit "$status"
+        ;;
+    syntax)
+        # Duplicate-id diagnostics also flag separate implicit delegate scopes.
+        # Keep that category in the full manual lint, outside this parser check.
+        exec qmllint --ignore-settings --only-explicit-categories \
+            --syntax error --syntax.id-quotation error "$@"
+        ;;
+    lint)
+        root=$(git rev-parse --show-toplevel)
+        imports=$(mktemp -d)
+        trap 'rm -rf -- "$imports"' EXIT
+        mkdir -p "$imports/Stillsuit"
+        ln -s "$root/packages/stillsuit-shell/src/ui" "$imports/Stillsuit/Ui"
+        ln -s "$root/packages/stillsuit-shell/src/services" "$imports/Stillsuit/Services"
+        IFS=: read -r -a qt_imports <<< "${DOTFILES_QML_IMPORT_PATH:?Run through direnv exec .}"
+        args=(-I "$imports")
+        for path in "${qt_imports[@]}"; do args+=(-I "$path"); done
+        qmllint --max-warnings 0 "${args[@]}" "$@"
+        ;;
+    *)
+        printf 'Unknown QML check: %s\n' "$mode" >&2
+        exit 2
+        ;;
+esac

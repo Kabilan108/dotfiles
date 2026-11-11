@@ -13,11 +13,9 @@ let
   mkEntry =
     app:
     let
-      name = app.name;
-      url = app.url;
+      inherit (app) name url profile;
       iconSlug = app.icon; # dashboardicons slug (png)
       wmClass = if app.class == null then name else app.class;
-      profile = app.profile;
       cats = app.categories;
       iconPath = "${iconDir}/${iconSlug}.png";
       exec = "${lib.getExe pkgs.helium} --profile-directory=${profile} --class=${wmClass} --new-window --app=${url}";
@@ -25,8 +23,7 @@ let
     {
       name = lib.replaceStrings [ " " ] [ "-" ] (lib.toLower name);
       value = {
-        name = name;
-        exec = exec;
+        inherit name exec;
         icon = iconPath; # absolute path works fine
         terminal = false;
         type = "Application";

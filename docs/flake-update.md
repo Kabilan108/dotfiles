@@ -11,8 +11,9 @@ A user timer on sietch (`flake-update`, Saturdays around 04:00) runs
    build aarch64, so tleilax only gets evaluated.
 5. Pushes `auto/flake-update-YYYY-MM-DD` and opens a PR with the input changes,
    closure diffs and build results. A failed build or evaluation still opens a
-   PR. It is a draft titled `[build failing]` and includes the error. A throw
-   from `packages/security-overrides.nix` means that override can go.
+   PR. It is a draft titled `[build failing]` and includes the error. When a
+   temporary security override is present, its upstream-fix guard can throw
+   to signal that the override can go. See `AGENTS.md` for the pattern.
 6. Closes older open `auto/flake-update-*` PRs as superseded and tells Tony
    through Hark (project `dotfiles`). No changes, or a job error, also send a
    notification.
@@ -59,10 +60,11 @@ tarballs, mostly from ghostty's inputs) and need a look by hand. It prints a
 `gh pr merge <n> --merge --match-head-commit <sha>` line. Use it, so you merge
 the commit you checked and not something pushed afterwards.
 
-When a build fails because an override in `packages/security-overrides.nix`
-went stale, run the check on sietch's commit first. Then add your own commit
-on top that drops the override, push it to the PR branch, and merge. The check
-fails on any non-lock file, so run it before your fix, not after.
+When a build fails because a temporary security override went stale, run the
+check on sietch's commit first. Then add your own commit on top that drops the
+override and, if empty, its overlay file and imports. Push it to the PR branch
+and merge. The check fails on any non-lock file, so run it before your fix,
+not after.
 
 `--no-nar-hash` skips the source downloads. It's faster but weaker.
 `--head <ref>` checks a local commit instead of a PR.

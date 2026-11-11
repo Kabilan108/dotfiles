@@ -6,8 +6,7 @@
 }:
 let
   cfg = config.programs.stillsuitShell;
-  inherit (stillsuitRegistry) enabledPlugins indexedPlugins;
-  requiredPlugins = stillsuitRegistry.requiredPlugins;
+  inherit (stillsuitRegistry) enabledPlugins indexedPlugins requiredPlugins;
   allowedKinds = [
     "bar"
     "bar-widget"
@@ -67,7 +66,7 @@ let
   validManifest =
     plugin:
     let
-      manifest = plugin.manifest;
+      inherit (plugin) manifest;
       keys = builtins.attrNames manifest;
       kinds = manifest.kinds or [ ];
       entryPoints = manifest.entryPoints or { };

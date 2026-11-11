@@ -29,7 +29,7 @@ env XDG_RUNTIME_DIR="$fixture_dir/runtime" DBUS_SESSION_BUS_ADDRESS="unix:path=$
     "$sway_bin" -c "$fixture_dir/sway.conf" > "$fixture_dir/sway.log" 2>&1 &
 sway_pid=$!
 socket=""
-for attempt in {1..100}; do
+for ((attempt = 0; attempt < 100; attempt++)); do
     for candidate in "$fixture_dir/runtime"/wayland-*; do
         if [[ -S $candidate ]]; then socket=$candidate; break; fi
     done
@@ -59,7 +59,7 @@ click 20
 [[ $(ipc checkPointer widget) == ok ]]
 click 640
 [[ $(ipc checkPointer background) == ok ]]
-for attempt in {1..100}; do
+for ((attempt = 0; attempt < 100; attempt++)); do
     kill -0 "$shell_pid" 2>/dev/null || break
     sleep 0.02
 done

@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # backup-status-receive HOST
 # The forced command for HOST's status key: reads one status JSON object from
 # stdin and stores it as ~/.local/state/backup-status/HOST-JOB.json.

@@ -26,6 +26,7 @@ remote_session() { R list-clients -F '#{session_name}' | head -1; }
 proxy_pid() { L list-panes -t =sessionizer-fakeremote: -F '#{pane_pid}' 2>/dev/null; }
 
 L new-session -d -s sessionizer-fakeremote "sleep 600"
+# shellcheck disable=SC2034 # Used by the check helper through eval.
 decoy_pid=$(proxy_pid)
 popup; type_keys r-one; key Enter
 waitfor '! screen | grep -qE "[┌┐└┘]"'
@@ -46,6 +47,7 @@ type_keys r-one; key Enter
 waitfor '[ "$(remote_session)" = r-one ]'
 check "remote session opens through a proxy" '[ "$(local_session)" = sessionizer-fakeremote ] && [ "$(remote_session)" = r-one ]'
 check "proxy passes keys through" '[ "$(L show-options -v -t =sessionizer-fakeremote: key-table)" = sessionizer-proxy ] && [ "$(L show-options -v -t =sessionizer-fakeremote: prefix)" = None ] && [ "$(L show-options -v -t =sessionizer-fakeremote: status)" = off ]'
+# shellcheck disable=SC2034 # Used by the check helper through eval.
 first_pid=$(proxy_pid)
 
 type_keys "echo marker-123"; key Enter

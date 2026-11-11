@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 CONFDIR="$HOME/.config"
-DOTFILES="$(dirname "$(realpath "$0")")"
 
 safe_remove() {
   local target="$1"
@@ -20,7 +19,8 @@ safe_remove() {
 create_symlink() {
   local source="$1"
   local dest="$2"
-  local dest_parent=$(dirname "$dest")
+  local dest_parent
+  dest_parent=$(dirname "$dest")
 
   mkdir -p "$dest_parent"
   safe_remove "$dest"
