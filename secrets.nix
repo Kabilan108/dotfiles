@@ -76,6 +76,12 @@ in
     sietch
     jacurutu
   ];
+  # The key every Android app on Tony's phone is signed with (agents/skills/android-apps).
+  # Decrypted only on sietch; jacurutu's key is a second way to recover it.
+  "secrets/android/personal-keystore.age".publicKeys = [
+    sietch
+    jacurutu
+  ];
   "secrets/foobar.age".publicKeys = [
     sietch
   ];

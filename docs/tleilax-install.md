@@ -508,7 +508,7 @@ https://hark.sole-pierce.ts.net/hooks/*) printf 'url = "%s"\n' "$url" > "$d/tlei
 esac
 unset url
 cd ~/dotfiles
-EDITOR="cp $d/tleilax-alerts.curl" agenix -e secrets/hark/tleilax-alerts.curl.age
+agenix -e secrets/hark/tleilax-alerts.curl.age < "$d/tleilax-alerts.curl"
 rm -rf "$d"
 ```
 

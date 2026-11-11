@@ -9,6 +9,7 @@ let
   home = config.users.users.kabilan.home;
   hostName = config.networking.hostName;
   isSietch = hostName == "sietch";
+  personalKeystore = "${home}/.android/personal.keystore";
   userTokensPath = config.age.secrets."secrets/nix-access-tokens-user.age".path;
   mobergVpnCertFile =
     if isSietch then ./secrets/moberg/vpn/sietch-cert.age else ./secrets/moberg/vpn/cert.age;
@@ -42,6 +43,12 @@ in
   };
 
   environment.systemPackages = [ pkgs.bashInteractive ];
+
+  # Android builds sign phone installs with this (store and key password "android",
+  # alias "androiddebugkey").
+  environment.sessionVariables = lib.mkIf isSietch {
+    ANDROID_PERSONAL_KEYSTORE = personalKeystore;
+  };
 
   age = {
     identityPaths = [ "${home}/.ssh/id_ed25519" ];
@@ -82,6 +89,14 @@ in
     secrets."secrets/executor/russ-playlist-sync.age" = lib.mkIf isSietch {
       file = ./secrets/executor/russ-playlist-sync.age;
       path = "${home}/.config/russ-playlist-sync/executor-env";
+      mode = "0600";
+      owner = "kabilan";
+      group = "users";
+    };
+    # Was sietch's ~/.android/debug.keystore; apps already on the phone carry its signature.
+    secrets."secrets/android/personal-keystore.age" = lib.mkIf isSietch {
+      file = ./secrets/android/personal-keystore.age;
+      path = personalKeystore;
       mode = "0600";
       owner = "kabilan";
       group = "users";
