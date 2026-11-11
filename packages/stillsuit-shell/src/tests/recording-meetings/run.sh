@@ -235,6 +235,26 @@ jq -e '.recordingMeetingRows == 0 and .meetingRows == 1' <<< "$state" >/dev/null
 state=$(ipc state)
 jq -e '.recordingMeetingRows == 0 and .meetingRows == 1' <<< "$state" >/dev/null
 
+# The recording dot shows a level halo only while the captured microphone is
+# live; a silent live mic keeps a thin ring so it never reads as "off".
+[[ $(ipc setMonitorRecording) == ok ]]
+[[ $(ipc setMicrophone false false 0) == ok ]]
+state=$(ipc state)
+jq -e '.recordingDotVisible and .recordingDotHalo == 0
+  and (.recordingWidgetAccessibleName | contains("microphone off"))' <<< "$state" >/dev/null
+[[ $(ipc setMicrophone true false 0.8) == ok ]]
+state=$(ipc state)
+jq -e '.recordingDotHalo == 0
+  and (.recordingWidgetAccessibleName | contains("microphone muted"))' <<< "$state" >/dev/null
+[[ $(ipc setMicrophone true true 0) == ok ]]
+state=$(ipc state)
+jq -e '.recordingDotHalo == 1
+  and (.recordingWidgetAccessibleName | contains("microphone live"))' <<< "$state" >/dev/null
+[[ $(ipc setMicrophone true true 1) == ok ]]
+jq -e '.recordingDotHalo == .recordingDotHaloMax' <<< "$(ipc state)" >/dev/null
+[[ $(ipc openRecording paused) == open ]]
+jq -e '.recordingDotVisible | not' <<< "$(ipc state)" >/dev/null
+
 if rg -n 'ERROR:|Failed to load configuration|Type .* unavailable|Cannot assign to non-existent property' "$tmp_dir/quickshell.log"; then
   echo "recording-meetings fixture logged a QML error" >&2
   exit 1

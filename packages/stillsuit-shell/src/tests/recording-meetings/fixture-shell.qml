@@ -194,6 +194,13 @@ ShellRoot {
     }
 
     QtObject {
+        id: microphoneService
+        property bool microphoneCaptured: false
+        property bool microphoneLive: false
+        property real level: 0
+    }
+
+    QtObject {
         id: workflows
         property var recording: recordingModel
         property var meeting: meetingModel
@@ -253,6 +260,7 @@ ShellRoot {
     Recording.RecordingWidget {
         id: recordingWidget
         context: context
+        service: microphoneService
         outputId: fixture.outputId
     }
 
@@ -291,6 +299,12 @@ ShellRoot {
             recordingModel.phase = "recording"
             recordingModel.target = "region"
             recordingModel.rect = { output: output, x: 10, y: 20, w: width, h: height }
+            return "ok"
+        }
+        function setMicrophone(captured: bool, live: bool, level: real): string {
+            microphoneService.microphoneCaptured = captured
+            microphoneService.microphoneLive = live
+            microphoneService.level = level
             return "ok"
         }
         function setMonitorRecording(): string {
@@ -475,6 +489,10 @@ ShellRoot {
                 recordingWidgetMeetingLabel: recordingWidget.meetingLabel,
                 recordingWidgetOutputLabel: recordingWidget.outputLabel,
                 recordingWidgetWidth: recordingWidget.implicitWidth,
+                recordingWidgetAccessibleName: recordingWidget.accessibleName,
+                recordingDotVisible: recordingWidget.showsRecordingDot,
+                recordingDotHalo: recordingWidget.indicatorDot.halo,
+                recordingDotHaloMax: recordingWidget.indicatorDot.haloMax,
                 togglePauseCount: recordingModel.togglePauseCount,
                 surfaceToggleCount: actions.surfaceToggleCount,
                 lastOpenPlugin: actions.lastOpenPlugin

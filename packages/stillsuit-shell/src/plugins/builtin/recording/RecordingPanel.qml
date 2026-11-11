@@ -19,6 +19,7 @@ Item {
     required property var context
     required property var screen
     required property string outputId
+    property var service: null
     readonly property var workflows: context.services.get("stillsuit.workflows")
     readonly property var recording: workflows ? workflows.recording : null
     readonly property var meeting: workflows ? workflows.meeting : null

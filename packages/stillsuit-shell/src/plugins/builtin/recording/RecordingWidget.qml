@@ -7,6 +7,9 @@ Ui.ShellAction {
 
     required property var context
     required property string outputId
+    property var service: null
+    readonly property alias indicatorDot: recordingDot
+    readonly property bool showsRecordingDot: activeRecording && !paused
     readonly property var workflows: context.services.get("stillsuit.workflows")
     readonly property var recording: workflows ? workflows.recording : null
     readonly property var meeting: workflows ? workflows.meeting : null
@@ -17,6 +20,15 @@ Ui.ShellAction {
     readonly property bool failedMeeting: meeting
         && meeting.failureVisible === true
     readonly property bool paused: recording && recording.paused === true
+    readonly property bool microphoneCaptured: !!service && service.microphoneCaptured === true
+    readonly property bool microphoneLive: !!service && service.microphoneLive === true
+    readonly property real microphoneLevel: service ? Number(service.level) || 0 : 0
+    readonly property bool reducedMotion: context.settings
+        && context.settings.values
+        && context.settings.values.reducedMotion === true
+    readonly property string microphoneDescription: !microphoneCaptured
+        ? "microphone off"
+        : microphoneLive ? "microphone live" : "microphone muted"
     readonly property string indicatorIconName: activeRecording
         ? paused ? "pause" : "record"
         : "agent"
@@ -68,7 +80,8 @@ Ui.ShellAction {
     visible: activeRecording || activeMeeting || completedMeeting || failedMeeting
     accessibleName: activeRecording
         ? (paused ? "Recording paused, " : "Recording active, ")
-            + recording.elapsedText + (outputLabel ? ", " + outputLabel : "")
+            + recording.elapsedText + ", " + microphoneDescription
+            + (outputLabel ? ", " + outputLabel : "")
         : failedMeeting
             ? "Meeting processing failed. Click for details."
             : completedMeeting ? "Meeting note ready. Click to copy its path." : meetingLabel
@@ -140,7 +153,48 @@ Ui.ShellAction {
         anchors.horizontalCenterOffset: 2
         spacing: 6
 
+        Item {
+            id: recordingDot
+            visible: root.showsRecordingDot
+            readonly property real disc: Math.round(Math.max(1, root.context.theme.metrics.iconSmall
+                - root.context.theme.metrics.spaceUnit / 2))
+            readonly property real hole: Math.round(disc * 0.42)
+            readonly property real haloMin: 1
+            readonly property real haloMax: Math.round(root.context.theme.metrics.spaceUnit * 1.25)
+            readonly property real halo: root.microphoneLive
+                ? haloMin + root.microphoneLevel * (haloMax - haloMin)
+                : 0
+            Layout.preferredWidth: disc + haloMax * 2
+            Layout.preferredHeight: disc + haloMax * 2
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: recordingDot.disc + recordingDot.halo * 2
+                height: width
+                radius: width / 2
+                color: root.iconColor
+                opacity: root.microphoneLive ? 0.42 : 0
+                antialiasing: true
+
+                Behavior on opacity {
+                    NumberAnimation { duration: root.reducedMotion ? 0 : root.context.theme.motion.fast }
+                }
+            }
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: recordingDot.disc
+                height: width
+                radius: width / 2
+                color: "transparent"
+                border.width: (recordingDot.disc - recordingDot.hole) / 2
+                border.color: root.iconColor
+                antialiasing: true
+            }
+        }
+
         Ui.ShellIcon {
+            visible: !root.showsRecordingDot
             theme: root.context.theme
             name: root.indicatorIconName
             pixelSize: Math.max(1, root.context.theme.metrics.iconSmall
