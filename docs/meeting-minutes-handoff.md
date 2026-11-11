@@ -9,10 +9,10 @@ This repo is public. Keep real names, meeting content, Slack messages and transc
 ## Decisions to keep
 
 - **Model:** `gpt-6.1-sol` at medium effort on the fast tier. Tony chose medium over high.
-- **Context sources:** calendar first, then Meet notes, then Slack. Slack means the Moberg workspace only. Every read is fixed Python code calling the allowlisted operations in `EXECUTOR_READ_OPERATIONS`. No model that reads meeting content gets tools. Tony hasn't granted access to his Outlook calendar yet but may later.
+- **Context sources:** calendar (Google and Outlook) first, then Meet notes, then Slack and Outlook email. Slack means the Moberg workspace only, and Outlook means the Moberg work account. Every read is fixed Python code calling the allowlisted operations in `EXECUTOR_READ_OPERATIONS`. No model that reads meeting content gets tools.
 - **Speaker identification:**
   - Mapping a label to Tony needs high confidence.
-  - Someone outside the registry needs a self-introduction, or an outside source (calendar, Meet, Slack) plus a mention in the transcript. A name said only in conversation is never enough, because people talk about partners and friends who aren't there and ASR mishears names.
+  - Someone outside the registry needs a self-introduction, or an outside source (calendar, Meet, Slack, email) plus a mention in the transcript. A name said only in conversation is never enough, because people talk about partners and friends who aren't there and ASR mishears names.
   - Unknown speakers show as "Unknown (likely X)" and never as `SPEAKER_NN`.
 - **People proposals:** only for people who spoke in meetings where Tony also spoke. Webinars and talks propose no one. Don't add a person Tony hasn't confirmed; he declined one case outright.
 - **Glossary proposals:** only when a gathered source spells the term, and code checks the quoted text.
@@ -36,11 +36,11 @@ This repo is public. Keep real names, meeting content, Slack messages and transc
    - **Default:** do nothing. If the echo clearly hurts, the only option Tony is open to is the simple rule: transcribe the desktop track, and keep mic speech only where the desktop track is silent, with no call or headphone detection. Report the numbers to him and don't build anything without his approval. He questioned whether any fix is worth the extra places the pipeline can break.
 4. **Owner voiceprint.** Filed as [siren#6](https://github.com/Kabilan108/siren/issues/6) and deferred. Pick it up only if the owner keeps going unidentified in real recordings. Tony asked that it not be handled in meeting-minutes threads.
 5. **Dedicated meeting-notes service** ("Quire"): dotfiles issue #25.
-6. **Outlook calendar.** Once Tony grants access, add it as a second calendar source next to Google. Calendar results already carry a `sources` list for this.
 
 ## Known gaps not yet raised with Tony
 
 - **Unrelated Slack conversations.** Slack context pulls in any conversation active near the meeting start (`SLACK_ACTIVE_SECONDS`). On November 2 that brought in an unrelated DM, which is now stored in that meeting's `minutes.json`. Consider tightening this before relying on Slack context further, and ask Tony first.
+- **Unrelated email.** Email context keeps any message a likely attendee sent or received within an hour of the meeting (`EMAIL_ATTENDEE_ONLY_SECONDS`). Someone senior is on many threads, so this can store unrelated mail, including clinical-site threads, in `minutes.json`. Watch the first few meetings' `context.email.messages` and tighten it if needed.
 - **Ad hoc meetings miss the calendar.** Office meetings without an invite get `calendar_status: no_match`, so speaker ID falls back to the transcript and the registry.
 - **Lint and format drift.** `ruff check` and `ruff format --check` already fail on `bin/meeting-minutes` (import order, one `with` statement). The drift predates this work; leave it unless Tony asks.
 
@@ -62,7 +62,7 @@ All 90 tests passed at `b1ea5dcc`. For behavior on real meetings, run `meeting-m
 
 - `coppermind`: vault write zones, people and glossary registry, proposals.
 - `transcribe`: Siren jobs and transcripts.
-- `executor`: calendar and Slack reads when debugging context gathering.
+- `executor`: calendar, Slack, and Outlook reads when debugging context gathering.
 - `fleet`: jacurutu worker rollout and sietch Siren service.
 - `tracer`: reading the original session for detail.
 - `unslop`: any prose written for Tony.

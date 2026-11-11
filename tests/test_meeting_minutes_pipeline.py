@@ -267,7 +267,87 @@ PATHS = {
     "drive_list": "google_drive.user.tonykabilanokeke.drive.files.list",
     "drive_export": "google_drive.user.tonykabilanokeke.drive.files.export",
     "slack": "slack_mcp.user.moberganalyticsslackmcp.slack_search_public_and_private",
+    "outlook_calendars": "outlook_calendar.user.mobergAnalyticsCalendar.meCalendar.meListCalendars",
+    "outlook_view": "outlook_calendar.user.mobergAnalyticsCalendar.meCalendar.meCalendarsListCalendarView",
+    "outlook_mail": "outlook_mail.user.mobergAnalyticsEmail.meMessage.meListMessages",
 }
+
+OUTLOOK_EVENTS = [
+    {
+        "subject": "Dev environment review",
+        "start": {"dateTime": "2026-10-13T17:00:00.0000000", "timeZone": "UTC"},
+        "end": {"dateTime": "2026-10-13T18:00:00.0000000", "timeZone": "UTC"},
+        "showAs": "busy",
+        "attendees": [
+            {
+                "emailAddress": {"name": "Ada Lovelace", "address": "ada@example.com"},
+                "status": {"response": "accepted"},
+            },
+            {
+                "emailAddress": {"name": "Declined Person", "address": "d@example.com"},
+                "status": {"response": "declined"},
+            },
+        ],
+        "organizer": {
+            "emailAddress": {"name": "Tony Okeke", "address": "tony@example.com"}
+        },
+    },
+    {
+        "subject": "Holiday",
+        "isAllDay": True,
+        "showAs": "free",
+        "start": {"dateTime": "2026-10-13T00:00:00.0000000", "timeZone": "UTC"},
+        "end": {"dateTime": "2026-10-14T00:00:00.0000000", "timeZone": "UTC"},
+    },
+    {"subject": "Cancelled sync", "isCancelled": True},
+]
+
+
+def email(subject: str, received: str, **fields: Any) -> dict[str, Any]:
+    sender = fields.pop("sender", ("Ada Lovelace", "ada@example.com"))
+    return {
+        "id": subject + received,
+        "subject": subject,
+        "from": {"emailAddress": {"name": sender[0], "address": sender[1]}},
+        "toRecipients": [
+            {"emailAddress": {"name": "Tony Okeke", "address": "tony@example.com"}}
+        ],
+        "receivedDateTime": received,
+        "bodyPreview": fields.pop("preview", ""),
+        "webLink": "https://outlook.example/item",
+        "isDraft": False,
+        **fields,
+    }
+
+
+EMAILS = [
+    email(
+        "Re: Dev environment review",
+        "2026-10-13T16:40:00Z",
+        uniqueBody={
+            "contentType": "html",
+            "content": "<html><head><style>p { margin: 0 }</style></head><body>"
+            "<p>Agenda: the dev/flake ports</p><div>See&nbsp;you   soon</div>"
+            "</body></html>",
+        },
+    ),
+    email(
+        "Rollout notes",
+        "2026-10-13T20:00:00Z",
+        sender=("Mary Jackson", "mary@example.com"),
+        preview="Each DevFlake checkout now has ports.",
+    ),
+    email(
+        "Weekly digest",
+        "2026-10-13T17:12:00Z",
+        sender=("News", "news@example.com"),
+        preview="Nothing about this meeting.",
+    ),
+    email("Unsent reply", "2026-10-13T17:20:00Z", isDraft=True),
+    email("Quick follow-up", "2026-10-13T17:40:00Z", preview="thanks"),
+    email("Unrelated thread", "2026-10-14T09:00:00Z", preview="lunch?"),
+    email("Far later", "2026-10-17T17:00:00Z"),
+]
 
 
 def default_handlers() -> dict[str, Callable[[dict[str, Any]], Any]]:
@@ -322,6 +402,11 @@ def default_handlers() -> dict[str, Callable[[dict[str, Any]], Any]]:
             "data": base64.b64encode(MEET_DOC.encode()).decode(),
         },
         PATHS["slack"]: slack_search,
+        PATHS["outlook_calendars"]: lambda arguments: {
+            "value": [{"id": "outlook-work", "name": "Calendar"}]
+        },
+        PATHS["outlook_view"]: lambda arguments: {"value": OUTLOOK_EVENTS},
+        PATHS["outlook_mail"]: lambda arguments: {"value": EMAILS},
     }
 
 
@@ -741,6 +826,9 @@ def test_executor_reads_are_allowlisted_and_json_encoded(
         ("slack.search", {"filters": "x", "response_format": "concise"}),
         ("slack.search", {"filters": {"$gt": ""}}),
         ("drive.files.export", {"fileId": "abc", "mimeType": "application/pdf"}),
+        ("outlook.messages.list", {"$filter": "x", "$search": "x"}),
+        ("outlook.messages.list", {"$select": ["subject"]}),
+        ("outlook.calendarView.list", {"calendar-id": "x", "startDateTime": "a"}),
         (
             "calendar.events.list",
             {"calendarId": "x", "timeMin": "a", "timeMax": "b", "q": "x"},
@@ -793,6 +881,43 @@ def test_regenerate_writes_cited_minutes_without_touching_the_vault(
         "tony@example.com",
     ]
     assert result["calendar"]["errors"] == []
+    outlook = [
+        candidate
+        for candidate in result["calendar"]["candidates"]
+        if candidate["source"] == "outlook"
+    ]
+    assert outlook == [
+        {
+            "title": "Dev environment review",
+            "start": "2026-10-13T13:00:00-04:00",
+            "end": "2026-10-13T14:00:00-04:00",
+            "attendees": ["Ada Lovelace", "Tony Okeke"],
+            "calendar": "Calendar",
+            "transparent": False,
+            "source": "outlook",
+        },
+        {
+            "title": "Holiday",
+            "start": "2026-10-13",
+            "end": "2026-10-14",
+            "attendees": [],
+            "calendar": "Calendar",
+            "transparent": True,
+            "source": "outlook",
+        },
+    ]
+    mail = result["context"]["email"]
+    assert mail["status"] == "found" and mail["error"] == ""
+    assert [
+        (message["subject"], message["matched"]) for message in mail["messages"]
+    ] == [
+        ("Re: Dev environment review", ["attendee", "calendar"]),
+        ("Quick follow-up", ["attendee"]),
+        ("Rollout notes", ["keyword DevFlake"]),
+    ]
+    assert mail["messages"][0]["text"] == "Agenda: the dev/flake ports\nSee you soon"
+    assert mail["messages"][0]["from"] == "Ada Lovelace <ada@example.com>"
+    assert mail["messages"][0]["timestamp"] == "2026-10-13T12:40:00-04:00"
     meet = result["context"]["meet"]
     assert meet["status"] == "found" and meet["file_id"] == "doc-0123456789"
     assert [speaker["name"] for speaker in meet["speakers"]] == [
@@ -877,6 +1002,14 @@ def test_regenerate_writes_cited_minutes_without_touching_the_vault(
     assert "from:<@UOWNER0001> after:2026-10-12 before:2026-10-15" in slack_filters
     assert "from:<@UADA000001> after:2026-10-12 before:2026-10-15" in slack_filters
     assert slack_filters[-1] == "in:<#D00000001> after:2026-10-12 before:2026-10-15"
+    [mail_call] = [
+        arguments for path, arguments in executor.calls if path == PATHS["outlook_mail"]
+    ]
+    assert mail_call["$filter"] == (
+        "receivedDateTime ge 2026-10-12T17:10:33Z"
+        " and receivedDateTime le 2026-10-14T17:15:33Z"
+    )
+    assert "Agenda: the dev/flake ports" in invocations[0]["prompt"]
     for code in executor.codes:
         assert "Hi Ada" not in code and "Hospitals" not in code
 
@@ -998,7 +1131,7 @@ def test_partial_calendar_failure_keeps_candidates_and_notifies(
         ]
     }
     env, _, _, _ = pipeline_env(tmp_path, executor)
-    env["MEETING_MINUTES_CALENDAR_SOURCES"] = "google,outlook"
+    env["MEETING_MINUTES_CALENDAR_SOURCES"] = "google,exchange"
     namespace = load_script(env, monkeypatch)
     run = make_run(namespace, tmp_path / "work")
     client, error = namespace["connect_executor"]()
@@ -1014,7 +1147,7 @@ def test_partial_calendar_failure_keeps_candidates_and_notifies(
     assert calendar["errors"][0].startswith(
         "google: partial (Broken: Executor calendar.events.list failed"
     )
-    assert calendar["errors"][1] == "outlook: failed (unknown calendar source)"
+    assert calendar["errors"][1] == "exchange: failed (unknown calendar source)"
     assert not (run.work / "calendar-google.json").exists()
 
     job: dict[str, Any] = {
@@ -1057,6 +1190,90 @@ def test_partial_calendar_failure_keeps_candidates_and_notifies(
     assert "duration_seconds: 1200.5\n" in note
 
 
+def test_outlook_reads_page_with_skip_and_keep_only_related_mail(
+    tmp_path: Path, executor: FakeExecutor, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def mail_page(arguments: dict[str, Any]) -> dict[str, Any]:
+        # Graph may return short pages; the next link says where to resume.
+        skip = arguments.get("$skip", 0)
+        following = skip + arguments["$top"] - 1
+        link = f"https://graph.example/me/messages?%24top=2&%24skip={following}"
+        more = following < len(EMAILS)
+        return {
+            "value": EMAILS[skip:following],
+            **({"@odata.nextLink": link} if more else {}),
+        }
+
+    executor.handlers[PATHS["outlook_mail"]] = mail_page
+    env, _, _, _ = pipeline_env(tmp_path, executor)
+    namespace = load_script(env, monkeypatch)
+    monkeypatch.setitem(namespace["search_email"].__globals__, "EMAIL_PAGE_SIZE", 2)
+    monkeypatch.setitem(namespace["search_email"].__globals__, "EMAIL_PAGE_LIMIT", 10)
+    run = make_run(namespace, tmp_path / "work")
+    client, _ = namespace["connect_executor"]()
+    registry = namespace["load_registry"]()
+    ada = registry.by_id("ada-lovelace")
+
+    found = namespace["search_email"](run, client, registry, [ada], [], {})
+
+    skips = [
+        arguments.get("$skip", 0)
+        for path, arguments in executor.calls
+        if path == PATHS["outlook_mail"]
+    ]
+    assert skips == [0, 1, 2, 3, 4, 5, 6]
+    assert found["status"] == "found" and found["error"] == ""
+    assert [message["subject"] for message in found["messages"]] == [
+        "Re: Dev environment review",
+        "Quick follow-up",
+    ]
+    assert namespace["search_email"](run, client, registry, [], ["devflake"], {})[
+        "messages"
+    ][0]["matched"] == ["keyword devflake"]
+
+    monkeypatch.setitem(namespace["search_email"].__globals__, "EMAIL_PAGE_LIMIT", 2)
+    truncated = namespace["search_email"](run, client, registry, [ada], [], {})
+    assert truncated["status"] == "partial"
+    assert truncated["error"].endswith("only the earliest 2 were checked")
+    context = namespace["gather_context"](run, {"candidates": []}, registry, client, "")
+    assert context["email"]["status"] == "partial"
+    assert not (run.work / "context.json").exists()
+
+    executor.handlers[PATHS["outlook_mail"]] = lambda arguments: {
+        "value": EMAILS[:1],
+        "@odata.nextLink": "https://graph.example/me/messages?%24skiptoken=abc",
+    }
+    tokened = namespace["search_email"](run, client, registry, [ada], [], {})
+    assert tokened["status"] == "partial"
+
+
+def test_outlook_calendar_failure_is_reported_beside_google(
+    tmp_path: Path, executor: FakeExecutor, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(arguments: dict[str, Any]) -> Any:
+        raise RuntimeError("graph throttled")
+
+    executor.handlers[PATHS["outlook_view"]] = broken
+    env, _, _, _ = pipeline_env(tmp_path, executor)
+    namespace = load_script(env, monkeypatch)
+    run = make_run(namespace, tmp_path / "work")
+    client, error = namespace["connect_executor"]()
+
+    calendar = namespace["lookup_calendar"](run, client, error)
+
+    assert [source["status"] for source in calendar["sources"]] == [
+        "available",
+        "failed",
+    ]
+    assert calendar["errors"] == [
+        "outlook: failed (Calendar: Executor outlook.calendarView.list failed: "
+        "{'code': 'fake', 'message': 'graph throttled'})"
+    ]
+    assert {candidate["source"] for candidate in calendar["candidates"]} == {"google"}
+    assert (run.work / "calendar-google.json").exists()
+    assert not (run.work / "calendar-outlook.json").exists()
+
+
 def test_missing_executor_key_marks_calendar_and_context_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1074,7 +1291,9 @@ def test_missing_executor_key_marks_calendar_and_context_unavailable(
 
     assert calendar["status"] == "unavailable"
     assert "No Executor API key" in calendar["errors"][0]
-    assert context["meet"]["status"] == context["slack"]["status"] == "unavailable"
+    assert {context[key]["status"] for key in ("meet", "slack", "email")} == {
+        "unavailable"
+    }
 
 
 def test_stale_screenshot_review_is_not_reused(

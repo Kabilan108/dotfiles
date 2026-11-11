@@ -131,6 +131,22 @@ def test_corroborated_spelling_becomes_a_glossary_proposal(
     assert "glossary" not in note.split("---\n", 2)[1]
 
 
+def test_an_email_can_corroborate_a_spelling(
+    tmp_path: Path, executor: FakeExecutor, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    candidate = {**CORROBORATED, "source": "email", "quote": "the dev/flake ports"}
+    result, proposals = generate(
+        tmp_path, executor, monkeypatch, minutes_with(candidate)
+    )
+
+    [checked] = result["glossary_candidates"]
+    assert checked["verified"] is True
+    assert checked["location"].startswith(
+        "Email 'Re: Dev environment review' from Ada Lovelace <ada@example.com>"
+    )
+    assert len(glossary_proposals(proposals)) == 1
+
+
 @pytest.mark.parametrize(
     ("candidate", "marked", "reason"),
     [
