@@ -156,22 +156,25 @@ Ui.ShellAction {
         Item {
             id: recordingDot
             visible: root.showsRecordingDot
-            readonly property real disc: Math.round(Math.max(1, root.context.theme.metrics.iconSmall
-                - root.context.theme.metrics.spaceUnit / 2))
-            readonly property real hole: Math.round(disc * 0.42)
+            readonly property real disc: 2 * Math.max(1, Math.floor((root.context.theme.metrics.iconSmall
+                - root.context.theme.metrics.spaceUnit / 2) / 2))
+            readonly property real hole: disc / 2
             readonly property real haloMin: 1
             readonly property real haloMax: Math.round(root.context.theme.metrics.spaceUnit * 1.25)
             readonly property real halo: root.microphoneLive
                 ? haloMin + root.microphoneLevel * (haloMax - haloMin)
                 : 0
-            Layout.preferredWidth: disc + haloMax * 2
-            Layout.preferredHeight: disc + haloMax * 2
+            readonly property real box: disc + haloMax * 2
+            Layout.preferredWidth: box
+            Layout.preferredHeight: box
 
+            // A fixed-size circle scaled about its centre grows evenly on
+            // every side; resizing it would snap its position to whole pixels.
             Rectangle {
-                anchors.centerIn: parent
-                width: recordingDot.disc + recordingDot.halo * 2
+                width: recordingDot.box
                 height: width
                 radius: width / 2
+                scale: (recordingDot.disc + recordingDot.halo * 2) / recordingDot.box
                 color: root.iconColor
                 opacity: root.microphoneLive ? 0.42 : 0
                 antialiasing: true
@@ -182,7 +185,8 @@ Ui.ShellAction {
             }
 
             Rectangle {
-                anchors.centerIn: parent
+                x: (recordingDot.box - width) / 2
+                y: x
                 width: recordingDot.disc
                 height: width
                 radius: width / 2
