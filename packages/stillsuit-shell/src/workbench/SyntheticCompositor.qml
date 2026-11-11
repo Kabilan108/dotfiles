@@ -32,19 +32,23 @@ QtObject {
     // event would, so the bar on the fixture output shows the switch.
     function focusWorkspace(workspaceId) {
         var id = Number(workspaceId)
-        if (!Number.isInteger(id) || id <= 0) return "invalid-workspace"
+        if (!Number.isInteger(id) || id <= 0)
+            return "invalid-workspace"
         var target = null
         for (var index = 0; index < workspaces.length; index++) {
-            if (workspaces[index] && workspaces[index].id === id) target = workspaces[index]
+            if (workspaces[index] && workspaces[index].id === id)
+                target = workspaces[index]
         }
-        if (!target) return "unknown-workspace"
+        if (!target)
+            return "unknown-workspace"
         var next = workspaceFocusRequests.slice(-49)
         next.push(id)
         workspaceFocusRequests = next
         var output = String(target.output || target.output_id || "")
-        workspaces = workspaces.map(function(row) {
+        workspaces = workspaces.map(function (row) {
             var copy = Object.assign({}, row)
-            if (String(copy.output || copy.output_id || "") === output) copy.is_active = copy.id === id
+            if (String(copy.output || copy.output_id || "") === output)
+                copy.is_active = copy.id === id
             copy.is_focused = copy.id === id
             return copy
         })
@@ -59,11 +63,15 @@ QtObject {
     function apply(snapshot, screens) {
         var nextOutputs = []
         for (var index = 0; index < screens.length; index++)
-            nextOutputs.push({ id: String(screens[index].name), name: String(screens[index].name) })
+            nextOutputs.push({
+                                 id: String(screens[index].name),
+                                 name: String(screens[index].name)
+                             })
         var primary = nextOutputs.length > 0 ? nextOutputs[0].id : ""
         var requested = String(snapshot.focusedOutputId || "")
-        var focused = nextOutputs.length === 1 ? primary
-            : nextOutputs.some(function(output) { return output.id === requested }) ? requested : primary
+        var focused = nextOutputs.length === 1 ? primary : nextOutputs.some(function (output) {
+            return output.id === requested
+        }) ? requested : primary
         outputs = nextOutputs
         focusedOutputId = focused
         workspaces = _retarget(snapshot.workspaces || [], primary)
@@ -75,9 +83,12 @@ QtObject {
     function _lastFocused(rows, named) {
         var namedOpen = false
         for (var index = 0; index < rows.length; index++) {
-            if (!rows[index] || rows[index].id === undefined) continue
-            if (rows[index].is_focused === true) return rows[index].id
-            if (rows[index].id === named) namedOpen = true
+            if (!rows[index] || rows[index].id === undefined)
+                continue
+            if (rows[index].is_focused === true)
+                return rows[index].id
+            if (rows[index].id === named)
+                namedOpen = true
         }
         return namedOpen ? named : null
     }
@@ -87,8 +98,10 @@ QtObject {
     function _retarget(rows, primary) {
         var result = JSON.parse(JSON.stringify(rows))
         for (var index = 0; index < result.length; index++) {
-            if (result[index].output === "WB-1") result[index].output = primary
-            if (result[index].output_id === "WB-1") result[index].output_id = primary
+            if (result[index].output === "WB-1")
+                result[index].output = primary
+            if (result[index].output_id === "WB-1")
+                result[index].output_id = primary
         }
         return result
     }

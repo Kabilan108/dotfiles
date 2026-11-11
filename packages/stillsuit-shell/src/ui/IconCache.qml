@@ -18,11 +18,11 @@ QtObject {
     // place: assigning a property here would notify every icon binding that
     // read it, and the binding doing the assignment would loop.
     readonly property var store: ({
-        knownNames: null,
-        markupByUrl: {},
-        tintedByKey: {},
-        tintedCount: 0
-    })
+                                      knownNames: null,
+                                      markupByUrl: {},
+                                      tintedByKey: {},
+                                      tintedCount: 0
+                                  })
 
     property Component reader: Component {
         FileView {
@@ -58,8 +58,9 @@ QtObject {
         var markup = _markup(url)
         if (markup === "")
             return ""
-        var result = "data:image/svg+xml;utf8,"
-            + encodeURIComponent(markup.replace(/<svg\b/, '<svg fill="' + fill + '"'))
+        var result = "data:image/svg+xml;utf8," + encodeURIComponent(markup.replace(/<svg\b/,
+                                                                                    '<svg fill="'
+                                                                                    + fill + '"'))
         if (store.tintedCount >= tintedLimit) {
             store.tintedByKey = {}
             store.tintedCount = 0
@@ -73,7 +74,9 @@ QtObject {
         var cached = store.markupByUrl[url]
         if (cached !== undefined)
             return cached
-        var file = reader.createObject(root, { path: url })
+        var file = reader.createObject(root, {
+                                           path: url
+                                       })
         if (!file)
             return ""
         var text = file.text()

@@ -12,8 +12,10 @@ Item {
     readonly property var popupWindow: popupLoader.item
     onHoveringChanged: {
         showing = false
-        if (hovering && text !== "") delay.restart()
-        else delay.stop()
+        if (hovering && text !== "")
+            delay.restart()
+        else
+            delay.stop()
     }
     Timer {
         id: delay

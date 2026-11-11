@@ -12,6 +12,8 @@ Ui.ShellBarCluster {
     label: "icons"
     accessibleName: "Open icon gallery"
     selected: context.panels && context.panels.selectedId === "stillsuit.icon-gallery"
-        && context.panels.selectedOutputId === outputId
-    onClicked: context.actions.surfaceToggle("stillsuit.icon-gallery", JSON.stringify({outputId: root.outputId}))
+              && context.panels.selectedOutputId === outputId
+    onClicked: context.actions.surfaceToggle("stillsuit.icon-gallery", JSON.stringify({
+                                                                                          outputId: root.outputId
+                                                                                      }))
 }

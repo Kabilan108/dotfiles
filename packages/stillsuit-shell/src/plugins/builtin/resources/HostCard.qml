@@ -58,20 +58,21 @@ ColumnLayout {
             text: root.hostName
             sizeRole: "label"
         }
-        Item { Layout.fillWidth: true }
+        Item {
+            Layout.fillWidth: true
+        }
         Rectangle {
             implicitWidth: root.unit * 1.5
             implicitHeight: implicitWidth
             radius: width / 2
-            color: root.degraded ? root.theme.semantic.status.warning
-                : root.refreshing && !root.snapshot ? root.theme.semantic.content.muted
-                : root.theme.semantic.status.success
+            color: root.degraded ? root.theme.semantic.status.warning : root.refreshing &&
+                                   !root.snapshot ? root.theme.semantic.content.muted :
+                                                    root.theme.semantic.status.success
         }
         Ui.ShellText {
             theme: root.theme
-            text: root.remote ? root.refreshing ? "Reading…"
-                    : (root.stale ? "Stale · " : "") + root.service.age(root.updatedAt)
-                : "Live"
+            text: root.remote ? root.refreshing ? "Reading…" : (root.stale ? "Stale · " : "")
+                                                  + root.service.age(root.updatedAt) : "Live"
             role: root.degraded ? "warning" : "muted"
             sizeRole: "caption"
         }
@@ -182,9 +183,24 @@ ColumnLayout {
                 role: "muted"
                 Accessible.description: "Time waiting for a resource over the last ten seconds"
             }
-            Item { Layout.fillWidth: true }
+            Item {
+                Layout.fillWidth: true
+            }
             Repeater {
-                model: [ {label: "cpu", key: "cpu"}, {label: "mem", key: "memory"}, {label: "io", key: "io"} ]
+                model: [
+                    {
+                        label: "cpu",
+                        key: "cpu"
+                    },
+                    {
+                        label: "mem",
+                        key: "memory"
+                    },
+                    {
+                        label: "io",
+                        key: "io"
+                    }
+                ]
                 delegate: Row {
                     id: pressureItem
                     required property var modelData
@@ -217,7 +233,7 @@ ColumnLayout {
     }
     function vramPercent(gpu) {
         return typeof gpu.usedBytes === "number" && typeof gpu.totalBytes === "number"
-            && gpu.totalBytes > 0 ? gpu.usedBytes / gpu.totalBytes * 100 : null
+                && gpu.totalBytes > 0 ? gpu.usedBytes / gpu.totalBytes * 100 : null
     }
     function pressure(key) {
         var value = (sample.pressure || ({}))[key]

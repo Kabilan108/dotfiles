@@ -22,7 +22,7 @@ ShellAction {
     readonly property int motionDuration: reducedMotion ? 0 : theme.motion.fast
     readonly property int visualBorderWidth: background.border.width
 
-    signal clicked()
+    signal clicked
 
     accessibleFallback: label
     implicitWidth: 300
@@ -34,15 +34,11 @@ ShellAction {
 
         anchors.fill: parent
         radius: root.theme.metrics.radiusSmall
-        color: root.danger
-            ? root.theme.component.panel.rowDanger
-            : root.selected
-                ? root.theme.component.panel.rowSelected
-                : root.pressed
-                    ? root.theme.semantic.surface.pressed
-                    : root.hovered && root.interactive
-                        ? root.theme.component.panel.rowHover
-                        : "transparent"
+        color: root.danger ? root.theme.component.panel.rowDanger : root.selected
+                             ? root.theme.component.panel.rowSelected : root.pressed
+                               ? root.theme.semantic.surface.pressed : root.hovered
+                                 && root.interactive ? root.theme.component.panel.rowHover :
+                                                       "transparent"
         border.width: 0
         opacity: !root.enabled ? 0.64 : root.busy ? 0.76 : 1
 
@@ -88,11 +84,7 @@ ShellAction {
                 theme: root.theme
                 text: root.label
                 sizeRole: "label"
-                role: !root.enabled
-                    ? "disabled"
-                    : root.danger
-                        ? "danger"
-                        : "primary"
+                role: !root.enabled ? "disabled" : root.danger ? "danger" : "primary"
                 elide: Text.ElideRight
             }
 

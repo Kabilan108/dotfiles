@@ -11,27 +11,38 @@ ShellRoot {
 
     readonly property string labRoot: Quickshell.env("STILLSUIT_LAB_ROOT") || Quickshell.shellDir
     readonly property var themeChoices: [
-        { label: "Stillsuit Spice", file: "stillsuit-spice.json" },
-        { label: "Catppuccin", file: "catppuccin-mocha.json" },
-        { label: "Graphite Cyan", file: "graphite-cyan.json" }
+        {
+            label: "Stillsuit Spice",
+            file: "stillsuit-spice.json"
+        },
+        {
+            label: "Catppuccin",
+            file: "catppuccin-mocha.json"
+        },
+        {
+            label: "Graphite Cyan",
+            file: "graphite-cyan.json"
+        }
     ]
-    readonly property var bodyFontChoices: ["Inter", "IBM Plex Sans", "Noto Sans", "JetBrainsMono Nerd Font"]
-    readonly property var monoFontChoices: ["JetBrainsMono Nerd Font", "FiraMono Nerd Font", "IBM Plex Mono"]
+    readonly property var bodyFontChoices: ["Inter", "IBM Plex Sans", "Noto Sans",
+        "JetBrainsMono Nerd Font"]
+    readonly property var monoFontChoices: ["JetBrainsMono Nerd Font", "FiraMono Nerd Font",
+        "IBM Plex Mono"]
     readonly property var barHeightChoices: [26, 28, 30, 32]
     readonly property var reviewPreset: ({
-        bodyFont: "Noto Sans",
-        monoFont: "JetBrainsMono Nerd Font",
-        iconFont: "Material Symbols Rounded",
-        barHeight: 28,
-        anchored: true,
-        opacity: 0.95,
-        radius: 7,
-        motionScale: 0.55,
-        accent: "#89b4fa",
-        panel: "#181825",
-        raised: "#313244",
-        text: "#cdd6f4"
-    })
+                                             bodyFont: "Noto Sans",
+                                             monoFont: "JetBrainsMono Nerd Font",
+                                             iconFont: "Material Symbols Rounded",
+                                             barHeight: 28,
+                                             anchored: true,
+                                             opacity: 0.95,
+                                             radius: 7,
+                                             motionScale: 0.55,
+                                             accent: "#89b4fa",
+                                             panel: "#181825",
+                                             raised: "#313244",
+                                             text: "#cdd6f4"
+                                         })
 
     property bool ready: false
     property string errorText: ""
@@ -105,24 +116,26 @@ ShellRoot {
 
         function status(): string {
             return JSON.stringify({
-                ready: lab.ready,
-                error: lab.errorText,
-                theme: lab.ready ? lab.theme.identity.id : "",
-                bodyFont: lab.bodyFontChoice,
-                monoFont: lab.monoFontChoice,
-                iconFont: lab.iconFontChoice,
-                barHeight: lab.barHeightChoice,
-                anchored: lab.anchoredChoice,
-                opacity: lab.opacityChoice,
-                radius: lab.radiusChoice,
-                motionScale: lab.motionScaleChoice,
-                panelBackground: lab.theme.semantic.surface.panel,
-                osdSurfaceRole: "semantic.surface.panel",
-                windowSize: [window.width, window.height],
-                loaderSize: [contentLoader.width, contentLoader.height],
-                loaderStatus: contentLoader.status,
-                itemSize: contentLoader.item ? [contentLoader.item.width, contentLoader.item.height] : []
-            })
+                                      ready: lab.ready,
+                                      error: lab.errorText,
+                                      theme: lab.ready ? lab.theme.identity.id : "",
+                                      bodyFont: lab.bodyFontChoice,
+                                      monoFont: lab.monoFontChoice,
+                                      iconFont: lab.iconFontChoice,
+                                      barHeight: lab.barHeightChoice,
+                                      anchored: lab.anchoredChoice,
+                                      opacity: lab.opacityChoice,
+                                      radius: lab.radiusChoice,
+                                      motionScale: lab.motionScaleChoice,
+                                      panelBackground: lab.theme.semantic.surface.panel,
+                                      osdSurfaceRole: "semantic.surface.panel",
+                                      windowSize: [window.width, window.height],
+                                      loaderSize: [contentLoader.width, contentLoader.height],
+                                      loaderStatus: contentLoader.status,
+                                      itemSize: contentLoader.item ? [contentLoader.item.width,
+                                                                      contentLoader.item.height] :
+                                                                     []
+                                  })
         }
     }
 
@@ -186,7 +199,6 @@ ShellRoot {
     function rebuildTheme() {
         if (!baseTheme || !baseTheme.identity)
             return
-
         var next = JSON.parse(JSON.stringify(baseTheme))
         next.typography.bodyFamily = bodyFontChoice
         next.typography.monoFamily = monoFontChoice
@@ -300,9 +312,8 @@ ShellRoot {
                 radius: colorEditor.theme.metrics.radiusSmall
                 color: colorEditor.theme.component.control.background
                 border.width: field.activeFocus ? 2 : 1
-                border.color: field.activeFocus
-                    ? colorEditor.theme.component.control.focus
-                    : colorEditor.theme.component.control.outline
+                border.color: field.activeFocus ? colorEditor.theme.component.control.focus :
+                                                  colorEditor.theme.component.control.outline
             }
         }
     }
@@ -328,18 +339,22 @@ ShellRoot {
             anchors.centerIn: parent
             visible: !lab.ready
             theme: ({
-                typography: {
-                    bodyFamily: "Noto Sans",
-                    monoFamily: "FiraMono Nerd Font",
-                    baseSize: 13,
-                    captionSize: 11,
-                    headingSize: 17,
-                    weightRegular: 400,
-                    weightMedium: 500,
-                    weightBold: 700
-                },
-                semantic: { content: { primary: "#ffffff" } }
-            })
+                        typography: {
+                            bodyFamily: "Noto Sans",
+                            monoFamily: "FiraMono Nerd Font",
+                            baseSize: 13,
+                            captionSize: 11,
+                            headingSize: 17,
+                            weightRegular: 400,
+                            weightMedium: 500,
+                            weightBold: 700
+                        },
+                        semantic: {
+                            content: {
+                                primary: "#ffffff"
+                            }
+                        }
+                    })
             text: lab.errorText === "" ? "Loading design lab…" : lab.errorText
         }
     }
@@ -799,7 +814,8 @@ ShellRoot {
                                     spacing: 16
 
                                     Repeater {
-                                        model: ["network", "bluetooth", "audio", "microphone", "notifications", "battery", "brightness", "settings"]
+                                        model: ["network", "bluetooth", "audio", "microphone",
+                                            "notifications", "battery", "brightness", "settings"]
 
                                         Ui.ShellIcon {
                                             required property var modelData
@@ -825,25 +841,65 @@ ShellRoot {
                             Layout.fillWidth: true
                             Layout.leftMargin: 28
                             Layout.rightMargin: 28
-                            columns: Math.max(2, Math.floor((previewScroll.availableWidth - 56) / 190))
+                            columns: Math.max(2, Math.floor((previewScroll.availableWidth - 56)
+                                                            / 190))
                             columnSpacing: 8
                             rowSpacing: 8
 
                             Repeater {
                                 model: [
-                                    { name: "accent.primary", value: lab.theme.semantic.accent.primary },
-                                    { name: "surface.panel", value: lab.theme.semantic.surface.panel },
-                                    { name: "surface.raised", value: lab.theme.semantic.surface.raised },
-                                    { name: "content.primary", value: lab.theme.semantic.content.primary },
-                                    { name: "content.secondary", value: lab.theme.semantic.content.secondary },
-                                    { name: "outline.default", value: lab.theme.semantic.outline.default },
-                                    { name: "status.success", value: lab.theme.semantic.status.success },
-                                    { name: "status.warning", value: lab.theme.semantic.status.warning },
-                                    { name: "status.danger", value: lab.theme.semantic.status.danger },
-                                    { name: "notification.muted", value: lab.theme.component.notification.muted },
-                                    { name: "signal.audio", value: lab.theme.semantic.signal.audio },
-                                    { name: "signal.brightness", value: lab.theme.semantic.signal.brightness },
-                                    { name: "signal.recording", value: lab.theme.semantic.signal.recording }
+                                    {
+                                        name: "accent.primary",
+                                        value: lab.theme.semantic.accent.primary
+                                    },
+                                    {
+                                        name: "surface.panel",
+                                        value: lab.theme.semantic.surface.panel
+                                    },
+                                    {
+                                        name: "surface.raised",
+                                        value: lab.theme.semantic.surface.raised
+                                    },
+                                    {
+                                        name: "content.primary",
+                                        value: lab.theme.semantic.content.primary
+                                    },
+                                    {
+                                        name: "content.secondary",
+                                        value: lab.theme.semantic.content.secondary
+                                    },
+                                    {
+                                        name: "outline.default",
+                                        value: lab.theme.semantic.outline.default
+                                    },
+                                    {
+                                        name: "status.success",
+                                        value: lab.theme.semantic.status.success
+                                    },
+                                    {
+                                        name: "status.warning",
+                                        value: lab.theme.semantic.status.warning
+                                    },
+                                    {
+                                        name: "status.danger",
+                                        value: lab.theme.semantic.status.danger
+                                    },
+                                    {
+                                        name: "notification.muted",
+                                        value: lab.theme.component.notification.muted
+                                    },
+                                    {
+                                        name: "signal.audio",
+                                        value: lab.theme.semantic.signal.audio
+                                    },
+                                    {
+                                        name: "signal.brightness",
+                                        value: lab.theme.semantic.signal.brightness
+                                    },
+                                    {
+                                        name: "signal.recording",
+                                        value: lab.theme.semantic.signal.recording
+                                    }
                                 ]
 
                                 Lab.TokenSwatch {

@@ -15,46 +15,30 @@ QtObject {
     readonly property var playerSummaries: _playerSummaries()
     readonly property bool available: !forceUnavailable
     readonly property bool failed: !forceUnavailable && Boolean(model && model.failed)
-    readonly property string errorMessage: failed
-        ? String(model.errorMessage || "Media controls are unavailable")
-        : ""
-    readonly property string state: forceUnavailable
-        ? "unavailable"
-        : failed
-            ? "error"
-            : player
-                ? "ready"
-                : "empty"
+    readonly property string errorMessage: failed ? String(model.errorMessage
+                                                           || "Media controls are unavailable") : ""
+    readonly property string state: forceUnavailable ? "unavailable" : failed ? "error" : player
+                                                                                ? "ready" : "empty"
     readonly property string playerId: _id(player, -1)
-    readonly property string playerName: player
-        ? String(player.identity || player.desktopEntry || "Media player")
-        : ""
+    readonly property string playerName: player ? String(player.identity || player.desktopEntry
+                                                         || "Media player") : ""
     readonly property string title: _metadata("trackTitle", "Unknown track")
-    readonly property string artist: _metadata("trackArtist",
-        playerName !== "" ? playerName : "Unknown artist")
+    readonly property string artist: _metadata("trackArtist", playerName !== "" ? playerName :
+                                                                                  "Unknown artist")
     readonly property string album: _metadata("trackAlbum", "")
-    readonly property url artUrl: player && player.trackArtUrl
-        ? player.trackArtUrl
-        : ""
+    readonly property url artUrl: player && player.trackArtUrl ? player.trackArtUrl : ""
     readonly property bool isPlaying: Boolean(player && player.isPlaying)
     readonly property real position: _finiteNonNegative(player ? player.position : 0)
     readonly property real length: _finiteNonNegative(player ? player.length : 0)
-    readonly property bool lengthSupported: Boolean(player
-        && player.lengthSupported && length > 0)
-    readonly property bool canSeek: Boolean(player && player.canSeek
-        && lengthSupported)
+    readonly property bool lengthSupported: Boolean(player && player.lengthSupported && length > 0)
+    readonly property bool canSeek: Boolean(player && player.canSeek && lengthSupported)
     readonly property bool canGoPrevious: Boolean(player && player.canGoPrevious)
-    readonly property bool canTogglePlaying: Boolean(player
-        && player.canTogglePlaying)
+    readonly property bool canTogglePlaying: Boolean(player && player.canTogglePlaying)
     readonly property bool canGoNext: Boolean(player && player.canGoNext)
-    readonly property bool shuffleSupported: Boolean(player
-        && player.shuffleSupported)
+    readonly property bool shuffleSupported: Boolean(player && player.shuffleSupported)
     readonly property bool shuffle: Boolean(player && player.shuffle)
-    readonly property bool repeatSupported: Boolean(player
-        && player.loopSupported)
-    readonly property string repeatMode: _repeatMode(player
-        ? player.loopState
-        : "none")
+    readonly property bool repeatSupported: Boolean(player && player.loopSupported)
+    readonly property string repeatMode: _repeatMode(player ? player.loopState : "none")
 
     property int positionTrackingRefs: 0
     readonly property bool positionTracking: positionTrackingRefs > 0
@@ -154,11 +138,8 @@ QtObject {
     function cycleRepeat() {
         if (!repeatSupported)
             return "unavailable"
-        var nextMode = repeatMode === "none"
-            ? "playlist"
-            : repeatMode === "playlist"
-                ? "track"
-                : "none"
+        var nextMode = repeatMode === "none" ? "playlist" : repeatMode === "playlist" ? "track" :
+                                                                                        "none"
         if (model && typeof model.setRepeatMode === "function")
             return model.setRepeatMode(player, nextMode)
         player.loopState = _nativeRepeatMode(nextMode)
@@ -169,8 +150,7 @@ QtObject {
         if (!available || failed || players.length === 0)
             return null
         if (selectedPlayerId !== "") {
-            for (var selectedIndex = 0; selectedIndex < players.length;
-                    selectedIndex++)
+            for (var selectedIndex = 0; selectedIndex < players.length; selectedIndex++)
                 if (_id(players[selectedIndex], selectedIndex) === selectedPlayerId)
                     return players[selectedIndex]
         }
@@ -187,13 +167,13 @@ QtObject {
             if (!candidate)
                 continue
             summaries.push({
-                id: _id(candidate, index),
-                name: String(candidate.identity || candidate.desktopEntry
-                    || "Media player"),
-                title: String(candidate.trackTitle || "Unknown track"),
-                playing: Boolean(candidate.isPlaying),
-                selected: candidate === player
-            })
+                               id: _id(candidate, index),
+                               name: String(candidate.identity || candidate.desktopEntry
+                                            || "Media player"),
+                               title: String(candidate.trackTitle || "Unknown track"),
+                               playing: Boolean(candidate.isPlaying),
+                               selected: candidate === player
+                           })
         }
         return summaries
     }
@@ -201,8 +181,8 @@ QtObject {
     function _id(candidate, index) {
         if (!candidate)
             return ""
-        return String(candidate.dbusName || candidate.uniqueId
-            || candidate.identity || "player-" + index)
+        return String(candidate.dbusName || candidate.uniqueId || candidate.identity || "player-"
+                      + index)
     }
 
     function _metadata(key, fallback) {
@@ -220,8 +200,7 @@ QtObject {
     function _repeatMode(value) {
         if (value === MprisLoopState.Track || String(value).toLowerCase() === "track")
             return "track"
-        if (value === MprisLoopState.Playlist
-                || String(value).toLowerCase() === "playlist")
+        if (value === MprisLoopState.Playlist || String(value).toLowerCase() === "playlist")
             return "playlist"
         return "none"
     }

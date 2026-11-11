@@ -24,7 +24,7 @@ Item {
     property real _segmentTarget: 0
     property bool _ready: false
 
-    signal settled()
+    signal settled
 
     visible: false
     width: 0
@@ -44,14 +44,16 @@ Item {
     }
 
     function retarget() {
-        if (!_ready || hold) return
+        if (!_ready || hold)
+            return
         var offset = value - target
         if (instant || (Math.abs(offset) < epsilon && Math.abs(velocity) < epsilon * 10)) {
             var wasMoving = frame.running
             frame.stop()
             value = target
             velocity = 0
-            if (wasMoving || instant || offset !== 0) settled()
+            if (wasMoving || instant || offset !== 0)
+                settled()
             return
         }
         _solved = Motion.solve(spring, offset, velocity)

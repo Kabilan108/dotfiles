@@ -18,9 +18,8 @@ Item {
     property bool surfaceReady: true
 
     readonly property string deckKey: String((deck || {}).key || "")
-    readonly property bool reducedMotion: context.settings
-        && context.settings.values
-        && context.settings.values.reducedMotion === true
+    readonly property bool reducedMotion: context.settings && context.settings.values
+                                          && context.settings.values.reducedMotion === true
     readonly property bool expanded: !exiting && service && service.activeDeckKey === deckKey
     readonly property var rows: !exiting && deck && Array.isArray(deck.rows) ? deck.rows : []
     readonly property real gap: context.theme.metrics.spaceUnit * 2
@@ -31,20 +30,26 @@ Item {
     property var rendered: []
     property var rowCache: ({})
     property var naturalHeights: ({})
-    readonly property var liveKeys: rendered.filter(function(entry) { return !entry.exiting })
-        .map(function(entry) { return entry.key })
+    readonly property var liveKeys: rendered.filter(function (entry) {
+        return !entry.exiting
+    }).map(function (entry) {
+        return entry.key
+    })
     readonly property real frontHeight: liveKeys.length > 0 ? heightOf(liveKeys[0]) : 0
     readonly property real layoutHeight: {
-        if (liveKeys.length === 0) return 0
-        if (!expanded) return frontHeight + Math.min(maxPeeks, liveKeys.length - 1) * peek
+        if (liveKeys.length === 0)
+            return 0
+        if (!expanded)
+            return frontHeight + Math.min(maxPeeks, liveKeys.length - 1) * peek
         var total = 0
-        for (var index = 0; index < liveKeys.length; index++) total += heightOf(liveKeys[index])
+        for (var index = 0; index < liveKeys.length; index++)
+            total += heightOf(liveKeys[index])
         return total + (liveKeys.length - 1) * gap
     }
 
     readonly property alias slotInstances: slots
 
-    signal drained()
+    signal drained
 
     width: context.theme.metrics.panelWidth
     height: heightSpring.value
@@ -56,7 +61,8 @@ Item {
     }
 
     function reportHeight(key, height) {
-        if (Number(naturalHeights[key] || 0) === height) return
+        if (Number(naturalHeights[key] || 0) === height)
+            return
         var next = Object.assign({}, naturalHeights)
         next[key] = height
         naturalHeights = next
@@ -64,42 +70,61 @@ Item {
 
     function syncRows() {
         var cache = Object.assign({}, rowCache)
-        for (var index = 0; index < rows.length; index++) cache[rows[index].key] = rows[index]
+        for (var index = 0; index < rows.length; index++)
+            cache[rows[index].key] = rows[index]
         rowCache = cache
-        var next = Motion.merge(rendered, rows.map(function(row) { return row.key }))
-        if (!Motion.sameEntries(next, rendered)) rendered = next
-        if (exiting && rendered.length === 0) Qt.callLater(root.drained)
+        var next = Motion.merge(rendered, rows.map(function (row) {
+            return row.key
+        }))
+        if (!Motion.sameEntries(next, rendered))
+            rendered = next
+        if (exiting && rendered.length === 0)
+            Qt.callLater(root.drained)
     }
 
     function dropRow(key) {
         var next = Motion.drop(rendered, key)
-        if (next.length === rendered.length) return
+        if (next.length === rendered.length)
+            return
         rendered = next
         var cache = Object.assign({}, rowCache)
         var heights = Object.assign({}, naturalHeights)
-        if (rendered.every(function(entry) { return entry.key !== key })) {
+        if (rendered.every(function (entry) {
+            return entry.key !== key
+        })) {
             delete cache[key]
             delete heights[key]
         }
         rowCache = cache
         naturalHeights = heights
-        if (exiting && rendered.length === 0) Qt.callLater(root.drained)
+        if (exiting && rendered.length === 0)
+            Qt.callLater(root.drained)
     }
 
     function isExiting(key) {
         for (var index = 0; index < rendered.length; index++)
-            if (rendered[index].key === key) return rendered[index].exiting
+            if (rendered[index].key === key)
+                return rendered[index].exiting
         return true
     }
 
     // Where a live row sits, collapsed or expanded.
     function placement(key) {
         var index = liveKeys.indexOf(key)
-        if (index < 0) return null
+        if (index < 0)
+            return null
         if (expanded) {
             var y = 0
-            for (var before = 0; before < index; before++) y += heightOf(liveKeys[before]) + gap
-            return { index: index, y: y, scale: 1, opacity: 1, content: 1, height: heightOf(key) }
+            for (var before = 0; before < index; before++)
+                y += heightOf(liveKeys[before]) + gap
+            return {
+                index: index,
+                y: y,
+                scale: 1,
+                opacity: 1,
+                content: 1,
+                height: heightOf(key)
+            }
         }
         var depth = Math.min(index, maxPeeks)
         return {
@@ -141,7 +166,9 @@ Item {
 
     ScriptModel {
         id: renderedKeys
-        values: root.rendered.map(function(entry) { return entry.key })
+        values: root.rendered.map(function (entry) {
+            return entry.key
+        })
     }
 
     Repeater {
@@ -153,10 +180,19 @@ Item {
 
             required property string modelData
             readonly property string rowKey: modelData
-            readonly property var snapshot: root.rowCache[rowKey] || ({ key: rowKey })
+            readonly property var snapshot: root.rowCache[rowKey] || ({
+                                                                          key: rowKey
+                                                                      })
             readonly property bool exiting: root.isExiting(rowKey)
             readonly property var place: root.placement(rowKey)
-            property var lastPlace: ({ index: 0, y: 0, scale: 1, opacity: 1, content: 1, height: 72 })
+            property var lastPlace: ({
+                                         index: 0,
+                                         y: 0,
+                                         scale: 1,
+                                         opacity: 1,
+                                         content: 1,
+                                         height: 72
+                                     })
             readonly property var layout: place || lastPlace
             property real exitDirection: 1
             property var xMotion: Motion.ENTER
@@ -171,17 +207,20 @@ Item {
             height: heightSpring.value
             y: ySpring.value
             z: exiting ? 200 : 100 - layout.index
-            opacity: opacitySpring.value * appear.value
-                * (1 - Math.min(Math.abs(offsetX) / Math.max(width, 1), 0.48))
+            opacity: opacitySpring.value * appear.value * (1 - Math.min(Math.abs(offsetX) / Math.max(
+                                                                            width, 1), 0.48))
             transformOrigin: Item.Bottom
-            scale: scaleSpring.value * (exiting ? 1
-                : Motion.ENTER_SCALE + (1 - Motion.ENTER_SCALE) * appear.value)
+            scale: scaleSpring.value * (exiting ? 1 : Motion.ENTER_SCALE + (1 - Motion.ENTER_SCALE)
+                                                  * appear.value)
             enabled: !exiting && (layout.index === 0 || root.expanded)
 
             // Leaving rows keep the place they last had.
-            onPlaceChanged: if (place) lastPlace = place
+            onPlaceChanged: if (place)
+                                lastPlace = place
 
-            transform: Translate { x: slot.offsetX }
+            transform: Translate {
+                x: slot.offsetX
+            }
 
             onExitingChanged: Qt.callLater(root.syncHovered)
 
@@ -193,7 +232,8 @@ Item {
                 epsilon: 0.002
                 instant: root.reducedMotion
                 hold: !root.surfaceReady
-                onSettled: if (slot.exiting && value === 0) root.dropRow(slot.rowKey)
+                onSettled: if (slot.exiting && value === 0)
+                               root.dropRow(slot.rowKey)
             }
 
             SpringValue {
@@ -280,8 +320,8 @@ Item {
             right: parent.right
             rightMargin: 14
         }
-        y: Math.max(0, root.frontHeight + Math.min(root.maxPeeks, Math.max(0, count - 1)) * root.peek
-            - height / 2)
+        y: Math.max(0, root.frontHeight + Math.min(root.maxPeeks, Math.max(0, count - 1))
+                    * root.peek - height / 2)
         z: 300
         width: countText.implicitWidth + 12
         height: countText.implicitHeight + 6

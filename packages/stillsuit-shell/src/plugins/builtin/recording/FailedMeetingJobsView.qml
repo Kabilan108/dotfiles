@@ -12,41 +12,44 @@ ColumnLayout {
     required property var meeting
     property string detailsJobId: ""
     readonly property int rowLimit: 5
-    readonly property var failedJobs: _failed(root.meeting ? root.meeting.jobs : []).slice(0, rowLimit)
+    readonly property var failedJobs: _failed(root.meeting ? root.meeting.jobs : []).slice(0,
+                                                                                           rowLimit)
     readonly property int failedCount: _failed(root.meeting ? root.meeting.jobs : []).length
     readonly property int rowCount: failedJobs.length
     spacing: root.context.theme.metrics.spaceUnit * 2
 
     function conciseError(value) {
-        var firstLine = String(value || "Meeting processing failed").split("\n")[0].trim();
-        return firstLine.length > 110 ? firstLine.slice(0, 107) + "..." : firstLine;
+        var firstLine = String(value || "Meeting processing failed").split("\n")[0].trim()
+        return firstLine.length > 110 ? firstLine.slice(0, 107) + "..." : firstLine
     }
 
     function displayTitle(job) {
-        var title = String(job && job.title || "").trim();
-        var jobId = String(job && job.jobId || "");
-        return title === "" || title === jobId || /^[a-f0-9]{24,}$/i.test(title)
-            ? "Meeting processing failed"
-            : title;
+        var title = String(job && job.title || "").trim()
+        var jobId = String(job && job.jobId || "")
+        return title === "" || title === jobId || /^[a-f0-9]{24,}$/i.test(title) ? "Meeting processing failed" :
+                                                                                   title
     }
 
     function _failed(jobs) {
         var rows = (Array.isArray(jobs) ? jobs : []).filter(function (job) {
-            return job && String(job.phase || "") === "error";
-        });
+            return job && String(job.phase || "") === "error"
+        })
         rows.sort(function (left, right) {
-            var timeDifference = Number(right.updatedAt || right.createdAt || 0) - Number(left.updatedAt || left.createdAt || 0);
+            var timeDifference = Number(right.updatedAt || right.createdAt || 0) - Number(left.updatedAt
+                                                                                          || left.createdAt
+                                                                                          || 0)
             if (timeDifference !== 0)
-                return timeDifference;
-            return String(left.jobId || "").localeCompare(String(right.jobId || ""));
-        });
-        return rows;
+                return timeDifference
+            return String(left.jobId || "").localeCompare(String(right.jobId || ""))
+        })
+        return rows
     }
 
     Ui.ShellSectionLabel {
         Layout.fillWidth: true
         theme: root.context.theme
-        text: root.failedCount > root.rowLimit ? "Failed meeting jobs · showing " + root.rowLimit + " of " + root.failedCount : "Failed meeting jobs"
+        text: root.failedCount > root.rowLimit ? "Failed meeting jobs · showing " + root.rowLimit
+                                                 + " of " + root.failedCount : "Failed meeting jobs"
         role: "danger"
     }
 
@@ -67,7 +70,8 @@ ColumnLayout {
                 Ui.ShellSurface {
                     required property var modelData
                     Layout.fillWidth: true
-                    implicitHeight: jobContent.implicitHeight + root.context.theme.metrics.spaceUnit * 4
+                    implicitHeight: jobContent.implicitHeight
+                                    + root.context.theme.metrics.spaceUnit * 4
                     theme: root.context.theme
                     kind: "raised"
                     danger: true
@@ -119,10 +123,12 @@ ColumnLayout {
                                 compact: true
                                 ghost: true
                                 foregroundColor: root.detailsJobId === modelData.jobId
-                                    ? root.context.theme.semantic.accent.primary
-                                    : "transparent"
-                                accessibleName: root.detailsJobId === modelData.jobId ? "Hide error details" : "Show error details"
-                                onClicked: root.detailsJobId = root.detailsJobId === modelData.jobId ? "" : modelData.jobId
+                                                 ? root.context.theme.semantic.accent.primary :
+                                                   "transparent"
+                                accessibleName: root.detailsJobId === modelData.jobId
+                                                ? "Hide error details" : "Show error details"
+                                onClicked: root.detailsJobId = root.detailsJobId
+                                           === modelData.jobId ? "" : modelData.jobId
                             }
                             Ui.ShellButton {
                                 theme: root.context.theme
@@ -132,7 +138,8 @@ ColumnLayout {
                                 ghost: true
                                 accessibleName: "Retry " + root.displayTitle(modelData)
                                 busy: root.meeting && root.meeting.retryingJobId === modelData.jobId
-                                enabled: root.meeting && root.meeting.retryConfigured && !root.meeting.actionRunning
+                                enabled: root.meeting && root.meeting.retryConfigured &&
+                                         !root.meeting.actionRunning
                                 onClicked: root.meeting.retry(modelData.jobId)
                             }
                             Ui.ShellButton {
@@ -142,8 +149,10 @@ ColumnLayout {
                                 compact: true
                                 ghost: true
                                 destructive: true
-                                busy: root.meeting && root.meeting.discardingJobId === modelData.jobId
-                                enabled: root.meeting && root.meeting.retryConfigured && !root.meeting.actionRunning
+                                busy: root.meeting && root.meeting.discardingJobId
+                                      === modelData.jobId
+                                enabled: root.meeting && root.meeting.retryConfigured &&
+                                         !root.meeting.actionRunning
                                 accessibleName: "Discard " + root.displayTitle(modelData)
                                 onClicked: root.meeting.discard(modelData.jobId)
                             }

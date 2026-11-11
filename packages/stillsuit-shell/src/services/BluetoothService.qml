@@ -10,21 +10,23 @@ QtObject {
     property var model: null
     property bool forceUnavailable: false
     readonly property string managerPath: String(context && context.settings
-        && context.settings.values ? context.settings.values.managerPath || "" : "")
+                                                 && context.settings.values
+                                                 ? context.settings.values.managerPath || "" : "")
     property Process managerProcess: Process {
         command: root.managerPath !== "" ? [root.managerPath] : []
         onStarted: {
             if (root.context.actions)
                 root.context.actions.surfaceClose("stillsuit.bluetooth")
         }
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             if (exitCode !== 0 && exitCode !== 130)
                 root.lastError = "Could not open Bluetooth settings"
         }
     }
 
     function openManager() {
-        if (managerProcess.running) return "busy"
+        if (managerProcess.running)
+            return "busy"
         if (managerPath.charAt(0) !== "/") {
             lastError = "Bluetooth settings command is not configured"
             return "unavailable"
@@ -43,35 +45,39 @@ QtObject {
 
     readonly property string apiVersion: "1"
     readonly property var adapter: model ? null : Bluetooth.defaultAdapter
-    readonly property bool enabled: model ? Boolean(model.enabled) : Boolean(adapter && adapter.enabled)
-    readonly property var devices: model ? model.devices || [] : (Bluetooth.devices ? Bluetooth.devices.values : [])
+    readonly property bool enabled: model ? Boolean(model.enabled) : Boolean(adapter
+                                                                             && adapter.enabled)
+
+    readonly property var devices: model ? model.devices || [] : (Bluetooth.devices ? Bluetooth.devices.values :
+                                                                                      [])
     readonly property bool available: !forceUnavailable && (model !== null || adapter !== null)
-    readonly property bool connected: devices.some(function(device) { return device && device.connected })
-    readonly property bool scanning: model
-        ? Boolean(model.scanning)
-        : Boolean(adapter && adapter.discovering)
-    readonly property var connectedDevices: devices.filter(function(device) {
+    readonly property bool connected: devices.some(function (device) {
+        return device && device.connected
+    })
+    readonly property bool scanning: model ? Boolean(model.scanning) : Boolean(adapter
+                                                                               && adapter.discovering)
+
+    readonly property var connectedDevices: devices.filter(function (device) {
         return device && Boolean(device.connected)
     })
-    readonly property var pairedDevices: devices.filter(function(device) {
+    readonly property var pairedDevices: devices.filter(function (device) {
         return device && !device.connected && Boolean(device.paired || device.bonded)
     })
-    readonly property var availableDevices: devices.filter(function(device) {
+    readonly property var availableDevices: devices.filter(function (device) {
         return device && !device.connected && !device.paired && !device.bonded
     })
-    readonly property var pipewireNodes: model ? []
-        : Pipewire.nodes ? Pipewire.nodes.values : []
-    readonly property int revision: (model && model.revision !== undefined
-        ? Number(model.revision)
-        : 0) + localRevision
+    readonly property var pipewireNodes: model ? [] : Pipewire.nodes ? Pipewire.nodes.values : []
+    readonly property int revision: (model && model.revision !== undefined ? Number(model.revision) :
+                                                                             0) + localRevision
 
     // Node properties (api.bluez5.address) are only populated on bound
     // nodes, so sinks are bound just while a connect selects its audio output.
-    readonly property var audioCandidateNodes: operation === "audio-default"
-        ? pipewireNodes.filter(function(node) {
-            return node && node.isSink && !node.isStream
-        })
-        : []
+    readonly property var audioCandidateNodes: operation === "audio-default" ? pipewireNodes.filter(
+                                                                                   function (node) {
+                                                                                       return node
+                                                                                               && node.isSink
+                                                                                               && !node.isStream
+                                                                                   }) : []
 
     property PwObjectTracker pipewireTracker: PwObjectTracker {
         objects: root.audioCandidateNodes
@@ -84,10 +90,18 @@ QtObject {
             if (!target && root.operation === "forget")
                 root._complete("forgotten")
         }
-        function onConnectedChanged() { root._observePending() }
-        function onStateChanged() { root._observePending() }
-        function onPairedChanged() { root._observePending() }
-        function onBondedChanged() { root._observePending() }
+        function onConnectedChanged() {
+            root._observePending()
+        }
+        function onStateChanged() {
+            root._observePending()
+        }
+        function onPairedChanged() {
+            root._observePending()
+        }
+        function onBondedChanged() {
+            root._observePending()
+        }
     }
 
     property Timer operationTimeout: Timer {
@@ -175,8 +189,9 @@ QtObject {
     function batteryText(device) {
         if (!device || !device.batteryAvailable)
             return ""
-        return Math.max(0, Math.min(100,
-            Math.round(Number(device.battery || 0) * 100))) + "% battery"
+        return Math.max(0, Math.min(100, Math.round(Number(device.battery || 0) * 100)))
+                + "% battery"
+
     }
 
     function failureFor(device) {
@@ -202,11 +217,10 @@ QtObject {
         var state = String(device.state || "").toLowerCase()
         if (device.pairing)
             return "pairing"
-        if (device.state === BluetoothDeviceState.Connecting
-                || state.indexOf("connecting") !== -1)
+        if (device.state === BluetoothDeviceState.Connecting || state.indexOf("connecting") !== -1)
             return "connecting"
-        if (device.state === BluetoothDeviceState.Disconnecting
-                || state.indexOf("disconnecting") !== -1)
+        if (device.state === BluetoothDeviceState.Disconnecting || state.indexOf("disconnecting")
+                !== -1)
             return "disconnecting"
         if (device.connected)
             return "connected"
@@ -219,11 +233,10 @@ QtObject {
         if (!_begin("connect", device))
             return forceUnavailable ? "unavailable" : "busy"
         if (model) {
-            var result = typeof model.connectDevice === "function"
-                ? model.connectDevice(device)
-                : typeof model.connect === "function"
-                    ? model.connect(device)
-                    : "unavailable"
+            var result = typeof model.connectDevice === "function" ? model.connectDevice(device) :
+                                                                     typeof model.connect
+                                                                     === "function" ? model.connect(
+                                                                                          device) : "unavailable"
             if (!_modelAccepted(result))
                 return _fail(_modelError(result))
             _observePending()
@@ -244,11 +257,11 @@ QtObject {
         if (!_begin("disconnect", device))
             return forceUnavailable ? "unavailable" : "busy"
         if (model) {
-            var result = typeof model.disconnectDevice === "function"
-                ? model.disconnectDevice(device)
-                : typeof model.disconnect === "function"
-                    ? model.disconnect(device)
-                    : "unavailable"
+            var result = typeof model.disconnectDevice === "function" ? model.disconnectDevice(
+                                                                            device) : typeof model.disconnect
+                                                                        === "function"
+                                                                        ? model.disconnect(device) :
+                                                                          "unavailable"
             if (!_modelAccepted(result))
                 return _fail(_modelError(result))
             _observePending()
@@ -262,11 +275,10 @@ QtObject {
         if (!_begin(device && device.connected ? "forget-disconnect" : "forget", device))
             return forceUnavailable ? "unavailable" : "busy"
         if (model) {
-            var result = typeof model.forgetDevice === "function"
-                ? model.forgetDevice(device)
-                : typeof model.forget === "function"
-                    ? model.forget(device)
-                    : "unavailable"
+            var result = typeof model.forgetDevice === "function" ? model.forgetDevice(device) :
+                                                                    typeof model.forget
+                                                                    === "function" ? model.forget(
+                                                                                         device) : "unavailable"
             if (!_modelAccepted(result))
                 return _fail(_modelError(result))
             _observePending()
@@ -316,8 +328,7 @@ QtObject {
             if (!model)
                 device.forget()
         }
-        if (operation === "forget" && !device.connected
-                && !device.paired && !device.bonded)
+        if (operation === "forget" && !device.connected && !device.paired && !device.bonded)
             _complete("forgotten")
     }
 
@@ -326,14 +337,13 @@ QtObject {
         operationTimeout.stop()
         audioAttempts = 0
         if (model) {
-            var result = typeof model.makeDefaultAudio === "function"
-                ? model.makeDefaultAudio(device)
-                : "ok"
+            var result = typeof model.makeDefaultAudio === "function" ? model.makeDefaultAudio(
+                                                                            device) : "ok"
             if (_modelAccepted(result))
                 _complete("connected")
             else
-                _fail("Connected, but the audio output could not be selected: "
-                    + _modelError(result))
+                _fail("Connected, but the audio output could not be selected: " + _modelError(
+                          result))
             return
         }
         if (!_tryAudioDefault())
@@ -349,16 +359,11 @@ QtObject {
         for (var index = 0; index < audioCandidateNodes.length; index++) {
             var node = audioCandidateNodes[index]
             var properties = node.properties || ({})
-            var candidates = [
-                properties["api.bluez5.address"],
-                properties["device.string"],
-                properties["device.name"],
-                node.name
-            ]
-            for (var candidateIndex = 0; candidateIndex < candidates.length;
-                    candidateIndex++) {
-                if (address !== "" && _normalizeAddress(candidates[candidateIndex])
-                        .indexOf(address) !== -1) {
+            var candidates = [properties["api.bluez5.address"], properties["device.string"],
+                              properties["device.name"], node.name]
+            for (var candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
+                if (address !== "" && _normalizeAddress(candidates[candidateIndex]).indexOf(
+                            address) !== -1) {
                     Pipewire.preferredDefaultAudioSink = node
                     audioRetry.stop()
                     _complete("connected")
@@ -421,9 +426,9 @@ QtObject {
     }
 
     function _modelError(result) {
-        return typeof result === "object" && result !== null
-            ? String(result.error || result.status || "operation failed")
-            : String(result || "operation failed")
+        return typeof result === "object" && result !== null ? String(result.error || result.status
+                                                                      || "operation failed") :
+                                                               String(result || "operation failed")
     }
 
     function _finishImmediate(result, label) {

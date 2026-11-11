@@ -11,19 +11,19 @@ QtObject {
     required property var context
     readonly property string apiVersion: "1"
 
-    readonly property var values: context && context.settings
-        && context.settings.values ? context.settings.values : ({})
+    readonly property var values: context && context.settings && context.settings.values
+                                  ? context.settings.values : ({})
     readonly property string helperPath: String(values.helperPath || "")
     // Qt.openUrlExternally finds no browser from the shell's service
     // environment, so links go through the fixed desktop opener.
     readonly property string openHelperPath: String(values.openHelperPath || "")
-    readonly property int refreshIntervalSec: Math.max(30,
-        Number(values.refreshIntervalSec || 90))
+    readonly property int refreshIntervalSec: Math.max(30, Number(values.refreshIntervalSec || 90))
     // Settings lists arrive as QVariantList, which fails Array.isArray in Qt.
-    readonly property var primaryLinks: values.primaryLinks
-        && typeof values.primaryLinks === "object"
-        && typeof values.primaryLinks.length === "number"
-        ? Array.prototype.slice.call(values.primaryLinks) : ["dashboard", "dask"]
+    readonly property var primaryLinks: values.primaryLinks && typeof values.primaryLinks
+                                        === "object" && typeof values.primaryLinks.length
+                                        === "number" ? Array.prototype.slice.call(
+                                                           values.primaryLinks) : ["dashboard",
+                                                                                   "dask"]
     readonly property bool available: helperPath.charAt(0) === "/"
 
     property var checkouts: []
@@ -38,8 +38,12 @@ QtObject {
     property string actionError: ""
     readonly property bool acting: actionName !== ""
 
-    readonly property var running: checkouts.filter(function(c) { return c.running === true })
-    readonly property var idle: checkouts.filter(function(c) { return c.running !== true })
+    readonly property var running: checkouts.filter(function (c) {
+        return c.running === true
+    })
+    readonly property var idle: checkouts.filter(function (c) {
+        return c.running !== true
+    })
     readonly property int runningCount: running.length
 
     property Process helper: Process {
@@ -52,14 +56,14 @@ QtObject {
             id: helperErr
             waitForEnd: true
         }
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             root.refreshing = false
             if (root.refreshQueued) {
                 root.refreshQueued = false
                 Qt.callLater(root.refresh)
             }
             if (exitCode !== 0) {
-                var detail = helperErr.text.trim().split("\n").filter(function(line) {
+                var detail = helperErr.text.trim().split("\n").filter(function (line) {
                     return line !== ""
                 }).pop() || ""
                 root.lastError = detail !== "" ? detail : "Status helper exited " + exitCode
@@ -78,7 +82,7 @@ QtObject {
             id: actionErr
             waitForEnd: true
         }
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             var verb = root.actionVerb
             var name = root.actionName
             root.actionName = ""
@@ -117,13 +121,13 @@ QtObject {
     }
 
     function canResume(checkout) {
-        return checkout.running !== true && !checkout.issue
-            && checkout.instance !== null && checkout.instance !== undefined
+        return checkout.running !== true && !checkout.issue && checkout.instance !== null
+                && checkout.instance !== undefined
     }
 
     function pending(checkout, verb) {
-        return actionName !== "" && actionName === checkout.name
-            && (verb === undefined || actionVerb === verb)
+        return actionName !== "" && actionName === checkout.name && (verb === undefined
+                                                                     || actionVerb === verb)
     }
 
     function _act(verb, checkout) {
@@ -147,10 +151,9 @@ QtObject {
         try {
             var payload = JSON.parse(actionOut.text)
             detail = payload && payload.error ? String(payload.error) : ""
-        } catch (error) {
-        }
+        } catch (error) {}
         if (detail === "")
-            detail = actionErr.text.trim().split("\n").filter(function(line) {
+            detail = actionErr.text.trim().split("\n").filter(function (line) {
                 return line !== ""
             }).pop() || "exited " + exitCode
         return (verb === "pause" ? "Pause " : "Resume ") + name + ": " + detail
@@ -165,9 +168,8 @@ QtObject {
             return
         }
         if (!payload || payload.schema_version !== 1 || !Array.isArray(payload.checkouts)) {
-            lastError = payload && payload.error
-                ? String(payload.error)
-                : "Unsupported dev co list schema"
+            lastError = payload && payload.error ? String(payload.error) :
+                                                   "Unsupported dev co list schema"
             return
         }
         checkouts = payload.checkouts.slice().sort(_byRecentUse)
@@ -198,7 +200,9 @@ QtObject {
     }
 
     function liveLinks(checkout) {
-        return (checkout.links || []).filter(function(link) { return link.state === "running" })
+        return (checkout.links || []).filter(function (link) {
+            return link.state === "running"
+        })
     }
 
     function isPrimary(link) {
@@ -206,8 +210,14 @@ QtObject {
     }
 
     function linkLabel(link) {
-        var labels = { dashboard: "Dashboard", dask: "Dask", query: "Query", iam: "IAM",
-            hub: "Hub", clara: "Clara" }
+        var labels = {
+            dashboard: "Dashboard",
+            dask: "Dask",
+            query: "Query",
+            iam: "IAM",
+            hub: "Hub",
+            clara: "Clara"
+        }
         return labels[link.name] || link.name
     }
 

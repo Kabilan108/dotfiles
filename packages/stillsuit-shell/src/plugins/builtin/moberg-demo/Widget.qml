@@ -7,8 +7,7 @@ Ui.ShellBarCluster {
     required property var context
     required property string outputId
 
-    readonly property string configuredLabel: String(
-        context.settings.values.label || "Moberg demo")
+    readonly property string configuredLabel: String(context.settings.values.label || "Moberg demo")
 
     theme: context.theme
     iconName: "agent"

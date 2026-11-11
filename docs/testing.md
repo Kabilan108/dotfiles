@@ -27,9 +27,14 @@ files you change before staging:
 direnv exec "$PWD" qmlformat -i path/to/Component.qml
 ```
 
-Existing QML formatting has not been migrated across the repository. An all-files
-formatting run can fail until those files are adopted. The three intentionally
+The QML formatting baseline is applied repository-wide. The intentionally
 malformed `Broken.qml` plugin fixtures are excluded from QML hooks.
+
+Qt 6.12's formatter silently fails on ordinary properties named `id`.
+`core/HostNotice.qml`, `tests/tray/fixture-shell.qml`, and
+`workbench/FixtureModels.qml` under `packages/stillsuit-shell/src` are excluded
+from formatting only, while syntax checking remains enabled. Retry them when
+updating Qt; keep their public properties intact.
 
 Full QML linting is a manual hook while existing dynamic-property and other
 diagnostics are reviewed. It resolves Qt, Quickshell and local Stillsuit modules

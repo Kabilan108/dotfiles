@@ -12,8 +12,16 @@ ShellRoot {
         property int profileRevision: 1
         property string activeProfile: "work"
         property var availableProfiles: [
-            { id: "default", name: "Default", description: "Base plugins" },
-            { id: "work", name: "Work", description: "Work plugins" }
+            {
+                id: "default",
+                name: "Default",
+                description: "Base plugins"
+            },
+            {
+                id: "work",
+                name: "Work",
+                description: "Work plugins"
+            }
         ]
         property string loadError: ""
         property var failures: ({})
@@ -73,11 +81,11 @@ ShellRoot {
             surfaces.pendingLoadCount = 1
             surfaces.pendingLoadCount = 0
             surfaces.records = ({
-                "stillsuit.broken": {
-                    state: "error",
-                    error: "panel construction returned null"
-                }
-            })
+                                    "stillsuit.broken": {
+                                        state: "error",
+                                        error: "panel construction returned null"
+                                    }
+                                })
             surfaces.revision++
         }
     }
@@ -87,10 +95,10 @@ ShellRoot {
         running: true
         repeat: false
         onTriggered: {
-            if (ipc.profileState !== "degraded"
-                    || ipc.profileError.indexOf("stillsuit.broken") === -1) {
-                console.error("PROFILE_STATUS_FIXTURE_FAIL state="
-                    + ipc.profileState + " error=" + ipc.profileError)
+            if (ipc.profileState !== "degraded" || ipc.profileError.indexOf("stillsuit.broken") ===
+                    -1) {
+                console.error("PROFILE_STATUS_FIXTURE_FAIL state=" + ipc.profileState + " error="
+                              + ipc.profileError)
                 Quickshell.exit(1)
                 return
             }
@@ -110,7 +118,7 @@ ShellRoot {
         onTriggered: {
             if (ipc.profileState !== "error" || ipc.requestedProfile !== "") {
                 console.error("PROFILE_STATUS_FIXTURE_FAIL failed activation state="
-                    + ipc.profileState + " requested=" + ipc.requestedProfile)
+                              + ipc.profileState + " requested=" + ipc.requestedProfile)
                 Quickshell.exit(1)
                 return
             }

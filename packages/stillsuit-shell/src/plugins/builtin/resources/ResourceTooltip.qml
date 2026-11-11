@@ -30,14 +30,18 @@ Item {
 
                     ColumnLayout {
                         id: rows
-                        anchors { fill: parent; margins: root.theme.metrics.spaceUnit * 2 }
+                        anchors {
+                            fill: parent
+                            margins: root.theme.metrics.spaceUnit * 2
+                        }
                         spacing: root.theme.metrics.spaceUnit * 2
 
                         RowLayout {
                             spacing: root.theme.metrics.spaceUnit * 2
                             HostIcon {
                                 theme: root.theme
-                                desktop: root.service.localSnapshot && root.service.localSnapshot.deviceKind === "desktop"
+                                desktop: root.service.localSnapshot
+                                         && root.service.localSnapshot.deviceKind === "desktop"
                                 Accessible.name: desktop ? "This PC" : "Laptop"
                             }
                             Ui.ShellText {
@@ -61,7 +65,8 @@ Item {
                                 text: root.service.headline(true)
                                 sizeRole: "caption"
                                 monospace: true
-                                role: root.service.remoteError || root.service.remoteStale ? "warning" : "primary"
+                                role: root.service.remoteError || root.service.remoteStale
+                                      ? "warning" : "primary"
                             }
                         }
                     }

@@ -15,29 +15,28 @@ Ui.ShellAction {
     readonly property var meeting: workflows ? workflows.meeting : null
     readonly property bool activeRecording: recording && recording.active === true
     readonly property bool activeMeeting: meeting && meeting.active === true
-    readonly property bool completedMeeting: meeting
-        && meeting.completionVisible === true
-    readonly property bool failedMeeting: meeting
-        && meeting.failureVisible === true
+    readonly property bool completedMeeting: meeting && meeting.completionVisible === true
+    readonly property bool failedMeeting: meeting && meeting.failureVisible === true
     readonly property bool paused: recording && recording.paused === true
     readonly property bool microphoneCaptured: !!service && service.microphoneCaptured === true
     readonly property bool microphoneLive: !!service && service.microphoneLive === true
     readonly property real microphoneLevel: service ? Number(service.level) || 0 : 0
-    readonly property bool reducedMotion: context.settings
-        && context.settings.values
-        && context.settings.values.reducedMotion === true
-    readonly property string microphoneDescription: !microphoneCaptured
-        ? "microphone off"
-        : microphoneLive ? "microphone live" : "microphone muted"
-    readonly property string indicatorIconName: activeRecording
-        ? paused ? "pause" : "record"
-        : "agent"
+    readonly property bool reducedMotion: context.settings && context.settings.values
+                                          && context.settings.values.reducedMotion === true
+    readonly property string microphoneDescription: !microphoneCaptured ? "microphone off" :
+                                                                          microphoneLive
+                                                                          ? "microphone live" :
+                                                                            "microphone muted"
+    readonly property string indicatorIconName: activeRecording ? paused ? "pause" : "record" :
+                                                                           "agent"
     readonly property string outputLabel: {
         if (!recording)
             return ""
         var rect = recording.rect
-        if (String(recording.target || "monitor") !== "monitor" && rect && Number(rect.w) > 0 && Number(rect.h) > 0)
-            return "REC " + String(rect.output || recording.monitor || "") + " " + Number(rect.w) + "×" + Number(rect.h)
+        if (String(recording.target || "monitor") !== "monitor" && rect && Number(rect.w) > 0
+                && Number(rect.h) > 0)
+            return "REC " + String(rect.output || recording.monitor || "") + " " + Number(rect.w)
+                    + "×" + Number(rect.h)
         return String(recording.monitor || "")
     }
     readonly property string meetingLabel: {
@@ -61,30 +60,28 @@ Ui.ShellAction {
         return labels[String(meeting.phase || "")] || "Preparing meeting minutes"
     }
     readonly property color iconColor: failedMeeting && !activeRecording
-        ? context.theme.semantic.status.danger
-        : completedMeeting && !activeRecording
-        ? context.theme.semantic.status.success
-        : activeMeeting && !activeRecording
-            ? context.theme.semantic.status.info
-            : paused
-                ? context.theme.semantic.status.warning
-                : context.theme.semantic.signal.recording
+                                       ? context.theme.semantic.status.danger : completedMeeting &&
+                                         !activeRecording ? context.theme.semantic.status.success :
+                                                            activeMeeting && !activeRecording
+                                                            ? context.theme.semantic.status.info :
+                                                              paused ? context.theme.semantic.status.warning :
+                                                                       context.theme.semantic.signal.recording
     readonly property color textColor: failedMeeting && !activeRecording
-        ? context.theme.semantic.status.danger
-        : (activeMeeting || completedMeeting) && !activeRecording
-        ? context.theme.semantic.content.secondary
-        : paused
-            ? context.theme.semantic.status.warning
-            : context.theme.semantic.signal.recording
+                                       ? context.theme.semantic.status.danger : (activeMeeting
+                                                                                 || completedMeeting)
+                                         && !activeRecording
+                                         ? context.theme.semantic.content.secondary : paused
+                                           ? context.theme.semantic.status.warning :
+                                             context.theme.semantic.signal.recording
 
     visible: activeRecording || activeMeeting || completedMeeting || failedMeeting
-    accessibleName: activeRecording
-        ? (paused ? "Recording paused, " : "Recording active, ")
-            + recording.elapsedText + ", " + microphoneDescription
-            + (outputLabel ? ", " + outputLabel : "")
-        : failedMeeting
-            ? "Meeting processing failed. Click for details."
-            : completedMeeting ? "Meeting note ready. Click to copy its path." : meetingLabel
+    accessibleName: activeRecording ? (paused ? "Recording paused, " : "Recording active, ")
+                                      + recording.elapsedText + ", " + microphoneDescription + (
+                                          outputLabel ? ", " + outputLabel : "") : failedMeeting
+                                      ? "Meeting processing failed. Click for details." :
+                                        completedMeeting
+                                        ? "Meeting note ready. Click to copy its path." :
+                                          meetingLabel
     accessibleFallback: "Recording status"
     implicitWidth: indicatorRow.implicitWidth + 18
     implicitHeight: Math.max(22, context.theme.metrics.barHeight - 6)
@@ -100,7 +97,9 @@ Ui.ShellAction {
     }
 
     function openPanel() {
-        context.actions.surfaceToggle("stillsuit.recording", JSON.stringify({outputId: root.outputId}))
+        context.actions.surfaceToggle("stillsuit.recording", JSON.stringify({
+                                                                                outputId: root.outputId
+                                                                            }))
     }
 
     function queueSingleClick() {
@@ -124,9 +123,9 @@ Ui.ShellAction {
             leftMargin: root.context.theme.metrics.spaceUnit
         }
         radius: root.context.theme.metrics.radiusSmall
-        color: clickArea.pressed
-            ? root.context.theme.semantic.surface.pressed
-            : clickArea.containsMouse ? root.context.theme.component.bar.clusterHover : "transparent"
+        color: clickArea.pressed ? root.context.theme.semantic.surface.pressed :
+                                   clickArea.containsMouse
+                                   ? root.context.theme.component.bar.clusterHover : "transparent"
         border.width: 0
     }
 
@@ -157,13 +156,13 @@ Ui.ShellAction {
             id: recordingDot
             visible: root.showsRecordingDot
             readonly property real disc: 2 * Math.max(1, Math.floor((root.context.theme.metrics.iconSmall
-                - root.context.theme.metrics.spaceUnit / 2) / 2))
+                                                                     - root.context.theme.metrics.spaceUnit
+                                                                     / 2) / 2))
             readonly property real hole: disc / 2
             readonly property real haloMin: 1
             readonly property real haloMax: Math.round(root.context.theme.metrics.spaceUnit * 1.25)
-            readonly property real halo: root.microphoneLive
-                ? haloMin + root.microphoneLevel * (haloMax - haloMin)
-                : 0
+            readonly property real halo: root.microphoneLive ? haloMin + root.microphoneLevel * (
+                                                                   haloMax - haloMin) : 0
             readonly property real box: disc + haloMax * 2
             Layout.preferredWidth: box
             Layout.preferredHeight: box
@@ -180,7 +179,9 @@ Ui.ShellAction {
                 antialiasing: true
 
                 Behavior on opacity {
-                    NumberAnimation { duration: root.reducedMotion ? 0 : root.context.theme.motion.fast }
+                    NumberAnimation {
+                        duration: root.reducedMotion ? 0 : root.context.theme.motion.fast
+                    }
                 }
             }
 
@@ -202,17 +203,15 @@ Ui.ShellAction {
             theme: root.context.theme
             name: root.indicatorIconName
             pixelSize: Math.max(1, root.context.theme.metrics.iconSmall
-                - root.context.theme.metrics.spaceUnit / 2)
+                                - root.context.theme.metrics.spaceUnit / 2)
             color: root.iconColor
         }
 
         Ui.ShellText {
             theme: root.context.theme
-            text: root.activeRecording
-                ? root.recording.elapsedText
-                : root.failedMeeting
-                    ? "Meeting failed"
-                    : root.completedMeeting ? "Meeting note ready" : root.meetingLabel
+            text: root.activeRecording ? root.recording.elapsedText : root.failedMeeting
+                                         ? "Meeting failed" : root.completedMeeting
+                                           ? "Meeting note ready" : root.meetingLabel
             monospace: root.activeRecording
             sizeRole: "caption"
             color: root.textColor
@@ -222,8 +221,8 @@ Ui.ShellAction {
         Ui.ShellText {
             id: outputName
             visible: root.activeRecording && root.outputLabel !== ""
-            Layout.preferredWidth: Math.min(implicitWidth,
-                root.context.theme.metrics.spaceUnit * 40)
+            Layout.preferredWidth: Math.min(implicitWidth, root.context.theme.metrics.spaceUnit
+                                            * 40)
             theme: root.context.theme
             text: root.outputLabel
             sizeRole: "caption"

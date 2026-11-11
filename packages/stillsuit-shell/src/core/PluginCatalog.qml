@@ -15,8 +15,9 @@ QtObject {
         stdout: SplitParser {
             onRead: data => root._readCatalog(data)
         }
-        onExited: function(exitCode) {
-            if (exitCode !== 0) console.warn("Plugin discovery stopped; keeping current catalog")
+        onExited: function (exitCode) {
+            if (exitCode !== 0)
+                console.warn("Plugin discovery stopped; keeping current catalog")
         }
     }
     property bool allowLocalPlugins: false
@@ -31,11 +32,8 @@ QtObject {
     property QtObject fallbackContext: null
 
     readonly property bool loaded: internalLoaded
-    readonly property bool ready: internalLoaded
-        && !internalReconciling
-        && loadError === ""
-        && pendingVisualLoads === 0
-        && barState === "loaded"
+    readonly property bool ready: internalLoaded && !internalReconciling && loadError === ""
+                                  && pendingVisualLoads === 0 && barState === "loaded"
     readonly property int revision: internalRevision
     readonly property string activeProfile: internalActiveProfile
     readonly property int profileRevision: internalProfileRevision
@@ -55,10 +53,10 @@ QtObject {
     property string internalActiveProfile: "default"
     property int internalProfileRevision: 0
     property var internalAvailableProfiles: [({
-        id: "default",
-        name: "Default",
-        description: ""
-    })]
+                                                  id: "default",
+                                                  name: "Default",
+                                                  description: ""
+                                              })]
     property bool internalReconciling: false
     property string internalSelectedBarId: ""
     property string internalActiveBarId: ""
@@ -83,13 +81,13 @@ QtObject {
     property var topologicalCache: null
     property var topologicalCacheEntries: null
 
-    signal catalogChanged()
+    signal catalogChanged
     signal entryAdded(string pluginId)
     signal entryChanged(string pluginId)
     signal entryRemoved(string pluginId)
     signal pluginUnloaded(string pluginId)
     signal pluginReloaded(string pluginId)
-    signal rescanFinished()
+    signal rescanFinished
     signal pluginContained(string pluginId, string kind, string message)
     signal reconciliationStarted(var changedIds, var removedIds)
     signal reconciliationFinished(var changedIds, var addedIds, var removedIds)
@@ -121,7 +119,8 @@ QtObject {
     }
 
     function rescan() {
-        if (runtimeConfigPath !== "") return "watching"
+        if (runtimeConfigPath !== "")
+            return "watching"
         if (catalogPath === "") {
             _documentFailed("catalog path is empty")
             return
@@ -167,8 +166,8 @@ QtObject {
         _rejectMissingDependencies(candidates, failuresNext)
         _rejectDependencyCycles(candidates, failuresNext)
         _rejectMissingDependencies(candidates, failuresNext)
-        _installCatalog(document.selectedBar || "", candidates, failuresNext,
-            _profileMetadata(document))
+        _installCatalog(document.selectedBar || "", candidates, failuresNext, _profileMetadata(
+                            document))
         return true
     }
 
@@ -205,8 +204,8 @@ QtObject {
         if (kind === "bar-widget") {
             if (widgetClaims[key] === "loading")
                 return "loading"
-            return internalWidgetComponents[key]
-                && _widgetServicesReady(internalEntries[key]) ? "loaded" : "unloaded"
+            return internalWidgetComponents[key] && _widgetServicesReady(internalEntries[key])
+                    ? "loaded" : "unloaded"
         }
         return "unloaded"
     }
@@ -223,24 +222,20 @@ QtObject {
         var context = hostContext ? hostContext.contextFor(entry) : null
         var service = ownsService ? serviceRegistry.get(key) : undefined
         var cached = registrationCache[key]
-        if (cached && cached.component === component && cached.context === context
-                && cached.service === service && cached.signature === entry.signature)
+        if (cached && cached.component === component && cached.context === context && cached.service
+                === service && cached.signature === entry.signature)
             return cached.registration
 
         var registration = {
             component: component,
             context: context,
             manifest: entry.manifest,
-            defaultSection: entry.manifest.barWidget
-                ? entry.manifest.barWidget.defaultSection || "center"
-                : "center",
-            allowMultiple: entry.manifest.barWidget
-                ? entry.manifest.barWidget.allowMultiple === true
-                : false,
-            order: entry.manifest.barWidget
-                ? Number(entry.manifest.barWidget.order || 0)
-                : 0,
-            release: function(message) {
+            defaultSection: entry.manifest.barWidget ? entry.manifest.barWidget.defaultSection
+                                                       || "center" : "center",
+            allowMultiple: entry.manifest.barWidget ? entry.manifest.barWidget.allowMultiple
+                                                      === true : false,
+            order: entry.manifest.barWidget ? Number(entry.manifest.barWidget.order || 0) : 0,
+            release: function (message) {
                 root._releaseConstructedWidget(key, component, message)
             }
         }
@@ -260,17 +255,16 @@ QtObject {
         if (!entry || !entry.manifest)
             return false
         var key = String(entry.manifest.id)
-        if (entry.manifest.kinds.indexOf("service") !== -1
-                && (!serviceRegistry || !serviceRegistry.has(key)))
+        if (entry.manifest.kinds.indexOf("service") !== -1 && (!serviceRegistry || !serviceRegistry.has(
+                                                                   key)))
             return false
         var dependencies = entry.manifest.dependencies || []
-        for (var dependencyIndex = 0;
-                dependencyIndex < dependencies.length; dependencyIndex++) {
+        for (var dependencyIndex = 0; dependencyIndex < dependencies.length; dependencyIndex++) {
             var dependencyId = dependencies[dependencyIndex]
             if (!isEnabled(dependencyId))
                 return false
-            if (hasKind(dependencyId, "service")
-                    && (!serviceRegistry || !serviceRegistry.has(dependencyId)))
+            if (hasKind(dependencyId, "service") && (!serviceRegistry || !serviceRegistry.has(
+                                                         dependencyId)))
                 return false
         }
         return true
@@ -402,39 +396,33 @@ QtObject {
     function _validateCatalogDocument(document) {
         if (!ManifestValidator.isPlainObject(document))
             return "catalog must be an object"
-        if (!ManifestValidator.hasOnlyKeys(document,
-                ["schemaVersion", "selectedBar", "plugins", "profile"]))
+        if (!ManifestValidator.hasOnlyKeys(document, ["schemaVersion", "selectedBar", "plugins",
+                                                      "profile"]))
             return "catalog contains an unknown field"
         if (document.schemaVersion !== 1)
             return "catalog schemaVersion must be 1"
-        if (document.selectedBar !== undefined
-                && document.selectedBar !== ""
-                && !ManifestValidator.pluginIdValid(document.selectedBar))
+        if (document.selectedBar !== undefined && document.selectedBar !== "" &&
+                !ManifestValidator.pluginIdValid(document.selectedBar))
             return "selectedBar is not a valid plugin ID"
         if (!Array.isArray(document.plugins))
             return "catalog plugins must be an array"
         if (document.profile !== undefined) {
-            if (!ManifestValidator.isPlainObject(document.profile)
-                    || !ManifestValidator.hasOnlyKeys(document.profile,
-                        ["active", "revision", "available"]))
+            if (!ManifestValidator.isPlainObject(document.profile) || !ManifestValidator.hasOnlyKeys(
+                        document.profile, ["active", "revision", "available"]))
                 return "catalog profile metadata is invalid"
-            if (typeof document.profile.active !== "string"
-                    || document.profile.active === "")
+            if (typeof document.profile.active !== "string" || document.profile.active === "")
                 return "catalog profile active must be a non-empty string"
-            if (!Number.isInteger(document.profile.revision)
-                    || document.profile.revision < 0)
+            if (!Number.isInteger(document.profile.revision) || document.profile.revision < 0)
                 return "catalog profile revision must be a non-negative integer"
             if (!Array.isArray(document.profile.available))
                 return "catalog profile available must be an array"
             var availableIds = {}
-            for (var profileIndex = 0;
-                    profileIndex < document.profile.available.length; profileIndex++) {
+            for (var profileIndex = 0; profileIndex
+                 < document.profile.available.length; profileIndex++) {
                 var profile = document.profile.available[profileIndex]
-                if (!ManifestValidator.isPlainObject(profile)
-                        || !ManifestValidator.hasOnlyKeys(profile,
-                            ["id", "name", "description"])
-                        || typeof profile.id !== "string" || profile.id === ""
-                        || typeof profile.name !== "string"
+                if (!ManifestValidator.isPlainObject(profile) || !ManifestValidator.hasOnlyKeys(
+                            profile, ["id", "name", "description"]) || typeof profile.id
+                        !== "string" || profile.id === "" || typeof profile.name !== "string"
                         || typeof profile.description !== "string")
                     return "catalog profile available entry is invalid"
                 if (availableIds[profile.id] === true)
@@ -451,7 +439,13 @@ QtObject {
         return document.profile || {
             active: "default",
             revision: 0,
-            available: [{ id: "default", name: "Default", description: "" }]
+            available: [
+                {
+                    id: "default",
+                    name: "Default",
+                    description: ""
+                }
+            ]
         }
     }
 
@@ -459,17 +453,20 @@ QtObject {
         var errors = []
         var key = "catalog[" + index + "]"
         if (!ManifestValidator.isPlainObject(value))
-            return { key: key, errors: ["catalog entry must be an object"], entry: null }
-        if (!ManifestValidator.hasOnlyKeys(value,
-                ["packageRoot", "enabled", "settings", "manifest"]))
+            return {
+                key: key,
+                errors: ["catalog entry must be an object"],
+                entry: null
+            }
+        if (!ManifestValidator.hasOnlyKeys(value, ["packageRoot", "enabled", "settings",
+                                                   "manifest"]))
             errors.push("catalog entry contains an unknown field")
 
         var manifestErrors = ManifestValidator.validate(value.manifest)
         if (value.manifest && ManifestValidator.pluginIdValid(value.manifest.id))
             key = value.manifest.id
-        for (var manifestErrorIndex = 0;
-                manifestErrorIndex < manifestErrors.length;
-                manifestErrorIndex++)
+        for (var manifestErrorIndex = 0; manifestErrorIndex
+             < manifestErrors.length; manifestErrorIndex++)
             errors.push(manifestErrors[manifestErrorIndex])
 
         var storePath = String(value.packageRoot).indexOf("/nix/store/") === 0
@@ -481,8 +478,7 @@ QtObject {
             var normalizedRoot = _normalizeRoot(value.packageRoot)
             if (normalizedRoot !== value.packageRoot.replace(/\/$/, ""))
                 errors.push("packageRoot must be canonical")
-            if (storePath
-                    && !/^\/nix\/store\/[a-z0-9]{32}-[^/]+(?:\/[^/]+)*$/.test(normalizedRoot))
+            if (storePath && !/^\/nix\/store\/[a-z0-9]{32}-[^/]+(?:\/[^/]+)*$/.test(normalizedRoot))
                 errors.push("store packageRoot must be below one Nix store path")
         }
         if (value.enabled !== undefined && typeof value.enabled !== "boolean")
@@ -491,9 +487,8 @@ QtObject {
             errors.push("settings must be an object")
 
         if (errors.length === 0) {
-            for (var contributionIndex = 0;
-                    contributionIndex < value.manifest.kinds.length;
-                    contributionIndex++) {
+            for (var contributionIndex = 0; contributionIndex
+                 < value.manifest.kinds.length; contributionIndex++) {
                 var kind = value.manifest.kinds[contributionIndex]
                 var relativePath = value.manifest.entryPoints[ManifestValidator.entryPointKey(kind)]
                 var absolutePath = _normalizeRoot(value.packageRoot) + "/" + relativePath
@@ -506,17 +501,19 @@ QtObject {
             key: key,
             errors: errors,
             entry: errors.length === 0 ? {
-                packageRoot: _normalizeRoot(value.packageRoot),
-                enabled: value.enabled !== false,
-                settings: value.settings || {},
-                manifest: value.manifest,
-                signature: JSON.stringify(value)
-            } : null
+                                             packageRoot: _normalizeRoot(value.packageRoot),
+                                             enabled: value.enabled !== false,
+                                             settings: value.settings || {},
+                                             manifest: value.manifest,
+                                             signature: JSON.stringify(value)
+                                         } : null
         }
     }
 
     function _pathExists(path) {
-        var probe = pathProbeComponent.createObject(root, { path: path })
+        var probe = pathProbeComponent.createObject(root, {
+                                                        path: path
+                                                    })
         if (!probe)
             return false
         probe.text()
@@ -552,11 +549,11 @@ QtObject {
             for (var index = 0; index < ids.length; index++) {
                 var pluginId = ids[index]
                 var dependencies = candidates[pluginId].manifest.dependencies || []
-                for (var dependencyIndex = 0;
-                        dependencyIndex < dependencies.length;
-                        dependencyIndex++) {
+                for (var dependencyIndex = 0; dependencyIndex
+                     < dependencies.length; dependencyIndex++) {
                     if (candidates[dependencies[dependencyIndex]] === undefined) {
-                        failuresNext[pluginId] = ["missing dependency: " + dependencies[dependencyIndex]]
+                        failuresNext[pluginId] = ["missing dependency: "
+                                                  + dependencies[dependencyIndex]]
                         delete candidates[pluginId]
                         changed = true
                         break
@@ -584,9 +581,7 @@ QtObject {
             visiting[pluginId] = true
             stack.push(pluginId)
             var dependencies = candidates[pluginId].manifest.dependencies || []
-            for (var dependencyIndex = 0;
-                    dependencyIndex < dependencies.length;
-                    dependencyIndex++)
+            for (var dependencyIndex = 0; dependencyIndex < dependencies.length; dependencyIndex++)
                 visit(dependencies[dependencyIndex])
             stack.pop()
             visiting[pluginId] = false
@@ -641,14 +636,12 @@ QtObject {
         reconciliationStarted(changedIds.slice(), removedIds.slice())
         if (hostContext) {
             var contextsToDrop = changedIds.concat(removedIds)
-            for (var contextIndex = 0;
-                    contextIndex < contextsToDrop.length; contextIndex++)
+            for (var contextIndex = 0; contextIndex < contextsToDrop.length; contextIndex++)
                 hostContext.dropContext(contextsToDrop[contextIndex])
         }
         for (var unloadIndex = 0; unloadIndex < oldIds.length; unloadIndex++) {
             var unloadId = oldIds[unloadIndex]
-            if (changedIds.indexOf(unloadId) !== -1
-                    || removedIds.indexOf(unloadId) !== -1)
+            if (changedIds.indexOf(unloadId) !== -1 || removedIds.indexOf(unloadId) !== -1)
                 _unloadVisualContributions(unloadId)
         }
 
@@ -662,8 +655,8 @@ QtObject {
         loadError = ""
         internalRevision++
 
-        var profileChanged = oldActiveProfile !== profile.active
-            || oldProfileRevision !== profile.revision
+        var profileChanged = oldActiveProfile !== profile.active || oldProfileRevision
+                !== profile.revision
         var selectedBarWasRuntimeDisabled = runtimeDisabled[selectedBar] === true
         if (profileChanged)
             runtimeDisabled = ({})
@@ -683,8 +676,8 @@ QtObject {
         }
         _loadUnclaimedWidgets()
         _syncWidgetRegistrations()
-        if (!wasLoaded || oldSelectedBar !== selectedBar || selectedEntryChanged
-                || (profileChanged && selectedBarWasRuntimeDisabled))
+        if (!wasLoaded || oldSelectedBar !== selectedBar || selectedEntryChanged || (profileChanged
+                                                                                     && selectedBarWasRuntimeDisabled))
             _reconcileBar()
         catalogChanged()
         reconciliationFinished(changedIds.slice(), addedIds.slice(), removedIds.slice())
@@ -715,9 +708,9 @@ QtObject {
         if (!isEnabled(pluginId))
             return
         var entry = get(pluginId)
-        if (entry.manifest.kinds.indexOf("bar-widget") !== -1
-                && internalRuntimeErrors[pluginId + ":bar-widget"] === undefined
-                && widgetClaims[pluginId] === undefined
+        if (entry.manifest.kinds.indexOf("bar-widget") !== -1 && internalRuntimeErrors[pluginId
+                                                                                       + ":bar-widget"]
+                === undefined && widgetClaims[pluginId] === undefined
                 && internalWidgetComponents[pluginId] === undefined)
             _loadWidget(pluginId)
     }
@@ -780,8 +773,8 @@ QtObject {
         }
 
         var entry = get(internalSelectedBarId)
-        if (!entry || !isEnabled(internalSelectedBarId)
-                || entry.manifest.kinds.indexOf("bar") === -1) {
+        if (!entry || !isEnabled(internalSelectedBarId) || entry.manifest.kinds.indexOf("bar") ===
+                -1) {
             _activateFallback("selected bar is unavailable: " + internalSelectedBarId)
             return
         }
@@ -818,10 +811,11 @@ QtObject {
             }
 
             var instance = component.createObject(root, {
-                context: hostContext ? hostContext.contextFor(entry) : null,
-                widgetRegistrations: _widgetRegistrations(),
-                outputScreens: outputScreens
-            })
+                                                      context: hostContext ? hostContext.contextFor(
+                                                                                 entry) : null,
+                                                      widgetRegistrations: _widgetRegistrations(),
+                                                      outputScreens: outputScreens
+                                                  })
             if (!instance) {
                 var constructionError = "selected bar construction returned null"
                 _recordRuntimeError(pluginId, "bar", constructionError)
@@ -845,14 +839,16 @@ QtObject {
         _destroyBar()
         barError = reason
         if (String(fallbackBarUrl) !== "") {
-            var functionalComponent = Qt.createComponent(
-                fallbackBarUrl, Component.PreferSynchronous)
+            var functionalComponent = Qt.createComponent(fallbackBarUrl,
+                                                         Component.PreferSynchronous)
             if (functionalComponent.status === Component.Ready) {
                 var functionalInstance = functionalComponent.createObject(root, {
-                    context: fallbackContext,
-                    widgetRegistrations: _widgetRegistrations(),
-                    outputScreens: outputScreens
-                })
+                                                                              context: fallbackContext,
+                                                                              widgetRegistrations:
+                                                                              _widgetRegistrations(),
+                                                                              outputScreens:
+                                                                              outputScreens
+                                                                          })
                 if (functionalInstance) {
                     barComponent = functionalComponent
                     barInstance = functionalInstance
@@ -870,8 +866,8 @@ QtObject {
             return
         }
         var instance = fallbackBarComponent.createObject(root, {
-            context: fallbackContext
-        })
+                                                             context: fallbackContext
+                                                         })
         if (!instance) {
             barState = "error"
             internalActiveBarId = ""

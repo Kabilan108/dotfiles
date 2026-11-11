@@ -29,20 +29,27 @@ Scope {
     property bool surfaceReady: false
     readonly property bool overlayVisible: rendered.length > 0
 
-    onOverlayVisibleChanged: if (!overlayVisible) surfaceReady = false
+    onOverlayVisibleChanged: if (!overlayVisible)
+                                 surfaceReady = false
 
     function syncDecks() {
         var cache = Object.assign({}, deckCache)
-        for (var index = 0; index < decks.length; index++) cache[decks[index].key] = decks[index]
+        for (var index = 0; index < decks.length; index++)
+            cache[decks[index].key] = decks[index]
         deckCache = cache
-        var next = Motion.merge(rendered, decks.map(function(deck) { return deck.key }))
-        if (!Motion.sameEntries(next, rendered)) rendered = next
+        var next = Motion.merge(rendered, decks.map(function (deck) {
+            return deck.key
+        }))
+        if (!Motion.sameEntries(next, rendered))
+            rendered = next
         Qt.callLater(root.relayout)
     }
 
     function dropDeck(key) {
         rendered = Motion.drop(rendered, key)
-        if (rendered.every(function(entry) { return entry.key !== key })) {
+        if (rendered.every(function (entry) {
+            return entry.key !== key
+        })) {
             var cache = Object.assign({}, deckCache)
             delete cache[key]
             deckCache = cache
@@ -52,14 +59,16 @@ Scope {
 
     function isExiting(key) {
         for (var index = 0; index < rendered.length; index++)
-            if (rendered[index].key === key) return rendered[index].exiting
+            if (rendered[index].key === key)
+                return rendered[index].exiting
         return true
     }
 
     function deckItem(key) {
         for (var index = 0; index < deckRepeater.count; index++) {
             var item = deckRepeater.itemAt(index)
-            if (item && item.deckKey === key) return item
+            if (item && item.deckKey === key)
+                return item
         }
         return null
     }
@@ -71,7 +80,8 @@ Scope {
         for (var index = 0; index < rendered.length; index++) {
             var entry = rendered[index]
             var item = deckItem(entry.key)
-            if (!item || entry.exiting) continue
+            if (!item || entry.exiting)
+                continue
             item.targetY = y
             item.positioned = true
             y += item.layoutHeight + spacing
@@ -83,7 +93,8 @@ Scope {
         var bottom = 0
         for (var index = 0; index < deckRepeater.count; index++) {
             var item = deckRepeater.itemAt(index)
-            if (item) bottom = Math.max(bottom, item.y + item.height)
+            if (item)
+                bottom = Math.max(bottom, item.y + item.height)
         }
         extent = bottom
     }
@@ -93,7 +104,9 @@ Scope {
 
     ScriptModel {
         id: deckKeys
-        values: root.rendered.map(function(entry) { return entry.key })
+        values: root.rendered.map(function (entry) {
+            return entry.key
+        })
     }
 
     PanelWindow {
@@ -112,10 +125,11 @@ Scope {
         focusable: false
         color: "transparent"
         implicitWidth: root.slack + root.cardWidth + root.edgeGap
-        implicitHeight: Math.max(1, root.screen.height
-            - root.context.theme.metrics.barHeight
-            - root.context.theme.metrics.spaceUnit * 4)
-        mask: Region { item: inputArea }
+        implicitHeight: Math.max(1, root.screen.height - root.context.theme.metrics.barHeight
+                                 - root.context.theme.metrics.spaceUnit * 4)
+        mask: Region {
+            item: inputArea
+        }
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.namespace: "stillsuit.notifications"
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
@@ -130,7 +144,9 @@ Scope {
 
         Connections {
             target: root.overlayVisible && !root.surfaceReady ? stack.Window.window : null
-            function onFrameSwapped() { root.surfaceReady = true }
+            function onFrameSwapped() {
+                root.surfaceReady = true
+            }
         }
 
         Item {
@@ -148,7 +164,11 @@ Scope {
                     surfaceReady: root.surfaceReady
                     context: root.context
                     service: root.service
-                    deck: root.deckCache[modelData] || ({ key: modelData, label: "", rows: [] })
+                    deck: root.deckCache[modelData] || ({
+                                                            key: modelData,
+                                                            label: "",
+                                                            rows: []
+                                                        })
                     exiting: root.isExiting(modelData)
                     onLayoutHeightChanged: Qt.callLater(root.relayout)
                     onYChanged: root.updateExtent()

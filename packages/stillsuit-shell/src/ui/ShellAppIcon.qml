@@ -41,11 +41,12 @@ Item {
     Component.onCompleted: _syncVerdict()
 
     Connections {
-        target: root._verdict === IconCheck.UNCHECKED && root.themeCheckAllowed ? root.Window.window : null
+        target: root._verdict === IconCheck.UNCHECKED && root.themeCheckAllowed
+                ? root.Window.window : null
         function onFrameSwapped() {
             if (image.status !== Image.Ready)
                 return
-            root._verdict = IconCheck.resolve(root._themeName(root.icon), function(name) {
+            root._verdict = IconCheck.resolve(root._themeName(root.icon), function (name) {
                 return Quickshell.iconPath(name, true)
             })
         }

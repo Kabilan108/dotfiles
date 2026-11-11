@@ -18,42 +18,36 @@ ShellAction {
 
     readonly property int motionDuration: reducedMotion ? 0 : theme.motion.fast
 
-    signal clicked()
+    signal clicked
 
-    accessibleFallback: label !== ""
-        ? label
-        : iconName !== ""
-            ? iconName.replace(/-/g, " ")
-            : "button"
-    implicitWidth: Math.max(compact ? 30 : 36,
-        contentRow.implicitWidth + (compact ? 18 : 24))
+    accessibleFallback: label !== "" ? label : iconName !== "" ? iconName.replace(/-/g, " ") :
+                                                                 "button"
+
+    implicitWidth: Math.max(compact ? 30 : 36, contentRow.implicitWidth + (compact ? 18 : 24))
     implicitHeight: compact ? 30 : 36
     onActivated: clicked()
 
     Rectangle {
         anchors.fill: parent
         radius: root.theme.metrics.radiusSmall
-        color: !root.enabled
-            ? root.theme.component.control.disabled
-            : root.ghost
-                ? root.active
-                    ? root.theme.component.bar.clusterActive
-                    : root.pressed
-                        ? root.theme.component.control.pressed
-                        : root.hovered
-                            ? root.theme.component.control.hover
-                            : "transparent"
-                : root.active
-                    ? root.theme.component.control.active
-                    : root.pressed
-                        ? root.theme.component.control.pressed
-                        : root.hovered
-                            ? root.theme.component.control.hover
-                            : root.theme.component.control.background
+        color: !root.enabled ? root.theme.component.control.disabled : root.ghost ? root.active
+                                                                                    ? root.theme.component.bar.clusterActive :
+                                                                                      root.pressed
+                                                                                      ? root.theme.component.control.pressed :
+                                                                                        root.hovered
+                                                                                        ? root.theme.component.control.hover :
+                                                                                          "transparent" :
+                                                                                          root.active
+                                                                                          ? root.theme.component.control.active :
+                                                                                            root.pressed
+                                                                                            ? root.theme.component.control.pressed :
+                                                                                              root.hovered
+                                                                                              ? root.theme.component.control.hover :
+                                                                                                root.theme.component.control.background
         border.width: root.ghost ? 0 : 1
-        border.color: root.destructive
-                ? root.theme.semantic.status.danger
-                : root.theme.component.control.outline
+        border.color: root.destructive ? root.theme.semantic.status.danger :
+                                         root.theme.component.control.outline
+
         opacity: !root.enabled ? 0.74 : root.busy ? 0.82 : 1
 
         Behavior on color {
@@ -102,8 +96,6 @@ ShellAction {
             return theme.semantic.status.danger
         if (active)
             return theme.component.control.onActive
-        return enabled
-            ? theme.component.control.text
-            : theme.component.control.textDisabled
+        return enabled ? theme.component.control.text : theme.component.control.textDisabled
     }
 }

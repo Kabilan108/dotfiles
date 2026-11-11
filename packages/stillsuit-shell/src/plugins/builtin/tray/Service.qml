@@ -12,16 +12,23 @@ QtObject {
     // Workbench fixture input; null means the live StatusNotifier bus.
     property var model: null
 
-    readonly property var rawItems: model ? (model.items || []) : (SystemTray.items ? SystemTray.items.values : [])
+    readonly property var rawItems: model ? (model.items || []) : (SystemTray.items ? SystemTray.items.values :
+                                                                                      [])
     readonly property var items: visibleItems(rawItems)
     readonly property int count: items.length
-    readonly property bool attention: items.some(function(item) { return statusOf(item) === "attention" })
+    readonly property bool attention: items.some(function (item) {
+        return statusOf(item) === "attention"
+    })
 
     function statusOf(item) {
-        if (!item) return "passive"
-        if (typeof item.status === "string") return item.status
-        if (item.status === Status.Passive) return "passive"
-        if (item.status === Status.NeedsAttention) return "attention"
+        if (!item)
+            return "passive"
+        if (typeof item.status === "string")
+            return item.status
+        if (item.status === Status.Passive)
+            return "passive"
+        if (item.status === Status.NeedsAttention)
+            return "attention"
         return "active"
     }
 
@@ -29,11 +36,13 @@ QtObject {
         var result = []
         for (var index = 0; index < rows.length; index++) {
             var item = rows[index]
-            if (!item || statusOf(item) === "passive") continue
+            if (!item || statusOf(item) === "passive")
+                continue
             result.push(item)
         }
-        result.sort(function(left, right) {
-            return String(left.id || "").toLowerCase().localeCompare(String(right.id || "").toLowerCase())
+        result.sort(function (left, right) {
+            return String(left.id || "").toLowerCase().localeCompare(String(right.id
+                                                                            || "").toLowerCase())
         })
         return result
     }
@@ -41,13 +50,15 @@ QtObject {
     function itemById(id) {
         var key = String(id || "")
         for (var index = 0; index < items.length; index++) {
-            if (String(items[index].id || "") === key) return items[index]
+            if (String(items[index].id || "") === key)
+                return items[index]
         }
         return null
     }
 
     function tooltipFor(item) {
-        if (!item) return ""
+        if (!item)
+            return ""
         return String(item.tooltipTitle || item.title || item.id || "")
     }
 
@@ -67,18 +78,21 @@ QtObject {
     // No prefix matching: "steam" must not claim "steam_app_123".
     function windowMatches(appId, key) {
         var id = String(appId || "").toLowerCase()
-        if (id === "" || key.length < 2) return false
+        if (id === "" || key.length < 2)
+            return false
         return id === key || id.split(".").pop() === key
     }
 
     function windowsFor(item) {
         var key = appKey(item)
-        if (key === "") return []
+        if (key === "")
+            return []
         var rows = context && context.compositor ? (context.compositor.windows || []) : []
         var result = []
         for (var index = 0; index < rows.length; index++) {
             var window = rows[index]
-            if (window && windowMatches(window.app_id, key)) result.push(window)
+            if (window && windowMatches(window.app_id, key))
+                result.push(window)
         }
         return result
     }
@@ -90,7 +104,8 @@ QtObject {
         var result = []
         for (var index = 0; index < rows.length; index++) {
             var workspace = rows[index]
-            if (!workspace || !workspace.is_active) continue
+            if (!workspace || !workspace.is_active)
+                continue
             if (focusedOutput === "" || String(workspace.output || "") === focusedOutput)
                 result.push(String(workspace.id))
         }
@@ -101,18 +116,22 @@ QtObject {
     // else the first match: a click should land where the user already is.
     function preferredWindow(item) {
         var windows = windowsFor(item)
-        if (windows.length === 0) return null
+        if (windows.length === 0)
+            return null
         for (var index = 0; index < windows.length; index++)
-            if (windows[index].is_focused) return windows[index]
+            if (windows[index].is_focused)
+                return windows[index]
         var visible = activeWorkspaceIds()
         for (var w = 0; w < windows.length; w++)
-            if (visible.indexOf(String(windows[w].workspace_id)) >= 0) return windows[w]
+            if (visible.indexOf(String(windows[w].workspace_id)) >= 0)
+                return windows[w]
         return windows[0]
     }
 
     function focusWindow(window) {
-        if (!window || !context || !context.actions
-                || typeof context.actions.windowFocus !== "function")
+        if (!window || !context || !context.actions || typeof context.actions.windowFocus
+                !== "function")
+
             return "unavailable"
         return context.actions.windowFocus(window.id)
     }
@@ -121,20 +140,24 @@ QtObject {
     // the app handle Activate, which for most tray apps opens a fresh window.
     function activate(item) {
         var window = preferredWindow(item)
-        if (window && focusWindow(window) === "ok") return "focused"
-        if (!item || typeof item.activate !== "function") return "unsupported"
+        if (window && focusWindow(window) === "ok")
+            return "focused"
+        if (!item || typeof item.activate !== "function")
+            return "unsupported"
         item.activate()
         return "ok"
     }
 
     function secondaryActivate(item) {
-        if (!item || typeof item.secondaryActivate !== "function") return "unsupported"
+        if (!item || typeof item.secondaryActivate !== "function")
+            return "unsupported"
         item.secondaryActivate()
         return "ok"
     }
 
     function scroll(item, delta, horizontal) {
-        if (!item || typeof item.scroll !== "function") return "unsupported"
+        if (!item || typeof item.scroll !== "function")
+            return "unsupported"
         item.scroll(delta, Boolean(horizontal))
         return "ok"
     }

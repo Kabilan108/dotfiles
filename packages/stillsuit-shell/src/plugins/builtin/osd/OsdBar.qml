@@ -10,14 +10,12 @@ Item {
     required property real value
     required property string signalRole
     property string label: ""
-    property string accessibleName: label === ""
-        ? signalRole + " level"
-        : signalRole + " level " + label
+    property string accessibleName: label === "" ? signalRole + " level" : signalRole + " level "
+                                                   + label
 
     readonly property real clampedValue: Math.min(Math.max(value, 0), 1)
-    readonly property bool reducedMotion: context.settings
-        && context.settings.values
-        && context.settings.values.reducedMotion === true
+    readonly property bool reducedMotion: context.settings && context.settings.values
+                                          && context.settings.values.reducedMotion === true
     readonly property int motionDuration: reducedMotion ? 0 : context.theme.motion.normal
     readonly property color backgroundColor: context.theme.semantic.surface.panel
     readonly property color borderColor: context.theme.component.osd.border
@@ -26,8 +24,8 @@ Item {
     readonly property color textColor: context.theme.component.osd.text
     readonly property real surfaceRadius: context.theme.metrics.radiusMedium
     readonly property color signalColor: context.theme.semantic.signal[signalRole] !== undefined
-        ? context.theme.semantic.signal[signalRole]
-        : configuredFillColor
+                                         ? context.theme.semantic.signal[signalRole] :
+                                           configuredFillColor
 
     implicitWidth: 216
     implicitHeight: 44

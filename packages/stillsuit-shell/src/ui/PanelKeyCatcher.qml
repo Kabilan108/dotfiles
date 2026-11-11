@@ -29,27 +29,26 @@ Item {
     property bool blocked: false
 
     signal moveRequested(int dx, int dy)
-    signal activateRequested()
-    signal returnRequested()
-    signal closeRequested()
-    signal deleteRequested()
+    signal activateRequested
+    signal returnRequested
+    signal closeRequested
+    signal deleteRequested
     signal tabRequested(int direction)
     signal textKey(string text)
 
     focus: true
     Keys.priority: Keys.BeforeItem
-    Keys.onPressed: function(event) {
+    Keys.onPressed: function (event) {
         if (blocked)
             return
-
         if (event.key === Qt.Key_Escape) {
             closeRequested()
             event.accepted = true
             return
         }
         if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
-            tabRequested((event.modifiers & Qt.ShiftModifier)
-                || event.key === Qt.Key_Backtab ? -1 : 1)
+            tabRequested((event.modifiers & Qt.ShiftModifier) || event.key === Qt.Key_Backtab ? -1 :
+                                                                                                1)
             event.accepted = true
             return
         }

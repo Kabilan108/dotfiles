@@ -18,20 +18,24 @@ Item {
     property var credentialNetwork: null
     property bool tailscaleExpanded: false
 
-    readonly property var connectedRows: opened && service ? service.networks.filter(function (network) {
-        return network && network.connected;
+    readonly property var connectedRows: opened && service ? service.networks.filter(function (
+        network) {
+        return network && network.connected
     }) : []
-    readonly property var availableRows: opened && service ? service.networks.filter(function (network) {
-        return network && !network.connected && !network.known;
+    readonly property var availableRows: opened && service ? service.networks.filter(function (
+        network) {
+        return network && !network.connected && !network.known
     }) : []
-    readonly property var savedRows: opened && service ? service.networks.filter(function (network) {
-        return network && !network.connected && network.known;
+    readonly property var savedRows: opened && service ? service.networks.filter(function (
+        network) {
+        return network && !network.connected && network.known
     }) : []
     readonly property var allowlistedVpns: opened && service ? service.vpns.filter(function (vpn) {
-        return vpn && vpn.name === "MobergAnalytics" && vpn.toggleAllowed !== false;
+        return vpn && vpn.name === "MobergAnalytics" && vpn.toggleAllowed !== false
     }) : []
-    readonly property var activeReadOnlyVpns: opened && service ? service.vpns.filter(function (vpn) {
-        return vpn && vpn.active && (vpn.name !== "MobergAnalytics" || vpn.readOnly === true);
+    readonly property var activeReadOnlyVpns: opened && service ? service.vpns.filter(function (
+        vpn) {
+        return vpn && vpn.active && (vpn.name !== "MobergAnalytics" || vpn.readOnly === true)
     }) : []
 
     Ui.ShellSurface {
@@ -45,7 +49,7 @@ Item {
         MouseArea {
             anchors.fill: parent
             onClicked: function (mouse) {
-                mouse.accepted = true;
+                mouse.accepted = true
             }
         }
 
@@ -99,7 +103,13 @@ Item {
                             visible: ethernetEntry.expanded
                             Layout.fillWidth: true
                             theme: root.context.theme
-                            text: ethernetEntry.modelData.device + (ethernetEntry.modelData.carrier ? " · Link " + ethernetEntry.modelData.carrier : "") + "\n" + (ethernetEntry.modelData.addresses.length ? ethernetEntry.modelData.addresses.join("\n") : "IP address unavailable")
+                            text: ethernetEntry.modelData.device + (ethernetEntry.modelData.carrier
+                                                                    ? " · Link "
+                                                                      + ethernetEntry.modelData.carrier :
+                                                                      "") + "\n" + (
+                                      ethernetEntry.modelData.addresses.length
+                                      ? ethernetEntry.modelData.addresses.join("\n") :
+                                        "IP address unavailable")
                             sizeRole: "caption"
                             role: "secondary"
                             wrapMode: Text.WrapAnywhere
@@ -112,13 +122,16 @@ Item {
                 Layout.fillWidth: true
                 theme: root.context.theme
                 label: "Wi-Fi"
-                description: root.service && root.service.wifiEnabled ? "NetworkManager radio is enabled" : "NetworkManager radio is disabled"
+                description: root.service && root.service.wifiEnabled
+                             ? "NetworkManager radio is enabled" :
+                               "NetworkManager radio is disabled"
                 checked: Boolean(root.service && root.service.wifiEnabled)
                 busy: Boolean(root.service && root.service.wifiChanging)
-                interactive: Boolean(root.service && root.service.available
-                    && !root.service.airplaneEnabled && root.service.operation === "idle")
+                interactive: Boolean(root.service && root.service.available &&
+                                     !root.service.airplaneEnabled && root.service.operation
+                                     === "idle")
                 onToggled: function (requested) {
-                    root.service.setWifiEnabled(requested);
+                    root.service.setWifiEnabled(requested)
                 }
             }
 
@@ -216,8 +229,10 @@ Item {
                 Ui.ShellAction {
                     Layout.fillWidth: true
                     implicitHeight: 14
-                    visible: root.service && root.service.tailscale.available && root.service.tailscale.services.length > 0
-                    accessibleName: root.tailscaleExpanded ? "Collapse Tailscale services" : "Expand Tailscale services"
+                    visible: root.service && root.service.tailscale.available
+                             && root.service.tailscale.services.length > 0
+                    accessibleName: root.tailscaleExpanded ? "Collapse Tailscale services" :
+                                                             "Expand Tailscale services"
                     onActivated: root.tailscaleExpanded = !root.tailscaleExpanded
 
                     Ui.ShellIcon {
@@ -255,7 +270,8 @@ Item {
                                 Layout.fillWidth: true
                                 implicitHeight: 16
                                 accessibleName: "Copy Tailscale service URL " + String(modelData)
-                                onActivated: root.service.copyTailscale("service", String(modelData))
+                                onActivated: root.service.copyTailscale("service", String(
+                                                                            modelData))
 
                                 RowLayout {
                                     anchors.fill: parent
@@ -281,7 +297,8 @@ Item {
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.service.copyTailscale("service", String(modelData))
+                                    onClicked: root.service.copyTailscale("service", String(
+                                                                              modelData))
                                 }
                             }
                         }
@@ -349,7 +366,8 @@ Item {
 
                     Ui.ShellText {
                         theme: root.context.theme
-                        text: root.service && root.service.scanning ? "Scanning" : "No available networks"
+                        text: root.service && root.service.scanning ? "Scanning" :
+                                                                      "No available networks"
                         sizeRole: "caption"
                         role: "muted"
                     }
@@ -418,7 +436,9 @@ Item {
                         Ui.ShellText {
                             Layout.fillWidth: true
                             theme: root.context.theme
-                            text: "Password for " + (root.credentialNetwork ? root.credentialNetwork.name || "network" : "network")
+                            text: "Password for " + (root.credentialNetwork
+                                                     ? root.credentialNetwork.name || "network" :
+                                                       "network")
                             sizeRole: "label"
                         }
 
@@ -457,8 +477,8 @@ Item {
                                 compact: true
                                 ghost: true
                                 onClicked: {
-                                    passwordInput.text = "";
-                                    root.credentialNetwork = null;
+                                    passwordInput.text = ""
+                                    root.credentialNetwork = null
                                 }
                             }
 
@@ -474,7 +494,6 @@ Item {
                         }
                     }
                 }
-
             }
 
             Ui.ShellSectionLabel {
@@ -494,7 +513,8 @@ Item {
                     label: modelData.name
                     description: modelData.active ? "Connected" : "Disconnected"
                     checked: Boolean(modelData.active)
-                    busy: root.service.operation === "vpn-toggle" && root.service.operationTarget === String(modelData.uuid || modelData.name)
+                    busy: root.service.operation === "vpn-toggle" && root.service.operationTarget
+                          === String(modelData.uuid || modelData.name)
                     onToggled: root.service.toggleVpn(modelData)
                 }
             }
@@ -507,7 +527,8 @@ Item {
                     Layout.fillWidth: true
                     theme: root.context.theme
                     label: modelData.name
-                    description: "Active " + String(modelData.type || "VPN") + ", managed outside Stillsuit"
+                    description: "Active " + String(modelData.type || "VPN")
+                                 + ", managed outside Stillsuit"
                     iconName: "vpn"
                     trailingText: "read-only"
                     selected: true
@@ -523,9 +544,9 @@ Item {
                 checked: Boolean(root.service && root.service.airplaneEnabled)
                 busy: Boolean(root.service && root.service.airplaneChanging)
                 interactive: Boolean(root.service && root.service.airplaneAvailable
-                    && root.service.operation === "idle")
+                                     && root.service.operation === "idle")
                 onToggled: function (requested) {
-                    root.service.setAirplaneEnabled(requested);
+                    root.service.setAirplaneEnabled(requested)
                 }
             }
         }
@@ -540,7 +561,17 @@ Item {
 
         theme: root.context.theme
         label: String(network.name || "Unnamed network")
-        description: row.status === "joining" ? "Joining with NetworkManager" : row.status === "disconnecting" ? "Disconnecting with NetworkManager" : row.kind === "enterprise" ? "Enterprise Wi-Fi, opens NetworkManager editor" : row.network.connected ? root.service.signalPercentage(network) + "% signal" : row.network.known ? "Saved network" : row.kind === "open" ? "Open network" : "Personal secured network"
+        description: row.status === "joining" ? "Joining with NetworkManager" : row.status
+                                                === "disconnecting"
+                                                ? "Disconnecting with NetworkManager" : row.kind
+                                                  === "enterprise"
+                                                  ? "Enterprise Wi-Fi, opens NetworkManager editor" :
+                                                    row.network.connected
+                                                    ? root.service.signalPercentage(network)
+                                                      + "% signal" : row.network.known
+                                                      ? "Saved network" : row.kind === "open"
+                                                        ? "Open network" :
+                                                          "Personal secured network"
         iconName: row.kind === "open" ? "wifi" : "lock"
         trailingText: row.status
         selected: Boolean(network.connected)
@@ -549,46 +580,46 @@ Item {
         accessibleName: label + ", " + description
         onClicked: {
             if (row.kind === "personal" && !row.network.known && !row.network.connected) {
-                root.credentialNetwork = row.network;
-                passwordInput.forceActiveFocus();
+                root.credentialNetwork = row.network
+                passwordInput.forceActiveFocus()
             } else {
-                root.service.activate(row.network, "");
+                root.service.activate(row.network, "")
             }
         }
     }
 
     function submitPassword() {
         if (!credentialNetwork || passwordInput.text.length === 0)
-            return;
-        var password = passwordInput.text;
-        passwordInput.text = "";
-        var network = credentialNetwork;
-        credentialNetwork = null;
-        service.activate(network, password);
-        password = "";
+            return
+        var password = passwordInput.text
+        passwordInput.text = ""
+        var network = credentialNetwork
+        credentialNetwork = null
+        service.activate(network, password)
+        password = ""
     }
 
     function tailscaleServiceName(serviceName) {
-        var value = String(serviceName || "");
-        var separator = value.indexOf(".");
-        return separator === -1 ? value : value.slice(0, separator);
+        var value = String(serviceName || "")
+        var separator = value.indexOf(".")
+        return separator === -1 ? value : value.slice(0, separator)
     }
 
     function tailscaleServiceSuffix(serviceName) {
-        var value = String(serviceName || "");
-        var separator = value.indexOf(".");
-        return separator === -1 ? "" : value.slice(separator);
+        var value = String(serviceName || "")
+        var separator = value.indexOf(".")
+        return separator === -1 ? "" : value.slice(separator)
     }
 
     function open(payloadJson) {
-        root.opened = true;
+        root.opened = true
         if (service)
-            service.refresh();
+            service.refresh()
     }
 
     function close() {
-        passwordInput.text = "";
-        credentialNetwork = null;
-        root.opened = false;
+        passwordInput.text = ""
+        credentialNetwork = null
+        root.opened = false
     }
 }

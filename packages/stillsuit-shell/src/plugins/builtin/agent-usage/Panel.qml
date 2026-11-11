@@ -20,13 +20,13 @@ Item {
     property double nowMs: Date.now()
 
     function open(payloadJson) {
-        root.opened = true;
-        root.nowMs = Date.now();
-        service.refresh(false);
+        root.opened = true
+        root.nowMs = Date.now()
+        service.refresh(false)
     }
 
     function close() {
-        root.opened = false;
+        root.opened = false
     }
 
     Timer {
@@ -47,7 +47,7 @@ Item {
         MouseArea {
             anchors.fill: parent
             onClicked: function (mouse) {
-                mouse.accepted = true;
+                mouse.accepted = true
             }
         }
 
@@ -76,7 +76,8 @@ Item {
                     Ui.ShellText {
                         Layout.fillWidth: true
                         theme: root.context.theme
-                        text: root.service.accountCount + " accounts · " + root.service.readyCount + " reporting"
+                        text: root.service.accountCount + " accounts · " + root.service.readyCount
+                              + " reporting"
                         sizeRole: "caption"
                         role: "muted"
                     }
@@ -156,8 +157,12 @@ Item {
                             required property var modelData
                             required property int index
                             readonly property var account: modelData || ({})
-                            readonly property var windows: account && account.windows ? account.windows : []
-                            readonly property color providerColor: String(account.provider) === "claude" ? root.context.theme.semantic.status.warning : root.context.theme.semantic.accent.primary
+                            readonly property var windows: account && account.windows
+                                                           ? account.windows : []
+                            readonly property color providerColor: String(account.provider)
+                                                                   === "claude"
+                                                                   ? root.context.theme.semantic.status.warning :
+                                                                     root.context.theme.semantic.accent.primary
 
                             Layout.fillWidth: true
                             spacing: 0
@@ -210,7 +215,8 @@ Item {
 
                                             Ui.ShellText {
                                                 theme: root.context.theme
-                                                text: root._providerLabel(accountRow.account.provider)
+                                                text: root._providerLabel(
+                                                          accountRow.account.provider)
                                                 sizeRole: "label"
                                                 color: accountRow.providerColor
                                             }
@@ -225,7 +231,8 @@ Item {
                                             }
 
                                             Ui.ShellText {
-                                                visible: String(accountRow.account.plan || "") !== ""
+                                                visible: String(accountRow.account.plan || "")
+                                                         !== ""
                                                 theme: root.context.theme
                                                 text: String(accountRow.account.plan || "")
                                                 sizeRole: "caption"
@@ -235,7 +242,8 @@ Item {
 
                                         Ui.ShellText {
                                             Layout.fillWidth: true
-                                            visible: String(accountRow.account.identity || "") !== ""
+                                            visible: String(accountRow.account.identity || "")
+                                                     !== ""
                                             theme: root.context.theme
                                             text: String(accountRow.account.identity || "")
                                             sizeRole: "caption"
@@ -245,7 +253,8 @@ Item {
 
                                         Ui.ShellText {
                                             Layout.fillWidth: true
-                                            visible: String(accountRow.account.status || "") !== "ready"
+                                            visible: String(accountRow.account.status || "")
+                                                     !== "ready"
                                             theme: root.context.theme
                                             text: root._statusText(accountRow.account)
                                             sizeRole: "caption"
@@ -255,7 +264,9 @@ Item {
 
                                         Ui.ShellText {
                                             Layout.fillWidth: true
-                                            visible: String(accountRow.account.status || "") === "ready" && accountRow.account.stale === true
+                                            visible: String(accountRow.account.status || "")
+                                                     === "ready" && accountRow.account.stale
+                                                     === true
                                             theme: root.context.theme
                                             text: root._staleText(accountRow.account)
                                             sizeRole: "caption"
@@ -273,7 +284,9 @@ Item {
 
                                         required property var modelData
                                         readonly property var windowData: modelData || ({})
-                                        readonly property real used: Math.max(0, Math.min(1, Number(windowData.used || 0)))
+                                        readonly property real used: Math.max(0, Math.min(1, Number(
+                                                                                              windowData.used
+                                                                                              || 0)))
                                         readonly property real remaining: 1 - used
 
                                         Layout.fillWidth: true
@@ -292,7 +305,8 @@ Item {
 
                                             Ui.ShellText {
                                                 theme: root.context.theme
-                                                text: Math.round(windowRow.remaining * 100) + "% left"
+                                                text: Math.round(windowRow.remaining * 100)
+                                                      + "% left"
                                                 sizeRole: "caption"
                                                 monospace: true
                                                 color: accountRow.providerColor
@@ -319,7 +333,8 @@ Item {
 
                                         Ui.ShellText {
                                             Layout.fillWidth: true
-                                            visible: String(windowRow.windowData.resetsAt || "") !== ""
+                                            visible: String(windowRow.windowData.resetsAt || "")
+                                                     !== ""
                                             theme: root.context.theme
                                             text: root._resetText(windowRow.windowData.resetsAt)
                                             sizeRole: "caption"
@@ -347,78 +362,79 @@ Item {
     }
 
     function _providerLabel(provider) {
-        return String(provider) === "claude" ? "Claude Code" : "Codex";
+        return String(provider) === "claude" ? "Claude Code" : "Codex"
     }
 
     function _providerIcon(provider) {
-        return String(provider) === "claude" ? Qt.resolvedUrl("assets/claude.svg") : Qt.resolvedUrl("assets/codex.svg");
+        return String(provider) === "claude" ? Qt.resolvedUrl("assets/claude.svg") : Qt.resolvedUrl(
+                                                   "assets/codex.svg")
     }
 
     function _statusColor(account) {
-        var role = service.statusRole(account);
-        return context.theme.semantic.status[role] || context.theme.semantic.content.muted;
+        var role = service.statusRole(account)
+        return context.theme.semantic.status[role] || context.theme.semantic.content.muted
     }
 
     function _resetText(value) {
-        var resetMs = Date.parse(String(value || ""));
+        var resetMs = Date.parse(String(value || ""))
         if (!isFinite(resetMs))
-            return "";
-        var remaining = Math.max(0, resetMs - nowMs);
+            return ""
+        var remaining = Math.max(0, resetMs - nowMs)
         if (remaining === 0)
-            return "Resetting now";
-        return "Resets in " + _durationText(remaining);
+            return "Resetting now"
+        return "Resets in " + _durationText(remaining)
     }
 
     function _durationText(milliseconds) {
-        var minutes = Math.ceil(milliseconds / 60000);
-        var days = Math.floor(minutes / 1440);
-        var hours = Math.floor((minutes % 1440) / 60);
-        var rest = minutes % 60;
+        var minutes = Math.ceil(milliseconds / 60000)
+        var days = Math.floor(minutes / 1440)
+        var hours = Math.floor((minutes % 1440) / 60)
+        var rest = minutes % 60
         if (days > 0)
-            return days + "d " + hours + "h";
+            return days + "d " + hours + "h"
         if (hours > 0)
-            return hours + "h " + rest + "m";
-        return rest + "m";
+            return hours + "h " + rest + "m"
+        return rest + "m"
     }
 
     function _ageText(value) {
-        var then = Date.parse(String(value || ""));
+        var then = Date.parse(String(value || ""))
         if (!isFinite(then))
-            return "";
-        var minutes = Math.floor(Math.max(0, nowMs - then) / 60000);
+            return ""
+        var minutes = Math.floor(Math.max(0, nowMs - then) / 60000)
         if (minutes < 1)
-            return "just now";
+            return "just now"
         if (minutes < 60)
-            return minutes + "m ago";
-        return Math.floor(minutes / 60) + "h " + (minutes % 60) + "m ago";
+            return minutes + "m ago"
+        return Math.floor(minutes / 60) + "h " + (minutes % 60) + "m ago"
     }
 
     function _retryText(value) {
-        var retryMs = Date.parse(String(value || ""));
+        var retryMs = Date.parse(String(value || ""))
         if (!isFinite(retryMs) || retryMs <= nowMs)
-            return "";
-        return "retry in " + _durationText(retryMs - nowMs);
+            return ""
+        return "retry in " + _durationText(retryMs - nowMs)
     }
 
     function _statusText(account) {
-        var text = String(account.statusText || "Unavailable");
-        var retry = _retryText(account.retryAt);
-        return retry === "" ? text : text + " · " + retry;
+        var text = String(account.statusText || "Unavailable")
+        var retry = _retryText(account.retryAt)
+        return retry === "" ? text : text + " · " + retry
     }
 
     function _staleText(account) {
-        var parts = [String(account.staleReason || "Refresh failed")];
-        var age = _ageText(account.fetchedAt);
+        var parts = [String(account.staleReason || "Refresh failed")]
+        var age = _ageText(account.fetchedAt)
         if (age !== "")
-            parts.push("showing data from " + age);
-        var retry = _retryText(account.retryAt);
+            parts.push("showing data from " + age)
+        var retry = _retryText(account.retryAt)
         if (retry !== "")
-            parts.push(retry);
-        return parts.join(" · ");
+            parts.push(retry)
+        return parts.join(" · ")
     }
 
     function _updatedText(value) {
-        var age = _ageText(value);
-        return age === "" ? "" : "Updated " + age;
+        var age = _ageText(value)
+        return age === "" ? "" : "Updated " + age
     }
 }

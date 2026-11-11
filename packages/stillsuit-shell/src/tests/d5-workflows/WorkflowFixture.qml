@@ -11,26 +11,44 @@ ShellRoot {
 
     QtObject {
         id: fixtureContext
-        property var settings: ({ values: {
-            recorderHelperPath: Quickshell.env("STILLSUIT_FIXTURE_HELPER"),
-            recordingStatePath: Quickshell.env("STILLSUIT_FIXTURE_RECORDING_STATE"),
-            recordingDirectory: "/tmp/fixture-recordings",
-            recordingDefaultTitle: "fixture-default-title",
-            desktopAudioDefault: true,
-            microphoneDefault: false,
-            meetingStatusPath: Quickshell.env("STILLSUIT_FIXTURE_MEETING_STATE"),
-            meetingJobsPath: Quickshell.env("STILLSUIT_FIXTURE_MEETING_JOBS"),
-            meetingHelperPath: Quickshell.env("STILLSUIT_FIXTURE_MEETING_HELPER"),
-            openHelperPath: Quickshell.env("STILLSUIT_FIXTURE_OPEN_HELPER"),
-            publishHelperPath: Quickshell.env("STILLSUIT_FIXTURE_PUBLISH_HELPER"),
-            dictatorSocketPath: Quickshell.env("STILLSUIT_FIXTURE_SOCKET")
-        } })
-        property var compositor: ({ focusedOutputId: "DP-1" })
+        property var settings: ({
+                                    values: {
+                                        recorderHelperPath: Quickshell.env(
+                                                                "STILLSUIT_FIXTURE_HELPER"),
+                                        recordingStatePath: Quickshell.env(
+                                                                "STILLSUIT_FIXTURE_RECORDING_STATE"),
+                                        recordingDirectory: "/tmp/fixture-recordings",
+                                        recordingDefaultTitle: "fixture-default-title",
+                                        desktopAudioDefault: true,
+                                        microphoneDefault: false,
+                                        meetingStatusPath: Quickshell.env(
+                                                               "STILLSUIT_FIXTURE_MEETING_STATE"),
+                                        meetingJobsPath: Quickshell.env(
+                                                             "STILLSUIT_FIXTURE_MEETING_JOBS"),
+                                        meetingHelperPath: Quickshell.env(
+                                                               "STILLSUIT_FIXTURE_MEETING_HELPER"),
+                                        openHelperPath: Quickshell.env(
+                                                            "STILLSUIT_FIXTURE_OPEN_HELPER"),
+                                        publishHelperPath: Quickshell.env(
+                                                               "STILLSUIT_FIXTURE_PUBLISH_HELPER"),
+                                        dictatorSocketPath: Quickshell.env(
+                                                                "STILLSUIT_FIXTURE_SOCKET")
+                                    }
+                                })
+        property var compositor: ({
+                                      focusedOutputId: "DP-1"
+                                  })
         property var theme: FixtureTheme.create()
     }
 
-    Workflows.Service { id: workflows; context: fixtureContext }
-    Osd.Service { id: osdService; context: fixtureContext }
+    Workflows.Service {
+        id: workflows
+        context: fixtureContext
+    }
+    Osd.Service {
+        id: osdService
+        context: fixtureContext
+    }
     Recording.CompletionCountdown {
         id: completionCountdown
         property int expirationCount: 0
@@ -44,50 +62,178 @@ ShellRoot {
     // Two output views consume one global aggregate. Production OsdOverlay
     // instances use context.services.get() with the same identity.
     property var overlayViews: [
-        { outputId: "fixture-a", workflows: workflows, service: osdService },
-        { outputId: "fixture-b", workflows: workflows, service: osdService }
+        {
+            outputId: "fixture-a",
+            workflows: workflows,
+            service: osdService
+        },
+        {
+            outputId: "fixture-b",
+            workflows: workflows,
+            service: osdService
+        }
     ]
 
     IpcHandler {
         target: "stillsuit-d5-fixture"
         function state(): string {
             return JSON.stringify({
-                aggregateApiVersion: workflows.apiVersion,
-                serviceObjects: 1,
-                osdServiceObjects: 1,
-                overlays: overlayViews.length,
-                overlaySharesAggregate: overlayViews[0].workflows === overlayViews[1].workflows,
-                overlaySharesOsdService: overlayViews[0].service === overlayViews[1].service,
-                recording: { apiVersion: workflows.recording.apiVersion, phase: workflows.recording.phase, status: workflows.recording.stateStatus, active: workflows.recording.active, paused: workflows.recording.paused, elapsedSeconds: workflows.recording.elapsedSeconds, elapsedText: workflows.recording.elapsedText, completed: workflows.recording.completed, outputPath: workflows.recording.outputPath, outputFilename: workflows.recording.outputFilename, copiedPath: workflows.recording.copiedPath, publishing: workflows.recording.publishing, publishedUrl: workflows.recording.publishedUrl, publishError: workflows.recording.publishError, errorMessage: workflows.recording.errorMessage, actionRunning: workflows.recording.actionRunning, command: workflows.recording.lastCommandJson, target: workflows.recording.target, rect: workflows.recording.rect, annotate: workflows.recording.annotate, exportPhase: workflows.recording.exportPhase, exportFormat: workflows.recording.exportFormat, exportOutput: workflows.recording.exportOutput, exportError: workflows.recording.exportError, exporting: workflows.recording.exporting },
-                meeting: { apiVersion: workflows.meeting.apiVersion, phase: workflows.meeting.phase, status: workflows.meeting.stateStatus, jobsStatus: workflows.meeting.jobsStateStatus, visible: workflows.meeting.visible, failed: workflows.meeting.failed, completed: workflows.meeting.completed, completionVisible: workflows.meeting.completionVisible, failureVisible: workflows.meeting.failureVisible, label: workflows.meeting.label, errorMessage: workflows.meeting.errorMessage, copiedNotePath: workflows.meeting.copiedNotePath, snapshotSchemaVersion: workflows.meeting.snapshot.schemaVersion, command: workflows.meeting.lastCommandJson, retryingJobId: workflows.meeting.retryingJobId, jobs: workflows.meeting.jobs },
-                queue: { failedCount: meetingQueue.failedCount, rowLimit: meetingQueue.rowLimit, jobs: meetingQueue.failedJobs },
-                completion: { remainingMs: completionCountdown.remainingMs, remainingSeconds: completionCountdown.remainingSeconds, running: completionCountdown.running, interactionActive: completionCountdown.interactionActive, expirationCount: completionCountdown.expirationCount },
-                dictator: { apiVersion: workflows.dictator.apiVersion, state: workflows.dictator.visualizerState, socketConnections: workflows.dictator.socketConnections, connectionState: workflows.dictator.connectionState, reconnectAttempts: workflows.dictator.reconnectAttempts, visible: workflows.dictator.visible, duration: workflows.dictator.durationText, levels: workflows.dictator.levels.length }
-            })
+                                      aggregateApiVersion: workflows.apiVersion,
+                                      serviceObjects: 1,
+                                      osdServiceObjects: 1,
+                                      overlays: overlayViews.length,
+                                      overlaySharesAggregate: overlayViews[0].workflows
+                                      === overlayViews[1].workflows,
+                                      overlaySharesOsdService: overlayViews[0].service
+                                      === overlayViews[1].service,
+                                      recording: {
+                                          apiVersion: workflows.recording.apiVersion,
+                                          phase: workflows.recording.phase,
+                                          status: workflows.recording.stateStatus,
+                                          active: workflows.recording.active,
+                                          paused: workflows.recording.paused,
+                                          elapsedSeconds: workflows.recording.elapsedSeconds,
+                                          elapsedText: workflows.recording.elapsedText,
+                                          completed: workflows.recording.completed,
+                                          outputPath: workflows.recording.outputPath,
+                                          outputFilename: workflows.recording.outputFilename,
+                                          copiedPath: workflows.recording.copiedPath,
+                                          publishing: workflows.recording.publishing,
+                                          publishedUrl: workflows.recording.publishedUrl,
+                                          publishError: workflows.recording.publishError,
+                                          errorMessage: workflows.recording.errorMessage,
+                                          actionRunning: workflows.recording.actionRunning,
+                                          command: workflows.recording.lastCommandJson,
+                                          target: workflows.recording.target,
+                                          rect: workflows.recording.rect,
+                                          annotate: workflows.recording.annotate,
+                                          exportPhase: workflows.recording.exportPhase,
+                                          exportFormat: workflows.recording.exportFormat,
+                                          exportOutput: workflows.recording.exportOutput,
+                                          exportError: workflows.recording.exportError,
+                                          exporting: workflows.recording.exporting
+                                      },
+                                      meeting: {
+                                          apiVersion: workflows.meeting.apiVersion,
+                                          phase: workflows.meeting.phase,
+                                          status: workflows.meeting.stateStatus,
+                                          jobsStatus: workflows.meeting.jobsStateStatus,
+                                          visible: workflows.meeting.visible,
+                                          failed: workflows.meeting.failed,
+                                          completed: workflows.meeting.completed,
+                                          completionVisible: workflows.meeting.completionVisible,
+                                          failureVisible: workflows.meeting.failureVisible,
+                                          label: workflows.meeting.label,
+                                          errorMessage: workflows.meeting.errorMessage,
+                                          copiedNotePath: workflows.meeting.copiedNotePath,
+                                          snapshotSchemaVersion:
+                                          workflows.meeting.snapshot.schemaVersion,
+                                          command: workflows.meeting.lastCommandJson,
+                                          retryingJobId: workflows.meeting.retryingJobId,
+                                          jobs: workflows.meeting.jobs
+                                      },
+                                      queue: {
+                                          failedCount: meetingQueue.failedCount,
+                                          rowLimit: meetingQueue.rowLimit,
+                                          jobs: meetingQueue.failedJobs
+                                      },
+                                      completion: {
+                                          remainingMs: completionCountdown.remainingMs,
+                                          remainingSeconds: completionCountdown.remainingSeconds,
+                                          running: completionCountdown.running,
+                                          interactionActive: completionCountdown.interactionActive,
+                                          expirationCount: completionCountdown.expirationCount
+                                      },
+                                      dictator: {
+                                          apiVersion: workflows.dictator.apiVersion,
+                                          state: workflows.dictator.visualizerState,
+                                          socketConnections: workflows.dictator.socketConnections,
+                                          connectionState: workflows.dictator.connectionState,
+                                          reconnectAttempts: workflows.dictator.reconnectAttempts,
+                                          visible: workflows.dictator.visible,
+                                          duration: workflows.dictator.durationText,
+                                          levels: workflows.dictator.levels.length
+                                      }
+                                  })
         }
-        function refresh(): string { workflows.recording.refresh(); workflows.meeting.refresh(); return "ok" }
-        function start(): string { return workflows.recording.start("/tmp/fixture-recordings", "DP-1", "fixture-title", true, false) }
-        function startRegion(): string { return workflows.recording.start("/tmp/fixture-recordings", "DP-1", "fixture-region", false, false, "region", true) }
-        function startBadTarget(): string { return workflows.recording.start("/tmp/fixture-recordings", "DP-1", "fixture-bad", false, false, "desktop", false) }
-        function exportAs(format: string): string { return workflows.recording.exportAs(format) }
-        function copyExportPath(): string { return workflows.recording.copyExportPath() }
-        function d4Start(): string { return workflows.recording.start() }
-        function d4Finish(): string { return workflows.recording.finish() }
-        function pause(): string { return workflows.recording.togglePause() }
-        function finishMeeting(): string { return workflows.recording.stopAsMeeting() }
-        function cancel(): string { return workflows.recording.cancel() }
-        function rename(title: string): string { return workflows.recording.rename(title) }
-        function copyPath(): string { return workflows.recording.copyOutputPath() }
-        function publish(): string { return workflows.recording.publish() }
-        function openRecording(): string { return workflows.recording.openRecording() }
-        function openFolder(): string { return workflows.recording.openFolder() }
-        function openResult(): string { return workflows.meeting.openResult() }
-        function copyMeetingPath(): string { return workflows.meeting.copyNotePath() }
-        function openJob(jobId: string): string { return workflows.meeting.openResult(jobId) }
-        function retry(jobId: string): string { return workflows.meeting.retry(jobId) }
-        function doubleRetry(jobId: string): string { return JSON.stringify([workflows.meeting.retry(jobId), workflows.meeting.retry(jobId)]) }
-        function completionStart(): string { completionCountdown.start(); return "ok" }
-        function completionInteract(active: bool): string { completionCountdown.interactionActive = active; return "ok" }
-        function completionTick(milliseconds: int): string { return completionCountdown.tick(milliseconds) ? "expired" : "waiting" }
+        function refresh(): string {
+            workflows.recording.refresh()
+            workflows.meeting.refresh()
+            return "ok"
+        }
+        function start(): string {
+            return workflows.recording.start("/tmp/fixture-recordings", "DP-1", "fixture-title",
+                                             true, false)
+        }
+        function startRegion(): string {
+            return workflows.recording.start("/tmp/fixture-recordings", "DP-1", "fixture-region",
+                                             false, false, "region", true)
+        }
+        function startBadTarget(): string {
+            return workflows.recording.start("/tmp/fixture-recordings", "DP-1", "fixture-bad", false,
+                                             false, "desktop", false)
+        }
+        function exportAs(format: string): string {
+            return workflows.recording.exportAs(format)
+        }
+        function copyExportPath(): string {
+            return workflows.recording.copyExportPath()
+        }
+        function d4Start(): string {
+            return workflows.recording.start()
+        }
+        function d4Finish(): string {
+            return workflows.recording.finish()
+        }
+        function pause(): string {
+            return workflows.recording.togglePause()
+        }
+        function finishMeeting(): string {
+            return workflows.recording.stopAsMeeting()
+        }
+        function cancel(): string {
+            return workflows.recording.cancel()
+        }
+        function rename(title: string): string {
+            return workflows.recording.rename(title)
+        }
+        function copyPath(): string {
+            return workflows.recording.copyOutputPath()
+        }
+        function publish(): string {
+            return workflows.recording.publish()
+        }
+        function openRecording(): string {
+            return workflows.recording.openRecording()
+        }
+        function openFolder(): string {
+            return workflows.recording.openFolder()
+        }
+        function openResult(): string {
+            return workflows.meeting.openResult()
+        }
+        function copyMeetingPath(): string {
+            return workflows.meeting.copyNotePath()
+        }
+        function openJob(jobId: string): string {
+            return workflows.meeting.openResult(jobId)
+        }
+        function retry(jobId: string): string {
+            return workflows.meeting.retry(jobId)
+        }
+        function doubleRetry(jobId: string): string {
+            return JSON.stringify([workflows.meeting.retry(jobId), workflows.meeting.retry(jobId)])
+        }
+        function completionStart(): string {
+            completionCountdown.start()
+            return "ok"
+        }
+        function completionInteract(active: bool): string {
+            completionCountdown.interactionActive = active
+            return "ok"
+        }
+        function completionTick(milliseconds: int): string {
+            return completionCountdown.tick(milliseconds) ? "expired" : "waiting"
+        }
     }
 }

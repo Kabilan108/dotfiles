@@ -30,17 +30,19 @@ Item {
     property real contentWidth: minimumWidth
     property var activeItem: null
     readonly property string activeTitle: service ? service.tooltipFor(activeItem) : ""
-    readonly property var activeWindows: submenuDepth === 0 && service && activeItem
-        ? service.windowsFor(activeItem) : []
+    readonly property var activeWindows: submenuDepth === 0 && service && activeItem ? service.windowsFor(
+                                                                                           activeItem) :
+                                                                                       []
     readonly property bool hasMenu: activeItem !== null && Boolean(activeItem.hasMenu)
-        && activeItem.menu !== null && activeItem.menu !== undefined
+                                    && activeItem.menu !== null && activeItem.menu !== undefined
 
     property var submenuStack: []
     readonly property int submenuDepth: submenuStack.length
-    readonly property string currentTitle: submenuDepth > 0 ? submenuStack[submenuDepth - 1].title : ""
-    readonly property var currentChildren: submenuDepth > 0
-        ? submenuStack[submenuDepth - 1].opener.children
-        : rootOpener.children
+    readonly property string currentTitle: submenuDepth > 0 ? submenuStack[submenuDepth - 1].title :
+                                                              ""
+    readonly property var currentChildren: submenuDepth > 0 ? submenuStack[submenuDepth
+                                                                           - 1].opener.children :
+                                                              rootOpener.children
     // Entering a level rebuilds the rows under a cursor that has not moved;
     // ignore clicks for a beat so a double-click cannot fire the row that took
     // the spot. A timestamp rather than a Timer: per-output views own no timers.
@@ -49,7 +51,11 @@ Item {
 
     function open(payloadJson) {
         var payload = {}
-        try { payload = JSON.parse(payloadJson || "{}") || {} } catch (error) { payload = {} }
+        try {
+            payload = JSON.parse(payloadJson || "{}") || {}
+        } catch (error) {
+            payload = {}
+        }
         resetMenu()
         activeItem = service ? service.itemById(payload.itemId) : null
     }
@@ -64,7 +70,8 @@ Item {
         menuScroll.contentY = 0
         var openers = submenuStack
         submenuStack = []
-        for (var index = openers.length - 1; index >= 0; index--) openers[index].opener.destroy()
+        for (var index = openers.length - 1; index >= 0; index--)
+            openers[index].opener.destroy()
     }
 
     function settle() {
@@ -76,17 +83,24 @@ Item {
     }
 
     function enterSubmenu(entry, title) {
-        var opener = submenuOpenerComponent.createObject(root, { menu: entry })
-        if (!opener) return
+        var opener = submenuOpenerComponent.createObject(root, {
+                                                             menu: entry
+                                                         })
+        if (!opener)
+            return
         menuScroll.contentY = 0
         var stack = submenuStack.slice()
-        stack.push({ opener: opener, title: title })
+        stack.push({
+                       opener: opener,
+                       title: title
+                   })
         submenuStack = stack
         settle()
     }
 
     function leaveSubmenu() {
-        if (submenuStack.length === 0) return
+        if (submenuStack.length === 0)
+            return
         menuScroll.contentY = 0
         var stack = submenuStack.slice()
         var top = stack.pop()
@@ -104,11 +118,13 @@ Item {
         var widest = 0
         for (var index = 0; index < rowRepeater.count; index++) {
             var row = rowRepeater.itemAt(index)
-            if (row && row.visible && row.naturalWidth > widest) widest = row.naturalWidth
+            if (row && row.visible && row.naturalWidth > widest)
+                widest = row.naturalWidth
         }
         for (var w = 0; w < windowRepeater.count; w++) {
             var windowRow = windowRepeater.itemAt(w)
-            if (windowRow && windowRow.naturalWidth > widest) widest = windowRow.naturalWidth
+            if (windowRow && windowRow.naturalWidth > widest)
+                widest = windowRow.naturalWidth
         }
         contentWidth = widest
     }
@@ -137,10 +153,13 @@ Item {
     // as a disabled title entry followed by a separator; the header already
     // says which item this is, so skip that pair.
     function rowHidden(entry, index) {
-        if (!entry) return true
-        if (submenuDepth > 0) return false
+        if (!entry)
+            return true
+        if (submenuDepth > 0)
+            return false
         var text = String(entry.text || "").toLowerCase()
-        if (index === 0 && !entry.enabled && !entry.hasChildren && text === activeTitle.toLowerCase())
+        if (index === 0 && !entry.enabled && !entry.hasChildren && text === activeTitle.toLowerCase(
+                    ))
             return true
         return Boolean(entry.isSeparator) && index <= 1 && index === firstVisibleIndex(index)
     }
@@ -166,12 +185,17 @@ Item {
 
         MouseArea {
             anchors.fill: parent
-            onClicked: function(mouse) { mouse.accepted = true }
+            onClicked: function (mouse) {
+                mouse.accepted = true
+            }
         }
 
         Column {
             id: menuColumn
-            anchors { fill: parent; margins: root.padding }
+            anchors {
+                fill: parent
+                margins: root.padding
+            }
             spacing: 0
 
             // Submenu header: names the level and walks back out. Pinned above
@@ -185,10 +209,15 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: root.theme.metrics.radiusSmall
-                    color: backPointer.containsMouse ? root.theme.component.panel.rowHover : "transparent"
+                    color: backPointer.containsMouse ? root.theme.component.panel.rowHover :
+                                                       "transparent"
                 }
                 Ui.ShellIcon {
-                    anchors { left: parent.left; leftMargin: root.rowInset; verticalCenter: parent.verticalCenter }
+                    anchors {
+                        left: parent.left
+                        leftMargin: root.rowInset
+                        verticalCenter: parent.verticalCenter
+                    }
                     theme: root.theme
                     name: "chevron-left"
                     sizeRole: "small"
@@ -196,8 +225,10 @@ Item {
                 }
                 Ui.ShellText {
                     anchors {
-                        left: parent.left; leftMargin: root.rowInset + root.glyphColumn + root.theme.metrics.spaceUnit
-                        right: parent.right; rightMargin: root.rowInset
+                        left: parent.left
+                        leftMargin: root.rowInset + root.glyphColumn + root.theme.metrics.spaceUnit
+                        right: parent.right
+                        rightMargin: root.rowInset
                         verticalCenter: parent.verticalCenter
                     }
                     theme: root.theme
@@ -211,7 +242,8 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: if (root.clickAllowed()) root.leaveSubmenu()
+                    onClicked: if (root.clickAllowed())
+                                   root.leaveSubmenu()
                 }
             }
 
@@ -241,8 +273,13 @@ Item {
                         readonly property string labelText: root.windowLabel(modelData)
                         readonly property string workspaceText: root.workspaceLabel(modelData)
                         readonly property real naturalWidth: root.leadInset + root.rowInset
-                            + root.theme.metrics.spaceUnit * 2 + Math.min(windowLabel.implicitWidth, root.maximumWidth * 0.7)
-                            + (workspaceText !== "" ? workspaceLabel.implicitWidth + root.theme.metrics.spaceUnit * 2 : 0)
+                                                             + root.theme.metrics.spaceUnit * 2
+                                                             + Math.min(windowLabel.implicitWidth,
+                                                                        root.maximumWidth * 0.7) + (
+                                                                 workspaceText !== ""
+                                                                 ? workspaceLabel.implicitWidth
+                                                                   + root.theme.metrics.spaceUnit
+                                                                   * 2 : 0)
 
                         width: windowSection.width
                         height: root.rowHeight
@@ -251,13 +288,16 @@ Item {
                         Rectangle {
                             anchors.fill: parent
                             radius: root.theme.metrics.radiusSmall
-                            color: windowPointer.containsMouse ? root.theme.component.panel.rowHover
-                                : windowRow.modelData.is_focused ? root.theme.component.panel.rowSelected : "transparent"
+                            color: windowPointer.containsMouse
+                                   ? root.theme.component.panel.rowHover :
+                                     windowRow.modelData.is_focused
+                                     ? root.theme.component.panel.rowSelected : "transparent"
                         }
                         Ui.ShellText {
                             id: windowLabel
                             anchors {
-                                left: parent.left; leftMargin: root.leadInset
+                                left: parent.left
+                                leftMargin: root.leadInset
                                 right: workspaceLabel.visible ? workspaceLabel.left : parent.right
                                 rightMargin: root.rowInset
                                 verticalCenter: parent.verticalCenter
@@ -271,7 +311,11 @@ Item {
                         Ui.ShellText {
                             id: workspaceLabel
                             visible: windowRow.workspaceText !== ""
-                            anchors { right: parent.right; rightMargin: root.rowInset; verticalCenter: parent.verticalCenter }
+                            anchors {
+                                right: parent.right
+                                rightMargin: root.rowInset
+                                verticalCenter: parent.verticalCenter
+                            }
                             theme: root.theme
                             text: windowRow.workspaceText
                             sizeRole: "caption"
@@ -295,8 +339,11 @@ Item {
                     color: "transparent"
                     Rectangle {
                         anchors {
-                            left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
-                            leftMargin: root.rowInset; rightMargin: root.rowInset
+                            left: parent.left
+                            right: parent.right
+                            verticalCenter: parent.verticalCenter
+                            leftMargin: root.rowInset
+                            rightMargin: root.rowInset
                         }
                         height: 1
                         color: root.theme.semantic.outline.subtle
@@ -305,7 +352,8 @@ Item {
             }
 
             Ui.ShellEmptyRow {
-                visible: root.activeItem === null || (!root.hasMenu && root.activeWindows.length === 0)
+                visible: root.activeItem === null || (!root.hasMenu && root.activeWindows.length
+                                                      === 0)
                 width: menuColumn.width
                 theme: root.theme
                 iconName: "info"
@@ -337,26 +385,37 @@ Item {
                             readonly property string rowText: String(modelData.text || "")
                             readonly property bool separator: Boolean(modelData.isSeparator)
                             readonly property bool checkable: modelData.buttonType !== undefined
-                                && modelData.buttonType !== QsMenuButtonType.None
+                                                              && modelData.buttonType
+                                                              !== QsMenuButtonType.None
                             readonly property bool checked: modelData.checkState === Qt.Checked
                             readonly property bool enabled: Boolean(modelData.enabled)
                             readonly property bool hidden: root.rowHidden(modelData, index)
-                            readonly property bool trailingGlyph: Boolean(modelData.hasChildren) || checkable
-                            readonly property real naturalWidth: separator ? 0
-                                : root.leadInset + root.rowInset + root.theme.metrics.spaceUnit * 2
-                                    + label.implicitWidth + (trailingGlyph ? root.glyphColumn + root.theme.metrics.spaceUnit : 0)
+                            readonly property bool trailingGlyph: Boolean(modelData.hasChildren)
+                                                                  || checkable
+                            readonly property real naturalWidth: separator ? 0 : root.leadInset
+                                                                             + root.rowInset
+                                                                             + root.theme.metrics.spaceUnit
+                                                                             * 2 + label.implicitWidth
+                                                                             + (trailingGlyph
+                                                                                ? root.glyphColumn
+                                                                                  + root.theme.metrics.spaceUnit :
+                                                                                  0)
 
                             visible: !hidden
                             width: rows.width
-                            height: hidden ? 0 : separator ? root.theme.metrics.spaceUnit + 3 : root.rowHeight
+                            height: hidden ? 0 : separator ? root.theme.metrics.spaceUnit + 3 :
+                                                             root.rowHeight
+
                             onNaturalWidthChanged: Qt.callLater(root.measure)
 
                             Rectangle {
                                 visible: menuRow.separator
                                 anchors {
-                                    left: parent.left; right: parent.right
+                                    left: parent.left
+                                    right: parent.right
                                     verticalCenter: parent.verticalCenter
-                                    leftMargin: root.rowInset; rightMargin: root.rowInset
+                                    leftMargin: root.rowInset
+                                    rightMargin: root.rowInset
                                 }
                                 height: 1
                                 color: root.theme.semantic.outline.subtle
@@ -367,7 +426,7 @@ Item {
                                 anchors.fill: parent
                                 radius: root.theme.metrics.radiusSmall
                                 color: rowPointer.containsMouse && menuRow.enabled
-                                    ? root.theme.component.panel.rowHover : "transparent"
+                                       ? root.theme.component.panel.rowHover : "transparent"
                             }
 
                             Ui.ShellText {
@@ -376,7 +435,8 @@ Item {
                                 anchors {
                                     left: parent.left
                                     leftMargin: root.leadInset
-                                    right: trailingGlyphItem.visible ? trailingGlyphItem.left : parent.right
+                                    right: trailingGlyphItem.visible ? trailingGlyphItem.left :
+                                                                       parent.right
                                     rightMargin: root.rowInset
                                     verticalCenter: parent.verticalCenter
                                 }
@@ -389,12 +449,19 @@ Item {
 
                             Ui.ShellIcon {
                                 id: trailingGlyphItem
-                                visible: !menuRow.separator && (Boolean(menuRow.modelData.hasChildren) || menuRow.checked)
-                                anchors { right: parent.right; rightMargin: root.rowInset; verticalCenter: parent.verticalCenter }
+                                visible: !menuRow.separator && (Boolean(
+                                                                    menuRow.modelData.hasChildren)
+                                                                || menuRow.checked)
+                                anchors {
+                                    right: parent.right
+                                    rightMargin: root.rowInset
+                                    verticalCenter: parent.verticalCenter
+                                }
                                 theme: root.theme
                                 name: menuRow.modelData.hasChildren ? "chevron-right" : "check"
                                 sizeRole: "small"
-                                role: !menuRow.enabled ? "disabled" : menuRow.modelData.hasChildren ? "secondary" : "accent"
+                                role: !menuRow.enabled ? "disabled" : menuRow.modelData.hasChildren
+                                                         ? "secondary" : "accent"
                             }
 
                             MouseArea {
@@ -404,7 +471,8 @@ Item {
                                 enabled: !menuRow.separator && menuRow.enabled
                                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                                 onClicked: {
-                                    if (!root.clickAllowed()) return
+                                    if (!root.clickAllowed())
+                                        return
                                     if (menuRow.modelData.hasChildren)
                                         root.enterSubmenu(menuRow.modelData, menuRow.rowText)
                                     else

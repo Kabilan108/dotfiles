@@ -53,28 +53,24 @@ QtObject {
             required property var dependencies
             readonly property QtObject facade: QtObject {
                 readonly property int revision: root.serviceRegistry
-                    ? root.serviceRegistry.revision
-                    : 0
+                                                ? root.serviceRegistry.revision : 0
 
                 function has(serviceId) {
                     var key = String(serviceId)
-                    return servicesOwner.dependencies.indexOf(key) !== -1
-                        && root.serviceRegistry
-                        && root.serviceRegistry.has(key)
+                    return servicesOwner.dependencies.indexOf(key) !== -1 && root.serviceRegistry
+                            && root.serviceRegistry.has(key)
                 }
 
                 function get(serviceId) {
                     var key = String(serviceId)
-                    if (servicesOwner.dependencies.indexOf(key) === -1
-                            || !root.serviceRegistry)
+                    if (servicesOwner.dependencies.indexOf(key) === -1 || !root.serviceRegistry)
                         return null
                     return root.serviceRegistry.get(key)
                 }
 
                 function state(serviceId) {
                     var key = String(serviceId)
-                    if (servicesOwner.dependencies.indexOf(key) === -1
-                            || !root.serviceRegistry)
+                    if (servicesOwner.dependencies.indexOf(key) === -1 || !root.serviceRegistry)
                         return "unloaded"
                     return root.serviceRegistry.state(key)
                 }
@@ -85,22 +81,22 @@ QtObject {
     property Component panelsFacadeComponent: Component {
         QtObject {
             readonly property string activeId: root.surfaceRouter ? root.surfaceRouter.activeId : ""
-            readonly property string selectedId: root.surfaceRouter ? root.surfaceRouter.presentedId || "" : ""
+            readonly property string selectedId: root.surfaceRouter
+                                                 ? root.surfaceRouter.presentedId || "" : ""
             readonly property string selectedOutputId: root.surfaceRouter
-                && typeof root.surfaceRouter.placementOutputId === "function"
-                ? root.surfaceRouter.placementOutputId(selectedId) : ""
+                                                       && typeof root.surfaceRouter.placementOutputId
+                                                       === "function"
+                                                       ? root.surfaceRouter.placementOutputId(
+                                                             selectedId) : ""
             readonly property string focusedOutputId: root.surfaceRouter
-                ? root.surfaceRouter.focusedOutputId
-                : ""
+                                                      ? root.surfaceRouter.focusedOutputId : ""
 
             function isOpen(pluginId) {
                 return root.surfaceRouter ? root.surfaceRouter.isOpen(String(pluginId)) : false
             }
 
             function state(pluginId) {
-                return root.surfaceRouter
-                    ? root.surfaceRouter.state(String(pluginId))
-                    : "unloaded"
+                return root.surfaceRouter ? root.surfaceRouter.state(String(pluginId)) : "unloaded"
             }
         }
     }
@@ -151,16 +147,16 @@ QtObject {
 
     property Component profilesFacadeComponent: Component {
         QtObject {
-            readonly property string active: root.profileSource
-                ? root.profileSource.activeProfile : "default"
+            readonly property string active: root.profileSource ? root.profileSource.activeProfile :
+                                                                  "default"
             readonly property var available: root.profileSource
-                ? root.profileSource.availableProfiles : []
-            readonly property int revision: root.profileSource
-                ? root.profileSource.profileRevision : 0
-            readonly property string state: root.actionsSource
-                ? root.actionsSource.profileState : "ready"
-            readonly property string error: root.actionsSource
-                ? root.actionsSource.profileError : ""
+                                             ? root.profileSource.availableProfiles : []
+            readonly property int revision: root.profileSource ? root.profileSource.profileRevision :
+                                                                 0
+            readonly property string state: root.actionsSource ? root.actionsSource.profileState :
+                                                                 "ready"
+            readonly property string error: root.actionsSource ? root.actionsSource.profileError :
+                                                                 ""
         }
     }
 
@@ -171,75 +167,68 @@ QtObject {
             }
 
             function surfaceOpen(pluginId, payloadJson) {
-                return root.actionsSource
-                    ? root.actionsSource.surfaceOpen(String(pluginId), String(payloadJson))
-                    : "error"
+                return root.actionsSource ? root.actionsSource.surfaceOpen(String(pluginId), String(
+                                                                               payloadJson)) :
+                                            "error"
             }
 
             function surfaceClose(pluginId) {
-                return root.actionsSource
-                    ? root.actionsSource.surfaceClose(String(pluginId))
-                    : "error"
+                return root.actionsSource ? root.actionsSource.surfaceClose(String(pluginId)) :
+                                            "error"
             }
 
             function surfaceToggle(pluginId, payloadJson) {
-                return root.actionsSource
-                    ? root.actionsSource.surfaceToggle(String(pluginId), String(payloadJson))
-                    : "error"
+                return root.actionsSource ? root.actionsSource.surfaceToggle(String(pluginId),
+                                                                             String(payloadJson)) :
+                                            "error"
             }
 
             function windowFocus(windowId) {
                 return root.actionsSource && typeof root.actionsSource.windowFocus === "function"
-                    ? root.actionsSource.windowFocus(windowId)
-                    : "unavailable"
+                        ? root.actionsSource.windowFocus(windowId) : "unavailable"
             }
 
             function workspaceFocus(workspaceId) {
-                return root.actionsSource && typeof root.actionsSource.workspaceFocus === "function"
-                    ? root.actionsSource.workspaceFocus(workspaceId)
-                    : "unavailable"
+                return root.actionsSource && typeof root.actionsSource.workspaceFocus
+                        === "function" ? root.actionsSource.workspaceFocus(workspaceId) :
+                                         "unavailable"
             }
 
             function appLaunch(desktopId, actionId) {
                 return root.actionsSource && typeof root.actionsSource.appLaunch === "function"
-                    ? root.actionsSource.appLaunch(desktopId, actionId === undefined ? "" : actionId)
-                    : "error"
+                        ? root.actionsSource.appLaunch(desktopId, actionId === undefined ? "" :
+                                                                                           actionId) :
+                          "error"
             }
 
             function openUrl(url) {
                 return root.actionsSource && typeof root.actionsSource.openUrl === "function"
-                    ? root.actionsSource.openUrl(url)
-                    : "error"
+                        ? root.actionsSource.openUrl(url) : "error"
             }
 
             function openPath(path, mode) {
                 return root.actionsSource && typeof root.actionsSource.openPath === "function"
-                    ? root.actionsSource.openPath(path, mode)
-                    : "error"
+                        ? root.actionsSource.openPath(path, mode) : "error"
             }
 
             function copyText(text) {
                 return root.actionsSource && typeof root.actionsSource.copyText === "function"
-                    ? root.actionsSource.copyText(text)
-                    : "error"
+                        ? root.actionsSource.copyText(text) : "error"
             }
 
             function sessionAction(name) {
                 return root.actionsSource && typeof root.actionsSource.sessionAction === "function"
-                    ? root.actionsSource.sessionAction(name)
-                    : "error"
+                        ? root.actionsSource.sessionAction(name) : "error"
             }
 
             function pluginUnload(pluginId) {
-                return root.actionsSource
-                    ? root.actionsSource.pluginUnload(String(pluginId))
-                    : "error"
+                return root.actionsSource ? root.actionsSource.pluginUnload(String(pluginId)) :
+                                            "error"
             }
 
             function pluginReload(pluginId) {
-                return root.actionsSource
-                    ? root.actionsSource.pluginReload(String(pluginId))
-                    : "error"
+                return root.actionsSource ? root.actionsSource.pluginReload(String(pluginId)) :
+                                            "error"
             }
 
             function pluginRescan() {
@@ -247,9 +236,8 @@ QtObject {
             }
 
             function profileActivate(profileId) {
-                return root.actionsSource
-                    ? root.actionsSource.profileActivate(String(profileId))
-                    : "error"
+                return root.actionsSource ? root.actionsSource.profileActivate(String(profileId)) :
+                                            "error"
             }
 
             function shellPing() {
@@ -298,37 +286,42 @@ QtObject {
 
         var dependencies = entry.manifest.dependencies || []
         var servicesOwner = servicesOwnerComponent.createObject(root, {
-            pluginId: pluginId,
-            dependencies: dependencies.slice()
-        })
+                                                                    pluginId: pluginId,
+                                                                    dependencies: dependencies.slice(
+                                                                                      )
+                                                                })
         var services = servicesOwner.facade
         var panels = panelsFacadeComponent.createObject(root)
-        var loggerOwner = loggerOwnerComponent.createObject(root, { pluginId: pluginId })
+        var loggerOwner = loggerOwnerComponent.createObject(root, {
+                                                                pluginId: pluginId
+                                                            })
         var logger = loggerOwner.facade
         var settingsOwner = settingsOwnerComponent.createObject(root, {
-            pluginId: pluginId,
-            values: _clone(entry.settings || {}),
-            paths: {
-                configRoot: configRoot,
-                dataRoot: dataRoot,
-                stateRoot: stateRoot,
-                packageRoot: entry.packageRoot
-            }
-        })
+                                                                    pluginId: pluginId,
+                                                                    values: _clone(entry.settings
+                                                                                   || {}),
+                                                                    paths: {
+                                                                        configRoot: configRoot,
+                                                                        dataRoot: dataRoot,
+                                                                        stateRoot: stateRoot,
+                                                                        packageRoot:
+                                                                        entry.packageRoot
+                                                                    }
+                                                                })
         var settings = settingsOwner.facade
         var profiles = profilesFacadeComponent.createObject(root)
         var actions = actionsComponent.createObject(root)
         var contextOwner = contextOwnerComponent.createObject(root, {
-            _theme: _publicTheme(theme),
-            _compositor: compositor,
-            _services: services,
-            _panels: panels,
-            _logger: logger,
-            _settings: settings,
-            _profiles: profiles,
-            _actions: actions,
-            _instanceId: instanceId
-        })
+                                                                  _theme: _publicTheme(theme),
+                                                                  _compositor: compositor,
+                                                                  _services: services,
+                                                                  _panels: panels,
+                                                                  _logger: logger,
+                                                                  _settings: settings,
+                                                                  _profiles: profiles,
+                                                                  _actions: actions,
+                                                                  _instanceId: instanceId
+                                                              })
         var context = contextOwner.context
 
         var cacheNext = _copy(contextCache)
@@ -343,19 +336,22 @@ QtObject {
     }
 
     function contextForBuiltin(pluginId, packageRoot, values) {
-        var builtinValues = { shadowMode: false }
+        var builtinValues = {
+            shadowMode: false
+        }
         var suppliedValues = values || {}
         for (var key in suppliedValues)
             builtinValues[key] = suppliedValues[key]
         return contextFor({
-            packageRoot: packageRoot || "",
-            settings: builtinValues,
-            signature: "builtin:" + String(pluginId) + ":" + JSON.stringify(builtinValues),
-            manifest: {
-                id: String(pluginId),
-                dependencies: []
-            }
-        })
+                              packageRoot: packageRoot || "",
+                              settings: builtinValues,
+                              signature: "builtin:" + String(pluginId) + ":" + JSON.stringify(
+                                             builtinValues),
+                              manifest: {
+                                  id: String(pluginId),
+                                  dependencies: []
+                              }
+                          })
     }
 
     function dropContext(pluginId) {
@@ -383,15 +379,15 @@ QtObject {
         if (!value || value.schemaVersion !== 2)
             return {}
         return _clone({
-            schemaVersion: value.schemaVersion,
-            identity: value.identity,
-            semantic: value.semantic,
-            component: value.component,
-            typography: value.typography,
-            metrics: value.metrics,
-            motion: value.motion,
-            effects: value.effects
-        })
+                          schemaVersion: value.schemaVersion,
+                          identity: value.identity,
+                          semantic: value.semantic,
+                          component: value.component,
+                          typography: value.typography,
+                          metrics: value.metrics,
+                          motion: value.motion,
+                          effects: value.effects
+                      })
     }
 
     function _copy(value) {

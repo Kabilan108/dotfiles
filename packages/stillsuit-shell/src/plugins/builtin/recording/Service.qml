@@ -11,21 +11,24 @@ Scope {
     required property var context
 
     readonly property string apiVersion: "1"
-    readonly property var workflows: context.services ? context.services.get("stillsuit.workflows") : null
+    readonly property var workflows: context.services ? context.services.get("stillsuit.workflows") :
+                                                        null
     readonly property var recording: workflows ? workflows.recording : null
     readonly property var source: Pipewire.defaultAudioSource
-    readonly property bool microphoneCaptured: !!recording
-        && recording.active === true
-        && !!recording.snapshot
-        && recording.snapshot.microphone === true
-    readonly property bool microphoneMuted: !!source && !!source.audio && source.audio.muted === true
-    readonly property bool microphoneLive: microphoneCaptured && !microphoneMuted
-        && !!source && recording.paused !== true
+    readonly property bool microphoneCaptured: !!recording && recording.active === true && !
+                                               !recording.snapshot && recording.snapshot.microphone
+                                               === true
+    readonly property bool microphoneMuted: !!source && !!source.audio && source.audio.muted
+                                            === true
+
+    readonly property bool microphoneLive: microphoneCaptured && !microphoneMuted && !!source
+                                           && recording.paused !== true
     readonly property real level: microphoneLive ? smoothedLevel : 0
 
     readonly property var settings: context.settings ? context.settings.values : ({})
     readonly property real floorDb: _settingNumber("microphoneFloorDb", -32)
-    readonly property real ceilingDb: Math.max(floorDb + 1, _settingNumber("microphoneCeilingDb", -6))
+    readonly property real ceilingDb: Math.max(floorDb + 1, _settingNumber("microphoneCeilingDb",
+                                                                           -6))
 
     property real smoothedLevel: 0
 
@@ -50,7 +53,8 @@ Scope {
         smoothedLevel += (target - smoothedLevel) * (rising ? 0.6 : 0.15)
     }
 
-    onMicrophoneLiveChanged: if (!microphoneLive) smoothedLevel = 0
+    onMicrophoneLiveChanged: if (!microphoneLive)
+                                 smoothedLevel = 0
 
     PwObjectTracker {
         objects: root.source ? [root.source] : []

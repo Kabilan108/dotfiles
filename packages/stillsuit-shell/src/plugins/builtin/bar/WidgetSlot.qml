@@ -12,9 +12,9 @@ Item {
     property real anchorOffset: 0
     property string anchoredPluginId: ""
     property var anchorResolver: null
-    readonly property string pluginId: activeRegistration && activeRegistration.manifest
-        ? String(activeRegistration.manifest.id)
-        : "unknown"
+    readonly property string pluginId: activeRegistration && activeRegistration.manifest ? String(
+                                                                                               activeRegistration.manifest.id) :
+                                                                                           "unknown"
     property bool failed: false
     property bool componentComplete: false
     property bool releaseNotified: false
@@ -28,22 +28,22 @@ Item {
     readonly property bool collapsed: createdWidget !== null && createdWidget.collapsed === true
     readonly property bool occupied: !failed && createdWidget !== null && !collapsed
 
-    implicitWidth: occupied
-        ? Math.max(0, createdWidget.implicitWidth || createdWidget.width || 0)
-        : 0
-    implicitHeight: occupied
-        ? Math.max(0, createdWidget.implicitHeight || createdWidget.height || 0)
-        : 0
+    implicitWidth: occupied ? Math.max(0, createdWidget.implicitWidth || createdWidget.width || 0) :
+                              0
+    implicitHeight: occupied ? Math.max(0, createdWidget.implicitHeight || createdWidget.height
+                                        || 0) : 0
     visible: occupied
 
-    HoverHandler { id: tooltipHover }
+    HoverHandler {
+        id: tooltipHover
+    }
     Ui.ShellBarTooltip {
         theme: root.activeRegistration ? root.activeRegistration.context.theme : ({})
         target: root
-        hovering: tooltipHover.hovered && root.visible
-            && !(root.createdWidget && root.createdWidget.selected === true)
+        hovering: tooltipHover.hovered && root.visible && !(root.createdWidget
+                                                            && root.createdWidget.selected === true)
         text: root.createdWidget && typeof root.createdWidget.tooltipText === "string"
-            ? root.createdWidget.tooltipText : ""
+              ? root.createdWidget.tooltipText : ""
     }
 
     function loadRegistration() {
@@ -59,7 +59,7 @@ Item {
         }
         activeRegistration = token.registration
         pendingConstruction = token
-        Qt.callLater(function() {
+        Qt.callLater(function () {
             if (token.cancelled)
                 return
             root.constructWidget(token)
@@ -67,9 +67,8 @@ Item {
     }
 
     function constructWidget(token) {
-        if (token !== pendingConstruction
-                || token.generation !== constructionGeneration
-                || !componentComplete)
+        if (token !== pendingConstruction || token.generation !== constructionGeneration ||
+                !componentComplete)
             return
         pendingConstruction = null
 
@@ -81,14 +80,16 @@ Item {
 
         var component = record.component
         if (component.status !== Component.Ready) {
-            var detail = component.status === Component.Error
-                ? component.errorString()
-                : "component is not ready"
+            var detail = component.status === Component.Error ? component.errorString() :
+                                                                "component is not ready"
             releaseSlot("component compilation failed: " + detail, token.generation)
             return
         }
 
-        var properties = { context: record.context, outputId: outputId }
+        var properties = {
+            context: record.context,
+            outputId: outputId
+        }
         if (record.service !== undefined)
             properties.service = record.service
         var widget = component.createObject(root, properties)
@@ -101,11 +102,10 @@ Item {
     }
 
     function registerAnchor() {
-        if (!panelAnchors || typeof panelAnchors.set !== "function"
-                || pluginId === "unknown")
+        if (!panelAnchors || typeof panelAnchors.set !== "function" || pluginId === "unknown")
             return
         anchoredPluginId = pluginId
-        anchorResolver = function() {
+        anchorResolver = function () {
             if (!root.visible || root.width <= 0)
                 return -1
             return root.anchorOffset + root.mapToItem(null, root.width / 2, 0).x

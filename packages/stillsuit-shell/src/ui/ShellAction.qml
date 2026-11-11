@@ -18,15 +18,14 @@ Item {
     readonly property bool hovered: pointer.containsMouse
     readonly property bool pressed: pointer.pressed
     readonly property bool focusVisible: activeFocus || keyboardFocused
-    readonly property string effectiveAccessibleName: accessibleName !== ""
-        ? accessibleName
-        : accessibleFallback
+    readonly property string effectiveAccessibleName: accessibleName !== "" ? accessibleName :
+                                                                              accessibleFallback
 
-    signal activated()
+    signal activated
 
     activeFocusOnTab: canActivate
 
-    Keys.onPressed: function(event) {
+    Keys.onPressed: function (event) {
         if (root.handleKey(event.key, event.modifiers, event.isAutoRepeat))
             event.accepted = true
     }

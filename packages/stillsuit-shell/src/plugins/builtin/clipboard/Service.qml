@@ -33,14 +33,15 @@ Scope {
     property string error: ""
 
     readonly property var values: context && context.settings && context.settings.values
-        ? context.settings.values : ({})
+                                  ? context.settings.values : ({})
     readonly property var options: ClipboardModel.options(values)
     readonly property string collectorPath: String(values.collectorPath || "")
     readonly property string wlPastePath: String(values.wlPastePath || "")
     readonly property string wlCopyPath: String(values.wlCopyPath || "")
     readonly property string niriPath: String(values.niriPath || "")
-    readonly property string stateRoot: context && context.settings && context.settings.paths
-        ? String(context.settings.paths.stateRoot || "") : ""
+    readonly property string stateRoot: context && context.settings && context.settings.paths ? String(
+                                                                                                    context.settings.paths.stateRoot
+                                                                                                    || "") : ""
     readonly property string stateDir: stateRoot.charAt(0) === "/" ? stateRoot + "/clipboard" : ""
     readonly property string blobDir: stateDir !== "" ? stateDir + "/blobs" : ""
     readonly property string historyPath: stateDir !== "" ? stateDir + "/history.v1.json" : ""
@@ -94,7 +95,12 @@ Scope {
             _pruneNow(now)
             return "unknown"
         }
-        _pendingCopy = { id: entry.id, sha: entry.sha, mime: entry.mime, requestedAt: now }
+        _pendingCopy = {
+            id: entry.id,
+            sha: entry.sha,
+            mime: entry.mime,
+            requestedAt: now
+        }
         _runCopy()
         return "ok"
     }
@@ -166,7 +172,11 @@ Scope {
     function _configProblem() {
         if (stateDir === "")
             return "clipboard state root is not an absolute path"
-        var paths = { collectorPath: collectorPath, wlPastePath: wlPastePath, wlCopyPath: wlCopyPath }
+        var paths = {
+            collectorPath: collectorPath,
+            wlPastePath: wlPastePath,
+            wlCopyPath: wlCopyPath
+        }
         for (var key in paths) {
             if (paths[key].charAt(0) !== "/")
                 return "clipboard setting " + key + " must be an absolute path"
@@ -224,14 +234,17 @@ Scope {
             return
         var now = Date.now()
         var parsed = ClipboardModel.parseHistory(raw, now, options)
-        _state = { entries: parsed.entries, lastRecorded: null }
+        _state = {
+            entries: parsed.entries,
+            lastRecorded: null
+        }
         _removals = parsed.pendingRemovals
         _removalsPersisted = true
         _durableShas = ClipboardModel.shas(parsed.entries).concat(parsed.removed)
         _ready = true
         if (parsed.corrupt && context && context.logger)
-            context.logger.warn("clipboard history was unreadable; kept "
-                + parsed.entries.length + " valid entries")
+            context.logger.warn("clipboard history was unreadable; kept " + parsed.entries.length
+                                + " valid entries")
         if (parsed.removed.length > 0) {
             _queueRemoval(parsed.removed)
             _persistRemovals()
@@ -246,14 +259,12 @@ Scope {
     }
 
     function _watchCommand() {
-        var command = [collectorPath, "watch", "--state-dir", stateDir,
-            "--collector", collectorPath, "--wl-paste", wlPastePath,
-            "--max-text-bytes", String(options.maxTextBytes),
-            "--max-image-bytes", String(options.maxImageBytes),
-            "--unattributed-firefox=" + options.unattributedFirefox,
-            "--gecko-app-ids=" + options.geckoAppIds,
-            "--focus-settle-ms=" + options.focusSettleMs,
-            "--owner-pid", String(Quickshell.processId)]
+        var command = [collectorPath, "watch", "--state-dir", stateDir, "--collector", collectorPath,
+                       "--wl-paste", wlPastePath, "--max-text-bytes", String(options.maxTextBytes),
+                       "--max-image-bytes", String(options.maxImageBytes),
+                       "--unattributed-firefox=" + options.unattributedFirefox, "--gecko-app-ids="
+                       + options.geckoAppIds, "--focus-settle-ms=" + options.focusSettleMs,
+                       "--owner-pid", String(Quickshell.processId)]
         if (niriPath !== "")
             command.push("--niri=" + niriPath)
         for (var index = 0; index < options.secretSourcePrefixes.length; index++)
@@ -283,10 +294,9 @@ Scope {
         if (_watcherStartedAt > 0 && Date.now() - _watcherStartedAt > 60000)
             _backoffMs = 1000
         _watcherStartedAt = 0
-        error = (_watcherExitCode >= 0
-            ? "clipboard watcher exited with status " + _watcherExitCode
-            : "clipboard watcher could not be started")
-            + "; retrying in " + Math.round(_backoffMs / 1000) + " s"
+        error = (_watcherExitCode >= 0 ? "clipboard watcher exited with status " + _watcherExitCode :
+                                         "clipboard watcher could not be started")
+                + "; retrying in " + Math.round(_backoffMs / 1000) + " s"
         status = "degraded"
         revision++
         if (context && context.logger)
@@ -331,7 +341,10 @@ Scope {
     function _pruneNow(now) {
         var pruned = ClipboardModel.prune(_state.entries, now, options)
         if (pruned.removed.length > 0)
-            _commit({ entries: pruned.entries, lastRecorded: _state.lastRecorded }, pruned.removed)
+            _commit({
+                        entries: pruned.entries,
+                        lastRecorded: _state.lastRecorded
+                    }, pruned.removed)
     }
 
     function _publish() {
@@ -359,7 +372,10 @@ Scope {
     function _onExpiryTimer() {
         var pruned = ClipboardModel.prune(_state.entries, Date.now(), options)
         if (pruned.removed.length > 0) {
-            _commit({ entries: pruned.entries, lastRecorded: _state.lastRecorded }, pruned.removed)
+            _commit({
+                        entries: pruned.entries,
+                        lastRecorded: _state.lastRecorded
+                    }, pruned.removed)
         } else {
             _publish()
             _rearm()
@@ -394,7 +410,8 @@ Scope {
         historyFile.blockWrites = true
         historyFile.setText(ClipboardModel.serialize(entries, pending))
         historyFile.blockWrites = false
-        var durable = !_saveFailed && ClipboardModel.historyMatches(_readHistory(), entries, pending)
+        var durable = !_saveFailed && ClipboardModel.historyMatches(_readHistory(), entries,
+                                                                    pending)
         _historyCacheStale = !durable
         if (durable)
             _durableShas = ClipboardModel.shas(entries)
@@ -415,8 +432,8 @@ Scope {
             return
         }
         if (context && context.logger)
-            context.logger.warn("clipboard history could not be written; retrying in "
-                + Math.round(_saveBackoffMs / 1000) + " s")
+            context.logger.warn("clipboard history could not be written; retrying in " + Math.round(
+                                    _saveBackoffMs / 1000) + " s")
         saveRetryTimer.interval = _saveBackoffMs
         saveRetryTimer.restart()
         _saveBackoffMs = Math.min(_saveBackoffMs * 2, 60000)
@@ -439,8 +456,8 @@ Scope {
         _activeCopy = _pendingCopy
         _pendingCopy = null
         _copyExitCode = -1
-        copyProcess.command = [collectorPath, "copy", "--state-dir", stateDir,
-            "--sha", _activeCopy.sha, "--mime", _activeCopy.mime, "--wl-copy", wlCopyPath]
+        copyProcess.command = [collectorPath, "copy", "--state-dir", stateDir, "--sha",
+                               _activeCopy.sha, "--mime", _activeCopy.mime, "--wl-copy", wlCopyPath]
         copyProcess.running = true
     }
 
@@ -455,9 +472,11 @@ Scope {
             if (_copyExitCode === 0) {
                 var touched = ClipboardModel.touch(_state, copied.id, Date.now())
                 _commit(touched.state, [])
-            } else if (_copyExitCode === ClipboardModel.COPY_BLOB_GONE && entry.captured < copied.requestedAt) {
+            } else if (_copyExitCode === ClipboardModel.COPY_BLOB_GONE && entry.captured
+                       < copied.requestedAt) {
                 if (context && context.logger)
-                    context.logger.warn("clipboard item's stored copy is gone; dropped it from history")
+                    context.logger.warn(
+                                "clipboard item's stored copy is gone; dropped it from history")
                 var removed = ClipboardModel.remove(_state, copied.id)
                 _commit(removed.state, removed.removed)
             }
@@ -484,13 +503,13 @@ Scope {
         }
         if (shas.length === 0)
             return null
-        return [collectorPath, "rm", "--state-dir", stateDir,
-            "--before-ms", String(batch.before), "--sha"].concat(shas)
+        return [collectorPath, "rm", "--state-dir", stateDir, "--before-ms", String(batch.before),
+                "--sha"].concat(shas)
     }
 
     function _runRemoval() {
-        while (_ready && !_shuttingDown && _removalsPersisted && _activeRemoval === null && !rmProcess.running
-                && !removalRetryTimer.running && _removals.length > 0) {
+        while (_ready && !_shuttingDown && _removalsPersisted && _activeRemoval === null &&
+               !rmProcess.running && !removalRetryTimer.running && _removals.length > 0) {
             var batch = _removals[0]
             _removals = _removals.slice(1)
             var command = _removalCommand(batch)
@@ -518,7 +537,8 @@ Scope {
         } else {
             if (context && context.logger)
                 context.logger.warn("clipboard blob removal failed with status " + _removalExitCode
-                    + "; retrying in " + Math.round(_removalBackoffMs / 1000) + " s")
+                                    + "; retrying in " + Math.round(_removalBackoffMs / 1000)
+                                    + " s")
             _removals = [batch].concat(_removals)
             removalRetryTimer.interval = _removalBackoffMs
             removalRetryTimer.restart()
@@ -550,9 +570,11 @@ Scope {
         if (_gcNextIsFollowUp)
             _gcLastFollowUpAt = Date.now()
         _gcNextIsFollowUp = false
-        gcProcess.command = [collectorPath, "gc", "--state-dir", stateDir,
-            "--grace-sec", String(options.gcGraceSec), "--keep"]
-            .concat(ClipboardModel.union(ClipboardModel.shas(_state.entries), _durableShas))
+        gcProcess.command = [collectorPath, "gc", "--state-dir", stateDir, "--grace-sec", String(
+                                 options.gcGraceSec), "--keep"].concat(ClipboardModel.union(
+                                                                           ClipboardModel.shas(
+                                                                               _state.entries),
+                                                                           _durableShas))
         gcProcess.running = true
     }
 
@@ -580,7 +602,8 @@ Scope {
     // `rm`s also finish them now in case the plugin does not come back. Only
     // batches known to be on disk qualify: the active one always is.
     function _flushRemovalsDetached() {
-        var batches = _removalsPersisted ? _pendingRemovals() : (_activeRemoval ? [_activeRemoval] : [])
+        var batches = _removalsPersisted ? _pendingRemovals() : (_activeRemoval ? [_activeRemoval] :
+                                                                                  [])
         for (var index = 0; index < batches.length; index++) {
             var command = _removalCommand(batches[index])
             if (command !== null)
@@ -634,17 +657,23 @@ Scope {
     Connections {
         target: root._modelDriven ? root.model : null
         ignoreUnknownSignals: true
-        function onItemsChanged() { root._syncModel() }
-        function onRevisionChanged() { root._syncModel() }
+        function onItemsChanged() {
+            root._syncModel()
+        }
+        function onRevisionChanged() {
+            root._syncModel()
+        }
     }
 
     Process {
         id: initProcess
         stdout: SplitParser {
             splitMarker: "\n"
-            onRead: function(line) { root._onInitLine(line) }
+            onRead: function (line) {
+                root._onInitLine(line)
+            }
         }
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             root._initExited = true
             if (exitCode !== 0 && root._initError === "")
                 root._initError = "clipboard collector init failed with status " + exitCode
@@ -682,17 +711,21 @@ Scope {
         id: watcher
         stdout: SplitParser {
             splitMarker: "\n"
-            onRead: function(line) { root._onEventLine(line) }
+            onRead: function (line) {
+                root._onEventLine(line)
+            }
         }
         stderr: SplitParser {
             splitMarker: "\n"
-            onRead: function(line) {
+            onRead: function (line) {
                 if (root.context && root.context.logger)
                     root.context.logger.warn("clipboard watcher: " + String(line).slice(0, 200))
             }
         }
         onStarted: root._onWatcherStarted()
-        onExited: function(exitCode) { root._watcherExitCode = exitCode }
+        onExited: function (exitCode) {
+            root._watcherExitCode = exitCode
+        }
         onRunningChanged: {
             if (!running)
                 root._onWatcherStopped()
@@ -701,7 +734,7 @@ Scope {
 
     Process {
         id: copyProcess
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             root._copyExitCode = exitCode
             if (exitCode !== 0 && root.context && root.context.logger)
                 root.context.logger.warn("clipboard copy failed with status " + exitCode)
@@ -714,7 +747,9 @@ Scope {
 
     Process {
         id: rmProcess
-        onExited: function(exitCode) { root._removalExitCode = exitCode }
+        onExited: function (exitCode) {
+            root._removalExitCode = exitCode
+        }
         onRunningChanged: {
             if (!running)
                 root._onRemovalStopped()
@@ -725,9 +760,11 @@ Scope {
         id: gcProcess
         stdout: SplitParser {
             splitMarker: "\n"
-            onRead: function(line) { root._onGcReply(line) }
+            onRead: function (line) {
+                root._onGcReply(line)
+            }
         }
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             if (exitCode !== 0 && root.context && root.context.logger)
                 root.context.logger.warn("clipboard blob cleanup failed with status " + exitCode)
             if (root._gcPending && !root._shuttingDown) {

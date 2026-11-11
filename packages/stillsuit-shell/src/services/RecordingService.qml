@@ -18,7 +18,8 @@ Scope {
     readonly property string statePath: String(settings.recordingStatePath || "")
     readonly property string recordingDirectory: String(settings.recordingDirectory || "")
     readonly property bool configured: helperPath.charAt(0) === "/" && statePath.charAt(0) === "/"
-    readonly property bool active: phase === "recording" || phase === "paused" || phase === "stopping"
+    readonly property bool active: phase === "recording" || phase === "paused" || phase
+                                   === "stopping"
     readonly property bool paused: phase === "paused"
     readonly property bool completed: phase === "completed" || phase === "meeting_queued"
     readonly property string elapsedText: _formatDuration(elapsedSeconds)
@@ -31,10 +32,10 @@ Scope {
         return separator > 0 ? outputPath.slice(0, separator) : recordingDirectory
     }
     readonly property string outputSizeText: _formatBytes(outputSizeBytes)
-    readonly property bool defaultDesktopAudio: settings.desktopAudioDefault === undefined
-        ? true : Boolean(settings.desktopAudioDefault)
-    readonly property bool defaultMicrophone: settings.microphoneDefault === undefined
-        ? false : Boolean(settings.microphoneDefault)
+    readonly property bool defaultDesktopAudio: settings.desktopAudioDefault === undefined ? true :
+                                                                                             Boolean(settings.desktopAudioDefault)
+    readonly property bool defaultMicrophone: settings.microphoneDefault === undefined ? false :
+                                                                                         Boolean(settings.microphoneDefault)
     readonly property var captureTargets: ["monitor", "region", "window"]
     readonly property var exportFormats: ["gif", "webm"]
     readonly property string exportPhase: String(exportState.phase || "")
@@ -50,7 +51,12 @@ Scope {
     property string target: "monitor"
     property var rect: null
     property bool annotate: false
-    property var exportState: ({ format: "", phase: "", output: "", error: "" })
+    property var exportState: ({
+                                   format: "",
+                                   phase: "",
+                                   output: "",
+                                   error: ""
+                               })
     property int elapsedSeconds: 0
     property double startedAt: 0
     property double pausedAt: 0
@@ -59,7 +65,10 @@ Scope {
     property double outputSizeBytes: 0
     property string errorMessage: ""
     property string stateStatus: configured ? "missing" : "unconfigured"
-    property var snapshot: ({ schemaVersion: 1, phase: "idle" })
+    property var snapshot: ({
+                                schemaVersion: 1,
+                                phase: "idle"
+                            })
     property bool actionRunning: false
     property string actionKind: ""
     property string lastCommandJson: "[]"
@@ -79,16 +88,21 @@ Scope {
         var hours = Math.floor(total / 3600)
         var minutes = Math.floor((total % 3600) / 60)
         var remaining = total % 60
-        function pad(value) { return String(value).padStart(2, "0") }
-        return hours > 0 ? pad(hours) + ":" + pad(minutes) + ":" + pad(remaining)
-            : pad(minutes) + ":" + pad(remaining)
+        function pad(value) {
+            return String(value).padStart(2, "0")
+        }
+        return hours > 0 ? pad(hours) + ":" + pad(minutes) + ":" + pad(remaining) : pad(minutes)
+                           + ":" + pad(remaining)
     }
 
     function _formatBytes(bytes) {
         var value = Math.max(0, Number(bytes || 0))
-        if (value < 1024) return Math.round(value) + " B"
-        if (value < 1024 * 1024) return (value / 1024).toFixed(1) + " KB"
-        if (value < 1024 * 1024 * 1024) return (value / (1024 * 1024)).toFixed(1) + " MB"
+        if (value < 1024)
+            return Math.round(value) + " B"
+        if (value < 1024 * 1024)
+            return (value / 1024).toFixed(1) + " KB"
+        if (value < 1024 * 1024 * 1024)
+            return (value / (1024 * 1024)).toFixed(1) + " MB"
         return (value / (1024 * 1024 * 1024)).toFixed(1) + " GB"
     }
 
@@ -107,9 +121,11 @@ Scope {
         if (typeof settings.recordingDefaultTitle === "string" && settings.recordingDefaultTitle)
             return settings.recordingDefaultTitle
         var now = new Date()
-        function pad(value) { return String(value).padStart(2, "0") }
-        return now.getFullYear() + "." + pad(now.getMonth() + 1) + "." + pad(now.getDate())
-            + "-" + pad(now.getHours()) + "." + pad(now.getMinutes()) + "." + pad(now.getSeconds())
+        function pad(value) {
+            return String(value).padStart(2, "0")
+        }
+        return now.getFullYear() + "." + pad(now.getMonth() + 1) + "." + pad(now.getDate()) + "-" + pad(
+                    now.getHours()) + "." + pad(now.getMinutes()) + "." + pad(now.getSeconds())
     }
 
     function _reset(status, message) {
@@ -120,7 +136,12 @@ Scope {
         target = "monitor"
         rect = null
         annotate = false
-        exportState = ({ format: "", phase: "", output: "", error: "" })
+        exportState = ({
+                           format: "",
+                           phase: "",
+                           output: "",
+                           error: ""
+                       })
         elapsedSeconds = 0
         startedAt = 0
         pausedAt = 0
@@ -130,7 +151,10 @@ Scope {
         errorMessage = String(message || "")
         stateStatus = status
         _clearPublication()
-        snapshot = ({ schemaVersion: 1, phase: "idle" })
+        snapshot = ({
+                        schemaVersion: 1,
+                        phase: "idle"
+                    })
     }
 
     function _apply(raw) {
@@ -150,7 +174,8 @@ Scope {
             return
         }
         var nextPhase = String(value.phase || "idle")
-        if (["idle", "recording", "paused", "stopping", "completed", "meeting_queued", "error"].indexOf(nextPhase) === -1) {
+        if (["idle", "recording", "paused", "stopping", "completed", "meeting_queued",
+             "error"].indexOf(nextPhase) === -1) {
             _reset("corrupt", "recording state phase is invalid")
             return
         }
@@ -158,7 +183,8 @@ Scope {
         outputPath = String(value.output || "")
         monitor = String(value.monitor || "")
         title = String(value.title || "")
-        target = captureTargets.indexOf(String(value.target || "")) === -1 ? "monitor" : String(value.target)
+        target = captureTargets.indexOf(String(value.target || "")) === -1 ? "monitor" : String(
+                                                                                 value.target)
         rect = _parseRect(value.rect)
         annotate = Boolean(value.annotate)
         exportState = _parseExport(value["export"])
@@ -190,7 +216,12 @@ Scope {
     }
 
     function _parseExport(value) {
-        var empty = { format: "", phase: "", output: "", error: "" }
+        var empty = {
+            format: "",
+            phase: "",
+            output: "",
+            error: ""
+        }
         if (!value || typeof value !== "object" || Array.isArray(value))
             return empty
         var nextPhase = String(value.phase || "")
@@ -233,25 +264,25 @@ Scope {
 
     // Every command starts with the configured immutable helper path. No shell
     // string is constructed and this service never starts or owns the recorder.
-    function start(directory, selectedMonitor, requestedTitle, desktopAudio, microphone, requestedTarget, requestedAnnotate) {
+    function start(directory, selectedMonitor, requestedTitle, desktopAudio, microphone,
+                   requestedTarget, requestedAnnotate) {
         if (arguments.length === 0) {
             directory = recordingDirectory
-            selectedMonitor = context.compositor ? String(context.compositor.focusedOutputId || "") : ""
+            selectedMonitor = context.compositor ? String(context.compositor.focusedOutputId || "") :
+                                                   ""
             requestedTitle = defaultTitle()
             desktopAudio = defaultDesktopAudio
             microphone = defaultMicrophone
         }
         var captureTarget = requestedTarget === undefined ? "monitor" : String(requestedTarget)
-        if (!String(directory || "").startsWith("/") || !String(selectedMonitor || "") || !String(requestedTitle || "")
-                || captureTargets.indexOf(captureTarget) === -1)
+        if (!String(directory || "").startsWith("/") || !String(selectedMonitor || "") || !String(
+                    requestedTitle || "") || captureTargets.indexOf(captureTarget) === -1)
             return "invalid"
-        return _run([
-            helperPath, "start", "--directory", String(directory), "--monitor", String(selectedMonitor),
-            "--title", String(requestedTitle), "--target", captureTarget,
-            Boolean(requestedAnnotate) ? "--annotate" : "--no-annotate",
-            desktopAudio ? "--desktop-audio" : "--no-desktop-audio",
-            microphone ? "--microphone" : "--no-microphone"
-        ], "start")
+        return _run([helperPath, "start", "--directory", String(directory), "--monitor", String(
+                         selectedMonitor), "--title", String(requestedTitle), "--target",
+                     captureTarget, Boolean(requestedAnnotate) ? "--annotate" : "--no-annotate",
+                     desktopAudio ? "--desktop-audio" : "--no-desktop-audio", microphone
+                     ? "--microphone" : "--no-microphone"], "start")
     }
 
     function exportAs(format) {
@@ -264,23 +295,38 @@ Scope {
     }
 
     function copyExportPath() {
-        if (exportPhase !== "completed" || !exportOutput.startsWith("/") || exportOutput.indexOf("\u0000") !== -1)
+        if (exportPhase !== "completed" || !exportOutput.startsWith("/") || exportOutput.indexOf(
+                    "\u0000") !== -1)
             return "unavailable"
         Quickshell.clipboardText = exportOutput
         copiedPath = exportOutput
         return "copied"
     }
 
-    function togglePause() { return _run([helperPath, "toggle-pause"], "pause") }
-    function finish() { return _run([helperPath, "stop"], "finish") }
-    function stop() { return finish() }
-    function stopAsMeeting() { return _run([helperPath, "stop", "--meeting"], "meeting") }
-    function cancel() { return _run([helperPath, "cancel"], "cancel") }
-    function dismiss() { return _run([helperPath, "dismiss"], "dismiss") }
+    function togglePause() {
+        return _run([helperPath, "toggle-pause"], "pause")
+    }
+    function finish() {
+        return _run([helperPath, "stop"], "finish")
+    }
+    function stop() {
+        return finish()
+    }
+    function stopAsMeeting() {
+        return _run([helperPath, "stop", "--meeting"], "meeting")
+    }
+    function cancel() {
+        return _run([helperPath, "cancel"], "cancel")
+    }
+    function dismiss() {
+        return _run([helperPath, "dismiss"], "dismiss")
+    }
     function rename(requestedTitle) {
-        return phase === "completed" && String(requestedTitle || "").trim()
-            ? _run([helperPath, "rename", "--title", String(requestedTitle).trim()], "rename")
-            : "invalid"
+        return phase === "completed" && String(requestedTitle || "").trim() ? _run([helperPath,
+                                                                                    "rename", "--title",
+                                                                                    String(requestedTitle).trim(
+                                                                                        )], "rename") :
+                                                                              "invalid"
     }
 
     function copyOutputPath() {
@@ -301,7 +347,8 @@ Scope {
         publishError = ""
     }
 
-    onOutputPathChanged: if (!publishing) _clearPublication()
+    onOutputPathChanged: if (!publishing)
+                             _clearPublication()
 
     // Publishing runs on its own process so the helper-backed actions (rename,
     // dismiss) stay available while the upload is in flight.
@@ -333,8 +380,8 @@ Scope {
 
     function _openPath(path) {
         var value = String(path || "")
-        if (openHelperPath.charAt(0) !== "/" || !value.startsWith("/")
-                || value.indexOf("\u0000") !== -1 || actionRunning)
+        if (openHelperPath.charAt(0) !== "/" || !value.startsWith("/") || value.indexOf("\u0000")
+                !== -1 || actionRunning)
             return "unavailable"
         return _run([openHelperPath, value], "open")
     }
@@ -368,19 +415,25 @@ Scope {
         id: statusPoll
         stdout: StdioCollector {
             waitForEnd: true
-            onStreamFinished: if (text.trim() !== "") root._apply(text)
+            onStreamFinished: if (text.trim() !== "")
+                                  root._apply(text)
         }
-        stderr: StdioCollector { waitForEnd: true }
+        stderr: StdioCollector {
+            waitForEnd: true
+        }
     }
 
     Process {
         id: action
         stdout: StdioCollector {
             waitForEnd: true
-            onStreamFinished: if (text.trim() !== "") root._apply(text)
+            onStreamFinished: if (text.trim() !== "")
+                                  root._apply(text)
         }
-        stderr: StdioCollector { waitForEnd: true }
-        onExited: function(exitCode) {
+        stderr: StdioCollector {
+            waitForEnd: true
+        }
+        onExited: function (exitCode) {
             root.actionRunning = false
             if (exitCode !== 0)
                 root.errorMessage = "recording helper exited " + exitCode
@@ -391,9 +444,15 @@ Scope {
 
     Process {
         id: publisher
-        stdout: StdioCollector { id: publisherOut; waitForEnd: true }
-        stderr: StdioCollector { id: publisherErr; waitForEnd: true }
-        onExited: function(exitCode) {
+        stdout: StdioCollector {
+            id: publisherOut
+            waitForEnd: true
+        }
+        stderr: StdioCollector {
+            id: publisherErr
+            waitForEnd: true
+        }
+        onExited: function (exitCode) {
             root.publishing = false
             var url = ""
             if (exitCode === 0) {
@@ -405,9 +464,12 @@ Scope {
                 }
             }
             if (url === "") {
-                var detail = publisherErr.text.trim().split("\n").filter(function(line) { return line !== "" }).pop() || ""
-                root.publishError = detail !== "" ? detail
-                    : exitCode === 0 ? "Publisher returned no URL" : "Publisher exited " + exitCode
+                var detail = publisherErr.text.trim().split("\n").filter(function (line) {
+                    return line !== ""
+                }).pop() || ""
+                root.publishError = detail !== "" ? detail : exitCode === 0
+                                                    ? "Publisher returned no URL" :
+                                                      "Publisher exited " + exitCode
                 root.publishedPath = ""
                 return
             }

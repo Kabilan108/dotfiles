@@ -9,7 +9,7 @@ QtObject {
     property QtObject serviceRegistry: null
     property QtObject compositor: null
     property var screens: []
-    property var componentFactory: function(url, mode) {
+    property var componentFactory: function (url, mode) {
         return Qt.createComponent(url, mode)
     }
 
@@ -52,7 +52,8 @@ QtObject {
     }
 
     function unregisterPanelHost(outputId, host) {
-        if (panelHosts[outputId] !== host) return
+        if (panelHosts[outputId] !== host)
+            return
         var next = _copy(panelHosts)
         delete next[outputId]
         panelHosts = next
@@ -65,7 +66,8 @@ QtObject {
     }
 
     function unregisterMenuHost(outputId, host) {
-        if (menuHosts[outputId] !== host) return
+        if (menuHosts[outputId] !== host)
+            return
         var next = _copy(menuHosts)
         delete next[outputId]
         menuHosts = next
@@ -79,18 +81,19 @@ QtObject {
 
     readonly property QtObject barAnchorFacade: QtObject {
         function set(pluginId, outputId, resolver) {
-            if (typeof resolver !== "function") return
+            if (typeof resolver !== "function")
+                return
             var next = root._copy(root.panelAnchors)
             next[root._anchorKey(pluginId, outputId)] = resolver
             root.panelAnchors = next
         }
         function clear(pluginId, outputId, resolver) {
             var key = root._anchorKey(pluginId, outputId)
-            if (root.panelAnchors[key] === undefined) return
+            if (root.panelAnchors[key] === undefined)
+                return
             // A replacement slot may register before the old slot finishes
             // destruction. Do not let that old slot remove its replacement.
-            if (typeof resolver === "function"
-                    && root.panelAnchors[key] !== resolver)
+            if (typeof resolver === "function" && root.panelAnchors[key] !== resolver)
                 return
             var next = root._copy(root.panelAnchors)
             delete next[key]
@@ -104,9 +107,7 @@ QtObject {
             return -1
         try {
             var value = resolver()
-            return typeof value === "number" && isFinite(value) && value >= 0
-                ? value
-                : -1
+            return typeof value === "number" && isFinite(value) && value >= 0 ? value : -1
         } catch (error) {
             return -1
         }
@@ -119,13 +120,15 @@ QtObject {
     function dismissPanels() {
         var ids = Object.keys(sessionOpen)
         for (var index = 0; index < ids.length; index++)
-            if (sessionOpen[ids[index]] && !_isMenuRoute(ids[index])) close(ids[index])
+            if (sessionOpen[ids[index]] && !_isMenuRoute(ids[index]))
+                close(ids[index])
     }
 
     function dismissMenus() {
         var ids = Object.keys(sessionOpen)
         for (var index = 0; index < ids.length; index++)
-            if (sessionOpen[ids[index]] && _isMenuRoute(ids[index])) close(ids[index])
+            if (sessionOpen[ids[index]] && _isMenuRoute(ids[index]))
+                close(ids[index])
     }
 
     // A banner arriving while the user types must not close a menu.
@@ -134,7 +137,8 @@ QtObject {
         for (var index = 0; index < ids.length; index++) {
             var id = ids[index]
             if (id !== "stillsuit.notifications" && isOpen(id) && !_isMenuRoute(id)
-                    && placementOutputId(id) === String(outputId)) close(id)
+                    && placementOutputId(id) === String(outputId))
+                close(id)
         }
     }
 
@@ -150,9 +154,8 @@ QtObject {
     }
 
     function _isMenuRoute(pluginId) {
-        return pluginId === presentedMenuId
-            || (catalog !== null && catalog.has(pluginId)
-                && catalog.primarySurfaceKind(pluginId) === "menu")
+        return pluginId === presentedMenuId || (catalog !== null && catalog.has(pluginId)
+                                                && catalog.primarySurfaceKind(pluginId) === "menu")
     }
 
     onScreensChanged: Qt.callLater(root._reconcileScreens)
@@ -162,18 +165,21 @@ QtObject {
         ignoreUnknownSignals: true
 
         function onEntryAdded(pluginId) {
-            if (root.catalogReconciliationActive) return
+            if (root.catalogReconciliationActive)
+                return
             root._preloadIfNeeded(pluginId)
         }
 
         function onEntryChanged(pluginId) {
-            if (root.catalogReconciliationActive) return
+            if (root.catalogReconciliationActive)
+                return
             root.unload(pluginId)
             root._preloadIfNeeded(pluginId)
         }
 
         function onEntryRemoved(pluginId) {
-            if (root.catalogReconciliationActive) return
+            if (root.catalogReconciliationActive)
+                return
             root.unload(pluginId)
         }
 
@@ -186,7 +192,8 @@ QtObject {
         }
 
         function onCatalogChanged() {
-            if (root.catalogReconciliationActive) return
+            if (root.catalogReconciliationActive)
+                return
             root._containUnavailable()
             root._preloadAll()
             root._retryQueuedOpenRoutes()
@@ -212,7 +219,8 @@ QtObject {
         ignoreUnknownSignals: true
 
         function onRevisionChanged() {
-            if (root.catalogReconciliationActive) return
+            if (root.catalogReconciliationActive)
+                return
             root._containUnavailable()
             root._preloadAll()
             root._retryQueuedOpenRoutes()
@@ -229,17 +237,14 @@ QtObject {
 
         function onFocusedOutputIdChanged() {
             root._closeMenusAwayFrom(root._currentFocusedOutputId())
-            if (root.presentedId !== ""
-                    && root.placementOutputId(root.presentedId) !== root._currentFocusedOutputId()) {
+            if (root.presentedId !== "" && root.placementOutputId(root.presentedId)
+                    !== root._currentFocusedOutputId()) {
                 root.dismissPanels()
                 return
             }
             var active = root.internalActiveId
-            var kind = active !== "" && root.catalog
-                ? root.catalog.primarySurfaceKind(active)
-                : ""
-            if (active !== "" && kind !== ""
-                    && root.contributionState(active, kind) === "loaded"
+            var kind = active !== "" && root.catalog ? root.catalog.primarySurfaceKind(active) : ""
+            if (active !== "" && kind !== "" && root.contributionState(active, kind) === "loaded"
                     && root.placementOutputId(active) !== root._currentFocusedOutputId())
                 root.close(active)
         }
@@ -312,17 +317,19 @@ QtObject {
         if (contributionState(key, kind) === "error")
             return "error"
 
-        if (internalActiveId !== "" && internalActiveId !== key
-                && internalActiveId !== presentedId)
+        if (internalActiveId !== "" && internalActiveId !== key && internalActiveId !== presentedId)
             close(internalActiveId)
         _setSessionOpen(key, true)
         internalActiveId = key
         var requestedOutput = ""
         if (payloadJson) {
             var payload = JSON.parse(payloadJson)
-            requestedOutput = payload && typeof payload.outputId === "string" ? payload.outputId : ""
+            requestedOutput = payload && typeof payload.outputId === "string" ? payload.outputId :
+                                                                                ""
+
         }
-        _setPlacement(key, _screenById(requestedOutput) ? requestedOutput : _currentFocusedOutputId())
+        _setPlacement(key, _screenById(requestedOutput) ? requestedOutput : _currentFocusedOutputId(
+                                                              ))
 
         if (contributionState(key, kind) === "loaded") {
             _applyPlacement(key)
@@ -347,8 +354,10 @@ QtObject {
         if (!catalog || !catalog.has(key) || catalog.primarySurfaceKind(key) === "")
             return "unknown"
 
-        if (presentedId === key) presentedId = ""
-        if (presentedMenuId === key) presentedMenuId = ""
+        if (presentedId === key)
+            presentedId = ""
+        if (presentedMenuId === key)
+            presentedMenuId = ""
 
         _clearQueue(key)
         _setSessionOpen(key, false)
@@ -363,8 +372,8 @@ QtObject {
             return "error"
         if (_routeGeneration(key) !== generation)
             return "ok"
-        if ((primaryState === "loaded" || primaryState === "loading")
-                && catalog.get(key).manifest.keepLoaded !== true)
+        if ((primaryState === "loaded" || primaryState === "loading") && catalog.get(key).manifest.keepLoaded
+                !== true)
             _unloadObjects(key)
         return primaryState === "error" ? "error" : "ok"
     }
@@ -372,10 +381,13 @@ QtObject {
     function toggle(pluginId, payloadJson) {
         if (isOpen(pluginId) && payloadJson) {
             var requested
-            try { requested = JSON.parse(payloadJson) } catch (error) { return "invalid-payload" }
-            if (requested && typeof requested.outputId === "string"
-                    && _screenById(requested.outputId)
-                    && requested.outputId !== placementOutputId(pluginId))
+            try {
+                requested = JSON.parse(payloadJson)
+            } catch (error) {
+                return "invalid-payload"
+            }
+            if (requested && typeof requested.outputId === "string" && _screenById(
+                        requested.outputId) && requested.outputId !== placementOutputId(pluginId))
                 return open(pluginId, payloadJson)
             if (presentedMenuId === String(pluginId)) {
                 var generation = _routeGeneration(pluginId)
@@ -404,8 +416,10 @@ QtObject {
 
     function unload(pluginId) {
         var key = String(pluginId)
-        if (presentedId === key) presentedId = ""
-        if (presentedMenuId === key) presentedMenuId = ""
+        if (presentedId === key)
+            presentedId = ""
+        if (presentedMenuId === key)
+            presentedMenuId = ""
         _clearQueue(key)
         _setSessionOpen(key, false)
         _setPlacement(key, "")
@@ -460,8 +474,7 @@ QtObject {
     }
 
     function _validateRequest(pluginId, payloadJson, validatePayload) {
-        if (!catalog || !catalog.has(pluginId)
-                || catalog.primarySurfaceKind(pluginId) === "")
+        if (!catalog || !catalog.has(pluginId) || catalog.primarySurfaceKind(pluginId) === "")
             return "unknown"
         if (!catalog.isEnabled(pluginId))
             return "disabled"
@@ -503,9 +516,7 @@ QtObject {
                 return "disabled"
             if (!catalog.hasKind(dependencyId, "service"))
                 continue
-            var dependencyState = serviceRegistry
-                ? serviceRegistry.state(dependencyId)
-                : "unloaded"
+            var dependencyState = serviceRegistry ? serviceRegistry.state(dependencyId) : "unloaded"
             if (dependencyState === "loading" || dependencyState === "unloaded")
                 return "wait"
             if (dependencyState !== "loaded")
@@ -523,7 +534,7 @@ QtObject {
             return "wait"
         if (dependencyState !== "ready") {
             _failPlugin(pluginId, catalog.primarySurfaceKind(pluginId),
-                "surface dependency is unavailable")
+                        "surface dependency is unavailable")
             return "error"
         }
 
@@ -533,8 +544,7 @@ QtObject {
             var contribution = contributionState(pluginId, kind)
             if (contribution === "error")
                 return "error"
-            if (contribution === "unloaded"
-                    && !_startContributionLoad(pluginId, kind, entry))
+            if (contribution === "unloaded" && !_startContributionLoad(pluginId, kind, entry))
                 return "error"
         }
         return "started"
@@ -600,8 +610,8 @@ QtObject {
     function _createInstances(pluginId, component, entry, kind) {
         var scopeKey = ManifestValidator.entryPointKey(kind)
         if (entry.manifest.scope[scopeKey] !== "per-output") {
-            var globalInstance = component.createObject(surfaceHost,
-                _constructionProperties(entry, null, false))
+            var globalInstance = component.createObject(surfaceHost, _constructionProperties(entry,
+                                                                                             null, false))
             if (!globalInstance)
                 return null
             _watchInstance(pluginId, kind, globalInstance)
@@ -611,8 +621,9 @@ QtObject {
         var instances = []
         var currentScreens = _screens()
         for (var index = 0; index < currentScreens.length; index++) {
-            var instance = component.createObject(surfaceHost,
-                _constructionProperties(entry, currentScreens[index], true))
+            var instance = component.createObject(surfaceHost, _constructionProperties(entry,
+                                                                                       currentScreens[index],
+                                                                                       true))
             if (!instance) {
                 _destroyInstances(instances)
                 return null
@@ -629,7 +640,7 @@ QtObject {
     // constructs a fresh instance instead of presenting a dead one.
     function _watchInstance(pluginId, kind, instance) {
         var routeKey = _routeKey(pluginId, kind)
-        instance.Component.destruction.connect(function() {
+        instance.Component.destruction.connect(function () {
             try {
                 if (!root.tearingDown)
                     root._instanceDestroyed(routeKey, pluginId, kind, instance)
@@ -644,9 +655,11 @@ QtObject {
         if (!Array.isArray(instances) || instances.indexOf(instance) === -1)
             return
         console.warn("[stillsuit] " + pluginId + " " + kind
-            + " instance was destroyed outside the router; unloading it")
+                     + " instance was destroyed outside the router; unloading it")
         var objectsNext = _copy(objects)
-        objectsNext[routeKey] = instances.filter(function(item) { return item !== instance })
+        objectsNext[routeKey] = instances.filter(function (item) {
+            return item !== instance
+        })
         objects = objectsNext
         if (!catalog || !catalog.has(pluginId) || catalog.primarySurfaceKind(pluginId) === kind)
             _endRoute(pluginId)
@@ -655,8 +668,10 @@ QtObject {
 
     // Route state only; the dead instance gets no close() call.
     function _endRoute(pluginId) {
-        if (presentedId === pluginId) presentedId = ""
-        if (presentedMenuId === pluginId) presentedMenuId = ""
+        if (presentedId === pluginId)
+            presentedId = ""
+        if (presentedMenuId === pluginId)
+            presentedMenuId = ""
         _clearQueue(pluginId)
         _setSessionOpen(pluginId, false)
         _setPlacement(pluginId, "")
@@ -717,11 +732,13 @@ QtObject {
                 var siblings = contributionInstances(pluginId, kind)
                 for (var index = 0; index < siblings.length; index++) {
                     var sibling = siblings[index]
-                    if (sibling === instance) continue
+                    if (sibling === instance)
+                        continue
                     var oldHost = panelHosts[String(sibling.outputId || "")]
                     if (oldHost && oldHost.panelContent === sibling) {
                         oldHost.dismiss(sibling)
-                        if (typeof sibling.close === "function") sibling.close()
+                        if (typeof sibling.close === "function")
+                            sibling.close()
                     }
                 }
             }
@@ -737,10 +754,10 @@ QtObject {
                 return true
             if (instance.hostedPanel === true) {
                 var host = panelHosts[placementOutputId(pluginId)]
-                if (!host) throw new Error("no panel host for output")
+                if (!host)
+                    throw new Error("no panel host for output")
                 var outgoingId = presentedId
-                host.present(instance,
-                    panelAnchorX(pluginId, placementOutputId(pluginId)))
+                host.present(instance, panelAnchorX(pluginId, placementOutputId(pluginId)))
                 if (!_routeCurrent(pluginId, kind, instance, generation))
                     return true
                 presentedId = pluginId
@@ -750,7 +767,8 @@ QtObject {
                     close(presentedMenuId)
             } else if (instance.hostedMenu === true) {
                 var menuHost = menuHosts[placementOutputId(pluginId)]
-                if (!menuHost) throw new Error("no menu host for output")
+                if (!menuHost)
+                    throw new Error("no menu host for output")
                 var outgoingMenuId = presentedMenuId
                 var outgoingPanelId = presentedId
                 menuHost.present(instance)
@@ -774,8 +792,8 @@ QtObject {
     }
 
     function _routeCurrent(pluginId, kind, instance, generation) {
-        return _routeGeneration(pluginId) === generation && isOpen(pluginId)
-            && _placedInstance(pluginId, kind) === instance
+        return _routeGeneration(pluginId) === generation && isOpen(pluginId) && _placedInstance(
+                    pluginId, kind) === instance
     }
 
     function _invokeClose(pluginId, kind) {
@@ -811,8 +829,7 @@ QtObject {
         for (var outputId in menuHosts) {
             var host = menuHosts[outputId]
             var shownItem = host ? host.menuContent : null
-            if (!shownItem || outputId === targetOutputId
-                    || siblings.indexOf(shownItem) === -1)
+            if (!shownItem || outputId === targetOutputId || siblings.indexOf(shownItem) === -1)
                 continue
             host.dismiss(shownItem)
             if (shownItem !== instance && typeof shownItem.close === "function")
@@ -852,8 +869,8 @@ QtObject {
             return null
         var desiredOutputId = placementOutputId(pluginId)
         for (var index = 0; index < instances.length; index++) {
-            if ("outputId" in instances[index]
-                    && String(instances[index].outputId) === desiredOutputId)
+            if ("outputId" in instances[index] && String(instances[index].outputId)
+                    === desiredOutputId)
                 return instances[index]
         }
         return instances[0]
@@ -862,9 +879,9 @@ QtObject {
     function _preloadAll() {
         if (!catalog || !catalog.loaded)
             return
-        var order = typeof catalog.topologicalOrder === "function"
-            ? catalog.topologicalOrder()
-            : Object.keys(catalog.entries).sort()
+        var order = typeof catalog.topologicalOrder === "function" ? catalog.topologicalOrder() :
+                                                                     Object.keys(
+                                                                         catalog.entries).sort()
         for (var index = 0; index < order.length; index++)
             _preloadIfNeeded(order[index])
     }
@@ -884,9 +901,9 @@ QtObject {
     function _retryQueuedOpenRoutes() {
         if (!catalog || !catalog.loaded)
             return
-        var order = typeof catalog.topologicalOrder === "function"
-            ? catalog.topologicalOrder()
-            : Object.keys(catalog.entries).sort()
+        var order = typeof catalog.topologicalOrder === "function" ? catalog.topologicalOrder() :
+                                                                     Object.keys(
+                                                                         catalog.entries).sort()
         for (var index = 0; index < order.length; index++) {
             var pluginId = order[index]
             if (!isOpen(pluginId) || pendingCount(pluginId) === 0)
@@ -912,8 +929,9 @@ QtObject {
         var ids = _loadedPluginIds()
         for (var index = 0; index < ids.length; index++) {
             var pluginId = ids[index]
-            if (!catalog.has(pluginId) || !catalog.isEnabled(pluginId)
-                    || _dependencyState(catalog.get(pluginId)) !== "ready")
+            if (!catalog.has(pluginId) || !catalog.isEnabled(pluginId) || _dependencyState(catalog.get(
+                                                                                               pluginId))
+                    !== "ready")
                 unload(pluginId)
         }
     }
@@ -922,8 +940,7 @@ QtObject {
         if (!catalog)
             return
         var currentScreens = _screens()
-        if (presentedMenuId !== ""
-                && _screenById(placementOutputId(presentedMenuId)) === null)
+        if (presentedMenuId !== "" && _screenById(placementOutputId(presentedMenuId)) === null)
             close(presentedMenuId)
         if (currentScreens.length === 0) {
             var openIds = Object.keys(sessionOpen).sort()
@@ -938,10 +955,9 @@ QtObject {
                 continue
             var primaryKind = catalog.primarySurfaceKind(pluginId)
             var primaryScopeKey = ManifestValidator.entryPointKey(primaryKind)
-            var primaryIsPerOutput = entry.manifest.scope[primaryScopeKey]
-                === "per-output"
-            var placementNeedsReplacement = isOpen(pluginId)
-                && _screenById(placementOutputId(pluginId)) === null
+            var primaryIsPerOutput = entry.manifest.scope[primaryScopeKey] === "per-output"
+            var placementNeedsReplacement = isOpen(pluginId) && _screenById(placementOutputId(
+                                                                                pluginId)) === null
             var reopenOnReplacement = false
             if (placementNeedsReplacement) {
                 var replacementOutputId = _availableFocusedOutputId()
@@ -960,8 +976,8 @@ QtObject {
             for (var kindIndex = 0; kindIndex < kinds.length; kindIndex++) {
                 var kind = kinds[kindIndex]
                 var scopeKey = ManifestValidator.entryPointKey(kind)
-                if (entry.manifest.scope[scopeKey] !== "per-output"
-                        || contributionState(pluginId, kind) !== "loaded")
+                if (entry.manifest.scope[scopeKey] !== "per-output" || contributionState(pluginId,
+                                                                                         kind) !== "loaded")
                     continue
                 if (!_reconcileContributionScreens(pluginId, kind, entry)) {
                     reconciliationFailed = true
@@ -970,9 +986,8 @@ QtObject {
             }
             if (reconciliationFailed)
                 continue
-            if (reopenOnReplacement && isOpen(pluginId)
-                    && contributionState(pluginId, primaryKind) === "loaded"
-                    && !_deliverOne(pluginId, primaryKind, ""))
+            if (reopenOnReplacement && isOpen(pluginId) && contributionState(pluginId, primaryKind)
+                    === "loaded" && !_deliverOne(pluginId, primaryKind, ""))
                 continue
         }
     }
@@ -997,8 +1012,8 @@ QtObject {
             if (instance) {
                 delete existingById[outputId]
             } else {
-                instance = component.createObject(surfaceHost,
-                    _constructionProperties(entry, screen, true))
+                instance = component.createObject(surfaceHost, _constructionProperties(entry, screen,
+                                                                                       true))
                 if (!instance) {
                     _destroyInstances(created)
                     _failPlugin(pluginId, kind, kind + " screen reconciliation failed")
@@ -1057,8 +1072,10 @@ QtObject {
         _setPlacement(key, "")
         if (internalActiveId === key)
             internalActiveId = presentedId !== key ? presentedId : ""
-        if (presentedId === key) presentedId = ""
-        if (presentedMenuId === key) presentedMenuId = ""
+        if (presentedId === key)
+            presentedId = ""
+        if (presentedMenuId === key)
+            presentedMenuId = ""
         _unloadObjects(key)
         var errorsNext = _copy(errors)
         errorsNext[_routeKey(key, kind)] = String(message || "unknown surface error")
@@ -1085,7 +1102,10 @@ QtObject {
     function _enqueue(pluginId, kind, payloadJson) {
         var queuesNext = _copyQueues(queues)
         var queue = queuesNext[pluginId] || []
-        queue.push({ kind: kind, payload: payloadJson })
+        queue.push({
+                       kind: kind,
+                       payload: payloadJson
+                   })
         queuesNext[pluginId] = queue
         queues = queuesNext
     }
@@ -1134,9 +1154,7 @@ QtObject {
     }
 
     function _availableFocusedOutputId() {
-        var focusedOutputId = compositor
-            ? String(compositor.focusedOutputId || "")
-            : ""
+        var focusedOutputId = compositor ? String(compositor.focusedOutputId || "") : ""
         if (focusedOutputId !== "" && _screenById(focusedOutputId) !== null)
             return focusedOutputId
         var currentScreens = _screens()

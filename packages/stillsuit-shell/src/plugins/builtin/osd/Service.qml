@@ -22,12 +22,29 @@ Scope {
     property bool volumeVisible: false
     property bool brightnessVisible: false
 
-    PwObjectTracker { objects: [Pipewire.defaultAudioSink] }
-    Timer { id: audioReady; interval: 500; running: true; onTriggered: running = false }
+    PwObjectTracker {
+        objects: [Pipewire.defaultAudioSink]
+    }
+    Timer {
+        id: audioReady
+        interval: 500
+        running: true
+        onTriggered: running = false
+    }
     Connections {
         target: Pipewire.defaultAudioSink?.audio ?? null
-        function onVolumeChanged() { if (!audioReady.running) { root.volumeVisible = true; volumeHide.restart() } }
-        function onMutedChanged() { if (!audioReady.running) { root.volumeVisible = true; volumeHide.restart() } }
+        function onVolumeChanged() {
+            if (!audioReady.running) {
+                root.volumeVisible = true
+                volumeHide.restart()
+            }
+        }
+        function onMutedChanged() {
+            if (!audioReady.running) {
+                root.volumeVisible = true
+                volumeHide.restart()
+            }
+        }
     }
     Timer {
         id: volumeHide
@@ -43,7 +60,8 @@ Scope {
         path: root.brightnessMaxPath
         onLoaded: {
             var value = Number(text())
-            if (isFinite(value) && value > 0) root.maxBrightness = value
+            if (isFinite(value) && value > 0)
+                root.maxBrightness = value
         }
     }
     FileView {
@@ -52,7 +70,8 @@ Scope {
         onFileChanged: reload()
         onLoaded: {
             var value = Number(text()) / root.maxBrightness
-            if (!isFinite(value)) return
+            if (!isFinite(value))
+                return
             if (root.brightness >= 0 && Math.abs(value - root.brightness) > 0.005) {
                 root.brightnessVisible = true
                 brightnessHide.restart()

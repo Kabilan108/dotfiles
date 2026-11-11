@@ -13,22 +13,27 @@ Scope {
     readonly property string apiVersion: "1"
     readonly property var settings: context.settings ? context.settings.values : ({})
     readonly property string statusPath: String(settings.meetingStatusPath || "")
-    readonly property string jobsPath: String(settings.meetingJobsPath || _siblingPath(statusPath, "jobs.json"))
-    readonly property string helperPath: String(settings.meetingHelperPath
-        || _siblingPath(String(settings.recorderHelperPath || ""), "meeting-minutes"))
+    readonly property string jobsPath: String(settings.meetingJobsPath || _siblingPath(statusPath,
+                                                                                       "jobs.json"))
+    readonly property string helperPath: String(settings.meetingHelperPath || _siblingPath(String(
+                                                                                               settings.recorderHelperPath
+                                                                                               || ""), "meeting-minutes"))
     readonly property string openHelperPath: String(settings.openHelperPath || "")
     readonly property bool configured: statusPath.charAt(0) === "/" && jobsPath.charAt(0) === "/"
-        && openHelperPath.charAt(0) === "/"
+                                       && openHelperPath.charAt(0) === "/"
     readonly property bool retryConfigured: helperPath.charAt(0) === "/"
-    readonly property bool active: _isProcessingPhase(phase) || phase === "staging" || phase === "queued"
+    readonly property bool active: _isProcessingPhase(phase) || phase === "staging" || phase
+                                   === "queued"
     readonly property bool completed: phase === "completed"
     readonly property bool failed: phase === "error"
-    readonly property bool completionVisible: completed && !completionAcknowledged
-        && currentTime < visibleUntil
+    readonly property bool completionVisible: completed && !completionAcknowledged && currentTime
+                                              < visibleUntil
     readonly property bool failureVisible: failed && currentTime < visibleUntil
-    readonly property bool visible: jobs.length > 0 || active
-        || ((completed || failed) && currentTime < visibleUntil)
-    readonly property int actionableCount: jobs.filter(function(job) { return _isActionablePhase(job.phase) }).length
+    readonly property bool visible: jobs.length > 0 || active || ((completed || failed)
+                                                                  && currentTime < visibleUntil)
+    readonly property int actionableCount: jobs.filter(function (job) {
+        return _isActionablePhase(job.phase)
+    }).length
 
     property string phase: "idle"
     property string label: ""
@@ -40,8 +45,14 @@ Scope {
     property double currentTime: Date.now() / 1000
     property string stateStatus: configured ? "missing" : "unconfigured"
     property string jobsStateStatus: configured ? "missing" : "unconfigured"
-    property var snapshot: ({ schemaVersion: 1, phase: "idle" })
-    property var jobsSnapshot: ({ schemaVersion: 1, jobs: [] })
+    property var snapshot: ({
+                                schemaVersion: 1,
+                                phase: "idle"
+                            })
+    property var jobsSnapshot: ({
+                                    schemaVersion: 1,
+                                    jobs: []
+                                })
     property var jobs: []
     property bool actionRunning: false
     property string retryingJobId: ""
@@ -57,14 +68,14 @@ Scope {
     }
 
     function _isProcessingPhase(value) {
-        return ["preparing", "chunking", "transcribing", "diarizing", "aligning",
-            "generating", "enriching", "writing"].indexOf(String(value || "")) !== -1
+        return ["preparing", "chunking", "transcribing", "diarizing", "aligning", "generating",
+                "enriching", "writing"].indexOf(String(value || "")) !== -1
     }
 
     function _isActionablePhase(value) {
         var phaseName = String(value || "")
         return phaseName === "staging" || phaseName === "queued" || phaseName === "error"
-            || _isProcessingPhase(phaseName)
+                || _isProcessingPhase(phaseName)
     }
 
     function _validJobId(value) {
@@ -80,12 +91,17 @@ Scope {
         total = 0
         visibleUntil = 0
         stateStatus = status
-        snapshot = ({ schemaVersion: 1, phase: "idle" })
+        snapshot = ({
+                        schemaVersion: 1,
+                        phase: "idle"
+                    })
     }
 
     function _apply(raw) {
         var value
-        try { value = JSON.parse(String(raw || "")) } catch (error) {
+        try {
+            value = JSON.parse(String(raw || ""))
+        } catch (error) {
             _reset("corrupt", "meeting status is not JSON")
             return
         }
@@ -95,7 +111,8 @@ Scope {
         }
         var legacy = value.schemaVersion === undefined
         if (legacy && !_isLegacyStatus(value)) {
-            _reset("unsupported", "unversioned meeting status does not match the pre-version schema")
+            _reset("unsupported",
+                   "unversioned meeting status does not match the pre-version schema")
             return
         }
         if (!legacy && Number(value.schemaVersion) !== 1) {
@@ -126,13 +143,15 @@ Scope {
 
     function _applyJobs(raw) {
         var value
-        try { value = JSON.parse(String(raw || "")) } catch (error) {
+        try {
+            value = JSON.parse(String(raw || ""))
+        } catch (error) {
             jobs = []
             jobsStateStatus = "corrupt"
             return
         }
-        if (!value || typeof value !== "object" || Array.isArray(value)
-                || Number(value.schemaVersion) !== 1 || !Array.isArray(value.jobs)) {
+        if (!value || typeof value !== "object" || Array.isArray(value) || Number(
+                    value.schemaVersion) !== 1 || !Array.isArray(value.jobs)) {
             jobs = []
             jobsStateStatus = "unsupported"
             return
@@ -140,25 +159,26 @@ Scope {
         var next = []
         for (var index = 0; index < value.jobs.length; index++) {
             var source = value.jobs[index]
-            if (!source || typeof source !== "object" || Array.isArray(source)
-                    || !_validJobId(source.job_id) || (!_isActionablePhase(source.phase)
-                        && String(source.phase || "") !== "completed"))
+            if (!source || typeof source !== "object" || Array.isArray(source) || !_validJobId(
+                        source.job_id) || (!_isActionablePhase(source.phase) && String(source.phase
+                                                                                       || "")
+                                           !== "completed"))
                 continue
             next.push({
-                jobId: String(source.job_id),
-                phase: String(source.phase),
-                title: String(source.title || "Untitled meeting"),
-                label: String(source.label || ""),
-                progress: Math.max(0, Math.round(Number(source.progress || 0))),
-                total: Math.max(0, Math.round(Number(source.total || 0))),
-                attempt: Math.max(1, Math.round(Number(source.attempt || 1))),
-                error: String(source.error || ""),
-                notePath: String(source.note_path || ""),
-                recordingPath: String(source.recording_path || ""),
-                createdAt: Math.max(0, Number(source.created_at || 0)),
-                updatedAt: Math.max(0, Number(source.updated_at || 0)),
-                completedAt: Math.max(0, Number(source.completed_at || 0))
-            })
+                          jobId: String(source.job_id),
+                          phase: String(source.phase),
+                          title: String(source.title || "Untitled meeting"),
+                          label: String(source.label || ""),
+                          progress: Math.max(0, Math.round(Number(source.progress || 0))),
+                          total: Math.max(0, Math.round(Number(source.total || 0))),
+                          attempt: Math.max(1, Math.round(Number(source.attempt || 1))),
+                          error: String(source.error || ""),
+                          notePath: String(source.note_path || ""),
+                          recordingPath: String(source.recording_path || ""),
+                          createdAt: Math.max(0, Number(source.created_at || 0)),
+                          updatedAt: Math.max(0, Number(source.updated_at || 0)),
+                          completedAt: Math.max(0, Number(source.completed_at || 0))
+                      })
         }
         jobsSnapshot = value
         jobs = next
@@ -166,14 +186,11 @@ Scope {
     }
 
     function _isLegacyStatus(value) {
-        return typeof value.job_id === "string"
-            && typeof value.phase === "string"
-            && typeof value.label === "string"
-            && typeof value.note_path === "string"
-            && typeof value.error === "string"
-            && typeof value.progress === "number" && isFinite(value.progress)
-            && typeof value.total === "number" && isFinite(value.total)
-            && typeof value.updated_at === "number" && isFinite(value.updated_at)
+        return typeof value.job_id === "string" && typeof value.phase === "string"
+                && typeof value.label === "string" && typeof value.note_path === "string"
+                && typeof value.error === "string" && typeof value.progress === "number" && isFinite(
+                    value.progress) && typeof value.total === "number" && isFinite(value.total)
+                && typeof value.updated_at === "number" && isFinite(value.updated_at)
     }
 
     function _job(jobId) {
@@ -198,15 +215,14 @@ Scope {
         var selected = arguments.length > 0 ? _job(jobId) : null
         var selectedPhase = selected ? selected.phase : phase
         var selectedPath = selected ? selected.notePath : notePath
-        if (selectedPhase !== "completed" || !selectedPath.startsWith("/")
-                || selectedPath.indexOf("\u0000") !== -1 || actionRunning)
+        if (selectedPhase !== "completed" || !selectedPath.startsWith("/") || selectedPath.indexOf(
+                    "\u0000") !== -1 || actionRunning)
             return "unavailable"
         return _runAction([openHelperPath, selectedPath], "")
     }
 
     function copyNotePath() {
-        if (!completionVisible || !notePath.startsWith("/")
-                || notePath.indexOf("\u0000") !== -1)
+        if (!completionVisible || !notePath.startsWith("/") || notePath.indexOf("\u0000") !== -1)
             return "unavailable"
         Quickshell.clipboardText = notePath
         copiedNotePath = notePath
@@ -272,7 +288,7 @@ Scope {
 
     Process {
         id: action
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             root.actionRunning = false
             root.retryingJobId = ""
             root.discardingJobId = ""

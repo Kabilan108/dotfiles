@@ -21,29 +21,24 @@ Item {
     readonly property int barCount: dictator ? dictator.barCount : 23
     readonly property real barMaxHeight: 26
     readonly property real barMinHeight: 3
-    readonly property bool reducedMotion: context.settings
-        && context.settings.values
-        && context.settings.values.reducedMotion === true
-    readonly property color meterColor: state === "error"
-        ? theme.semantic.status.danger
-        : state === "recording"
-            ? theme.semantic.signal.microphone
-            : state === "transcribing" || state === "typing"
-                ? theme.semantic.status.info
-                : theme.semantic.content.disabled
+    readonly property bool reducedMotion: context.settings && context.settings.values
+                                          && context.settings.values.reducedMotion === true
+    readonly property color meterColor: state === "error" ? theme.semantic.status.danger : state
+                                                            === "recording"
+                                                            ? theme.semantic.signal.microphone :
+                                                              state === "transcribing" || state
+                                                              === "typing"
+                                                              ? theme.semantic.status.info :
+                                                                theme.semantic.content.disabled
     readonly property string statusText: !service || !service.configured
-        ? "Dictator is not configured"
-        : !live
-            ? "Daemon not running"
-            : state === "recording"
-                ? "Recording · " + String(dictator.durationText || "")
-                : state === "transcribing"
-                    ? "Transcribing…"
-                    : state === "typing"
-                        ? "Pasting…"
-                        : state === "error"
-                            ? "Last recording failed"
-                            : "Ready"
+                                         ? "Dictator is not configured" : !live
+                                           ? "Daemon not running" : state === "recording"
+                                             ? "Recording · " + String(dictator.durationText || "") :
+                                               state === "transcribing" ? "Transcribing…" : state
+                                                                          === "typing" ? "Pasting…" :
+                                                                                         state === "error"
+                                                                                         ? "Last recording failed" :
+                                                                                           "Ready"
     property bool opened: false
     // keepLoaded panels exist on every output; only the opened one follows
     // the meter so hidden panels do no work per scan tick.
@@ -52,16 +47,26 @@ Item {
 
     function open(payloadJson) {
         opened = true
-        if (service) service.refreshRecent()
+        if (service)
+            service.refreshRecent()
     }
-    function close() { opened = false }
-    function closeSurface() { context.actions.surfaceClose("stillsuit.dictation") }
+    function close() {
+        opened = false
+    }
+    function closeSurface() {
+        context.actions.surfaceClose("stillsuit.dictation")
+    }
 
-    function toggle() { return service ? service.toggle() : "unavailable" }
-    function cancel() { return service ? service.cancel() : "unavailable" }
+    function toggle() {
+        return service ? service.toggle() : "unavailable"
+    }
+    function cancel() {
+        return service ? service.cancel() : "unavailable"
+    }
     function openWindowAndClose() {
         var result = service ? service.openWindow() : "unavailable"
-        if (result === "started") closeSurface()
+        if (result === "started")
+            closeSurface()
         return result
     }
     function copyRow(row) {
@@ -75,15 +80,17 @@ Item {
             var pulse = clamp(1 - Math.abs(index - scanPos) / 4, 0, 1)
             return barMinHeight + Math.pow(pulse, 0.8) * (barMaxHeight - barMinHeight) * 0.7
         }
-        var level = state === "recording"
-            ? Math.pow(clamp((levelAt(index) - 0.15) / 0.85, 0, 1), 1.2)
-            : 0
+        var level = state === "recording" ? Math.pow(clamp((levelAt(index) - 0.15) / 0.85, 0, 1),
+                                                     1.2) : 0
         return barMinHeight + level * (barMaxHeight - barMinHeight)
     }
-    function clamp(value, minimum, maximum) { return Math.min(Math.max(value, minimum), maximum) }
+    function clamp(value, minimum, maximum) {
+        return Math.min(Math.max(value, minimum), maximum)
+    }
     function timeLabel(timestamp) {
         var date = new Date(String(timestamp || ""))
-        if (isNaN(date.getTime())) return ""
+        if (isNaN(date.getTime()))
+            return ""
         return Qt.formatTime(date, "HH:mm")
     }
     function durationLabel(milliseconds) {
@@ -93,7 +100,9 @@ Item {
         return minutes + ":" + (rest < 10 ? "0" : "") + rest.toFixed(1)
     }
     function singleLine(text) {
-        return String(text || "").split(/\s+/).filter(function(part) { return part !== "" }).join(" ")
+        return String(text || "").split(/\s+/).filter(function (part) {
+            return part !== ""
+        }).join(" ")
     }
 
     Ui.ShellSurface {
@@ -103,12 +112,17 @@ Item {
 
         MouseArea {
             anchors.fill: parent
-            onClicked: function(mouse) { mouse.accepted = true }
+            onClicked: function (mouse) {
+                mouse.accepted = true
+            }
         }
 
         ColumnLayout {
             id: content
-            anchors { fill: parent; margins: root.theme.metrics.panelPadding }
+            anchors {
+                fill: parent
+                margins: root.theme.metrics.panelPadding
+            }
             spacing: root.theme.metrics.spaceUnit * 3
 
             Ui.ShellPanelHeader {
@@ -144,11 +158,10 @@ Item {
                     Rectangle {
                         anchors.fill: parent
                         radius: width / 2
-                        color: !recordButton.enabled
-                            ? root.theme.component.control.disabled
-                            : recordButton.recordingNow
-                                ? root.theme.component.control.background
-                                : root.theme.semantic.accent.primary
+                        color: !recordButton.enabled ? root.theme.component.control.disabled :
+                                                       recordButton.recordingNow
+                                                       ? root.theme.component.control.background :
+                                                         root.theme.semantic.accent.primary
                         border.width: recordButton.recordingNow ? 1 : 0
                         border.color: root.theme.component.control.outline
                         opacity: recordButton.enabled ? (recordButton.pressed ? 0.85 : 1) : 0.6
@@ -158,20 +171,21 @@ Item {
                         width: 14
                         height: 14
                         radius: recordButton.recordingNow ? 3 : 7
-                        color: recordButton.recordingNow
-                            ? root.theme.semantic.signal.microphone
-                            : root.theme.semantic.accent.onAccent
+                        color: recordButton.recordingNow ? root.theme.semantic.signal.microphone :
+                                                           root.theme.semantic.accent.onAccent
                     }
                 }
 
                 Item {
                     id: meter
                     readonly property real gap: 3
-                    readonly property real barWidth: Math.max(2, (width - gap * (root.barCount - 1)) / root.barCount)
+                    readonly property real barWidth: Math.max(2, (width - gap * (root.barCount
+                                                                                 - 1)) / root.barCount)
 
                     Layout.fillWidth: true
                     Layout.preferredHeight: root.barMaxHeight
-                    opacity: root.state === "recording" || root.state === "transcribing" ? 0.95 : 0.5
+                    opacity: root.state === "recording" || root.state === "transcribing" ? 0.95 :
+                                                                                           0.5
 
                     Repeater {
                         model: root.barCount
@@ -224,8 +238,7 @@ Item {
                 theme: root.theme
                 iconName: "microphone"
                 text: root.service && root.service.recentStatus === "error"
-                    ? "Could not read history"
-                    : "No recordings yet"
+                      ? "Could not read history" : "No recordings yet"
                 error: root.service && root.service.recentStatus === "error"
             }
 
@@ -240,7 +253,8 @@ Item {
                     theme: root.theme
                     reserveIconColumn: false
                     label: root.singleLine(modelData.text) || "No speech was transcribed"
-                    description: root.timeLabel(modelData.timestamp) + " · " + root.durationLabel(modelData.durationMs)
+                    description: root.timeLabel(modelData.timestamp) + " · " + root.durationLabel(
+                                     modelData.durationMs)
                     trailingIconName: "copy"
                     accessibleName: "Copy transcript from " + root.timeLabel(modelData.timestamp)
                     onClicked: root.copyRow(modelData)

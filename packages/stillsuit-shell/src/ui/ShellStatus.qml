@@ -16,16 +16,12 @@ Rectangle {
     property bool wrap: false
     property int maximumLines: 3
 
-    readonly property string effectiveAccessibleName: accessibleName !== ""
-        ? accessibleName
-        : label
+    readonly property string effectiveAccessibleName: accessibleName !== "" ? accessibleName : label
 
     implicitWidth: statusRow.implicitWidth + (compact ? 12 : 16)
     implicitHeight: compact ? 22 : Math.max(28, statusRow.implicitHeight + 12)
     radius: theme.metrics.radiusSmall
-    color: status === "danger"
-        ? theme.component.panel.rowDanger
-        : theme.component.panel.section
+    color: status === "danger" ? theme.component.panel.rowDanger : theme.component.panel.section
     border.width: 0
 
     RowLayout {

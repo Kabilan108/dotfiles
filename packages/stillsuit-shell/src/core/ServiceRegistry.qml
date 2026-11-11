@@ -9,8 +9,8 @@ QtObject {
     // fixture `model`. Production leaves this null so services bind to hardware.
     property var constructionProvider: null
     readonly property int revision: internalRevision
-    readonly property bool ready: catalog !== null && catalog.loaded
-        && !catalogReconciliationActive && pendingLoads === 0
+    readonly property bool ready: catalog !== null && catalog.loaded &&
+                                  !catalogReconciliationActive && pendingLoads === 0
     readonly property int objectCount: Object.keys(objects).length
 
     property int internalRevision: 0
@@ -32,18 +32,21 @@ QtObject {
         ignoreUnknownSignals: true
 
         function onEntryAdded(pluginId) {
-            if (root.catalogReconciliationActive) return
+            if (root.catalogReconciliationActive)
+                return
             root._loadEligibleServices()
         }
 
         function onEntryChanged(pluginId) {
-            if (root.catalogReconciliationActive) return
+            if (root.catalogReconciliationActive)
+                return
             root._prepareReload(pluginId)
             root._loadEligibleServices()
         }
 
         function onEntryRemoved(pluginId) {
-            if (root.catalogReconciliationActive) return
+            if (root.catalogReconciliationActive)
+                return
             root._containAndUnload(pluginId)
             if (root.hostContext)
                 root.hostContext.dropContext(pluginId)
@@ -64,7 +67,8 @@ QtObject {
         }
 
         function onCatalogChanged() {
-            if (root.catalogReconciliationActive) return
+            if (root.catalogReconciliationActive)
+                return
             root._loadEligibleServices()
         }
 
@@ -153,11 +157,9 @@ QtObject {
             progress = false
             for (var index = 0; index < order.length; index++) {
                 var pluginId = order[index]
-                if (!catalog.hasKind(pluginId, "service")
-                        || !catalog.isEnabled(pluginId)
-                        || state(pluginId) !== "unloaded")
+                if (!catalog.hasKind(pluginId, "service") || !catalog.isEnabled(pluginId) || state(
+                            pluginId) !== "unloaded")
                     continue
-
                 var dependencyState = _dependencyState(catalog.get(pluginId))
                 if (dependencyState === "wait" || dependencyState === "blocked")
                     continue
@@ -232,8 +234,7 @@ QtObject {
                 continue
             if (roots.indexOf(pluginId) === -1)
                 dependencyContained(pluginId)
-            if ((catalog && catalog.hasKind(pluginId, "service"))
-                    || state(pluginId) !== "unloaded")
+            if ((catalog && catalog.hasKind(pluginId, "service")) || state(pluginId) !== "unloaded")
                 _unloadOne(pluginId)
             _clearError(pluginId)
             delete affected[pluginId]
@@ -241,7 +242,7 @@ QtObject {
     }
 
     function _finishCatalogReconciliation(changedIds, removedIds) {
-        Qt.callLater(function() {
+        Qt.callLater(function () {
             root.catalogReconciliationActive = false
             root._loadEligibleServices()
         })
@@ -262,9 +263,8 @@ QtObject {
                 if (affected[candidate] === true)
                     continue
                 var dependencies = catalog.get(candidate).manifest.dependencies || []
-                for (var dependencyIndex = 0;
-                        dependencyIndex < dependencies.length;
-                        dependencyIndex++) {
+                for (var dependencyIndex = 0; dependencyIndex
+                     < dependencies.length; dependencyIndex++) {
                     if (affected[dependencies[dependencyIndex]] === true) {
                         affected[candidate] = true
                         changed = true
@@ -322,8 +322,11 @@ QtObject {
             }
 
             var context = hostContext ? hostContext.contextFor(entry) : null
-            var properties = { context: context }
-            var extra = typeof constructionProvider === "function" ? constructionProvider(pluginId) : null
+            var properties = {
+                context: context
+            }
+            var extra = typeof constructionProvider === "function" ? constructionProvider(pluginId) :
+                                                                     null
             for (var key in (extra || {}))
                 properties[key] = extra[key]
             var instance = component.createObject(serviceHost, properties)

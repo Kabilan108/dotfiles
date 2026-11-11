@@ -7,12 +7,14 @@ import "../../../ui" as Ui
 Item {
     id: root
     readonly property bool hostedPanel: true
-    implicitWidth: root.recording && root.recording.active
-        ? activeContent.implicitWidth + root.context.theme.metrics.panelPadding * 2
-        : root.recording && root.recording.completed
-            ? Math.max(root.context.theme.metrics.panelWidth,
-                footerActions.implicitWidth + root.context.theme.metrics.panelPadding * 2)
-            : root.context.theme.metrics.panelWidth
+    implicitWidth: root.recording && root.recording.active ? activeContent.implicitWidth
+                                                             + root.context.theme.metrics.panelPadding
+                                                             * 2 : root.recording
+                                                             && root.recording.completed ? Math.max(
+                                                                                               root.context.theme.metrics.panelWidth,
+                                                                                               footerActions.implicitWidth
+                                                                                               + root.context.theme.metrics.panelPadding
+                                                                                               * 2) : root.context.theme.metrics.panelWidth
     implicitHeight: panelContent.implicitHeight + root.context.theme.metrics.panelPadding * 2
     visible: false
 
@@ -26,16 +28,17 @@ Item {
     readonly property int meetingQueueRowCount: meetingQueue.rowCount
     readonly property bool completionCountdownRunning: completionCountdown.running
     readonly property var monitorRows: {
-        var rows = context.compositor && Array.isArray(context.compositor.outputs) ? context.compositor.outputs : [];
+        var rows = context.compositor && Array.isArray(context.compositor.outputs)
+                ? context.compositor.outputs : []
         if (rows.length > 0)
-            return rows;
-        var focused = context.compositor ? String(context.compositor.focusedOutputId || "") : "";
+            return rows
+        var focused = context.compositor ? String(context.compositor.focusedOutputId || "") : ""
         return focused ? [
-            {
-                id: focused,
-                name: focused
-            }
-        ] : [];
+                             {
+                                 id: focused,
+                                 name: focused
+                             }
+                         ] : []
     }
     property bool opened: false
     property string selectedMonitor: ""
@@ -47,9 +50,18 @@ Item {
     property bool annotate: false
     property bool dismissWhenActionCompletes: false
     readonly property var captureTargets: [
-        { id: "monitor", label: "Monitor" },
-        { id: "region", label: "Region" },
-        { id: "window", label: "Window" }
+        {
+            id: "monitor",
+            label: "Monitor"
+        },
+        {
+            id: "region",
+            label: "Region"
+        },
+        {
+            id: "window",
+            label: "Window"
+        }
     ]
     readonly property bool monitorTarget: captureTarget === "monitor"
     readonly property bool exporting: recording && recording.exportPhase === "running"
@@ -61,173 +73,185 @@ Item {
     readonly property bool gifExportBusy: gifButton.busy
     readonly property bool webmExportBusy: webmButton.busy
     readonly property bool exportResultVisible: recording && recording.phase === "completed"
-        && recording.exportPhase === "completed"
+                                                && recording.exportPhase === "completed"
     readonly property bool exportErrorVisible: recording && recording.phase === "completed"
-        && recording.exportPhase === "error"
+                                               && recording.exportPhase === "error"
     readonly property string exportErrorText: exportErrorVisible ? recording.exportError : ""
 
     function open(payloadJson) {
-        opened = true;
+        opened = true
         if (meeting)
-            meeting.refresh();
+            meeting.refresh()
         if (!recording || recording.phase === "idle" || recording.phase === "error")
-            resetSetup();
+            resetSetup()
         if (recording && recording.completed) {
-            renameTitle = recording.title || recording.outputFilename.replace(/\.mp4$/, "");
-            completionCountdown.start();
+            renameTitle = recording.title || recording.outputFilename.replace(/\.mp4$/, "")
+            completionCountdown.start()
         }
     }
 
     function close() {
-        opened = false;
-        completionCountdown.stop();
+        opened = false
+        completionCountdown.stop()
         if (recording && recording.completed) {
             if (recording.actionRunning)
-                dismissWhenActionCompletes = true;
+                dismissWhenActionCompletes = true
             else
-                recording.dismiss();
+                recording.dismiss()
         }
     }
 
     function resetSetup() {
-        var focused = context.compositor ? String(context.compositor.focusedOutputId || "") : "";
+        var focused = context.compositor ? String(context.compositor.focusedOutputId || "") : ""
         selectedMonitor = monitorRows.some(function (row) {
-            return monitorName(row) === focused;
-        }) ? focused : monitorRows.length > 0 ? monitorName(monitorRows[0]) : "";
-        draftTitle = recording && typeof recording.defaultTitle === "function" ? recording.defaultTitle() : "Recording";
-        captureTarget = "monitor";
-        annotate = false;
-        applyAudioDefaults();
+            return monitorName(row) === focused
+        }) ? focused : monitorRows.length > 0 ? monitorName(monitorRows[0]) : ""
+        draftTitle = recording && typeof recording.defaultTitle === "function"
+                ? recording.defaultTitle() : "Recording"
+        captureTarget = "monitor"
+        annotate = false
+        applyAudioDefaults()
     }
 
     // Monitor captures keep the configured audio defaults. Region and window
     // captures are silent unless the user opts in for this recording.
     function applyAudioDefaults() {
         if (monitorTarget) {
-            desktopAudio = recording ? recording.defaultDesktopAudio : true;
-            microphone = recording ? recording.defaultMicrophone : false;
+            desktopAudio = recording ? recording.defaultDesktopAudio : true
+            microphone = recording ? recording.defaultMicrophone : false
         } else {
-            desktopAudio = false;
-            microphone = false;
+            desktopAudio = false
+            microphone = false
         }
     }
 
     function selectTarget(target) {
-        var value = String(target || "");
-        if (!captureTargets.some(function (row) { return row.id === value; }))
-            return "invalid";
+        var value = String(target || "")
+        if (!captureTargets.some(function (row) {
+            return row.id === value
+        }))
+            return "invalid"
         if (value === captureTarget)
-            return "unchanged";
-        captureTarget = value;
-        applyAudioDefaults();
-        return "selected";
+            return "unchanged"
+        captureTarget = value
+        applyAudioDefaults()
+        return "selected"
     }
 
     function monitorName(row) {
-        return String(row && (row.name || row.id) || "");
+        return String(row && (row.name || row.id) || "")
     }
 
     function monitorDescription(row) {
         if (!row)
-            return "Display output";
+            return "Display output"
         var makeModel = [String(row.make || ""), String(row.model || "")].filter(function (value) {
-            return value !== "";
-        }).join(" ");
-        var logical = row.logical || {};
-        var modes = Array.isArray(row.modes) ? row.modes : [];
-        var mode = modes[Math.max(0, Number(row.current_mode || 0))] || {};
-        var width = Number(mode.width || logical.width || 0);
-        var height = Number(mode.height || logical.height || 0);
-        var geometry = width > 0 && height > 0 ? width + "×" + height : "";
+            return value !== ""
+        }).join(" ")
+        var logical = row.logical || {}
+        var modes = Array.isArray(row.modes) ? row.modes : []
+        var mode = modes[Math.max(0, Number(row.current_mode || 0))] || {}
+        var width = Number(mode.width || logical.width || 0)
+        var height = Number(mode.height || logical.height || 0)
+        var geometry = width > 0 && height > 0 ? width + "×" + height : ""
         return [makeModel, geometry].filter(function (value) {
-            return value !== "";
-        }).join(" · ") || "Display output";
+            return value !== ""
+        }).join(" · ") || "Display output"
     }
 
     function startCapture() {
         if (!recording)
-            return "unavailable";
-        var result = recording.start(recording.recordingDirectory, selectedMonitor, draftTitle.trim(),
-            desktopAudio, microphone, captureTarget, monitorTarget ? annotate : true);
+            return "unavailable"
+        var result = recording.start(recording.recordingDirectory, selectedMonitor, draftTitle.trim(
+                                         ), desktopAudio, microphone, captureTarget, monitorTarget
+                                     ? annotate : true)
         // Region and window captures hand the screen to the selector, so the
         // panel closes before the helper answers. A cancelled selector leaves
         // the recorder idle and nothing else happens.
         if (result === "started")
-            closeSurface();
-        return result;
+            closeSurface()
+        return result
     }
 
     function exportRecording(format) {
         if (!recording)
-            return "unavailable";
-        var result = recording.exportAs(format);
+            return "unavailable"
+        var result = recording.exportAs(format)
         if (result === "started")
-            completionCountdown.stop();
-        return result;
+            completionCountdown.stop()
+        return result
     }
 
     function copyExportPathAndClose() {
-        return runCompletedAction(function () { return recording.copyExportPath(); });
+        return runCompletedAction(function () {
+            return recording.copyExportPath()
+        })
     }
 
     function togglePauseAndClose() {
         if (!recording)
-            return "unavailable";
-        var result = recording.togglePause();
+            return "unavailable"
+        var result = recording.togglePause()
         if (result === "started")
-            closeSurface();
-        return result;
+            closeSurface()
+        return result
     }
 
     function cancelAndClose() {
         if (!recording)
-            return "unavailable";
-        var result = recording.cancel();
+            return "unavailable"
+        var result = recording.cancel()
         if (result === "started")
-            closeSurface();
-        return result;
+            closeSurface()
+        return result
     }
 
     function finishAsMeetingAndClose() {
         if (!recording)
-            return "unavailable";
-        var result = recording.stopAsMeeting();
+            return "unavailable"
+        var result = recording.stopAsMeeting()
         if (result === "started")
-            closeSurface();
-        return result;
+            closeSurface()
+        return result
     }
 
     function runCompletedAction(action) {
         if (!recording)
-            return "unavailable";
-        var result = action();
-        closeSurface();
-        return result;
+            return "unavailable"
+        var result = action()
+        closeSurface()
+        return result
     }
 
     function openRecordingAndClose() {
-        return runCompletedAction(function () { return recording.openRecording(); });
+        return runCompletedAction(function () {
+            return recording.openRecording()
+        })
     }
 
     function openFolderAndClose() {
-        return runCompletedAction(function () { return recording.openFolder(); });
+        return runCompletedAction(function () {
+            return recording.openFolder()
+        })
     }
 
     function copyOutputPathAndClose() {
-        return runCompletedAction(function () { return recording.copyOutputPath(); });
+        return runCompletedAction(function () {
+            return recording.copyOutputPath()
+        })
     }
 
     function publishRecording() {
         if (!recording)
-            return "unavailable";
-        var result = recording.publish();
+            return "unavailable"
+        var result = recording.publish()
         if (result === "started")
-            completionCountdown.stop();
-        return result;
+            completionCountdown.stop()
+        return result
     }
 
     function closeSurface() {
-        context.actions.surfaceClose("stillsuit.recording");
+        context.actions.surfaceClose("stillsuit.recording")
     }
 
     component RoundControl: Ui.ShellAction {
@@ -247,13 +271,10 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: width / 2
-            color: !control.enabled
-                ? control.theme.component.control.disabled
-                : control.pressed
-                    ? control.theme.component.control.pressed
-                    : control.hovered
-                        ? control.theme.component.control.hover
-                        : control.theme.component.control.background
+            color: !control.enabled ? control.theme.component.control.disabled : control.pressed
+                                      ? control.theme.component.control.pressed : control.hovered
+                                        ? control.theme.component.control.hover :
+                                          control.theme.component.control.background
             border.width: 1
             border.color: control.theme.component.control.outline
             opacity: control.enabled ? 1 : 0.74
@@ -264,9 +285,8 @@ Item {
             visible: control.busy
             theme: control.theme
             sizeRole: "small"
-            color: control.dangerIcon
-                ? control.theme.semantic.status.danger
-                : control.theme.component.control.text
+            color: control.dangerIcon ? control.theme.semantic.status.danger :
+                                        control.theme.component.control.text
         }
 
         Ui.ShellIcon {
@@ -275,11 +295,9 @@ Item {
             theme: control.theme
             name: control.iconName
             sizeRole: "small"
-            color: !control.enabled
-                ? control.theme.component.control.textDisabled
-                : control.dangerIcon
-                    ? control.theme.semantic.status.danger
-                    : control.theme.component.control.text
+            color: !control.enabled ? control.theme.component.control.textDisabled :
+                                      control.dangerIcon ? control.theme.semantic.status.danger :
+                                                           control.theme.component.control.text
             role: control.dangerIcon ? "danger" : "primary"
         }
     }
@@ -287,8 +305,8 @@ Item {
     CompletionCountdown {
         id: completionCountdown
         timeoutMs: 30000
-        interactionActive: completionHover.hovered || completionFocus.activeFocus
-            || (root.recording && root.recording.publishing) || root.exporting
+        interactionActive: completionHover.hovered || completionFocus.activeFocus || (
+                               root.recording && root.recording.publishing) || root.exporting
         onExpired: root.closeSurface()
     }
 
@@ -302,57 +320,58 @@ Item {
     // A stop issued outside the panel (the omarecord overlay toolbar) still
     // has to surface the completed view, but only on the recorded output.
     property bool wasActive: recording ? recording.active : false
-    readonly property bool ownsRecording: recording
-        && String(recording.monitor || "") === root.outputId
+    readonly property bool ownsRecording: recording && String(recording.monitor || "")
+                                          === root.outputId
 
     function presentCompletion() {
         if (opened || !ownsRecording)
-            return;
-        context.actions.surfaceOpen("stillsuit.recording", JSON.stringify({ outputId: root.outputId }));
+            return
+        context.actions.surfaceOpen("stillsuit.recording", JSON.stringify({
+                                                                              outputId: root.outputId
+                                                                          }))
     }
 
     Connections {
         target: root.recording
         function onPhaseChanged() {
             if (!root.recording)
-                return;
-            var finishedNow = root.wasActive && root.recording.completed;
-            root.wasActive = root.recording.active;
+                return
+            var finishedNow = root.wasActive && root.recording.completed
+            root.wasActive = root.recording.active
             if (root.opened && root.recording.completed) {
-                root.renameTitle = root.recording.title;
-                completionCountdown.start();
+                root.renameTitle = root.recording.title
+                completionCountdown.start()
             } else if (finishedNow) {
-                root.presentCompletion();
+                root.presentCompletion()
             } else if (!root.recording.completed) {
-                completionCountdown.stop();
-                root.dismissWhenActionCompletes = false;
+                completionCountdown.stop()
+                root.dismissWhenActionCompletes = false
             }
         }
         function onPublishingChanged() {
             if (root.recording && !root.recording.publishing && root.opened
                     && root.recording.completed)
-                completionCountdown.start();
+                completionCountdown.start()
         }
         function onExportPhaseChanged() {
             if (root.recording && root.recording.exportPhase !== "running" && root.opened
                     && root.recording.completed)
-                completionCountdown.start();
+                completionCountdown.start()
         }
         function onActionRunningChanged() {
-            if (!root.recording || root.recording.actionRunning
-                    || !root.dismissWhenActionCompletes)
-                return;
-            root.dismissWhenActionCompletes = false;
+            if (!root.recording || root.recording.actionRunning || !root.dismissWhenActionCompletes)
+                return
+            root.dismissWhenActionCompletes = false
             if (root.recording.completed)
-                root.recording.dismiss();
+                root.recording.dismiss()
         }
         function onOutputPathChanged() {
             if (root.recording && root.recording.completed)
-                root.renameTitle = root.recording.outputFilename.replace(/\.mp4$/, "");
+                root.renameTitle = root.recording.outputFilename.replace(/\.mp4$/, "")
         }
         function onTitleChanged() {
             if (root.recording && root.recording.completed)
-                root.renameTitle = root.recording.title;
+                root.renameTitle = root.recording.title
         }
     }
 
@@ -366,7 +385,7 @@ Item {
         MouseArea {
             anchors.fill: parent
             onClicked: function (mouse) {
-                mouse.accepted = true;
+                mouse.accepted = true
             }
         }
 
@@ -382,7 +401,15 @@ Item {
                 visible: !root.recording || !root.recording.active
                 Layout.fillWidth: true
                 theme: root.context.theme
-                title: root.recording && root.recording.completed ? "Recording saved" : root.recording && root.recording.phase === "error" ? "Recording failed" : root.recording && root.recording.active ? "Screen recording" : "New recording"
+                title: root.recording && root.recording.completed ? "Recording saved" :
+                                                                    root.recording
+                                                                    && root.recording.phase
+                                                                    === "error"
+                                                                    ? "Recording failed" :
+                                                                      root.recording
+                                                                      && root.recording.active
+                                                                      ? "Screen recording" :
+                                                                        "New recording"
 
                 Ui.ShellButton {
                     theme: root.context.theme
@@ -505,7 +532,7 @@ Item {
                     description: "Capture the selected output stream"
                     checked: root.desktopAudio
                     onToggled: function (requestedChecked) {
-                        root.desktopAudio = requestedChecked;
+                        root.desktopAudio = requestedChecked
                     }
                 }
                 Ui.ShellToggle {
@@ -515,7 +542,7 @@ Item {
                     description: "Mix the default microphone into the recording"
                     checked: root.microphone
                     onToggled: function (requestedChecked) {
-                        root.microphone = requestedChecked;
+                        root.microphone = requestedChecked
                     }
                 }
 
@@ -533,7 +560,7 @@ Item {
                     description: "Select an area and draw on it while recording"
                     checked: root.annotate
                     onToggled: function (requestedChecked) {
-                        root.annotate = requestedChecked;
+                        root.annotate = requestedChecked
                     }
                 }
 
@@ -553,7 +580,8 @@ Item {
                         iconName: "record"
                         active: true
                         busy: root.recording && root.recording.actionRunning
-                        enabled: root.recording && root.selectedMonitor !== "" && root.draftTitle.trim() !== ""
+                        enabled: root.recording && root.selectedMonitor !== ""
+                                 && root.draftTitle.trim() !== ""
                         onClicked: root.startCapture()
                     }
                 }
@@ -570,7 +598,8 @@ Item {
                     id: pauseControl
                     theme: root.context.theme
                     iconName: root.recording && root.recording.paused ? "play" : "pause"
-                    accessibleName: root.recording && root.recording.paused ? "Resume recording" : "Pause recording"
+                    accessibleName: root.recording && root.recording.paused ? "Resume recording" :
+                                                                              "Pause recording"
                     busy: root.recording && root.recording.actionRunning
                     onClicked: root.togglePauseAndClose()
                 }
@@ -626,11 +655,11 @@ Item {
                             id: renameInput
                             Layout.fillWidth: true
                             implicitHeight: root.context.theme.metrics.rowHeight
-                                - root.context.theme.metrics.spaceUnit * 2
+                                            - root.context.theme.metrics.spaceUnit * 2
                             text: root.renameTitle
                             selectByMouse: true
                             leftPadding: root.context.theme.metrics.iconSmall
-                                + root.context.theme.metrics.spaceUnit * 5
+                                         + root.context.theme.metrics.spaceUnit * 5
                             color: root.context.theme.semantic.content.primary
                             selectionColor: root.context.theme.semantic.accent.primary
                             selectedTextColor: root.context.theme.semantic.accent.onAccent
@@ -638,7 +667,7 @@ Item {
                             font.pixelSize: root.context.theme.typography.baseSize
                             onTextEdited: root.renameTitle = text
                             onAccepted: if (root.renameTitle.trim() !== "")
-                                root.recording.rename(root.renameTitle)
+                                            root.recording.rename(root.renameTitle)
                             background: Rectangle {
                                 radius: root.context.theme.metrics.radiusSmall
                                 color: root.context.theme.component.control.background
@@ -675,10 +704,11 @@ Item {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
                             theme: root.context.theme
-                            text: (root.recording ? root.recording.elapsedText : "00:00") + " · " + (root.recording ? root.recording.outputSizeText : "0 B")
+                            text: (root.recording ? root.recording.elapsedText : "00:00") + " · " + (
+                                      root.recording ? root.recording.outputSizeText : "0 B")
                             role: "muted"
                             font.pixelSize: root.context.theme.typography.baseSize
-                                + root.context.theme.metrics.spaceUnit / 2
+                                            + root.context.theme.metrics.spaceUnit / 2
                             font.weight: root.context.theme.typography.weightMedium
                         }
                     }
@@ -690,16 +720,21 @@ Item {
                         Ui.ShellButton {
                             id: publishButton
                             readonly property bool published: root.recording
-                                && root.recording.publishedUrl !== ""
-                                && root.recording.publishedPath === root.recording.outputPath
+                                                              && root.recording.publishedUrl !== ""
+                                                              && root.recording.publishedPath
+                                                              === root.recording.outputPath
                             Layout.fillWidth: true
                             theme: root.context.theme
-                            label: root.recording && root.recording.publishing ? "Publishing…" : published ? "Link copied" : "Publish link"
+                            label: root.recording && root.recording.publishing ? "Publishing…" :
+                                                                                 published
+                                                                                 ? "Link copied" :
+                                                                                   "Publish link"
                             iconName: published ? "check" : "upload"
                             compact: true
                             busy: root.recording && root.recording.publishing
                             enabled: root.recording && root.recording.publishConfigured
-                            accessibleName: published ? "Copy published link again" : "Publish recording and copy link"
+                            accessibleName: published ? "Copy published link again" :
+                                                        "Publish recording and copy link"
                             onClicked: root.publishRecording()
                         }
                         Ui.ShellButton {
@@ -725,11 +760,14 @@ Item {
                         Ui.ShellButton {
                             id: copyPath
                             theme: root.context.theme
-                            iconName: root.recording && root.recording.copiedPath === root.recording.outputPath ? "check" : "copy"
+                            iconName: root.recording && root.recording.copiedPath
+                                      === root.recording.outputPath ? "check" : "copy"
                             label: ""
                             compact: true
                             ghost: true
-                            accessibleName: root.recording && root.recording.copiedPath === root.recording.outputPath ? "Path copied" : "Copy path"
+                            accessibleName: root.recording && root.recording.copiedPath
+                                            === root.recording.outputPath ? "Path copied" :
+                                                                            "Copy path"
                             onClicked: root.copyOutputPathAndClose()
                         }
                     }
@@ -786,11 +824,14 @@ Item {
                         Ui.ShellButton {
                             id: copyExportPath
                             theme: root.context.theme
-                            iconName: root.recording && root.recording.copiedPath === root.recording.exportOutput ? "check" : "copy"
+                            iconName: root.recording && root.recording.copiedPath
+                                      === root.recording.exportOutput ? "check" : "copy"
                             label: ""
                             compact: true
                             ghost: true
-                            accessibleName: root.recording && root.recording.copiedPath === root.recording.exportOutput ? "Export path copied" : "Copy export path"
+                            accessibleName: root.recording && root.recording.copiedPath
+                                            === root.recording.exportOutput ? "Export path copied" :
+                                                                              "Copy export path"
                             onClicked: root.copyExportPathAndClose()
                         }
                     }
@@ -829,10 +870,11 @@ Item {
                 mode: "error"
                 iconName: "record"
                 title: root.recording ? "Recording failed" : "Recording unavailable"
-                message: root.recording ? root.recording.errorMessage : "Recording workflow is unavailable."
+                message: root.recording ? root.recording.errorMessage :
+                                          "Recording workflow is unavailable."
                 actionLabel: "Dismiss"
                 onActionRequested: if (root.recording)
-                    root.recording.dismiss()
+                                       root.recording.dismiss()
             }
 
             FailedMeetingJobsView {

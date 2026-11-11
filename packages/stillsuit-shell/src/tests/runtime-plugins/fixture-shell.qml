@@ -13,11 +13,12 @@ ShellRoot {
         id: contexts
         function contextFor(entry) {
             return ({
-                theme: root.theme,
-                settings: entry && entry.settings ? entry.settings : ({})
-            })
+                        theme: root.theme,
+                        settings: entry && entry.settings ? entry.settings : ({})
+                    })
         }
-        function dropContext(pluginId) {}
+        function dropContext(pluginId) {
+        }
     }
     Component {
         id: fallback
@@ -54,14 +55,24 @@ ShellRoot {
     }
     IpcHandler {
         target: "runtime-plugin-test"
-        function unload(): string { return catalog.unload("stillsuit.example") }
-        function unloadBar(): string { return catalog.unload("stillsuit.test-bar") }
-        function reload(): string { return catalog.reload("stillsuit.example") }
-        function rescan(): string { return catalog.rescan() || "ok" }
+        function unload(): string {
+            return catalog.unload("stillsuit.example")
+        }
+        function unloadBar(): string {
+            return catalog.unload("stillsuit.test-bar")
+        }
+        function reload(): string {
+            return catalog.reload("stillsuit.example")
+        }
+        function rescan(): string {
+            return catalog.rescan() || "ok"
+        }
         function inspect(): string {
             var entry = catalog.get("stillsuit.example")
             var barEntry = catalog.get("stillsuit.test-bar")
-            var result = {ready: catalog.ready, exists: !!entry,
+            var result = {
+                ready: catalog.ready,
+                exists: !!entry,
                 enabled: catalog.isEnabled("stillsuit.example"),
                 activeProfile: catalog.activeProfile,
                 profileRevision: catalog.profileRevision,
@@ -72,13 +83,15 @@ ShellRoot {
                 barSettings: barEntry ? barEntry.settings : ({}),
                 settings: entry ? entry.settings : ({}),
                 serviceCount: services.objectCount,
-                workServiceState: services.state("stillsuit.work-only")}
+                workServiceState: services.state("stillsuit.work-only")
+            }
             result.rendered = []
             var activeBar = catalog.barInstance
             if (activeBar && activeBar.slots) {
                 for (var index = 0; index < activeBar.slots.count; index++) {
                     var slot = activeBar.slots.itemAt(index)
-                    if (slot && slot.createdWidget) result.rendered.push(slot.createdWidget.label)
+                    if (slot && slot.createdWidget)
+                        result.rendered.push(slot.createdWidget.label)
                 }
             }
             var workService = services.get("stillsuit.work-only")
@@ -87,10 +100,16 @@ ShellRoot {
                 var component = catalog.widgetComponents["stillsuit.example"]
                 if (component && component.status === Component.Ready) {
                     var widget = component.createObject(root, {
-                        context: {theme: root.theme, settings: entry.settings},
-                        outputId: "fixture"
-                    })
-                    if (widget) { result.label = widget.label; widget.destroy() }
+                                                            context: {
+                                                                theme: root.theme,
+                                                                settings: entry.settings
+                                                            },
+                                                            outputId: "fixture"
+                                                        })
+                    if (widget) {
+                        result.label = widget.label
+                        widget.destroy()
+                    }
                 }
             }
             return JSON.stringify(result)

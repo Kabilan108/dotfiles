@@ -17,10 +17,10 @@ ShellAction {
     property bool selected: false
     property bool reducedMotion: false
     property string tooltipText: effectiveAccessibleName
-    property color contentColor: selected
-        ? theme.component.bar.clusterActiveText : theme.component.bar.clusterText
+    property color contentColor: selected ? theme.component.bar.clusterActiveText :
+                                            theme.component.bar.clusterText
     readonly property int motionDuration: reducedMotion ? 0 : theme.motion.fast
-    signal clicked()
+    signal clicked
     accessibleFallback: label !== "" ? label : iconName.replace(/-/g, " ")
     implicitWidth: Math.max(24, clusterRow.implicitWidth + 14)
     implicitHeight: Math.max(22, theme.metrics.barHeight - 6)
@@ -29,12 +29,15 @@ ShellAction {
     Rectangle {
         anchors.fill: parent
         radius: root.theme.metrics.radiusSmall
-        color: root.selected ? root.theme.component.bar.clusterActive
-            : root.pressed ? root.theme.semantic.surface.pressed
-            : root.hovered ? root.theme.component.bar.clusterHover : "transparent"
+        color: root.selected ? root.theme.component.bar.clusterActive : root.pressed
+                               ? root.theme.semantic.surface.pressed : root.hovered
+                                 ? root.theme.component.bar.clusterHover : "transparent"
         opacity: !root.enabled ? 0.74 : root.busy ? 0.82 : 1
         Behavior on color {
-            ColorAnimation { duration: root.motionDuration; easing.type: Easing.OutCubic }
+            ColorAnimation {
+                duration: root.motionDuration
+                easing.type: Easing.OutCubic
+            }
         }
     }
     RowLayout {

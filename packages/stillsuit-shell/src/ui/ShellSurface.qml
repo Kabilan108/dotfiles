@@ -11,24 +11,18 @@ Rectangle {
     property bool selected: false
     property bool danger: false
     property bool bordered: kind !== "raised"
-    property real fillOpacity: selected || danger || kind === "raised" || kind === "osd"
-        ? 1
-        : theme.effects.surfaceOpacity
+    property real fillOpacity: selected || danger || kind === "raised" || kind === "osd" ? 1 :
+                                                                                           theme.effects.surfaceOpacity
 
     color: _withAlpha(_fillColor(), fillOpacity)
-    radius: kind === "bar" || kind === "osd"
-        ? theme.metrics.radiusMedium
-        : kind === "raised"
-            ? theme.metrics.radiusSmall
-            : theme.metrics.radiusLarge
+    radius: kind === "bar" || kind === "osd" ? theme.metrics.radiusMedium : kind === "raised"
+                                               ? theme.metrics.radiusSmall :
+                                                 theme.metrics.radiusLarge
     border.width: bordered && !selected && !danger ? 1 : 0
-    border.color: kind === "bar"
-        ? theme.component.bar.border
-        : kind === "osd"
-            ? theme.component.osd.border
-            : kind === "notification"
-                ? theme.component.notification.border
-                : theme.component.panel.border
+    border.color: kind === "bar" ? theme.component.bar.border : kind === "osd" ? theme.component.osd.border :
+                                                                                 kind === "notification"
+                                                                                 ? theme.component.notification.border :
+                                                                                   theme.component.panel.border
     clip: true
 
     Item {
@@ -55,7 +49,6 @@ Rectangle {
 
     function _withAlpha(value, alpha) {
         var parsed = Qt.color(value)
-        return Qt.rgba(parsed.r, parsed.g, parsed.b,
-            Math.max(0, Math.min(1, alpha)))
+        return Qt.rgba(parsed.r, parsed.g, parsed.b, Math.max(0, Math.min(1, alpha)))
     }
 }

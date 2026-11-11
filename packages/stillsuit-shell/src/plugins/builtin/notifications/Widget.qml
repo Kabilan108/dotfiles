@@ -17,12 +17,11 @@ Ui.ShellBarCluster {
     iconName: quiet ? "notifications-off" : "notifications"
     label: service ? service.heldBadgeText : ""
     contentColor: quiet ? theme.semantic.status.warning : theme.component.bar.clusterText
-    accessibleName: !quiet
-        ? "Notifications on. Activate to turn on quiet mode"
-        : heldCount === 0
-            ? "Quiet mode on. Activate to turn it off"
-            : "Quiet mode on, " + String(heldCount) + " held. Activate to turn it off and show them"
-    tooltipText: !quiet ? "Quiet mode off" : heldCount === 0 ? "Quiet mode on"
-        : "Quiet mode on · " + String(heldCount) + " held"
-    onClicked: if (service) service.toggleQuiet()
+    accessibleName: !quiet ? "Notifications on. Activate to turn on quiet mode" : heldCount === 0
+                             ? "Quiet mode on. Activate to turn it off" : "Quiet mode on, " + String(
+                                   heldCount) + " held. Activate to turn it off and show them"
+    tooltipText: !quiet ? "Quiet mode off" : heldCount === 0 ? "Quiet mode on" : "Quiet mode on · "
+                                                               + String(heldCount) + " held"
+    onClicked: if (service)
+                   service.toggleQuiet()
 }

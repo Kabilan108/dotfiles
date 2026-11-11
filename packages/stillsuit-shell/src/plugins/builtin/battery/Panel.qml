@@ -16,17 +16,18 @@ Item {
     required property string outputId
     readonly property var power: context.services.get("stillsuit.power")
     readonly property string displayIconName: _iconName()
-    readonly property int panelVerticalPadding: Math.max(0, context.theme.metrics.panelPadding - context.theme.metrics.spaceUnit)
+    readonly property int panelVerticalPadding: Math.max(0, context.theme.metrics.panelPadding
+                                                         - context.theme.metrics.spaceUnit)
     property bool opened: false
 
     function open(payloadJson) {
-        opened = true;
+        opened = true
         if (power)
-            power.refresh();
+            power.refresh()
     }
 
     function close() {
-        opened = false;
+        opened = false
     }
 
     Ui.ShellSurface {
@@ -37,7 +38,7 @@ Item {
         MouseArea {
             anchors.fill: parent
             onClicked: function (mouse) {
-                mouse.accepted = true;
+                mouse.accepted = true
             }
         }
 
@@ -74,7 +75,9 @@ Item {
                             bottom: parent.bottom
                             left: parent.left
                         }
-                        width: parent.width * Math.max(0, Math.min(1, root.service ? root.service.percentage / 100 : 0))
+                        width: parent.width * Math.max(0, Math.min(1, root.service
+                                                                   ? root.service.percentage / 100 :
+                                                                     0))
                         radius: parent.radius
                         color: root._batteryColor()
                         opacity: 0.70
@@ -118,7 +121,8 @@ Item {
                         Ui.ShellText {
                             objectName: "battery-percentage"
                             theme: root.context.theme
-                            text: root.service && root.service.available ? root.service.percentage + "%" : "Battery unavailable"
+                            text: root.service && root.service.available ? root.service.percentage
+                                                                           + "%" : "Battery unavailable"
                             sizeRole: "heading"
                             monospace: root.service && root.service.available
                             role: root._batteryRole()
@@ -165,7 +169,8 @@ Item {
                         label: ""
                         iconName: ""
                         active: root.power && root.power.displayProfile === modelData
-                        busy: root.power && root.power.busy && root.power.pendingProfile === modelData
+                        busy: root.power && root.power.busy && root.power.pendingProfile
+                              === modelData
                         enabled: root.power && root.power.available
                         interactive: enabled && !root.power.busy
                         compact: true
@@ -182,14 +187,22 @@ Item {
                                 theme: root.context.theme
                                 name: root._profileIcon(profileButton.modelData)
                                 sizeRole: "small"
-                                color: profileButton.active ? root.context.theme.component.control.onActive : profileButton.enabled ? root.context.theme.component.control.text : root.context.theme.component.control.textDisabled
+                                color: profileButton.active
+                                       ? root.context.theme.component.control.onActive :
+                                         profileButton.enabled
+                                         ? root.context.theme.component.control.text :
+                                           root.context.theme.component.control.textDisabled
                             }
 
                             Ui.ShellText {
                                 theme: root.context.theme
                                 text: root._profileLabel(profileButton.modelData)
                                 sizeRole: "label"
-                                color: profileButton.active ? root.context.theme.component.control.onActive : profileButton.enabled ? root.context.theme.component.control.text : root.context.theme.component.control.textDisabled
+                                color: profileButton.active
+                                       ? root.context.theme.component.control.onActive :
+                                         profileButton.enabled
+                                         ? root.context.theme.component.control.text :
+                                           root.context.theme.component.control.textDisabled
                             }
                         }
                     }
@@ -220,69 +233,70 @@ Item {
 
     function _batteryRole() {
         if (!service || !service.available)
-            return "muted";
+            return "muted"
         if (service.low)
-            return "danger";
+            return "danger"
         if (service.charging)
-            return "charging";
-        return "accent";
+            return "charging"
+        return "accent"
     }
 
     function _batteryColor() {
         if (service && service.low)
-            return context.theme.semantic.status.danger;
+            return context.theme.semantic.status.danger
         if (service && service.charging)
-            return context.theme.semantic.signal.charging;
-        return context.theme.semantic.accent.primary;
+            return context.theme.semantic.signal.charging
+        return context.theme.semantic.accent.primary
     }
 
     function _iconName() {
         if (!service || !service.available)
-            return "battery-question";
+            return "battery-question"
         if (service.charging)
-            return "battery-charging";
+            return "battery-charging"
         if (service.low && service.percentage <= 8)
-            return "battery-alert";
+            return "battery-alert"
         if (service.percentage >= 95)
-            return "battery-level-full";
+            return "battery-level-full"
         if (service.percentage >= 80)
-            return "battery-level-6";
+            return "battery-level-6"
         if (service.percentage >= 62)
-            return "battery-level-5";
+            return "battery-level-5"
         if (service.percentage >= 45)
-            return "battery-level-4";
+            return "battery-level-4"
         if (service.percentage >= 30)
-            return "battery-level-3";
+            return "battery-level-3"
         if (service.percentage >= 18)
-            return "battery-level-2";
+            return "battery-level-2"
         if (service.percentage >= 8)
-            return "battery-level-1";
-        return "battery-level-0";
+            return "battery-level-1"
+        return "battery-level-0"
     }
 
     function _stateSummary() {
         if (!service || !service.available)
-            return "UPower has no battery data";
+            return "UPower has no battery data"
         if (service.pending)
-            return "Plugged in, not charging";
+            return "Plugged in, not charging"
         if (service.timeText === "")
-            return service.stateLabel;
-        return service.stateLabel + ", " + service.timeText + (service.discharging ? " remaining" : " to full");
+            return service.stateLabel
+        return service.stateLabel + ", " + service.timeText + (service.discharging ? " remaining" :
+                                                                                     " to full")
     }
 
     function _profileLabel(profile) {
         if (profile === "power-saver")
-            return "Saver";
+            return "Saver"
         if (profile === "performance")
-            return "Performance";
-        return "Balanced";
+            return "Performance"
+        return "Balanced"
     }
 
     function _profileIcon(profile) {
         if (profile === "power-saver")
-            return "battery";
+            return "battery"
         if (profile === "performance")
-            return "power";
-        return "settings";
+            return "power"
+        return "settings"
     }
 }

@@ -14,15 +14,28 @@ ShellRoot {
     property var testScreens: Quickshell.screens
     property var publicPanels: null
     property string pointerPhase: "loading"
-    HostContext { id: contexts; surfaceRouter: testRouter; actionsSource: testActions }
-    IpcFacade { id: testActions; surfaceRouter: testRouter }
+    HostContext {
+        id: contexts
+        surfaceRouter: testRouter
+        actionsSource: testActions
+    }
+    IpcFacade {
+        id: testActions
+        surfaceRouter: testRouter
+    }
     property var barPressAreas: []
     property var barContext: ({
-        theme: root.theme,
-        actions: contexts.actionsComponent.createObject(root),
-        settings: {values: {shadowMode: false}},
-        registerBarPressProbe: function(area, outputId) { root.barPressAreas.push(area) }
-    })
+                                  theme: root.theme,
+                                  actions: contexts.actionsComponent.createObject(root),
+                                  settings: {
+                                      values: {
+                                          shadowMode: false
+                                      }
+                                  },
+                                  registerBarPressProbe: function (area, outputId) {
+                                      root.barPressAreas.push(area)
+                                  }
+                              })
     Component {
         id: barWidget
         Ui.ShellBarCluster {
@@ -31,39 +44,71 @@ ShellRoot {
             required property string outputId
             theme: context.theme
             label: "Switch"
-            onClicked: context.actions.surfaceToggle("b", JSON.stringify({outputId: outputId}))
+            onClicked: context.actions.surfaceToggle("b", JSON.stringify({
+                                                                             outputId: outputId
+                                                                         }))
         }
     }
     Bar.Bar {
         id: fixtureBar
         context: root.barContext
         outputScreens: root.testScreens
-        widgetRegistrations: [{component: barWidget, context: root.barContext,
-            manifest: {id: "fixture.switch"}, defaultSection: "left"}]
+        widgetRegistrations: [
+            {
+                component: barWidget,
+                context: root.barContext,
+                manifest: {
+                    id: "fixture.switch"
+                },
+                defaultSection: "left"
+            }
+        ]
     }
     property var theme: FixtureTheme.create()
     property var batteryContext: ({
-        theme: root.theme,
-        services: {get: function(id) { return null }},
-        actions: {surfaceClose: function(id) {}}
-    })
+                                      theme: root.theme,
+                                      services: {
+                                          get: function (id) {
+                                              return null
+                                          }
+                                      },
+                                      actions: {
+                                          surfaceClose: function (id) {}
+                                      }
+                                  })
     Battery.Panel {
         id: batteryPanel
         context: root.batteryContext
         screen: Quickshell.screens[0]
         outputId: screen.name
-        service: ({ available: true, present: true, percentage: 58,
-            charging: true, low: false, pending: false, discharging: false,
-            stateLabel: "Charging", timeText: "17h 20m" })
+        service: ({
+                      available: true,
+                      present: true,
+                      percentage: 58,
+                      charging: true,
+                      low: false,
+                      pending: false,
+                      discharging: false,
+                      stateLabel: "Charging",
+                      timeText: "17h 20m"
+                  })
     }
     PanelWindow {
         id: testBar
         screen: Quickshell.screens[0]
-        anchors { top: true; left: true; right: true }
+        anchors {
+            top: true
+            left: true
+            right: true
+        }
         implicitHeight: 28
         exclusiveZone: 0
         visible: tooltip.hovering
-        Item { id: tooltipTarget; width: 30; height: 28 }
+        Item {
+            id: tooltipTarget
+            width: 30
+            height: 28
+        }
         Ui.ShellBarTooltip {
             id: tooltip
             theme: root.theme
@@ -72,11 +117,13 @@ ShellRoot {
         }
     }
     function named(item, name) {
-        if (item.objectName === name) return item
+        if (item.objectName === name)
+            return item
         var children = item.children || []
         for (var i = 0; i < children.length; i++) {
             var result = named(children[i], name)
-            if (result) return result
+            if (result)
+                return result
         }
         return null
     }
@@ -85,10 +132,11 @@ ShellRoot {
         verify(area !== null, "bar dismiss area registered through the fixture context")
         area.handlePress(x, 14)
         var cluster = named(area.parent, "fixture-switch")
-        if (cluster === null) return
+        if (cluster === null)
+            return
         var point = area.mapToItem(cluster, x, 14)
-        if (point.x >= 0 && point.y >= 0
-                && point.x < cluster.width && point.y < cluster.height) cluster.clicked()
+        if (point.x >= 0 && point.y >= 0 && point.x < cluster.width && point.y < cluster.height)
+            cluster.clicked()
     }
     Timer {
         id: layoutCheck
@@ -97,35 +145,42 @@ ShellRoot {
             try {
                 var track = root.named(batteryPanel, "battery-charge-track")
                 var summary = root.named(batteryPanel, "battery-state-summary")
-                root.verify(track && track.width >= 180, "long battery summary preserves charge graphic")
+                root.verify(track && track.width >= 180,
+                            "long battery summary preserves charge graphic")
                 root.verify(summary && summary.width <= 112, "summary width is bounded")
                 var percentage = root.named(batteryPanel, "battery-percentage")
-                root.verify(percentage.role === "charging", "charging colors percentage as well as icon")
-                batteryPanel.service = {available: true, low: true, charging: false, percentage: 10}
+                root.verify(percentage.role === "charging",
+                            "charging colors percentage as well as icon")
+                batteryPanel.service = {
+                    available: true,
+                    low: true,
+                    charging: false,
+                    percentage: 10
+                }
                 root.verify(percentage.role === "danger", "low battery keeps danger precedence")
-                root.verify(tooltip.popupWindow && tooltip.popupWindow.visible, "tooltip renders in separate popup")
+                root.verify(tooltip.popupWindow && tooltip.popupWindow.visible,
+                            "tooltip renders in separate popup")
                 tooltip.hovering = false
                 root.verify(!tooltip.showing, "hover exit dismisses tooltip")
                 testBar.visible = false
                 var host = testRouter.panelHosts[testCompositor.focusedOutputId]
                 root.verify(host.height === host.screen.height,
-                    "host uses the full output despite the production bar's exclusive zone")
+                            "host uses the full output despite the production bar's exclusive zone")
                 root.verify(batteryPanel.parent.y === root.theme.metrics.barHeight
-                    + root.theme.metrics.barOuterGap + root.theme.metrics.spaceUnit,
-                    "panel sits one theme space below the bar")
+                            + root.theme.metrics.barOuterGap + root.theme.metrics.spaceUnit,
+                            "panel sits one theme space below the bar")
                 var content = batteryPanel.parent
                 var edge = root.theme.metrics.spaceUnit
                 root.verify(content.x === host.width - content.width - edge,
-                    "anchorless panel keeps the right-edge fallback")
+                            "anchorless panel keeps the right-edge fallback")
                 host.present(batteryPanel, host.width / 2)
                 root.verify(Math.abs(content.x - (host.width / 2 - content.width / 2)) < 1,
-                    "panel centers under its bar anchor")
+                            "panel centers under its bar anchor")
                 host.present(batteryPanel, 10)
-                root.verify(content.x === edge,
-                    "left-edge anchor clamps inside the output")
+                root.verify(content.x === edge, "left-edge anchor clamps inside the output")
                 host.present(batteryPanel, host.width - 10)
                 root.verify(content.x === host.width - content.width - edge,
-                    "right-edge anchor clamps inside the output")
+                            "right-edge anchor clamps inside the output")
                 host.dismiss(batteryPanel)
                 testRouter.open("a", "")
                 root.pointerPhase = "ready"
@@ -142,23 +197,54 @@ ShellRoot {
     QtObject {
         id: testCatalog
         property bool loaded: true
-        property var entries: ({ a: entry("a"), b: entry("b"), transient: entry("transient") })
+        property var entries: ({
+                                   a: entry("a"),
+                                   b: entry("b"),
+                                   transient: entry("transient")
+                               })
         function entry(id) {
-            return {manifest: {id: id, keepLoaded: id !== "transient", kinds: ["panel"], scope: {panel: "per-output"}, dependencies: []}}
+            return {
+                manifest: {
+                    id: id,
+                    keepLoaded: id !== "transient",
+                    kinds: ["panel"],
+                    scope: {
+                        panel: "per-output"
+                    },
+                    dependencies: []
+                }
+            }
         }
-        function has(id) { return entries[id] !== undefined }
-        function get(id) { return entries[id] }
-        function isEnabled(id) { return has(id) }
-        function hasKind(id, kind) { return has(id) && kind === "panel" }
-        function primarySurfaceKind(id) { return has(id) ? "panel" : "" }
-        function entryPointUrl(entry, kind) { return entry.manifest.id }
+        function has(id) {
+            return entries[id] !== undefined
+        }
+        function get(id) {
+            return entries[id]
+        }
+        function isEnabled(id) {
+            return has(id)
+        }
+        function hasKind(id, kind) {
+            return has(id) && kind === "panel"
+        }
+        function primarySurfaceKind(id) {
+            return has(id) ? "panel" : ""
+        }
+        function entryPointUrl(entry, kind) {
+            return entry.manifest.id
+        }
     }
     QtObject {
         id: delayedComponent
         property int status: Component.Loading
-        function createObject(parent, properties) { return panelComponent.createObject(parent, properties) }
-        function errorString() { return "test error" }
-        function destroy() {}
+        function createObject(parent, properties) {
+            return panelComponent.createObject(parent, properties)
+        }
+        function errorString() {
+            return "test error"
+        }
+        function destroy() {
+        }
     }
     Component {
         id: panelComponent
@@ -171,8 +257,12 @@ ShellRoot {
             implicitWidth: 380
             implicitHeight: 200
             visible: false
-            function open(payload) { opened = true }
-            function close() { opened = false }
+            function open(payload) {
+                opened = true
+            }
+            function close() {
+                opened = false
+            }
         }
     }
     SurfaceRouter {
@@ -180,7 +270,7 @@ ShellRoot {
         catalog: testCatalog
         compositor: testCompositor
         screens: root.testScreens
-        componentFactory: function(url, mode) {
+        componentFactory: function (url, mode) {
             return url === "b" ? delayedComponent : panelComponent
         }
     }
@@ -196,11 +286,14 @@ ShellRoot {
     }
     function verify(value, message) {
         checks++
-        if (!value) throw new Error(message)
+        if (!value)
+            throw new Error(message)
     }
     IpcHandler {
         target: "panel-host-test"
-        function phase(): string { return root.pointerPhase }
+        function phase(): string {
+            return root.pointerPhase
+        }
         function press(x: string): string {
             try {
                 root.pressBar(Number(x))
@@ -216,11 +309,11 @@ ShellRoot {
                 var host = testRouter.panelHosts[testCompositor.focusedOutputId]
                 if (step === "widget") {
                     root.verify(testRouter.isOpen("b") && host.visible,
-                        "real widget click switches panels without background dismissal")
+                                "real widget click switches panels without background dismissal")
                 } else {
                     root.verify(!host.visible && root.publicPanels.selectedId === ""
-                        && testRouter.activeId === "" && testRouter.pendingCount("b") === 0,
-                        "real bar background press clears the panel and pending routing")
+                                && testRouter.activeId === "" && testRouter.pendingCount("b") === 0,
+                                "real bar background press clears the panel and pending routing")
                     console.log("PANEL_HOST_OK", root.checks)
                     Qt.callLater(Qt.quit)
                 }
@@ -238,9 +331,11 @@ ShellRoot {
         onTriggered: {
             try {
                 var host = testRouter.panelHosts[testCompositor.focusedOutputId]
-                root.verify(Object.keys(testRouter.panelHosts).length === 1, "removed output releases host")
-                root.verify(host.visible && testRouter.placementOutputId("a") === testCompositor.focusedOutputId,
-                    "open panel moves to surviving output")
+                root.verify(Object.keys(testRouter.panelHosts).length === 1,
+                            "removed output releases host")
+                root.verify(host.visible && testRouter.placementOutputId("a")
+                            === testCompositor.focusedOutputId,
+                            "open panel moves to surviving output")
                 testRouter.dismissPanels()
                 host.present(batteryPanel)
                 tooltip.hovering = true
@@ -263,15 +358,19 @@ ShellRoot {
                 var first = host.panelContent
                 verify(first && first.opened && host.visible, "first panel displayed")
                 verify(testRouter.open("b", "") === "ok", "request delayed replacement")
-                verify(host.panelContent === first && first.opened, "outgoing stays during compilation")
-                verify(root.publicPanels.selectedId === "a", "selection follows displayed panel during replacement")
+                verify(host.panelContent === first && first.opened,
+                       "outgoing stays during compilation")
+                verify(root.publicPanels.selectedId === "a",
+                       "selection follows displayed panel during replacement")
                 testRouter.toggle("b", "")
-                verify(testRouter.activeId === "a" && first.opened, "canceling replacement retains active outgoing panel")
+                verify(testRouter.activeId === "a" && first.opened,
+                       "canceling replacement retains active outgoing panel")
                 testRouter.open("b", "")
                 delayedComponent.status = Component.Ready
                 var second = host.panelContent
                 verify(second !== first && second.opened && !first.opened, "atomic replacement")
-                verify(root.publicPanels.selectedId === "b", "selection transfers when replacement is displayed")
+                verify(root.publicPanels.selectedId === "b",
+                       "selection transfers when replacement is displayed")
                 verify(!testRouter.isOpen("a") && testRouter.isOpen("b"), "single active panel")
                 testRouter.toggle("a", "")
                 verify(host.panelContent === first && first.opened, "one-click cached switch")
@@ -282,32 +381,44 @@ ShellRoot {
                 testRouter.open("a", "")
                 var otherId = Quickshell.screens[1].name
                 var otherHost = testRouter.panelHosts[otherId]
-                testRouter.toggle("a", JSON.stringify({outputId: otherId}))
-                verify(!host.visible && otherHost.visible, "same plugin transfers outputs on one click")
-                verify(testRouter.placementOutputId("a") === otherId, "clicked output owns placement")
-                testRouter.toggle("a", JSON.stringify({outputId: testCompositor.focusedOutputId}))
-                verify(host.visible && !otherHost.visible, "cross-output return closes previous host")
+                testRouter.toggle("a", JSON.stringify({
+                                                          outputId: otherId
+                                                      }))
+                verify(!host.visible && otherHost.visible,
+                       "same plugin transfers outputs on one click")
+                verify(testRouter.placementOutputId("a") === otherId,
+                       "clicked output owns placement")
+                testRouter.toggle("a", JSON.stringify({
+                                                          outputId: testCompositor.focusedOutputId
+                                                      }))
+                verify(host.visible && !otherHost.visible,
+                       "cross-output return closes previous host")
                 testRouter.open("a", "")
                 testRouter.dismissPanels()
-                verify(!host.visible && testRouter.pendingCount("a") === 0, "outside dismissal clears routing")
-                testRouter.barAnchorFacade.set("a", testCompositor.focusedOutputId,
-                    function() { return 640 })
+                verify(!host.visible && testRouter.pendingCount("a") === 0,
+                       "outside dismissal clears routing")
+                testRouter.barAnchorFacade.set("a", testCompositor.focusedOutputId, function () {
+                    return 640
+                })
                 testRouter.open("a", "")
                 verify(host.anchorCenterX === 640,
-                    "router delivers the bar anchor to the presenting host")
+                       "router delivers the bar anchor to the presenting host")
                 testRouter.dismissPanels()
-                var oldResolver = function() { return 320 }
-                var replacementResolver = function() { return 960 }
+                var oldResolver = function () {
+                    return 320
+                }
+                var replacementResolver = function () {
+                    return 960
+                }
+                testRouter.barAnchorFacade.set("a", testCompositor.focusedOutputId, oldResolver)
                 testRouter.barAnchorFacade.set("a", testCompositor.focusedOutputId,
-                    oldResolver)
-                testRouter.barAnchorFacade.set("a", testCompositor.focusedOutputId,
-                    replacementResolver)
-                testRouter.barAnchorFacade.clear("a", testCompositor.focusedOutputId,
-                    oldResolver)
+                                               replacementResolver)
+                testRouter.barAnchorFacade.clear("a", testCompositor.focusedOutputId, oldResolver)
                 verify(testRouter.panelAnchorX("a", testCompositor.focusedOutputId) === 960,
-                    "retired slot cannot clear its replacement anchor")
-                testRouter.barAnchorFacade.set("a", testCompositor.focusedOutputId,
-                    function() { throw new Error("broken resolver") })
+                       "retired slot cannot clear its replacement anchor")
+                testRouter.barAnchorFacade.set("a", testCompositor.focusedOutputId, function () {
+                    throw new Error("broken resolver")
+                })
                 testRouter.open("a", "")
                 verify(host.anchorCenterX === -1, "broken anchor resolver falls back")
                 testRouter.dismissPanels()
@@ -321,8 +432,10 @@ ShellRoot {
                 testRouter.open("transient", "")
                 testRouter.close("transient")
                 verify(testRouter.contributionState("transient", "panel") === "unloaded",
-                    "hosted panel with keepLoaded false unloads on close")
-                testRouter.open("a", JSON.stringify({outputId: otherId}))
+                       "hosted panel with keepLoaded false unloads on close")
+                testRouter.open("a", JSON.stringify({
+                                                        outputId: otherId
+                                                    }))
                 root.testScreens = [Quickshell.screens[0]]
                 removalCheck.start()
             } catch (error) {

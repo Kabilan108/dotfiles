@@ -11,23 +11,28 @@ Item {
 
     readonly property var theme: context.theme
     readonly property var items: service ? service.items : []
-    readonly property bool panelOpen: context.panels && context.panels.selectedId === "stillsuit.tray"
-        && context.panels.selectedOutputId === outputId
+    readonly property bool panelOpen: context.panels && context.panels.selectedId
+                                      === "stillsuit.tray" && context.panels.selectedOutputId
+                                      === outputId
     readonly property bool selected: panelOpen
     readonly property int slotExtent: Math.max(22, theme.metrics.barHeight - 6)
     readonly property int iconExtent: theme.metrics.iconSmall
     property string hoveredTooltip: ""
     readonly property string tooltipText: hoveredTooltip
-    readonly property string accessibleName: items.length === 0
-        ? "System tray, empty" : "System tray, " + items.length + " items"
+    readonly property string accessibleName: items.length === 0 ? "System tray, empty" :
+                                                                  "System tray, " + items.length
+                                                                  + " items"
 
     readonly property bool collapsed: items.length === 0
     implicitWidth: collapsed ? 0 : iconRow.implicitWidth
     implicitHeight: theme.metrics.barHeight
 
     function openMenu(item) {
-        context.actions.surfaceOpen("stillsuit.tray",
-            JSON.stringify({ outputId: root.outputId, itemId: String(item.id || "") }))
+        context.actions.surfaceOpen("stillsuit.tray", JSON.stringify({
+                                                                         outputId: root.outputId,
+                                                                         itemId: String(item.id
+                                                                                        || "")
+                                                                     }))
     }
 
     function primaryAction(item) {
@@ -68,8 +73,8 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: root.theme.metrics.radiusSmall
-                    color: pointer.pressed ? root.theme.semantic.surface.pressed
-                        : entry.hovered ? root.theme.component.bar.clusterHover : "transparent"
+                    color: pointer.pressed ? root.theme.semantic.surface.pressed : entry.hovered
+                                             ? root.theme.component.bar.clusterHover : "transparent"
                 }
 
                 Image {
@@ -99,7 +104,11 @@ Item {
                     width: root.theme.metrics.spaceUnit + 1
                     height: width
                     radius: width / 2
-                    anchors { top: parent.top; right: parent.right; margins: 3 }
+                    anchors {
+                        top: parent.top
+                        right: parent.right
+                        margins: 3
+                    }
                     color: root.theme.semantic.status.warning
                 }
 
@@ -110,8 +119,9 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onEntered: root.hoveredTooltip = root.service.tooltipFor(entry.modelData)
-                    onExited: if (root.hoveredTooltip === root.service.tooltipFor(entry.modelData)) root.hoveredTooltip = ""
-                    onClicked: function(mouse) {
+                    onExited: if (root.hoveredTooltip === root.service.tooltipFor(entry.modelData))
+                                  root.hoveredTooltip = ""
+                    onClicked: function (mouse) {
                         if (mouse.button === Qt.RightButton)
                             root.openMenu(entry.modelData)
                         else if (mouse.button === Qt.MiddleButton)
@@ -119,10 +129,11 @@ Item {
                         else
                             root.primaryAction(entry.modelData)
                     }
-                    onWheel: function(wheel) {
+                    onWheel: function (wheel) {
                         var horizontal = wheel.angleDelta.x !== 0 && wheel.angleDelta.y === 0
-                        root.service.scroll(entry.modelData,
-                            horizontal ? wheel.angleDelta.x : wheel.angleDelta.y, horizontal)
+                        root.service.scroll(entry.modelData, horizontal ? wheel.angleDelta.x :
+                                                                          wheel.angleDelta.y,
+                                            horizontal)
                     }
                 }
             }

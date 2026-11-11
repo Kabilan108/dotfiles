@@ -18,7 +18,8 @@ Item {
     readonly property var media: service ? service.media : null
     readonly property var panelWindow: root.QsWindow.window
     readonly property int artSize: 64
-    readonly property real artPixelRatio: root.screen && root.screen.devicePixelRatio > 0 ? root.screen.devicePixelRatio : 1
+    readonly property real artPixelRatio: root.screen && root.screen.devicePixelRatio > 0
+                                          ? root.screen.devicePixelRatio : 1
     property bool opened: false
     property var positionTrackedMedia: null
 
@@ -26,7 +27,7 @@ Item {
     onMediaChanged: _syncPositionTracking()
     Component.onDestruction: {
         if (positionTrackedMedia)
-            positionTrackedMedia.releasePositionTracking();
+            positionTrackedMedia.releasePositionTracking()
     }
 
     component RoundControl: Ui.ShellAction {
@@ -49,7 +50,11 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: width / 2
-            color: !control.enabled ? control.theme.component.control.disabled : control.active ? control.theme.component.control.active : control.pressed ? control.theme.component.control.pressed : control.hovered ? control.theme.component.control.hover : control.theme.component.control.background
+            color: !control.enabled ? control.theme.component.control.disabled : control.active
+                                      ? control.theme.component.control.active : control.pressed
+                                        ? control.theme.component.control.pressed : control.hovered
+                                          ? control.theme.component.control.hover :
+                                            control.theme.component.control.background
             border.width: control.active && control.enabled ? 0 : 1
             border.color: control.theme.component.control.outline
             opacity: control.enabled ? 1 : 0.74
@@ -60,7 +65,10 @@ Item {
             theme: control.theme
             name: control.iconName
             sizeRole: control.prominent ? "medium" : "small"
-            color: !control.enabled ? control.theme.component.control.textDisabled : control.active ? control.theme.component.control.onActive : control.accentIcon ? control.theme.semantic.accent.primary : control.theme.component.control.text
+            color: !control.enabled ? control.theme.component.control.textDisabled : control.active
+                                      ? control.theme.component.control.onActive :
+                                        control.accentIcon ? control.theme.semantic.accent.primary :
+                                                             control.theme.component.control.text
             role: control.active ? "on-accent" : control.accentIcon ? "accent" : "primary"
         }
 
@@ -90,7 +98,7 @@ Item {
         MouseArea {
             anchors.fill: parent
             onClicked: function (mouse) {
-                mouse.accepted = true;
+                mouse.accepted = true
             }
         }
 
@@ -129,7 +137,8 @@ Item {
                 Layout.fillWidth: true
                 theme: root.context.theme
                 error: Boolean(root.media && root.media.state === "error")
-                text: root.media && root.media.state === "error" ? "Media controls unavailable" : "Nothing playing"
+                text: root.media && root.media.state === "error" ? "Media controls unavailable" :
+                                                                   "Nothing playing"
                 iconName: "play"
             }
 
@@ -258,7 +267,7 @@ Item {
                     trackBottomMargin: 6
                     enabled: root.media && root.media.canSeek
                     onMoved: function (value) {
-                        root.media.seekTo(value);
+                        root.media.seekTo(value)
                     }
                 }
 
@@ -271,7 +280,8 @@ Item {
                         theme: root.context.theme
                         iconName: "shuffle"
                         active: root.media && root.media.shuffle
-                        accessibleName: root.media && root.media.shuffle ? "Disable shuffle" : "Enable shuffle"
+                        accessibleName: root.media && root.media.shuffle ? "Disable shuffle" :
+                                                                           "Enable shuffle"
                         onClicked: root.media.toggleShuffle()
                     }
 
@@ -357,10 +367,14 @@ Item {
 
                     RoundControl {
                         theme: root.context.theme
-                        iconName: !root.service || root.service.muted ? "volume-mute" : root.service.volume < 0.5 ? "volume-down" : "volume-up"
+                        iconName: !root.service || root.service.muted ? "volume-mute" :
+                                                                        root.service.volume < 0.5
+                                                                        ? "volume-down" :
+                                                                          "volume-up"
                         accentIcon: root.service && !root.service.muted
                         enabled: root.service && root.service.available
-                        accessibleName: root.service && root.service.muted ? "Unmute output" : "Mute output"
+                        accessibleName: root.service && root.service.muted ? "Unmute output" :
+                                                                             "Mute output"
                         onClicked: root.service.toggleMuted()
                     }
 
@@ -380,7 +394,7 @@ Item {
                         trackBottomMargin: 6
                         enabled: root.service && root.service.available
                         onMoved: function (value) {
-                            root.service.setVolume(value / 100);
+                            root.service.setVolume(value / 100)
                         }
                     }
                 }
@@ -392,10 +406,12 @@ Item {
 
                     RoundControl {
                         theme: root.context.theme
-                        iconName: root.service && root.service.inputMuted ? "volume-mute" : "microphone"
+                        iconName: root.service && root.service.inputMuted ? "volume-mute" :
+                                                                            "microphone"
                         accentIcon: root.service && !root.service.inputMuted
                         enabled: root.service && root.service.microphoneAvailable
-                        accessibleName: root.service && root.service.inputMuted ? "Unmute microphone" : "Mute microphone"
+                        accessibleName: root.service && root.service.inputMuted
+                                        ? "Unmute microphone" : "Mute microphone"
                         onClicked: root.service.toggleInputMuted()
                     }
 
@@ -415,7 +431,7 @@ Item {
                         trackBottomMargin: 6
                         enabled: root.service && root.service.microphoneAvailable
                         onMoved: function (value) {
-                            root.service.setInputVolume(value / 100);
+                            root.service.setInputVolume(value / 100)
                         }
                     }
                 }
@@ -484,37 +500,38 @@ Item {
     }
 
     function open(payloadJson) {
-        opened = true;
+        opened = true
         if (service)
-            service.refreshOutputs();
+            service.refreshOutputs()
     }
 
     function openManager() {
-        return service ? service.openManager() : "unavailable";
+        return service ? service.openManager() : "unavailable"
     }
 
     function close() {
-        opened = false;
+        opened = false
     }
 
     function _syncPositionTracking() {
-        var next = opened ? media : null;
+        var next = opened ? media : null
         if (next === positionTrackedMedia)
-            return;
+            return
         if (positionTrackedMedia)
-            positionTrackedMedia.releasePositionTracking();
-        positionTrackedMedia = next;
+            positionTrackedMedia.releasePositionTracking()
+        positionTrackedMedia = next
         if (next)
-            next.acquirePositionTracking();
+            next.acquirePositionTracking()
     }
 
     function formatTime(seconds) {
-        var safe = Math.max(0, Number(seconds || 0));
-        var hours = Math.floor(safe / 3600);
-        var minutes = Math.floor(safe % 3600 / 60);
-        var remainder = Math.floor(safe % 60);
+        var safe = Math.max(0, Number(seconds || 0))
+        var hours = Math.floor(safe / 3600)
+        var minutes = Math.floor(safe % 3600 / 60)
+        var remainder = Math.floor(safe % 60)
         if (hours > 0)
-            return hours + ":" + String(minutes).padStart(2, "0") + ":" + String(remainder).padStart(2, "0");
-        return minutes + ":" + String(remainder).padStart(2, "0");
+            return hours + ":" + String(minutes).padStart(2, "0") + ":" + String(remainder).padStart(
+                        2, "0")
+        return minutes + ":" + String(remainder).padStart(2, "0")
     }
 }

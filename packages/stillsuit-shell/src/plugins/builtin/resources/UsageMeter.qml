@@ -16,8 +16,9 @@ RowLayout {
     property real detailWidth: detailText.implicitWidth
     property real percentWidth: percentText.implicitWidth
     readonly property bool available: service.validPercent(percent)
-    readonly property color usageColor: available
-        ? theme.semantic.intensity[service.usageBand(percent)] : theme.semantic.content.muted
+    readonly property color usageColor: available ? theme.semantic.intensity[service.usageBand(
+                                                                                 percent)] :
+                                                    theme.semantic.content.muted
     spacing: theme.metrics.spaceUnit * 2.5
     Accessible.name: label + ", " + service.percent(percent) + (detail ? ", " + detail : "")
 

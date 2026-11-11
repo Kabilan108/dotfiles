@@ -15,79 +15,82 @@ ShellRoot {
     property var fakeContext: QtObject {
         property var actions: QtObject {
             function surfaceClose(id) {
-                if (id === "stillsuit.network") root.panelCloses++
+                if (id === "stillsuit.network")
+                    root.panelCloses++
             }
         }
         property var settings: QtObject {
-            property var values: ({ networkHelperPath: "" })
+            property var values: ({
+                                      networkHelperPath: ""
+                                  })
         }
     }
 
     property var openNetwork: ({
-        id: "open",
-        name: "Cafe",
-        kind: "open",
-        known: false,
-        connected: false,
-        signal: 72
-    })
+                                   id: "open",
+                                   name: "Cafe",
+                                   kind: "open",
+                                   known: false,
+                                   connected: false,
+                                   signal: 72
+                               })
     property var savedNetwork: ({
-        id: "saved",
-        uuid: "saved-uuid",
-        name: "Home",
-        kind: "personal",
-        known: true,
-        connected: false,
-        signal: 88
-    })
+                                    id: "saved",
+                                    uuid: "saved-uuid",
+                                    name: "Home",
+                                    kind: "personal",
+                                    known: true,
+                                    connected: false,
+                                    signal: 88
+                                })
     property var personalNetwork: ({
-        id: "personal",
-        name: "Personal",
-        kind: "personal",
-        known: false,
-        connected: false,
-        signal: 61
-    })
+                                       id: "personal",
+                                       name: "Personal",
+                                       kind: "personal",
+                                       known: false,
+                                       connected: false,
+                                       signal: 61
+                                   })
     property var enterpriseNetwork: ({
-        id: "enterprise",
-        uuid: "enterprise-uuid",
-        name: "Enterprise",
-        kind: "enterprise",
-        known: true,
-        connected: false,
-        signal: 90
-    })
+                                         id: "enterprise",
+                                         uuid: "enterprise-uuid",
+                                         name: "Enterprise",
+                                         kind: "enterprise",
+                                         known: true,
+                                         connected: false,
+                                         signal: 90
+                                     })
     property var mobergVpn: ({
-        uuid: "moberg-uuid",
-        name: "MobergAnalytics",
-        active: false,
-        toggleAllowed: true,
-        readOnly: false
-    })
+                                 uuid: "moberg-uuid",
+                                 name: "MobergAnalytics",
+                                 active: false,
+                                 toggleAllowed: true,
+                                 readOnly: false
+                             })
     property var otherVpn: ({
-        uuid: "other-uuid",
-        name: "Other VPN",
-        active: true,
-        toggleAllowed: false,
-        readOnly: true
-    })
+                                uuid: "other-uuid",
+                                name: "Other VPN",
+                                active: true,
+                                toggleAllowed: false,
+                                readOnly: true
+                            })
 
     property var fakeNetwork: QtObject {
         property int revision: 1
         property bool wifiEnabled: true
         property bool wiredConnected: true
         property string wiredName: "Fixture Ethernet"
-        property var networks: [root.openNetwork, root.savedNetwork,
-            root.personalNetwork, root.enterpriseNetwork]
+        property var networks: [root.openNetwork, root.savedNetwork, root.personalNetwork,
+            root.enterpriseNetwork]
         property var vpns: [root.mobergVpn, root.otherVpn]
         property var tailscale: ({
-            available: true,
-            status: "running",
-            ip: "100.64.0.8",
-            hostName: "fixture-host",
-            dnsName: "fixture-host.fixture.ts.net",
-            services: ["siren.fixture.ts.net", "vault.fixture.ts.net"]
-        })
+                                     available: true,
+                                     status: "running",
+                                     ip: "100.64.0.8",
+                                     hostName: "fixture-host",
+                                     dnsName: "fixture-host.fixture.ts.net",
+                                     services: ["siren.fixture.ts.net", "vault.fixture.ts.net"]
+                                 })
         property int scans: 0
         property int editorHandoffs: 0
         property int vpnToggles: 0
@@ -121,11 +124,16 @@ ShellRoot {
         function join(network, password) {
             if (failNext) {
                 failNext = false
-                return ({ status: "error", error: "wrong password" })
+                return ({
+                            status: "error",
+                            error: "wrong password"
+                        })
             }
-            if (network.kind === "personal" && !network.known
-                    && password !== root.secret)
-                return ({ status: "error", error: "wrong password" })
+            if (network.kind === "personal" && !network.known && password !== root.secret)
+                return ({
+                            status: "error",
+                            error: "wrong password"
+                        })
             network.connected = true
             return "ok"
         }
@@ -161,8 +169,12 @@ ShellRoot {
             property string selectedOutputId: ""
         }
         property var actions: QtObject {
-            function surfaceToggle(id, payload) { return "ok" }
-            function surfaceClose(id) { return "ok" }
+            function surfaceToggle(id, payload) {
+                return "ok"
+            }
+            function surfaceClose(id) {
+                return "ok"
+            }
         }
     }
     property Component networkWidget: Qt.createComponent("plugins/builtin/network/Widget.qml")
@@ -196,8 +208,13 @@ ShellRoot {
         property int state: ConnectionState.Connected
         property var networks: QtObject {
             property var values: [
-                { name: "Home", known: true, connected: true, signalStrength: 0.81,
-                    security: WifiSecurityType.Wpa2Psk }
+                {
+                    name: "Home",
+                    known: true,
+                    connected: true,
+                    signalStrength: 0.81,
+                    security: WifiSecurityType.Wpa2Psk
+                }
             ]
         }
     }
@@ -222,10 +239,21 @@ ShellRoot {
     }
     function connectedWifi(deviceName, ssid) {
         return {
-            type: DeviceType.Wifi, name: deviceName, connected: true,
+            type: DeviceType.Wifi,
+            name: deviceName,
+            connected: true,
             state: ConnectionState.Connected,
-            networks: { values: ssid === "" ? [] : [{ name: ssid, known: true,
-                connected: true, signalStrength: 0.5, security: WifiSecurityType.Wpa2Psk }] }
+            networks: {
+                values: ssid === "" ? [] : [
+                                          {
+                                              name: ssid,
+                                              known: true,
+                                              connected: true,
+                                              signalStrength: 0.5,
+                                              security: WifiSecurityType.Wpa2Psk
+                                          }
+                                      ]
+            }
         }
     }
     property var liveWifiOld: QtObject {
@@ -235,20 +263,41 @@ ShellRoot {
         property int state: ConnectionState.Connected
         property var networks: QtObject {
             property var values: [
-                { name: "Old", known: true, connected: true, signalStrength: 0.7,
-                    security: WifiSecurityType.Wpa2Psk }
+                {
+                    name: "Old",
+                    known: true,
+                    connected: true,
+                    signalStrength: 0.7,
+                    security: WifiSecurityType.Wpa2Psk
+                }
             ]
         }
     }
     property var scanSnapshot: ({
-        networks: [
-            { id: "home-uuid", name: "Home", uuid: "home-uuid", known: true,
-                connected: false, kind: "personal", signal: 20, signalStrength: 0.2 },
-            { id: "Library", name: "Library", uuid: "", known: false,
-                connected: true, kind: "open", security: "--", signal: 55,
-                signalStrength: 0.55 }
-        ]
-    })
+                                    networks: [
+                                        {
+                                            id: "home-uuid",
+                                            name: "Home",
+                                            uuid: "home-uuid",
+                                            known: true,
+                                            connected: false,
+                                            kind: "personal",
+                                            signal: 20,
+                                            signalStrength: 0.2
+                                        },
+                                        {
+                                            id: "Library",
+                                            name: "Library",
+                                            uuid: "",
+                                            known: false,
+                                            connected: true,
+                                            kind: "open",
+                                            security: "--",
+                                            signal: 55,
+                                            signalStrength: 0.55
+                                        }
+                                    ]
+                                })
     property var liveWifi: QtObject {
         property int type: DeviceType.Wifi
         property string name: "wlan0"
@@ -257,28 +306,70 @@ ShellRoot {
         property int state: ConnectionState.Connected
         property var networks: QtObject {
             property var values: [
-                { name: "Home", known: true, connected: true, signalStrength: 0.81,
-                    security: WifiSecurityType.Wpa2Psk },
-                { name: "Cafe", known: false, connected: false, signalStrength: 0.4,
-                    security: WifiSecurityType.Open },
-                { name: "Corp", known: false, connected: false, signalStrength: 0.9,
-                    security: WifiSecurityType.Wpa2Eap },
-                { name: "Cafe", known: false, connected: false, signalStrength: 0.6,
-                    security: WifiSecurityType.Open },
-                { name: "", known: false, connected: false, signalStrength: 0.99,
-                    security: WifiSecurityType.Sae }
+                {
+                    name: "Home",
+                    known: true,
+                    connected: true,
+                    signalStrength: 0.81,
+                    security: WifiSecurityType.Wpa2Psk
+                },
+                {
+                    name: "Cafe",
+                    known: false,
+                    connected: false,
+                    signalStrength: 0.4,
+                    security: WifiSecurityType.Open
+                },
+                {
+                    name: "Corp",
+                    known: false,
+                    connected: false,
+                    signalStrength: 0.9,
+                    security: WifiSecurityType.Wpa2Eap
+                },
+                {
+                    name: "Cafe",
+                    known: false,
+                    connected: false,
+                    signalStrength: 0.6,
+                    security: WifiSecurityType.Open
+                },
+                {
+                    name: "",
+                    known: false,
+                    connected: false,
+                    signalStrength: 0.99,
+                    security: WifiSecurityType.Sae
+                }
             ]
         }
     }
     property var helperSnapshot: ({
-        wiredConnections: [{ device: "enp4s0", name: "Wired connection 1",
-            addresses: ["192.0.2.10/24"], carrier: "on" }],
-        networks: [{ name: "Home", uuid: "home-uuid", profileName: "Home profile" }],
-        vpns: [root.mobergVpn],
-        tailscale: ({ available: true, status: "running", ip: "100.64.0.8",
-            hostName: "fixture-host", dnsName: "fixture-host.fixture.ts.net",
-            services: [] })
-    })
+                                      wiredConnections: [
+                                          {
+                                              device: "enp4s0",
+                                              name: "Wired connection 1",
+                                              addresses: ["192.0.2.10/24"],
+                                              carrier: "on"
+                                          }
+                                      ],
+                                      networks: [
+                                          {
+                                              name: "Home",
+                                              uuid: "home-uuid",
+                                              profileName: "Home profile"
+                                          }
+                                      ],
+                                      vpns: [root.mobergVpn],
+                                      tailscale: ({
+                                                      available: true,
+                                                      status: "running",
+                                                      ip: "100.64.0.8",
+                                                      hostName: "fixture-host",
+                                                      dnsName: "fixture-host.fixture.ts.net",
+                                                      services: []
+                                                  })
+                                  })
 
     property var connectedDevice: QtObject {
         property string address: "AA:00:00:00:00:01"
@@ -330,8 +421,8 @@ ShellRoot {
         property bool enabled: true
         property bool scanning: false
         property bool failNext: false
-        property var devices: [root.connectedDevice, root.pairedDevice,
-            root.availableDevice, root.failedDevice]
+        property var devices: [root.connectedDevice, root.pairedDevice, root.availableDevice,
+            root.failedDevice]
 
         function setEnabled(value) {
             enabled = value
@@ -351,7 +442,10 @@ ShellRoot {
         function connectDevice(device) {
             if (failNext) {
                 failNext = false
-                return ({ status: "error", error: "BlueZ rejected connection" })
+                return ({
+                            status: "error",
+                            error: "BlueZ rejected connection"
+                        })
             }
             root.events = root.events.concat(["connect:" + device.address])
             device.paired = true
@@ -393,11 +487,8 @@ ShellRoot {
     property var viewComponents: []
 
     Component.onCompleted: {
-        var urls = [
-            "plugins/builtin/network/Widget.qml",
-            "plugins/builtin/bluetooth/Widget.qml",
-            "plugins/builtin/bluetooth/Service.qml"
-        ]
+        var urls = ["plugins/builtin/network/Widget.qml", "plugins/builtin/bluetooth/Widget.qml",
+                    "plugins/builtin/bluetooth/Service.qml"]
         for (var index = 0; index < urls.length; index++)
             viewComponents.push(Qt.createComponent(urls[index], Component.Asynchronous))
     }
@@ -421,7 +512,7 @@ ShellRoot {
         onTriggered: {
             try {
                 expect(!destroyedOwnerScanner.scannerEnabled,
-                    "a destroyed network service left the Wi-Fi scanner running")
+                       "a destroyed network service left the Wi-Fi scanner running")
                 console.log("CONNECTIVITY_FIXTURE_OK checks=" + checks)
             } catch (error) {
                 console.error("CONNECTIVITY_FIXTURE_FAIL " + error)
@@ -436,311 +527,329 @@ ShellRoot {
         repeat: false
 
         onTriggered: {
-          try {
-            for (var componentIndex = 0; componentIndex < viewComponents.length;
-                    componentIndex++) {
-                expect(viewComponents[componentIndex].status === Component.Ready,
-                    "connectivity view failed: "
-                        + viewComponents[componentIndex].errorString())
+            try {
+                for (var componentIndex = 0; componentIndex
+                     < viewComponents.length; componentIndex++) {
+                    expect(viewComponents[componentIndex].status === Component.Ready,
+                           "connectivity view failed: " + viewComponents[componentIndex].errorString(
+                               ))
+                }
+                expect(network.available && network.wifiEnabled && network.wiredConnected,
+                       "network owner state was not exposed")
+                expect(!network.networkingBackend && !network.networkingActive &&
+                       !network.scannerWanted && !network.refreshTimer.running &&
+                       !network.sanityTimer.running,
+                       "an injected model must not reach Quickshell.Networking or poll")
+
+                var live = network.liveSnapshot([liveWired, liveWiredDown, liveWifi], true,
+                                                helperSnapshot)
+                expect(live.wifiEnabled && live.wifiConnected && live.wiredConnected
+                       && live.wiredName === "Wired connection 1" && live.wiredConnections.length
+                       === 1 && live.wiredConnections[0].device === "enp4s0"
+                       && live.wiredConnections[0].addresses[0] === "192.0.2.10/24",
+                       "live wired devices did not map onto the snapshot shape")
+                expect(live.networks.map(function (row) {
+                    return row.name
+                }).join(",") === "Home,Corp,Cafe",
+                       "live Wi-Fi networks were not deduplicated and ordered")
+                expect(live.networks[0].connected && live.networks[0].known
+                       && live.networks[0].uuid === "home-uuid" && live.networks[0].id
+                       === "home-uuid" && live.networks[0].kind === "personal"
+                       && live.networks[0].signal === 81 && network.signalPercentage(
+                           live.networks[0]) === 81,
+                       "saved live network lost its helper profile or signal")
+                expect(live.networks[1].kind === "enterprise" && live.networks[2].kind === "open"
+                       && live.networks[2].signal === 60 && live.networks[2].uuid === ""
+                       && live.networks[2].id === "Cafe",
+                       "live network security kinds are incorrect")
+                expect(live.vpns.length === 1 && live.tailscale.ip === "100.64.0.8",
+                       "helper VPN and Tailscale data were not merged into live state")
+                var scanned = network.liveSnapshot([liveWifiKnownOnly], true, scanSnapshot)
+                expect(scanned.networks.map(function (row) {
+                    return row.name
+                }).join(",") === "Home,Library",
+                       "an unsaved SSID from the helper scan is missing from the live list")
+                expect(scanned.networks[0].signal === 81 && scanned.networks[0].connected
+                       && scanned.networks[1].kind === "open" && !scanned.networks[1].known &&
+                       !scanned.networks[1].connected,
+                       "live rows must win over helper rows, and helper-only rows are never connected")
+                expect(network.liveSnapshot([liveWifiKnownOnly], false,
+                                            scanSnapshot).networks.length === 0,
+                       "helper rows leaked into the list with the Wi-Fi radio off")
+
+                network.applyScanner([liveWired, liveWifiKnownOnly], true)
+                expect(liveWifiKnownOnly.scannerEnabled,
+                       "the Wi-Fi scanner was not enabled for the open panel")
+                network.applyScanner([liveWired, liveWifiKnownOnly], false)
+                expect(!liveWifiKnownOnly.scannerEnabled, "the Wi-Fi scanner was left running")
+                network.applyScanner([externalScanner], true)
+                network.applyScanner([externalScanner], false)
+                expect(externalScanner.scannerEnabled && network.scannerDevices.length === 0,
+                       "a scanner enabled elsewhere was switched off")
+                expect(network._begin("scan", "wifi") && network.scannerRequested,
+                       "a scan operation did not request the scanner")
+                network._finishModel("ok", "scan")
+                expect(!network.scannerRequested, "a finished scan kept the scanner requested")
+                expect(network._begin("scan", "wifi") && network.scannerRequested,
+                       "a second scan operation did not request the scanner")
+                network._handleResponse(JSON.stringify({
+                                                           operation: "scan",
+                                                           ok: false,
+                                                           error: "scan failed"
+                                                       }))
+                expect(!network.scannerRequested && network.operation === "idle",
+                       "a failed scan kept the scanner requested")
+
+                var oldSsid = network.liveSnapshot([liveWired, liveWifiOld], true, null)
+                expect(oldSsid.wifiSsid === "Old" && oldSsid.wiredDevices.join(",") === "enp4s0",
+                       "live connected SSID or wired devices were not exposed")
+                function summaryFor(ssids, radio, wiredDevices) {
+                    return {
+                        wifiEnabled: radio,
+                        wiredActive: wiredDevices.length > 0,
+                        wiredDevices: wiredDevices,
+                        wifiActive: ssids.length > 0,
+                        wifiSsids: ssids,
+                        wifiSsid: ssids.length > 0 ? ssids[0] : ""
+                    }
+                }
+                var newSummary = summaryFor(["New"], true, ["enp4s0"])
+                expect(!network.summaryMatches(newSummary, oldSsid) && network.summaryMatches(
+                           summaryFor(["Old"], true, ["enp4s0"]), oldSsid) &&
+                       !network.summaryMatches(summaryFor(["Old"], true, ["enp5s0"]), oldSsid),
+                       "summary comparison ignored the SSID or wired device")
+                staleProbe.applyScanner([liveWifiKnownOnly], true)
+                expect(!staleProbe.checkBackend(newSummary, oldSsid) && staleProbe.staleStrikes
+                       === 1 && !staleProbe.networkingStale,
+                       "one SSID disagreement must only record a strike")
+                expect(staleProbe.checkBackend(newSummary, oldSsid) && staleProbe.networkingStale
+                       && staleProbe.staleStrikes === 0,
+                       "a second SSID disagreement must fall back to helper polling")
+                expect(!liveWifiKnownOnly.scannerEnabled && staleProbe.scannerDevices.length === 0,
+                       "fallback to helper polling left the Wi-Fi scanner running")
+
+                var radioOff = summaryFor(["Old"], false, ["enp4s0"])
+                expect(!network.summaryMatches(radioOff, oldSsid),
+                       "summary comparison ignored the Wi-Fi radio state")
+                expect(!radioProbe.checkBackend(radioOff, oldSsid) && radioProbe.staleStrikes === 1,
+                       "one radio disagreement must only record a strike")
+                expect(radioProbe.checkBackend(radioOff, oldSsid) && radioProbe.networkingStale,
+                       "a second radio disagreement must fall back to helper polling")
+
+                var twoAdapters = network.liveSnapshot([connectedWifi("wlan1", "Beta"),
+                                                        connectedWifi("wlan0", "Alpha")], true,
+                                                       null)
+                expect(network.summaryMatches(summaryFor(["Alpha", "Beta"], true, []), twoAdapters)
+                       && network.summaryMatches(summaryFor(["Beta", "Alpha"], true, []),
+                                                 twoAdapters) && !network.summaryMatches(summaryFor(
+                                                                                             ["Alpha"],
+                                                                                             true, []),
+                                                                                         twoAdapters)
+                       && !network.summaryMatches(summaryFor(["Alpha", "Gamma"], true, []),
+                                                  twoAdapters),
+                       "two connected adapters were not compared as a set")
+                var hidden = network.liveSnapshot([connectedWifi("wlan0", "")], true, null)
+                expect(network.summaryMatches(summaryFor(["Hidden"], true, []), hidden),
+                       "a hidden network without a live SSID caused a mismatch")
+
+                var doomed = networkServiceComponent.createObject(root)
+                doomed.applyScanner([destroyedOwnerScanner], true)
+                expect(doomed._begin("scan", "wifi") && destroyedOwnerScanner.scannerEnabled,
+                       "the destruction probe did not enable its scanner")
+                doomed.destroy()
+
+                var bare = network.liveSnapshot([liveWired, liveWifi], false, null)
+                expect(bare.wiredName === "enp4s0" && bare.wiredConnections[0].carrier === "on"
+                       && bare.wiredConnections[0].addresses.length === 0 && bare.networks.length
+                       === 0 && bare.wifiConnected && !bare.tailscale.available && bare.vpns.length
+                       === 0, "live state without a helper snapshot is incorrect")
+                expect(network.summaryMatches({
+                                                  wiredActive: true,
+                                                  wifiActive: true
+                                              }, live) && !network.summaryMatches({
+                                                                                      wiredActive:
+                                                                                      true,
+                                                                                      wifiActive:
+                                                                                      false
+                                                                                  }, live) &&
+                       !network.summaryMatches({
+                                                   wiredActive: false,
+                                                   wifiActive: true
+                                               }, live), "stale-backend summary comparison is incorrect")
+
+                var widget = networkWidget.createObject(root, {
+                                                            context: viewContext,
+                                                            service: network,
+                                                            outputId: "fixture-output"
+                                                        })
+                expect(widget && !widget.busy, "network widget failed to load idle")
+                expect(network._begin("scan", "wifi") && !widget.busy,
+                       "a Wi-Fi scan must not mark the bar chip busy")
+                network._finishModel("ok", "scan")
+                expect(network._begin("join", "saved-uuid") && widget.busy,
+                       "a join must mark the bar chip busy")
+                network._finishModel("ok", "join")
+                expect(network._begin("wifi-enabled", "wifi") && widget.busy,
+                       "a Wi-Fi toggle must mark the bar chip busy")
+                network._finishModel("ok", "wifi-enabled")
+                expect(!widget.busy, "network widget stayed busy after the operation")
+                widget.destroy()
+
+                var panel = networkPanel.createObject(root, {
+                                                          context: viewContext,
+                                                          service: network,
+                                                          screen: null,
+                                                          outputId: "fixture-output"
+                                                      })
+                expect(panel && panel.connectedRows.length === 0 && panel.availableRows.length
+                       === 0 && panel.savedRows.length === 0 && panel.allowlistedVpns.length === 0,
+                       "a closed network panel must not derive network rows")
+                panel.open("{}")
+                expect(panel.availableRows.length === 2 && panel.savedRows.length === 2
+                       && panel.allowlistedVpns.length === 1 && panel.activeReadOnlyVpns.length
+                       === 1, "an opened network panel did not derive its rows")
+                var panelItems = descendants(panel)
+                var scrollAreas = panelItems.filter(function (item) {
+                    return item.contentY !== undefined && item.contentHeight !== undefined
+                })
+                expect(scrollAreas.length === 1, "network panel must have one list scroll area")
+                var availableScroll = scrollAreas[0]
+                var scrollingItems = descendants(availableScroll)
+                var fixedItems = panelItems.filter(function (item) {
+                    return item.text === "tailscale" || item.text === "Connected" || item.text
+                            === "VPN" || item.label === "Airplane mode"
+                })
+                expect(fixedItems.length >= 4, "fixed network sections were not instantiated")
+                var fixedPositions = fixedItems.map(function (item) {
+                    return item.mapToItem(panel, 0, 0).y
+                })
+                availableScroll.contentY = 30
+                for (var fixedIndex = 0; fixedIndex < fixedItems.length; fixedIndex++) {
+                    expect(scrollingItems.indexOf(fixedItems[fixedIndex]) === -1
+                           && fixedItems[fixedIndex].mapToItem(panel, 0, 0).y
+                           === fixedPositions[fixedIndex],
+                           "scrolling available networks moved a fixed section")
+                }
+                availableScroll.contentY = 0
+                panel.close()
+                expect(panel.availableRows.length === 0 && panel.allowlistedVpns.length === 0,
+                       "a closed network panel kept deriving rows")
+                panel.destroy()
+                expect(network.airplaneAvailable && !network.airplaneEnabled,
+                       "airplane mode initial state is wrong")
+                expect(network.setAirplaneEnabled(true) === "ok" && network.airplaneEnabled &&
+                       !network.wifiEnabled, "airplane mode did not block radios")
+                expect(network.setAirplaneEnabled(false) === "ok" && !network.airplaneEnabled
+                       && network.wifiEnabled, "airplane mode did not unblock radios")
+                expect(network._begin("airplane-enabled", "radios") && network.airplaneChanging,
+                       "airplane mode busy state missing")
+                expect(network.setAirplaneEnabled(true) === "busy",
+                       "overlapping airplane operation was accepted")
+                network._finishModel("error", "airplane-enabled")
+                expect(!network.airplaneChanging && !network.airplaneEnabled && network.lastError
+                       !== "", "failed airplane operation changed radio truth")
+                expect(network.scan() === "ok" && fakeNetwork.scans === 1,
+                       "scan did not reach the fake NetworkManager owner")
+                expect(network._begin("scan", "wifi") && network.scanning,
+                       "network scanning state was not exposed")
+                network._finishModel("ok", "scan")
+
+                expect(network.activate(openNetwork, "") === "ok" && openNetwork.connected,
+                       "open network join failed")
+                expect(network.activate(openNetwork, "") === "ok" && !openNetwork.connected,
+                       "open network disconnect failed")
+                expect(network.activate(savedNetwork, "") === "ok" && savedNetwork.connected,
+                       "saved network join failed")
+                savedNetwork.connected = false
+                expect(network.activate(personalNetwork, secret) === "ok"
+                       && personalNetwork.connected, "personal secured network join failed")
+                expect(network.lastCommandJson.indexOf(secret) === -1
+                       && network.lastRequestSummary.indexOf(secret) === -1,
+                       "credential leaked into observable service state")
+                personalNetwork.connected = false
+
+                fakeNetwork.failNext = true
+                expect(network.activate(personalNetwork, secret) === "error" && network.lastError
+                       === "wrong password" && !personalNetwork.connected,
+                       "join failure did not preserve owner truth")
+                expect(network.openEditor(enterpriseNetwork) === "ok" && events.indexOf(
+                           "editor:enterprise") !== -1, "enterprise handoff failed")
+                expect(network.openHiddenEditor() === "ok" && events.indexOf("editor:hidden") !== -1,
+                       "hidden-network handoff failed")
+                expect(network.openManager() === "ok" && events.indexOf("editor:manage") !== -1,
+                       "network-manager handoff failed")
+                expect(panelCloses === 3, "successful editor handoffs must close the network panel")
+                network._handleResponse(JSON.stringify({
+                                                           operation: "open-editor",
+                                                           ok: false,
+                                                           error: "launch failed"
+                                                       }))
+                expect(panelCloses === 3, "failed editor launch must retain the panel")
+                network._handleResponse(JSON.stringify({
+                                                           operation: "open-editor",
+                                                           ok: true,
+                                                           handoff: true
+                                                       }))
+                expect(panelCloses === 4, "helper handoff closes only after success")
+
+                expect(network.toggleVpn(otherVpn) === "read-only" && fakeNetwork.vpnToggles === 0,
+                       "non-allowlisted VPN became writable")
+                expect(network.toggleVpn(mobergVpn) === "ok" && fakeNetwork.vpnToggles === 1,
+                       "MobergAnalytics quick toggle failed")
+                expect(network.tailscale.status === "running" && network.tailscale.ip
+                       === "100.64.0.8" && network.tailscale.hostName === "fixture-host"
+                       && network.tailscale.dnsName === "fixture-host.fixture.ts.net"
+                       && network.tailscale.services.length === 2,
+                       "Tailscale metadata was not exposed")
+                expect(network.copyTailscale("dns") === "ok" && fakeNetwork.copiedTailscaleField
+                       === "dns", "Tailscale copy did not reach the network owner")
+                expect(network.copyTailscale("service", "siren.fixture.ts.net") === "ok"
+                       && fakeNetwork.copiedTailscaleField === "service"
+                       && fakeNetwork.copiedTailscaleService === "siren.fixture.ts.net",
+                       "Tailscale service copy did not reach the network owner")
+
+                expect(bluetooth.connectedDevices.length === 1 && bluetooth.pairedDevices.length
+                       === 2 && bluetooth.availableDevices.length === 1,
+                       "Bluetooth groups are incorrect")
+                expect(bluetooth.batteryText(connectedDevice) === "63% battery",
+                       "Bluetooth battery state is incorrect")
+                expect(bluetooth.scan() === "ok" && bluetooth.scanning,
+                       "Bluetooth scan did not reach BlueZ owner")
+                expect(bluetooth.operation === "idle",
+                       "Bluetooth discovery must not mark the bar chip busy")
+                expect(bluetooth.stopScan() === "ok" && !bluetooth.scanning,
+                       "Bluetooth scan stop did not reconcile")
+
+                var eventStart = events.length
+                expect(bluetooth.connectDevice(availableDevice) === "ok"
+                       && availableDevice.connected && availableDevice.paired
+                       && availableDevice.trusted,
+                       "Bluetooth connect did not pair, trust, and connect")
+                expect(events[eventStart] === "connect:" + availableDevice.address
+                       && events[eventStart + 1] === "audio:" + availableDevice.address,
+                       "audio default did not follow successful Bluetooth connect")
+                expect(bluetooth.disconnectDevice(availableDevice) === "ok" &&
+                       !availableDevice.connected, "Bluetooth disconnect failed")
+                expect(bluetooth._begin("forget", pairedDevice) && bluetooth.statusFor(
+                           pairedDevice) === "forgetting",
+                       "Bluetooth Forget transition was not exposed")
+                bluetooth._complete("fixture reset")
+                expect(bluetooth.forgetDevice(pairedDevice) === "ok" && !pairedDevice.paired &&
+                       !pairedDevice.bonded, "Bluetooth Forget did not remove the bond")
+
+                fakeBluetooth.failNext = true
+                expect(bluetooth.connectDevice(failedDevice) === "error" && bluetooth.failureFor(
+                           failedDevice) === "BlueZ rejected connection" && !failedDevice.connected,
+                       "Bluetooth failure state did not preserve BlueZ truth")
+                failedDevice.state = "connecting"
+                expect(bluetooth.statusFor(failedDevice) === "connecting",
+                       "Bluetooth transition state was not exposed")
+
+                finishTimer.start()
+            } catch (error) {
+                console.error("CONNECTIVITY_FIXTURE_FAIL " + error)
+                Qt.quit()
             }
-            expect(network.available && network.wifiEnabled && network.wiredConnected,
-                "network owner state was not exposed")
-            expect(!network.networkingBackend && !network.networkingActive
-                    && !network.scannerWanted
-                    && !network.refreshTimer.running && !network.sanityTimer.running,
-                "an injected model must not reach Quickshell.Networking or poll")
-
-            var live = network.liveSnapshot([liveWired, liveWiredDown, liveWifi],
-                true, helperSnapshot)
-            expect(live.wifiEnabled && live.wifiConnected && live.wiredConnected
-                    && live.wiredName === "Wired connection 1"
-                    && live.wiredConnections.length === 1
-                    && live.wiredConnections[0].device === "enp4s0"
-                    && live.wiredConnections[0].addresses[0] === "192.0.2.10/24",
-                "live wired devices did not map onto the snapshot shape")
-            expect(live.networks.map(function(row) { return row.name }).join(",")
-                    === "Home,Corp,Cafe",
-                "live Wi-Fi networks were not deduplicated and ordered")
-            expect(live.networks[0].connected && live.networks[0].known
-                    && live.networks[0].uuid === "home-uuid"
-                    && live.networks[0].id === "home-uuid"
-                    && live.networks[0].kind === "personal"
-                    && live.networks[0].signal === 81
-                    && network.signalPercentage(live.networks[0]) === 81,
-                "saved live network lost its helper profile or signal")
-            expect(live.networks[1].kind === "enterprise"
-                    && live.networks[2].kind === "open"
-                    && live.networks[2].signal === 60
-                    && live.networks[2].uuid === "" && live.networks[2].id === "Cafe",
-                "live network security kinds are incorrect")
-            expect(live.vpns.length === 1 && live.tailscale.ip === "100.64.0.8",
-                "helper VPN and Tailscale data were not merged into live state")
-            var scanned = network.liveSnapshot([liveWifiKnownOnly], true, scanSnapshot)
-            expect(scanned.networks.map(function(row) { return row.name }).join(",")
-                    === "Home,Library",
-                "an unsaved SSID from the helper scan is missing from the live list")
-            expect(scanned.networks[0].signal === 81 && scanned.networks[0].connected
-                    && scanned.networks[1].kind === "open" && !scanned.networks[1].known
-                    && !scanned.networks[1].connected,
-                "live rows must win over helper rows, and helper-only rows are never connected")
-            expect(network.liveSnapshot([liveWifiKnownOnly], false, scanSnapshot)
-                    .networks.length === 0,
-                "helper rows leaked into the list with the Wi-Fi radio off")
-
-            network.applyScanner([liveWired, liveWifiKnownOnly], true)
-            expect(liveWifiKnownOnly.scannerEnabled,
-                "the Wi-Fi scanner was not enabled for the open panel")
-            network.applyScanner([liveWired, liveWifiKnownOnly], false)
-            expect(!liveWifiKnownOnly.scannerEnabled, "the Wi-Fi scanner was left running")
-            network.applyScanner([externalScanner], true)
-            network.applyScanner([externalScanner], false)
-            expect(externalScanner.scannerEnabled && network.scannerDevices.length === 0,
-                "a scanner enabled elsewhere was switched off")
-            expect(network._begin("scan", "wifi") && network.scannerRequested,
-                "a scan operation did not request the scanner")
-            network._finishModel("ok", "scan")
-            expect(!network.scannerRequested, "a finished scan kept the scanner requested")
-            expect(network._begin("scan", "wifi") && network.scannerRequested,
-                "a second scan operation did not request the scanner")
-            network._handleResponse(JSON.stringify({ operation: "scan", ok: false,
-                error: "scan failed" }))
-            expect(!network.scannerRequested && network.operation === "idle",
-                "a failed scan kept the scanner requested")
-
-            var oldSsid = network.liveSnapshot([liveWired, liveWifiOld], true, null)
-            expect(oldSsid.wifiSsid === "Old"
-                    && oldSsid.wiredDevices.join(",") === "enp4s0",
-                "live connected SSID or wired devices were not exposed")
-            function summaryFor(ssids, radio, wiredDevices) {
-                return { wifiEnabled: radio, wiredActive: wiredDevices.length > 0,
-                    wiredDevices: wiredDevices, wifiActive: ssids.length > 0,
-                    wifiSsids: ssids, wifiSsid: ssids.length > 0 ? ssids[0] : "" }
-            }
-            var newSummary = summaryFor(["New"], true, ["enp4s0"])
-            expect(!network.summaryMatches(newSummary, oldSsid)
-                    && network.summaryMatches(summaryFor(["Old"], true, ["enp4s0"]), oldSsid)
-                    && !network.summaryMatches(summaryFor(["Old"], true, ["enp5s0"]), oldSsid),
-                "summary comparison ignored the SSID or wired device")
-            staleProbe.applyScanner([liveWifiKnownOnly], true)
-            expect(!staleProbe.checkBackend(newSummary, oldSsid)
-                    && staleProbe.staleStrikes === 1 && !staleProbe.networkingStale,
-                "one SSID disagreement must only record a strike")
-            expect(staleProbe.checkBackend(newSummary, oldSsid)
-                    && staleProbe.networkingStale && staleProbe.staleStrikes === 0,
-                "a second SSID disagreement must fall back to helper polling")
-            expect(!liveWifiKnownOnly.scannerEnabled && staleProbe.scannerDevices.length === 0,
-                "fallback to helper polling left the Wi-Fi scanner running")
-
-            var radioOff = summaryFor(["Old"], false, ["enp4s0"])
-            expect(!network.summaryMatches(radioOff, oldSsid),
-                "summary comparison ignored the Wi-Fi radio state")
-            expect(!radioProbe.checkBackend(radioOff, oldSsid) && radioProbe.staleStrikes === 1,
-                "one radio disagreement must only record a strike")
-            expect(radioProbe.checkBackend(radioOff, oldSsid) && radioProbe.networkingStale,
-                "a second radio disagreement must fall back to helper polling")
-
-            var twoAdapters = network.liveSnapshot([connectedWifi("wlan1", "Beta"),
-                connectedWifi("wlan0", "Alpha")], true, null)
-            expect(network.summaryMatches(summaryFor(["Alpha", "Beta"], true, []), twoAdapters)
-                    && network.summaryMatches(summaryFor(["Beta", "Alpha"], true, []), twoAdapters)
-                    && !network.summaryMatches(summaryFor(["Alpha"], true, []), twoAdapters)
-                    && !network.summaryMatches(summaryFor(["Alpha", "Gamma"], true, []),
-                        twoAdapters),
-                "two connected adapters were not compared as a set")
-            var hidden = network.liveSnapshot([connectedWifi("wlan0", "")], true, null)
-            expect(network.summaryMatches(summaryFor(["Hidden"], true, []), hidden),
-                "a hidden network without a live SSID caused a mismatch")
-
-            var doomed = networkServiceComponent.createObject(root)
-            doomed.applyScanner([destroyedOwnerScanner], true)
-            expect(doomed._begin("scan", "wifi") && destroyedOwnerScanner.scannerEnabled,
-                "the destruction probe did not enable its scanner")
-            doomed.destroy()
-
-            var bare = network.liveSnapshot([liveWired, liveWifi], false, null)
-            expect(bare.wiredName === "enp4s0" && bare.wiredConnections[0].carrier === "on"
-                    && bare.wiredConnections[0].addresses.length === 0
-                    && bare.networks.length === 0 && bare.wifiConnected
-                    && !bare.tailscale.available && bare.vpns.length === 0,
-                "live state without a helper snapshot is incorrect")
-            expect(network.summaryMatches({ wiredActive: true, wifiActive: true }, live)
-                    && !network.summaryMatches({ wiredActive: true, wifiActive: false }, live)
-                    && !network.summaryMatches({ wiredActive: false, wifiActive: true }, live),
-                "stale-backend summary comparison is incorrect")
-
-            var widget = networkWidget.createObject(root, {
-                context: viewContext, service: network, outputId: "fixture-output"
-            })
-            expect(widget && !widget.busy, "network widget failed to load idle")
-            expect(network._begin("scan", "wifi") && !widget.busy,
-                "a Wi-Fi scan must not mark the bar chip busy")
-            network._finishModel("ok", "scan")
-            expect(network._begin("join", "saved-uuid") && widget.busy,
-                "a join must mark the bar chip busy")
-            network._finishModel("ok", "join")
-            expect(network._begin("wifi-enabled", "wifi") && widget.busy,
-                "a Wi-Fi toggle must mark the bar chip busy")
-            network._finishModel("ok", "wifi-enabled")
-            expect(!widget.busy, "network widget stayed busy after the operation")
-            widget.destroy()
-
-            var panel = networkPanel.createObject(root, {
-                context: viewContext, service: network, screen: null,
-                outputId: "fixture-output"
-            })
-            expect(panel && panel.connectedRows.length === 0
-                    && panel.availableRows.length === 0 && panel.savedRows.length === 0
-                    && panel.allowlistedVpns.length === 0,
-                "a closed network panel must not derive network rows")
-            panel.open("{}")
-            expect(panel.availableRows.length === 2 && panel.savedRows.length === 2
-                    && panel.allowlistedVpns.length === 1
-                    && panel.activeReadOnlyVpns.length === 1,
-                "an opened network panel did not derive its rows")
-            var panelItems = descendants(panel)
-            var scrollAreas = panelItems.filter(function(item) {
-                return item.contentY !== undefined && item.contentHeight !== undefined
-            })
-            expect(scrollAreas.length === 1, "network panel must have one list scroll area")
-            var availableScroll = scrollAreas[0]
-            var scrollingItems = descendants(availableScroll)
-            var fixedItems = panelItems.filter(function(item) {
-                return item.text === "tailscale" || item.text === "Connected"
-                    || item.text === "VPN" || item.label === "Airplane mode"
-            })
-            expect(fixedItems.length >= 4, "fixed network sections were not instantiated")
-            var fixedPositions = fixedItems.map(function(item) { return item.mapToItem(panel, 0, 0).y })
-            availableScroll.contentY = 30
-            for (var fixedIndex = 0; fixedIndex < fixedItems.length; fixedIndex++) {
-                expect(scrollingItems.indexOf(fixedItems[fixedIndex]) === -1
-                    && fixedItems[fixedIndex].mapToItem(panel, 0, 0).y === fixedPositions[fixedIndex],
-                    "scrolling available networks moved a fixed section")
-            }
-            availableScroll.contentY = 0
-            panel.close()
-            expect(panel.availableRows.length === 0 && panel.allowlistedVpns.length === 0,
-                "a closed network panel kept deriving rows")
-            panel.destroy()
-            expect(network.airplaneAvailable && !network.airplaneEnabled,
-                "airplane mode initial state is wrong")
-            expect(network.setAirplaneEnabled(true) === "ok" && network.airplaneEnabled
-                    && !network.wifiEnabled, "airplane mode did not block radios")
-            expect(network.setAirplaneEnabled(false) === "ok" && !network.airplaneEnabled
-                    && network.wifiEnabled, "airplane mode did not unblock radios")
-            expect(network._begin("airplane-enabled", "radios") && network.airplaneChanging,
-                "airplane mode busy state missing")
-            expect(network.setAirplaneEnabled(true) === "busy",
-                "overlapping airplane operation was accepted")
-            network._finishModel("error", "airplane-enabled")
-            expect(!network.airplaneChanging && !network.airplaneEnabled && network.lastError !== "",
-                "failed airplane operation changed radio truth")
-            expect(network.scan() === "ok" && fakeNetwork.scans === 1,
-                "scan did not reach the fake NetworkManager owner")
-            expect(network._begin("scan", "wifi") && network.scanning,
-                "network scanning state was not exposed")
-            network._finishModel("ok", "scan")
-
-            expect(network.activate(openNetwork, "") === "ok" && openNetwork.connected,
-                "open network join failed")
-            expect(network.activate(openNetwork, "") === "ok" && !openNetwork.connected,
-                "open network disconnect failed")
-            expect(network.activate(savedNetwork, "") === "ok" && savedNetwork.connected,
-                "saved network join failed")
-            savedNetwork.connected = false
-            expect(network.activate(personalNetwork, secret) === "ok"
-                    && personalNetwork.connected,
-                "personal secured network join failed")
-            expect(network.lastCommandJson.indexOf(secret) === -1
-                    && network.lastRequestSummary.indexOf(secret) === -1,
-                "credential leaked into observable service state")
-            personalNetwork.connected = false
-
-            fakeNetwork.failNext = true
-            expect(network.activate(personalNetwork, secret) === "error"
-                    && network.lastError === "wrong password"
-                    && !personalNetwork.connected,
-                "join failure did not preserve owner truth")
-            expect(network.openEditor(enterpriseNetwork) === "ok"
-                    && events.indexOf("editor:enterprise") !== -1,
-                "enterprise handoff failed")
-            expect(network.openHiddenEditor() === "ok"
-                    && events.indexOf("editor:hidden") !== -1,
-                "hidden-network handoff failed")
-            expect(network.openManager() === "ok"
-                    && events.indexOf("editor:manage") !== -1,
-                "network-manager handoff failed")
-            expect(panelCloses === 3, "successful editor handoffs must close the network panel")
-            network._handleResponse(JSON.stringify({operation: "open-editor", ok: false, error: "launch failed"}))
-            expect(panelCloses === 3, "failed editor launch must retain the panel")
-            network._handleResponse(JSON.stringify({operation: "open-editor", ok: true, handoff: true}))
-            expect(panelCloses === 4, "helper handoff closes only after success")
-
-            expect(network.toggleVpn(otherVpn) === "read-only"
-                    && fakeNetwork.vpnToggles === 0,
-                "non-allowlisted VPN became writable")
-            expect(network.toggleVpn(mobergVpn) === "ok"
-                    && fakeNetwork.vpnToggles === 1,
-                "MobergAnalytics quick toggle failed")
-            expect(network.tailscale.status === "running"
-                    && network.tailscale.ip === "100.64.0.8"
-                    && network.tailscale.hostName === "fixture-host"
-                    && network.tailscale.dnsName === "fixture-host.fixture.ts.net"
-                    && network.tailscale.services.length === 2,
-                "Tailscale metadata was not exposed")
-            expect(network.copyTailscale("dns") === "ok"
-                    && fakeNetwork.copiedTailscaleField === "dns",
-                "Tailscale copy did not reach the network owner")
-            expect(network.copyTailscale("service", "siren.fixture.ts.net") === "ok"
-                    && fakeNetwork.copiedTailscaleField === "service"
-                    && fakeNetwork.copiedTailscaleService === "siren.fixture.ts.net",
-                "Tailscale service copy did not reach the network owner")
-
-            expect(bluetooth.connectedDevices.length === 1
-                    && bluetooth.pairedDevices.length === 2
-                    && bluetooth.availableDevices.length === 1,
-                "Bluetooth groups are incorrect")
-            expect(bluetooth.batteryText(connectedDevice) === "63% battery",
-                "Bluetooth battery state is incorrect")
-            expect(bluetooth.scan() === "ok" && bluetooth.scanning,
-                "Bluetooth scan did not reach BlueZ owner")
-            expect(bluetooth.operation === "idle",
-                "Bluetooth discovery must not mark the bar chip busy")
-            expect(bluetooth.stopScan() === "ok" && !bluetooth.scanning,
-                "Bluetooth scan stop did not reconcile")
-
-            var eventStart = events.length
-            expect(bluetooth.connectDevice(availableDevice) === "ok"
-                    && availableDevice.connected && availableDevice.paired
-                    && availableDevice.trusted,
-                "Bluetooth connect did not pair, trust, and connect")
-            expect(events[eventStart] === "connect:" + availableDevice.address
-                    && events[eventStart + 1] === "audio:" + availableDevice.address,
-                "audio default did not follow successful Bluetooth connect")
-            expect(bluetooth.disconnectDevice(availableDevice) === "ok"
-                    && !availableDevice.connected,
-                "Bluetooth disconnect failed")
-            expect(bluetooth._begin("forget", pairedDevice)
-                    && bluetooth.statusFor(pairedDevice) === "forgetting",
-                "Bluetooth Forget transition was not exposed")
-            bluetooth._complete("fixture reset")
-            expect(bluetooth.forgetDevice(pairedDevice) === "ok"
-                    && !pairedDevice.paired && !pairedDevice.bonded,
-                "Bluetooth Forget did not remove the bond")
-
-            fakeBluetooth.failNext = true
-            expect(bluetooth.connectDevice(failedDevice) === "error"
-                    && bluetooth.failureFor(failedDevice) === "BlueZ rejected connection"
-                    && !failedDevice.connected,
-                "Bluetooth failure state did not preserve BlueZ truth")
-            failedDevice.state = "connecting"
-            expect(bluetooth.statusFor(failedDevice) === "connecting",
-                "Bluetooth transition state was not exposed")
-
-            finishTimer.start()
-          } catch (error) {
-              console.error("CONNECTIVITY_FIXTURE_FAIL " + error)
-              Qt.quit()
-          }
         }
     }
 }

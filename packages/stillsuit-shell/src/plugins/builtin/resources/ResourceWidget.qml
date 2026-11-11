@@ -9,10 +9,12 @@ Item {
     required property string outputId
 
     readonly property string accessibleName: "CPU " + _percent(service ? service.cpuPercent : null)
-        + ", memory " + _percent(service ? service.memoryPercent : null)
+                                             + ", memory " + _percent(service
+                                                                      ? service.memoryPercent :
+                                                                        null)
     readonly property string panelId: "stillsuit.resources"
     readonly property bool selected: context.panels && context.panels.selectedId === panelId
-        && context.panels.selectedOutputId === outputId
+                                     && context.panels.selectedOutputId === outputId
     // This plugin draws a two-row tooltip; the bar's text-only tooltip stays empty.
     property string tooltipText: ""
     readonly property string cpuLabel: "CPU:"
@@ -44,7 +46,9 @@ Item {
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
-        onClicked: root.context.actions.surfaceToggle(root.panelId, JSON.stringify({ outputId: root.outputId }))
+        onClicked: root.context.actions.surfaceToggle(root.panelId, JSON.stringify({
+                                                                                       outputId: root.outputId
+                                                                                   }))
     }
 
     Row {
@@ -103,7 +107,7 @@ Item {
     function _usageColor(value) {
         var band = service ? service.usageBand(value) : ""
         var colors = context.theme.semantic.intensity
-        return band !== "" && colors && colors[band] !== undefined
-            ? colors[band] : context.theme.semantic.content.secondary
+        return band !== "" && colors && colors[band] !== undefined ? colors[band] :
+                                                                     context.theme.semantic.content.secondary
     }
 }

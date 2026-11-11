@@ -28,9 +28,7 @@ Item {
     readonly property real position: valueControl.position
     readonly property bool canAdjust: enabled && !busy && maximum > minimum
     readonly property bool focusVisible: activeFocus || keyboardFocused
-    readonly property string effectiveAccessibleName: accessibleName !== ""
-        ? accessibleName
-        : label
+    readonly property string effectiveAccessibleName: accessibleName !== "" ? accessibleName : label
 
     signal moved(real value)
 
@@ -38,7 +36,7 @@ Item {
     implicitWidth: 280
     implicitHeight: 44
 
-    Keys.onPressed: function(event) {
+    Keys.onPressed: function (event) {
         if (root.handleKey(event.key, event.modifiers, event.isAutoRepeat))
             event.accepted = true
     }
@@ -80,9 +78,8 @@ Item {
 
         ShellText {
             theme: root.theme
-            text: root.valueText !== ""
-                ? root.valueText
-                : Number(root.value).toFixed(root.decimals) + root.suffix
+            text: root.valueText !== "" ? root.valueText : Number(root.value).toFixed(root.decimals)
+                                          + root.suffix
             sizeRole: "caption"
             monospace: true
             role: root.enabled ? "primary" : "disabled"
@@ -111,8 +108,7 @@ Item {
         }
 
         Rectangle {
-            x: Math.max(0, Math.min(parent.width - width,
-                parent.width * root.position - width / 2))
+            x: Math.max(0, Math.min(parent.width - width, parent.width * root.position - width / 2))
             anchors.verticalCenter: parent.verticalCenter
             width: 14
             height: 14
@@ -133,11 +129,11 @@ Item {
             enabled: root.canAdjust
             cursorShape: root.canAdjust ? Qt.PointingHandCursor : Qt.ArrowCursor
 
-            onPressed: function(mouse) {
+            onPressed: function (mouse) {
                 root.forceActiveFocus(Qt.MouseFocusReason)
                 root._setFromPointer(mouse.x, mouse.y)
             }
-            onPositionChanged: function(mouse) {
+            onPositionChanged: function (mouse) {
                 if (pressed)
                     root._setFromPointer(mouse.x, mouse.y)
             }

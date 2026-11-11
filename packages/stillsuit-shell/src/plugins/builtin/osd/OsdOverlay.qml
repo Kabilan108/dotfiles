@@ -16,7 +16,8 @@ Scope {
     property var workflows: context.services.get("stillsuit.workflows")
     property var dictator: workflows ? workflows.dictator : null
     readonly property bool dictatorVisible: dictator && dictator.visible
-    readonly property bool visible: service.volumeVisible || service.brightnessVisible || dictatorVisible
+    readonly property bool visible: service.volumeVisible || service.brightnessVisible
+                                    || dictatorVisible
     PanelWindow {
         screen: root.screen
         visible: root.visible

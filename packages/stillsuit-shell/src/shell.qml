@@ -13,16 +13,13 @@ ShellRoot {
     readonly property string xdgStateRoot: _xdgRoot("XDG_STATE_HOME", ".local/state")
     readonly property string configId: Quickshell.env("STILLSUIT_CONFIG_ID") || "stillsuit"
     readonly property string processInstanceId: Quickshell.instanceId
-    readonly property string catalogPath: Quickshell.env("STILLSUIT_CATALOG_PATH")
-        || xdgConfigRoot + "/stillsuit/catalog.json"
-    readonly property string themePath: Quickshell.env("STILLSUIT_THEME_PATH")
-        || xdgConfigRoot + "/stillsuit/theme.json"
+    readonly property string catalogPath: Quickshell.env("STILLSUIT_CATALOG_PATH") || xdgConfigRoot
+                                          + "/stillsuit/catalog.json"
+    readonly property string themePath: Quickshell.env("STILLSUIT_THEME_PATH") || xdgConfigRoot
+                                        + "/stillsuit/theme.json"
     readonly property bool shadowMode: Quickshell.env("STILLSUIT_SHADOW_MODE") === "1"
-    readonly property bool ready: themeLoaded
-        && themeError === ""
-        && pluginCatalog.ready
-        && serviceRegistry.ready
-        && surfaceRouter.pendingLoadCount === 0
+    readonly property bool ready: themeLoaded && themeError === "" && pluginCatalog.ready
+                                  && serviceRegistry.ready && surfaceRouter.pendingLoadCount === 0
 
     property bool themeLoaded: false
     property string themeError: ""
@@ -113,13 +110,16 @@ ShellRoot {
     }
 
     Loader {
-        active: Quickshell.screens.length > 0
-            && Quickshell.env("QT_QPA_PLATFORM") !== "offscreen"
+        active: Quickshell.screens.length > 0 && Quickshell.env("QT_QPA_PLATFORM") !== "offscreen"
         source: "core/PanelHosts.qml"
         onLoaded: {
             item.router = surfaceRouter
-            item.theme = Qt.binding(function() { return shell.publicTheme })
-            item.screens = Qt.binding(function() { return Quickshell.screens })
+            item.theme = Qt.binding(function () {
+                return shell.publicTheme
+            })
+            item.screens = Qt.binding(function () {
+                return Quickshell.screens
+            })
         }
     }
 
@@ -131,15 +131,17 @@ ShellRoot {
         } else {
             _loadTheme(text)
         }
-        pluginCatalog.fallbackContext = hostContext.contextForBuiltin(
-            "stillsuit.builtin-bar", Quickshell.shellDir,
-            { shadowMode: shell.shadowMode })
+        pluginCatalog.fallbackContext = hostContext.contextForBuiltin("stillsuit.builtin-bar",
+                                                                      Quickshell.shellDir, {
+                                                                          shadowMode:
+                                                                          shell.shadowMode
+                                                                      })
         pluginCatalog.rescan()
     }
 
     Connections {
         target: {
-            void(serviceRegistry.revision)
+            void (serviceRegistry.revision)
             return serviceRegistry.get("stillsuit.notifications")
         }
         ignoreUnknownSignals: true
@@ -149,7 +151,10 @@ ShellRoot {
     }
 
     // A contained plugin disappears from the bar; the desktop must say why.
-    Component { id: hostNoticeComponent; HostNotice {} }
+    Component {
+        id: hostNoticeComponent
+        HostNotice {}
+    }
     property int hostNoticeSequence: 0
     Connections {
         target: pluginCatalog
@@ -170,12 +175,12 @@ ShellRoot {
             return
         }
         var notice = hostNoticeComponent.createObject(shell, {
-            id: 900000 + (++hostNoticeSequence),
-            appName: "Stillsuit",
-            summary: String(summary),
-            body: String(body),
-            urgency: 2
-        })
+                                                          id: 900000 + (++hostNoticeSequence),
+                                                          appName: "Stillsuit",
+                                                          summary: String(summary),
+                                                          body: String(body),
+                                                          urgency: 2
+                                                      })
         service.handleNotification(notice)
     }
 
@@ -186,22 +191,14 @@ ShellRoot {
     function _loadTheme(text) {
         try {
             var parsed = JSON.parse(text)
-            if (!parsed || parsed.schemaVersion !== 2
-                    || !_isRecord(parsed.identity)
-                    || !_isRecord(parsed.palette)
-                    || !_isRecord(parsed.semantic)
-                    || !_isRecord(parsed.component)
-                    || !_isRecord(parsed.typography)
-                    || !_isRecord(parsed.metrics)
-                    || !_isRecord(parsed.motion)
-                    || !_isRecord(parsed.effects)
-                    || !_hasRecords(parsed.semantic, [
-                        "background", "surface", "content", "outline",
-                        "accent", "status", "signal", "intensity"
-                    ])
-                    || !_hasRecords(parsed.component, [
-                        "bar", "panel", "control", "notification", "osd"
-                    ]))
+            if (!parsed || parsed.schemaVersion !== 2 || !_isRecord(parsed.identity) || !_isRecord(
+                        parsed.palette) || !_isRecord(parsed.semantic) || !_isRecord(
+                        parsed.component) || !_isRecord(parsed.typography) || !_isRecord(
+                        parsed.metrics) || !_isRecord(parsed.motion) || !_isRecord(parsed.effects)
+                    || !_hasRecords(parsed.semantic, ["background", "surface", "content", "outline",
+                                                      "accent", "status", "signal", "intensity"])
+                    || !_hasRecords(parsed.component, ["bar", "panel", "control", "notification",
+                                                       "osd"]))
                 throw new Error("theme does not satisfy theme.v2")
             effectiveTheme = parsed
             themeError = ""

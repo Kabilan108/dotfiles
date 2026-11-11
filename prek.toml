@@ -42,7 +42,9 @@ entry = "direnv exec . scripts/qml-check format"
 language = "system"
 require_serial = true
 files = "\\.qml$"
-exclude = "^packages/stillsuit-shell/src/tests/fixtures/plugins/(broken-bar|broken-panel|broken-widget)/Broken\\.qml$"
+# Qt 6.12 qmlformat silently fails on ordinary properties named `id`.
+# Keep those files syntax-checked; retry formatting them after a Qt update.
+exclude = "^packages/stillsuit-shell/src/(tests/fixtures/plugins/(broken-bar|broken-panel|broken-widget)/Broken|core/HostNotice|tests/tray/fixture-shell|workbench/FixtureModels)\\.qml$"
 
 [[repos.hooks]]
 id = "qml-syntax"

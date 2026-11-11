@@ -41,23 +41,26 @@ Scope {
     property var _streamTouched: ({})
     property string _screenSignature: ""
 
-    readonly property var _ignoredEvents: [
-        "KeyboardLayoutsChanged", "KeyboardLayoutSwitched", "OverviewOpenedOrClosed",
-        "ConfigLoaded", "ScreenshotCaptured", "CastsChanged", "CastStartedOrChanged", "CastStopped"
-    ]
+    readonly property var _ignoredEvents: ["KeyboardLayoutsChanged", "KeyboardLayoutSwitched",
+        "OverviewOpenedOrClosed", "ConfigLoaded", "ScreenshotCaptured", "CastsChanged",
+        "CastStartedOrChanged", "CastStopped"]
 
-    CompositorAdapter { id: compositorAdapter }
+    CompositorAdapter {
+        id: compositorAdapter
+    }
 
     function parseEvent(raw) {
         var line = String(raw || "").trim()
-        if (line === "") return false
+        if (line === "")
+            return false
         try {
             var event = JSON.parse(line)
             if (!event || typeof event !== "object" || Array.isArray(event))
                 throw new Error("event is not an object")
             var kind = Object.keys(event)[0]
             _reconnectAttempts = 0
-            if (_ignoredEvents.indexOf(kind) >= 0) return false
+            if (_ignoredEvents.indexOf(kind) >= 0)
+                return false
             var changes = _eventChanges(kind, event[kind])
             if (changes === null) {
                 console.warn("stillsuit niri: reconciling after unhandled event " + kind)
@@ -65,7 +68,8 @@ Scope {
                 return false
             }
             if (_reconciliationRunning) {
-                for (var key in changes) _streamTouched[key] = true
+                for (var key in changes)
+                    _streamTouched[key] = true
             }
             return compositorAdapter.update(changes)
         } catch (error) {
@@ -82,54 +86,95 @@ Scope {
     // References to a workspace or window the state does not contain are
     // treated as invalid, as niri-ipc's own reducer asserts they exist.
     function _eventChanges(kind, payload) {
-        if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null
+        if (!payload || typeof payload !== "object" || Array.isArray(payload))
+            return null
         var workspaces = compositorAdapter.workspaces
         var windows = compositorAdapter.windows
         var focusedOutputId = compositorAdapter.focusedOutputId
         switch (kind) {
         case "OutputsChanged":
             var outputs = payload.outputs === undefined ? null : _normalizeOutputs(payload.outputs)
-            return outputs === null ? null : { outputs: outputs }
+            return outputs === null ? null : {
+                                          outputs: outputs
+                                      }
         case "WorkspacesChanged":
-            if (!_validRows(payload.workspaces, _workspaceSchema)) return null
-            return { workspaces: payload.workspaces, focusedOutputId: _focusedOutputId(payload.workspaces, focusedOutputId) }
+            if (!_validRows(payload.workspaces, _workspaceSchema))
+                return null
+            return {
+                workspaces: payload.workspaces,
+                focusedOutputId: _focusedOutputId(payload.workspaces, focusedOutputId)
+            }
         case "WorkspaceActivated":
-            if (!_hasRow(workspaces, payload.id) || typeof payload.focused !== "boolean") return null
+            if (!_hasRow(workspaces, payload.id) || typeof payload.focused !== "boolean")
+                return null
             var activated = _workspaceActivated(workspaces, payload)
-            return { workspaces: activated, focusedOutputId: _focusedOutputId(activated, focusedOutputId) }
+            return {
+                workspaces: activated,
+                focusedOutputId: _focusedOutputId(activated, focusedOutputId)
+            }
         case "WorkspaceActiveWindowChanged":
-            if (!_hasRow(workspaces, payload.workspace_id)
-                    || !(payload.active_window_id === null || _isNumber(payload.active_window_id))) return null
-            return { workspaces: _workspaceActiveWindow(workspaces, payload) }
+            if (!_hasRow(workspaces, payload.workspace_id) || !(payload.active_window_id === null || _isNumber(
+                                                                    payload.active_window_id)))
+                return null
+            return {
+                workspaces: _workspaceActiveWindow(workspaces, payload)
+            }
         case "WorkspaceUrgencyChanged":
-            if (!_hasRow(workspaces, payload.id) || typeof payload.urgent !== "boolean") return null
-            return { workspaces: _patchRows(workspaces, function(workspace) {
-                return workspace.id === payload.id ? { is_urgent: payload.urgent } : null
-            }) }
+            if (!_hasRow(workspaces, payload.id) || typeof payload.urgent !== "boolean")
+                return null
+            return {
+                workspaces: _patchRows(workspaces, function (workspace) {
+                    return workspace.id === payload.id ? {
+                                                             is_urgent: payload.urgent
+                                                         } : null
+                })
+            }
         case "WindowsChanged":
-            return _validRows(payload.windows, _windowSchema) ? { windows: payload.windows } : null
+            return _validRows(payload.windows, _windowSchema) ? {
+                                                                    windows: payload.windows
+                                                                } : null
         case "WindowOpenedOrChanged":
-            return _validRow(payload.window, _windowSchema)
-                ? { windows: _upsertWindow(windows, payload.window) } : null
+            return _validRow(payload.window, _windowSchema) ? {
+                                                                  windows: _upsertWindow(windows,
+                                                                                         payload.window)
+                                                              } : null
         case "WindowClosed":
-            return _hasRow(windows, payload.id) ? { windows: _removeWindow(windows, payload.id) } : null
+            return _hasRow(windows, payload.id) ? {
+                                                      windows: _removeWindow(windows, payload.id)
+                                                  } : null
         case "WindowFocusChanged":
-            if (payload.id !== null && !_hasRow(windows, payload.id)) return null
-            return { windows: _focusedWindow(windows, payload.id) }
+            if (payload.id !== null && !_hasRow(windows, payload.id))
+                return null
+            return {
+                windows: _focusedWindow(windows, payload.id)
+            }
         case "WindowFocusTimestampChanged":
-            if (!_hasRow(windows, payload.id)
-                    || !(payload.focus_timestamp === null || _validTimestamp(payload.focus_timestamp))) return null
-            return { windows: _patchRows(windows, function(window) {
-                return window.id === payload.id ? { focus_timestamp: payload.focus_timestamp } : null
-            }) }
+            if (!_hasRow(windows, payload.id) || !(payload.focus_timestamp === null || _validTimestamp(
+                                                       payload.focus_timestamp)))
+                return null
+            return {
+                windows: _patchRows(windows, function (window) {
+                    return window.id === payload.id ? {
+                                                          focus_timestamp: payload.focus_timestamp
+                                                      } : null
+                })
+            }
         case "WindowUrgencyChanged":
-            if (!_hasRow(windows, payload.id) || typeof payload.urgent !== "boolean") return null
-            return { windows: _patchRows(windows, function(window) {
-                return window.id === payload.id ? { is_urgent: payload.urgent } : null
-            }) }
+            if (!_hasRow(windows, payload.id) || typeof payload.urgent !== "boolean")
+                return null
+            return {
+                windows: _patchRows(windows, function (window) {
+                    return window.id === payload.id ? {
+                                                          is_urgent: payload.urgent
+                                                      } : null
+                })
+            }
         case "WindowLayoutsChanged":
-            if (!_validLayoutChanges(windows, payload.changes)) return null
-            return { windows: _windowLayouts(windows, payload.changes) }
+            if (!_validLayoutChanges(windows, payload.changes))
+                return null
+            return {
+                windows: _windowLayouts(windows, payload.changes)
+            }
         }
         return null
     }
@@ -138,17 +183,46 @@ Scope {
     // fields must be present with the right type; Option<T> fields may be null
     // or absent.
     readonly property var _workspaceSchema: ({
-        required: { id: "number", idx: "number", is_urgent: "boolean", is_active: "boolean", is_focused: "boolean" },
-        optional: { name: "string", output: "string", active_window_id: "number" }
-    })
+                                                 required: {
+                                                     id: "number",
+                                                     idx: "number",
+                                                     is_urgent: "boolean",
+                                                     is_active: "boolean",
+                                                     is_focused: "boolean"
+                                                 },
+                                                 optional: {
+                                                     name: "string",
+                                                     output: "string",
+                                                     active_window_id: "number"
+                                                 }
+                                             })
     readonly property var _windowSchema: ({
-        required: { id: "number", is_focused: "boolean", is_floating: "boolean", is_urgent: "boolean", layout: "layout" },
-        optional: { title: "string", app_id: "string", pid: "number", workspace_id: "number", focus_timestamp: "timestamp" }
-    })
+                                              required: {
+                                                  id: "number",
+                                                  is_focused: "boolean",
+                                                  is_floating: "boolean",
+                                                  is_urgent: "boolean",
+                                                  layout: "layout"
+                                              },
+                                              optional: {
+                                                  title: "string",
+                                                  app_id: "string",
+                                                  pid: "number",
+                                                  workspace_id: "number",
+                                                  focus_timestamp: "timestamp"
+                                              }
+                                          })
     readonly property var _layoutSchema: ({
-        required: { tile_size: "pair", window_size: "pair", window_offset_in_tile: "pair" },
-        optional: { pos_in_scrolling_layout: "pair", tile_pos_in_workspace_view: "pair" }
-    })
+                                              required: {
+                                                  tile_size: "pair",
+                                                  window_size: "pair",
+                                                  window_offset_in_tile: "pair"
+                                              },
+                                              optional: {
+                                                  pos_in_scrolling_layout: "pair",
+                                                  tile_pos_in_workspace_view: "pair"
+                                              }
+                                          })
 
     function _isNumber(value) {
         return typeof value === "number" && isFinite(value)
@@ -156,57 +230,73 @@ Scope {
 
     function _validValue(value, type) {
         switch (type) {
-        case "number": return _isNumber(value)
-        case "pair": return Array.isArray(value) && value.length === 2 && _isNumber(value[0]) && _isNumber(value[1])
-        case "layout": return _validRow(value, _layoutSchema)
-        case "timestamp": return _validTimestamp(value)
+        case "number":
+            return _isNumber(value)
+        case "pair":
+            return Array.isArray(value) && value.length === 2 && _isNumber(value[0]) && _isNumber(
+                        value[1])
+        case "layout":
+            return _validRow(value, _layoutSchema)
+        case "timestamp":
+            return _validTimestamp(value)
         }
         return typeof value === type
     }
 
     function _validTimestamp(value) {
-        return !!value && typeof value === "object" && _isNumber(value.secs) && _isNumber(value.nanos)
+        return !!value && typeof value === "object" && _isNumber(value.secs) && _isNumber(
+                    value.nanos)
     }
 
     function _validRow(row, schema) {
-        if (!row || typeof row !== "object" || Array.isArray(row)) return false
+        if (!row || typeof row !== "object" || Array.isArray(row))
+            return false
         var key
         for (key in schema.required) {
-            if (!_validValue(row[key], schema.required[key])) return false
+            if (!_validValue(row[key], schema.required[key]))
+                return false
         }
         for (key in schema.optional) {
             var value = row[key]
-            if (value !== undefined && value !== null && !_validValue(value, schema.optional[key])) return false
+            if (value !== undefined && value !== null && !_validValue(value, schema.optional[key]))
+                return false
         }
         return true
     }
 
     function _validRows(rows, schema) {
-        if (!Array.isArray(rows)) return false
+        if (!Array.isArray(rows))
+            return false
         var seen = {}
         for (var index = 0; index < rows.length; index++) {
-            if (!_validRow(rows[index], schema)) return false
+            if (!_validRow(rows[index], schema))
+                return false
             var key = String(rows[index].id)
-            if (seen[key]) return false
+            if (seen[key])
+                return false
             seen[key] = true
         }
         return true
     }
 
     function _hasRow(rows, id) {
-        if (!_isNumber(id)) return false
+        if (!_isNumber(id))
+            return false
         for (var index = 0; index < rows.length; index++) {
-            if (rows[index] && rows[index].id === id) return true
+            if (rows[index] && rows[index].id === id)
+                return true
         }
         return false
     }
 
     function _validLayoutChanges(windows, changes) {
-        if (!Array.isArray(changes)) return false
+        if (!Array.isArray(changes))
+            return false
         for (var index = 0; index < changes.length; index++) {
             var change = changes[index]
-            if (!Array.isArray(change) || change.length !== 2 || !_hasRow(windows, change[0])
-                    || !_validRow(change[1], _layoutSchema)) return false
+            if (!Array.isArray(change) || change.length !== 2 || !_hasRow(windows, change[0]) ||
+                    !_validRow(change[1], _layoutSchema))
+                return false
         }
         return true
     }
@@ -221,12 +311,15 @@ Scope {
             var nextWorkspaces = _parseSnapshotArray(workspacesJson, "workspaces", _workspaceSchema)
             var nextWindows = _parseSnapshotArray(windowsJson, "windows", _windowSchema)
             var changes = {}
-            if (!streamTouched.outputs) changes.outputs = nextOutputs
+            if (!streamTouched.outputs)
+                changes.outputs = nextOutputs
             if (!streamTouched.workspaces) {
                 changes.workspaces = nextWorkspaces
-                changes.focusedOutputId = _focusedOutputId(nextWorkspaces, compositorAdapter.focusedOutputId)
+                changes.focusedOutputId = _focusedOutputId(nextWorkspaces,
+                                                           compositorAdapter.focusedOutputId)
             }
-            if (!streamTouched.windows) changes.windows = nextWindows
+            if (!streamTouched.windows)
+                changes.windows = nextWindows
             compositorAdapter.update(changes)
             return true
         } catch (error) {
@@ -238,9 +331,10 @@ Scope {
     // A request that arrives while a generation is in flight runs once that
     // generation and its processes have finished.
     function refresh() {
-        if (!enabled) return
-        if (_reconciliationRunning || outputsProcess.running
-                || workspacesProcess.running || windowsProcess.running) {
+        if (!enabled)
+            return
+        if (_reconciliationRunning || outputsProcess.running || workspacesProcess.running
+                || windowsProcess.running) {
             _reconciliationPending = true
             return
         }
@@ -261,7 +355,8 @@ Scope {
     }
 
     function _runPendingReconciliation() {
-        if (_reconciliationPending) refresh()
+        if (_reconciliationPending)
+            refresh()
     }
 
     function _screenNames() {
@@ -273,7 +368,8 @@ Scope {
 
     function _screensChanged() {
         var signature = _screenNames()
-        if (signature === _screenSignature) return
+        if (signature === _screenSignature)
+            return
         _screenSignature = signature
         refresh()
     }
@@ -288,14 +384,16 @@ Scope {
     }
 
     function _collectorFinished(result, generation, text) {
-        if (generation !== _reconciliationGeneration || result.generation !== generation) return
+        if (generation !== _reconciliationGeneration || result.generation !== generation)
+            return
         result.text = String(text || "")
         result.streamFinished = true
         _tryFinishReconciliation(generation)
     }
 
     function _processExited(result, generation, exitCode, exitStatus) {
-        if (generation !== _reconciliationGeneration || result.generation !== generation) return
+        if (generation !== _reconciliationGeneration || result.generation !== generation)
+            return
         result.exitCode = Number(exitCode)
         result.exitStatus = Number(exitStatus)
         result.exited = true
@@ -303,31 +401,37 @@ Scope {
     }
 
     function _tryFinishReconciliation(generation) {
-        if (!_reconciliationRunning || generation !== _reconciliationGeneration) return
+        if (!_reconciliationRunning || generation !== _reconciliationGeneration)
+            return
         var results = [outputsResult, workspacesResult, windowsResult]
         for (var index = 0; index < results.length; index++) {
             var result = results[index]
-            if (result.generation !== generation || !result.streamFinished || !result.exited) return
+            if (result.generation !== generation || !result.streamFinished || !result.exited)
+                return
         }
 
         var successful = true
         for (var resultIndex = 0; resultIndex < results.length; resultIndex++) {
-            if (results[resultIndex].exitCode !== 0 || results[resultIndex].exitStatus !== 0) successful = false
+            if (results[resultIndex].exitCode !== 0 || results[resultIndex].exitStatus !== 0)
+                successful = false
         }
         if (successful)
-            successful = _applyReconciliation(outputsResult.text, workspacesResult.text, windowsResult.text, _streamTouched)
+            successful = _applyReconciliation(outputsResult.text, workspacesResult.text,
+                                              windowsResult.text, _streamTouched)
         else
             console.warn("stillsuit niri: ignored failed reconciliation generation " + generation)
 
         _lastCompletedGeneration = generation
-        if (successful) _lastAcceptedGeneration = generation
+        if (successful)
+            _lastAcceptedGeneration = generation
         _reconciliationRunning = false
         reconciliationTimeout.stop()
         Qt.callLater(root._runPendingReconciliation)
     }
 
     function _reconciliationTimedOut(generation) {
-        if (!_reconciliationRunning || generation !== _reconciliationGeneration) return
+        if (!_reconciliationRunning || generation !== _reconciliationGeneration)
+            return
         console.warn("stillsuit niri: reconciliation generation " + generation + " timed out")
         _lastCompletedGeneration = generation
         _lastTimedOutGeneration = generation
@@ -345,7 +449,8 @@ Scope {
     }
 
     function _scheduleReconnect() {
-        if (!enabled || reconnectTimer.running) return
+        if (!enabled || reconnectTimer.running)
+            return
         eventStream.running = false
         reconnectTimer.interval = _reconnectDelay(_reconnectAttempts)
         _reconnectAttempts += 1
@@ -356,7 +461,8 @@ Scope {
         reconnectTimer.stop()
         if (nextEnabled) {
             _reconnectAttempts = 0
-            if (!eventStream.running) eventStream.running = true
+            if (!eventStream.running)
+                eventStream.running = true
         } else {
             eventStream.running = false
         }
@@ -364,19 +470,24 @@ Scope {
 
     function _parseOutputs(raw) {
         var text = String(raw || "").trim()
-        if (text === "") throw new Error("niri outputs result is empty")
+        if (text === "")
+            throw new Error("niri outputs result is empty")
         var outputs = _normalizeOutputs(JSON.parse(text))
-        if (outputs === null) throw new Error("niri outputs result is not an output map or array")
+        if (outputs === null)
+            throw new Error("niri outputs result is not an output map or array")
         return outputs
     }
 
     function _parseSnapshotArray(raw, label, schema) {
         var text = String(raw || "").trim()
-        if (text === "") throw new Error("niri " + label + " result is empty")
+        if (text === "")
+            throw new Error("niri " + label + " result is empty")
         var rows = JSON.parse(text)
-        if (!Array.isArray(rows)) throw new Error("niri " + label + " result is not an array")
+        if (!Array.isArray(rows))
+            throw new Error("niri " + label + " result is not an array")
         if (!_validRows(rows, schema))
-            throw new Error("niri " + label + " result contains an invalid or duplicate snapshot row")
+            throw new Error("niri " + label
+                            + " result contains an invalid or duplicate snapshot row")
         return rows
     }
 
@@ -385,42 +496,66 @@ Scope {
         if (Array.isArray(value)) {
             for (var arrayIndex = 0; arrayIndex < value.length; arrayIndex++) {
                 var arrayOutput = _plain(value[arrayIndex])
-                if (!arrayOutput || typeof arrayOutput !== "object" || Array.isArray(arrayOutput)) return null
+                if (!arrayOutput || typeof arrayOutput !== "object" || Array.isArray(arrayOutput))
+                    return null
                 var arrayConnector = String(arrayOutput.name || arrayOutput.id || "")
-                if (arrayConnector === "") return null
-                if (String(arrayOutput.id || "") === "") arrayOutput.id = arrayConnector
-                if (String(arrayOutput.name || "") === "") arrayOutput.name = arrayConnector
-                sourceRows.push({ connector: arrayConnector, output: arrayOutput })
+                if (arrayConnector === "")
+                    return null
+                if (String(arrayOutput.id || "") === "")
+                    arrayOutput.id = arrayConnector
+                if (String(arrayOutput.name || "") === "")
+                    arrayOutput.name = arrayConnector
+                sourceRows.push({
+                                    connector: arrayConnector,
+                                    output: arrayOutput
+                                })
             }
         } else if (value && typeof value === "object") {
             var connectors = Object.keys(value)
             for (var mapIndex = 0; mapIndex < connectors.length; mapIndex++) {
                 var connector = String(connectors[mapIndex])
-                if (connector === "") return null
+                if (connector === "")
+                    return null
                 var mapOutput = _plain(value[connector])
-                if (!mapOutput || typeof mapOutput !== "object" || Array.isArray(mapOutput)) return null
-                if (String(mapOutput.id || "") === "") mapOutput.id = connector
-                if (String(mapOutput.name || "") === "") mapOutput.name = connector
-                sourceRows.push({ connector: connector, output: mapOutput })
+                if (!mapOutput || typeof mapOutput !== "object" || Array.isArray(mapOutput))
+                    return null
+                if (String(mapOutput.id || "") === "")
+                    mapOutput.id = connector
+                if (String(mapOutput.name || "") === "")
+                    mapOutput.name = connector
+                sourceRows.push({
+                                    connector: connector,
+                                    output: mapOutput
+                                })
             }
         } else {
             return null
         }
 
-        sourceRows.sort(function(left, right) {
-            if (left.connector < right.connector) return -1
-            if (left.connector > right.connector) return 1
+        sourceRows.sort(function (left, right) {
+            if (left.connector < right.connector)
+                return -1
+            if (left.connector > right.connector)
+                return 1
             var leftName = String(left.output.name || "")
             var rightName = String(right.output.name || "")
-            if (leftName < rightName) return -1
-            if (leftName > rightName) return 1
+            if (leftName < rightName)
+                return -1
+            if (leftName > rightName)
+                return 1
             return 0
         })
-        return sourceRows.map(function(row) { return row.output })
+        return sourceRows.map(function (row) {
+            return row.output
+        })
     }
 
     function _plain(value) {
-        try { return JSON.parse(JSON.stringify(value)) } catch (error) { return null }
+        try {
+            return JSON.parse(JSON.stringify(value))
+        } catch (error) {
+            return null
+        }
     }
 
     // Copies only the rows whose fields actually change, so unchanged rows keep
@@ -429,10 +564,13 @@ Scope {
         var next = null
         for (var index = 0; index < rows.length; index++) {
             var row = rows[index]
-            if (!row || typeof row !== "object") continue
+            if (!row || typeof row !== "object")
+                continue
             var patch = patchFor(row)
-            if (!patch || !_patchChanges(row, patch)) continue
-            if (next === null) next = rows.slice()
+            if (!patch || !_patchChanges(row, patch))
+                continue
+            if (next === null)
+                next = rows.slice()
             next[index] = Object.assign({}, row, patch)
         }
         return next === null ? rows : next
@@ -442,7 +580,8 @@ Scope {
         for (var key in patch) {
             var value = patch[key]
             if (value !== null && typeof value === "object") {
-                if (JSON.stringify(value) !== JSON.stringify(row[key])) return true
+                if (JSON.stringify(value) !== JSON.stringify(row[key]))
+                    return true
             } else if (row[key] !== value) {
                 return true
             }
@@ -457,33 +596,50 @@ Scope {
         var next = rows.slice()
         var replaced = false
         for (var index = 0; index < next.length; index++) {
-            if (next[index] && next[index].id === window.id) { next[index] = window; replaced = true; break }
+            if (next[index] && next[index].id === window.id) {
+                next[index] = window
+                replaced = true
+                break
+            }
         }
-        if (!replaced) next.push(window)
-        if (window.is_focused !== true) return next
-        return _patchRows(next, function(other) {
-            return other.id !== window.id && other.is_focused === true ? { is_focused: false } : null
+        if (!replaced)
+            next.push(window)
+        if (window.is_focused !== true)
+            return next
+        return _patchRows(next, function (other) {
+            return other.id !== window.id && other.is_focused === true ? {
+                                                                             is_focused: false
+                                                                         } : null
         })
     }
 
     function _removeWindow(rows, windowId) {
-        var next = rows.filter(function(window) { return window && window.id !== windowId })
+        var next = rows.filter(function (window) {
+            return window && window.id !== windowId
+        })
         return next.length === rows.length ? rows : next
     }
 
     function _focusedWindow(rows, windowId) {
-        return _patchRows(rows, function(window) { return { is_focused: window.id === windowId } })
+        return _patchRows(rows, function (window) {
+            return {
+                is_focused: window.id === windowId
+            }
+        })
     }
 
     function _windowLayouts(rows, changes) {
         var layouts = {}
         for (var index = 0; index < changes.length; index++) {
             var change = changes[index]
-            if (Array.isArray(change) && change.length === 2) layouts[String(change[0])] = change[1]
+            if (Array.isArray(change) && change.length === 2)
+                layouts[String(change[0])] = change[1]
         }
-        return _patchRows(rows, function(window) {
+        return _patchRows(rows, function (window) {
             var key = String(window.id)
-            return layouts.hasOwnProperty(key) ? { layout: layouts[key] } : null
+            return layouts.hasOwnProperty(key) ? {
+                                                     layout: layouts[key]
+                                                 } : null
         })
     }
 
@@ -491,25 +647,34 @@ Scope {
         var activatedId = event.id
         var output = ""
         for (var index = 0; index < rows.length; index++) {
-            if (rows[index] && rows[index].id === activatedId) { output = String(rows[index].output || ""); break }
+            if (rows[index] && rows[index].id === activatedId) {
+                output = String(rows[index].output || "")
+                break
+            }
         }
-        return _patchRows(rows, function(workspace) {
+        return _patchRows(rows, function (workspace) {
             var patch = {}
-            if (String(workspace.output || "") === output) patch.is_active = workspace.id === activatedId
-            if (event.focused) patch.is_focused = workspace.id === activatedId
+            if (String(workspace.output || "") === output)
+                patch.is_active = workspace.id === activatedId
+            if (event.focused)
+                patch.is_focused = workspace.id === activatedId
             return patch
         })
     }
 
     function _workspaceActiveWindow(rows, event) {
-        return _patchRows(rows, function(workspace) {
-            return workspace.id === event.workspace_id ? { active_window_id: event.active_window_id } : null
+        return _patchRows(rows, function (workspace) {
+            return workspace.id === event.workspace_id ? {
+                                                             active_window_id:
+                                                             event.active_window_id
+                                                         } : null
         })
     }
 
     function _focusedOutputId(rows, fallback) {
         for (var index = 0; index < rows.length; index++) {
-            if (rows[index] && rows[index].is_focused) return String(rows[index].output || "")
+            if (rows[index] && rows[index].is_focused)
+                return String(rows[index].output || "")
         }
         return String(fallback || "")
     }
@@ -522,7 +687,8 @@ Scope {
 
     function focusWindow(windowId) {
         var id = Number(windowId)
-        if (!Number.isInteger(id) || id <= 0) return "invalid-window"
+        if (!Number.isInteger(id) || id <= 0)
+            return "invalid-window"
         if (focusProcess.running) {
             _pendingFocusId = id
             return "ok"
@@ -542,7 +708,8 @@ Scope {
         onExited: {
             var next = root._pendingFocusId
             root._pendingFocusId = 0
-            if (next > 0) root._runFocus(next)
+            if (next > 0)
+                root._runFocus(next)
         }
     }
 
@@ -557,16 +724,19 @@ Scope {
 
     function focusWorkspace(workspaceId) {
         var id = Number(workspaceId)
-        if (!Number.isInteger(id) || id <= 0) return "invalid-workspace"
+        if (!Number.isInteger(id) || id <= 0)
+            return "invalid-workspace"
         var workspace = _workspaceById(id)
-        if (!workspace) return "unknown-workspace"
+        if (!workspace)
+            return "unknown-workspace"
         var output = String(workspace.output || "")
         var commands = []
         if (output !== "" && output !== compositorAdapter.focusedOutputId)
             commands.push(["niri", "msg", "action", "focus-monitor", output])
         if (workspace.is_active !== true)
             commands.push(["niri", "msg", "action", "focus-workspace", String(workspace.idx)])
-        if (commands.length === 0) return "ok"
+        if (commands.length === 0)
+            return "ok"
         if (workspaceProcess.running) {
             _replacementWorkspaceCommands = commands
             return "ok"
@@ -578,7 +748,8 @@ Scope {
     function _workspaceById(id) {
         var rows = compositorAdapter.workspaces
         for (var index = 0; index < rows.length; index++) {
-            if (rows[index] && rows[index].id === id) return rows[index]
+            if (rows[index] && rows[index].id === id)
+                return rows[index]
         }
         return null
     }
@@ -596,16 +767,23 @@ Scope {
             var next = root._replacementWorkspaceCommands || root._workspaceCommands
             root._replacementWorkspaceCommands = null
             root._workspaceCommands = []
-            if (next.length > 0) root._runWorkspaceCommands(next)
+            if (next.length > 0)
+                root._runWorkspaceCommands(next)
         }
     }
 
     Process {
         id: eventStream
         command: ["niri", "msg", "--json", "event-stream"]
-        stdout: SplitParser { splitMarker: "\n"; onRead: function(line) { root.parseEvent(line) } }
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: function (line) {
+                root.parseEvent(line)
+            }
+        }
         onStarted: root.refresh()
-        onRunningChanged: if (!running) root._scheduleReconnect()
+        onRunningChanged: if (!running)
+                              root._scheduleReconnect()
     }
 
     component ReconciliationResult: QtObject {
@@ -617,9 +795,15 @@ Scope {
         property int exitStatus: -1
     }
 
-    ReconciliationResult { id: outputsResult }
-    ReconciliationResult { id: workspacesResult }
-    ReconciliationResult { id: windowsResult }
+    ReconciliationResult {
+        id: outputsResult
+    }
+    ReconciliationResult {
+        id: workspacesResult
+    }
+    ReconciliationResult {
+        id: windowsResult
+    }
 
     Process {
         id: outputsProcess
@@ -627,10 +811,16 @@ Scope {
         command: ["niri", "msg", "-j", "outputs"]
         stdout: StdioCollector {
             waitForEnd: true
-            onStreamFinished: function() { root._collectorFinished(outputsResult, outputsProcess.requestGeneration, text) }
+            onStreamFinished: function () {
+                root._collectorFinished(outputsResult, outputsProcess.requestGeneration, text)
+            }
         }
-        onExited: function(exitCode, exitStatus) { root._processExited(outputsResult, outputsProcess.requestGeneration, exitCode, exitStatus) }
-        onRunningChanged: if (!running) Qt.callLater(root._runPendingReconciliation)
+        onExited: function (exitCode, exitStatus) {
+            root._processExited(outputsResult, outputsProcess.requestGeneration, exitCode,
+                                exitStatus)
+        }
+        onRunningChanged: if (!running)
+                              Qt.callLater(root._runPendingReconciliation)
     }
     Process {
         id: workspacesProcess
@@ -638,10 +828,16 @@ Scope {
         command: ["niri", "msg", "-j", "workspaces"]
         stdout: StdioCollector {
             waitForEnd: true
-            onStreamFinished: function() { root._collectorFinished(workspacesResult, workspacesProcess.requestGeneration, text) }
+            onStreamFinished: function () {
+                root._collectorFinished(workspacesResult, workspacesProcess.requestGeneration, text)
+            }
         }
-        onExited: function(exitCode, exitStatus) { root._processExited(workspacesResult, workspacesProcess.requestGeneration, exitCode, exitStatus) }
-        onRunningChanged: if (!running) Qt.callLater(root._runPendingReconciliation)
+        onExited: function (exitCode, exitStatus) {
+            root._processExited(workspacesResult, workspacesProcess.requestGeneration, exitCode,
+                                exitStatus)
+        }
+        onRunningChanged: if (!running)
+                              Qt.callLater(root._runPendingReconciliation)
     }
     Process {
         id: windowsProcess
@@ -649,22 +845,40 @@ Scope {
         command: ["niri", "msg", "-j", "windows"]
         stdout: StdioCollector {
             waitForEnd: true
-            onStreamFinished: function() { root._collectorFinished(windowsResult, windowsProcess.requestGeneration, text) }
+            onStreamFinished: function () {
+                root._collectorFinished(windowsResult, windowsProcess.requestGeneration, text)
+            }
         }
-        onExited: function(exitCode, exitStatus) { root._processExited(windowsResult, windowsProcess.requestGeneration, exitCode, exitStatus) }
-        onRunningChanged: if (!running) Qt.callLater(root._runPendingReconciliation)
+        onExited: function (exitCode, exitStatus) {
+            root._processExited(windowsResult, windowsProcess.requestGeneration, exitCode,
+                                exitStatus)
+        }
+        onRunningChanged: if (!running)
+                              Qt.callLater(root._runPendingReconciliation)
     }
-    Timer { id: reconnectTimer; repeat: false; onTriggered: if (root.enabled) eventStream.running = true }
+    Timer {
+        id: reconnectTimer
+        repeat: false
+        onTriggered: if (root.enabled)
+                         eventStream.running = true
+    }
     Timer {
         id: reconciliationTimeout
         interval: Math.max(1, root.reconciliationTimeoutMs)
         repeat: false
         onTriggered: root._reconciliationTimedOut(root._reconciliationGeneration)
     }
-    Timer { interval: Math.max(1, root.reconciliationIntervalMs); running: root.enabled; repeat: true; onTriggered: root.refresh() }
+    Timer {
+        interval: Math.max(1, root.reconciliationIntervalMs)
+        running: root.enabled
+        repeat: true
+        onTriggered: root.refresh()
+    }
     Connections {
         target: Quickshell
-        function onScreensChanged() { root._screensChanged() }
+        function onScreensChanged() {
+            root._screensChanged()
+        }
     }
 
     onEnabledChanged: root._setEnabled(enabled)

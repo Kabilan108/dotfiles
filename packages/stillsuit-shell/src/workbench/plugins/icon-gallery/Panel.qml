@@ -6,7 +6,7 @@ Item {
     id: root
     readonly property bool hostedPanel: true
     implicitWidth: nameColumnWidth + roles.length * roleColumnWidth + columnGap * (roles.length + 1)
-        + root.context.theme.metrics.panelPadding * 2
+                   + root.context.theme.metrics.panelPadding * 2
     implicitHeight: content.implicitHeight + root.context.theme.metrics.panelPadding * 2
     visible: false
 
@@ -21,15 +21,16 @@ Item {
     readonly property int nameColumnWidth: 118
     readonly property int columnGap: root.context.theme.metrics.spaceUnit * 2
     readonly property int roleColumnWidth: root.context.theme.metrics.iconSmall
-        + root.context.theme.metrics.iconMedium + root.context.theme.metrics.iconLarge
-        + root.context.theme.metrics.spaceUnit * 2
+                                           + root.context.theme.metrics.iconMedium
+                                           + root.context.theme.metrics.iconLarge
+                                           + root.context.theme.metrics.spaceUnit * 2
 
     function open(payloadJson) {
-        opened = true;
+        opened = true
     }
 
     function close() {
-        opened = false;
+        opened = false
     }
 
     Ui.ShellIcon {
@@ -47,7 +48,7 @@ Item {
         MouseArea {
             anchors.fill: parent
             onClicked: function (mouse) {
-                mouse.accepted = true;
+                mouse.accepted = true
             }
         }
 
@@ -63,9 +64,10 @@ Item {
                 theme: root.context.theme
                 title: "Icon gallery"
                 subtitle: (root.names.length - 1) + " catalog icons at "
-                    + root.context.theme.metrics.iconSmall + ", "
-                    + root.context.theme.metrics.iconMedium + " and "
-                    + root.context.theme.metrics.iconLarge + " px, plus the unknown-name fallback"
+                          + root.context.theme.metrics.iconSmall + ", "
+                          + root.context.theme.metrics.iconMedium + " and "
+                          + root.context.theme.metrics.iconLarge
+                          + " px, plus the unknown-name fallback"
             }
 
             RowLayout {
@@ -122,7 +124,9 @@ Item {
                                     theme: root.context.theme
                                     text: row.modelData
                                     sizeRole: "caption"
-                                    role: row.index === root.names.length - 1 ? "muted" : "secondary"
+                                    role: row.index === root.names.length - 1 ? "muted" :
+                                                                                "secondary"
+
                                     monospace: true
                                     elide: Text.ElideRight
                                 }
@@ -150,7 +154,9 @@ Item {
                                                 name: row.modelData
                                                 role: roleCell.modelData
                                                 sizeRole: modelData
-                                                accessibleName: row.modelData + " " + roleCell.modelData + " " + modelData
+                                                accessibleName: row.modelData + " "
+                                                                + roleCell.modelData + " "
+                                                                + modelData
                                             }
                                         }
                                     }

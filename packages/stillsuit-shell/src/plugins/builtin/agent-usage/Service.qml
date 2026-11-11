@@ -7,10 +7,14 @@ QtObject {
     required property var context
     property var model: null
     property var snapshot: ({
-        accounts: [],
-        summary: ({ accountCount: 0, readyCount: 0, maxUsed: -1 }),
-        updatedAt: ""
-    })
+                                accounts: [],
+                                summary: ({
+                                              accountCount: 0,
+                                              readyCount: 0,
+                                              maxUsed: -1
+                                          }),
+                                updatedAt: ""
+                            })
     property bool refreshing: false
     property bool refreshQueued: false
     property string lastError: ""
@@ -19,35 +23,41 @@ QtObject {
     property real refreshJitter: _nextRefreshJitter()
 
     readonly property string apiVersion: "1"
-    readonly property var values: context && context.settings
-        && context.settings.values ? context.settings.values : ({})
+    readonly property var values: context && context.settings && context.settings.values
+                                  ? context.settings.values : ({})
     readonly property string helperPath: String(values.helperPath || "")
     readonly property string homeDir: String(values.homeDir || "")
     readonly property string shadowRoot: String(values.shadowRoot || "")
     readonly property bool includeDefaults: values.includeDefaults !== false
     // Settings lists arrive as QVariantList, which fails Array.isArray in Qt.
-    readonly property var configuredAccounts: values.accounts
-        && typeof values.accounts === "object" && typeof values.accounts.length === "number"
-        ? Array.prototype.slice.call(values.accounts) : []
-    readonly property int refreshIntervalSec: Math.max(60,
-        Number(values.refreshIntervalSec || 300))
-    readonly property bool helperReady: model === null
-        && helperPath.charAt(0) === "/" && helper.running
+    readonly property var configuredAccounts: values.accounts && typeof values.accounts
+                                              === "object" && typeof values.accounts.length
+                                              === "number" ? Array.prototype.slice.call(
+                                                                 values.accounts) : []
+    readonly property int refreshIntervalSec: Math.max(60, Number(values.refreshIntervalSec || 300))
+    readonly property bool helperReady: model === null && helperPath.charAt(0) === "/"
+                                        && helper.running
     readonly property bool available: model !== null || helperReady
-    readonly property var accounts: model
-        ? model.accounts || []
-        : snapshot.accounts || []
-    readonly property var summary: model
-        ? model.summary || ({ accountCount: accounts.length, readyCount: 0, maxUsed: -1 })
-        : snapshot.summary || ({ accountCount: accounts.length, readyCount: 0, maxUsed: -1 })
+    readonly property var accounts: model ? model.accounts || [] : snapshot.accounts || []
+    readonly property var summary: model ? model.summary || ({
+                                                                 accountCount: accounts.length,
+                                                                 readyCount: 0,
+                                                                 maxUsed: -1
+                                                             }) : snapshot.summary || ({
+                                                                                           accountCount:
+                                                                                           accounts.length,
+                                                                                           readyCount:
+                                                                                           0,
+                                                                                           maxUsed:
+                                                                                               -1
+                                                                                       })
     readonly property int accountCount: Number(summary.accountCount || accounts.length || 0)
     readonly property int readyCount: Number(summary.readyCount || 0)
     readonly property real maxUsed: Number(summary.maxUsed === undefined ? -1 : summary.maxUsed)
-    readonly property string updatedAt: model
-        ? String(model.updatedAt || "")
-        : String(snapshot.updatedAt || "")
-    readonly property int revision: (model && model.revision !== undefined
-        ? Number(model.revision) : 0) + localRevision
+    readonly property string updatedAt: model ? String(model.updatedAt || "") : String(snapshot.updatedAt
+                                                                                       || "")
+    readonly property int revision: (model && model.revision !== undefined ? Number(model.revision) :
+                                                                             0) + localRevision
 
     property Process helper: Process {
         command: root.helperPath !== "" ? [root.helperPath] : []
@@ -55,10 +65,12 @@ QtObject {
         running: root.model === null && root.helperPath.charAt(0) === "/"
         stdout: SplitParser {
             splitMarker: "\n"
-            onRead: function(line) { root._handleResponse(line) }
+            onRead: function (line) {
+                root._handleResponse(line)
+            }
         }
         onStarted: root.refresh(false)
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             if (root.model === null) {
                 root.refreshing = false
                 root.lastError = "Agent usage helper exited with status " + exitCode
@@ -102,11 +114,10 @@ QtObject {
             localRevision++
             return
         }
-        if (!response || response.schemaVersion !== 1
-                || response.operation !== "snapshot"
-                || !Array.isArray(response.accounts)) {
-            lastError = String(response && response.error
-                ? response.error : "Agent usage helper returned an invalid snapshot")
+        if (!response || response.schemaVersion !== 1 || response.operation !== "snapshot" || !Array.isArray(
+                    response.accounts)) {
+            lastError = String(response && response.error ? response.error :
+                                                            "Agent usage helper returned an invalid snapshot")
             refreshing = false
             localRevision++
             return
@@ -151,8 +162,7 @@ QtObject {
         var status = statusFor(account)
         if (status === "ready")
             return account.stale === true ? "warning" : "success"
-        if (status === "refresh-required" || status === "signed-out"
-                || status === "empty")
+        if (status === "refresh-required" || status === "signed-out" || status === "empty")
             return "warning"
         return "danger"
     }

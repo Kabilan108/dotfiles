@@ -6,21 +6,28 @@ import "tests/FixtureTheme.js" as FixtureTheme
 ShellRoot {
     id: root
 
-    readonly property bool visualMode:
-        Quickshell.env("STILLSUIT_AGENT_USAGE_VISUAL") === "1"
+    readonly property bool visualMode: Quickshell.env("STILLSUIT_AGENT_USAGE_VISUAL") === "1"
     property int checks: 0
     property int refreshes: 0
     property var fakeContext: QtObject {
         property var theme: FixtureTheme.create()
         property var settings: QtObject {
-            property var values: ({ helperPath: "" })
+            property var values: ({
+                                      helperPath: ""
+                                  })
         }
         property var panels: QtObject {
-            function isOpen(pluginId) { return false }
+            function isOpen(pluginId) {
+                return false
+            }
         }
         property var actions: QtObject {
-            function surfaceToggle(pluginId, payloadJson) { return "ok" }
-            function surfaceClose(pluginId) { return "ok" }
+            function surfaceToggle(pluginId, payloadJson) {
+                return "ok"
+            }
+            function surfaceClose(pluginId) {
+                return "ok"
+            }
         }
     }
     property var fakeModel: QtObject {
@@ -37,10 +44,18 @@ ShellRoot {
                 status: "ready",
                 statusText: "",
                 windows: [
-                    { id: "primary", label: "5 hour", used: 0.96,
-                        resetsAt: "2030-01-01T05:00:00+00:00" },
-                    { id: "secondary", label: "Weekly", used: 0.91,
-                        resetsAt: "2030-01-08T00:00:00+00:00" }
+                    {
+                        id: "primary",
+                        label: "5 hour",
+                        used: 0.96,
+                        resetsAt: "2030-01-01T05:00:00+00:00"
+                    },
+                    {
+                        id: "secondary",
+                        label: "Weekly",
+                        used: 0.91,
+                        resetsAt: "2030-01-08T00:00:00+00:00"
+                    }
                 ]
             },
             {
@@ -53,8 +68,12 @@ ShellRoot {
                 status: "ready",
                 statusText: "",
                 windows: [
-                    { id: "primary", label: "720 hour", used: 0.99,
-                        resetsAt: "2030-02-01T00:00:00+00:00" }
+                    {
+                        id: "primary",
+                        label: "720 hour",
+                        used: 0.99,
+                        resetsAt: "2030-02-01T00:00:00+00:00"
+                    }
                 ]
             },
             {
@@ -69,7 +88,11 @@ ShellRoot {
                 windows: []
             }
         ]
-        property var summary: ({ accountCount: 3, readyCount: 2, maxUsed: 0.99 })
+        property var summary: ({
+                                   accountCount: 3,
+                                   readyCount: 2,
+                                   maxUsed: 0.99
+                               })
 
         function refresh(force) {
             root.refreshes++
@@ -99,17 +122,17 @@ ShellRoot {
     Component.onCompleted: {
         if (visualMode) {
             visualBar.setSource("tests/agent-usage/visual-bar.qml", {
-                context: fakeContext,
-                service: usage,
-                screen: Quickshell.screens[0]
-            })
+                                    context: fakeContext,
+                                    service: usage,
+                                    screen: Quickshell.screens[0]
+                                })
             visualPanel.setSource("plugins/builtin/agent-usage/Panel.qml", {
-                context: fakeContext,
-                service: usage,
-                screen: Quickshell.screens[0],
-                outputId: "fixture-output"
-            })
-            Qt.callLater(function() {
+                                      context: fakeContext,
+                                      service: usage,
+                                      screen: Quickshell.screens[0],
+                                      outputId: "fixture-output"
+                                  })
+            Qt.callLater(function () {
                 if (visualPanel.item)
                     visualPanel.item.open("")
             })
@@ -120,100 +143,119 @@ ShellRoot {
 
     function run() {
         try {
-            var widgetComponent = Qt.createComponent(
-                "plugins/builtin/agent-usage/Widget.qml",
-                Component.PreferSynchronous)
-            verify(widgetComponent.status === Component.Ready,
-                "widget: " + widgetComponent.errorString())
+            var widgetComponent = Qt.createComponent("plugins/builtin/agent-usage/Widget.qml",
+                                                     Component.PreferSynchronous)
+            verify(widgetComponent.status === Component.Ready, "widget: "
+                   + widgetComponent.errorString())
             var widget = widgetComponent.createObject(root, {
-                context: fakeContext,
-                service: usage,
-                outputId: "fixture-output"
-            })
+                                                          context: fakeContext,
+                                                          service: usage,
+                                                          outputId: "fixture-output"
+                                                      })
             verify(widget !== null, "widget construction")
             verify(widget.usedPercent === 91, "bar summary")
             verify(widget.remainingPercent === 9, "bar remaining summary")
-            verify(String(widget.iconSource).endsWith("/assets/codex.svg"),
-                "bar Codex mark")
+            verify(String(widget.iconSource).endsWith("/assets/codex.svg"), "bar Codex mark")
             verify(String(widget.secondaryIconSource) === "",
-                "signed-out default Claude hidden from bar")
-            verify(widget.hasCodex && !widget.hasClaude,
-                "only reporting default providers shown")
+                   "signed-out default Claude hidden from bar")
+            verify(widget.hasCodex && !widget.hasClaude, "only reporting default providers shown")
             usage.refreshing = true
             verify(!widget.busy, "refresh keeps bar value visible")
             usage.refreshing = false
-            verify(usage.accountCount === 3 && usage.readyCount === 2,
-                "multi-account summary")
-            verify(usage.statusRole(fakeModel.accounts[0]) === "success",
-                "ready status role")
-            verify(usage.statusRole(fakeModel.accounts[2]) === "warning",
-                "expired status role")
-            verify(usage.refresh(true) === "ok" && refreshes === 1,
-                "refresh delegation")
+            verify(usage.accountCount === 3 && usage.readyCount === 2, "multi-account summary")
+            verify(usage.statusRole(fakeModel.accounts[0]) === "success", "ready status role")
+            verify(usage.statusRole(fakeModel.accounts[2]) === "warning", "expired status role")
+            verify(usage.refresh(true) === "ok" && refreshes === 1, "refresh delegation")
             var accounts = fakeModel.accounts.slice()
             accounts[2] = {
-                provider: "claude", source: "default", status: "ready",
+                provider: "claude",
+                source: "default",
+                status: "ready",
                 windows: [
-                    { id: "session", label: "Session", used: 0.02 },
-                    { id: "weekly", label: "Weekly", used: 0.51 },
-                    { id: "scoped-fable-weekly", label: "Fable Weekly", used: 0.75 }
+                    {
+                        id: "session",
+                        label: "Session",
+                        used: 0.02
+                    },
+                    {
+                        id: "weekly",
+                        label: "Weekly",
+                        used: 0.51
+                    },
+                    {
+                        id: "scoped-fable-weekly",
+                        label: "Fable Weekly",
+                        used: 0.75
+                    }
                 ]
             }
             fakeModel.accounts = accounts
             verify(widget.label === "9%" && widget.secondaryLabel === "49%",
-                "default providers show overall weekly percentages")
+                   "default providers show overall weekly percentages")
             verify(String(widget.secondaryIconSource).endsWith("/assets/claude.svg"),
-                "Claude percentage has its own mark")
+                   "Claude percentage has its own mark")
             fakeModel.accounts = [accounts[2]]
             verify(widget.label === "49%" && widget.secondaryLabel === "",
-                "Claude alone occupies the primary slot")
+                   "Claude alone occupies the primary slot")
             verify(!widget.stale && widget.accessibleName.indexOf("stale") < 0,
-                "fresh data is not marked stale")
+                   "fresh data is not marked stale")
 
             var staleClaude = {
-                provider: "claude", source: "default", status: "ready",
-                statusText: "", stale: true, staleReason: "Rate limited",
+                provider: "claude",
+                source: "default",
+                status: "ready",
+                statusText: "",
+                stale: true,
+                staleReason: "Rate limited",
                 fetchedAt: "2030-01-01T00:00:00+00:00",
                 retryAt: "2030-01-01T01:30:00+00:00",
-                windows: [{ id: "weekly", label: "Weekly", used: 0.25 }]
+                windows: [
+                    {
+                        id: "weekly",
+                        label: "Weekly",
+                        used: 0.25
+                    }
+                ]
             }
             fakeModel.accounts = [accounts[0], staleClaude]
             verify(widget.hasClaude && widget.secondaryLabel === "75%",
-                "stale Claude data keeps its bar percentage")
+                   "stale Claude data keeps its bar percentage")
             verify(widget.stale && widget.accessibleName.indexOf("(stale)") > 0,
-                "stale bar data is announced")
+                   "stale bar data is announced")
             verify(usage.statusRole(staleClaude) === "warning", "stale status role")
 
-            var panelComponent = Qt.createComponent(
-                "plugins/builtin/agent-usage/Panel.qml", Component.PreferSynchronous)
-            verify(panelComponent.status === Component.Ready,
-                "panel: " + panelComponent.errorString())
+            var panelComponent = Qt.createComponent("plugins/builtin/agent-usage/Panel.qml",
+                                                    Component.PreferSynchronous)
+            verify(panelComponent.status === Component.Ready, "panel: " + panelComponent.errorString(
+                       ))
             var panel = panelComponent.createObject(root, {
-                context: fakeContext,
-                service: usage,
-                screen: null,
-                outputId: "fixture-output"
-            })
+                                                        context: fakeContext,
+                                                        service: usage,
+                                                        screen: null,
+                                                        outputId: "fixture-output"
+                                                    })
             verify(panel !== null, "panel construction")
             panel.nowMs = Date.parse("2030-01-01T01:12:00+00:00")
             verify(panel._staleText(staleClaude)
-                    === "Rate limited · showing data from 1h 12m ago · retry in 18m",
-                "panel stale text: " + panel._staleText(staleClaude))
-            verify(panel._statusText({ statusText: "Rate limited",
-                    retryAt: "2030-01-01T01:15:00+00:00" })
-                    === "Rate limited · retry in 3m",
-                "panel retry text without cached data")
-            verify(panel._statusText({ statusText: "Rate limited",
-                    retryAt: "2030-01-01T01:00:00+00:00" }) === "Rate limited",
-                "elapsed retry time is hidden")
-            verify(panel._statusText({ statusText: "Rate limited",
-                    retryAt: "2030-01-03T01:12:00+00:00" })
-                    === "Rate limited · retry in 2d 0h",
-                "multi-day retry text")
+                   === "Rate limited · showing data from 1h 12m ago · retry in 18m",
+                   "panel stale text: " + panel._staleText(staleClaude))
+            verify(panel._statusText({
+                                         statusText: "Rate limited",
+                                         retryAt: "2030-01-01T01:15:00+00:00"
+                                     }) === "Rate limited · retry in 3m",
+                   "panel retry text without cached data")
+            verify(panel._statusText({
+                                         statusText: "Rate limited",
+                                         retryAt: "2030-01-01T01:00:00+00:00"
+                                     }) === "Rate limited", "elapsed retry time is hidden")
+            verify(panel._statusText({
+                                         statusText: "Rate limited",
+                                         retryAt: "2030-01-03T01:12:00+00:00"
+                                     }) === "Rate limited · retry in 2d 0h", "multi-day retry text")
             verify(panel._resetText("2030-01-01T03:42:00+00:00") === "Resets in 2h 30m",
-                "reset text")
+                   "reset text")
             verify(panel._updatedText("2030-01-01T01:11:30+00:00") === "Updated just now",
-                "updated text")
+                   "updated text")
             panel.destroy()
             console.log("AGENT_USAGE_FIXTURE_OK", checks)
             Qt.quit()

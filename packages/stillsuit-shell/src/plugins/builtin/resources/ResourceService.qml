@@ -18,7 +18,8 @@ QtObject {
     readonly property string localName: String(fleet.self || "This machine")
     readonly property string remoteName: _remoteName()
     readonly property bool remoteAvailable: remoteName !== ""
-    readonly property string pythonPath: "/etc/profiles/per-user/" + Quickshell.env("USER") + "/bin/python3"
+    readonly property string pythonPath: "/etc/profiles/per-user/" + Quickshell.env("USER")
+                                         + "/bin/python3"
     property var localSnapshot: null
     property var remoteSnapshot: null
     property double localUpdatedAt: 0
@@ -34,10 +35,14 @@ QtObject {
     readonly property double now: clock.date.getTime()
     readonly property bool remoteStale: remoteUpdatedAt > 0 && now - remoteUpdatedAt > 30000
 
-    property SystemClock clock: SystemClock { precision: SystemClock.Seconds }
+    property SystemClock clock: SystemClock {
+        precision: SystemClock.Seconds
+    }
 
     property FileView fleetFile: FileView {
-        path: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/fleet/fleet.json"
+        path: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config")
+              + "/fleet/fleet.json"
+
         preload: false
         blockLoading: true
         blockAllReads: true
@@ -53,16 +58,21 @@ QtObject {
     }
 
     property Process localCollector: Process {
-        stdout: StdioCollector { id: localOut; waitForEnd: true }
-        onRunningChanged: if (!running) Qt.callLater(function() {
-            // FailedToStart has no exited signal. Normal exits finish first.
-            if (root.localRefreshing && !root.localCollector.running) {
-                localTimeout.stop()
-                root.localRefreshing = false
-                root.localError = "Couldn't start the local performance collector"
-            }
-        })
-        onExited: function(code) {
+        stdout: StdioCollector {
+            id: localOut
+            waitForEnd: true
+        }
+        onRunningChanged: if (!running)
+                              Qt.callLater(function () {
+                                  // FailedToStart has no exited signal. Normal exits finish first.
+                                  if (root.localRefreshing && !root.localCollector.running) {
+                                      localTimeout.stop()
+                                      root.localRefreshing = false
+                                      root.localError
+                                              = "Couldn't start the local performance collector"
+                                  }
+                              })
+        onExited: function (code) {
             localTimeout.stop()
             root.localRefreshing = false
             if (code === 0 && root.applySnapshot(localOut.text, false))
@@ -73,20 +83,24 @@ QtObject {
     }
 
     property Process remoteCollector: Process {
-        stdout: StdioCollector { id: remoteOut; waitForEnd: true }
-        onRunningChanged: if (!running) Qt.callLater(function() {
-            if (root.remoteRefreshing && !root.remoteCollector.running) {
-                remoteTimeout.stop()
-                root.remoteRefreshing = false
-                root.remoteError = "Couldn't start the PC performance request"
-            }
-        })
+        stdout: StdioCollector {
+            id: remoteOut
+            waitForEnd: true
+        }
+        onRunningChanged: if (!running)
+                              Qt.callLater(function () {
+                                  if (root.remoteRefreshing && !root.remoteCollector.running) {
+                                      remoteTimeout.stop()
+                                      root.remoteRefreshing = false
+                                      root.remoteError = "Couldn't start the PC performance request"
+                                  }
+                              })
         // Send the collector over stdin, so the PC needs no installation or repo sync.
         onStarted: {
             root.remoteCollector.write(root.collectorFile.text() + "\n")
             root.remoteCollector.stdinEnabled = false
         }
-        onExited: function(code) {
+        onExited: function (code) {
             remoteTimeout.stop()
             root.remoteRefreshing = false
             if (code === 0 && root.applySnapshot(remoteOut.text, true))
@@ -129,7 +143,11 @@ QtObject {
 
     Component.onCompleted: {
         fleetFile.reload()
-        try { fleet = JSON.parse(fleetFile.text()) } catch (error) { fleet = ({}) }
+        try {
+            fleet = JSON.parse(fleetFile.text())
+        } catch (error) {
+            fleet = ({})
+        }
     }
 
     property FileView statFile: FileView {
@@ -182,8 +200,9 @@ QtObject {
             return
         if (previousTotal > 0 && total > previousTotal) {
             var totalDelta = total - previousTotal
-            var nextPercent = Math.round(Math.max(0, Math.min(100,
-                100 * (totalDelta - (idle - previousIdle)) / totalDelta)))
+            var nextPercent = Math.round(Math.max(0, Math.min(100, 100 * (totalDelta - (idle
+                                                                                        - previousIdle))
+                                                              / totalDelta)))
             if (nextPercent !== cpuPercent) {
                 cpuPercent = nextPercent
                 revision++
@@ -197,8 +216,8 @@ QtObject {
         var total = memoryValue(raw, "MemTotal")
         var available = memoryValue(raw, "MemAvailable")
         if (total > 0 && available >= 0 && available <= total) {
-            var nextPercent = Math.round(Math.max(0, Math.min(100,
-                100 * (total - available) / total)))
+            var nextPercent = Math.round(Math.max(0, Math.min(100, 100 * (total - available)
+                                                              / total)))
             if (nextPercent !== memoryPercent) {
                 memoryPercent = nextPercent
                 revision++
@@ -236,15 +255,17 @@ QtObject {
         var allowed = self ? self.canAccess || [] : []
         for (var index = 0; index < allowed.length; index++) {
             var name = String(allowed[index])
-            if (/^[a-z][a-z0-9-]*$/.test(name) && fleet.machines[name]
-                    && fleet.machines[name].role === "agent-worker")
+            if (/^[a-z][a-z0-9-]*$/.test(name) && fleet.machines[name] && fleet.machines[name].role
+                    === "agent-worker")
                 return name
         }
         return ""
     }
 
     function setPanelOpen(output, opened) {
-        var next = panelOutputs.filter(function(id) { return id !== output })
+        var next = panelOutputs.filter(function (id) {
+            return id !== output
+        })
         if (opened)
             next.push(output)
         panelOutputs = next
@@ -255,8 +276,8 @@ QtObject {
     function hoverRefresh() {
         if (Date.now() - localUpdatedAt > 5000)
             refreshLocal()
-        if (remoteAvailable && Date.now() - remoteAttemptAt > 30000
-                && Date.now() - remoteUpdatedAt > 30000)
+        if (remoteAvailable && Date.now() - remoteAttemptAt > 30000 && Date.now() - remoteUpdatedAt
+                > 30000)
             refreshRemote()
     }
 
@@ -307,10 +328,10 @@ QtObject {
         remoteAttemptAt = Date.now()
         remoteError = ""
         remoteRefreshing = true
-        remoteCollector.command = ["/run/current-system/sw/bin/ssh", "-T",
-            "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "-o", "ConnectionAttempts=1",
-            "-o", "ServerAliveInterval=3", "-o", "ServerAliveCountMax=1",
-            remoteName + "-agent", "python3 -"]
+        remoteCollector.command = ["/run/current-system/sw/bin/ssh", "-T", "-o", "BatchMode=yes",
+                                   "-o", "ConnectTimeout=5", "-o", "ConnectionAttempts=1", "-o",
+                                   "ServerAliveInterval=3", "-o", "ServerAliveCountMax=1",
+                                   remoteName + "-agent", "python3 -"]
         remoteCollector.stdinEnabled = true
         remoteTimeout.restart()
         remoteCollector.running = true
@@ -319,10 +340,14 @@ QtObject {
 
     function applySnapshot(raw, remote) {
         var data
-        try { data = JSON.parse(String(raw)) } catch (error) { return false }
-        if (!data || data.schemaVersion !== 1 || !validPercent(data.cpuPercent)
-                || !validPercent(data.memoryPercent) || !Array.isArray(data.load)
-                || data.load.length !== 3 || !data.pressure || !Array.isArray(data.gpus))
+        try {
+            data = JSON.parse(String(raw))
+        } catch (error) {
+            return false
+        }
+        if (!data || data.schemaVersion !== 1 || !validPercent(data.cpuPercent) || !validPercent(
+                    data.memoryPercent) || !Array.isArray(data.load) || data.load.length !== 3 ||
+                !data.pressure || !Array.isArray(data.gpus))
             return false
         if (remote) {
             remoteSnapshot = data
@@ -350,7 +375,10 @@ QtObject {
             return "--"
         var units = ["B", "KiB", "MiB", "GiB", "TiB"]
         var index = 0
-        while (value >= 1024 && index < units.length - 1) { value /= 1024; index++ }
+        while (value >= 1024 && index < units.length - 1) {
+            value /= 1024
+            index++
+        }
         return value.toFixed(index > 0 ? 1 : 0) + " " + units[index]
     }
 
@@ -364,9 +392,10 @@ QtObject {
     function headline(remote) {
         var data = remote ? remoteSnapshot : localSnapshot
         if (remote && !data)
-            return remoteRefreshing ? "Reading PC…" : remoteError ? "PC unavailable" : "Open to read PC"
-        var text = "CPU " + percent(remote ? data.cpuPercent : cpuPercent)
-            + " · MEM " + percent(remote ? data.memoryPercent : memoryPercent)
+            return remoteRefreshing ? "Reading PC…" : remoteError ? "PC unavailable" :
+                                                                    "Open to read PC"
+        var text = "CPU " + percent(remote ? data.cpuPercent : cpuPercent) + " · MEM " + percent(
+                    remote ? data.memoryPercent : memoryPercent)
         if (remote && (remoteError || remoteRefreshing))
             text += " · " + (remoteError ? "unavailable" : "refreshing")
         return text

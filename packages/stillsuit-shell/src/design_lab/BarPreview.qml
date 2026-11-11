@@ -38,7 +38,9 @@ Rectangle {
             margins: 10
         }
         theme: root.theme
-        text: root.label + "  ·  " + root.theme.metrics.barHeight + "px  ·  " + (root.anchored ? "anchored" : "floating")
+        text: root.label + "  ·  " + root.theme.metrics.barHeight + "px  ·  " + (root.anchored
+                                                                                 ? "anchored" :
+                                                                                   "floating")
         sizeRole: "caption"
         role: "muted"
         monospace: true
@@ -85,22 +87,35 @@ Rectangle {
             Workspaces.WorkspaceWidget {
                 outputId: "lab"
                 context: ({
-                    theme: root.theme,
-                    settings: {values: {}},
-                    compositor: {
-                        workspaces: [
-                            { id: 1, idx: 1, output: "lab", is_active: true, is_urgent: false },
-                            { id: 2, idx: 2, output: "lab", is_active: false, is_urgent: false }
-                        ],
-                        windows: []
-                    }
-                })
+                              theme: root.theme,
+                              settings: {
+                                  values: {}
+                              },
+                              compositor: {
+                                  workspaces: [
+                                      {
+                                          id: 1,
+                                          idx: 1,
+                                          output: "lab",
+                                          is_active: true,
+                                          is_urgent: false
+                                      },
+                                      {
+                                          id: 2,
+                                          idx: 2,
+                                          output: "lab",
+                                          is_active: false,
+                                          is_urgent: false
+                                      }
+                                  ],
+                                  windows: []
+                              }
+                          })
             }
 
             Item {
                 Layout.fillWidth: true
             }
-
 
             Item {
                 Layout.fillWidth: true

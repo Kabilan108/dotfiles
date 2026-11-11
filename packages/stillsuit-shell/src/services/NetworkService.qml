@@ -9,20 +9,20 @@ QtObject {
     property var model: null
     property bool forceUnavailable: false
     property var snapshot: ({
-        wifiEnabled: false,
-        wiredConnected: false,
-        wiredName: "",
-        networks: [],
-        vpns: [],
-        tailscale: ({
-            available: false,
-            status: "unavailable",
-            ip: "",
-            hostName: "",
-            dnsName: "",
-            services: []
-        })
-    })
+                                wifiEnabled: false,
+                                wiredConnected: false,
+                                wiredName: "",
+                                networks: [],
+                                vpns: [],
+                                tailscale: ({
+                                                available: false,
+                                                status: "unavailable",
+                                                ip: "",
+                                                hostName: "",
+                                                dnsName: "",
+                                                services: []
+                                            })
+                            })
     property string operation: "idle"
     property string operationTarget: ""
     property string lastError: ""
@@ -34,85 +34,87 @@ QtObject {
 
     readonly property string apiVersion: "1"
     readonly property string helperPath: String(context && context.settings
-        && context.settings.values ? context.settings.values.networkHelperPath || "" : "")
+                                                && context.settings.values
+                                                ? context.settings.values.networkHelperPath || "" :
+                                                  "")
     readonly property var helperArgv: helperPath !== "" ? [helperPath] : []
     readonly property string lastCommandJson: JSON.stringify(helperArgv)
-    readonly property string lastRequestSummary: operation === "idle"
-        ? "idle"
-        : operation + (operationTarget !== "" ? ":" + operationTarget : "")
+    readonly property string lastRequestSummary: operation === "idle" ? "idle" : operation + (
+                                                                            operationTarget !== ""
+                                                                            ? ":" + operationTarget :
+                                                                              "")
     readonly property bool helperReady: model === null && helperPath.charAt(0) === "/"
-        && helper.running
+                                        && helper.running
     // Networking is only touched when no model is injected, so fixtures and the
     // workbench never instantiate the D-Bus backend.
     readonly property bool networkingBackend: model === null && !forceUnavailable
-        && Networking.backend === NetworkBackendType.NetworkManager
+                                              && Networking.backend
+                                              === NetworkBackendType.NetworkManager
     readonly property bool networkingActive: networkingBackend && !networkingStale
     readonly property bool panelOpen: Boolean(context && context.panels
-        && context.panels.selectedId === "stillsuit.network")
+                                              && context.panels.selectedId === "stillsuit.network")
     readonly property var liveDevices: networkingActive && Networking.devices
-        ? Networking.devices.values : []
-    readonly property var effectiveSnapshot: networkingActive
-        ? liveSnapshot(liveDevices, Networking.wifiEnabled, snapshot)
-        : snapshot
+                                       ? Networking.devices.values : []
+    readonly property var effectiveSnapshot: networkingActive ? liveSnapshot(liveDevices,
+                                                                             Networking.wifiEnabled,
+                                                                             snapshot) : snapshot
     readonly property bool scannerRequested: panelOpen || operation === "scan"
     readonly property bool scannerWanted: networkingActive && scannerRequested
-    readonly property string linkSignature: networkingActive
-        ? _linkSignature(liveDevices, Networking.wifiEnabled) : ""
-    readonly property bool available: !forceUnavailable
-        && (model !== null || helperReady || networkingActive)
-    readonly property bool wifiEnabled: model
-        ? Boolean(model.wifiEnabled)
-        : Boolean(effectiveSnapshot.wifiEnabled)
-    readonly property bool airplaneAvailable: model
-        ? Boolean(model.airplaneAvailable) : Boolean(snapshot.airplaneAvailable) && helperReady
-    readonly property bool airplaneEnabled: model
-        ? Boolean(model.airplaneEnabled) : Boolean(snapshot.airplaneEnabled)
+    readonly property string linkSignature: networkingActive ? _linkSignature(liveDevices,
+                                                                              Networking.wifiEnabled) :
+                                                               ""
+    readonly property bool available: !forceUnavailable && (model !== null || helperReady
+                                                            || networkingActive)
+    readonly property bool wifiEnabled: model ? Boolean(model.wifiEnabled) : Boolean(
+                                                    effectiveSnapshot.wifiEnabled)
+    readonly property bool airplaneAvailable: model ? Boolean(model.airplaneAvailable) : Boolean(
+                                                          snapshot.airplaneAvailable) && helperReady
+    readonly property bool airplaneEnabled: model ? Boolean(model.airplaneEnabled) : Boolean(
+                                                        snapshot.airplaneEnabled)
     readonly property bool airplaneChanging: operation === "airplane-enabled"
-    readonly property bool wiredConnected: model
-        ? Boolean(model.wiredConnected)
-        : Boolean(effectiveSnapshot.wiredConnected)
-    readonly property string wiredName: model
-        ? String(model.wiredName || "")
-        : String(effectiveSnapshot.wiredName || "")
-    readonly property var networks: model
-        ? model.networks || [] : effectiveSnapshot.networks || []
-    readonly property var wiredConnections: model
-        ? model.wiredConnections || [] : effectiveSnapshot.wiredConnections || []
+    readonly property bool wiredConnected: model ? Boolean(model.wiredConnected) : Boolean(
+                                                       effectiveSnapshot.wiredConnected)
+    readonly property string wiredName: model ? String(model.wiredName || "") : String(
+                                                    effectiveSnapshot.wiredName || "")
+    readonly property var networks: model ? model.networks || [] : effectiveSnapshot.networks || []
+    readonly property var wiredConnections: model ? model.wiredConnections || [] :
+                                                    effectiveSnapshot.wiredConnections || []
     readonly property var vpns: model ? model.vpns || [] : effectiveSnapshot.vpns || []
     readonly property var tailscale: model ? model.tailscale || ({
-        available: false,
-        status: "unavailable",
-        ip: "",
-        hostName: "",
-        dnsName: "",
-        services: []
-    }) : effectiveSnapshot.tailscale || ({
-        available: false,
-        status: "unavailable",
-        ip: "",
-        hostName: "",
-        dnsName: "",
-        services: []
-    })
+                                                                     available: false,
+                                                                     status: "unavailable",
+                                                                     ip: "",
+                                                                     hostName: "",
+                                                                     dnsName: "",
+                                                                     services: []
+                                                                 }) : effectiveSnapshot.tailscale
+                                             || ({
+                                                     available: false,
+                                                     status: "unavailable",
+                                                     ip: "",
+                                                     hostName: "",
+                                                     dnsName: "",
+                                                     services: []
+                                                 })
     readonly property var connectedNetwork: _connected()
     readonly property bool scanning: operation === "scan"
     readonly property bool joining: operation === "join"
     readonly property bool wifiChanging: operation === "wifi-enabled"
-    readonly property int revision: (model && model.revision !== undefined
-        ? Number(model.revision)
-        : 0) + localRevision
+    readonly property int revision: (model && model.revision !== undefined ? Number(model.revision) :
+                                                                             0) + localRevision
 
     property Process helper: Process {
         command: root.helperArgv
         stdinEnabled: true
-        running: !root.forceUnavailable && root.model === null
-            && root.helperPath.charAt(0) === "/"
+        running: !root.forceUnavailable && root.model === null && root.helperPath.charAt(0) === "/"
         stdout: SplitParser {
             splitMarker: "\n"
-            onRead: function(line) { root._handleResponse(line) }
+            onRead: function (line) {
+                root._handleResponse(line)
+            }
         }
         onStarted: root.refresh()
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             if (root.model === null && !root.forceUnavailable) {
                 root.operation = "idle"
                 root.operationTarget = ""
@@ -122,7 +124,8 @@ QtObject {
         }
     }
 
-    onLinkSignatureChanged: if (networkingActive) linkDebounce.restart()
+    onLinkSignatureChanged: if (networkingActive)
+                                linkDebounce.restart()
     // Quickshell lists unsaved networks only while a device's scanner is on, and
     // the scanner keeps requesting scans, so it runs only while it is needed.
     onScannerWantedChanged: applyScanner(_backendDevices(), scannerWanted)
@@ -136,12 +139,14 @@ QtObject {
         interval: 10000
         repeat: true
         running: root.helperReady && (!root.networkingActive || root.panelOpen)
-        onTriggered: if (root.operation === "idle") root.refresh()
+        onTriggered: if (root.operation === "idle")
+                         root.refresh()
     }
 
     property Timer linkDebounce: Timer {
         interval: 2000
-        onTriggered: if (root.networkingActive && root.operation === "idle") root.refresh()
+        onTriggered: if (root.networkingActive && root.operation === "idle")
+                         root.refresh()
     }
 
     // Quickshell 0.3.1 does not recover after a NetworkManager restart. A cheap
@@ -152,7 +157,7 @@ QtObject {
         repeat: true
         running: root.helperReady && root.networkingActive
         onTriggered: if (root.operation === "idle")
-            root.helper.write('{"operation":"summary"}\n')
+                         root.helper.write('{"operation":"summary"}\n')
     }
 
     function liveSnapshot(devices, liveWifiEnabled, helperSnapshot) {
@@ -175,12 +180,12 @@ QtObject {
                 wiredDevices.push(deviceName)
                 var details = _findBy(helperWired, "device", deviceName)
                 wired.push({
-                    device: deviceName,
-                    name: details ? String(details.name || deviceName) : deviceName,
-                    addresses: details ? details.addresses || [] : [],
-                    carrier: details ? String(details.carrier || "")
-                        : device.hasLink ? "on" : "off"
-                })
+                               device: deviceName,
+                               name: details ? String(details.name || deviceName) : deviceName,
+                               addresses: details ? details.addresses || [] : [],
+                               carrier: details ? String(details.carrier || "") : device.hasLink
+                                                  ? "on" : "off"
+                           })
                 continue
             }
             if (device.type !== DeviceType.Wifi)
@@ -208,8 +213,8 @@ QtObject {
         }
         // The helper's last scan fills in SSIDs Quickshell hides while its
         // scanner is off; live rows always win.
-        for (var helperIndex = 0; liveWifiEnabled && helperIndex < helperNetworks.length;
-                helperIndex++) {
+        for (var helperIndex = 0; liveWifiEnabled && helperIndex
+             < helperNetworks.length; helperIndex++) {
             var scanned = helperNetworks[helperIndex]
             var scannedName = scanned ? String(scanned.name || "") : ""
             if (scannedName === "" || byName[scannedName])
@@ -218,8 +223,10 @@ QtObject {
             merged.connected = false
             byName[scannedName] = merged
         }
-        var liveNetworks = Object.keys(byName).map(function(name) { return byName[name] })
-        liveNetworks.sort(function(left, right) {
+        var liveNetworks = Object.keys(byName).map(function (name) {
+            return byName[name]
+        })
+        liveNetworks.sort(function (left, right) {
             if (left.connected !== right.connected)
                 return left.connected ? -1 : 1
             if (left.known !== right.known)
@@ -243,13 +250,13 @@ QtObject {
             networks: liveNetworks,
             vpns: base.vpns || [],
             tailscale: base.tailscale || ({
-                available: false,
-                status: "unavailable",
-                ip: "",
-                hostName: "",
-                dnsName: "",
-                services: []
-            })
+                                              available: false,
+                                              status: "unavailable",
+                                              ip: "",
+                                              hostName: "",
+                                              dnsName: "",
+                                              services: []
+                                          })
         }
     }
 
@@ -262,8 +269,8 @@ QtObject {
         var known = Boolean(network.known)
         var saved = known ? _findBy(helperNetworks, "name", name) : null
         var uuid = saved ? String(saved.uuid || "") : ""
-        var signal = Math.max(0, Math.min(100,
-            Math.round(Number(network.signalStrength || 0) * 100)))
+        var signal = Math.max(0, Math.min(100, Math.round(Number(network.signalStrength || 0)
+                                                          * 100)))
         return {
             id: uuid !== "" ? uuid : name,
             name: name,
@@ -323,7 +330,9 @@ QtObject {
             releaseScanners()
             return
         }
-        var tracked = scannerDevices.filter(function(device) { return Boolean(device) })
+        var tracked = scannerDevices.filter(function (device) {
+            return Boolean(device)
+        })
         for (var index = 0; index < (devices ? devices.length : 0); index++) {
             var device = devices[index]
             if (!device || device.type !== DeviceType.Wifi || device.scannerEnabled)
@@ -350,14 +359,14 @@ QtObject {
     function summaryMatches(summary, live) {
         if (!summary || !live)
             return false
-        if (Boolean(summary.wiredActive) !== Boolean(live.wiredConnected)
-                || Boolean(summary.wifiActive) !== Boolean(live.wifiConnected))
+        if (Boolean(summary.wiredActive) !== Boolean(live.wiredConnected) || Boolean(
+                    summary.wifiActive) !== Boolean(live.wifiConnected))
             return false
-        if (typeof summary.wifiEnabled === "boolean"
-                && summary.wifiEnabled !== Boolean(live.wifiEnabled))
+        if (typeof summary.wifiEnabled === "boolean" && summary.wifiEnabled !== Boolean(
+                    live.wifiEnabled))
             return false
-        if (Array.isArray(summary.wiredDevices)
-                && _sortedNames(summary.wiredDevices) !== _sortedNames(live.wiredDevices))
+        if (Array.isArray(summary.wiredDevices) && _sortedNames(summary.wiredDevices)
+                !== _sortedNames(live.wiredDevices))
             return false
         if (!Array.isArray(summary.wifiSsids))
             return true
@@ -388,7 +397,8 @@ QtObject {
         networkingStale = true
         releaseScanners()
         if (context && context.logger)
-            context.logger.warn("Networking backend disagrees with NetworkManager; using helper polling")
+            context.logger.warn(
+                        "Networking backend disagrees with NetworkManager; using helper polling")
         refresh()
         return true
     }
@@ -436,8 +446,7 @@ QtObject {
             return 0
         if (network.signal !== undefined)
             return Math.max(0, Math.min(100, Math.round(Number(network.signal))))
-        return Math.max(0, Math.min(100,
-            Math.round(Number(network.signalStrength || 0) * 100)))
+        return Math.max(0, Math.min(100, Math.round(Number(network.signalStrength || 0) * 100)))
     }
 
     function statusFor(network) {
@@ -468,17 +477,18 @@ QtObject {
     }
 
     function _finishModel(result, successLabel) {
-        var status = typeof result === "object" && result !== null
-            ? String(result.status || (result.ok === false ? "error" : "ok"))
-            : String(result || "ok")
+        var status = typeof result === "object" && result !== null ? String(result.status || (
+                                                                                result.ok === false
+                                                                                ? "error" : "ok")) :
+                                                                     String(result || "ok")
         if (status === "error" || status === "failed" || status === "unavailable") {
-            lastError = typeof result === "object" && result !== null
-                ? String(result.error || status)
-                : status
+            lastError = typeof result === "object" && result !== null ? String(result.error
+                                                                               || status) : status
             lastResult = "failed"
         } else {
             lastResult = successLabel
-            if (successLabel === "handoff") _closeForManager()
+            if (successLabel === "handoff")
+                _closeForManager()
         }
         operation = "idle"
         operationTarget = ""
@@ -523,10 +533,10 @@ QtObject {
             return
         }
         lastError = response.ok ? "" : String(response.error || "Network operation failed")
-        lastResult = response.ok
-            ? response.handoff ? "handoff" : String(response.operation || "ok")
-            : "failed"
-        if (response.ok && response.handoff) _closeForManager()
+        lastResult = response.ok ? response.handoff ? "handoff" : String(response.operation || "ok") :
+                                                      "failed"
+        if (response.ok && response.handoff)
+            _closeForManager()
         operation = "idle"
         operationTarget = ""
         localRevision++
@@ -555,7 +565,9 @@ QtObject {
             return forceUnavailable ? "unavailable" : "busy"
         if (model && typeof model.scan === "function")
             return _finishModel(model.scan(), "scan")
-        return _send({ operation: "scan" })
+        return _send({
+                         operation: "scan"
+                     })
     }
 
     function setAirplaneEnabled(enabled) {
@@ -564,7 +576,10 @@ QtObject {
         var requested = Boolean(enabled)
         if (model && typeof model.setAirplaneEnabled === "function")
             return _finishModel(model.setAirplaneEnabled(requested), "airplane-enabled")
-        return _send({ operation: "airplane-enabled", enabled: requested })
+        return _send({
+                         operation: "airplane-enabled",
+                         enabled: requested
+                     })
     }
 
     function setWifiEnabled(enabled) {
@@ -573,7 +588,10 @@ QtObject {
         var requested = Boolean(enabled)
         if (model && typeof model.setWifiEnabled === "function")
             return _finishModel(model.setWifiEnabled(requested), "wifi-enabled")
-        return _send({ operation: "wifi-enabled", enabled: requested })
+        return _send({
+                         operation: "wifi-enabled",
+                         enabled: requested
+                     })
     }
 
     function activate(network, password) {
@@ -596,10 +614,10 @@ QtObject {
         }
         if (network.connected)
             return _send({
-                operation: "disconnect",
-                uuid: String(network.uuid || ""),
-                name: String(network.name || "")
-            })
+                             operation: "disconnect",
+                             uuid: String(network.uuid || ""),
+                             name: String(network.name || "")
+                         })
         var requestKind = network.known ? "saved" : kind
         var request = {
             operation: "join",
@@ -613,18 +631,16 @@ QtObject {
     }
 
     function openEditor(network) {
-        var mode = network && networkKind(network) === "enterprise"
-            ? "enterprise"
-            : "hidden"
+        var mode = network && networkKind(network) === "enterprise" ? "enterprise" : "hidden"
         if (!_begin("open-editor", mode))
             return forceUnavailable ? "unavailable" : "busy"
         if (model && typeof model.openEditor === "function")
             return _finishModel(model.openEditor(mode, network || null), "handoff")
         return _send({
-            operation: "open-editor",
-            mode: mode,
-            uuid: network ? String(network.uuid || "") : ""
-        })
+                         operation: "open-editor",
+                         mode: mode,
+                         uuid: network ? String(network.uuid || "") : ""
+                     })
     }
 
     function openHiddenEditor() {
@@ -636,13 +652,16 @@ QtObject {
             return forceUnavailable ? "unavailable" : "busy"
         if (model && typeof model.openEditor === "function")
             return _finishModel(model.openEditor("manage", null), "handoff")
-        return _send({ operation: "open-editor", mode: "manage", uuid: "" })
+        return _send({
+                         operation: "open-editor",
+                         mode: "manage",
+                         uuid: ""
+                     })
     }
 
     function copyTailscale(field, serviceName) {
         var requestedField = String(field || "")
-        if (requestedField !== "dns" && requestedField !== "ip"
-                && requestedField !== "service")
+        if (requestedField !== "dns" && requestedField !== "ip" && requestedField !== "service")
             return "invalid"
         var requestedService = String(serviceName || "")
         if (requestedField === "service" && requestedService === "")
@@ -650,25 +669,27 @@ QtObject {
         if (!_begin("copy-tailscale", requestedField))
             return forceUnavailable ? "unavailable" : "busy"
         if (model && typeof model.copyTailscale === "function")
-            return _finishModel(model.copyTailscale(
-                requestedField, requestedService), "copied")
+            return _finishModel(model.copyTailscale(requestedField, requestedService), "copied")
         if (model)
             return _finishModel("ok", "copied")
         return _send({
-            operation: "copy-tailscale",
-            field: requestedField,
-            serviceName: requestedService
-        })
+                         operation: "copy-tailscale",
+                         field: requestedField,
+                         serviceName: requestedService
+                     })
     }
 
     function toggleVpn(vpn) {
-        if (!vpn || String(vpn.name || "") !== "MobergAnalytics"
-                || vpn.toggleAllowed === false || vpn.readOnly === true)
+        if (!vpn || String(vpn.name || "") !== "MobergAnalytics" || vpn.toggleAllowed === false
+                || vpn.readOnly === true)
             return "read-only"
         if (!_begin("vpn-toggle", String(vpn.uuid || vpn.name || "")))
             return forceUnavailable ? "unavailable" : "busy"
         if (model && typeof model.toggleVpn === "function")
             return _finishModel(model.toggleVpn(vpn), "vpn-toggle")
-        return _send({ operation: "vpn-toggle", uuid: String(vpn.uuid || "") })
+        return _send({
+                         operation: "vpn-toggle",
+                         uuid: String(vpn.uuid || "")
+                     })
     }
 }

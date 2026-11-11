@@ -9,7 +9,7 @@ QtObject {
     property bool running: false
     readonly property int remainingSeconds: Math.max(0, Math.ceil(remainingMs / 1000))
 
-    signal expired()
+    signal expired
 
     function start() {
         remainingMs = Math.max(0, timeoutMs)

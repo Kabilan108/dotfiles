@@ -14,7 +14,9 @@ Scope {
     readonly property string socketPath: String(settings.dictatorSocketPath || "")
     readonly property bool configured: socketPath.charAt(0) === "/"
     readonly property int barCount: 23
-    readonly property bool visible: visualizerState === "recording" || visualizerState === "transcribing" || visualizerState === "typing" || visualizerState === "error"
+    readonly property bool visible: visualizerState === "recording" || visualizerState
+                                    === "transcribing" || visualizerState === "typing"
+                                    || visualizerState === "error"
 
     property string visualizerState: "idle"
     property var levels: []
@@ -27,12 +29,19 @@ Scope {
     property real recordingAnchorMs: 0
     property real scanPos: 0
 
-    function _clamp(value, minimum, maximum) { return Math.min(Math.max(value, minimum), maximum) }
-    function _finite(value) { return typeof value === "number" && isFinite(value) }
-    function _knownState(value) { return ["idle", "recording", "transcribing", "typing", "error"].indexOf(value) !== -1 }
+    function _clamp(value, minimum, maximum) {
+        return Math.min(Math.max(value, minimum), maximum)
+    }
+    function _finite(value) {
+        return typeof value === "number" && isFinite(value)
+    }
+    function _knownState(value) {
+        return ["idle", "recording", "transcribing", "typing", "error"].indexOf(value) !== -1
+    }
     function _resetLevels() {
         var next = []
-        for (var index = 0; index < barCount; index++) next.push(0)
+        for (var index = 0; index < barCount; index++)
+            next.push(0)
         levels = next
         smoothedLevel = 0
     }
@@ -40,12 +49,17 @@ Scope {
         var seconds = Math.floor(Math.max(milliseconds, 0) / 1000)
         return Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0")
     }
-    function _updateDuration() { durationText = _formatDuration(recordingBaseMs + Date.now() - recordingAnchorMs) }
+    function _updateDuration() {
+        durationText = _formatDuration(recordingBaseMs + Date.now() - recordingAnchorMs)
+    }
     function _applyState(event) {
         var state = String(event.value || "")
-        if (!_knownState(state)) return
-        if ((state === "recording" || state === "transcribing") || event.recording_duration_ms !== undefined) {
-            if (!_finite(event.recording_duration_ms) || event.recording_duration_ms < 0) return
+        if (!_knownState(state))
+            return
+        if ((state === "recording" || state === "transcribing") || event.recording_duration_ms
+                !== undefined) {
+            if (!_finite(event.recording_duration_ms) || event.recording_duration_ms < 0)
+                return
         }
         visualizerState = state
         if (state === "recording") {
@@ -60,30 +74,43 @@ Scope {
         }
     }
     function _applyMeter(event) {
-        if (visualizerState !== "recording" || !_finite(event.rms) || !_finite(event.peak)) return
+        if (visualizerState !== "recording" || !_finite(event.rms) || !_finite(event.peak))
+            return
         var decibels = 20 * (Math.log(Math.max(event.rms, 0.00000001)) / Math.LN10)
         var rms = Math.pow(_clamp((decibels + 50) / 38, 0, 1), 0.65)
         var peak = Math.sqrt(_clamp((event.peak - 0.03) / 0.77, 0, 1))
         var target = _clamp(Math.max(rms * 0.88, peak * 0.55), 0, 0.92)
-        smoothedLevel = smoothedLevel * (target > smoothedLevel ? 0.45 : 0.75) + target * (target > smoothedLevel ? 0.55 : 0.25)
+        smoothedLevel = smoothedLevel * (target > smoothedLevel ? 0.45 : 0.75) + target * (target
+                                                                                           > smoothedLevel
+                                                                                           ? 0.55 : 0.25)
         var next = levels.slice()
         next.push(smoothedLevel)
-        while (next.length > barCount) next.shift()
+        while (next.length > barCount)
+            next.shift()
         levels = next
     }
     function applyLine(line) {
         var event
-        try { event = JSON.parse(String(line || "").trim()) } catch (error) { return }
-        if (!event || typeof event.type !== "string") return
-        if (event.type === "state") _applyState(event)
-        else if (event.type === "meter") _applyMeter(event)
+        try {
+            event = JSON.parse(String(line || "").trim())
+        } catch (error) {
+            return
+        }
+        if (!event || typeof event.type !== "string")
+            return
+        if (event.type === "state")
+            _applyState(event)
+        else if (event.type === "meter")
+            _applyMeter(event)
     }
     function _reconnect() {
         visualizerState = "idle"
         durationText = ""
         _resetLevels()
-        if (!configured || reconnectTimer.running) return
-        reconnectTimer.interval = Math.min(8000, Math.round(1000 * Math.pow(1.35, reconnectAttempts)))
+        if (!configured || reconnectTimer.running)
+            return
+        reconnectTimer.interval = Math.min(8000, Math.round(1000 * Math.pow(1.35,
+                                                                            reconnectAttempts)))
         reconnectAttempts++
         reconnectTimer.restart()
     }
@@ -130,11 +157,16 @@ Scope {
                         root._reconnect()
                     }
                 }
-                onError: function(error) {
+                onError: function (error) {
                     root.connectionState = "error"
                     root._reconnect()
                 }
-                parser: SplitParser { splitMarker: "\n"; onRead: function(data) { root.applyLine(data) } }
+                parser: SplitParser {
+                    splitMarker: "\n"
+                    onRead: function (data) {
+                        root.applyLine(data)
+                    }
+                }
             }
         }
     }

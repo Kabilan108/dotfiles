@@ -14,7 +14,8 @@ Ui.ShellBarCluster {
     tooltipText: "Ticking for " + service.ticks + "s"
     accessibleName: "Counter at " + service.count
     selected: context.panels && context.panels.selectedId === "stillsuit.example-counter"
-        && context.panels.selectedOutputId === outputId
-    onClicked: context.actions.surfaceToggle("stillsuit.example-counter",
-        JSON.stringify({ outputId: root.outputId }))
+              && context.panels.selectedOutputId === outputId
+    onClicked: context.actions.surfaceToggle("stillsuit.example-counter", JSON.stringify({
+                                                                                             outputId: root.outputId
+                                                                                         }))
 }

@@ -24,28 +24,29 @@ Ui.ShellSurface {
 
     theme: context.theme
     readonly property var actions: Array.isArray(snapshot.actions) ? snapshot.actions : []
-    readonly property var buttonActions: actions.filter(function(action) {
+    readonly property var buttonActions: actions.filter(function (action) {
         return String(action.identifier || "") !== "default" && !root.isSettingsAction(action)
     })
-    readonly property var defaultAction: actions.find(function(action) {
+    readonly property var defaultAction: actions.find(function (action) {
         return String(action.identifier || "") === "default"
     })
     readonly property string actionState: service ? service.actionState(snapshot.key) : "expired"
     readonly property bool canActivate: actionState === "available" && defaultAction !== undefined
     readonly property string stateRole: service ? service.viewState(snapshot) : "info"
     readonly property color stateColor: stateRole === "info" && service && snapshot.sourceKey
-        ? service.sourceTint(snapshot.sourceKey)
-        : theme.component.notification[stateRole]
+                                        ? service.sourceTint(snapshot.sourceKey) :
+                                          theme.component.notification[stateRole]
     readonly property string imageSource: service ? service.imageForSnapshot(snapshot) : ""
     readonly property real progress: service ? service.progressFor(snapshot) : -1
-    readonly property bool reducedMotion: context.settings
-        && context.settings.values
-        && context.settings.values.reducedMotion === true
+    readonly property bool reducedMotion: context.settings && context.settings.values
+                                          && context.settings.values.reducedMotion === true
     readonly property real dismissThreshold: Math.min(width * 0.25, 80)
     readonly property real flickVelocity: 420
     readonly property bool hovered: hoverMouse.containsMouse
-    readonly property string sourceText: (snapshot.sourceLabel || snapshot.appName || "Notification")
-        + (snapshot.context ? " · " + snapshot.context : "")
+    readonly property string sourceText: (snapshot.sourceLabel || snapshot.appName
+                                          || "Notification") + (snapshot.context ? " · "
+                                                                                   + snapshot.context :
+                                                                                   "")
 
     kind: "notification"
     implicitWidth: theme.metrics.panelWidth - theme.metrics.panelPadding * 2
@@ -62,10 +63,14 @@ Ui.ShellSurface {
     }
 
     function iconForState(state) {
-        if (state === "success") return "success"
-        if (state === "warning") return "warning"
-        if (state === "danger") return "danger"
-        if (state === "info") return "info"
+        if (state === "success")
+            return "success"
+        if (state === "warning")
+            return "warning"
+        if (state === "danger")
+            return "danger"
+        if (state === "info")
+            return "info"
         return "notifications"
     }
 
@@ -76,9 +81,12 @@ Ui.ShellSurface {
 
     // A click opens the sender when it has a default action, else dismisses.
     function activate() {
-        if (!root.service) return
-        if (root.canActivate) root.service.invokeAction(root.snapshot.key, "default")
-        else root.service.dismiss(root.snapshot.key)
+        if (!root.service)
+            return
+        if (root.canActivate)
+            root.service.invokeAction(root.snapshot.key, "default")
+        else
+            root.service.dismiss(root.snapshot.key)
     }
 
     MouseArea {
@@ -107,8 +115,8 @@ Ui.ShellSurface {
         }
 
         onPositionChanged: mouse => {
-            if (!pressed) return
-
+            if (!pressed)
+                return
             var dx = mouse.x - pressX
             var dy = mouse.y - pressY
             if (!dragging && Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(dy) * 1.2) {
@@ -131,14 +139,17 @@ Ui.ShellSurface {
         }
 
         onReleased: {
-            if (!dragging) return
+            if (!dragging)
+                return
             var offset = root.dragOffset
             var direction = offset < 0 ? -1 : 1
-            var flicked = Math.abs(root.dragVelocity) >= root.flickVelocity
-                && ((root.dragVelocity < 0) === (offset < 0))
+            var flicked = Math.abs(root.dragVelocity) >= root.flickVelocity && ((root.dragVelocity
+                                                                                 < 0) === (offset
+                                                                                           < 0))
             dragging = false
-            root.swipeEnded(flicked || Math.abs(offset) >= root.dismissThreshold,
-                direction, root.dragVelocity)
+            root.swipeEnded(flicked || Math.abs(offset) >= root.dismissThreshold, direction,
+                            root.dragVelocity)
+
         }
 
         onCanceled: {
@@ -148,7 +159,8 @@ Ui.ShellSurface {
             }
         }
 
-        onClicked: if (!gestureConsumed) root.activate()
+        onClicked: if (!gestureConsumed)
+                       root.activate()
     }
 
     ColumnLayout {
@@ -174,7 +186,8 @@ Ui.ShellSurface {
                 Layout.preferredHeight: 30
                 Layout.alignment: Qt.AlignTop
                 radius: root.theme.metrics.radiusSmall
-                color: picture.status === Image.Ready ? "transparent" : root.withAlpha(root.stateColor, 0.16)
+                color: picture.status === Image.Ready ? "transparent" : root.withAlpha(
+                                                            root.stateColor, 0.16)
 
                 Ui.ShellIcon {
                     anchors.centerIn: parent
@@ -295,7 +308,8 @@ Ui.ShellSurface {
                 var shown = 0
                 for (var index = 0; index < children.length; index++) {
                     var child = children[index]
-                    if (!child.visible || child.implicitWidth <= 0) continue
+                    if (!child.visible || child.implicitWidth <= 0)
+                        continue
                     total += child.implicitWidth
                     shown += 1
                 }
@@ -304,8 +318,8 @@ Ui.ShellSurface {
             Layout.alignment: Qt.AlignRight
             Layout.preferredWidth: Math.min(naturalWidth, contentColumn.width)
             spacing: 6
-            visible: root.snapshot.link !== null
-                || (root.buttonActions.length > 0 && root.actionState === "available")
+            visible: root.snapshot.link !== null || (root.buttonActions.length > 0
+                                                     && root.actionState === "available")
 
             Repeater {
                 model: root.actionState === "available" ? root.buttonActions : []
@@ -325,9 +339,11 @@ Ui.ShellSurface {
                 visible: root.snapshot.link !== null
                 theme: root.theme
                 label: root.snapshot.link ? root.snapshot.link.label : "Open link"
-                iconName: root.snapshot.link && root.snapshot.link.meeting ? "notifications" : "chevron-right"
+                iconName: root.snapshot.link && root.snapshot.link.meeting ? "notifications" :
+                                                                             "chevron-right"
                 compact: true
-                onClicked: if (root.snapshot.link) Qt.openUrlExternally(root.snapshot.link.url)
+                onClicked: if (root.snapshot.link)
+                               Qt.openUrlExternally(root.snapshot.link.url)
             }
         }
 

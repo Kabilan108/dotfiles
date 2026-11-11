@@ -11,20 +11,20 @@ Item {
     required property var context
     required property string outputId
 
-    readonly property var workspaces: workspacesForOutput(context.compositor.workspaces || [], outputId)
+    readonly property var workspaces: workspacesForOutput(context.compositor.workspaces || [],
+                                                          outputId)
     readonly property var workspaceKeys: workspaceKeysFor(workspaces)
     readonly property var activeWorkspace: activeWorkspaceForOutput(workspaces)
-    readonly property var columnState: columnStateForWorkspace(context.compositor.windows || [], activeWorkspace)
+    readonly property var columnState: columnStateForWorkspace(context.compositor.windows || [],
+                                                               activeWorkspace)
     readonly property int columns: columnState.count
     readonly property int focusedColumn: columnState.focused
-    readonly property bool reducedMotion: context.settings
-        && context.settings.values
-        && context.settings.values.reducedMotion === true
+    readonly property bool reducedMotion: context.settings && context.settings.values
+                                          && context.settings.values.reducedMotion === true
     readonly property int motionDuration: reducedMotion ? 0 : context.theme.motion.fast
     readonly property string accessibleName: "Workspaces and Niri columns on " + outputId
-    readonly property bool inlineLayout: workspaceStrip.parent === contentRow
-        && separator.parent === contentRow
-        && columnStrip.parent === contentRow
+    readonly property bool inlineLayout: workspaceStrip.parent === contentRow && separator.parent
+                                         === contentRow && columnStrip.parent === contentRow
 
     implicitWidth: contentRow.implicitWidth
     implicitHeight: context.theme.metrics.barHeight
@@ -88,19 +88,17 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: parent.workspaceNumber > 0 ? String(parent.workspaceNumber) : "?"
-                        color: parent.active
-                            ? root.context.theme.component.bar.workspaceActive
-                            : parent.urgent
-                                ? root.context.theme.semantic.status.danger
-                                : root.context.theme.component.bar.workspaceIdle
+                        color: parent.active ? root.context.theme.component.bar.workspaceActive :
+                                               parent.urgent
+                                               ? root.context.theme.semantic.status.danger :
+                                                 root.context.theme.component.bar.workspaceIdle
                         font.family: root.context.theme.typography.monoFamily
                         font.pixelSize: root.context.theme.typography.captionSize
                         font.weight: parent.active || parent.urgent
-                            ? root.context.theme.typography.weightBold
-                            : root.context.theme.typography.weightMedium
+                                     ? root.context.theme.typography.weightBold :
+                                       root.context.theme.typography.weightMedium
                         renderType: Text.NativeRendering
                     }
-
                 }
             }
         }
@@ -129,19 +127,17 @@ Item {
                     width: focused ? 15 : 6
                     height: 10
                     radius: 2
-                    color: focused
-                        ? root.context.theme.component.bar.workspaceActive
-                        : root.context.theme.component.bar.workspaceIdle
+                    color: focused ? root.context.theme.component.bar.workspaceActive :
+                                     root.context.theme.component.bar.workspaceIdle
                     opacity: focused ? 1 : 0.6
-
                 }
             }
         }
     }
 
     function focusWorkspace(workspace) {
-        if (!workspace || workspace.id === undefined || !context.actions
-                || typeof context.actions.workspaceFocus !== "function")
+        if (!workspace || workspace.id === undefined || !context.actions || typeof context.actions.workspaceFocus
+                !== "function")
             return "unavailable"
         return context.actions.workspaceFocus(workspace.id)
     }
@@ -150,13 +146,15 @@ Item {
         var result = []
         for (var index = 0; index < rows.length; index++) {
             var workspace = rows[index]
-            if (workspace && String(workspace.output || workspace.output_id || "") === String(requestedOutputId))
+            if (workspace && String(workspace.output || workspace.output_id || "") === String(
+                        requestedOutputId))
                 result.push(workspace)
         }
-        result.sort(function(left, right) {
+        result.sort(function (left, right) {
             var leftIndex = Number(left.idx || 0)
             var rightIndex = Number(right.idx || 0)
-            return leftIndex === rightIndex ? Number(left.id || 0) - Number(right.id || 0) : leftIndex - rightIndex
+            return leftIndex === rightIndex ? Number(left.id || 0) - Number(right.id || 0) :
+                                              leftIndex - rightIndex
         })
         return result
     }
@@ -170,7 +168,10 @@ Item {
             keys.push(key)
             byKey[key] = workspace
         }
-        return { keys: keys, rows: byKey }
+        return {
+            keys: keys,
+            rows: byKey
+        }
     }
 
     function activeWorkspaceForOutput(rows) {
@@ -183,14 +184,18 @@ Item {
 
     function columnIndex(window) {
         var position = window && window.layout ? window.layout.pos_in_scrolling_layout : null
-        return Array.isArray(position) && position.length > 0 ? Math.max(1, Number(position[0] || 1)) : 1
+        return Array.isArray(position) && position.length > 0 ? Math.max(1, Number(position[0] || 1)) :
+                                                                1
     }
 
     // One pass over the windows yields both the column count and the focused
     // column of the active workspace.
     function columnStateForWorkspace(rows, workspace) {
         if (!workspace)
-            return { count: 0, focused: 1 }
+            return {
+                count: 0,
+                focused: 1
+            }
         var workspaceId = String(workspace.id)
         var activeWindowId = String(workspace.active_window_id)
         var count = 1
@@ -207,6 +212,9 @@ Item {
             if (focused === 0 && (window.is_focused || String(window.id) === activeWindowId))
                 focused = column
         }
-        return { count: count, focused: focused || firstColumn || 1 }
+        return {
+            count: count,
+            focused: focused || firstColumn || 1
+        }
     }
 }

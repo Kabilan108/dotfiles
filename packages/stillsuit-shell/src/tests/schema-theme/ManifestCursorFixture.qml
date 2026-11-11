@@ -13,17 +13,31 @@ ShellRoot {
         id: themeContext
 
         property var theme: ({
-            colors: {
-                border: { focus: "#123456" },
-                text: { primary: "#cdd6f4" }
-            },
-            controls: {
-                hover: { fill: "#313244", border: "#585b70" },
-                active: { fill: "#45475a", border: "#89b4fa" }
-            },
-            geometry: { radius: 6 },
-            motion: { fast: 0 }
-        })
+                                 colors: {
+                                     border: {
+                                         focus: "#123456"
+                                     },
+                                     text: {
+                                         primary: "#cdd6f4"
+                                     }
+                                 },
+                                 controls: {
+                                     hover: {
+                                         fill: "#313244",
+                                         border: "#585b70"
+                                     },
+                                     active: {
+                                         fill: "#45475a",
+                                         border: "#89b4fa"
+                                     }
+                                 },
+                                 geometry: {
+                                     radius: 6
+                                 },
+                                 motion: {
+                                     fast: 0
+                                 }
+                             })
     }
 
     Component {
@@ -53,16 +67,15 @@ ShellRoot {
                 var entryPointManifest = _manifest(baseKind, baseKey)
                 entryPointManifest.entryPoints[keys[index]] = "Extra.qml"
                 var entryPointErrors = ManifestValidator.validate(entryPointManifest)
-                _assert(_contains(entryPointErrors,
-                        "entry point does not match a declared kind: " + keys[index]),
-                    "host accepted undeclared entry point " + keys[index])
+                _assert(_contains(entryPointErrors, "entry point does not match a declared kind: "
+                                  + keys[index]), "host accepted undeclared entry point "
+                        + keys[index])
 
                 var scopeManifest = _manifest(baseKind, baseKey)
                 scopeManifest.scope[keys[index]] = _scopeFor(kinds[index])
                 var scopeErrors = ManifestValidator.validate(scopeManifest)
-                _assert(_contains(scopeErrors,
-                        "scope does not match a declared kind: " + keys[index]),
-                    "host accepted undeclared scope " + keys[index])
+                _assert(_contains(scopeErrors, "scope does not match a declared kind: "
+                                  + keys[index]), "host accepted undeclared scope " + keys[index])
             }
 
             var valid = _manifest("panel", "panel")
@@ -70,17 +83,24 @@ ShellRoot {
             valid.entryPoints.overlay = "Overlay.qml"
             valid.scope.overlay = "per-output"
             _assert(ManifestValidator.validate(valid).length === 0,
-                "host rejected a symmetric multi-kind manifest")
+                    "host rejected a symmetric multi-kind manifest")
 
             var cursor = cursorComponent.createObject(null)
             _assert(cursor !== null, "cursor did not construct")
             _assert(String(cursor.accent).toLowerCase() === "#123456",
-                "cursor accent did not use colors.border.focus")
+                    "cursor accent did not use colors.border.focus")
             cursor.destroy()
 
-            return JSON.stringify({ ok: true, checks: checks })
+            return JSON.stringify({
+                                      ok: true,
+                                      checks: checks
+                                  })
         } catch (error) {
-            return JSON.stringify({ ok: false, checks: checks, error: String(error) })
+            return JSON.stringify({
+                                      ok: false,
+                                      checks: checks,
+                                      error: String(error)
+                                  })
         }
     }
 

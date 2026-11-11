@@ -26,7 +26,12 @@ PanelWindow {
     visible: true
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
-    anchors { top: true; left: true; bottom: root.shown; right: root.shown }
+    anchors {
+        top: true
+        left: true
+        bottom: root.shown
+        right: root.shown
+    }
     implicitWidth: 1
     implicitHeight: 1
     mask: shown ? null : emptyRegion
@@ -34,12 +39,15 @@ PanelWindow {
     WlrLayershell.layer: shown ? WlrLayer.Overlay : WlrLayer.Bottom
     WlrLayershell.keyboardFocus: shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    onDrawnChanged: if (drawn) remapTimer.stop()
+    onDrawnChanged: if (drawn)
+                        remapTimer.stop()
     onShownChanged: {
         renderedSinceShown = false
         remapTimer.waits = 0
-        if (shown && !drawn) remapTimer.restart()
-        else remapTimer.stop()
+        if (shown && !drawn)
+            remapTimer.restart()
+        else
+            remapTimer.stop()
     }
 
     // A compositor sends no frame callbacks to a surface it does not show,
@@ -67,7 +75,8 @@ PanelWindow {
                 return
             }
             // A surface that rendered is growing; give it a little longer.
-            if (root.renderedSinceShown && ++waits < 3) return
+            if (root.renderedSinceShown && ++waits < 3)
+                return
             stop()
             root.visible = false
             root.visible = true
@@ -86,11 +95,12 @@ PanelWindow {
             acceptedButtons: Qt.AllButtons
             function outside(x, y) {
                 var point = mapToItem(contentArea, x, y)
-                return point.x < 0 || point.y < 0
-                    || point.x >= contentArea.width || point.y >= contentArea.height
+                return point.x < 0 || point.y < 0 || point.x >= contentArea.width || point.y
+                        >= contentArea.height
             }
             function handlePress(x, y) {
-                if (outside(x, y)) root.router.dismissMenus()
+                if (outside(x, y))
+                    root.router.dismissMenus()
             }
             onPressed: mouse => handlePress(mouse.x, mouse.y)
             Rectangle {
@@ -98,7 +108,7 @@ PanelWindow {
                 color: {
                     var scrimColor = Qt.color(root.theme.semantic.background.scrim)
                     return Qt.rgba(scrimColor.r, scrimColor.g, scrimColor.b,
-                        root.theme.effects.shadowOpacity)
+                                   root.theme.effects.shadowOpacity)
                 }
             }
         }
@@ -108,25 +118,29 @@ PanelWindow {
             readonly property real edge: root.theme.metrics.spaceUnit
             x: Math.round((root.width - width) / 2)
             y: Math.round(root.height * 0.22)
-            width: Math.min(root.menuContent ? root.menuContent.implicitWidth : 0,
-                Math.max(0, root.width - edge * 2))
-            height: Math.min(root.menuContent ? root.menuContent.implicitHeight : 0,
-                Math.max(0, root.height - y - edge))
+            width: Math.min(root.menuContent ? root.menuContent.implicitWidth : 0, Math.max(0, root.width
+                                                                                            - edge * 2))
+            height: Math.min(root.menuContent ? root.menuContent.implicitHeight : 0, Math.max(0,
+                                                                                              root.height
+                                                                                              - y - edge))
             Keys.onEscapePressed: root.router.dismissMenus()
         }
     }
     function present(item) {
-        if (menuContent && menuContent !== item) dismiss(menuContent)
+        if (menuContent && menuContent !== item)
+            dismiss(menuContent)
         menuContent = item
         item.parent = contentArea
         // The content's parent handler may have closed its own route.
-        if (menuContent !== item) return
+        if (menuContent !== item)
+            return
         item.anchors.fill = contentArea
         item.visible = true
         item.forceActiveFocus()
     }
     function dismiss(item) {
-        if (!item || item !== menuContent) return
+        if (!item || item !== menuContent)
+            return
         item.visible = false
         item.parent = null
         menuContent = null
@@ -134,7 +148,8 @@ PanelWindow {
     Component.onCompleted: router.registerMenuHost(outputId, root)
     Component.onDestruction: {
         // Keep cached plugin objects out of the dying window's visual tree.
-        if (menuContent) menuContent.parent = null
+        if (menuContent)
+            menuContent.parent = null
         router.unregisterMenuHost(outputId, root)
     }
 }

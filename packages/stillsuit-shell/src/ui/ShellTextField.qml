@@ -19,22 +19,26 @@ FocusScope {
     // Unaccepted keys the field ignores (Escape, Up, Down) keep propagating
     // to parent items.
     signal keyPressed(var event)
-    signal accepted()
+    signal accepted
 
     implicitWidth: 240
     implicitHeight: input.implicitHeight + theme.metrics.spaceUnit * 2
 
-    function selectAll() { input.selectAll() }
-    function clear() { input.clear() }
+    function selectAll() {
+        input.selectAll()
+    }
+    function clear() {
+        input.clear()
+    }
 
     Rectangle {
         anchors.fill: parent
         radius: root.theme.metrics.radiusMedium
         color: root.theme.component.control.background
         border.width: 1
-        border.color: input.activeFocus
-            ? root.theme.component.control.focus
-            : root.theme.component.control.outline
+        border.color: input.activeFocus ? root.theme.component.control.focus :
+                                          root.theme.component.control.outline
+
     }
 
     ShellIcon {

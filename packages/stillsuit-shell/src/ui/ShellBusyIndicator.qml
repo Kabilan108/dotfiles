@@ -7,9 +7,9 @@ ShellIcon {
 
     property bool reducedMotion: false
     property bool running: visible
-    readonly property int motionDuration: reducedMotion || theme.motion.slow <= 0
-        ? 0
-        : Math.max(1, theme.motion.slow * 4)
+    readonly property int motionDuration: reducedMotion || theme.motion.slow <= 0 ? 0 : Math.max(1,
+                                                                                                 theme.motion.slow
+                                                                                                 * 4)
 
     name: "refresh"
     role: "accent"

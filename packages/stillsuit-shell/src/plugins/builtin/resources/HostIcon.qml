@@ -7,7 +7,8 @@ Item {
     property bool desktop: false
     property bool server: false
     property color color: theme.semantic.content.secondary
-    readonly property url assetSource: Qt.resolvedUrl(server || desktop ? "assets/server.svg" : "assets/laptop.svg")
+    readonly property url assetSource: Qt.resolvedUrl(server || desktop ? "assets/server.svg" :
+                                                                          "assets/laptop.svg")
     readonly property bool ready: glyph.status === Image.Ready
     implicitWidth: theme.metrics.iconMedium
     implicitHeight: theme.metrics.iconMedium
@@ -25,8 +26,9 @@ Item {
     Image {
         id: glyph
         anchors.fill: parent
-        source: "data:image/svg+xml;utf8," + encodeURIComponent(
-            root.assetFile.text().replace(/currentColor/g, String(root.color)))
+        source: "data:image/svg+xml;utf8," + encodeURIComponent(root.assetFile.text().replace(
+                                                                    /currentColor/g, String(
+                                                                        root.color)))
         sourceSize.width: Math.ceil(width)
         sourceSize.height: Math.ceil(height)
         fillMode: Image.PreserveAspectFit

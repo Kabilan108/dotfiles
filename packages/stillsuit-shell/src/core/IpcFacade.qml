@@ -25,7 +25,7 @@ QtObject {
     property int requestedProfileBaselineRevision: 0
     property int observedProfileRevision: 0
     property string agentPanelHelper: Quickshell.env("STILLSUIT_AGENT_PANEL_HELPER")
-        || "stillsuit-agent-panel"
+                                      || "stillsuit-agent-panel"
     property string agentPanelLastAction: ""
     property var agentPanelLastResult: null
 
@@ -37,7 +37,7 @@ QtObject {
             id: agentPanelStderr
         }
 
-        onExited: function(exitCode, exitStatus) {
+        onExited: function (exitCode, exitStatus) {
             var output = agentPanelStdout.text.trim()
             var diagnostic = agentPanelStderr.text.trim()
             if (exitCode === 0) {
@@ -67,11 +67,10 @@ QtObject {
             id: profileStderr
         }
 
-        onExited: function(exitCode, exitStatus) {
+        onExited: function (exitCode, exitStatus) {
             if (exitCode !== 0) {
-                root._setProfileError(profileStderr.text.trim()
-                    || profileStdout.text.trim()
-                    || "profile helper failed")
+                root._setProfileError(profileStderr.text.trim() || profileStdout.text.trim()
+                                      || "profile helper failed")
                 return
             }
             root._syncProfileState()
@@ -82,7 +81,8 @@ QtObject {
         interval: 10000
         repeat: false
         onTriggered: {
-            if (root.profileState !== "switching") return
+            if (root.profileState !== "switching")
+                return
             root._setProfileError("profile catalog update timed out")
         }
     }
@@ -247,39 +247,40 @@ QtObject {
         }
 
         return JSON.stringify({
-            configId: configId,
-            instanceId: instanceId,
-            ready: ready,
-            catalogRevision: catalog ? catalog.revision : 0,
-            catalogError: catalog ? catalog.loadError : "catalog unavailable",
-            profile: {
-                active: catalog ? catalog.activeProfile : "default",
-                requested: requestedProfile,
-                revision: catalog ? catalog.profileRevision : 0,
-                available: catalog ? catalog.availableProfiles : [],
-                state: profileState,
-                error: profileError
-            },
-            bar: catalog ? {
-                selectedId: catalog.selectedBarId,
-                activeId: catalog.activeBarId,
-                fallback: catalog.fallbackActive,
-                state: catalog.barState,
-                error: catalog.barError
-            } : {},
-            serviceObjectCount: serviceRegistry ? serviceRegistry.objectCount : 0,
-            surfaceObjectCount: surfaceRouter ? surfaceRouter.objectCount : 0,
-            screenCount: surfaceRouter ? surfaceRouter.screenCount : 0,
-            fallbackShadowMode: fallbackContext
-                ? fallbackContext.settings.values.shadowMode === true
-                : false,
-            agentPanel: {
-                running: agentPanelProcess.running,
-                lastAction: agentPanelLastAction,
-                lastResult: agentPanelLastResult
-            },
-            plugins: pluginRecords
-        })
+                                  configId: configId,
+                                  instanceId: instanceId,
+                                  ready: ready,
+                                  catalogRevision: catalog ? catalog.revision : 0,
+                                  catalogError: catalog ? catalog.loadError : "catalog unavailable",
+                                  profile: {
+                                      active: catalog ? catalog.activeProfile : "default",
+                                      requested: requestedProfile,
+                                      revision: catalog ? catalog.profileRevision : 0,
+                                      available: catalog ? catalog.availableProfiles : [],
+                                      state: profileState,
+                                      error: profileError
+                                  },
+                                  bar: catalog ? {
+                                                     selectedId: catalog.selectedBarId,
+                                                     activeId: catalog.activeBarId,
+                                                     fallback: catalog.fallbackActive,
+                                                     state: catalog.barState,
+                                                     error: catalog.barError
+                                                 } : {},
+                                  serviceObjectCount: serviceRegistry ? serviceRegistry.objectCount :
+                                                                        0,
+                                  surfaceObjectCount: surfaceRouter ? surfaceRouter.objectCount : 0,
+                                  screenCount: surfaceRouter ? surfaceRouter.screenCount : 0,
+                                  fallbackShadowMode: fallbackContext
+                                                      ? fallbackContext.settings.values.shadowMode
+                                                        === true : false,
+                                  agentPanel: {
+                                      running: agentPanelProcess.running,
+                                      lastAction: agentPanelLastAction,
+                                      lastResult: agentPanelLastResult
+                                  },
+                                  plugins: pluginRecords
+                              })
     }
 
     function themeQuery() {
@@ -287,9 +288,9 @@ QtObject {
     }
 
     function surfaceOpen(pluginId, payloadJson) {
-        return surfaceRouter
-            ? surfaceRouter.open(String(pluginId), String(payloadJson || ""))
-            : "error"
+        return surfaceRouter ? surfaceRouter.open(String(pluginId), String(payloadJson || "")) :
+                               "error"
+
     }
 
     function surfaceClose(pluginId) {
@@ -297,27 +298,26 @@ QtObject {
     }
 
     function surfaceDismissPanels() {
-        if (!surfaceRouter) return "error"
+        if (!surfaceRouter)
+            return "error"
         surfaceRouter.dismissPanels()
         return "ok"
     }
 
     function surfaceToggle(pluginId, payloadJson) {
-        return surfaceRouter
-            ? surfaceRouter.toggle(String(pluginId), String(payloadJson || ""))
-            : "error"
+        return surfaceRouter ? surfaceRouter.toggle(String(pluginId), String(payloadJson || "")) :
+                               "error"
+
     }
 
     function windowFocus(windowId) {
         return compositorControl && typeof compositorControl.focusWindow === "function"
-            ? compositorControl.focusWindow(windowId)
-            : "unavailable"
+                ? compositorControl.focusWindow(windowId) : "unavailable"
     }
 
     function workspaceFocus(workspaceId) {
         return compositorControl && typeof compositorControl.focusWorkspace === "function"
-            ? compositorControl.focusWorkspace(workspaceId)
-            : "unavailable"
+                ? compositorControl.focusWorkspace(workspaceId) : "unavailable"
     }
 
     function appLaunch(desktopId, actionId) {
@@ -360,12 +360,12 @@ QtObject {
 
     function profileCurrent() {
         return JSON.stringify({
-            active: catalog ? catalog.activeProfile : "default",
-            requested: requestedProfile,
-            revision: catalog ? catalog.profileRevision : 0,
-            state: profileState,
-            error: profileError
-        })
+                                  active: catalog ? catalog.activeProfile : "default",
+                                  requested: requestedProfile,
+                                  revision: catalog ? catalog.profileRevision : 0,
+                                  state: profileState,
+                                  error: profileError
+                              })
     }
 
     function profileActivate(profileId) {
@@ -399,11 +399,8 @@ QtObject {
         requestedProfileBaselineRevision = catalog.profileRevision
         profileState = "switching"
         profileError = ""
-        profileProcess.command = [
-            profileHelperPath,
-            "--config", profileRuntimeConfigPath,
-            "profile", "activate", key
-        ]
+        profileProcess.command = [profileHelperPath, "--config", profileRuntimeConfigPath, "profile",
+                                  "activate", key]
         profileTimeout.restart()
         profileProcess.running = true
         return "started"
@@ -413,16 +410,15 @@ QtObject {
         if (!catalog || catalog.reconciling)
             return
         if (requestedProfile === "") {
-            if (!ready || (profileState === "error"
-                    && catalog.profileRevision === observedProfileRevision))
+            if (!ready || (profileState === "error" && catalog.profileRevision
+                           === observedProfileRevision))
                 return
             observedProfileRevision = catalog.profileRevision
             _setSettledProfileState()
             return
         }
-        if (catalog.activeProfile !== requestedProfile
-                || catalog.profileRevision <= requestedProfileBaselineRevision
-                || !ready)
+        if (catalog.activeProfile !== requestedProfile || catalog.profileRevision
+                <= requestedProfileBaselineRevision || !ready)
             return
         observedProfileRevision = catalog.profileRevision
         requestedProfile = ""
@@ -450,9 +446,8 @@ QtObject {
     }
 
     function _refreshSettledProfileState() {
-        if (!ready || requestedProfile !== ""
-                || profileState === "switching"
-                || profileState === "error")
+        if (!ready || requestedProfile !== "" || profileState === "switching" || profileState
+                === "error")
             return
         _setSettledProfileState()
     }
@@ -529,11 +524,11 @@ QtObject {
 
     function _agentPanelEnvelope(dispatch) {
         return JSON.stringify({
-            dispatch: dispatch,
-            running: agentPanelProcess.running,
-            lastAction: agentPanelLastAction,
-            lastResult: agentPanelLastResult
-        })
+                                  dispatch: dispatch,
+                                  running: agentPanelProcess.running,
+                                  lastAction: agentPanelLastAction,
+                                  lastResult: agentPanelLastResult
+                              })
     }
 
     function _pluginState(pluginId) {

@@ -10,28 +10,25 @@ QtObject {
     property bool forceUnavailable: false
     readonly property string apiVersion: "1"
     readonly property var device: model ? model.device || null : UPower.displayDevice
-    readonly property var physicalDevice: model && model.detailDevice
-        ? model.detailDevice
-        : _physicalBattery()
-    readonly property bool present: device !== null
-        && Boolean(device.isPresent !== undefined ? device.isPresent : true)
+    readonly property var physicalDevice: model && model.detailDevice ? model.detailDevice :
+                                                                        _physicalBattery()
+    readonly property bool present: device !== null && Boolean(device.isPresent !== undefined
+                                                               ? device.isPresent : true)
     readonly property bool available: !forceUnavailable && present
     // Quickshell 0.3 converts UPower's 0-100 D-Bus value to a 0.0-1.0 value.
     readonly property int percentage: present ? _percentage(device.percentage) : 0
-    readonly property string state: model
-        ? String(model.state || "unknown")
-        : _stateName(device ? device.state : null)
+    readonly property string state: model ? String(model.state || "unknown") : _stateName(device
+                                                                                          ? device.state :
+                                                                                            null)
     readonly property string stateLabel: _stateLabel(state)
     readonly property bool charging: state === "charging"
     readonly property bool discharging: state === "discharging"
-    readonly property bool pending: state === "pending-charge"
-        || state === "pending-discharge"
+    readonly property bool pending: state === "pending-charge" || state === "pending-discharge"
     readonly property bool low: present && discharging && percentage <= 20
     readonly property string timeText: _timeText()
-    readonly property var normalizedDetails: _normalizeDetails(
-        model && model.details !== undefined
-            ? model.details
-            : _mergeLiveDetails(physicalDevice, details))
+    readonly property var normalizedDetails: _normalizeDetails(model && model.details !== undefined
+                                                               ? model.details : _mergeLiveDetails(
+                                                                     physicalDevice, details))
     readonly property var healthPercent: normalizedDetails.healthPercent
     readonly property var capacityWh: normalizedDetails.capacityWh
     readonly property var designCapacityWh: normalizedDetails.designCapacityWh
@@ -39,13 +36,11 @@ QtObject {
     readonly property var powerDrawWatts: _livePowerDraw()
     readonly property var chargeStartThreshold: normalizedDetails.chargeStartThreshold
     readonly property var chargeEndThreshold: normalizedDetails.chargeEndThreshold
-    readonly property bool chargeThresholdSupported:
-        normalizedDetails.chargeThresholdSupported
-        || chargeStartThreshold !== null
-        || chargeEndThreshold !== null
-    readonly property int revision: model && model.revision !== undefined
-        ? Number(model.revision)
-        : detailRevision
+    readonly property bool chargeThresholdSupported: normalizedDetails.chargeThresholdSupported
+                                                     || chargeStartThreshold !== null
+                                                     || chargeEndThreshold !== null
+    readonly property int revision: model && model.revision !== undefined ? Number(model.revision) :
+                                                                            detailRevision
     readonly property var detailHelperArgv: ["upower", "--dump"]
 
     property var details: ({})
@@ -63,7 +58,7 @@ QtObject {
             id: detailOutput
             waitForEnd: true
         }
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             root._finishDetailsRefresh(exitCode, detailOutput.text)
             if (root.detailRefreshQueued) {
                 root.detailRefreshQueued = false
@@ -177,8 +172,7 @@ QtObject {
         var minutes = Math.round(seconds / 60)
         if (minutes < 60)
             return minutes + "m"
-        return Math.floor(minutes / 60) + "h "
-            + String(minutes % 60).padStart(2, "0") + "m"
+        return Math.floor(minutes / 60) + "h " + String(minutes % 60).padStart(2, "0") + "m"
     }
 
     function _physicalBattery() {
@@ -186,9 +180,7 @@ QtObject {
     }
 
     function _laptopBattery() {
-        var devices = UPower.devices && UPower.devices.values
-            ? UPower.devices.values
-            : []
+        var devices = UPower.devices && UPower.devices.values ? UPower.devices.values : []
         for (var index = 0; index < devices.length; index++) {
             var candidate = devices[index]
             if (candidate && candidate.isLaptopBattery)
@@ -246,8 +238,7 @@ QtObject {
             powerDrawWatts: _field(batteryBlock, "energy-rate"),
             chargeStartThreshold: _field(batteryBlock, "charge-start-threshold"),
             chargeEndThreshold: _field(batteryBlock, "charge-end-threshold"),
-            chargeThresholdSupported: _field(
-                batteryBlock, "charge-threshold-supported")
+            chargeThresholdSupported: _field(batteryBlock, "charge-threshold-supported")
         }
     }
 
@@ -267,16 +258,12 @@ QtObject {
         return {
             healthPercent: _number(source.healthPercent, true, 0, 100),
             capacityWh: _number(source.capacityWh, false, 0, null),
-            designCapacityWh: _number(
-                source.designCapacityWh, false, 0, null),
+            designCapacityWh: _number(source.designCapacityWh, false, 0, null),
             cycleCount: _integer(source.cycleCount, 0),
             powerDrawWatts: _number(source.powerDrawWatts, false, 0, null),
-            chargeStartThreshold: _number(
-                source.chargeStartThreshold, true, 0, 100),
-            chargeEndThreshold: _number(
-                source.chargeEndThreshold, true, 0, 100),
-            chargeThresholdSupported: _boolean(
-                source.chargeThresholdSupported)
+            chargeStartThreshold: _number(source.chargeStartThreshold, true, 0, 100),
+            chargeEndThreshold: _number(source.chargeEndThreshold, true, 0, 100),
+            chargeThresholdSupported: _boolean(source.chargeThresholdSupported)
         }
     }
 

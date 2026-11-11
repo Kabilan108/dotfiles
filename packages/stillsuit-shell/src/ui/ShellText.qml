@@ -11,15 +11,11 @@ Text {
     property bool monospace: false
 
     color: _roleColor(role)
-    font.family: monospace
-        ? theme.typography.monoFamily
-        : theme.typography.bodyFamily
+    font.family: monospace ? theme.typography.monoFamily : theme.typography.bodyFamily
     font.pixelSize: _fontSize(sizeRole)
-    font.weight: sizeRole === "heading"
-        ? theme.typography.weightBold
-        : sizeRole === "label" || sizeRole === "section"
-            ? theme.typography.weightMedium
-            : theme.typography.weightRegular
+    font.weight: sizeRole === "heading" ? theme.typography.weightBold : sizeRole === "label"
+                                          || sizeRole === "section" ? theme.typography.weightMedium :
+                                                                      theme.typography.weightRegular
     renderType: Text.NativeRendering
 
     function _roleColor(name) {

@@ -9,21 +9,23 @@ QtObject {
     property var model: null
     property bool forceUnavailable: false
     readonly property string managerPath: String(context && context.settings
-        && context.settings.values ? context.settings.values.managerPath || "" : "")
+                                                 && context.settings.values
+                                                 ? context.settings.values.managerPath || "" : "")
     property Process managerProcess: Process {
         command: root.managerPath !== "" ? [root.managerPath] : []
         onStarted: {
             if (root.context.actions)
                 root.context.actions.surfaceClose("stillsuit.audio")
         }
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             if (exitCode !== 0 && exitCode !== 130)
                 root.errorMessage = "Could not open audio settings"
         }
     }
 
     function openManager() {
-        if (managerProcess.running) return "busy"
+        if (managerProcess.running)
+            return "busy"
         if (managerPath.charAt(0) !== "/") {
             errorMessage = "audio settings command is not configured"
             return "unavailable"
@@ -41,32 +43,23 @@ QtObject {
     readonly property var sink: model ? model.sink || null : Pipewire.defaultAudioSink
     readonly property var source: model ? model.source || null : Pipewire.defaultAudioSource
     readonly property var outputs: model ? model.outputs || [] : _activeOutputs()
-    readonly property bool available: !forceUnavailable
-        && (model !== null || sink !== null)
-    readonly property bool microphoneAvailable: !forceUnavailable
-        && (model !== null || source !== null)
-    readonly property real volume: _clamp(_audioValue(sink, "volume",
-        model ? model.volume : 0))
-    readonly property bool muted: _audioBool(sink, "muted",
-        model && model.muted)
-    readonly property real inputVolume: _clamp(_audioValue(source, "volume",
-        model ? model.inputVolume : 0))
-    readonly property bool inputMuted: _audioBool(source, "muted",
-        model && model.inputMuted)
+    readonly property bool available: !forceUnavailable && (model !== null || sink !== null)
+    readonly property bool microphoneAvailable: !forceUnavailable && (model !== null || source
+                                                                      !== null)
+    readonly property real volume: _clamp(_audioValue(sink, "volume", model ? model.volume : 0))
+    readonly property bool muted: _audioBool(sink, "muted", model && model.muted)
+    readonly property real inputVolume: _clamp(_audioValue(source, "volume", model
+                                                           ? model.inputVolume : 0))
+    readonly property bool inputMuted: _audioBool(source, "muted", model && model.inputMuted)
     readonly property string outputName: _name(sink, "Output unavailable")
     readonly property string inputName: _name(source, "Microphone unavailable")
-    readonly property int revision: model && model.revision !== undefined
-        ? Number(model.revision)
-        : 0
-    readonly property string state: forceUnavailable
-        ? "unavailable"
-        : errorMessage !== ""
-            ? "error"
-            : outputActionBusy || outputRefreshBusy
-                ? "busy"
-                : available
-                    ? "ready"
-                    : "unavailable"
+    readonly property int revision: model && model.revision !== undefined ? Number(model.revision) :
+                                                                            0
+    readonly property string state: forceUnavailable ? "unavailable" : errorMessage !== ""
+                                                       ? "error" : outputActionBusy
+                                                         || outputRefreshBusy ? "busy" : available
+                                                                                ? "ready" :
+                                                                                  "unavailable"
     readonly property var media: mediaService
 
     property PwObjectTracker pipewireTracker: PwObjectTracker {
@@ -79,7 +72,7 @@ QtObject {
             waitForEnd: true
             onStreamFinished: root._parseOutputs(text)
         }
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             root.outputRefreshBusy = false
             if (exitCode !== 0) {
                 root.outputListParsed = false
@@ -91,7 +84,7 @@ QtObject {
     }
 
     property Process selectOutputProcess: Process {
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             root.outputActionBusy = false
             if (exitCode !== 0)
                 root.errorMessage = "Could not switch output device"
@@ -196,26 +189,24 @@ QtObject {
             return
         }
 
-        var defaultName = String(Pipewire.defaultAudioSink
-            ? Pipewire.defaultAudioSink.name || ""
-            : "")
+        var defaultName = String(Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.name || "" :
+                                                             "")
         var next = []
         for (var index = 0; index < parsed.length; index++) {
             var item = parsed[index]
             var name = String(item && item.name ? item.name : "")
             if (name === "")
                 continue
-            var description = String(item.description
-                || item.properties && item.properties["device.description"]
-                || name)
+            var description = String(item.description || item.properties
+                                     && item.properties["device.description"] || name)
             next.push({
-                name: name,
-                description: description,
-                active: name === defaultName,
-                iconName: _outputIcon(item)
-            })
+                          name: name,
+                          description: description,
+                          active: name === defaultName,
+                          iconName: _outputIcon(item)
+                      })
         }
-        next.sort(function(left, right) {
+        next.sort(function (left, right) {
             return left.description.localeCompare(right.description)
         })
         systemOutputs = next
@@ -224,14 +215,10 @@ QtObject {
     }
 
     function _outputIcon(item) {
-        var detail = String(item && (item.description
-            || item.active_port && item.active_port.name
-            || item.name) || "").toLowerCase()
-        return detail.indexOf("headphone") !== -1
-                || detail.indexOf("headset") !== -1
-                || detail.indexOf("bluetooth") !== -1
-            ? "headphones"
-            : "audio"
+        var detail = String(item && (item.description || item.active_port && item.active_port.name
+                                     || item.name) || "").toLowerCase()
+        return detail.indexOf("headphone") !== -1 || detail.indexOf("headset") !== -1 || detail.indexOf(
+                    "bluetooth") !== -1 ? "headphones" : "audio"
     }
 
     function _hasOutput(name) {
@@ -247,25 +234,23 @@ QtObject {
         for (var index = 0; index < systemOutputs.length; index++) {
             var output = systemOutputs[index]
             result.push({
-                name: output.name,
-                description: output.description,
-                active: String(output.name) === defaultName,
-                iconName: output.iconName
-            })
+                            name: output.name,
+                            description: output.description,
+                            active: String(output.name) === defaultName,
+                            iconName: output.iconName
+                        })
         }
         return result
     }
 
     function _audioValue(node, key, fallback) {
-        return node && node.audio && node.audio[key] !== undefined
-            ? Number(node.audio[key])
-            : Number(fallback || 0)
+        return node && node.audio && node.audio[key] !== undefined ? Number(node.audio[key]) :
+                                                                     Number(fallback || 0)
     }
 
     function _audioBool(node, key, fallback) {
-        return node && node.audio && node.audio[key] !== undefined
-            ? Boolean(node.audio[key])
-            : Boolean(fallback)
+        return node && node.audio && node.audio[key] !== undefined ? Boolean(node.audio[key]) :
+                                                                     Boolean(fallback)
     }
 
     function _name(node, fallback) {

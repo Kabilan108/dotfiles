@@ -17,24 +17,28 @@ ShellRoot {
     property var productionWorkspaceCounts: ({})
     property var actionCalls: []
     property var workspaceFocusCalls: []
-    readonly property string primaryOutputId: Quickshell.screens.length > 0
-        ? String(Quickshell.screens[0].name) : ""
-    readonly property string secondaryOutputId: Quickshell.screens.length > 1
-        ? String(Quickshell.screens[1].name) : ""
+    readonly property string primaryOutputId: Quickshell.screens.length > 0 ? String(
+                                                                                  Quickshell.screens[0].name) :
+                                                                              ""
+    readonly property string secondaryOutputId: Quickshell.screens.length > 1 ? String(
+                                                                                    Quickshell.screens[1].name) :
+                                                                                ""
 
     function workspaceCells(widget) {
         var strip = widget.children[0].children[0]
         var result = []
         for (var index = 0; index < strip.children.length; index++) {
             var child = strip.children[index]
-            if (child.workspace !== undefined) result.push(child)
+            if (child.workspace !== undefined)
+                result.push(child)
         }
         return result
     }
 
     function clickArea(cell) {
         for (var index = 0; index < cell.children.length; index++) {
-            if (cell.children[index].cursorShape !== undefined) return cell.children[index]
+            if (cell.children[index].cursorShape !== undefined)
+                return cell.children[index]
         }
         return null
     }
@@ -57,9 +61,19 @@ ShellRoot {
         property int startCalls: 0
         property int pauseCalls: 0
         property int finishCalls: 0
-        function start() { startCalls += 1; active = true }
-        function togglePause() { pauseCalls += 1; paused = !paused }
-        function finish() { finishCalls += 1; active = false; completed = true }
+        function start() {
+            startCalls += 1
+            active = true
+        }
+        function togglePause() {
+            pauseCalls += 1
+            paused = !paused
+        }
+        function finish() {
+            finishCalls += 1
+            active = false
+            completed = true
+        }
     }
 
     QtObject {
@@ -72,7 +86,9 @@ ShellRoot {
         property string errorMessage: ""
         property var jobs: []
         property int openResultCalls: 0
-        function openResult() { openResultCalls += 1 }
+        function openResult() {
+            openResultCalls += 1
+        }
     }
 
     QtObject {
@@ -84,24 +100,38 @@ ShellRoot {
 
     QtObject {
         id: serviceFacade
-        function get(pluginId) { return pluginId === "stillsuit.workflows" ? workflowService : null }
+        function get(pluginId) {
+            return pluginId === "stillsuit.workflows" ? workflowService : null
+        }
     }
 
     QtObject {
         id: actions
         function surfaceToggle(pluginId, payloadJson) {
-            fixture.actionCalls = fixture.actionCalls.concat([{
-                action: "toggle", pluginId: String(pluginId), outputId: JSON.parse(payloadJson).outputId
-            }])
+            fixture.actionCalls = fixture.actionCalls.concat([
+                                                                 {
+                                                                     action: "toggle",
+                                                                     pluginId: String(pluginId),
+                                                                     outputId: JSON.parse(
+                                                                                   payloadJson).outputId
+                                                                 }
+                                                             ])
             return "ok"
         }
         function surfaceOpen(pluginId, payloadJson) {
-            fixture.actionCalls = fixture.actionCalls.concat([{
-                action: "open", pluginId: String(pluginId), outputId: JSON.parse(payloadJson).outputId
-            }])
+            fixture.actionCalls = fixture.actionCalls.concat([
+                                                                 {
+                                                                     action: "open",
+                                                                     pluginId: String(pluginId),
+                                                                     outputId: JSON.parse(
+                                                                                   payloadJson).outputId
+                                                                 }
+                                                             ])
             return "ok"
         }
-        function surfaceClose(pluginId) { return "ok" }
+        function surfaceClose(pluginId) {
+            return "ok"
+        }
         function workspaceFocus(workspaceId) {
             fixture.workspaceFocusCalls = fixture.workspaceFocusCalls.concat([Number(workspaceId)])
             return "ok"
@@ -112,27 +142,79 @@ ShellRoot {
         id: context
         property var services: serviceFacade
         property var actions: actions
-        property var settings: ({ values: { shadowMode: true } })
+        property var settings: ({
+                                    values: {
+                                        shadowMode: true
+                                    }
+                                })
         property var logger: ({
-            debug: function(message) {},
-            info: function(message) {},
-            warn: function(message) { console.warn(message) },
-            error: function(message) { console.error(message) }
-        })
+                                  debug: function (message) {},
+                                  info: function (message) {},
+                                  warn: function (message) {
+                                      console.warn(message)
+                                  },
+                                  error: function (message) {
+                                      console.error(message)
+                                  }
+                              })
         property var compositor: ({
-            outputs: [{ id: fixture.primaryOutputId }, { id: fixture.secondaryOutputId }],
-            focusedOutputId: fixture.secondaryOutputId,
-            workspaces: [
-                { id: 1, idx: 1, output: fixture.primaryOutputId, is_active: true, active_window_id: 11 },
-                { id: 2, idx: 1, output: fixture.secondaryOutputId, is_active: true, active_window_id: 22 },
-                { id: 3, idx: 2, output: fixture.secondaryOutputId, is_urgent: true }
-            ],
-            windows: [
-                { id: 11, workspace_id: 1, is_focused: true, layout: { pos_in_scrolling_layout: [1] } },
-                { id: 22, workspace_id: 2, is_focused: true, layout: { pos_in_scrolling_layout: [2] } },
-                { id: 23, workspace_id: 2, layout: { pos_in_scrolling_layout: [4] } }
-            ]
-        })
+                                      outputs: [
+                                          {
+                                              id: fixture.primaryOutputId
+                                          },
+                                          {
+                                              id: fixture.secondaryOutputId
+                                          }
+                                      ],
+                                      focusedOutputId: fixture.secondaryOutputId,
+                                      workspaces: [
+                                          {
+                                              id: 1,
+                                              idx: 1,
+                                              output: fixture.primaryOutputId,
+                                              is_active: true,
+                                              active_window_id: 11
+                                          },
+                                          {
+                                              id: 2,
+                                              idx: 1,
+                                              output: fixture.secondaryOutputId,
+                                              is_active: true,
+                                              active_window_id: 22
+                                          },
+                                          {
+                                              id: 3,
+                                              idx: 2,
+                                              output: fixture.secondaryOutputId,
+                                              is_urgent: true
+                                          }
+                                      ],
+                                      windows: [
+                                          {
+                                              id: 11,
+                                              workspace_id: 1,
+                                              is_focused: true,
+                                              layout: {
+                                                  pos_in_scrolling_layout: [1]
+                                              }
+                                          },
+                                          {
+                                              id: 22,
+                                              workspace_id: 2,
+                                              is_focused: true,
+                                              layout: {
+                                                  pos_in_scrolling_layout: [2]
+                                              }
+                                          },
+                                          {
+                                              id: 23,
+                                              workspace_id: 2,
+                                              layout: {
+                                                  pos_in_scrolling_layout: [4]
+                                              }
+                                          }
+                                      ]
+                                  })
         property var theme: FixtureTheme.create()
     }
 
@@ -163,88 +245,141 @@ ShellRoot {
     Bar.Bar {
         id: productionBar
         context: context
-        widgetRegistrations: [{
-            component: productionWorkspaceComponent,
-            context: context,
-            manifest: { id: "stillsuit.workspaces" },
-            defaultSection: "left",
-            allowMultiple: false
-        }]
+        widgetRegistrations: [
+            {
+                component: productionWorkspaceComponent,
+                context: context,
+                manifest: {
+                    id: "stillsuit.workspaces"
+                },
+                defaultSection: "left",
+                allowMultiple: false
+            }
+        ]
         outputScreens: Quickshell.screens
     }
 
     Item {
-        Clock.ClockWidget { id: clockOne; context: context; service: clockService; outputId: fixture.primaryOutputId }
-        Clock.ClockWidget { id: clockTwo; context: context; service: clockService; outputId: fixture.secondaryOutputId }
-        Workspaces.WorkspaceWidget { id: workspacePrimary; context: context; outputId: fixture.primaryOutputId }
-        Workspaces.WorkspaceWidget { id: workspaceSecondary; context: context; outputId: fixture.secondaryOutputId }
-        Resources.ResourceWidget { id: resourcesPrimary; context: context; service: resourceService; outputId: fixture.primaryOutputId }
-        Resources.ResourceWidget { id: resourcesSecondary; context: context; service: resourceService; outputId: fixture.secondaryOutputId }
-        Recording.RecordingWidget { id: recordingPrimary; context: context; outputId: fixture.primaryOutputId }
-        Recording.RecordingWidget { id: recordingSecondary; context: context; outputId: fixture.secondaryOutputId }
+        Clock.ClockWidget {
+            id: clockOne
+            context: context
+            service: clockService
+            outputId: fixture.primaryOutputId
+        }
+        Clock.ClockWidget {
+            id: clockTwo
+            context: context
+            service: clockService
+            outputId: fixture.secondaryOutputId
+        }
+        Workspaces.WorkspaceWidget {
+            id: workspacePrimary
+            context: context
+            outputId: fixture.primaryOutputId
+        }
+        Workspaces.WorkspaceWidget {
+            id: workspaceSecondary
+            context: context
+            outputId: fixture.secondaryOutputId
+        }
+        Resources.ResourceWidget {
+            id: resourcesPrimary
+            context: context
+            service: resourceService
+            outputId: fixture.primaryOutputId
+        }
+        Resources.ResourceWidget {
+            id: resourcesSecondary
+            context: context
+            service: resourceService
+            outputId: fixture.secondaryOutputId
+        }
+        Recording.RecordingWidget {
+            id: recordingPrimary
+            context: context
+            outputId: fixture.primaryOutputId
+        }
+        Recording.RecordingWidget {
+            id: recordingSecondary
+            context: context
+            outputId: fixture.secondaryOutputId
+        }
     }
 
     IpcHandler {
         target: "stillsuit-d4-fixture"
         function ready(): string {
             return fixture.clockServiceInstances === 1 && fixture.resourceServiceInstances === 1
-                && fixture.workspaceConstructionCount === 2
-                ? "ready" : "loading"
+                    && fixture.workspaceConstructionCount === 2 ? "ready" : "loading"
         }
         function topology(): string {
             return JSON.stringify({
-                clockServiceInstances: fixture.clockServiceInstances,
-                resourceServiceInstances: fixture.resourceServiceInstances,
-                outputs: 2,
-                clockViews: 2,
-                workspaceViews: 2,
-                resourceViews: 2,
-                recordingViews: 2,
-                sharedClockService: clockOne.service === clockTwo.service,
-                sharedResourceService: resourcesPrimary.service === resourcesSecondary.service
-            })
+                                      clockServiceInstances: fixture.clockServiceInstances,
+                                      resourceServiceInstances: fixture.resourceServiceInstances,
+                                      outputs: 2,
+                                      clockViews: 2,
+                                      workspaceViews: 2,
+                                      resourceViews: 2,
+                                      recordingViews: 2,
+                                      sharedClockService: clockOne.service === clockTwo.service,
+                                      sharedResourceService: resourcesPrimary.service
+                                                             === resourcesSecondary.service
+                                  })
         }
         function productionBarSnapshot(): string {
             return JSON.stringify({
-                constructions: fixture.workspaceConstructionCount,
-                outputIds: [fixture.primaryOutputId, fixture.secondaryOutputId],
-                primaryWorkspaces: fixture.productionWorkspaceCounts[fixture.primaryOutputId],
-                secondaryWorkspaces: fixture.productionWorkspaceCounts[fixture.secondaryOutputId]
-            })
+                                      constructions: fixture.workspaceConstructionCount,
+                                      outputIds: [fixture.primaryOutputId,
+                                          fixture.secondaryOutputId],
+                                      primaryWorkspaces:
+                                      fixture.productionWorkspaceCounts[fixture.primaryOutputId],
+                                      secondaryWorkspaces:
+                                      fixture.productionWorkspaceCounts[fixture.secondaryOutputId]
+                                  })
         }
         function workspaceSnapshot(): string {
             return JSON.stringify({
-                primaryWorkspaces: workspacePrimary.workspaces.length,
-                secondaryWorkspaces: workspaceSecondary.workspaces.length,
-                secondaryColumns: workspaceSecondary.columns,
-                secondaryFocusedColumn: workspaceSecondary.focusedColumn
-            })
+                                      primaryWorkspaces: workspacePrimary.workspaces.length,
+                                      secondaryWorkspaces: workspaceSecondary.workspaces.length,
+                                      secondaryColumns: workspaceSecondary.columns,
+                                      secondaryFocusedColumn: workspaceSecondary.focusedColumn
+                                  })
         }
         // Clicking is driven through each cell's MouseArea so the assertion
         // covers the wiring from pointer to action. The secondary output's
         // active workspace is 2; clicking it must not reach the compositor.
         function workspaceClick(): string {
             var cells = fixture.workspaceCells(workspaceSecondary)
-            var areas = cells.map(function(cell) { return fixture.clickArea(cell) })
-            var pointerCursors = areas.map(function(area) { return area ? area.cursorShape === Qt.PointingHandCursor : null })
-            fixture.workspaceFocusCalls = []
-            if (areas[0]) areas[0].clicked(null)
-            var afterActive = fixture.workspaceFocusCalls.slice()
-            if (areas[1]) areas[1].clicked(null)
-            return JSON.stringify({
-                ids: cells.map(function(cell) { return cell.workspace.id }),
-                active: cells.map(function(cell) { return cell.active }),
-                pointerCursors: pointerCursors,
-                afterActive: afterActive,
-                calls: fixture.workspaceFocusCalls
+            var areas = cells.map(function (cell) {
+                return fixture.clickArea(cell)
             })
+            var pointerCursors = areas.map(function (area) {
+                return area ? area.cursorShape === Qt.PointingHandCursor : null
+            })
+            fixture.workspaceFocusCalls = []
+            if (areas[0])
+                areas[0].clicked(null)
+            var afterActive = fixture.workspaceFocusCalls.slice()
+            if (areas[1])
+                areas[1].clicked(null)
+            return JSON.stringify({
+                                      ids: cells.map(function (cell) {
+                                          return cell.workspace.id
+                                      }),
+                                      active: cells.map(function (cell) {
+                                          return cell.active
+                                      }),
+                                      pointerCursors: pointerCursors,
+                                      afterActive: afterActive,
+                                      calls: fixture.workspaceFocusCalls
+                                  })
         }
         function resourceSnapshot(): string {
             resourceService.refresh()
             return JSON.stringify({
-                cpuPercent: resourceService.cpuPercent,
-                memoryPercent: resourceService.memoryPercent
-            })
+                                      cpuPercent: resourceService.cpuPercent,
+                                      memoryPercent: resourceService.memoryPercent
+                                  })
         }
         function routeActions(): string {
             fixture.actionCalls = []
@@ -261,19 +396,20 @@ ShellRoot {
             recordingPrimary.handleDoubleClick()
             recordingSecondary.handleDoubleClick()
             return JSON.stringify({
-                activation: activation,
-                pauseCalls: recordingModel.pauseCalls,
-                routes: fixture.actionCalls,
-                outputIds: [fixture.primaryOutputId, fixture.secondaryOutputId]
-            })
+                                      activation: activation,
+                                      pauseCalls: recordingModel.pauseCalls,
+                                      routes: fixture.actionCalls,
+                                      outputIds: [fixture.primaryOutputId,
+                                          fixture.secondaryOutputId]
+                                  })
         }
         function workflowState(): string {
             recordingModel.elapsedText = "01:07"
             meetingModel.completed = true
             meetingModel.label = "Minutes ready"
             return JSON.stringify({
-                recordingText: recordingPrimary.recording.elapsedText
-            })
+                                      recordingText: recordingPrimary.recording.elapsedText
+                                  })
         }
     }
 }

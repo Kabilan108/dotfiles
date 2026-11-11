@@ -28,22 +28,27 @@ Scope {
     required property var context
 
     readonly property string apiVersion: "1"
-    readonly property string pluginId: context && context.settings && context.settings.pluginId
-        ? String(context.settings.pluginId) : "stillsuit.launcher"
+    readonly property string pluginId: context && context.settings && context.settings.pluginId ? String(
+                                                                                                      context.settings.pluginId) :
+                                                                                                  "stillsuit.launcher"
     readonly property var values: context && context.settings && context.settings.values
-        ? context.settings.values : ({})
-    readonly property string stateRoot: context && context.settings && context.settings.paths
-        ? String(context.settings.paths.stateRoot || "") : ""
-    readonly property string historyPath: stateRoot.charAt(0) === "/"
-        ? stateRoot + "/launcher/history.v1.json" : ""
+                                  ? context.settings.values : ({})
+    readonly property string stateRoot: context && context.settings && context.settings.paths ? String(
+                                                                                                    context.settings.paths.stateRoot
+                                                                                                    || "") : ""
+    readonly property string historyPath: stateRoot.charAt(0) === "/" ? stateRoot
+                                                                        + "/launcher/history.v1.json" :
+                                                                        ""
     readonly property string qalcPath: _absolute(values.qalcPath)
     readonly property string fdPath: _absolute(values.fdPath)
     readonly property string searchRoot: _absolute(values.searchRoot)
     readonly property var engineSettings: ({
-        webEngine: String(values.webEngine || ""),
-        maxResults: values.maxResults === undefined ? Engine.DEFAULT_MAX_RESULTS : values.maxResults,
-        searchRoot: searchRoot
-    })
+                                               webEngine: String(values.webEngine || ""),
+                                               maxResults: values.maxResults === undefined
+                                                           ? Engine.DEFAULT_MAX_RESULTS :
+                                                             values.maxResults,
+                                               searchRoot: searchRoot
+                                           })
 
     readonly property int qalcDebounceMs: 60
     readonly property int qalcTimeoutMs: 1500
@@ -72,10 +77,13 @@ Scope {
     // action succeeds; "" when there is nothing to report.
     property string actionError: ""
     // The provider a prefix selected, or "" without a prefix.
-    readonly property string prefixProvider: prefix !== "" && providerIds.length === 1 ? providerIds[0] : ""
-    readonly property var selectedRow: selectedIndex >= 0 && selectedIndex < rows.length ? rows[selectedIndex] : null
-    readonly property var selectedAction: selectedRow && selectedRow.actions
-        && actionIndex < selectedRow.actions.length ? selectedRow.actions[actionIndex] : null
+    readonly property string prefixProvider: prefix !== "" && providerIds.length === 1
+                                             ? providerIds[0] : ""
+    readonly property var selectedRow: selectedIndex >= 0 && selectedIndex < rows.length
+                                       ? rows[selectedIndex] : null
+    readonly property var selectedAction: selectedRow && selectedRow.actions && actionIndex
+                                          < selectedRow.actions.length
+                                          ? selectedRow.actions[actionIndex] : null
     readonly property bool calcBusy: _calcWanted !== ""
     readonly property bool filesBusy: _filesWanted !== ""
     readonly property bool connectionsBusy: connectionsProcess.running
@@ -83,23 +91,28 @@ Scope {
     readonly property bool clipboardActive: providerIds.indexOf("clipboard") !== -1
     // A lookup, debounce, or rescan is scheduled or running. Always false
     // while closed; the debounced history write is not counted.
-    readonly property bool pendingWork: appsTimer.running || calcDebounce.running || calcTimeout.running
-        || connectionsProcess.running || calcProcess.running || filesDebounce.running || filesTimeout.running || filesProcess.running
+    readonly property bool pendingWork: appsTimer.running || calcDebounce.running
+                                        || calcTimeout.running || connectionsProcess.running
+                                        || calcProcess.running || filesDebounce.running
+                                        || filesTimeout.running || filesProcess.running
 
     // The clipboard service is a declared dependency; its own status reports
     // a broken watcher, and a missing service is reported here.
-    readonly property QtObject clipboard: context && context.services
-        ? (context.services.revision, context.services.get("stillsuit.clipboard")) : null
+    readonly property QtObject clipboard: context && context.services ? (context.services.revision,
+                                                                         context.services.get(
+                                                                             "stillsuit.clipboard")) :
+                                                                        null
     readonly property string clipboardStatus: clipboard ? String(clipboard.status || "") : "error"
-    readonly property string clipboardError: clipboard
-        ? String(clipboard.error || "") : "Clipboard history is not available"
+    readonly property string clipboardError: clipboard ? String(clipboard.error || "") :
+                                                         "Clipboard history is not available"
 
     readonly property var engine: Engine.create({
-        Matcher: Matcher,
-        History: History,
-        Query: Query,
-        providers: [Calc, Apps, Web, Windows, Power, Profiles, Files, Clipboard, Remmina]
-    })
+                                                    Matcher: Matcher,
+                                                    History: History,
+                                                    Query: Query,
+                                                    providers: [Calc, Apps, Web, Windows, Power,
+                                                        Profiles, Files, Clipboard, Remmina]
+                                                })
 
     property var history: History.create(null, Date.now())
     property bool _historyLoaded: false
@@ -117,7 +130,10 @@ Scope {
     // the menu (or a panel opened before it) holds keyboard focus niri flags
     // none, and its debounced focus stamps can still name the previous window.
     property var _currentWindowId: null
-    property var _profiles: ({ active: "", available: [] })
+    property var _profiles: ({
+                                 active: "",
+                                 available: []
+                             })
     property int _profilesRevision: 0
     property string _profilesKey: ""
     property var _clipboardItems: []
@@ -200,8 +216,8 @@ Scope {
             return
         query = next
         actionError = ""
-        if (Query.parse(query, mode).providerIds.indexOf("remmina") !== -1
-            && providerIds.indexOf("remmina") === -1)
+        if (Query.parse(query, mode).providerIds.indexOf("remmina") !== -1 && providerIds.indexOf(
+                    "remmina") === -1)
             _loadConnections()
         _userMoved = false
         _rerun()
@@ -260,7 +276,9 @@ Scope {
             actionError = ""
             _closeSurface()
             var actions = context.actions
-            Qt.callLater(function() { root._report("window focus", actions.windowFocus(windowId)) })
+            Qt.callLater(function () {
+                root._report("window focus", actions.windowFocus(windowId))
+            })
             return "ok"
         }
         var status = _execute(intent)
@@ -333,7 +351,8 @@ Scope {
 
     function _lastFocusedWindowId() {
         var windowId = context && context.compositor ? context.compositor.lastFocusedWindowId : null
-        return windowId !== undefined && windowId !== null && _windowExists(windowId) ? windowId : null
+        return windowId !== undefined && windowId !== null && _windowExists(windowId) ? windowId :
+                                                                                        null
     }
 
     function _windowExists(windowId) {
@@ -352,15 +371,32 @@ Scope {
     function _failureMessage(intent, subject, status) {
         var attempt
         switch (intent.type) {
-        case "window.focus": attempt = "Couldn't focus " + subject; break
-        case "session": attempt = "Couldn't " + subject.toLowerCase(); break
-        case "profile.activate": attempt = "Couldn't switch to " + subject; break
-        case "text.copy": attempt = "Couldn't copy to the clipboard"; break
-        case "path.reveal": attempt = "Couldn't reveal " + subject; break
-        case "clipboard.copy": attempt = "Couldn't copy the clipboard item"; break
-        case "clipboard.remove": attempt = "Couldn't delete the clipboard item"; break
-        case "clipboard.clear": attempt = "Couldn't clear clipboard history"; break
-        default: attempt = "Couldn't open " + subject
+        case "window.focus":
+            attempt = "Couldn't focus " + subject
+            break
+        case "session":
+            attempt = "Couldn't " + subject.toLowerCase()
+            break
+        case "profile.activate":
+            attempt = "Couldn't switch to " + subject
+            break
+        case "text.copy":
+            attempt = "Couldn't copy to the clipboard"
+            break
+        case "path.reveal":
+            attempt = "Couldn't reveal " + subject
+            break
+        case "clipboard.copy":
+            attempt = "Couldn't copy the clipboard item"
+            break
+        case "clipboard.remove":
+            attempt = "Couldn't delete the clipboard item"
+            break
+        case "clipboard.clear":
+            attempt = "Couldn't clear clipboard history"
+            break
+        default:
+            attempt = "Couldn't open " + subject
         }
         return attempt + ": " + _failureReason(intent.type, status)
     }
@@ -371,7 +407,8 @@ Scope {
         case "gone":
             return "the window is gone"
         case "unavailable":
-            return clipboardIntent ? "clipboard history is unavailable" : "launcher helper unavailable"
+            return clipboardIntent ? "clipboard history is unavailable" :
+                                     "launcher helper unavailable"
         case "unknown":
             if (type === "app.launch")
                 return "the application is no longer installed"
@@ -396,8 +433,12 @@ Scope {
         var actions = context.actions
         switch (intent.type) {
         case "remmina.connect":
-            if (remminaPath === "") return "unavailable"
-            if (!connections.some(function(item) { return item.path === intent.path })) return "unknown"
+            if (remminaPath === "")
+                return "unavailable"
+            if (!connections.some(function (item) {
+                return item.path === intent.path
+            }))
+                return "unknown"
             Quickshell.execDetached([remminaPath, "--connect", intent.path])
             return "ok"
         case "app.launch":
@@ -417,7 +458,8 @@ Scope {
         case "clipboard.copy":
             return _report("clipboard copy", clipboard ? clipboard.copy(intent.id) : "unavailable")
         case "clipboard.remove":
-            return _report("clipboard remove", clipboard ? clipboard.remove(intent.id) : "unavailable")
+            return _report("clipboard remove", clipboard ? clipboard.remove(intent.id) :
+                                                           "unavailable")
         case "clipboard.clear":
             return _report("clipboard clear", clipboard ? clipboard.clear() : "unavailable")
         }
@@ -436,7 +478,13 @@ Scope {
         } catch (error) {
             if (context && context.logger)
                 context.logger.error("launcher query failed: " + error)
-            result = { rows: [], providerIds: [], prefix: "", text: "", pending: {} }
+            result = {
+                rows: [],
+                providerIds: [],
+                prefix: "",
+                text: "",
+                pending: {}
+            }
         }
         _lastText = result.text
         prefix = result.prefix
@@ -455,8 +503,9 @@ Scope {
                 next = Math.min(previousIndex, rows.length - 1)
         }
         selectedIndex = Math.max(0, next)
-        actionIndex = selectedRow && selectedRow.key === previousKey
-            ? _actionIndexOf(selectedRow, previousActionId) : 0
+        actionIndex = selectedRow && selectedRow.key === previousKey ? _actionIndexOf(selectedRow,
+                                                                                      previousActionId) :
+                                                                       0
         _syncPending(result.pending || {})
     }
 
@@ -526,19 +575,23 @@ Scope {
             for (var a = 0; a < desktopActions.length; a++) {
                 var action = desktopActions[a]
                 if (action)
-                    actions.push({ id: String(action.id), name: String(action.name || ""), icon: String(action.icon || "") })
+                    actions.push({
+                                     id: String(action.id),
+                                     name: String(action.name || ""),
+                                     icon: String(action.icon || "")
+                                 })
             }
             apps.push({
-                id: String(entry.id),
-                name: String(entry.name || ""),
-                genericName: String(entry.genericName || ""),
-                comment: String(entry.comment || ""),
-                keywords: _list(entry.keywords),
-                icon: String(entry.icon || ""),
-                categories: _list(entry.categories),
-                actions: actions,
-                runInTerminal: entry.runInTerminal === true
-            })
+                          id: String(entry.id),
+                          name: String(entry.name || ""),
+                          genericName: String(entry.genericName || ""),
+                          comment: String(entry.comment || ""),
+                          keywords: _list(entry.keywords),
+                          icon: String(entry.icon || ""),
+                          categories: _list(entry.categories),
+                          actions: actions,
+                          runInTerminal: entry.runInTerminal === true
+                      })
         }
         _apps = apps
         _appsRevision++
@@ -569,8 +622,8 @@ Scope {
                 copy[key] = source[key]
             var owner = workspaces[String(source.workspace_id)]
             if (owner) {
-                copy.workspaceName = owner.name ? String(owner.name)
-                    : owner.idx !== undefined ? String(owner.idx) : ""
+                copy.workspaceName = owner.name ? String(owner.name) : owner.idx !== undefined
+                                                  ? String(owner.idx) : ""
                 copy.outputName = owner.output ? String(owner.output) : ""
             }
             windows.push(copy)
@@ -583,11 +636,15 @@ Scope {
         var profiles = context ? context.profiles : null
         var active = profiles ? String(profiles.active || "") : ""
         var available = profiles && profiles.available ? profiles.available : []
-        var key = active + "\u0000" + (profiles ? profiles.revision : 0) + "\u0000" + JSON.stringify(available)
+        var key = active + "\u0000" + (profiles ? profiles.revision : 0) + "\u0000" + JSON.stringify(
+                    available)
         if (key === _profilesKey)
             return
         _profilesKey = key
-        _profiles = { active: active, available: available }
+        _profiles = {
+            active: active,
+            available: available
+        }
         _profilesRevision++
     }
 
@@ -603,15 +660,15 @@ Scope {
             if (!item)
                 continue
             items.push({
-                id: String(item.id),
-                kind: item.kind === "image" ? "image" : "text",
-                preview: String(item.preview || ""),
-                mime: String(item.mime || ""),
-                bytes: item.bytes,
-                createdAt: item.created,
-                lastUsed: item.lastUsed,
-                path: String(item.path || "")
-            })
+                           id: String(item.id),
+                           kind: item.kind === "image" ? "image" : "text",
+                           preview: String(item.preview || ""),
+                           mime: String(item.mime || ""),
+                           bytes: item.bytes,
+                           createdAt: item.created,
+                           lastUsed: item.lastUsed,
+                           path: String(item.path || "")
+                       })
         }
         _clipboardSource = service
         _clipboardItems = items
@@ -689,7 +746,8 @@ Scope {
         _calcExitCode = -1
         // "--" ends qalc's options, so input such as "-v" stays an expression.
         // ASCII output keeps a copied "-2" pasteable where U+2212 is not.
-        calcProcess.command = [qalcPath, "-t", "-u8", "-m", String(qalcTimeoutMs - 500), "--", _calcRunText]
+        calcProcess.command = [qalcPath, "-t", "-u8", "-m", String(qalcTimeoutMs - 500), "--",
+                               _calcRunText]
         calcProcess.running = true
         calcTimeout.restart()
     }
@@ -712,7 +770,11 @@ Scope {
     }
 
     function _finishCalc(text, value, failed) {
-        calcResult = { text: text, value: failed ? "" : value, error: failed }
+        calcResult = {
+            text: text,
+            value: failed ? "" : value,
+            error: failed
+        }
         if (_calcWanted === text)
             _calcWanted = ""
         _rerun()
@@ -762,9 +824,10 @@ Scope {
         // store and dependency trees, so those names are excluded.
         // The pattern syntax is documented in model/providers/files.js.
         var command = [fdPath, "--follow", "--max-results", String(fdMaxResults), "--absolute-path",
-            "--color", "never", "--exclude", "result", "--exclude", "result-*",
-            "--exclude", "node_modules", "--exclude", ".direnv", "--exclude", ".git",
-            "--exclude", ".cache", "--print0", search.caseSensitive ? "--case-sensitive" : "--ignore-case"]
+                       "--color", "never", "--exclude", "result", "--exclude", "result-*",
+                       "--exclude", "node_modules", "--exclude", ".direnv", "--exclude", ".git",
+                       "--exclude", ".cache", "--print0", search.caseSensitive ? "--case-sensitive" :
+                                                                                 "--ignore-case"]
         if (search.fullPath)
             command.push("--full-path")
         filesProcess.command = command.concat(["--", search.pattern, searchRoot])
@@ -797,7 +860,10 @@ Scope {
     }
 
     function _finishFiles(text, paths) {
-        filesResult = { text: text, paths: paths }
+        filesResult = {
+            text: text,
+            paths: paths
+        }
         if (_filesWanted === text)
             _filesWanted = ""
         _rerun()
@@ -837,9 +903,15 @@ Scope {
 
     Connections {
         target: root.opened && root.context ? root.context.profiles : null
-        function onRevisionChanged() { root._onProfilesChanged() }
-        function onActiveChanged() { root._onProfilesChanged() }
-        function onAvailableChanged() { root._onProfilesChanged() }
+        function onRevisionChanged() {
+            root._onProfilesChanged()
+        }
+        function onActiveChanged() {
+            root._onProfilesChanged()
+        }
+        function onAvailableChanged() {
+            root._onProfilesChanged()
+        }
     }
 
     function _onProfilesChanged() {
@@ -849,7 +921,9 @@ Scope {
 
     Connections {
         target: root.opened && root.clipboardActive ? root.clipboard : null
-        function onRevisionChanged() { root._rerun() }
+        function onRevisionChanged() {
+            root._rerun()
+        }
     }
 
     Process {
@@ -857,7 +931,8 @@ Scope {
         command: [root.remminaListPath]
         stdout: StdioCollector {
             onStreamFinished: {
-                if (!root.opened) return
+                if (!root.opened)
+                    return
                 try {
                     var items = JSON.parse(text)
                     root.connections = Array.isArray(items) ? items : []
@@ -868,7 +943,7 @@ Scope {
                 }
             }
         }
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             if (exitCode !== 0 && root.opened)
                 root.actionError = "Could not read saved Remmina connections"
         }
@@ -922,8 +997,12 @@ Scope {
 
     Process {
         id: calcProcess
-        stdout: StdioCollector { id: calcOutput }
-        onExited: function(exitCode) { root._calcExitCode = exitCode }
+        stdout: StdioCollector {
+            id: calcOutput
+        }
+        onExited: function (exitCode) {
+            root._calcExitCode = exitCode
+        }
         onRunningChanged: {
             if (!running)
                 root._onCalcStopped()
@@ -951,8 +1030,12 @@ Scope {
 
     Process {
         id: filesProcess
-        stdout: StdioCollector { id: filesOutput }
-        onExited: function(exitCode) { root._filesExitCode = exitCode }
+        stdout: StdioCollector {
+            id: filesOutput
+        }
+        onExited: function (exitCode) {
+            root._filesExitCode = exitCode
+        }
         onRunningChanged: {
             if (!running)
                 root._onFilesStopped()

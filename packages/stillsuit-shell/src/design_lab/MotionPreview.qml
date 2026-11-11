@@ -20,7 +20,8 @@ Ui.ShellSurface {
             margins: 14
         }
         theme: root.theme
-        text: reducedMotion ? "Reduced motion" : "Panel enter · " + Math.round(theme.motion.normal * speedScale) + " ms"
+        text: reducedMotion ? "Reduced motion" : "Panel enter · " + Math.round(theme.motion.normal
+                                                                               * speedScale) + " ms"
         sizeRole: "label"
     }
 
@@ -38,14 +39,16 @@ Ui.ShellSurface {
 
         Behavior on x {
             NumberAnimation {
-                duration: root.reducedMotion ? 0 : Math.round(root.theme.motion.normal * root.speedScale)
+                duration: root.reducedMotion ? 0 : Math.round(root.theme.motion.normal
+                                                              * root.speedScale)
                 easing.type: Easing.OutCubic
             }
         }
 
         Behavior on opacity {
             NumberAnimation {
-                duration: root.reducedMotion ? 0 : Math.round(root.theme.motion.normal * root.speedScale)
+                duration: root.reducedMotion ? 0 : Math.round(root.theme.motion.normal
+                                                              * root.speedScale)
                 easing.type: Easing.OutCubic
             }
         }
@@ -106,7 +109,7 @@ Ui.ShellSurface {
             active: true
             onClicked: {
                 root.played = false
-                Qt.callLater(function() {
+                Qt.callLater(function () {
                     root.played = true
                 })
             }

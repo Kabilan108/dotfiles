@@ -28,10 +28,13 @@ FocusScope {
     readonly property real connectionsWidth: unit * 120
     readonly property real compactWidth: unit * 64
     readonly property real clipboardListWidth: unit * 105
-    readonly property real clipboardWidth: padding * 2 + clipboardListWidth + unit * 2 + theme.metrics.panelWidth
-    readonly property bool clipboardProblem: clipboardView
-        && (service.clipboardStatus === "error"
-            || (service.clipboardStatus === "degraded" && service.clipboardError !== ""))
+    readonly property real clipboardWidth: padding * 2 + clipboardListWidth + unit * 2
+                                           + theme.metrics.panelWidth
+    readonly property bool clipboardProblem: clipboardView && (service.clipboardStatus === "error"
+                                                               || (service.clipboardStatus
+                                                                   === "degraded"
+                                                                   && service.clipboardError
+                                                                   !== ""))
     readonly property var selectedRow: service.selectedRow
     readonly property string selectedKey: selectedRow ? String(selectedRow.key) : ""
     readonly property var keyedRows: {
@@ -42,29 +45,48 @@ FocusScope {
             keys.push(String(rows[index].key))
             byKey[rows[index].key] = rows[index]
         }
-        return { keys: keys, rows: byKey }
+        return {
+            keys: keys,
+            rows: byKey
+        }
     }
-    readonly property string bannerText: service.actionError !== "" ? service.actionError
-        : !clipboardProblem ? ""
-        : service.clipboardError !== "" ? service.clipboardError : "Clipboard history is unavailable"
-    readonly property bool bannerDanger: service.actionError !== "" || service.clipboardStatus === "error"
-    readonly property var previewData: clipboardView && selectedRow && selectedRow.preview ? selectedRow.preview : null
+    readonly property string bannerText: service.actionError !== "" ? service.actionError :
+                                                                      !clipboardProblem ? "" :
+                                                                                          service.clipboardError
+                                                                                          !== "" ? service.clipboardError :
+                                                                                                   "Clipboard history is unavailable"
+    readonly property bool bannerDanger: service.actionError !== "" || service.clipboardStatus
+                                         === "error"
+    readonly property var previewData: clipboardView && selectedRow && selectedRow.preview
+                                       ? selectedRow.preview : null
     readonly property bool imagesOnly: clipboardView && service.clipboardImagesOnly
     readonly property var modeIcons: ({
-        combi: "apps", windows: "window", power: "power", profiles: "layers", clipboard: "clipboard",
-        remmina: "window", files: "folder"
-    })
+                                          combi: "apps",
+                                          windows: "window",
+                                          power: "power",
+                                          profiles: "layers",
+                                          clipboard: "clipboard",
+                                          remmina: "window",
+                                          files: "folder"
+                                      })
     readonly property var placeholders: ({
-        combi: "Search applications", windows: "Switch to a window", power: "Power",
-        profiles: "Switch profile", clipboard: "Search clipboard history",
-        remmina: "Search connections, groups, or servers", files: "Search files"
-    })
-    readonly property string viewName: service.prefixProvider !== "" ? service.prefixProvider : service.mode
+                                             combi: "Search applications",
+                                             windows: "Switch to a window",
+                                             power: "Power",
+                                             profiles: "Switch profile",
+                                             clipboard: "Search clipboard history",
+                                             remmina: "Search connections, groups, or servers",
+                                             files: "Search files"
+                                         })
+    readonly property string viewName: service.prefixProvider !== "" ? service.prefixProvider :
+                                                                       service.mode
     // Rows name their provider only when several can appear together.
     readonly property bool mixedProviders: service.providerIds.length > 1
 
-    implicitWidth: clipboardView ? clipboardWidth : viewName === "remmina" ? connectionsWidth
-        : compactView ? compactWidth : standardWidth
+    implicitWidth: clipboardView ? clipboardWidth : viewName === "remmina" ? connectionsWidth :
+                                                                             compactView
+                                                                             ? compactWidth :
+                                                                               standardWidth
     implicitHeight: frame.implicitHeight
     visible: false
 
@@ -91,7 +113,8 @@ FocusScope {
     }
 
     function activateSelected() {
-        service.activate(service.selectedIndex, service.selectedAction ? service.selectedAction.id : "")
+        service.activate(service.selectedIndex, service.selectedAction ? service.selectedAction.id :
+                                                                         "")
     }
 
     function handleKey(event) {
@@ -156,7 +179,8 @@ FocusScope {
 
     function fileUrl(path) {
         var value = String(path || "")
-        return value.charAt(0) === "/" ? "file://" + value.split("/").map(encodeURIComponent).join("/") : ""
+        return value.charAt(0) === "/" ? "file://" + value.split("/").map(encodeURIComponent).join(
+                                             "/") : ""
     }
 
     function rowIcon(row) {
@@ -174,10 +198,11 @@ FocusScope {
 
     function emptyText() {
         if (service.busy)
-            return service.connectionsBusy ? "Loading connections…"
-                : service.filesBusy ? "Searching files…" : "Calculating…"
+            return service.connectionsBusy ? "Loading connections…" : service.filesBusy
+                                             ? "Searching files…" : "Calculating…"
         if (service.prefixProvider === "files" && service.query.slice(1).trim() === "")
-            return "Search file names under " + service.searchRoot + ", or a folder: downloads/*.pdf"
+            return "Search file names under " + service.searchRoot
+                    + ", or a folder: downloads/*.pdf"
         if (clipboardView && service.query.replace(/^:/, "").trim() === "")
             return imagesOnly ? "No images in clipboard history" : "Clipboard history is empty"
         if (viewName === "remmina" && service.query.replace(/^>/, "").trim() === "")
@@ -187,8 +212,12 @@ FocusScope {
 
     Connections {
         target: root.service
-        function onSelectedIndexChanged() { Qt.callLater(root.revealSelection) }
-        function onRowsChanged() { Qt.callLater(root.revealSelection) }
+        function onSelectedIndexChanged() {
+            Qt.callLater(root.revealSelection)
+        }
+        function onRowsChanged() {
+            Qt.callLater(root.revealSelection)
+        }
     }
 
     function revealSelection() {
@@ -229,8 +258,8 @@ FocusScope {
                     theme: root.theme
                     iconName: root.imagesOnly ? "image" : root.modeIcons[root.viewName] || "search"
                     iconRole: "accent"
-                    placeholderText: root.imagesOnly ? "Search clipboard images"
-                        : root.placeholders[root.viewName] || "Search"
+                    placeholderText: root.imagesOnly ? "Search clipboard images" :
+                                                       root.placeholders[root.viewName] || "Search"
                     accessibleName: "Launcher search"
                     onTextChanged: root.service.setQuery(text)
                     onKeyPressed: event => root.handleKey(event)
@@ -256,9 +285,11 @@ FocusScope {
                 Rectangle {
                     anchors.fill: parent
                     radius: root.theme.metrics.radiusMedium
-                    color: root.bannerDanger ? root.theme.semantic.surface.danger : root.theme.component.panel.section
+                    color: root.bannerDanger ? root.theme.semantic.surface.danger :
+                                               root.theme.component.panel.section
                     border.width: 1
-                    border.color: root.bannerDanger ? root.theme.semantic.status.danger : root.theme.semantic.status.warning
+                    border.color: root.bannerDanger ? root.theme.semantic.status.danger :
+                                                      root.theme.semantic.status.warning
                 }
 
                 Ui.ShellIcon {
@@ -292,8 +323,11 @@ FocusScope {
                 width: parent.width
                 spacing: root.unit * 2
                 readonly property real fullHeight: root.rowHeight * root.maxVisibleRows
-                readonly property real listHeight: root.service.rows.length === 0 ? root.rowHeight * 2
-                    : Math.min(root.service.rows.length, root.maxVisibleRows) * root.rowHeight
+                readonly property real listHeight: root.service.rows.length === 0 ? root.rowHeight
+                                                                                    * 2 : Math.min(
+                                                                                        root.service.rows.length,
+                                                                                        root.maxVisibleRows)
+                                                                                    * root.rowHeight
                 height: root.clipboardView ? fullHeight : listHeight
 
                 Item {
@@ -334,7 +368,8 @@ FocusScope {
                     id: preview
                     objectName: "launcher-preview"
                     visible: root.clipboardView
-                    width: root.clipboardView ? body.width - root.clipboardListWidth - body.spacing : 0
+                    width: root.clipboardView ? body.width - root.clipboardListWidth - body.spacing :
+                                                0
                     height: body.height
                     radius: root.theme.metrics.radiusMedium
                     color: root.theme.component.panel.section
@@ -379,8 +414,8 @@ FocusScope {
 
                     Ui.ShellText {
                         anchors.centerIn: parent
-                        visible: !root.previewData
-                            || (imagePreview.visible && imagePreview.status === Image.Error)
+                        visible: !root.previewData || (imagePreview.visible && imagePreview.status
+                                                       === Image.Error)
                         theme: root.theme
                         text: root.previewData ? "Image unavailable" : "Nothing selected"
                         role: "muted"
@@ -400,10 +435,14 @@ FocusScope {
                 objectName: "launcher-hints"
                 width: parent.width
                 spacing: root.unit * 3
-                readonly property var actions: root.selectedRow && root.selectedRow.actions ? root.selectedRow.actions : []
+                readonly property var actions: root.selectedRow && root.selectedRow.actions
+                                               ? root.selectedRow.actions : []
                 readonly property int armed: root.service.actionIndex
-                readonly property var nextAction: actions.length > 1 ? actions[(armed + 1) % actions.length] : null
-                readonly property bool removable: !!root.selectedRow && root.selectedRow.provider === "clipboard"
+                readonly property var nextAction: actions.length > 1 ? actions[(armed + 1)
+                                                                               % actions.length] :
+                                                                       null
+                readonly property bool removable: !!root.selectedRow && root.selectedRow.provider
+                                                  === "clipboard"
 
                 Hint {
                     visible: hints.actions.length > 0
@@ -412,7 +451,8 @@ FocusScope {
                     armed: true
                 }
                 Hint {
-                    visible: hints.nextAction !== null && !(hints.removable && hints.nextAction.id === "remove")
+                    visible: hints.nextAction !== null && !(hints.removable && hints.nextAction.id
+                                                            === "remove")
                     keys: "Tab"
                     label: hints.nextAction ? hints.nextAction.label : ""
                 }
@@ -448,7 +488,8 @@ FocusScope {
             radius: root.theme.metrics.radiusSmall
             color: "transparent"
             border.width: 1
-            border.color: hint.armed ? root.theme.semantic.accent.primary : root.theme.semantic.outline.default
+            border.color: hint.armed ? root.theme.semantic.accent.primary :
+                                       root.theme.semantic.outline.default
 
             Ui.ShellText {
                 id: keyText
@@ -534,7 +575,9 @@ FocusScope {
                     textFormat: Text.StyledText
                     elide: Text.ElideRight
                     maximumLineCount: 1
-                    text: rowItem.row ? root.highlighted(rowItem.row.text, rowItem.row.positions) : ""
+                    text: rowItem.row ? root.highlighted(rowItem.row.text, rowItem.row.positions) :
+                                        ""
+
                     role: rowItem.current ? "accent" : "primary"
                     sizeRole: "label"
                 }
@@ -560,8 +603,9 @@ FocusScope {
                 theme: root.theme
                 monospace: true
                 sizeRole: "caption"
-                text: !rowItem.row ? "" : rowItem.current ? "current"
-                    : root.mixedProviders ? String(rowItem.row.provider || "") : ""
+                text: !rowItem.row ? "" : rowItem.current ? "current" : root.mixedProviders ? String(
+                                                                                                  rowItem.row.provider
+                                                                                                  || "") : ""
                 role: rowItem.current ? "accent" : "muted"
             }
 

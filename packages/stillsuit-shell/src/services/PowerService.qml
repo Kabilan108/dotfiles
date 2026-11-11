@@ -17,14 +17,12 @@ QtObject {
     property bool refreshQueued: false
     property bool daemonAvailable: false
     property int internalRevision: 0
-    readonly property string displayProfile: pendingProfile !== ""
-        ? pendingProfile
-        : activeProfile
-    readonly property bool available: !forceUnavailable
-        && (model !== null || (daemonAvailable && activeProfile !== ""))
-    readonly property int revision: model && model.revision !== undefined
-        ? Number(model.revision)
-        : internalRevision
+    readonly property string displayProfile: pendingProfile !== "" ? pendingProfile : activeProfile
+    readonly property bool available: !forceUnavailable && (model !== null || (daemonAvailable
+                                                                               && activeProfile
+                                                                               !== ""))
+    readonly property int revision: model && model.revision !== undefined ? Number(model.revision) :
+                                                                            internalRevision
     // PowerProfiles reports Balanced even when power-profiles-daemon is absent,
     // so a one-shot read decides availability; live changes then come from the
     // singleton's PropertiesChanged tracking.
@@ -38,7 +36,7 @@ QtObject {
             id: probeOutput
             waitForEnd: true
         }
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             root._finishProbe(exitCode, probeOutput.text)
         }
     }
@@ -65,7 +63,7 @@ QtObject {
 
         function onHasPerformanceProfileChanged() {
             root.profiles = root._withPerformance(root.profiles,
-                PowerProfiles.hasPerformanceProfile)
+                                                  PowerProfiles.hasPerformanceProfile)
             root.internalRevision++
         }
     }
@@ -209,7 +207,7 @@ QtObject {
     }
 
     function _withPerformance(values, present) {
-        var next = values.filter(function(profile) {
+        var next = values.filter(function (profile) {
             return profile !== "performance"
         })
         if (present)
@@ -218,7 +216,7 @@ QtObject {
     }
 
     function _canonicalOrder(values) {
-        return ["power-saver", "balanced", "performance"].filter(function(profile) {
+        return ["power-saver", "balanced", "performance"].filter(function (profile) {
             return values.indexOf(profile) !== -1
         })
     }
@@ -261,11 +259,8 @@ QtObject {
 
     function _normalizeProfile(value) {
         var profile = String(value || "").trim()
-        return profile === "power-saver"
-                || profile === "balanced"
-                || profile === "performance"
-            ? profile
-            : ""
+        return profile === "power-saver" || profile === "balanced" || profile === "performance"
+                ? profile : ""
     }
 
     function _profileLabel(profile) {

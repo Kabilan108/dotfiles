@@ -37,34 +37,32 @@ Rectangle {
     property bool popoutSwitchClosing: false
     property bool reducedMotion: false
     property string lastPayloadJson: ""
-    property int padding: Math.round(_v2Value("metrics", "panelPadding",
-        14 * _density()))
+    property int padding: Math.round(_v2Value("metrics", "panelPadding", 14 * _density()))
     readonly property QtObject controller: panelController
     readonly property color barForeground: bar && bar.barForeground !== undefined
-        ? bar.barForeground
-        : _v2Color("semantic", "content", "primary",
-            _themeColor("colors", "text", "primary", "transparent"))
+                                           ? bar.barForeground : _v2Color("semantic", "content",
+                                                                          "primary", _themeColor(
+                                                                              "colors", "text",
+                                                                              "primary",
+                                                                              "transparent"))
 
     signal openedWithPayload(string payloadJson)
-    signal closed()
+    signal closed
 
     visible: opened
     implicitWidth: _v2Value("metrics", "panelWidth", 380)
     implicitHeight: body.childrenRect.height + padding * 2
-    radius: _v2Value("metrics", "radiusLarge",
-        _themeValue("geometry", "radius", 0))
-    color: _v2Color("component", "panel", "background",
-        _themeColor("colors", "surface", "panel", "transparent"))
+    radius: _v2Value("metrics", "radiusLarge", _themeValue("geometry", "radius", 0))
+    color: _v2Color("component", "panel", "background", _themeColor("colors", "surface", "panel",
+                                                                    "transparent"))
     border.width: 1
-    border.color: _v2Color("component", "panel", "border",
-        _themeColor("colors", "border", "normal", "transparent"))
+    border.color: _v2Color("component", "panel", "border", _themeColor("colors", "border", "normal",
+                                                                       "transparent"))
     clip: true
 
     Behavior on opacity {
         NumberAnimation {
-            duration: root.reducedMotion
-                ? 0
-                : root._themeValue("motion", "fast", 0)
+            duration: root.reducedMotion ? 0 : root._themeValue("motion", "fast", 0)
             easing.type: Easing.OutCubic
         }
     }
@@ -105,7 +103,7 @@ Rectangle {
     function closeForPopoutSwitch() {
         popoutSwitchClosing = true
         close()
-        Qt.callLater(function() {
+        Qt.callLater(function () {
             popoutSwitchClosing = false
         })
     }
@@ -134,31 +132,27 @@ Rectangle {
 
     function _v2Value(group, key, fallback) {
         var theme = context ? context.theme : null
-        return theme && theme[group] && theme[group][key] !== undefined
-            ? theme[group][key]
-            : fallback
+        return theme && theme[group] && theme[group][key] !== undefined ? theme[group][key] :
+                                                                          fallback
+
     }
 
     function _v2Color(group, subgroup, key, fallback) {
         var theme = context ? context.theme : null
-        return theme && theme[group] && theme[group][subgroup]
-                && theme[group][subgroup][key] !== undefined
-            ? theme[group][subgroup][key]
-            : fallback
+        return theme && theme[group] && theme[group][subgroup] && theme[group][subgroup][key]
+                !== undefined ? theme[group][subgroup][key] : fallback
     }
 
     function _themeValue(group, key, fallback) {
         var theme = context ? context.theme : null
-        return theme && theme[group] && theme[group][key] !== undefined
-            ? theme[group][key]
-            : fallback
+        return theme && theme[group] && theme[group][key] !== undefined ? theme[group][key] :
+                                                                          fallback
+
     }
 
     function _themeColor(group, subgroup, key, fallback) {
         var theme = context ? context.theme : null
-        return theme && theme[group] && theme[group][subgroup]
-                && theme[group][subgroup][key] !== undefined
-            ? theme[group][subgroup][key]
-            : fallback
+        return theme && theme[group] && theme[group][subgroup] && theme[group][subgroup][key]
+                !== undefined ? theme[group][subgroup][key] : fallback
     }
 }

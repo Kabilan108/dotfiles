@@ -15,8 +15,12 @@ Item {
     required property string outputId
     property bool opened: false
 
-    function open(payloadJson) { opened = true }
-    function close() { opened = false }
+    function open(payloadJson) {
+        opened = true
+    }
+    function close() {
+        opened = false
+    }
 
     Ui.ShellSurface {
         anchors.fill: parent
@@ -24,7 +28,10 @@ Item {
 
         ColumnLayout {
             id: content
-            anchors { fill: parent; margins: root.context.theme.metrics.panelPadding }
+            anchors {
+                fill: parent
+                margins: root.context.theme.metrics.panelPadding
+            }
             spacing: root.context.theme.metrics.spaceUnit * 2
 
             Ui.ShellPanelHeader {

@@ -54,10 +54,8 @@ QtObject {
         var target = referenceItem || item
         var point = item.mapToItem(target, mouse.x, mouse.y)
         var firstSample = !primed
-        var didMove = firstSample
-            ? initialSampleAllowed
-            : Math.abs(point.x - lastX) > threshold
-                || Math.abs(point.y - lastY) > threshold
+        var didMove = firstSample ? initialSampleAllowed : Math.abs(point.x - lastX) > threshold
+                                    || Math.abs(point.y - lastY) > threshold
 
         if (firstSample || didMove) {
             lastX = point.x

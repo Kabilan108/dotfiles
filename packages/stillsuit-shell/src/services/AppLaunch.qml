@@ -14,14 +14,23 @@ QtObject {
 
     property string helperPath: Quickshell.env("STILLSUIT_APP_LAUNCH_HELPER") || ""
     property string configPath: Quickshell.env("STILLSUIT_LAUNCH_CONFIG") || ""
-    property var spawn: function(argv) { Quickshell.execDetached(argv) }
-    property var findEntry: function(desktopId) { return DesktopEntries.byId(desktopId) }
+    property var spawn: function (argv) {
+        Quickshell.execDetached(argv)
+    }
+    property var findEntry: function (desktopId) {
+        return DesktopEntries.byId(desktopId)
+    }
 
     readonly property var sessionActions: ["lock", "suspend", "logout", "reboot", "poweroff"]
     readonly property int maxUrlBytes: 8192
     readonly property int maxPathBytes: 4096
     readonly property int maxCopyBytes: 1048576
-    property var launchConfig: ({ terminal: [], browser: [], opener: [], session: {} })
+    property var launchConfig: ({
+                                    terminal: [],
+                                    browser: [],
+                                    opener: [],
+                                    session: {}
+                                })
     property string configError: ""
     property bool _configLoaded: false
     property var _copyPending: null
@@ -32,11 +41,12 @@ QtObject {
     property bool _helperCheckPassed: false
 
     property Process helperCheck: Process {
-        onExited: function(exitCode, exitStatus) {
+        onExited: function (exitCode, exitStatus) {
             root._helperCheckPassed = exitCode === 0
         }
         // A helper that cannot start changes running without an exit.
-        onRunningChanged: if (!running) root._helperCheckFinished()
+        onRunningChanged: if (!running)
+                              root._helperCheckFinished()
     }
 
     property FileView configFile: FileView {
@@ -55,11 +65,12 @@ QtObject {
             copier.write(root._copyInFlight)
             copier.stdinEnabled = false
         }
-        onExited: function(exitCode, exitStatus) {
+        onExited: function (exitCode, exitStatus) {
             if (exitCode !== 0)
                 console.warn("[stillsuit] wl-copy exited with " + exitCode)
         }
-        onRunningChanged: if (!running) root._copyFinished()
+        onRunningChanged: if (!running)
+                              root._copyFinished()
     }
 
     Component.onCompleted: {
@@ -68,8 +79,8 @@ QtObject {
     }
 
     function appLaunch(desktopId, actionId) {
-        if (typeof desktopId !== "string" || desktopId === "" || desktopId.length > 255
-                || /[\/\u0000-\u001f]/.test(desktopId))
+        if (typeof desktopId !== "string" || desktopId === "" || desktopId.length > 255 || /[\/\u0000-\u001f]/.test(
+                    desktopId))
             return "unknown"
         var action = actionId === undefined || actionId === null ? "" : actionId
         if (typeof action !== "string")
@@ -108,9 +119,8 @@ QtObject {
     }
 
     function openUrl(url) {
-        if (typeof url !== "string" || !/^https?:\/\/[^\/?#\s]/i.test(url)
-                || /[\s\u0000-\u001f\u007f]/.test(url)
-                || _utf8Exceeds(url, maxUrlBytes))
+        if (typeof url !== "string" || !/^https?:\/\/[^\/?#\s]/i.test(url) ||
+                /[\s\u0000-\u001f\u007f]/.test(url) || _utf8Exceeds(url, maxUrlBytes))
             return "invalid"
         _ensureConfig()
         var prefix = launchConfig.browser
@@ -120,9 +130,8 @@ QtObject {
     }
 
     function openPath(path, mode) {
-        if (typeof path !== "string" || path.charAt(0) !== "/" || path.indexOf("\u0000") !== -1
-                || _utf8Exceeds(path, maxPathBytes)
-                || (mode !== "open" && mode !== "reveal"))
+        if (typeof path !== "string" || path.charAt(0) !== "/" || path.indexOf("\u0000") !== -1 || _utf8Exceeds(
+                    path, maxPathBytes) || (mode !== "open" && mode !== "reveal"))
             return "invalid"
         var target = mode === "reveal" ? _parentDirectory(path) : path
         _ensureConfig()
@@ -226,11 +235,14 @@ QtObject {
             parsed = null
         }
         if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-            configError = configPath === "" ? "launch config is not set" : "cannot read " + configPath
+            configError = configPath === "" ? "launch config is not set" : "cannot read "
+                                              + configPath
             return
         }
         var session = {}
-        var sessionSource = parsed.session && typeof parsed.session === "object" ? parsed.session : {}
+        var sessionSource = parsed.session && typeof parsed.session === "object" ? parsed.session :
+                                                                                   {}
+
         for (var index = 0; index < sessionActions.length; index++)
             session[sessionActions[index]] = _argv(sessionSource[sessionActions[index]]) || []
         launchConfig = {

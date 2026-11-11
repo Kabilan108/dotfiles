@@ -37,21 +37,26 @@ Item {
 
         MouseArea {
             anchors.fill: parent
-            onClicked: function(mouse) { mouse.accepted = true }
+            onClicked: function (mouse) {
+                mouse.accepted = true
+            }
         }
 
         ColumnLayout {
             id: content
-            anchors { fill: parent; margins: root.theme.metrics.panelPadding }
+            anchors {
+                fill: parent
+                margins: root.theme.metrics.panelPadding
+            }
             spacing: root.unit * 3
 
             Ui.ShellPanelHeader {
                 Layout.fillWidth: true
                 theme: root.theme
                 title: "Dev checkouts"
-                subtitle: root.service.loaded
-                    ? root.service.runningCount + " running · " + root.service.checkouts.length + " on sietch"
-                    : "sietch"
+                subtitle: root.service.loaded ? root.service.runningCount + " running · "
+                                                + root.service.checkouts.length + " on sietch" :
+                                                "sietch"
 
                 Ui.ShellButton {
                     theme: root.theme
@@ -99,7 +104,8 @@ Item {
 
             Ui.ShellStateView {
                 Layout.fillWidth: true
-                visible: root.service.available && !root.service.loaded && root.service.lastError === ""
+                visible: root.service.available && !root.service.loaded && root.service.lastError
+                         === ""
                 theme: root.theme
                 mode: "loading"
                 title: "Reading checkouts"
@@ -156,8 +162,9 @@ Item {
                             danger: Boolean(modelData.issue)
                             label: root.service.title(modelData)
                             description: modelData.issue || root.service.subtitle(modelData)
-                            trailingText: root.service.canResume(modelData)
-                                ? "" : String(modelData.state || "")
+                            trailingText: root.service.canResume(modelData) ? "" : String(
+                                                                                  modelData.state
+                                                                                  || "")
                             interactive: false
 
                             Ui.ShellButton {
@@ -190,7 +197,10 @@ Item {
 
         ColumnLayout {
             id: cardContent
-            anchors { fill: parent; margins: root.unit * 2 }
+            anchors {
+                fill: parent
+                margins: root.unit * 2
+            }
             spacing: root.unit * 2
 
             RowLayout {
@@ -252,7 +262,8 @@ Item {
                         compact: true
                         ghost: !root.service.isPrimary(modelData)
                         label: root.service.linkLabel(modelData)
-                        accessibleName: "Open " + label + " for " + root.service.title(card.checkout)
+                        accessibleName: "Open " + label + " for " + root.service.title(
+                                            card.checkout)
                         onClicked: root.service.openLink(modelData)
                     }
                 }

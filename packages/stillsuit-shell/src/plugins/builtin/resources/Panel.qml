@@ -36,11 +36,16 @@ Item {
         kind: "panel"
         MouseArea {
             anchors.fill: parent
-            onClicked: function(mouse) { mouse.accepted = true }
+            onClicked: function (mouse) {
+                mouse.accepted = true
+            }
         }
         ColumnLayout {
             id: content
-            anchors { fill: parent; margins: root.theme.metrics.panelPadding }
+            anchors {
+                fill: parent
+                margins: root.theme.metrics.panelPadding
+            }
             spacing: root.theme.metrics.spaceUnit * 3
 
             Ui.ShellPanelHeader {
@@ -62,10 +67,11 @@ Item {
             Ui.ShellScrollArea {
                 Layout.fillWidth: true
                 theme: root.theme
-                maximumHeight: Math.min(root.theme.metrics.spaceUnit * 180,
-                    Math.max(root.theme.metrics.spaceUnit * 40,
-                        root.screen.height - root.theme.metrics.barHeight - root.theme.metrics.panelPadding * 2
-                        - root.theme.metrics.spaceUnit * 24))
+                maximumHeight: Math.min(root.theme.metrics.spaceUnit * 180, Math.max(
+                                            root.theme.metrics.spaceUnit * 40, root.screen.height
+                                            - root.theme.metrics.barHeight
+                                            - root.theme.metrics.panelPadding * 2
+                                            - root.theme.metrics.spaceUnit * 24))
                 contentHeight: hosts.implicitHeight
 
                 ColumnLayout {
@@ -104,7 +110,6 @@ Item {
                     }
                 }
             }
-
         }
     }
 }

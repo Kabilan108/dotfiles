@@ -17,14 +17,18 @@ Scope {
 
     required property var context
 
-    readonly property var settings: context && context.settings ? context.settings.values || ({}) : ({})
+    readonly property var settings: context && context.settings ? context.settings.values || ({}) : (
+                                                                      {})
+
     readonly property var policy: NotificationPolicy.notificationsPolicy(settings)
-    readonly property bool ownsBus: !(settings && settings.shadowMode === true)
-        && !(settings && settings.claimNotificationBus === false)
+    readonly property bool ownsBus: !(settings && settings.shadowMode === true) && !(settings
+                                                                                     && settings.claimNotificationBus
+                                                                                     === false)
     readonly property string statePath: context.settings.paths.stateRoot + "/notifications-v1.json"
     readonly property bool serverActive: serverLoader.item !== null
     readonly property int heldCount: held.length
-    readonly property string heldBadgeText: !quiet || heldCount === 0 ? "" : heldCount > 9 ? "9+" : String(heldCount)
+    readonly property string heldBadgeText: !quiet || heldCount === 0 ? "" : heldCount > 9 ? "9+" :
+                                                                                             String(heldCount)
     readonly property bool quietActive: quiet
 
     property bool ready: false
@@ -65,13 +69,15 @@ Scope {
 
     function outputIds() {
         var outputs = context && context.compositor && Array.isArray(context.compositor.outputs)
-            ? context.compositor.outputs : []
+                ? context.compositor.outputs : []
         var ids = []
         for (var index = 0; index < outputs.length; index++) {
             var output = outputs[index] || {}
             ids.push(String(output.id || output.name || ""))
         }
-        return ids.filter(function(id) { return id !== "" })
+        return ids.filter(function (id) {
+            return id !== ""
+        })
     }
 
     function nextKey(notificationId) {
@@ -81,7 +87,8 @@ Scope {
 
     function indexByKey(rows, key) {
         for (var index = 0; index < rows.length; index++)
-            if (rows[index] && rows[index].key === key) return index
+            if (rows[index] && rows[index].key === key)
+                return index
         return -1
     }
 
@@ -89,13 +96,14 @@ Scope {
         var lists = [popups, queuedArrivals, held]
         for (var listIndex = 0; listIndex < lists.length; listIndex++) {
             var index = indexByKey(lists[listIndex], key)
-            if (index >= 0) return lists[listIndex][index]
+            if (index >= 0)
+                return lists[listIndex][index]
         }
         return null
     }
 
     function actionState(key) {
-        void(revision)
+        void (revision)
         var snapshot = snapshotByKey(key)
         if (!snapshot || !Array.isArray(snapshot.actions) || snapshot.actions.length === 0)
             return "none"
@@ -111,12 +119,14 @@ Scope {
     }
 
     function toastsForOutput(outputId) {
-        void(revision)
-        if (!popupsVisible) return []
+        void (revision)
+        if (!popupsVisible)
+            return []
         var outputs = outputIds()
         var focused = focusedOutputId()
-        return popups.filter(function(snapshot) {
-            return NotificationPolicy.shouldPresentOn(snapshot, outputId, outputs, focused, policy.avoidOutputs)
+        return popups.filter(function (snapshot) {
+            return NotificationPolicy.shouldPresentOn(snapshot, outputId, outputs, focused,
+                                                      policy.avoidOutputs)
         })
     }
 
@@ -126,25 +136,28 @@ Scope {
 
     function enrichSnapshot(snapshot, preserveIdentity) {
         var identified = preserveIdentity && snapshot.sourceKey ? {
-            key: snapshot.sourceKey,
-            label: snapshot.sourceLabel,
-            kind: snapshot.sourceKind,
-            hostname: snapshot.sourceHostname,
-            body: snapshot.body
-        } : NotificationSource.identify(snapshot)
+                                                                      key: snapshot.sourceKey,
+                                                                      label: snapshot.sourceLabel,
+                                                                      kind: snapshot.sourceKind,
+                                                                      hostname: snapshot.sourceHostname,
+                                                                      body: snapshot.body
+                                                                  } : NotificationSource.identify(
+                                                                        snapshot)
         snapshot.sourceKey = identified.key
         snapshot.sourceLabel = identified.label
         snapshot.sourceKind = identified.kind
         snapshot.sourceHostname = identified.hostname
         snapshot.body = identified.body
-        var slack = NotificationSource.isSlack(identified)
-            ? NotificationSource.slackMessage(snapshot.summary, snapshot.body) : null
+        var slack = NotificationSource.isSlack(identified) ? NotificationSource.slackMessage(
+                                                                 snapshot.summary, snapshot.body) :
+                                                             null
         if (slack) {
             snapshot.context = slack.context
             snapshot.summary = slack.summary
             snapshot.body = slack.body
         }
-        snapshot.link = NotificationLinks.primary(snapshot.summary, snapshot.body, snapshot.sourceHostname)
+        snapshot.link = NotificationLinks.primary(snapshot.summary, snapshot.body,
+                                                  snapshot.sourceHostname)
         return snapshot
     }
 
@@ -153,9 +166,11 @@ Scope {
         var candidates = [row.appIcon, (row.hints || {})["desktop-entry"], row.appName]
         for (var index = 0; index < candidates.length; index++) {
             var candidate = String(candidates[index] || "").replace(/\.desktop$/i, "")
-            if (!candidate || candidate.indexOf("image://") === 0) continue
+            if (!candidate || candidate.indexOf("image://") === 0)
+                continue
             var resolved = Quickshell.iconPath(candidate, true)
-            if (resolved) return resolved
+            if (resolved)
+                return resolved
         }
         return ""
     }
@@ -165,12 +180,15 @@ Scope {
     function imageForSnapshot(snapshot) {
         var row = snapshot || {}
         var image = String(row.image || "")
-        if (!image) return ""
+        if (!image)
+            return ""
         var plain = image.replace(/^file:\/\//, "")
         var icon = String(row.appIcon || "").replace(/^file:\/\//, "")
-        if (icon && (plain === icon || image === icon)) return ""
+        if (icon && (plain === icon || image === icon))
+            return ""
         var resolved = iconForSnapshot(row).replace(/^file:\/\//, "")
-        if (resolved && plain === resolved) return ""
+        if (resolved && plain === resolved)
+            return ""
         return image
     }
 
@@ -184,18 +202,19 @@ Scope {
     }
 
     function persist() {
-        if (hydrating) return
+        if (hydrating)
+            return
         persistTimer.restart()
     }
 
     function flushState() {
         stateWrites += 1
         stateFile.setText(NotificationModel.serializeState({
-            quiet: quiet,
-            quietSince: quietSince,
-            popups: popups,
-            held: held
-        }))
+                                                               quiet: quiet,
+                                                               quietSince: quietSince,
+                                                               popups: popups,
+                                                               held: held
+                                                           }))
     }
 
     function flushStateSynchronously() {
@@ -210,17 +229,21 @@ Scope {
         hydrating = true
         var now = Date.now()
         var restored = NotificationModel.parseState(raw, {
-            popupRows: policy.popupLimit * policy.deckRowLimit,
-            held: policy.heldLimit,
-            maxAgeMs: policy.maxAgeMs
-        }, now)
+                                                        popupRows: policy.popupLimit
+                                                                   * policy.deckRowLimit,
+                                                        held: policy.heldLimit,
+                                                        maxAgeMs: policy.maxAgeMs
+                                                    }, now)
         quiet = restored.quiet
         quietSince = restored.quietSince
-        held = restored.held.map(function(row) { return enrichSnapshot(row, true) })
+        held = restored.held.map(function (row) {
+            return enrichSnapshot(row, true)
+        })
         popups = []
         for (var index = restored.popups.length - 1; index >= 0; index--) {
             var snapshot = enrichSnapshot(restored.popups[index], true)
-            if (snapshot.deadline > 0 && snapshot.deadline <= now) continue
+            if (snapshot.deadline > 0 && snapshot.deadline <= now)
+                continue
             var reason = holdReason()
             if (reason !== "") {
                 snapshot.heldReason = reason
@@ -243,19 +266,23 @@ Scope {
     }
 
     function announce(snapshot) {
-        if (!popupsVisible) return
+        if (!popupsVisible)
+            return
         var outputs = outputIds()
         var focused = focusedOutputId()
         var targets = outputs.length ? outputs : [focused]
         for (var index = 0; index < targets.length; index++) {
-            if (NotificationPolicy.shouldPresentOn(snapshot, targets[index], outputs, focused, policy.avoidOutputs))
+            if (NotificationPolicy.shouldPresentOn(snapshot, targets[index], outputs, focused,
+                                                   policy.avoidOutputs))
                 bannerWillPresent(targets[index])
         }
     }
 
     function insertPopup(snapshot) {
         announce(snapshot)
-        var next = popups.filter(function(row) { return row.key !== snapshot.key })
+        var next = popups.filter(function (row) {
+            return row.key !== snapshot.key
+        })
         next.unshift(snapshot)
         popups = next
         enforcePopupLimits()
@@ -272,42 +299,53 @@ Scope {
         for (var deckIndex = 0; deckIndex < decks.length; deckIndex++) {
             var rows = decks[deckIndex].rows
             var keep = deckIndex < policy.popupLimit ? policy.deckRowLimit : 0
-            for (var rowIndex = keep; rowIndex < rows.length; rowIndex++) evicted.push(rows[rowIndex].key)
+            for (var rowIndex = keep; rowIndex < rows.length; rowIndex++)
+                evicted.push(rows[rowIndex].key)
         }
-        for (var index = 0; index < evicted.length; index++) closeRow(evicted[index], "overflow", true)
+        for (var index = 0; index < evicted.length; index++)
+            closeRow(evicted[index], "overflow", true)
     }
 
     function removePopupSnapshot(key) {
-        var next = popups.filter(function(row) { return row.key !== key })
-        if (next.length === popups.length) return false
+        var next = popups.filter(function (row) {
+            return row.key !== key
+        })
+        if (next.length === popups.length)
+            return false
         popups = next
         return true
     }
 
     function releaseLive(key) {
         var ref = liveRefs[key]
-        if (!ref) return null
+        if (!ref)
+            return null
         delete liveRefs[key]
         try {
             var id = Number(ref.id)
-            if (liveKeysById[id] === key) delete liveKeysById[id]
-        } catch (error) {
-        }
+            if (liveKeysById[id] === key)
+                delete liveKeysById[id]
+        } catch (error) {}
         return ref
     }
 
     function closeLive(ref, expire, reason) {
-        if (!ref) return
+        if (!ref)
+            return
         try {
-            if (expire && typeof ref.expire === "function") ref.expire()
-            else if (typeof ref.dismiss === "function") ref.dismiss()
+            if (expire && typeof ref.expire === "function")
+                ref.expire()
+            else if (typeof ref.dismiss === "function")
+                ref.dismiss()
         } catch (error) {
             logWarning("live notification closed before " + reason + " completed")
         }
     }
 
     function endInteractionIfEmpty() {
-        if (activeDeckKey && !popups.some(function(row) { return row.sourceKey === activeDeckKey }))
+        if (activeDeckKey && !popups.some(function (row) {
+            return row.sourceKey === activeDeckKey
+        }))
             endDeckInteraction()
     }
 
@@ -315,9 +353,13 @@ Scope {
     function closeRow(key, reason, expire) {
         var inPopups = removePopupSnapshot(key)
         var heldBefore = held.length
-        held = held.filter(function(row) { return row.key !== key })
+        held = held.filter(function (row) {
+            return row.key !== key
+        })
         var queuedBefore = queuedArrivals.length
-        queuedArrivals = queuedArrivals.filter(function(row) { return row.key !== key })
+        queuedArrivals = queuedArrivals.filter(function (row) {
+            return row.key !== key
+        })
         if (!inPopups && held.length === heldBefore && queuedArrivals.length === queuedBefore)
             return "unknown"
         endInteractionIfEmpty()
@@ -355,7 +397,8 @@ Scope {
 
     function invokeAction(key, identifier) {
         var ref = liveRefs[key]
-        if (!ref) return "unavailable"
+        if (!ref)
+            return "unavailable"
         var selected = String(identifier || "default")
         var action = null
         try {
@@ -368,14 +411,14 @@ Scope {
         } catch (error) {
             return "unavailable"
         }
-        if (!action || typeof action.invoke !== "function") return "unknown-action"
+        if (!action || typeof action.invoke !== "function")
+            return "unknown-action"
 
         // A resident notification stays after an action, as the sender asked.
         var resident = false
         try {
             resident = ref.resident === true
-        } catch (error) {
-        }
+        } catch (error) {}
         if (!resident) {
             removePopupSnapshot(key)
             endInteractionIfEmpty()
@@ -389,7 +432,8 @@ Scope {
             releaseLive(key)
             return "unavailable"
         }
-        if (!resident) closeLive(releaseLive(key), false, "action")
+        if (!resident)
+            closeLive(releaseLive(key), false, "action")
         restartDeadlineTimer()
         return "ok"
     }
@@ -402,11 +446,13 @@ Scope {
     // their actions still work when they replay.
     function hold(snapshot, reason) {
         var row = Object.assign({}, snapshot, {
-            heldReason: reason,
-            quietClass: "silenced-retained",
-            deadline: 0
+                                    heldReason: reason,
+                                    quietClass: "silenced-retained",
+                                    deadline: 0
+                                })
+        var next = held.filter(function (existing) {
+            return existing.key !== row.key
         })
-        var next = held.filter(function(existing) { return existing.key !== row.key })
         next.unshift(row)
         var evicted = next.slice(policy.heldLimit)
         held = next.slice(0, policy.heldLimit)
@@ -422,30 +468,43 @@ Scope {
         for (var index = visible.length - 1; index >= 0; index--) {
             var row = visible[index]
             var reason = holdReason()
-            if (reason === "") continue
+            if (reason === "")
+                continue
             var quietClass = NotificationPolicy.quietClass(row, true, settings)
-            if (quietClass === "bypass") continue
+            if (quietClass === "bypass")
+                continue
             removePopupSnapshot(row.key)
-            queuedArrivals = queuedArrivals.filter(function(queued) { return queued.key !== row.key })
-            if (quietClass === "silenced-ephemeral") closeLive(releaseLive(row.key), true, "quiet")
-            else hold(row, reason)
+            queuedArrivals = queuedArrivals.filter(function (queued) {
+                return queued.key !== row.key
+            })
+            if (quietClass === "silenced-ephemeral")
+                closeLive(releaseLive(row.key), true, "quiet")
+            else
+                hold(row, reason)
         }
-        if (queuedArrivals.length === 0) arrivalSafetyTimer.stop()
+        if (queuedArrivals.length === 0)
+            arrivalSafetyTimer.stop()
         endInteractionIfEmpty()
     }
 
     // Replays every held row once quiet is off, oldest first so the newest
     // lands on top.
     function replayHeld() {
-        if (quiet || held.length === 0) return 0
+        if (quiet || held.length === 0)
+            return 0
         var now = Date.now()
         var replay = held
         held = []
         for (var index = replay.length - 1; index >= 0; index--) {
-            var row = Object.assign({}, replay[index], { heldReason: "", quietClass: "visible" })
+            var row = Object.assign({}, replay[index], {
+                                        heldReason: "",
+                                        quietClass: "visible"
+                                    })
             row.deadline = deadlineFor(row, now)
-            if (activeDeckKey !== "") queueArrival(row)
-            else insertPopup(row)
+            if (activeDeckKey !== "")
+                queueArrival(row)
+            else
+                insertPopup(row)
         }
         revision += 1
         persist()
@@ -455,11 +514,14 @@ Scope {
 
     function setQuiet(on) {
         var enabled = on === true
-        if (quiet === enabled) return enabled ? "on" : "off"
+        if (quiet === enabled)
+            return enabled ? "on" : "off"
         quiet = enabled
         quietSince = enabled ? Date.now() : 0
-        if (enabled) holdBlockedRows()
-        else replayHeld()
+        if (enabled)
+            holdBlockedRows()
+        else
+            replayHeld()
         revision += 1
         persist()
         restartDeadlineTimer()
@@ -470,11 +532,11 @@ Scope {
         return setQuiet(!quiet)
     }
 
-
     function pruneAt(now) {
         var reference = Number(now)
         var previous = popups.concat(held)
-        popups = NotificationModel.pruneSnapshots(popups, reference, policy.maxAgeMs, popups.length || 1)
+        popups = NotificationModel.pruneSnapshots(popups, reference, policy.maxAgeMs, popups.length
+                                                  || 1)
         held = NotificationModel.pruneSnapshots(held, reference, policy.maxAgeMs, policy.heldLimit)
         var removed = NotificationModel.keysRemoved(previous, popups.concat(held))
         for (var index = 0; index < removed.length; index++)
@@ -489,38 +551,42 @@ Scope {
     }
 
     function connectUpdates(notification, key) {
-        var signals = [
-            "summaryChanged", "bodyChanged", "appNameChanged", "appIconChanged",
-            "imageChanged", "urgencyChanged", "expireTimeoutChanged", "hintsChanged",
-            "actionsChanged", "residentChanged"
-        ]
-        function refresh() { root.refreshReplacement(notification, key) }
+        var signals = ["summaryChanged", "bodyChanged", "appNameChanged", "appIconChanged",
+                       "imageChanged", "urgencyChanged", "expireTimeoutChanged", "hintsChanged",
+                       "actionsChanged", "residentChanged"]
+        function refresh() {
+            root.refreshReplacement(notification, key)
+        }
         for (var index = 0; index < signals.length; index++) {
             var signal = notification[signals[index]]
-            if (signal && typeof signal.connect === "function") signal.connect(refresh)
+            if (signal && typeof signal.connect === "function")
+                signal.connect(refresh)
         }
     }
 
     function replaceIn(rows, key, updated) {
         var index = indexByKey(rows, key)
-        if (index < 0) return null
+        if (index < 0)
+            return null
         var next = rows.slice()
         next[index] = updated
         return next
     }
 
     function refreshReplacement(notification, key) {
-        if (liveRefs[key] !== notification) return
+        if (liveRefs[key] !== notification)
+            return
         var previous = snapshotByKey(key)
-        if (!previous) return
+        if (!previous)
+            return
         var updated
         try {
             updated = enrichSnapshot(NotificationModel.replacementSnapshot(notification, previous))
         } catch (error) {
             return
         }
-        if (!NotificationModel.snapshotChanged(previous, updated)) return
-
+        if (!NotificationModel.snapshotChanged(previous, updated))
+            return
         if (indexByKey(popups, key) >= 0) {
             // A replaces_id update begins a fresh display lifetime, even if
             // only body text, an action label, or the timeout changed.
@@ -530,12 +596,16 @@ Scope {
             queuedArrivals = replaceIn(queuedArrivals, key, updated)
         } else if (NotificationPolicy.quietClass(updated, true, settings) === "bypass") {
             // A held row that its sender raised to critical breaks through now.
-            held = held.filter(function(row) { return row.key !== key })
+            held = held.filter(function (row) {
+                return row.key !== key
+            })
             updated.heldReason = ""
             updated.quietClass = "bypass"
             updated.deadline = deadlineFor(updated, Date.now())
-            if (activeDeckKey !== "") queueArrival(updated)
-            else insertPopup(updated)
+            if (activeDeckKey !== "")
+                queueArrival(updated)
+            else
+                insertPopup(updated)
         } else {
             updated.deadline = 0
             held = replaceIn(held, key, updated)
@@ -546,10 +616,15 @@ Scope {
     }
 
     function handleClosed(key, notification) {
-        if (!liveRefs[key] || liveRefs[key] !== notification) return
+        if (!liveRefs[key] || liveRefs[key] !== notification)
+            return
         removePopupSnapshot(key)
-        held = held.filter(function(row) { return row.key !== key })
-        queuedArrivals = queuedArrivals.filter(function(row) { return row.key !== key })
+        held = held.filter(function (row) {
+            return row.key !== key
+        })
+        queuedArrivals = queuedArrivals.filter(function (row) {
+            return row.key !== key
+        })
         endInteractionIfEmpty()
         releaseLive(key)
         revision += 1
@@ -562,7 +637,8 @@ Scope {
     function stackPredecessor(snapshot) {
         var rows = popups.concat(queuedArrivals)
         for (var index = 0; index < rows.length; index++)
-            if (NotificationModel.sameStack(rows[index], snapshot)) return rows[index]
+            if (NotificationModel.sameStack(rows[index], snapshot))
+                return rows[index]
         return null
     }
 
@@ -570,16 +646,16 @@ Scope {
         notification.tracked = true
         var now = Date.now()
         var snapshot = enrichSnapshot(NotificationModel.snapshotOf(notification, {
-            key: nextKey(notification.id),
-            timestamp: now,
-            outputId: focusedOutputId()
-        }))
+                                                                       key: nextKey(notification.id),
+                                                                       timestamp: now,
+                                                                       outputId: focusedOutputId()
+                                                                   }))
         var reason = holdReason()
         snapshot.quietClass = NotificationPolicy.quietClass(snapshot, reason !== "", settings)
         snapshot.deadline = deadlineFor(snapshot, now)
 
         var predecessor = snapshot.quietClass === "visible" || snapshot.quietClass === "bypass"
-            ? stackPredecessor(snapshot) : null
+                ? stackPredecessor(snapshot) : null
         if (predecessor) {
             snapshot.key = predecessor.key
             snapshot.outputId = predecessor.outputId
@@ -588,7 +664,9 @@ Scope {
         var key = snapshot.key
         liveRefs[key] = notification
         liveKeysById[notification.id] = key
-        notification.closed.connect(function() { root.handleClosed(key, notification) })
+        notification.closed.connect(function () {
+            root.handleClosed(key, notification)
+        })
         connectUpdates(notification, key)
 
         if (snapshot.quietClass === "silenced-ephemeral") {
@@ -603,8 +681,10 @@ Scope {
             return
         }
         if (predecessor) {
-            if (indexByKey(popups, key) >= 0) popups = replaceIn(popups, key, snapshot)
-            else queuedArrivals = replaceIn(queuedArrivals, key, snapshot)
+            if (indexByKey(popups, key) >= 0)
+                popups = replaceIn(popups, key, snapshot)
+            else
+                queuedArrivals = replaceIn(queuedArrivals, key, snapshot)
             revision += 1
             persist()
             restartDeadlineTimer()
@@ -613,16 +693,20 @@ Scope {
         } else {
             insertPopup(snapshot)
         }
-        Qt.callLater(function() { root.refreshReplacement(notification, key) })
+        Qt.callLater(function () {
+            root.refreshReplacement(notification, key)
+        })
     }
 
     function restartDeadlineTimer() {
         var earliest = 0
         var now = Date.now()
         for (var index = 0; index < popups.length; index++) {
-            if (pausedKeys[popups[index].key]) continue
+            if (pausedKeys[popups[index].key])
+                continue
             var deadline = Number(popups[index].deadline || 0)
-            if (deadline > 0 && (earliest === 0 || deadline < earliest)) earliest = deadline
+            if (deadline > 0 && (earliest === 0 || deadline < earliest))
+                earliest = deadline
         }
         deadlineTimer.stop()
         if (earliest > 0) {
@@ -633,22 +717,27 @@ Scope {
 
     function expireDue() {
         var now = Date.now()
-        var due = popups.filter(function(snapshot) {
-            return !pausedKeys[snapshot.key]
-                && Number(snapshot.deadline || 0) > 0 && Number(snapshot.deadline) <= now
-        }).map(function(snapshot) { return snapshot.key })
-        for (var index = 0; index < due.length; index++) closeRow(due[index], "expired", true)
+        var due = popups.filter(function (snapshot) {
+            return !pausedKeys[snapshot.key] && Number(snapshot.deadline || 0) > 0 && Number(
+                        snapshot.deadline) <= now
+        }).map(function (snapshot) {
+            return snapshot.key
+        })
+        for (var index = 0; index < due.length; index++)
+            closeRow(due[index], "expired", true)
         restartDeadlineTimer()
     }
 
     function queueArrival(snapshot) {
         queuedArrivals = queuedArrivals.concat([snapshot])
         revision += 1
-        if (!arrivalSafetyTimer.running) arrivalSafetyTimer.start()
+        if (!arrivalSafetyTimer.running)
+            arrivalSafetyTimer.start()
     }
 
     function releaseQueuedArrivals() {
-        if (queuedArrivals.length === 0) return 0
+        if (queuedArrivals.length === 0)
+            return 0
         var rows = queuedArrivals.slice()
         queuedArrivals = []
         arrivalSafetyTimer.stop()
@@ -661,27 +750,34 @@ Scope {
 
     function beginDeckInteraction(key) {
         var normalized = String(key || "")
-        if (!normalized) return
-        if (activeDeckKey && activeDeckKey !== normalized) endDeckInteraction()
+        if (!normalized)
+            return
+        if (activeDeckKey && activeDeckKey !== normalized)
+            endDeckInteraction()
         activeDeckKey = normalized
         pendingDeckKey = ""
         pausedAt = Date.now()
         var next = {}
         for (var index = 0; index < popups.length; index++)
-            if (popups[index].sourceKey === normalized) next[popups[index].key] = true
+            if (popups[index].sourceKey === normalized)
+                next[popups[index].key] = true
         pausedKeys = next
         restartDeadlineTimer()
     }
 
     function endDeckInteraction() {
-        if (!activeDeckKey) return
+        if (!activeDeckKey)
+            return
         var now = Date.now()
         var paused = pausedAt
-        popups = popups.map(function(row) {
-            if (!pausedKeys[row.key] || Number(row.deadline || 0) <= 0) return row
+        popups = popups.map(function (row) {
+            if (!pausedKeys[row.key] || Number(row.deadline || 0) <= 0)
+                return row
             return Object.assign({}, row, {
-                deadline: NotificationPolicy.resumedDeadline(row.deadline, paused, now, settings)
-            })
+                                     deadline: NotificationPolicy.resumedDeadline(row.deadline,
+                                                                                  paused, now,
+                                                                                  settings)
+                                 })
         })
         activeDeckKey = ""
         pendingDeckKey = ""
@@ -697,7 +793,8 @@ Scope {
         var normalized = String(key || "")
         if (hovered) {
             interactionExitTimer.stop()
-            if (activeDeckKey === normalized) return
+            if (activeDeckKey === normalized)
+                return
             pendingDeckKey = normalized
             hoverIntentTimer.restart()
         } else {
@@ -705,12 +802,13 @@ Scope {
                 pendingDeckKey = ""
                 hoverIntentTimer.stop()
             }
-            if (activeDeckKey === normalized) interactionExitTimer.restart()
+            if (activeDeckKey === normalized)
+                interactionExitTimer.restart()
         }
     }
 
     function notificationStatus() {
-        var decks = NotificationLayout.group(popups).map(function(deck) {
+        var decks = NotificationLayout.group(popups).map(function (deck) {
             return {
                 key: deck.key,
                 count: deck.rows.length,
@@ -718,24 +816,24 @@ Scope {
             }
         })
         return JSON.stringify({
-            apiVersion: 2,
-            ready: ready,
-            serverActive: serverActive,
-            counts: {
-                popups: popups.length,
-                held: held.length,
-                queuedArrivals: queuedArrivals.length
-            },
-            quiet: {
-                active: quiet,
-                since: quietSince
-            },
-            presentation: {
-                activeDeckKey: activeDeckKey,
-                pausedNotificationCount: Object.keys(pausedKeys).length
-            },
-            decks: decks
-        })
+                                  apiVersion: 2,
+                                  ready: ready,
+                                  serverActive: serverActive,
+                                  counts: {
+                                      popups: popups.length,
+                                      held: held.length,
+                                      queuedArrivals: queuedArrivals.length
+                                  },
+                                  quiet: {
+                                      active: quiet,
+                                      since: quietSince
+                                  },
+                                  presentation: {
+                                      activeDeckKey: activeDeckKey,
+                                      pausedNotificationCount: Object.keys(pausedKeys).length
+                                  },
+                                  decks: decks
+                              })
     }
 
     FileView {
@@ -760,7 +858,6 @@ Scope {
         repeat: false
         onTriggered: root.expireDue()
     }
-
 
     Timer {
         id: hoverIntentTimer
@@ -807,11 +904,16 @@ Scope {
 
     IpcHandler {
         target: "stillsuit-notifications"
-        function status(): string { return root.notificationStatus() }
-        function toggleQuiet(): string { return root.toggleQuiet() }
+        function status(): string {
+            return root.notificationStatus()
+        }
+        function toggleQuiet(): string {
+            return root.toggleQuiet()
+        }
         function setQuiet(value: string): string {
             var normalized = String(value).toLowerCase()
-            if (normalized !== "on" && normalized !== "off") return "invalid"
+            if (normalized !== "on" && normalized !== "off")
+                return "invalid"
             return root.setQuiet(normalized === "on")
         }
     }

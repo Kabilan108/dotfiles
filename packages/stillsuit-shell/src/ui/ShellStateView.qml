@@ -15,11 +15,10 @@ Item {
     property string accessibleName: ""
     property bool reducedMotion: false
 
-    readonly property string effectiveAccessibleName: accessibleName !== ""
-        ? accessibleName
-        : _resolvedTitle()
+    readonly property string effectiveAccessibleName: accessibleName !== "" ? accessibleName :
+                                                                              _resolvedTitle()
 
-    signal actionRequested()
+    signal actionRequested
 
     implicitWidth: 300
     implicitHeight: 112

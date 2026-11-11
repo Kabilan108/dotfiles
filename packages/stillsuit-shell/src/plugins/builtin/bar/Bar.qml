@@ -27,10 +27,8 @@ Scope {
     // center x in output coordinates so panels open centered beneath it.
     property var panelAnchors: null
 
-    readonly property bool shadowMode: context
-        && context.settings
-        && context.settings.values
-        && context.settings.values.shadowMode === true
+    readonly property bool shadowMode: context && context.settings && context.settings.values
+                                       && context.settings.values.shadowMode === true
     readonly property real barHeight: context.theme.metrics.barHeight
     readonly property real outerGap: context.theme.metrics.barOuterGap
     readonly property real exclusionZone: barHeight + outerGap
@@ -51,13 +49,13 @@ Scope {
                 continue
             seenSingle[pluginId] = true
             records.push({
-                registration: record,
-                sequence: index,
-                pluginId: pluginId,
-                order: Number(record.order || 0)
-            })
+                             registration: record,
+                             sequence: index,
+                             pluginId: pluginId,
+                             order: Number(record.order || 0)
+                         })
         }
-        records.sort(function(left, right) {
+        records.sort(function (left, right) {
             if (left.order !== right.order)
                 return left.order - right.order
             return left.sequence - right.sequence
@@ -89,9 +87,8 @@ Scope {
         PanelWindow {
             id: barWindow
             required property var modelData
-            readonly property string outputId: modelData && modelData.name
-                ? String(modelData.name)
-                : ""
+            readonly property string outputId: modelData && modelData.name ? String(modelData.name) :
+                                                                             ""
 
             screen: modelData
             visible: true
@@ -131,10 +128,12 @@ Scope {
                             var children = slots[i].children
                             for (var j = 0; j < children.length; j++) {
                                 var child = children[j]
-                                if (!child.visible || !child.registration) continue
+                                if (!child.visible || !child.registration)
+                                    continue
                                 var point = mapToItem(child, x, y)
-                                if (point.x >= 0 && point.y >= 0
-                                        && point.x < child.width && point.y < child.height) return
+                                if (point.x >= 0 && point.y >= 0 && point.x < child.width && point.y
+                                        < child.height)
+                                    return
                             }
                         }
                         root.context.actions.surfaceDismissPanels()
@@ -172,7 +171,9 @@ Scope {
                         }
                     }
 
-                    Item { Layout.fillWidth: true }
+                    Item {
+                        Layout.fillWidth: true
+                    }
 
                     RowLayout {
                         id: rightSlot

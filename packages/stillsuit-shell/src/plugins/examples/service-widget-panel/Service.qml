@@ -19,6 +19,10 @@ QtObject {
         onTriggered: root.ticks += 1
     }
 
-    function increment() { count += 1 }
-    function reset() { count = 0 }
+    function increment() {
+        count += 1
+    }
+    function reset() {
+        count = 0
+    }
 }

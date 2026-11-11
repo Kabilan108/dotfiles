@@ -21,7 +21,7 @@ assert(!fs.existsSync(path.join(pluginDir, "NotificationCenter.qml")))
 assert.deepEqual(manifest.kinds, ["service", "bar-widget", "overlay"])
 assert.equal(manifest.entryPoints.panel, undefined)
 assert.equal(manifest.stateSchemaVersion, 3)
-assert.match(widgetSource, /onClicked:\s*if \(service\) service\.toggleQuiet\(\)/)
+assert.match(widgetSource, /onClicked:\s*if \(service\)\s+service\.toggleQuiet\(\)/)
 assert.match(widgetSource, /iconName:\s*quiet \? "notifications-off" : "notifications"/)
 assert.match(widgetSource, /label:\s*service \? service\.heldBadgeText : ""/)
 assert.doesNotMatch(widgetSource, /surfaceToggle|unread/)
@@ -38,7 +38,7 @@ assert.match(cardSource, /^\s*theme:\s*context\.theme\s*$/m)
 assert.doesNotMatch(cardSource + deckSource + toastsSource, /theme\.colors|theme\.controls|#[0-9a-fA-F]{3,8}/)
 
 // A click opens the sender, or dismisses a card that has nothing to open.
-assert.match(cardSource, /if \(root\.canActivate\) root\.service\.invokeAction\(root\.snapshot\.key, "default"\)\s*else root\.service\.dismiss\(root\.snapshot\.key\)/)
+assert.match(cardSource, /if \(root\.canActivate\)\s+root\.service\.invokeAction\(root\.snapshot\.key, "default"\)\s*else\s+root\.service\.dismiss\(root\.snapshot\.key\)/)
 assert.doesNotMatch(cardSource + serviceSource, /mute(Source|s\b)|showOverflow|"more"/,
     "no per-source mutes and no overflow menu")
 assert.match(cardSource, /Flow \{[\s\S]*model:\s*root\.actionState === "available" \? root\.buttonActions : \[\]/,
@@ -55,15 +55,15 @@ assert.match(toastsSource, /model:\s*deckKeys/)
 assert.match(toastsSource, /overlayVisible:\s*rendered\.length > 0/,
     "the overlay stays mapped until the last exit finishes")
 assert.match(toastsSource, /visible:\s*root\.overlayVisible/)
-assert.match(toastsSource, /function onFrameSwapped\(\) \{ root\.surfaceReady = true \}/,
+assert.match(toastsSource, /function onFrameSwapped\(\)\s*\{\s*root\.surfaceReady = true\s*\}/,
     "entrances wait for the overlay's first presented frame")
 assert.match(toastsSource, /aboveWindows:\s*true/)
 assert.match(toastsSource, /WlrLayershell\.layer:\s*WlrLayer\.Overlay/)
 assert.match(toastsSource, /WlrLayershell\.namespace:\s*"stillsuit\.notifications"/)
-assert.match(toastsSource, /mask:\s*Region \{ item: inputArea \}/)
+assert.match(toastsSource, /mask:\s*Region\s*\{\s*item:\s*inputArea\s*\}/)
 assert.match(deckSource, /Motion\.merge\(rendered, rows\.map/)
 assert.match(deckSource, /model:\s*renderedKeys/)
-assert.match(deckSource, /onSettled:\s*if \(slot\.exiting && value === 0\) root\.dropRow\(slot\.rowKey\)/)
+assert.match(deckSource, /onSettled:\s*if \(slot\.exiting && value === 0\)\s+root\.dropRow\(slot\.rowKey\)/)
 assert.match(deckSource, /function syncHovered\(\)/)
 assert.match(deckSource, /service\.setDeckHovered\(deckKey, hovered\)/)
 

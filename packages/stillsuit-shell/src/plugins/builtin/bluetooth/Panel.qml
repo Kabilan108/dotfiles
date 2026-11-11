@@ -28,7 +28,7 @@ Item {
         MouseArea {
             anchors.fill: parent
             onClicked: function (mouse) {
-                mouse.accepted = true;
+                mouse.accepted = true
             }
         }
 
@@ -62,7 +62,7 @@ Item {
                 busy: root.service && root.service.operation === "adapter"
                 interactive: Boolean(root.service && root.service.available)
                 onToggled: function (requested) {
-                    root.service.setEnabled(requested);
+                    root.service.setEnabled(requested)
                 }
             }
 
@@ -97,7 +97,8 @@ Item {
                     theme: root.context.theme
                     maximumHeight: 203
                     Layout.fillWidth: true
-                    visible: root.service.connectedDevices.length > 0 || root.service.pairedDevices.length > 0
+                    visible: root.service.connectedDevices.length > 0
+                             || root.service.pairedDevices.length > 0
                     contentHeight: knownDeviceColumn.implicitHeight
 
                     ColumnLayout {
@@ -159,8 +160,11 @@ Item {
                         iconName: root.service.scanning ? "close" : "refresh"
                         compact: true
                         ghost: true
-                        accessibleName: root.service.scanning ? "Stop scanning for Bluetooth devices" : "Scan for Bluetooth devices"
-                        onClicked: root.service.scanning ? root.service.stopScan() : root.service.scan()
+                        accessibleName: root.service.scanning
+                                        ? "Stop scanning for Bluetooth devices" :
+                                          "Scan for Bluetooth devices"
+                        onClicked: root.service.scanning ? root.service.stopScan() :
+                                                           root.service.scan()
                     }
                 }
 
@@ -231,12 +235,16 @@ Item {
 
         theme: root.context.theme
         label: root.service.deviceName(device)
-        description: failure !== "" ? failure : battery !== "" ? battery : group === "available" ? String(device.address || "Ready to pair") : "Paired with BlueZ"
+        description: failure !== "" ? failure : battery !== "" ? battery : group === "available" ? String(
+                                                                                                       device.address
+                                                                                                       || "Ready to pair") :
+                                                                                                   "Paired with BlueZ"
         iconName: group === "connected" ? "headphones" : "bluetooth"
         trailingText: stateLabel
         selected: group === "connected"
         danger: failure !== ""
-        busy: ["pairing", "connecting", "disconnecting", "forgetting", "selecting audio"].indexOf(stateLabel) !== -1
+        busy: ["pairing", "connecting", "disconnecting", "forgetting", "selecting audio"].indexOf(
+            stateLabel) !== -1
         interactive: root.service.operation === "idle" && failure === ""
         accessibleName: label + ", " + stateLabel
         onClicked: root.service.toggle(device)
@@ -256,16 +264,16 @@ Item {
     }
 
     function open(payloadJson) {
-        root.opened = true;
+        root.opened = true
     }
 
     function openManager() {
-        return service ? service.openManager() : "unavailable";
+        return service ? service.openManager() : "unavailable"
     }
 
     function close() {
         if (service)
-            service.stopScan();
-        root.opened = false;
+            service.stopScan()
+        root.opened = false
     }
 }

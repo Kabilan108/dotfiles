@@ -1,3 +1,4 @@
 import QtQuick
 import "../../../services" as Services
-Services.PowerService { }
+
+Services.PowerService {}

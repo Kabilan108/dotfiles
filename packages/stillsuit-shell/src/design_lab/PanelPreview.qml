@@ -143,7 +143,10 @@ Ui.ShellSurface {
                         Layout.fillWidth: true
                         Layout.preferredHeight: root.theme.metrics.rowHeight
                         radius: root.theme.metrics.radiusSmall
-                        color: modelData.state === "error" ? root.theme.component.panel.rowDanger : modelData.selected ? root.theme.component.panel.rowSelected : "transparent"
+                        color: modelData.state === "error" ? root.theme.component.panel.rowDanger :
+                                                             modelData.selected
+                                                             ? root.theme.component.panel.rowSelected :
+                                                               "transparent"
                         border.width: 0
                         opacity: modelData.state === "scanning" ? 0.64 : 1
 
@@ -172,7 +175,9 @@ Ui.ShellSurface {
                                     theme: root.theme
                                     text: modelData.name
                                     sizeRole: "label"
-                                    color: modelData.state === "error" ? root.theme.semantic.status.danger : root.theme.semantic.content.primary
+                                    color: modelData.state === "error"
+                                           ? root.theme.semantic.status.danger :
+                                             root.theme.semantic.content.primary
                                 }
 
                                 Ui.ShellText {
@@ -222,134 +227,134 @@ Ui.ShellSurface {
 
     function _headerDetail() {
         if (previewState.key === "scanning")
-            return "Scanning for nearby networks";
+            return "Scanning for nearby networks"
         if (previewState.key === "joining")
-            return "Joining Sietch Guest";
+            return "Joining Sietch Guest"
         if (previewState.key === "off")
-            return "Wireless disabled";
+            return "Wireless disabled"
         if (previewState.key === "error")
-            return "Could not join Sietch Guest";
-        return "Connected to Arrakis";
+            return "Could not join Sietch Guest"
+        return "Connected to Arrakis"
     }
 
     function _rowsForState() {
         if (previewState.key === "scanning") {
             return [
-                {
-                    name: "Scanning nearby networks",
-                    detail: "Checking 2.4 and 5 GHz bands",
-                    state: "scanning",
-                    selected: false,
-                    icon: "refresh",
-                    trailing: ""
-                },
-                {
-                    name: "Arrakis",
-                    detail: "saved network",
-                    state: "saved",
-                    selected: false,
-                    icon: "wifi",
-                    trailing: ""
-                },
-                {
-                    name: "Sietch Guest",
-                    detail: "secured · strong signal",
-                    state: "available",
-                    selected: false,
-                    icon: "wifi",
-                    trailing: ""
-                }
-            ];
+                        {
+                            name: "Scanning nearby networks",
+                            detail: "Checking 2.4 and 5 GHz bands",
+                            state: "scanning",
+                            selected: false,
+                            icon: "refresh",
+                            trailing: ""
+                        },
+                        {
+                            name: "Arrakis",
+                            detail: "saved network",
+                            state: "saved",
+                            selected: false,
+                            icon: "wifi",
+                            trailing: ""
+                        },
+                        {
+                            name: "Sietch Guest",
+                            detail: "secured · strong signal",
+                            state: "available",
+                            selected: false,
+                            icon: "wifi",
+                            trailing: ""
+                        }
+                    ]
         }
         if (previewState.key === "joining") {
             return [
-                {
-                    name: "Arrakis",
-                    detail: "saved network",
-                    state: "saved",
-                    selected: false,
-                    icon: "wifi",
-                    trailing: ""
-                },
-                {
-                    name: "Sietch Guest",
-                    detail: "requesting an address…",
-                    state: "joining",
-                    selected: true,
-                    icon: "wifi",
-                    trailing: "refresh"
-                },
-                {
-                    name: "Guild Relay",
-                    detail: "secured · medium signal",
-                    state: "available",
-                    selected: false,
-                    icon: "wifi",
-                    trailing: ""
-                }
-            ];
+                        {
+                            name: "Arrakis",
+                            detail: "saved network",
+                            state: "saved",
+                            selected: false,
+                            icon: "wifi",
+                            trailing: ""
+                        },
+                        {
+                            name: "Sietch Guest",
+                            detail: "requesting an address…",
+                            state: "joining",
+                            selected: true,
+                            icon: "wifi",
+                            trailing: "refresh"
+                        },
+                        {
+                            name: "Guild Relay",
+                            detail: "secured · medium signal",
+                            state: "available",
+                            selected: false,
+                            icon: "wifi",
+                            trailing: ""
+                        }
+                    ]
         }
         if (previewState.key === "error") {
             return [
-                {
-                    name: "Sietch Guest",
-                    detail: "Authentication failed. Check the password.",
-                    state: "error",
-                    selected: false,
-                    icon: "danger",
-                    trailing: "warning"
-                },
-                {
-                    name: "Arrakis",
-                    detail: "saved network",
-                    state: "saved",
-                    selected: false,
-                    icon: "wifi",
-                    trailing: ""
-                },
-                {
-                    name: "Guild Relay",
-                    detail: "secured · medium signal",
-                    state: "available",
-                    selected: false,
-                    icon: "wifi",
-                    trailing: ""
-                }
-            ];
+                        {
+                            name: "Sietch Guest",
+                            detail: "Authentication failed. Check the password.",
+                            state: "error",
+                            selected: false,
+                            icon: "danger",
+                            trailing: "warning"
+                        },
+                        {
+                            name: "Arrakis",
+                            detail: "saved network",
+                            state: "saved",
+                            selected: false,
+                            icon: "wifi",
+                            trailing: ""
+                        },
+                        {
+                            name: "Guild Relay",
+                            detail: "secured · medium signal",
+                            state: "available",
+                            selected: false,
+                            icon: "wifi",
+                            trailing: ""
+                        }
+                    ]
         }
         return [
-            {
-                name: "Arrakis",
-                detail: "connected · 866 Mbps",
-                state: "connected",
-                selected: true,
-                icon: "wifi",
-                trailing: "check"
-            },
-            {
-                name: "Sietch Guest",
-                detail: "saved · strong signal",
-                state: "saved",
-                selected: false,
-                icon: "wifi",
-                trailing: ""
-            },
-            {
-                name: "Guild Relay",
-                detail: "secured · weak signal",
-                state: "available",
-                selected: false,
-                icon: "wifi",
-                trailing: ""
-            }
-        ];
+                    {
+                        name: "Arrakis",
+                        detail: "connected · 866 Mbps",
+                        state: "connected",
+                        selected: true,
+                        icon: "wifi",
+                        trailing: "check"
+                    },
+                    {
+                        name: "Sietch Guest",
+                        detail: "saved · strong signal",
+                        state: "saved",
+                        selected: false,
+                        icon: "wifi",
+                        trailing: ""
+                    },
+                    {
+                        name: "Guild Relay",
+                        detail: "secured · weak signal",
+                        state: "available",
+                        selected: false,
+                        icon: "wifi",
+                        trailing: ""
+                    }
+                ]
     }
 
     function _rowColor(row) {
         if (row.state === "error")
-            return theme.semantic.status.danger;
+            return theme.semantic.status.danger
         if (row.state === "joining" || row.state === "connected")
-            return theme.semantic.accent.primary;
-        return theme.semantic.content.secondary;
+            return theme.semantic.accent.primary
+        return theme.semantic.content.secondary
     }
 }

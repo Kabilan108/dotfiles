@@ -61,15 +61,13 @@ ShellAction {
         width: 38
         height: 22
         radius: height / 2
-        color: !root.enabled
-            ? root.theme.component.control.disabled
-            : root.checked
-                ? root.theme.component.control.active
-                : root.theme.component.control.background
+        color: !root.enabled ? root.theme.component.control.disabled : root.checked
+                               ? root.theme.component.control.active :
+                                 root.theme.component.control.background
         border.width: 1
-        border.color: root.checked
-                ? root.theme.component.control.active
-                : root.theme.component.control.outline
+        border.color: root.checked ? root.theme.component.control.active :
+                                     root.theme.component.control.outline
+
         opacity: root.busy ? 0.82 : 1
 
         Behavior on color {
@@ -86,9 +84,8 @@ ShellAction {
             radius: height / 2
             anchors.verticalCenter: parent.verticalCenter
             x: root.checked ? parent.width - width - 3 : 3
-            color: root.checked
-                ? root.theme.component.control.onActive
-                : root.theme.semantic.content.secondary
+            color: root.checked ? root.theme.component.control.onActive :
+                                  root.theme.semantic.content.secondary
 
             Behavior on x {
                 NumberAnimation {
@@ -104,9 +101,9 @@ ShellAction {
             theme: root.theme
             reducedMotion: root.reducedMotion
             sizeRole: "small"
-            color: root.checked
-                ? root.theme.component.control.onActive
-                : root.theme.component.control.textDisabled
+            color: root.checked ? root.theme.component.control.onActive :
+                                  root.theme.component.control.textDisabled
+
         }
     }
 }
