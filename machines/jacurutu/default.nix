@@ -37,6 +37,7 @@ in
   # Keep the working firmware from generation 1141 during the kernel boot test.
   nixpkgs.overlays = [
     (_final: _prev: { linux-firmware = bootPkgs.linux-firmware; })
+    inputs.spindle.overlays.default
   ];
   # External GUI flakes still use glibc 2.42 and cannot load the new Mesa.
   # Keep their working driver until those applications also use system pkgs.
@@ -84,6 +85,8 @@ in
   };
 
   home-manager.users.kabilan = {
+    home.packages = [ pkgs.spindle ];
+
     dotfiles.services = {
       mise-update.enable = true;
       update-app-pins.enable = true;

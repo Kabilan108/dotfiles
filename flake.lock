@@ -785,6 +785,7 @@
         "pagebin": "pagebin",
         "scout": "scout",
         "siren": "siren",
+        "spindle": "spindle",
         "stylix": "stylix",
         "tracer": "tracer",
         "try": "try",
@@ -830,6 +831,26 @@
       "original": {
         "owner": "kabilan108",
         "repo": "siren",
+        "type": "github"
+      }
+    },
+    "spindle": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794390808,
+        "narHash": "sha256-CjUDNJ4XsdRCrNAkFDTnZbZa+NvHDkEVQ6nDy773iXU=",
+        "owner": "kabilan108",
+        "repo": "spindle",
+        "rev": "e76e82045e8cf77013bff6444e20b0ecb781664f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "kabilan108",
+        "repo": "spindle",
         "type": "github"
       }
     },

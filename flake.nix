@@ -212,6 +212,10 @@
       url = "github:kabilan108/siren";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    spindle = {
+      url = "github:kabilan108/spindle";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     tracer = {
       url = "github:kabilan108/tracer";
       inputs.nixpkgs.follows = "nixpkgs";
