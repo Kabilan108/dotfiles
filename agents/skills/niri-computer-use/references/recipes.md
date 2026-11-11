@@ -55,8 +55,8 @@ the user unless they explicitly authorized sending.
 ## 4. Launch a GUI app and inspect its window
 
 ```bash
-acu spawn --wait -- nautilus
-acu shot --app nautilus
+acu spawn --wait -- scout
+acu shot --app scout
 ```
 
 This is a normal visible launch and may take focus. Use CDP, AT-SPI, or tmux if

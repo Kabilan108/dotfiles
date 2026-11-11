@@ -51,7 +51,6 @@ let
     runtimeInputs = [
       pkgs.glib
       pkgs.mpv
-      pkgs.nautilus
     ];
     # gio launches the handler's Exec line (e.g. a bare `helium`), which the
     # shell unit's restricted PATH cannot resolve on its own.

@@ -264,7 +264,6 @@ in
     papers
     loupe
     mpv
-    nautilus
     networkmanagerapplet
     (withElectronA11y obsidian [ "obsidian" ])
     pavucontrol

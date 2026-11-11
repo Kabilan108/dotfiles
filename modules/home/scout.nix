@@ -1,7 +1,5 @@
 {
   inputs,
-  lib,
-  pkgs,
   ...
 }:
 {
@@ -11,9 +9,6 @@
   # chooser portal (modules/nixos/desktop-wayland.nix).
   programs.scout = {
     enable = true;
-    # Nautilus ships an org.freedesktop.FileManager1 service file too; priority
-    # makes scout's the one in the profile, so "Show in folder" opens scout.
-    package = lib.hiPrio pkgs.scout;
     # g + key. gd already follows the XDG downloads folder and gr is ~/repos.
     bookmarks = {
       w = "~/work";
