@@ -116,23 +116,6 @@ in
       ];
     };
 
-    services.spotifyd = {
-      enable = true;
-      settings.global = {
-        autoplay = true;
-        backend = "pulseaudio";
-        bitrate = 320;
-        cache_path = "/home/kabilan/.cache/spotifyd";
-        dbus_type = "session";
-        device_name = "jacurutu";
-        device_type = "speaker";
-        disable_discovery = true;
-        max_cache_size = spotifyAudioCacheBytes;
-        normalisation_pregain = 0.0;
-        use_mpris = true;
-        volume_normalisation = true;
-      };
-    };
     dotfiles.wallpaper.lockscreen = "$HOME/dotfiles/wallpapers/shoggoth-math-woodblock.png";
   };
 }
