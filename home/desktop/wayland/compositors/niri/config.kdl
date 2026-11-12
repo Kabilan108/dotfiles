@@ -316,13 +316,6 @@ window-rule {
 }
 
 window-rule {
-    match app-id=r#"^org\.dictator\.Dictator$"#
-    open-floating true
-    default-column-width { fixed 924; }
-    default-window-height { fixed 740; }
-}
-
-window-rule {
     match app-id=r#"^nm-connection-editor$"#
     open-floating true
     default-column-width { fixed 560; }
