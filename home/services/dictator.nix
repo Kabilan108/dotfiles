@@ -40,6 +40,7 @@ in
       enable = true;
       package = inputs.dictator.packages.${systemName}.default;
       gui.enable = true;
+      osd.enable = true;
       displayServer = "wayland";
       logLevel = "INFO";
       environmentFile = "/run/agenix/secrets/dictator-env";

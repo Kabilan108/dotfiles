@@ -82,30 +82,6 @@ ShellRoot {
     }
 
     QtObject {
-        id: dictator
-
-        property bool visible: false
-        property string visualizerState: "listening"
-        property string durationText: "00:03"
-        property var levels: [0.2, 0.5, 0.8]
-        property real scanPos: 1
-    }
-
-    QtObject {
-        id: workflows
-
-        property QtObject dictator: dictator
-    }
-
-    QtObject {
-        id: serviceFacade
-
-        function get(pluginId) {
-            return pluginId === "stillsuit.workflows" ? workflows : null
-        }
-    }
-
-    QtObject {
         id: osdService
 
         property real volume: 0.42
@@ -128,7 +104,6 @@ ShellRoot {
         id: context
 
         property var settings: settings
-        property var services: serviceFacade
         property var actions: ({})
         property var logger: ({
                                   debug: function (message) {},
@@ -407,11 +382,6 @@ ShellRoot {
             value: osdService.brightness
             label: "68%"
         }
-        Osd.DictationPill {
-            id: dictationPill
-            context: context
-            dictator: dictator
-        }
     }
 
     Osd.OsdOverlay {
@@ -439,12 +409,13 @@ ShellRoot {
         }
 
         function contracts(): string {
-            var microphoneSignal = String(dictationPill.activeColor) === String(
-                        context.theme.semantic.signal.microphone)
-            dictator.visualizerState = "error"
-            var dictationErrorSignal = String(dictationPill.activeColor) === String(
-                        context.theme.semantic.status.danger)
-            dictator.visualizerState = "listening"
+            var osdIdleHidden = !primaryOsd.visible && !secondaryOsd.visible
+            osdService.brightnessVisible = true
+            var osdBrightnessShown = primaryOsd.visible && secondaryOsd.visible
+            osdService.brightnessVisible = false
+            osdService.volumeVisible = true
+            var osdVolumeShown = primaryOsd.visible && secondaryOsd.visible
+            osdService.volumeVisible = false
             return JSON.stringify({
                                       barHeight: productionBar.barHeight,
                                       outerGap: productionBar.outerGap,
@@ -469,8 +440,7 @@ ShellRoot {
                                       compactOsdBar: audioBar.implicitWidth === 216
                                                      && audioBar.implicitHeight === 44
                                                      && brightnessBar.implicitWidth === 216
-                                                     && brightnessBar.implicitHeight === 44
-                                                     && dictationPill.implicitWidth === 216,
+                                                     && brightnessBar.implicitHeight === 44,
                                       osdPanelBackground: String(audioBar.backgroundColor)
                                                           === String(
                                                               context.theme.semantic.surface.panel),
@@ -489,22 +459,11 @@ ShellRoot {
                                                        context.theme.semantic.signal.audio),
                                       brightnessSignal: String(brightnessBar.signalColor) === String(
                                                             context.theme.semantic.signal.brightness),
-                                      microphoneSignal: microphoneSignal,
-                                      dictationErrorSignal: dictationErrorSignal,
-                                      dictationSurface: String(dictationPill.backgroundColor)
-                                                        === String(
-                                                            context.theme.semantic.surface.panel)
-                                                        && String(dictationPill.borderColor)
-                                                        === String(
-                                                            context.theme.component.osd.border)
-                                                        && String(dictationPill.textColor)
-                                                        === String(
-                                                            context.theme.component.osd.text)
-                                                        && dictationPill.surfaceRadius
-                                                        === context.theme.metrics.radiusMedium,
+                                      osdIdleHidden: osdIdleHidden,
+                                      osdBrightnessShown: osdBrightnessShown,
+                                      osdVolumeShown: osdVolumeShown,
                                       accessible: audioBar.accessibleName !== ""
                                                   && brightnessBar.accessibleName !== ""
-                                                  && dictationPill.accessibleName !== ""
                                                   && primaryWorkspaces.accessibleName !== ""
                                                   && clockView.accessibleName !== ""
                                   })
@@ -569,8 +528,7 @@ ShellRoot {
                                })
             return JSON.stringify({
                                       workspaceDuration: primaryWorkspaces.motionDuration,
-                                      osdDuration: audioBar.motionDuration,
-                                      dictationReduced: dictationPill.reducedMotion
+                                      osdDuration: audioBar.motionDuration
                                   })
         }
     }

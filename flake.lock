@@ -135,11 +135,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794489226,
-        "narHash": "sha256-5gnGhFPO9ikDDc7voY9mQBNUB/2clbzwb/xoVe1zENM=",
+        "lastModified": 1794506262,
+        "narHash": "sha256-S0G/JKDuybwqcV9lrKfAXVAgCjm9Zu82fYH74FXH/Aw=",
         "owner": "kabilan108",
         "repo": "dictator",
-        "rev": "0a5ed974e599640989e52dc7d79ec1153ba204dc",
+        "rev": "5ccd417c382c2d41657fa3949df33378286a134d",
         "type": "github"
       },
       "original": {

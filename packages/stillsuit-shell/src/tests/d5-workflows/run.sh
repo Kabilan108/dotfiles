@@ -133,7 +133,7 @@ start_socket_server
 wait_json '.dictator.socketConnections == 3 and .dictator.state == "recording" and .dictator.reconnectAttempts == 0' >/dev/null
 wait_json '.recording.status == "ready" and .meeting.jobsStatus == "ready"' >/dev/null
 state=$(ipc state)
-jq -e '.serviceObjects == 1 and .osdServiceObjects == 1 and .overlays == 2 and .overlaySharesAggregate and .overlaySharesOsdService and .dictator.levels == 23 and .dictator.state == "recording" and .meeting.visible and .meeting.completed and .meeting.label == "fixture"' >/dev/null <<<"$state"
+jq -e '.serviceObjects == 1 and .osdServiceObjects == 1 and .overlays == 2 and .overlaySharesOsdService and .dictator.levels == 23 and .dictator.state == "recording" and .meeting.visible and .meeting.completed and .meeting.label == "fixture"' >/dev/null <<<"$state"
 
 # The shell shows only failed jobs, newest first, capped at five. Queued,
 # processing, and completed meetings remain durable but do not become history UI.
@@ -361,13 +361,8 @@ kill -0 "$fake_recorder_pid"
 [[ $(grep -c '^retry ' "$STILLSUIT_FIXTURE_MEETING_CONTROL_LOG") -eq "$retry_count_before_reload" ]]
 
 # Presentational per-output files may not own workflow authority.
-if rg -n '(^|[^[:alnum:]_])(Timer|FileView|PwObjectTracker|Socket|Process|IpcHandler)[[:space:]]*\{' "$package_dir/src/plugins/builtin/osd/OsdOverlay.qml" "$package_dir/src/plugins/builtin/osd/DictationPill.qml"; then
-  echo "presentational OSD files own workflow authority" >&2
-  exit 1
-fi
-rg -n 'Repeater[[:space:]]*\{' "$package_dir/src/plugins/builtin/osd/DictationPill.qml" >/dev/null
-if rg -n 'Canvas[[:space:]]*\{|requestPaint' "$package_dir/src/plugins/builtin/osd/DictationPill.qml"; then
-  echo "dictation pill repaints a Canvas per scan tick" >&2
+if rg -n '(^|[^[:alnum:]_])(Timer|FileView|PwObjectTracker|Socket|Process|IpcHandler)[[:space:]]*\{' "$package_dir/src/plugins/builtin/osd/OsdOverlay.qml"; then
+  echo "presentational OSD overlay owns workflow authority" >&2
   exit 1
 fi
 rg -n 'running: root\.visible && \(root\.completed \|\| root\.failed\)' "$package_dir/src/services/MeetingService.qml" >/dev/null

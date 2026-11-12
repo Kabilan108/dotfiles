@@ -44,7 +44,6 @@ cp "$fixture_dir/DictationFixture.qml" "$config_dir/shell.qml"
 cp -R "$package_dir/src/services" "$config_dir/services"
 cp -R "$package_dir/src/plugins/builtin/workflows" "$config_dir/plugins/builtin/workflows"
 cp -R "$package_dir/src/plugins/builtin/dictation" "$config_dir/plugins/builtin/dictation"
-cp -R "$package_dir/src/plugins/builtin/osd" "$config_dir/plugins/builtin/osd"
 cp "$package_dir/src/tests/FixtureTheme.js" "$config_dir/tests/FixtureTheme.js"
 cp -R "$package_dir/src/ui" "$config_dir/ui"
 
@@ -102,9 +101,10 @@ jq -e '.launchCount == 1' >/dev/null <<<"$(ipc state)"
 [[ $(ipc copy 0) == copied ]]
 [[ $(ipc clipboard) == $'First line\n\nsecond paragraph' ]]
 
-# Waveforms are scene-graph bars, not a repainted Canvas. The pill follows the
-# transcribing scan; a closed keepLoaded panel keeps its geometry until opened.
-if rg -n 'Canvas \{|requestPaint' "$package_dir/src/plugins/builtin/dictation/Panel.qml" "$package_dir/src/plugins/builtin/osd/DictationPill.qml"; then
+# Waveforms are scene-graph bars, not a repainted Canvas. While the transcribing
+# scan advances, a closed keepLoaded panel keeps its geometry; once opened, it
+# follows the scan.
+if rg -n 'Canvas \{|requestPaint' "$package_dir/src/plugins/builtin/dictation/Panel.qml"; then
   echo "dictation waveform repaints a Canvas" >&2
   exit 1
 fi
@@ -112,17 +112,16 @@ fi
 closed_first=$(ipc meters)
 sleep 0.2
 closed_second=$(ipc meters)
-jq -e '.panel.groups == 1 and .pill.groups == 1
-  and (.panel.heights | length) == 23 and (.pill.heights | length) == 23' >/dev/null <<<"$closed_first"
+jq -e '.panel.groups == 1 and (.panel.heights | length) == 23' >/dev/null <<<"$closed_first"
 jq -e --argjson first "$closed_first" '.scanPos != $first.scanPos
-  and .panel.heights == $first.panel.heights and .pill.heights != $first.pill.heights' >/dev/null <<<"$closed_second"
+  and .panel.heights == $first.panel.heights' >/dev/null <<<"$closed_second"
 ipc setPanelOpened on >/dev/null
 opened_first=$(ipc meters)
 sleep 0.2
 opened_second=$(ipc meters)
-jq -e --argjson first "$opened_first" '.panel.heights != $first.panel.heights
-  and .pill.heights != $first.pill.heights
-  and ([.panel.heights[], .pill.heights[]] | all(. >= 3))' >/dev/null <<<"$opened_second"
+jq -e --argjson first "$opened_first" '.scanPos != $first.scanPos
+  and .panel.heights != $first.panel.heights
+  and (.panel.heights | all(. >= 3))' >/dev/null <<<"$opened_second"
 ipc setPanelOpened off >/dev/null
 [[ $(ipc setDictatorState idle) == idle ]]
 

@@ -3,7 +3,6 @@ import Quickshell
 import Quickshell.Io
 import "plugins/builtin/workflows" as Workflows
 import "plugins/builtin/dictation" as Dictation
-import "plugins/builtin/osd" as Osd
 import "tests/FixtureTheme.js" as FixtureTheme
 
 ShellRoot {
@@ -56,11 +55,6 @@ ShellRoot {
                      name: "DP-1"
                  })
         outputId: "DP-1"
-    }
-    Osd.DictationPill {
-        id: pill
-        context: fixtureContext
-        dictator: workflows.dictator
     }
 
     function rectangles(node, found) {
@@ -137,8 +131,7 @@ ShellRoot {
         function meters(): string {
             return JSON.stringify({
                                       scanPos: workflows.dictator.scanPos,
-                                      panel: fixture.meter(panel),
-                                      pill: fixture.meter(pill)
+                                      panel: fixture.meter(panel)
                                   })
         }
     }

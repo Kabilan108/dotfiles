@@ -11,7 +11,6 @@ const ownedFiles = [
   "plugins/builtin/clock/ClockService.qml",
   "plugins/builtin/clock/ClockWidget.qml",
   "plugins/builtin/workspaces/WorkspaceWidget.qml",
-  "plugins/builtin/osd/DictationPill.qml",
   "plugins/builtin/osd/OsdBar.qml",
   "plugins/builtin/osd/OsdOverlay.qml",
   "plugins/builtin/osd/Service.qml",
@@ -63,17 +62,17 @@ const overlay = sources["plugins/builtin/osd/OsdOverlay.qml"];
 assert.match(overlay, /signalRole: "audio"/);
 assert.match(overlay, /signalRole: "brightness"/);
 assert.match(overlay, /required property string outputId/);
-
-const dictation = sources["plugins/builtin/osd/DictationPill.qml"];
-assert.match(dictation, /kind: "osd"/);
-assert.match(dictation, /semantic\.surface\.panel/);
-assert.match(dictation, /semantic\.signal\.microphone/);
-assert.match(dictation, /visualizerState === "transcribing" && !root\.reducedMotion/);
+assert.match(overlay,
+  /readonly property bool visible: service\.volumeVisible \|\| service\.brightnessVisible\n/);
+assert.doesNotMatch(overlay, /[Dd]ictat|services\.get/);
+assert.doesNotMatch(sources["plugins/builtin/osd/Service.qml"], /[Dd]ictat/);
 
 const osdManifest = JSON.parse(readFileSync(
   join(sourceRoot, "plugins/builtin/osd/manifest.json"), "utf8"));
 assert.equal(osdManifest.scope.service, "global");
 assert.equal(osdManifest.scope.overlay, "per-output");
+assert.equal(osdManifest.dependencies, undefined);
+assert.ok(!osdManifest.capabilities.includes("workflow-state"));
 
 const themeSource = readFileSync(
   join(sourceRoot, "../themes/catppuccin-mocha.nix"), "utf8");

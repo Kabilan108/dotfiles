@@ -104,8 +104,9 @@ jq -e '
     and .sharedOsdService and .compactOsdBar
     and .osdPanelBackground and .osdMediumRadius
     and .osdBorder and .osdTrack and .osdFillAssignment and .osdText
-    and .audioSignal and .brightnessSignal and .microphoneSignal
-    and .dictationErrorSignal and .dictationSurface and .accessible
+    and .audioSignal and .brightnessSignal
+    and .osdIdleHidden and .osdBrightnessShown and .osdVolumeShown
+    and .accessible
 ' >/dev/null <<<"$contracts"
 
 # Polls until the expression holds, then re-checks after a settle delay so a
@@ -137,7 +138,7 @@ wait_for_constructions '.workspaces == 2 and .clocks == 4
     and .markersLive == {"a": 0, "b": 0, "c": 0}'
 
 reduced=$(ipc reducedMotion)
-jq -e '.workspaceDuration == 0 and .osdDuration == 0 and .dictationReduced' \
+jq -e '.workspaceDuration == 0 and .osdDuration == 0' \
     >/dev/null <<<"$reduced"
 
 if rg -n 'ERROR qml| ERROR:|Type .* unavailable|is not a type' "$tmp_dir/quickshell.log"; then

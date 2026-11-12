@@ -59,17 +59,15 @@ ShellRoot {
         context: fixtureContext
         meeting: workflows.meeting
     }
-    // Two output views consume one global aggregate. Production OsdOverlay
-    // instances use context.services.get() with the same identity.
+    // Two output views share one global OSD service, as SurfaceRouter passes
+    // the same service object to each production OsdOverlay.
     property var overlayViews: [
         {
             outputId: "fixture-a",
-            workflows: workflows,
             service: osdService
         },
         {
             outputId: "fixture-b",
-            workflows: workflows,
             service: osdService
         }
     ]
@@ -82,8 +80,6 @@ ShellRoot {
                                       serviceObjects: 1,
                                       osdServiceObjects: 1,
                                       overlays: overlayViews.length,
-                                      overlaySharesAggregate: overlayViews[0].workflows
-                                      === overlayViews[1].workflows,
                                       overlaySharesOsdService: overlayViews[0].service
                                       === overlayViews[1].service,
                                       recording: {
