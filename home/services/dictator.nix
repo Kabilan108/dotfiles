@@ -7,7 +7,6 @@
 }:
 let
   cfg = config.dotfiles.services.dictator;
-  systemName = pkgs.stdenv.hostPlatform.system;
   # dictator probes for a notification server once at startup and stays silent
   # for its whole run if none is registered yet, which happens when a switch
   # restarts it alongside the shell. Give the shell a moment, then start anyway.
@@ -38,8 +37,11 @@ in
   config = lib.mkIf cfg.enable {
     services.dictator = {
       enable = true;
-      package = inputs.dictator.packages.${systemName}.default;
-      gui.enable = true;
+      package = pkgs.dictator;
+      gui = {
+        enable = true;
+        package = pkgs.dictator-gui;
+      };
       displayServer = "wayland";
       logLevel = "INFO";
       environmentFile = "/run/agenix/secrets/dictator-env";

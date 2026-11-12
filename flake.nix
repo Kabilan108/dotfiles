@@ -16,6 +16,7 @@
           grok-bot = import ./packages/grok-bot.nix { pkgs = final; };
           helium = import ./packages/helium.nix { pkgs = final; };
         })
+        (import ./packages/rust-system-libs.nix { inherit inputs; })
         # Builds pagebin with this overlay set's bun, which `bun build --compile` embeds.
         inputs.pagebin.overlays.default
         inputs.atlas.overlays.default

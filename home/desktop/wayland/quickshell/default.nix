@@ -9,7 +9,6 @@
 let
   homeDir = "/home/kabilan";
   fleet = import ../../../../lib/fleet.nix;
-  dictatorPackages = inputs.dictator.packages.${pkgs.stdenv.hostPlatform.system};
   builtinPlugin = name: {
     source = ../../../../packages/stillsuit-shell/src;
     manifestFile = "plugins/builtin/${name}/manifest.json";
@@ -268,8 +267,8 @@ in
         (builtinPlugin "dictation")
         // {
           settings = {
-            dictatorCliPath = "${dictatorPackages.default}/bin/dictator";
-            dictatorGuiPath = "${dictatorPackages.gui}/bin/dictator-gui";
+            dictatorCliPath = "${pkgs.dictator}/bin/dictator";
+            dictatorGuiPath = "${pkgs.dictator-gui}/bin/dictator-gui";
             recentLimit = 5;
           };
         }
