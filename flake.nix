@@ -10,7 +10,24 @@
     let
       system = "x86_64-linux";
       overlays = [
-        (final: _prev: {
+        (final: prev: {
+          # Remove once nixpkgs provides Atuin 18.24.6 or newer.
+          atuin = prev.atuin.overrideAttrs (
+            finalAttrs: _old: {
+              version = "18.24.6";
+              src = final.fetchFromGitHub {
+                owner = "atuinsh";
+                repo = "atuin";
+                tag = "v18.24.6";
+                hash = "sha256-4CBh/FcX5HxGUz2qqIDVstTGy343rX8sZucAzAQ6aqU=";
+              };
+              cargoDeps = final.rustPlatform.fetchCargoVendor {
+                inherit (finalAttrs) src;
+                name = "atuin-${finalAttrs.version}-vendor";
+                hash = "sha256-eB0HHlrHdttJB7DYo68c6hGeqAiMj/b9zS/9eZLw1hM=";
+              };
+            }
+          );
           ghostty = inputs.ghostty.packages.${final.stdenv.hostPlatform.system}.default;
           chatgpt-desktop = import ./packages/chatgpt-desktop.nix { pkgs = final; };
           grok-bot = import ./packages/grok-bot.nix { pkgs = final; };
