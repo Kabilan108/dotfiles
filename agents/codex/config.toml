@@ -385,6 +385,9 @@ trust_level = "trusted"
 [projects."/home/kabilan/.t3/scratch/2026-11-10-i-want-you-to-build-cb0d1b12"]
 trust_level = "trusted"
 
+[projects."/vault/repos/koma"]
+trust_level = "trusted"
+
 [tui]
 screen_reader_detection_done = true
 
