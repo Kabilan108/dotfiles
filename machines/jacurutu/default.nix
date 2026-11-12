@@ -7,10 +7,6 @@
 }:
 let
   fleet = import ../../lib/fleet.nix;
-  bootPkgs = import inputs.jacurutu-boot-nixpkgs {
-    system = pkgs.stdenv.hostPlatform.system;
-    config.allowUnfree = true;
-  };
 in
 {
   imports = [
@@ -30,20 +26,7 @@ in
      KEYBOARD_KEY_100c6=reserved
   '';
 
-  # Test the main package set's kernel for the security update. The earlier
-  # disk-unlock freeze remains unresolved; retain generation 1141 for recovery.
-  boot.kernelPackages = pkgs.linuxPackages;
-  # Keep the working firmware from generation 1141 during the kernel boot test.
-  nixpkgs.overlays = [
-    (_final: _prev: { inherit (bootPkgs) linux-firmware; })
-    inputs.spindle.overlays.default
-  ];
-  # External GUI flakes still use glibc 2.42 and cannot load the new Mesa.
-  # Keep their working driver until those applications also use system pkgs.
-  hardware.graphics = {
-    package = bootPkgs.mesa;
-    package32 = bootPkgs.pkgsi686Linux.mesa;
-  };
+  nixpkgs.overlays = [ inputs.spindle.overlays.default ];
 
   services.pipewire.wireplumber.extraConfig."50-mic-volume" = {
     "wireplumber.settings" = {
