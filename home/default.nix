@@ -271,7 +271,6 @@ in
     pulseaudio
     remmina
     seahorse
-    signal-desktop
     (withElectronA11y slack [ "slack" ])
     zotero
 
@@ -279,7 +278,6 @@ in
     inputs.disktree.packages.${systemName}.default
     gparted
     gpu-screen-recorder-gtk
-    jellyfin-desktop
     nirius
     obs-studio
     rsync
