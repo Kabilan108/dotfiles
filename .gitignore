@@ -1,7 +1,6 @@
-certs/
+erts/
 .direnv/
 
-.envrc
 !templates/devshell/.envrc
 
 **/vscode/History/
