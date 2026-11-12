@@ -154,6 +154,8 @@ in
       theme.name = themeName;
       threads.capture = true;
       daemon.autostart = false;
+      octavo.enabled = true;
+      octavo.threads.capture = true;
     };
     themes = {
       "${themeName}" = {
