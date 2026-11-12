@@ -301,13 +301,12 @@ window-rule {
     open-focused false
 }
 
-// Open the Firefox picture-in-picture player as floating by default.
+// Helium/Zen picture in picture
 window-rule {
-    // This app-id regular expression will work for both:
-    // - host Firefox (app-id is "firefox")
-    // - Flatpak Firefox (app-id is "org.mozilla.firefox")
-    match app-id=r#"firefox$"# title="^Picture-in-Picture$"
+    match title="^Picture[- ]in[- ][Pp]icture$"
     open-floating true
+    default-column-width { fixed 650; }
+    default-window-height { fixed 350; }
 }
 
 window-rule {
