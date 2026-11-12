@@ -87,6 +87,16 @@ Use `uv` for dependency management:
 
 Always use `uv add` to add dependencies rather than editing `pyproject.toml` manually.
 
+## Clean up after yourself
+
+When a task is done, remove what you created for it that has no further use:
+worktrees and local branches whose work is merged or that I rejected, remote
+branches of merged PRs, scratch files, and processes you started (dev servers,
+headless compositors, watchers, background builds). Before removing a worktree,
+check it has no uncommitted changes and its commits are merged or unwanted.
+Leave anything you didn't create or that I may still want to review, and list
+what you removed in your final report.
+
 ## Temporary: Git submodule RCE (CVE-2026-111760), until git >= 2.56.1
 The system git (2.56.0) has a bug where a malicious repo can run code through its submodules. Until this note is removed:
 - Never use `git clone --recurse-submodules` / `--recursive`, `git submodule update` / `init` / `sync`, or `git pull` / `fetch` / `checkout` with `--recurse-submodules` on any repo Tony doesn't own.
