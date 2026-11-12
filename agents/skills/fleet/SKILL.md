@@ -111,6 +111,13 @@ his YubiKey. Hosts build only signed tags.
   Hark under the "Fleet" project.
 - Long jobs on sietch end with an artifact the user can find: a pagebin URL,
   a file path, or a Hark notification (see the notify skill).
+- Builds synced to sietch go under `/vault/tmp/agent-builds/<project>/`, never `/home`
+  (the root disk is small). Keep build output outside the source copy
+  (`CARGO_TARGET_DIR` beside it, not inside): `nix develop path:<dir>` and
+  `nix build path:<dir>` copy the whole directory into `/nix/store` each time it
+  changes, so a `target/` inside it adds gigabytes per run.
+- Check `df -h / /vault` before and after heavy work on sietch, and delete your build
+  directories and store copies when the task ends.
 
 ## SSH from agent harness shells
 

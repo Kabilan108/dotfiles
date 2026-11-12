@@ -26,7 +26,7 @@ in
      KEYBOARD_KEY_100c6=reserved
   '';
 
-  nixpkgs.overlays = [ inputs.spindle.overlays.default ];
+  nixpkgs.overlays = [ inputs.baliset.overlays.default ];
 
   services.pipewire.wireplumber.extraConfig."50-mic-volume" = {
     "wireplumber.settings" = {
@@ -67,7 +67,7 @@ in
   };
 
   home-manager.users.kabilan = {
-    home.packages = [ pkgs.spindle ];
+    home.packages = [ pkgs.baliset ];
 
     dotfiles.services = {
       mise-update.enable = true;

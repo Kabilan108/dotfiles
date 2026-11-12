@@ -40,6 +40,26 @@
         "type": "github"
       }
     },
+    "baliset": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794444517,
+        "narHash": "sha256-VLwAhKg5PH7VqNUhah86ceSn7HoskjhK9qhUmU9qwgM=",
+        "owner": "kabilan108",
+        "repo": "baliset",
+        "rev": "e157a02908fd1a9a22b95a4ca068714eb34f204d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "kabilan108",
+        "repo": "baliset",
+        "type": "github"
+      }
+    },
     "base16": {
       "inputs": {
         "fromYaml": "fromYaml"
@@ -653,6 +673,7 @@
       "inputs": {
         "agenix": "agenix",
         "atlas": "atlas",
+        "baliset": "baliset",
         "dictator": "dictator",
         "disko": "disko",
         "disktree": "disktree",
@@ -668,7 +689,6 @@
         "pagebin": "pagebin",
         "scout": "scout",
         "siren": "siren",
-        "spindle": "spindle",
         "stylix": "stylix",
         "tracer": "tracer",
         "try": "try",
@@ -713,26 +733,6 @@
       "original": {
         "owner": "kabilan108",
         "repo": "siren",
-        "type": "github"
-      }
-    },
-    "spindle": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1794390808,
-        "narHash": "sha256-CjUDNJ4XsdRCrNAkFDTnZbZa+NvHDkEVQ6nDy773iXU=",
-        "owner": "kabilan108",
-        "repo": "spindle",
-        "rev": "e76e82045e8cf77013bff6444e20b0ecb781664f",
-        "type": "github"
-      },
-      "original": {
-        "owner": "kabilan108",
-        "repo": "spindle",
         "type": "github"
       }
     },
