@@ -13,13 +13,6 @@ let
       });
 in
 {
-  # NixOS/nixpkgs@16b463698a
-  codex = addInputs "codex" "16b463698a" [
-    final.aws-lc
-    final.oniguruma
-    final.sqlite
-    final.zstd
-  ];
   # NixOS/nixpkgs@7e94c72bfc
   tabiew = addInputs "tabiew" "7e94c72bfc" [
     final.sqlcipher
