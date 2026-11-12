@@ -150,7 +150,12 @@
       url = "gitlab:rycee/nur-expressions?dir=pkgs/firefox-addons";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    ghostty.url = "github:ghostty-org/ghostty/v1.4.0";
+    # Build with the system nixpkgs so ghostty gets its glibc, Mesa ABI and
+    # security fixes (its own nixpkgs shipped brotli 1.2.0, CVE-2026-111497).
+    ghostty = {
+      url = "github:ghostty-org/ghostty/v1.4.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
