@@ -16,6 +16,7 @@
           grok-bot = import ./packages/grok-bot.nix { pkgs = final; };
           helium = import ./packages/helium.nix { pkgs = final; };
         })
+        (import ./packages/rust-system-libs.nix)
         # Builds pagebin with this overlay set's bun, which `bun build --compile` embeds.
         inputs.pagebin.overlays.default
         inputs.atlas.overlays.default
@@ -40,7 +41,12 @@
             {
               nixpkgs = {
                 hostPlatform = system;
-                config.allowUnfree = true;
+                config = {
+                  allowUnfree = true;
+                  # Zotero 10 bundles Firefox 140 ESR, which reached end of life on
+                  # 2026-10-13. Remove once nixpkgs' Zotero moves to a supported ESR.
+                  permittedInsecurePackages = [ "firefox-esr-140-bin-unwrapped-140.17.0esr" ];
+                };
                 inherit overlays;
               };
             }
@@ -49,8 +55,6 @@
             ./configuration.nix
             ./user.nix
             ./modules/nixos/docker.nix
-            # CVE-2026-111497. TODO: remove once nixos-unstable ships brotli >= 1.2.1.
-            ./modules/nixos/brotli-cve.nix
             ./modules/nixos/fleet.nix
             ./modules/nixos/backup
             ./modules/nixos/deploy
@@ -131,9 +135,6 @@
     # machine setup
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
-    # Jacurutu's working boot stack before the October 2 display freezes.
-    # Advance after kernel and AMD firmware have passed a boot test.
-    jacurutu-boot-nixpkgs.url = "github:NixOS/nixpkgs/b1b875982b17dabde9b4a37f3e229e74913e6db3";
 
     # 3rd party flakes
     agenix = {
@@ -149,19 +150,15 @@
       url = "gitlab:rycee/nur-expressions?dir=pkgs/firefox-addons";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    ghostty.url = "github:ghostty-org/ghostty/v1.4.0";
+    # Build with the system nixpkgs so ghostty gets its glibc, Mesa ABI and
+    # security fixes (its own nixpkgs shipped brotli 1.2.0, CVE-2026-111497).
+    ghostty = {
+      url = "github:ghostty-org/ghostty/v1.4.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-    # Update this dependency pin deliberately alongside llama.cpp, not system updates.
-    llama-nixpkgs.url = "github:NixOS/nixpkgs/b1b875982b17dabde9b4a37f3e229e74913e6db3";
-    # Temporary Zotero pin while its build is incompatible with Firefox 153.
-    # Remove once https://github.com/Kabilan108/dotfiles/issues/18 is resolved.
-    zotero-nixpkgs.url = "github:NixOS/nixpkgs/b1b875982b17dabde9b4a37f3e229e74913e6db3";
-    llama-cpp = {
-      url = "github:ggml-org/llama.cpp/e85caa81ea2b65797396018c179b87ad61fa38ab";
-      inputs.nixpkgs.follows = "llama-nixpkgs";
     };
     # niri-flake stopped bumping its niri-unstable pin in August 2026; track
     # niri directly so fixes (e.g. SHM screencasting on NVIDIA) reach us.
@@ -174,7 +171,10 @@
       url = "github:nix-community/stylix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    try.url = "github:tobi/try";
+    try = {
+      url = "github:tobi/try";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";

@@ -7,6 +7,10 @@ root, install the Git hook shim once per checkout:
 direnv exec "$PWD" prek install
 ```
 
+The hooks run through `direnv exec .`. direnv blocks `.envrc` in a new git
+worktree until it is approved, so run `direnv allow` once in each worktree
+before committing.
+
 Commits run the checks in `prek.toml` against selected staged files. The checks
 leave source files unchanged. To run checks before staging, pass explicit paths:
 
