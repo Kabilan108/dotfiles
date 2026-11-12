@@ -7,11 +7,12 @@ root, install the Git hook shim once per checkout:
 direnv exec "$PWD" prek install
 ```
 
-Commits run the checks in `prek.toml` against selected staged files, through
-`scripts/devshell-exec`. It uses direnv when the checkout has an `.envrc` and
-`nix develop` otherwise, since git worktrees don't get the ignored `.envrc`.
-The checks leave source files unchanged. To run checks before staging, pass
-explicit paths:
+The hooks run through `direnv exec .`. direnv blocks `.envrc` in a new git
+worktree until it is approved, so run `direnv allow` once in each worktree
+before committing.
+
+Commits run the checks in `prek.toml` against selected staged files. The checks
+leave source files unchanged. To run checks before staging, pass explicit paths:
 
 ```sh
 direnv exec "$PWD" prek run --files flake.nix scripts/niri-validate
