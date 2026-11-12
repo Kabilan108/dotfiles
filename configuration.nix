@@ -32,14 +32,16 @@
       };
       settings = {
         # kabilan108: CI builds from YubiKey-signed deploy tags
-        # (.github/workflows/cache.yml). ghostty: its flake's own builds.
+        # (.github/workflows/cache.yml). ghostty and atuin: their flakes' own builds.
         extra-substituters = [
           "https://kabilan108.cachix.org"
           "https://ghostty.cachix.org"
+          "https://atuin.cachix.org"
         ];
         extra-trusted-public-keys = [
           "kabilan108.cachix.org-1:g8OqmhpqE1Bz9DjKTV17uQ3yzsfGcDB5fDgGfVC4t/o="
           "ghostty.cachix.org-1:QB389yTa6gTyneehvqG58y0WnHjQOqgnA+wBnpWWxns="
+          "atuin.cachix.org-1:aNJ8IU+udXIYNtrF+LHH8yIzXqgmva4hVnuHq2REgK0="
         ];
         experimental-features = [
           "nix-command"

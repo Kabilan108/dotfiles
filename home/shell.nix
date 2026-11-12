@@ -154,8 +154,9 @@ in
       theme.name = themeName;
       threads.capture = true;
       daemon.autostart = false;
-      octavo.enabled = true;
-      octavo.threads.capture = true;
+      # Off: Atuin for Teams uploads a server-readable copy of all shell history
+      # and every agent thread, beside the end-to-end encrypted sync.
+      teams.enabled = false;
     };
     themes = {
       "${themeName}" = {

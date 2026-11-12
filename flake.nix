@@ -23,6 +23,7 @@
         inputs.hark.overlays.default
         inputs.scout.overlays.default
         inputs.tracer.overlays.default
+        inputs.atuin.overlays.default
       ];
 
       # The deploy receiver only moves forward from this commit.
@@ -225,5 +226,8 @@
       url = "github:kabilan108/tracer";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Built with Atuin's own nixpkgs and toolchain, unfollowed, so the release
+    # matches atuin.cachix.org. Keep it on a release tag CI has cached.
+    atuin.url = "github:atuinsh/atuin/v18.24.7";
   };
 }
