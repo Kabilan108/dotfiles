@@ -28,7 +28,7 @@
       gc = {
         automatic = true;
         dates = "weekly";
-        options = "--delete-older-than 7d";
+        options = "--delete-older-than 3d";
       };
       settings = {
         # kabilan108: CI builds from YubiKey-signed deploy tags
