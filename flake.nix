@@ -228,6 +228,6 @@
     };
     # Built with Atuin's own nixpkgs and toolchain, unfollowed, so the release
     # matches atuin.cachix.org. Keep it on a release tag CI has cached.
-    atuin.url = "github:atuinsh/atuin/v18.24.7";
+    atuin.url = "github:atuinsh/atuin/v18.24.8";
   };
 }
