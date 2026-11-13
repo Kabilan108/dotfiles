@@ -115,6 +115,42 @@ def test_tool_check_refuses_a_config_that_gains_an_mcp_server(
     assert not log.exists() or "tools/call" not in log.read_text()
 
 
+@pytest.mark.parametrize("resume", [False, True])
+def test_codex_file_arguments_resolve_media_symlinks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, resume: bool
+) -> None:
+    namespace, _ = isolated_pipeline(tmp_path, monkeypatch)
+    actual = tmp_path / "actual-media"
+    actual.mkdir()
+    alias = tmp_path / "media-link"
+    alias.symlink_to(actual, target_is_directory=True)
+    (actual / "schema.json").write_text("{}")
+    (actual / "frame.png").write_bytes(b"test")
+    captured: list[str] = []
+
+    def capture(command: list[str], prompt: str, log_prefix: Path) -> None:
+        captured.extend(command)
+
+    monkeypatch.setitem(namespace["run_codex_agent"].__globals__, "run_codex", capture)
+    arguments = {
+        "prompt": "test",
+        "schema_path": alias / "schema.json",
+        "output_path": alias / "new-output.json",
+        "log_prefix": alias / "codex",
+    }
+    if resume:
+        namespace["resume_codex_agent"](
+            session_id="test-session", images=[alias / "frame.png"], **arguments
+        )
+        assert captured[captured.index("--image") + 1] == str(actual / "frame.png")
+    else:
+        namespace["run_codex_agent"](**arguments)
+    assert captured[captured.index("--output-schema") + 1] == str(actual / "schema.json")
+    assert captured[captured.index("--output-last-message") + 1] == str(
+        actual / "new-output.json"
+    )
+
+
 def test_tool_check_refuses_a_feature_left_on(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

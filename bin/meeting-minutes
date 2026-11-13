@@ -2271,9 +2271,11 @@ def run_codex_agent(
         "--cd",
         str(CODEX_WORKSPACE),
         "--output-schema",
-        str(schema_path),
+        str(schema_path.resolve()),
         "--output-last-message",
-        str(output_path),
+        # Home Manager's ~/media link traverses /nix/store. Codex's file
+        # handling cannot open output through that chain; use the real path.
+        str(output_path.resolve()),
     )
     return run_codex([*command, "-"], prompt, log_prefix)
 
@@ -2302,13 +2304,13 @@ def resume_codex_agent(
 ) -> subprocess.CompletedProcess[str]:
     command = codex_command("resume")
     for image in images:
-        command.extend(["--image", str(image)])
+        command.extend(["--image", str(image.resolve())])
     command.extend(
         [
             "--output-schema",
-            str(schema_path),
+            str(schema_path.resolve()),
             "--output-last-message",
-            str(output_path),
+            str(output_path.resolve()),
             session_id,
             "-",
         ]
