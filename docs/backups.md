@@ -8,7 +8,10 @@ a DS225+). Module: `modules/nixos/backup`. NAS access rules:
 
 - One Restic repository per machine, in `restic/` on that machine's share:
   `\\10.0.0.240\backup-sietch\restic` and `\\dar-es-balat\backup-jacurutu\restic`.
-- sietch reaches the NAS over the wired LAN, jacurutu over the tailnet.
+- sietch reaches the NAS over the wired LAN, jacurutu over the tailnet. The NAS
+  firewall allows TCP 445 from jacurutu's tailnet address only, and that rule
+  depends on the NAS running Tailscale in kernel mode
+  ([Tailscale mode](./nas-network-policy.md#tailscale-mode)).
 - Each machine mounts its share at `/var/lib/backup/nas` on first use (root-only
   parent, SMB 3.1.1 with encryption). If the NAS can't be reached, the run fails
   rather than writing anywhere local.

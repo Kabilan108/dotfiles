@@ -24,7 +24,8 @@ copy. DSM firewall and shared-folder permissions are configured on the NAS.
 | Source | Path | Destination/service | Authorization |
 | --- | --- | --- | --- |
 | `jacurutu` | Tailscale | NAS HTTPS, TCP 443 | DSM administration and Photos |
-| `jacurutu` dock Ethernet | LAN | SMB3, TCP 445 | `backup-jacurutu` only |
+| `jacurutu` | Tailscale (`100.108.28.4`) | SMB3, TCP 445 | `backup-jacurutu` only; the current backup path |
+| `jacurutu` dock Ethernet | LAN | SMB3, TCP 445 | `backup-jacurutu` only; planned, needs the dock reservation |
 | `jacurutu` dock Ethernet | LAN | DSM HTTPS, TCP 5001 | Optional break-glass administration only |
 | `sietch` wired Ethernet | LAN | SMB3, TCP 445 | `library` (`svc-library-ro`, `svc-library-rw`) |
 | `sietch` wired Ethernet | LAN | SMB3, TCP 445 | `backup-sietch` only |
@@ -53,6 +54,29 @@ top-to-bottom:
 Do not expose LAN HTTP 80, DSM HTTP 5000, NetBIOS/SMB 139, SSH 22, FTP,
 WebDAV, rsync, or NFS to the full subnet. Disable IPv6 on the NAS unless a
 specific use requires it; otherwise mirror the IPv4 policy with IPv6 rules.
+
+### Tailscale mode
+
+The NAS runs Tailscale in kernel (TUN) mode, so tailnet traffic arrives on
+`tailscale0` with its real source address and the DSM firewall filters it like
+LAN traffic. In userspace mode, Tailscale hands connections to local services
+over loopback and the firewall never sees them, which leaves the tailnet policy
+as the only filter. Every tailnet rule in the firewall assumes kernel mode.
+
+The Synology package doesn't keep kernel mode on its own: `tailscale
+configure-host` must run before each package start. Two Task Scheduler jobs keep
+it in place:
+
+- `tailscale-configure-host-on-boot` (boot-up, root) runs
+  `tailscale configure-host; synosystemctl restart pkgctl-Tailscale.service`.
+- `tailscale-weekly-update` (Sundays 11:00, root) runs `tailscale update --yes`
+  and, only when the version changed, `configure-host` and a package restart.
+  Before 2026-11-14 it updated without `configure-host`, so every update left
+  the NAS in userspace mode until the next reboot.
+
+To check the mode from jacurutu, probe a NAS port with no listener over the
+tailnet, such as TCP 9999. A silent timeout means the firewall dropped it
+(kernel mode). An immediate refusal means userspace mode.
 
 Normal DSM access is `https://dar-es-balat.sole-pierce.ts.net`. TCP 5001 is a
 local recovery path, not the daily URL. Tailscale Serve may use DSM HTTP on
@@ -262,12 +286,29 @@ A read-only DSM survey, followed by the changes Tony approved:
 - Firewall unchanged from the baseline above. The Tailscale package doesn't
   show whether it runs in userspace mode; if jacurutu reaches SMB over the
   tailnet despite the deny-all rule, userspace mode is the likely reason, and
-  the tailnet policy is then the only filter on that path.
+  the tailnet policy is then the only filter on that path. (Confirmed on
+  2026-11-14; see below.)
 - SMB transport encryption is client defined; the backup clients request it.
 - Changed: time zone from fixed UTC−5 (Bogota) to Eastern Time; recycle bin off
   on `backup-jacurutu`; monthly data scrubbing on (DSM's timing, first run
   December 1, 00:00); a monthly S.M.A.R.T. extended test on the 15th at 03:00.
   Scrubbing had never run; one extended test passed on 2026-07-29.
+
+### 2026-11-14 jacurutu backup outage
+
+jacurutu's backups failed from 2026-11-13 because its SMB mount over the tailnet
+timed out. The firewall had never allowed TCP 445 from the tailnet. Backups had
+only worked because the 2026-11-08 Tailscale update left the NAS in userspace
+mode, which bypasses the firewall. The NAS rebooted after an improper shutdown
+on 2026-11-12 at 19:23, the boot task restored kernel mode, and the deny-all
+rule then dropped SMB.
+
+- Added a firewall rule allowing TCP 445 from `100.108.28.4/32`, directly above
+  the deny-all rule. The other rules are unchanged.
+- Changed `tailscale-weekly-update` to rerun `configure-host` after a version
+  change (see "Tailscale mode" above).
+- Verified from jacurutu: TCP 445 and 443 connect, TCP 9999 is still dropped,
+  and a manual `restic-backups-files` run saved snapshot `66b18859`.
 
 ## Remaining implementation
 
