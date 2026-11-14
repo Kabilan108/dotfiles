@@ -8,6 +8,9 @@
 # deploy tag, and asks before signing. --yes skips that question, never the
 # touch. With nothing new it only starts the deploy on HOST.
 #
+# Without --key it signs with the key on whichever deploy YubiKey is plugged
+# in (deploy-key), and with yk-nfc-deploy when both are.
+#
 # A host refuses a commit that doesn't descend from the one it runs.
 # --allow-rollback signs "Allow-Rollback: yes" into the tag to permit that,
 # and always asks on the terminal.
@@ -20,6 +23,7 @@ branch_ref=refs/remotes/origin/$DEPLOY_BRANCH
 
 usage() {
   echo "usage: deploy [--yes] [--allow-rollback] [--key yk-nfc-deploy|yk-nano-deploy|FILE] HOST" >&2
+  echo "  --key defaults to the deploy key on the plugged-in YubiKey (yk-nfc-deploy if both are)." >&2
   exit 2
 }
 
@@ -65,7 +69,7 @@ confirm() {
   [[ $answer == [yY]* ]]
 }
 
-yes=0 rewritten=0 allow_rollback=0 key=yk-nfc-deploy
+yes=0 rewritten=0 allow_rollback=0 key=""
 while [[ $# -gt 0 ]]; do
   case $1 in
   -y | --yes)
@@ -88,10 +92,6 @@ done
 [[ $# -eq 1 ]] || usage
 host=$1
 [[ " $DEPLOY_HOSTS " == *" $host "* ]] || die "$host doesn't take deploys (receivers: $DEPLOY_HOSTS)"
-case $key in
-*/*) key_file=$key ;;
-*) key_file=$HOME/.ssh/$key ;;
-esac
 
 g fetch --quiet --force --prune --no-tags origin \
   "+refs/heads/$DEPLOY_BRANCH:$branch_ref" \
@@ -129,7 +129,15 @@ else
   if ((allow_rollback)); then
     echo "This tag lets $host move to ${target:0:12} even if that rolls back the commit it runs."
   fi
-  confirm "Sign deploy/$host at ${target:0:12} and deploy it?" || die "cancelled; nothing was signed"
+  if [[ -z $key ]]; then
+    key=$(deploy-key) || die "nothing was signed"
+  fi
+  case $key in
+  */*) key_file=$key ;;
+  *) key_file=$HOME/.ssh/$key ;;
+  esac
+  confirm "Sign deploy/$host at ${target:0:12} with $(basename "$key_file") and deploy it?" ||
+    die "cancelled; nothing was signed"
   message=$(
     echo "deploy $host"
     if ((allow_rollback)); then

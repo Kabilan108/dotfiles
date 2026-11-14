@@ -70,6 +70,13 @@ his YubiKey. Hosts build only signed tags.
   since only the repo's deploy keys may create deploy tags), and starts the
   host's receiver over SSH. The tag also starts CI's binary cache publish.
   With nothing new it skips the signing and only starts the receiver.
+- Each YubiKey holds its own signer key: `yk-nfc-deploy` or `yk-nano-deploy`
+  (`lib/fleet.nix` `deploy.signerYubiKeys` maps their serials). Without
+  `--key`, `deploy` and `rebuild` run `deploy-key`, which reads the serials
+  with `ykman list` and signs with the key that's plugged in. With both
+  plugged in, or if ykman can't tell, they use `yk-nfc-deploy`. With neither
+  plugged in they stop before asking; tell Tony which key to plug in.
+  `--key` overrides the choice.
 - You may run `deploy` on jacurutu, but only Tony can touch the key, and the
   new keys also need their PIN typed in a terminal. Start it in a tmux pane he
   can attach to and tell him with `notify-send`. `--yes` skips the question,
