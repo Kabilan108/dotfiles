@@ -390,7 +390,7 @@ def update(args: argparse.Namespace, run_dir: Path, state_dir: Path, now: dateti
             return 0
 
         git("add", "flake.lock", cwd=worktree)
-        git("commit", "--quiet", "-m", f"flake.lock: weekly update {date}", cwd=worktree)
+        git("commit", "--quiet", "--no-verify", "-m", f"flake.lock: weekly update {date}", cwd=worktree)
         head = git("rev-parse", "HEAD", cwd=worktree)
 
         builds = [build_host(worktree, run_dir, state_dir, host, old[host]) for host in HOSTS]
