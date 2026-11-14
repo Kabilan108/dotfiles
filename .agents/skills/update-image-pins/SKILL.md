@@ -5,7 +5,8 @@ description: Check and update digest pins for third-party docker images used by 
 
 # Update docker image digest pins
 
-Third-party images in `modules/nixos/selfhost/` are pinned by digest:
+Third-party images in `modules/nixos/selfhost/` (sietch) and `machines/tleilax/`
+(Executor) are pinned by digest:
 
 ```nix
 image = "<registry>/<name>:<tag>@sha256:<digest>";
@@ -49,6 +50,12 @@ flake inputs update via `nix flake update <input>`.
    ```
 
    Then ask the user to run: `! sudo nixos-rebuild switch --flake ~/dotfiles#sietch`
+
+   For a tleilax pin, only evaluate it here
+   (`nix eval --raw .#nixosConfigurations.tleilax.config.system.build.toplevel.drvPath`).
+   It's aarch64, and Tony applies it with `deploy tleilax` from jacurutu. Check
+   that the new digest's index still has a `linux/arm64` manifest
+   (`skopeo inspect --raw docker://<name>@<digest>`).
 
 5. Verify the service after the switch (unit active + its https endpoint
    responds; see the add-selfhost-service skill for the commands), then commit

@@ -95,12 +95,14 @@ Good news: Vaultwarden is **zero-knowledge** — vault data is encrypted client-
 with the master password. The `vaultwarden-data` volume holds ciphertext; FDE is a
 secondary layer. The real attack surface is the **decrypted client session**.
 
-### Server side (`modules/nixos/selfhost/vaultwarden.nix` — native since July 2026)
+### Server side (`machines/tleilax/vaultwarden.nix` — on tleilax since stage 5)
 - [x] No more docker image — native `services.vaultwarden`, updates pinned by flake.lock
 - [x] Argon2-hashed `ADMIN_TOKEN` via agenix, Tailscale-only
 - [x] `SIGNUPS_ALLOWED: false`
 - [x] Tailscale-only access (svc:vault, localhost-bound backend, 80/443 closed)
-- [x] `/var/lib/vaultwarden` is in sietch's `services` backup job (`docs/backups.md`).
+- [x] Starts only on its copied database, and refuses a non-Argon2 `ADMIN_TOKEN`.
+- [ ] tleilax backup job for `/var/lib/vaultwarden` (`docs/backups.md`, "Later").
+  sietch's last copy is its `stage5-final` snapshot.
 
 ### Client side (where it actually matters)
 - [x] **WebAuthn 2FA, both keys**. Re-registered 2026-07-08 against the new
@@ -300,9 +302,13 @@ a single choke point for what agents may invoke.
 - **Plan:** migrate per-agent MCP endpoints and API keys out of agent config
   files into Executor connections, so agent configs hold only an executor
   token. Directly serves priority #2 (secrets off disk) for the agent fleet.
-- **Do not flip `EXECUTOR_ALLOW_LOCAL_NETWORK`** (default/pinned `false`): its
-  QuickJS sandbox executes semi-trusted code, and loopback on sietch includes
-  vaultwarden, jellyfin, and siren.
+- **`EXECUTOR_ALLOW_LOCAL_NETWORK` stays `false` for now.** Its QuickJS
+  sandbox runs semi-trusted code. On sietch, loopback held vaultwarden,
+  jellyfin and siren. On tleilax, Executor runs in its own network namespace
+  (`machines/tleilax/executor.nix`) that reaches only the internet and,
+  over the office VPN, 10.1.10.0/24. The guard blocks all of 10.0.0.0/8, so
+  office MCP servers need it set to `true`; there it would expose only
+  Executor's own loopback and the office subnet.
 
 ---
 

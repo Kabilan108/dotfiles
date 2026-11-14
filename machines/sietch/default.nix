@@ -104,28 +104,12 @@
         "/vault/notes/coppermind"
         "/vault/userdata/media"
       ];
+      # Vaultwarden and Executor moved to tleilax. Their last sietch state is
+      # the snapshot tagged stage5-final (docs/tleilax-credentials-move.md).
       services = {
-        paths = [
-          "/var/lib/vaultwarden"
-          "/var/lib/executor"
-          "/vault/userdata/hark-server"
-        ];
-        exclude = [
-          "/var/lib/vaultwarden/db.sqlite3*"
-          "/var/lib/vaultwarden/icon_cache"
-          "/var/lib/executor/data.db*"
-          "/vault/userdata/hark-server/hark.sqlite*"
-        ];
+        paths = [ "/vault/userdata/hark-server" ];
+        exclude = [ "/vault/userdata/hark-server/hark.sqlite*" ];
         sqlite = {
-          vaultwarden = {
-            database = "/var/lib/vaultwarden/db.sqlite3";
-            user = "vaultwarden";
-          };
-          # The container's distroless nonroot user, with no entry on the host.
-          executor = {
-            database = "/var/lib/executor/data.db";
-            user = "65532";
-          };
           hark = {
             database = "/vault/userdata/hark-server/hark.sqlite";
             user = "hark";

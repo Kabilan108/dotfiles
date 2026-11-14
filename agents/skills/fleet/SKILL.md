@@ -100,8 +100,8 @@ his YubiKey. Hosts build only signed tags.
 
 - sietch takes heavy or parallel agent work and anything needing `/vault`
   data; jacurutu takes interactive and desktop tasks only.
-- tleilax is a locked-down Pi for credential services (Vaultwarden and
-  Executor move there). No agent work runs on it, and sietch has no access to
+- tleilax is a locked-down Pi for credential services: it runs Vaultwarden
+  and Executor. No agent work runs on it, and sietch has no access to
   it at all: no SSH key, no tailnet grant, no secret it can decrypt. Its secrets
   are encrypted to its host key and Tony's YubiKeys only.
 - After a reboot tleilax waits at boot for its disk passphrase, which Tony
