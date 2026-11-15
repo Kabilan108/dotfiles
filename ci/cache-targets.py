@@ -29,6 +29,13 @@ UPSTREAM = "https://cache.nixos.org"
 # import-from-derivation of the whole system closure, which would build every
 # package during the plan step. IFD stays off so that any other IFD fails the
 # eval at once instead of building inside it.
+#
+# Temporary exception: Atuin's flake picks its Rust toolchain with fenix's
+# fromToolchainFile, which downloads channel-rust-<version>.toml and reads it
+# during eval. Until upstream pins the manifest as a flake input
+# (fromManifestFile, no IFD), the plan step evaluates with IFD on, and any
+# other IFD would build inside it too. require_atuin_ifd() fails the plan once
+# the locked Atuin evaluates without IFD; then delete it and this paragraph.
 UNGRAFTED_TOPLEVEL = """
 host: (host.extendModules {
   modules = [ ({ lib, ... }: { system.replaceDependencies.replacements = lib.mkForce [ ]; }) ];
@@ -59,16 +66,39 @@ def show(drvs: list[str]) -> dict[str, dict]:
     return out
 
 
+def require_atuin_ifd() -> None:
+    lock = json.loads((ROOT / "flake.lock").read_text())
+    locked = lock["nodes"][lock["nodes"]["root"]["inputs"]["atuin"]]["locked"]
+    ref = f"github:{locked['owner']}/{locked['repo']}/{locked['rev']}"
+    proc = subprocess.run(
+        [
+            "nix", "eval", "--raw",
+            "--option", "allow-import-from-derivation", "false",
+            f"{ref}#packages.x86_64-linux.default.drvPath",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode == 0:
+        sys.exit(
+            f"cache-targets: {ref} now evaluates without IFD. Remove require_atuin_ifd() "
+            "and evaluate the hosts with allow-import-from-derivation false again."
+        )
+    if "allow-import-from-derivation" not in proc.stderr:
+        sys.exit(f"cache-targets: evaluating {ref} failed:\n{proc.stderr}")
+
+
 def targets(names: list[str]) -> dict[str, dict[str, list[str]]]:
     """Map each pname to {drv path: [output paths]} across all hosts."""
     name_re = re.compile(
         r"/[a-z0-9]{32}-(?:" + "|".join(map(re.escape, names)) + r")-[^/]*\.drv$"
     )
+    require_atuin_ifd()
     candidates: set[str] = set()
     for host in HOSTS:
         top = run(
             "nix", "eval", "--raw",
-            "--option", "allow-import-from-derivation", "false",
+            "--option", "allow-import-from-derivation", "true",
             "--apply", UNGRAFTED_TOPLEVEL,
             f"{ROOT}#nixosConfigurations.{host}",
         )
