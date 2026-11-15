@@ -26,11 +26,12 @@ in
     enable = true;
     polkitPolicyOwners = [ "kabilan" ];
   };
-  # Zen isn't on 1Password's built-in browser list. The app checks the browser
-  # process's executable name and rejects this file unless it's root-owned and
-  # not a symlink, hence the explicit mode.
+  # Helium and Zen aren't on 1Password's built-in browser list. The app checks
+  # the browser process's executable name and rejects this file unless it's
+  # root-owned and not a symlink, hence the explicit mode.
   environment.etc."1password/custom_allowed_browsers" = {
     text = ''
+      helium
       zen
       zen-beta
       .zen-beta-wrapped
