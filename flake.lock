@@ -760,11 +760,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794392938,
-        "narHash": "sha256-15Ai2ijUyvpExszEHtEmtDQ1CIRwQSMlQTwW+AUHfJs=",
+        "lastModified": 1794780206,
+        "narHash": "sha256-hTg0GV2Yu/qN9FTH1RTqgO0ZA/kj1VGosBgV4L4uCf8=",
         "owner": "Kabilan108",
         "repo": "omasnap",
-        "rev": "fb8eff507d34dafa02c6e1570e7f0e2bd52d2ecf",
+        "rev": "58edb5de19b115bd9acd2352db02f5b3a73cea7b",
         "type": "github"
       },
       "original": {
