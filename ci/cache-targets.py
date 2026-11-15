@@ -12,6 +12,7 @@ exactly what the hosts would, and nothing they don't use.
 
 import json
 import re
+import shlex
 import subprocess
 import sys
 import urllib.error
@@ -49,7 +50,10 @@ def packages() -> list[str]:
 
 
 def run(*cmd: str) -> str:
-    return subprocess.run(cmd, check=True, capture_output=True, text=True).stdout
+    proc = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    if proc.returncode != 0:
+        sys.exit(f"cache-targets: {shlex.join(cmd)} exited {proc.returncode}:\n{proc.stderr}")
+    return proc.stdout
 
 
 def store_path(path: str) -> str:

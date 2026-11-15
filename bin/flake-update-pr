@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shlex
 import shutil
 import signal
 import socket
@@ -87,8 +88,15 @@ def run_step(cmd: list[str], log: Path, cwd: Path | None = None, timeout: int | 
     return Step(proc.returncode == 0, log, proc.stdout.strip())
 
 
+def capture(cmd: list[str], cwd: Path) -> str:
+    proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=False)
+    if proc.returncode != 0:
+        raise RuntimeError(f"{shlex.join(cmd)} exited {proc.returncode}:\n{proc.stderr.strip()}")
+    return proc.stdout.strip()
+
+
 def git(*args: str, cwd: Path) -> str:
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True).stdout.strip()
+    return capture(["git", *args], cwd)
 
 
 def tail(path: Path, lines: int = LOG_TAIL) -> str:
@@ -331,13 +339,13 @@ def notify(message: str, title: str, key: str) -> None:
 
 
 def supersede(repo: str, base: str, number: str, branch: str, cwd: Path) -> None:
-    listing = subprocess.run(
+    listing = capture(
         [
             "gh", "pr", "list", "--repo", repo, "--state", "open", "--author", "@me", "--base", base,
             "--json", "number,headRefName", "--jq", ".[] | [.number, .headRefName] | @tsv",
         ],
-        cwd=cwd, capture_output=True, text=True, check=True,
-    ).stdout
+        cwd,
+    )
     for line in listing.splitlines():
         old_number, head = line.split("\t")
         if head.startswith(BRANCH_PREFIX) and head != branch:
@@ -430,7 +438,7 @@ def update(args: argparse.Namespace, run_dir: Path, state_dir: Path, now: dateti
                   "--title", title, "--body-file", str(body_file)]
         if not ok:
             create.append("--draft")
-        url = subprocess.run(create, cwd=worktree, capture_output=True, text=True, check=True).stdout.strip()
+        url = capture(create, worktree)
         number = url.rstrip("/").rsplit("/", 1)[-1]
         supersede(repo, args.base, number, branch, worktree)
 
