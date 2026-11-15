@@ -19,6 +19,25 @@ in
 
   services.teamviewer.enable = true;
 
+  # The desktop app unlocks `op` and the browser extension; sietch has no
+  # desktop session and uses service-account tokens instead.
+  programs._1password.enable = true;
+  programs._1password-gui = {
+    enable = true;
+    polkitPolicyOwners = [ "kabilan" ];
+  };
+  # Zen isn't on 1Password's built-in browser list. The app checks the browser
+  # process's executable name and rejects this file unless it's root-owned and
+  # not a symlink, hence the explicit mode.
+  environment.etc."1password/custom_allowed_browsers" = {
+    text = ''
+      zen
+      zen-beta
+      .zen-beta-wrapped
+    '';
+    mode = "0755";
+  };
+
   # The Framework airplane key emits KEY_RFKILL directly to the kernel.
   # Disable its measured HID scan code without changing the other hotkeys.
   services.udev.extraHwdb = ''
