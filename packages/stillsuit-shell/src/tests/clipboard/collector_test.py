@@ -28,6 +28,7 @@ FAKE_COPY = HERE / "fake-wl-copy"
 FAKE_NIRI = HERE / "fake-niri"
 BLOB_GONE = 3
 BW_EXTENSION = "chrome-extension://nngceckbapebfimnlniiiahkandclblb/"
+ONEPASSWORD_EXTENSION = "chrome-extension://aeblfdkhhhdcdjpifhhbdiojplfjncoa/"
 VAULT = "https://vault.sole-pierce.ts.net"
 SECRET = b"hunter2-correct-horse"
 TEXT = "text/plain;charset=utf-8"
@@ -153,6 +154,7 @@ class CollectorCase(unittest.TestCase):
         result = self.run_collector(
             "emit", "--state-dir", str(self.state), "--wl-paste", str(FAKE_PASTE),
             f"--secret-source-prefix={BW_EXTENSION}", f"--secret-source-prefix={VAULT}",
+            f"--secret-source-prefix={ONEPASSWORD_EXTENSION}",
             *extra, env=env, stdin=stdin,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -195,10 +197,12 @@ class CollectorCase(unittest.TestCase):
 
 
 class ClassificationTests(CollectorCase):
-    def test_kde_password_hint_is_skipped(self) -> None:
+    def test_desktop_password_manager_hint_is_skipped_without_reading(self) -> None:
         self.offer({"text/plain;charset=utf-8": SECRET, "x-kde-passwordManagerHint": b"secret"})
         self.assertEqual(self.emit(), {"kind": "skipped", "reason": "hint"})
         self.assertEqual(self.blobs(), [])
+        calls = (self.fake / "calls.log").read_text().splitlines()
+        self.assertEqual(calls, ["--list-types"])
         self.assert_no_secret_on_disk()
 
     def test_sensitive_clipboard_state_skips_without_reading(self) -> None:
@@ -229,6 +233,37 @@ class ClassificationTests(CollectorCase):
         })
         self.assertEqual(self.emit(), {"kind": "skipped", "reason": "source"})
         self.assert_no_secret_on_disk()
+
+    def test_chromium_onepassword_extension_is_skipped_without_reading_payload(self) -> None:
+        for page in ("popup.html", "offscreen.html"):
+            with self.subTest(page=page):
+                self.offer({
+                    TEXT: SECRET,
+                    CHROMIUM: (ONEPASSWORD_EXTENSION + page).encode(),
+                })
+                self.assertEqual(self.emit(), {"kind": "skipped", "reason": "source"})
+                calls = (self.fake / "calls.log").read_text()
+                self.assertNotIn(TEXT, calls)
+                self.assert_no_secret_on_disk()
+
+    def test_onepassword_web_vaults_are_skipped(self) -> None:
+        for mime in (CHROMIUM, MOZ_ORIGIN):
+            for domain in ("1password.com", "1password.eu", "1password.ca"):
+                for host in (domain, "my." + domain, "team." + domain, "TEAM." + domain.upper() + "."):
+                    with self.subTest(mime=mime, host=host):
+                        url = "https://" + host + "/vault"
+                        marker = utf16(url) if mime == MOZ_ORIGIN else url.encode()
+                        self.offer({TEXT: SECRET, mime: marker})
+                        self.assertEqual(self.emit(), {"kind": "skipped", "reason": "source"})
+                        calls = (self.fake / "calls.log").read_text()
+                        self.assertNotIn(TEXT, calls)
+                        self.assert_no_secret_on_disk()
+
+    def test_onepassword_lookalike_origin_is_not_a_vault(self) -> None:
+        for host in ("1password.com.example.org", "fake1password.com"):
+            with self.subTest(host=host):
+                self.offer({TEXT: b"ordinary", CHROMIUM: ("https://" + host + "/").encode()})
+                self.assertEqual(self.emit()["kind"], "text")
 
     def test_chromium_vault_origin_is_skipped(self) -> None:
         self.offer({

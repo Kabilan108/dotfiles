@@ -19,7 +19,7 @@ prints one JSON event. `Service.qml` is the only writer of
 | `ttlHours` | 72 | Entries expire this long after their last use. |
 | `maxTextBytes`, `maxImageBytes` | 1 MiB, 20 MiB | Larger payloads are skipped. |
 | `clearPurgeWindowSec` | 330 | How long after a capture a clear can still purge it. |
-| `secretSourcePrefixes` | Bitwarden's Chromium extension, the vault origin | Source URL prefixes whose copies are skipped. |
+| `secretSourcePrefixes` | Bitwarden and 1Password Chromium extensions, the vault origin | Source URL prefixes whose copies are skipped. |
 | `unattributedFirefox` | `"skip"` | `"skip"` or `"record"`; see rule 4. |
 | `geckoAppIds` | Zen, Firefox and LibreWolf app ids | Python regular expression, searched in the `app_id` of the focused window (rule 4). |
 | `gcGraceSec` | 120 | Grace period for the crash-leftover sweep. |
@@ -29,12 +29,18 @@ prints one JSON event. `Service.qml` is the only writer of
 The collector checks these rules in order, before reading any payload; rule 4
 is checked again after the last payload read:
 
-1. The offer includes `x-kde-passwordManagerHint` (Bitwarden desktop, KeePassXC,
-   Firefox private windows), or `CLIPBOARD_STATE` is `sensitive`.
+1. The offer includes `x-kde-passwordManagerHint` (1Password desktop,
+   Bitwarden desktop, KeePassXC, Firefox private windows), or
+   `CLIPBOARD_STATE` is `sensitive`. This rejects the entire offer without
+   reading the hint value, copied text or image data.
+   Desktop coverage depends on the app supplying the sensitive marker; older
+   1Password versions that omit it cannot be identified by this rule.
 2. A source marker is offered but cannot be read or decoded.
 3. `chromium/x-source-url` or `text/x-moz-url-priv` starts with a configured
-   secret source prefix. This catches Bitwarden in Chromium and Helium (its
-   popup and offscreen document) and the web vault in either browser.
+   secret source prefix. HTTPS origins on 1password.com, 1password.eu and
+   1password.ca, including account subdomains, are always excluded when
+   offered in these markers. This catches Bitwarden and 1Password extension
+   origins in Chromium and Helium, and web-vault origins in either browser.
 4. With `unattributedFirefox = "skip"`, an unattributed Gecko copy: the offer
    has GTK3's plain-text shape (`SAVE_TARGETS`, `COMPOUND_TEXT` and
    `text/plain;charset=utf-8` twice), no page origin in

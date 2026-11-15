@@ -69,6 +69,10 @@ printf 'alpha line\n' >"$payloads/alpha"
 printf 'bravo line\n' >"$payloads/bravo"
 printf 'charlie line\n' >"$payloads/charlie"
 printf 'SECRET-from-bitwarden' >"$payloads/secret"
+printf 'SECRET-from-1password' >"$payloads/onepassword-secret"
+printf 'chrome-extension://aeblfdkhhhdcdjpifhhbdiojplfjncoa/offscreen.html' >"$payloads/onepassword-url"
+printf 'https://my.1password.com/vault' >"$payloads/onepassword-vault-url"
+printf 'secret' >"$payloads/password-hint"
 : >"$payloads/zero"
 printf 'https://example.com/page' >"$payloads/page-url"
 printf 'chrome-extension://nngceckbapebfimnlniiiahkandclblb/offscreen-document/index.html' >"$payloads/bw-url"
@@ -78,6 +82,10 @@ scenario "$fake/scenarios/01" "text/plain;charset=utf-8" "$payloads/alpha" "chro
 scenario "$fake/scenarios/02" "text/plain;charset=utf-8" "$payloads/bravo"
 scenario "$fake/scenarios/03" "image/png" "$payloads/png"
 scenario "$fake/scenarios/04" "text/plain;charset=utf-8" "$payloads/secret" "chromium/x-source-url" "$payloads/bw-url"
+# Exercise defaults through the real service/watch command, not test-only flags.
+scenario "$fake/scenarios/04b" "text/plain;charset=utf-8" "$payloads/onepassword-secret" "chromium/x-source-url" "$payloads/onepassword-url"
+scenario "$fake/scenarios/04c" "text/plain;charset=utf-8" "$payloads/onepassword-secret" "x-kde-passwordManagerHint" "$payloads/password-hint"
+scenario "$fake/scenarios/04d" "text/plain;charset=utf-8" "$payloads/onepassword-secret" "chromium/x-source-url" "$payloads/onepassword-vault-url"
 scenario "$fake/scenarios/05" "text/plain;charset=utf-8" "$payloads/alpha"
 # Another sender offers the types charlie was copied with and fails, so the
 # read is zero bytes. Without Gecko's shape that is no clear: charlie stays.
@@ -397,7 +405,7 @@ fail() { printf 'clipboard QML fixture: %s\n' "$1" >&2; exit 1; }
 [[ -z $(ls -A -- "$clip/blobs") ]] || fail "orphan blobs survived clear: $(ls -A -- "$clip/blobs")"
 jq -e '.schemaVersion == 1 and (.entries | length) == 0' "$clip/history.v1.json" >/dev/null \
     || fail "history not cleared"
-if rg -a -l 'SECRET-from-bitwarden' "$state_root" "$fixture_root/quickshell.log"; then
+if rg -a -l 'SECRET-from-(bitwarden|1password)' "$state_root" "$fixture_root/quickshell.log"; then
     fail "secret content reached disk or logs"
 fi
 if rg -a -l 'GECKO-secret-password' "$XDG_STATE_HOME" "$XDG_RUNTIME_DIR" "$fixture_root/quickshell.log"; then

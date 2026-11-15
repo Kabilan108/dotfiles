@@ -24,6 +24,7 @@ var GC_FOLLOW_UP_MARGIN_MS = 1000
 
 var DEFAULT_SECRET_SOURCE_PREFIXES = [
     "chrome-extension://nngceckbapebfimnlniiiahkandclblb/",
+    "chrome-extension://aeblfdkhhhdcdjpifhhbdiojplfjncoa/",
     "https://vault.sole-pierce.ts.net"
 ]
 

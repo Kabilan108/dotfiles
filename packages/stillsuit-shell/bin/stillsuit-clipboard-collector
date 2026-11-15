@@ -41,6 +41,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 
@@ -165,6 +166,17 @@ class Offer:
 def _is_secret_source(marker: str | None, prefixes: list[str]) -> bool:
     if not marker:
         return False
+    # Web vaults include account-specific subdomains in all three regions.
+    try:
+        source = urllib.parse.urlsplit(marker)
+        host = (source.hostname or "").lower().rstrip(".")
+    except ValueError:
+        return True  # Malformed origins cannot vouch for a safe source.
+    if source.scheme.lower() == "https" and any(
+        host == domain or host.endswith("." + domain)
+        for domain in ("1password.com", "1password.eu", "1password.ca")
+    ):
+        return True
     lowered = marker.lower()
     return any(prefix and lowered.startswith(prefix.lower()) for prefix in prefixes)
 

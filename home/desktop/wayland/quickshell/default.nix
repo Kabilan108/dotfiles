@@ -199,6 +199,7 @@ in
           niriPath = niri;
           secretSourcePrefixes = [
             "chrome-extension://nngceckbapebfimnlniiiahkandclblb/"
+            "chrome-extension://aeblfdkhhhdcdjpifhhbdiojplfjncoa/"
             "https://vault.sole-pierce.ts.net"
           ];
         };

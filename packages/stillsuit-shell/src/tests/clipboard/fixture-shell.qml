@@ -102,9 +102,7 @@ ShellRoot {
         var values = {
             collectorPath: collector,
             wlPastePath: pastePath,
-            wlCopyPath: fakeCopy,
-            secretSourcePrefixes: ["chrome-extension://nngceckbapebfimnlniiiahkandclblb/",
-                "https://vault.sole-pierce.ts.net"]
+            wlCopyPath: fakeCopy
         }
         for (var key in extra || {})
         values[key] = extra[key]
