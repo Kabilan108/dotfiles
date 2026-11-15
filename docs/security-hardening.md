@@ -120,12 +120,27 @@ secondary layer. The real attack surface is the **decrypted client session**.
 ## Recovery codes & secrets at rest
 
 - **Crown-jewel recovery codes** → printed, **offline**, in a drawer (+ copy with the
-  future 3rd key). Reprint the relevant slip when a code rotates. Rationale: agenix
-  secrets are encrypted to *host* keys that live on the machine, so a root compromise
+  future 3rd key). Reprint the relevant slip when a code rotates. Rationale: the keys
+  that decrypt agenix secrets live on the machines, so a compromise of a machine
   decrypts them — crown jewels must sit outside that blast radius.
-- **Non-crown secrets / recovery codes** → **agenix** (existing pattern: `secrets/*.age`,
-  encrypted to `sietch` + `jacurutu`, committed to repo). Safe to commit ciphertext;
-  the age identity (host keys) must never be in the repo.
+- **Non-crown secrets / recovery codes** → **agenix** (`secrets/*.age`, committed to
+  repo). Safe to commit ciphertext; no age identity may ever be in the repo.
+- **agenix recipients today vs. target (in flight):**
+  - *Today:* most files in `secrets.nix` are encrypted to the `sietch` and `jacurutu`
+    recipients, which are Tony's **user** keys (`kabilan@<host>`, i.e.
+    `~/.ssh/id_ed25519`). Activation decrypts with that file (`age.identityPaths`
+    in `user.nix`), so anything running as `kabilan` on either host can decrypt
+    every file listing both keys, including the other host's secrets.
+  - *Already on the target:* the backup and media-library secrets and tleilax's
+    files, encrypted to the root-only host key
+    (`/etc/ssh/ssh_host_ed25519_key`) plus both YubiKey age identities
+    (docs/backups.md).
+  - *Target:* re-key the rest to that pattern: each host's root-only host key plus
+    the YubiKeys, with no user keys. Same-user processes then can't decrypt the
+    ciphertext, and edits need a YubiKey. Secrets that agenix writes to
+    `kabilan`-owned paths (`~/.ssh/*`, `~/.config/*`) remain readable by `kabilan`
+    after activation; the re-key protects the ciphertext and root- or
+    service-owned outputs, not those files.
 - **DELETE the plaintext recovery-codes file tonight.** (Highest-exposure item: a
   `600` plaintext file defeats everything else the instant malware runs as me.)
 - **Registry/publish tokens:** eliminate long-lived tokens where possible.
