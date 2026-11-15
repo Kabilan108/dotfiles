@@ -5,6 +5,20 @@
 
 ab() { agent-browser --session "$browser_session" "$@" >>"$out/browser.log" 2>&1; }
 
+login() {
+  ab find label "Management Key" fill "$mkey"
+  ab find role button click --name Login
+  ab wait --text "Quick Start"
+}
+
+# A fresh Helium profile holds the page's first requests for about 5 s and then
+# reloads the page, which drops a login sent in that window. Retry once after it.
+login_with_retry() {
+  login && return 0
+  echo "login retry after page reload" >>"$out/browser.log"
+  ab wait --text "Management Key" && login
+}
+
 browser_checks() {
   browser_session=cpa-test-${run##*.}
   section "dashboard in a browser"
@@ -14,9 +28,7 @@ browser_checks() {
   fi
   check "admin front / opens the dashboard login" ab open "http://127.0.0.1:$test_admin_port/"
   check "login form is shown" ab wait --text "Management Key"
-  ab find label "Management Key" fill "$mkey"
-  ab find role button click --name Login
-  check "login with the management key shows the sidebar" ab wait --text "Quick Start"
+  check "login with the management key shows the sidebar" login_with_retry
   # The dashboard routes by hash and ignores a hash-only open, so use its links.
   ab find role link click --name "Management Center Info"
   check "Available Models lists $model" ab wait --text "$model"
