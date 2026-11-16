@@ -114,8 +114,9 @@ and approve nothing.
 - `rebuild` is Tony's manual rebuild of the host he's on, from `~/dotfiles`.
   It lists the commits since the last tag naming that host and asks. On
   jacurutu, approving signs and pushes a fleet tag for jacurutu alone. A
-  clean signed build waits for CI like `deploy` does and builds the tagged
-  commit, not the checkout; it doesn't check moving forward. Leave it to him.
+  clean signed build waits for CI like `deploy` does and builds the commit
+  the tag pointed at when it was checked, not the checkout, refusing a tag
+  that was moved since; it doesn't check moving forward. Leave it to him.
 - sietch's `~/dotfiles` still feeds `~/bin`, the agent configs and niri's
   `config.kdl` directly, so those change on `git pull` there, with or without
   a deploy. Pull it after a deploy so the two match.

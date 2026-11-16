@@ -296,6 +296,17 @@ from git's objects (`git+file://…?rev=`), so a pull or an edit during the
 wait never reaches the build. `rebuild` doesn't check that it moves forward.
 It's my manual tool, and it lists the commits that drop out before I answer.
 
+A tag in `~/dotfiles` is just a ref, and anything running as me can move it
+during the wait (`git tag -f`). So when `deploy` or `rebuild` checks the tag,
+it records the tag object and its commit. `deploy-switch` takes both and runs
+`deploy-tag approves` before `sudo` and again under the lock: the tag must
+still resolve to that object, which must verify, name this host on its
+`Hosts:` line and point at that commit. It then builds the recorded commit,
+never what the tag names by then. `deploy-wait` plans that commit too, and
+`deploy-tag push` pushes the object it verified, by ID. Only fleet tags
+approve a build. An old per-host tag at HEAD makes `rebuild` build the
+checkout as an ordinary manual rebuild.
+
 On jacurutu, `deploy` and `rebuild` wait for this cache before a signed
 build. `deploy-wait` runs `ci/cache-targets.py heavy` from the tagged commit,
 which evaluates jacurutu's system alone and lists the packages marked

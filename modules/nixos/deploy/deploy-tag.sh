@@ -16,11 +16,18 @@
 #   deploy-tag [-C DIR] allows-rollback TAG
 #       Exit 0 if TAG is valid and its signed message's first paragraph has
 #       the line "Allow-Rollback: yes".
-#   deploy-tag [-C DIR] moves-forward TAG HOST RUNNING
+#   deploy-tag [-C DIR] moves-forward TAG HOST RUNNING [OBJECT]
 #       The rule for switching HOST, which runs commit RUNNING (a trailing
 #       -dirty is dropped), to TAG's commit. Exit 0 if TAG is valid and allows
 #       a rollback, or if its commit descends from RUNNING. An unreadable
-#       RUNNING needs the rollback. Else print why and exit 1.
+#       RUNNING needs the rollback. Else print why and exit 1. With OBJECT it
+#       judges that tag object, named TAG, instead of what TAG resolves to.
+#   deploy-tag [-C DIR] approves TAG HOST OBJECT COMMIT
+#       Exit 0 if TAG still resolves to the tag object OBJECT, and OBJECT is a
+#       valid fleet tag named TAG whose "Hosts:" line names HOST, pointing at
+#       COMMIT. Callers record OBJECT and COMMIT when they check a tag, and
+#       deploy-switch runs this under the lock before it builds COMMIT, so a
+#       tag moved or replaced in between can't choose what gets built.
 #   deploy-tag [-C DIR] sign --key FILE [--message TEXT] HOST... REV
 #       Sign the next fleet tag at REV for the HOSTs with FILE, never an
 #       ssh-agent, check it, and print its name. The "Hosts:" line goes at the
@@ -59,7 +66,8 @@ usage: deploy-tag [-C DIR] latest HOST
        deploy-tag [-C DIR] verify TAG
        deploy-tag [-C DIR] names-host TAG HOST
        deploy-tag [-C DIR] allows-rollback TAG
-       deploy-tag [-C DIR] moves-forward TAG HOST RUNNING
+       deploy-tag [-C DIR] moves-forward TAG HOST RUNNING [OBJECT]
+       deploy-tag [-C DIR] approves TAG HOST OBJECT COMMIT
        deploy-tag [-C DIR] sign --key FILE [--message TEXT] HOST... REV
        deploy-tag [-C DIR] push --key FILE TAG
 EOF
@@ -122,9 +130,10 @@ sk_signature_flags() {
 }
 
 # Each check returns explicitly: callers use `if verify`, which turns off
-# errexit inside the function.
+# errexit inside the function. With a second argument it checks that object,
+# as a tag named TAG, instead of what refs/tags/TAG resolves to.
 verify() {
-  local tag=$1 ref=refs/tags/$1 object name type blocks message flags
+  local tag=$1 ref=${2:-refs/tags/$1} object name type blocks message flags
   if [[ ! $tag =~ ^deploy/[a-z0-9-]+/[0-9]{8}T[0-9]{6}Z$ ]]; then
     refuse "$tag" "not a deploy/<host>/<YYYYMMDDTHHMMSSZ> name"
     return 1
@@ -229,26 +238,52 @@ names_host() {
 # line). `deploy` writes it there, and the commit list it adds after that can't
 # produce the line.
 allows_rollback() {
-  local tag=$1 object message
-  verify "$tag" 2>/dev/null || return 1
-  object=$(g cat-file tag "refs/tags/$tag")
+  local tag=$1 ref=${2:-refs/tags/$1} object message
+  verify "$tag" "$ref" 2>/dev/null || return 1
+  object=$(g cat-file tag "$ref")
   message=$(signed_message <<<"$object")
   awk '/^$/ { exit } $0 == "Allow-Rollback: yes" { found = 1 } END { exit !found }' <<<"$message"
 }
 
 moves_forward() {
-  local tag=$1 host=$2 running=${3%-dirty} commit
-  if allows_rollback "$tag"; then
+  local tag=$1 host=$2 running=${3%-dirty} ref=${4:-refs/tags/$1} commit
+  if allows_rollback "$tag" "$ref"; then
     return 0
   fi
-  verify "$tag" || return 1
+  verify "$tag" "$ref" || return 1
   if [[ ! $running =~ ^[0-9a-f]{40}$ ]]; then
     refuse "$tag" "can't read the commit $host runs; deploying needs a tag signed with --allow-rollback"
     return 1
   fi
-  commit=$(g rev-parse "refs/tags/$tag^{commit}")
+  commit=$(g rev-parse "$ref^{commit}")
   if ! g merge-base --is-ancestor "$running" "$commit" 2>/dev/null; then
     refuse "$tag" "$commit doesn't descend from $running, which $host runs; a rollback needs a tag signed with --allow-rollback"
+    return 1
+  fi
+}
+
+approves() {
+  local tag=$1 host=$2 object=$3 commit=$4 now
+  if [[ ! $object =~ ^[0-9a-f]{40}$ || ! $commit =~ ^[0-9a-f]{40}$ ]]; then
+    refuse "$tag" "expected a tag object and a commit, got '$object' and '$commit'"
+    return 1
+  fi
+  now=$(g rev-parse --verify --quiet "refs/tags/$tag" || true)
+  if [[ $now != "$object" ]]; then
+    refuse "$tag" "it now resolves to ${now:-nothing}, not $object, the tag object that was checked"
+    return 1
+  fi
+  if [[ $tag != deploy/fleet/* ]]; then
+    refuse "$tag" "only a fleet tag can approve a build"
+    return 1
+  fi
+  verify "$tag" "$object" || return 1
+  if [[ " $(g cat-file tag "$object" | signed_message | first_paragraph | sed -n 's/^Hosts: //p') " != *" $host "* ]]; then
+    refuse "$tag" "its Hosts: line doesn't name $host"
+    return 1
+  fi
+  if [[ $(g rev-parse "$object^{commit}") != "$commit" ]]; then
+    refuse "$tag" "it points at $(g rev-parse "$object^{commit}"), not $commit"
     return 1
   fi
 }
@@ -313,18 +348,21 @@ if [[ ${1:-} == -C ]]; then
   shift 2
 fi
 
+# Pushes the tag object it checked, by ID, so a tag moved in between can't
+# ride on the touch.
 push() {
-  local key=$1 tag=$2
+  local key=$1 tag=$2 object
   : "${DEPLOY_PUSH_URL:?DEPLOY_PUSH_URL must name the repo to push to}"
   : "${DEPLOY_PUSH_KNOWN_HOSTS:?DEPLOY_PUSH_KNOWN_HOSTS must name a known_hosts file}"
   [[ -r $key && $key != *"'"* ]] || die "can't use key file $key"
-  verify "$tag" || die "won't push $tag"
+  object=$(g rev-parse --verify --quiet "refs/tags/$tag") || die "no tag $tag"
+  verify "$tag" "$object" || die "won't push $tag"
   echo "Enter the PIN and touch $(basename "$key") again to push $tag." >&2
   # Only this key, never the account key from ~/.ssh/config or the agent:
   # GitHub would accept that key, then refuse the tag.
   g -c core.sshCommand="ssh -F /dev/null -i '$key' -o IdentitiesOnly=yes -o IdentityAgent=none \
 -o UserKnownHostsFile='$DEPLOY_PUSH_KNOWN_HOSTS' -o StrictHostKeyChecking=yes" \
-    push --quiet "$DEPLOY_PUSH_URL" "refs/tags/$tag"
+    push --quiet "$DEPLOY_PUSH_URL" "$object:refs/tags/$tag"
 }
 
 case ${1:-} in
@@ -345,8 +383,12 @@ allows-rollback)
   allows_rollback "$2"
   ;;
 moves-forward)
-  [[ $# -eq 4 ]] || usage
-  moves_forward "$2" "$3" "$4"
+  [[ $# -eq 4 || $# -eq 5 ]] || usage
+  moves_forward "$2" "$3" "$4" "${5:-refs/tags/$2}"
+  ;;
+approves)
+  [[ $# -eq 5 ]] || usage
+  approves "$2" "$3" "$4" "$5"
   ;;
 sign)
   shift

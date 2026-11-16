@@ -416,6 +416,19 @@ class DeployGate(unittest.TestCase):
             extra_env={"TEST_ROOT": str(self.local), **extra},
         )
 
+    def retag(self, how: str, rev: str = "HEAD^") -> str:
+        """A script that points the newest fleet tag in ~/dotfiles at rev:
+        "unsigned" as a plain ref, or "for sietch" as a valid signed tag
+        whose Hosts: line names only sietch."""
+        newest = f'cd "{self.work}" && tag=$(git tag -l "deploy/fleet/*" | tail -n 1) && '
+        if how == "unsigned":
+            return newest + f'git tag --no-sign -f "$tag" {rev}'
+        signer = (
+            f"git -c gpg.format=ssh -c gpg.ssh.program={OPENSSH}/bin/ssh-keygen "
+            f"-c user.signingKey={KEYS['yk']}"
+        )
+        return newest + f'{signer} tag -s -f -m "deploy sietch\nHosts: sietch" "$tag" {rev}'
+
     def local_running(self) -> str:
         return (self.local / "running").read_text().strip()
 
@@ -1343,7 +1356,9 @@ class Rebuild(DeployGate):
         self.assertIn("\nHosts: jacurutu\n", self.git("cat-file", "tag", tag))
         self.assertEqual(self.rev(f"{tag}^{{commit}}"), self.tip)
         self.assertEqual(self.git("tag", "-l", cwd=self.origin), tag)
-        signed_with = f"-C {self.work} --key {self.tmp}/home/.ssh/yk-nfc-deploy {tag}"
+        signed_with = (
+            f"-C {self.work} --key {self.tmp}/home/.ssh/yk-nfc-deploy --commit {self.tip} {tag}"
+        )
         self.assertEqual(self.lines("waits"), [signed_with])
         [call] = self.sudo_calls()
         self.assertTrue(call.startswith(f"flock {self.tmp}/switch.lock "), call)
@@ -1353,7 +1368,9 @@ class Rebuild(DeployGate):
         r = self.rebuild()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn(f"HEAD is {tag}.", r.stdout)
-        self.assertEqual(self.lines("waits"), [signed_with, f"-C {self.work} {tag}"])
+        self.assertEqual(
+            self.lines("waits"), [signed_with, f"-C {self.work} --commit {self.tip} {tag}"]
+        )
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)] * 2)
 
         self.commit("four")
@@ -1532,6 +1549,57 @@ class Rebuild(DeployGate):
         self.assertNotEqual(self.rev("HEAD"), self.tip)
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
         self.assertEqual(self.local_running(), self.tip)
+
+    def test_a_tag_moved_during_the_wait_is_refused(self) -> None:
+        # The review's repro: another process running as Tony re-points the
+        # tag while rebuild waits for CI.
+        self.give_key()
+        for how in ["unsigned", "for sietch"]:
+            with self.subTest(how):
+                r = self.rebuild("y\n", TEST_DURING_WAIT=self.retag(how))
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn("it now resolves to", r.stderr)
+                self.assertEqual(self.rebuilds(self.local), [])
+                self.assertEqual(self.sudo_calls(), [])
+                self.assertEqual(self.local_running(), self.rev("HEAD^"))
+                # Next round signs a fresh tag at HEAD.
+                for tag in self.git("tag", "-l", "deploy/*").splitlines():
+                    self.git("tag", "-d", tag)
+                    self.git("push", "-q", "origin", f":refs/tags/{tag}")
+
+    def test_a_tag_moved_while_waiting_for_the_lock_is_refused(self) -> None:
+        self.give_key()
+        lock = self.tmp / "switch.lock"
+        holder = subprocess.Popen(
+            [
+                "flock", str(lock), "bash", "-c",
+                f'for _ in $(seq 300); do [[ -s "{self.tmp}/sudo" ]] && break; sleep 0.1; done; '
+                f'sleep 0.5; {self.retag("unsigned")}',
+            ],
+            env=self.env,
+        )
+        try:
+            while subprocess.run(["flock", "--nonblock", str(lock), "true"]).returncode == 0:
+                pass
+            r = self.rebuild("y\n")
+        finally:
+            holder.wait(timeout=30)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("it now resolves to", r.stderr)
+        self.assertIn("changed while this switch waited for the lock", r.stderr)
+        self.assertEqual(self.rebuilds(self.local), [])
+
+    def test_an_old_per_host_tag_at_head_builds_the_checkout(self) -> None:
+        self.give_key()
+        self.sign("deploy/jacurutu/20261029T100000Z", "yk", message="rebuild", push=False)
+        r = self.rebuild()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("HEAD is deploy/jacurutu/20261029T100000Z.", r.stdout)
+        self.assertEqual(self.lines("waits"), [])
+        self.assertEqual(
+            self.sudo_calls(),
+            [f"flock /run/fleet-switch.lock nixos-rebuild switch --flake {self.work}#jacurutu"],
+        )
 
     def test_a_signed_test_or_boot_builds_the_tagged_commit(self) -> None:
         self.give_key()
@@ -1765,6 +1833,48 @@ class FleetDeployTag(DeployGate):
                 self.assertNotIn("touch the key", r.stderr)
                 self.assertEqual(self.git("tag", "-l"), "")
 
+    def approves(self, tag: str, host: str, obj: str, commit: str) -> subprocess.CompletedProcess[str]:
+        return self.run_cmd(["deploy-tag", "approves", tag, host, obj, commit])
+
+    def assert_refuses(self, r: subprocess.CompletedProcess[str], reason: str) -> None:
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn(reason, r.stderr)
+
+    def test_approves_holds_a_tag_to_what_was_checked(self) -> None:
+        self.sign(T1, "yk", message="deploy jacurutu\nHosts: jacurutu", push=False)
+        obj = self.rev(f"refs/tags/{T1}")
+        older = self.rev("HEAD^")
+        self.assertEqual(self.approves(T1, "jacurutu", obj, self.tip).returncode, 0)
+        self.assert_refuses(self.approves(T1, "sietch", obj, self.tip), "Hosts: line doesn't name sietch")
+        self.assert_refuses(self.approves(T1, "jacurutu", obj, older), f"points at {self.tip}, not {older}")
+        self.assert_refuses(self.approves(T1, "jacurutu", "HEAD", self.tip), "expected a tag object")
+        self.sign(OLD1, "yk", message="deploy sietch", push=False)
+        self.assert_refuses(
+            self.approves(OLD1, "sietch", self.rev(f"refs/tags/{OLD1}"), self.tip),
+            "only a fleet tag can approve a build",
+        )
+
+    def test_approves_refuses_a_tag_moved_or_replaced(self) -> None:
+        self.sign(T1, "yk", message="deploy jacurutu\nHosts: jacurutu", push=False)
+        obj = self.rev(f"refs/tags/{T1}")
+        for how in ["unsigned", "for sietch"]:
+            with self.subTest(how):
+                r = self.run_cmd(["bash", "-c", self.retag(how)])
+                self.assertEqual(r.returncode, 0, r.stderr)
+                now = self.rev(f"refs/tags/{T1}")
+                self.assert_refuses(
+                    self.approves(T1, "jacurutu", obj, self.tip),
+                    f"it now resolves to {now}, not {obj}",
+                )
+                # Checking the replacement itself fails too.
+                if how == "unsigned":
+                    self.assertEqual(self.approves(T1, "jacurutu", now, self.rev("HEAD^")).returncode, 1)
+                else:
+                    self.assert_refuses(
+                        self.approves(T1, "jacurutu", now, self.rev("HEAD^")),
+                        "Hosts: line doesn't name jacurutu",
+                    )
+
     def test_latest_takes_fleet_and_old_tags_by_time(self) -> None:
         self.sign(OLD1, "yk", rev="HEAD^", message="deploy sietch", push=False)
         self.sign(T2, "yk", message="rebuild jacurutu\nHosts: jacurutu", push=False)
@@ -1811,7 +1921,9 @@ class FleetDeploy(DeployGate):
             f"build --no-update-lock-file --flake git+file://{self.tleilax}/state/dotfiles.git"
             f"?rev={self.tip}#tleilax",
         )
-        self.assertEqual(self.lines("waits"), [f"-C {self.work} --key {KEYS['yk']} {tag}"])
+        self.assertEqual(
+            self.lines("waits"), [f"-C {self.work} --key {KEYS['yk']} --commit {self.tip} {tag}"]
+        )
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
         self.assertEqual(self.local_running(), self.tip)
         self.assertTrue(
@@ -1826,7 +1938,10 @@ class FleetDeploy(DeployGate):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("nothing to sign", r.stdout)
         self.assertEqual(self.deployed_tags(), [tag])
-        self.assertEqual(self.lines("waits"), [f"-C {self.work} --key {KEYS['yk']} {tag}"] * 2)
+        self.assertEqual(
+            self.lines("waits"),
+            [f"-C {self.work} --key {KEYS['yk']} --commit {self.tip} {tag}"] * 2,
+        )
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)] * 2)
 
     def test_receivers_deploy_in_parallel(self) -> None:
@@ -1914,6 +2029,30 @@ class FleetDeploy(DeployGate):
         self.assertEqual(self.local_running(), ahead)
         self.assertEqual(self.lines("sudo"), [])
         self.assertEqual(self.running(), self.tip)
+
+    def test_a_tag_moved_during_the_wait_is_refused_on_jacurutu(self) -> None:
+        for how in ["unsigned", "for sietch"]:
+            with self.subTest(how):
+                r = self.deploy(
+                    "--yes", "--key", str(KEYS["yk"]), "jacurutu", TEST_DURING_WAIT=self.retag(how)
+                )
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn("it now resolves to", r.stderr)
+                self.assertIn("  jacurutu failed: the switch exited 1; see above\n", r.stdout)
+                self.assertEqual(self.rebuilds(self.local), [])
+                self.assertEqual(self.local_running(), self.rev("HEAD^"))
+
+    def test_the_first_fleet_deploy_after_the_switch_signs_a_fleet_tag(self) -> None:
+        # The switch-over left old per-host tags at the tip, which approve
+        # nothing on their own.
+        self.sign("deploy/jacurutu/20261029T100000Z", "yk", message="rebuild")
+        self.sign(OLD2, "yk", message="deploy sietch")
+        r = self.deploy("--yes", "--key", str(KEYS["yk"]), "jacurutu", "sietch")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("nothing to sign", r.stdout)
+        [tag] = [t for t in self.deployed_tags() if t.startswith("deploy/fleet/")]
+        self.assertIn(f"  jacurutu runs {tag}\n", r.stdout)
+        self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
 
     def test_jacurutu_needs_to_know_what_it_runs(self) -> None:
         (self.local / "running").unlink()
@@ -2007,7 +2146,10 @@ class FleetDeploy(DeployGate):
         [tag] = self.deployed_tags()
         self.assertEqual(
             self.lines("waits"),
-            [f"-C {self.work} --key {KEYS['yk']} {tag}", f"-C {self.work} {tag}"],
+            [
+                f"-C {self.work} --key {KEYS['yk']} --commit {self.tip} {tag}",
+                f"-C {self.work} --commit {self.tip} {tag}",
+            ],
         )
 
     def test_a_rewritten_tag_of_any_host_needs_a_terminal(self) -> None:
@@ -2251,6 +2393,19 @@ class DeployWait(DeployGate):
         self.assertIn(f"Push it with: deploy-tag -C {self.work.resolve()} push --key <its key file> {T2}", r.stdout)
         self.assertEqual(self.gh_calls(), [])
         self.assertFalse((self.tmp / "planner-flake").exists())
+
+    def test_it_plans_the_commit_it_is_given(self) -> None:
+        self.heavy([])
+        self.commit("later")
+        self.git("tag", "--no-sign", "-f", T1, "HEAD")
+        r = self.run_cmd(
+            ["bash", str(SCRIPTS / "deploy-wait.sh"), "-C", str(self.work), "--commit", self.tip, T1]
+        )
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(
+            (self.tmp / "planner-flake").read_text(),
+            f"git+file://{self.work.resolve()}?rev={self.tip}\n",
+        )
 
     def test_the_push_hint_names_the_key_it_is_given(self) -> None:
         self.sign(T2, "yk", message="rebuild jacurutu\nHosts: jacurutu", push=False)

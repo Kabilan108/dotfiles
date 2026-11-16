@@ -153,7 +153,8 @@ for host in "${hosts[@]}"; do
     if [[ -z $oldest || ${tag##*/} < ${oldest##*/} ]]; then
       oldest=$tag oldest_commit=$commit
     fi
-    [[ $commit == "$target" ]] || current=0
+    # Old per-host tags approve nothing, so they don't make a host current.
+    [[ $commit == "$target" && $tag == deploy/fleet/* ]] || current=0
   else
     untagged+=("$host")
     current=0
@@ -242,15 +243,22 @@ done
 if listed "$DEPLOY_CONTROLLER" "${hosts[@]}"; then
   host=$DEPLOY_CONTROLLER
   tag=${deploys[$host]}
+  # Recorded once. The wait and the switch hold the tag to this object and
+  # to the tip this deploy is for.
+  object=$(g rev-parse --verify --quiet "refs/tags/$tag" || true)
   running=$("$DEPLOY_NIXOS_VERSION" --configuration-revision 2>/dev/null || true)
-  if ! deploy-tag -C "$repo" moves-forward "$tag" "$host" "$running"; then
+  if ! deploy-tag -C "$repo" approves "$tag" "$host" "$object" "$target"; then
+    result[$host]="failed: $tag doesn't approve ${target:0:12} for it; see above"
+  elif ! deploy-tag -C "$repo" moves-forward "$tag" "$host" "$running" "$object"; then
     result[$host]="failed: $tag would move it off the commit it runs; see above"
-  elif ((wait_for_ci)) && ! deploy-wait -C "$repo" ${key_file:+--key "$key_file"} "$tag"; then
+  elif ((wait_for_ci)) &&
+    ! deploy-wait -C "$repo" ${key_file:+--key "$key_file"} --commit "$target" "$tag"; then
     result[$host]="not rebuilt: CI hadn't published what it needs"
   else
     echo "Switching $host to $tag."
     status=0
-    deploy-switch -C "$repo" --forward "$tag" "$host" || status=$?
+    deploy-switch -C "$repo" --forward --object "$object" --commit "$target" "$tag" "$host" ||
+      status=$?
     if ((status == 0)); then
       result[$host]="runs $tag"
     else

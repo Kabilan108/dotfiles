@@ -12,13 +12,15 @@
 # once you say so. --unsigned prints the same list and builds without asking
 # or signing.
 #
-# A clean build of a signed HEAD builds the tagged commit with deploy-switch,
-# so a pull or an edit in ~/dotfiles meanwhile can't reach it. On the
+# A clean build of a HEAD that a fleet tag naming this host approves builds
+# that tag's commit with deploy-switch, pinned to the tag object it checked,
+# so a pull, an edit or a moved tag meanwhile can't reach the build. On the
 # controller, where deploy-wait is installed, it first waits for CI to publish
 # the heavy packages it would otherwise compile, even when HEAD was signed
-# before; --no-wait skips the wait. Unsigned builds, --unsigned included, and builds with
-# uncommitted changes build the checkout as it stands and never wait. No
-# rebuild checks that it moves forward: that's yours to judge from the list.
+# before; --no-wait skips the wait. Unsigned builds, --unsigned included,
+# builds with uncommitted changes, and HEADs only an old per-host tag covers
+# build the checkout as it stands and never wait. No rebuild checks that it
+# moves forward: that's yours to judge from the list.
 #
 # Without --key it signs with the key on whichever deploy YubiKey is plugged
 # in (deploy-key, installed with `deploy`), and with yk-nfc-deploy when both
@@ -84,10 +86,22 @@ show_ci_changes() {
   fi
 }
 
-# Returns 0 to build, and sets signed_tag when a pushed tag covers the whole
-# build. Each failure returns explicitly: errexit is off inside a function
-# called from `if`.
-signed_tag=""
+# A fleet tag naming this host at COMMIT approves a signed build. Records the
+# tag object and commit; deploy-wait and deploy-switch hold the tag to both,
+# so moving it while the build waits can't change what gets built. Older
+# per-host tags approve nothing, so builds they cover use the checkout.
+signed_tag="" signed_object="" signed_commit=""
+pin() {
+  local tag=$1 commit=$2 object
+  [[ $tag == deploy/fleet/* ]] || return 0
+  object=$(git -C "$repo" rev-parse --verify --quiet "refs/tags/$tag") || return 1
+  deploy-tag -C "$repo" approves "$tag" "$host_name" "$object" "$commit" || return 1
+  signed_tag=$tag signed_object=$object signed_commit=$commit
+}
+
+# Returns 0 to build, and pins the tag when a pushed fleet tag covers the
+# whole build. Each failure returns explicitly: errexit is off inside a
+# function called from `if`.
 review() {
   local head last last_tag="" last_commit="" dirty answer tag
   head=$(git -C "$repo" rev-parse HEAD) || return 1
@@ -98,7 +112,9 @@ review() {
 
   if [[ $last_commit == "$head" && -z $dirty ]]; then
     echo "HEAD is $last_tag."
-    signed_tag=$last_tag
+    if [[ $unsigned == false ]]; then
+      pin "$last_tag" "$head" || return 1
+    fi
     return 0
   fi
   if [[ $last_commit != "$head" ]]; then
@@ -144,7 +160,7 @@ review() {
       if ! deploy-tag -C "$repo" push --key "$key_file" "$tag"; then
         echo "Couldn't push $tag; building anyway. Push it later with: deploy-tag -C $repo push --key $key_file $tag"
       elif [[ -z $dirty ]]; then
-        signed_tag=$tag
+        pin "$tag" "$head" || return 1
       fi
       return 0
       ;;
@@ -165,17 +181,15 @@ if ! review; then
   echo "Not building."
   exit 1
 fi
-if [[ $unsigned == true ]]; then
-  signed_tag=""
-fi
 if [[ -n $signed_tag && $wait_for_ci == true ]] && command -v deploy-wait >/dev/null &&
-  ! deploy-wait -C "$repo" ${key:+--key "$HOME/.ssh/$key"} "$signed_tag"; then
+  ! deploy-wait -C "$repo" ${key:+--key "$HOME/.ssh/$key"} --commit "$signed_commit" "$signed_tag"; then
   echo "Not building."
   exit 1
 fi
 if [[ -n $signed_tag ]]; then
   if command -v deploy-switch >/dev/null; then
-    exec deploy-switch -C "$repo" "$signed_tag" "$host_name" "$action"
+    exec deploy-switch -C "$repo" --object "$signed_object" --commit "$signed_commit" \
+      "$signed_tag" "$host_name" "$action"
   fi
   echo "deploy-switch isn't installed yet, so this build uses the checkout."
 fi

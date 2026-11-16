@@ -3,7 +3,11 @@
 # it would otherwise compile. `deploy` and bin/rebuild run it on the
 # controller before they switch.
 #
-#   deploy-wait [-C DIR] [--key FILE] TAG
+#   deploy-wait [-C DIR] [--key FILE] [--commit COMMIT] TAG
+#
+# COMMIT is the commit the caller recorded for TAG when it checked it, so a
+# tag moved in the meantime can't choose what gets planned; without it, TAG's
+# commit now.
 #
 # A tag that isn't on DEPLOY_REPO_URL started no CI run, such as one whose
 # push failed, so it says how to push it, with the signing key FILE when the
@@ -31,7 +35,7 @@ find_for=${DEPLOY_WAIT_FIND:-120}
 timeout=${DEPLOY_WAIT_TIMEOUT:-3600}
 
 usage() {
-  echo "usage: deploy-wait [-C DIR] [--key FILE] TAG" >&2
+  echo "usage: deploy-wait [-C DIR] [--key FILE] [--commit COMMIT] TAG" >&2
   exit 2
 }
 
@@ -40,17 +44,22 @@ if [[ ! $poll$find_for$timeout =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
-repo=. key_file=""
-if [[ ${1:-} == -C ]]; then
-  [[ $# -ge 2 ]] || usage
-  repo=$2
-  shift 2
-fi
-if [[ ${1:-} == --key ]]; then
-  [[ -n ${2:-} ]] || usage
-  key_file=$2
-  shift 2
-fi
+repo=. key_file="" commit=""
+while [[ $# -gt 0 ]]; do
+  case $1 in
+  -C | --key | --commit)
+    [[ -n ${2:-} ]] || usage
+    case $1 in
+    -C) repo=$2 ;;
+    --key) key_file=$2 ;;
+    --commit) commit=$2 ;;
+    esac
+    shift 2
+    ;;
+  -*) usage ;;
+  *) break ;;
+  esac
+done
 [[ $# -eq 1 ]] || usage
 tag=$1
 
@@ -83,8 +92,10 @@ pause() {
   sleep "$1" || true
 }
 
-commit=$(git -C "$repo" rev-parse --verify --quiet "refs/tags/$tag^{commit}") ||
-  give_up "deploy-wait: no tag $tag in $repo."
+if [[ -z $commit ]]; then
+  commit=$(git -C "$repo" rev-parse --verify --quiet "refs/tags/$tag^{commit}") ||
+    give_up "deploy-wait: no tag $tag in $repo."
+fi
 top=$(git -C "$repo" rev-parse --show-toplevel)
 
 # --exit-code makes 2 mean "no such ref"; anything else unexpected leaves it
