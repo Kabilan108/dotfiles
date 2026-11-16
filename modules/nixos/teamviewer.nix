@@ -21,5 +21,8 @@ in
 {
   config = lib.mkIf config.services.teamviewer.enable {
     services.teamviewer.package = lib.mkDefault teamviewer;
+
+    # Keep the root daemon out of boot; it only runs while TeamViewer is in use.
+    systemd.services.teamviewerd.wantedBy = lib.mkForce [ ];
   };
 }
