@@ -17,11 +17,14 @@ of scope creep and don't be scared to push back.
 - Default: 3 rounds total. Round 1 is full. Later rounds check only
   changed code and open findings.
 - Extend to 5 only for security, permissions, auth, data loss, or
-  state/concurrency, while a blocker or should stays open with evidence. Or when
-  the user asks.
+  state/concurrency, while a blocker or should inside the threat model stays
+  open with evidence. Or when the user asks.
 - Stop early if a round returns only nits. Declined nits and comment,
   doc, or format-only fixes need no new round.
-- One reviewer only. Sol must not start subagents or reviewers.
+- One reviewer by default. For high-risk behaviour or API/design changes,
+  round 1 may add GPT-6 Astra (`gpt-6-astra`) at high, focused on design and
+  operations. Later rounds use one reviewer. Reviewers must not start
+  subagents or reviewers.
 - Keep a ledger: id, severity, outcome, usage if returned. Never guess it.
 
 ## 1. Scope
@@ -40,17 +43,20 @@ Find the base after `git fetch origin`:
 
 The change is base to working tree in those paths, with untracked files.
 Use one diff command all rounds. State intent and out-of-scope in 1-2
-sentences. Run covering checks. Do not send code this change breaks. Note
-missing or pre-failing checks in the brief.
+sentences. For security, permissions or auth changes, also state the threat
+model: what's in scope and what's out. Run covering checks. Do not send code
+this change breaks. Note missing or pre-failing checks in the brief.
 
 ## 2. Start Sol
 
-In T3, call `orchestrator_capabilities`. Pick the latest Sol unless the user
-named a version. Do not hardcode an ID. Record provider, model, and effort
-only if exposed. Use `delegate_task` every round (`role: "review"`,
-`mode: "async"`). Save `taskId`. New `clientRequestId` per round.
-`childThreadId` is storage, not the next target. Do not use
-`t3_thread_send`, `create_threads`, or `t3_thread_launch` for review.
+In T3, call `orchestrator_capabilities`. Use GPT 6.1 Sol (`gpt-6.1-sol`) at
+xhigh on the default service tier, not fast or priority, unless the user
+names another: `target.options` `{"reasoningEffort": "xhigh", "serviceTier":
+"default"}`. Record provider, model, and effort only if exposed. Use
+`delegate_task` every round (`role: "review"`, `mode: "async"`). Save
+`taskId`. New `clientRequestId` per round. `childThreadId` is storage, not
+the next target. Do not use `t3_thread_send`, `create_threads`, or
+`t3_thread_launch` for review.
 
 If T3 tools are not listed, try one direct capability call. Outside T3, use
 a native Sol subagent and keep its ID. In Claude Code, use a custom subagent
@@ -58,29 +64,40 @@ only if it is set up to run Sol. If no route runs Sol, report the blocker. Do
 not substitute a model.
 
 Do not edit scoped files while review runs. Wait for the notice. Do not
-poll or start a second reviewer. Timeout, error, or no reply is not
-approval. On failure, cancel, verify stop, restart with the ledger.
+poll or start reviewers beyond the budget. Timeout, error, or no reply is
+not approval. On failure, cancel, verify stop, restart with the ledger.
 
 Round 1 brief (T3 children get no history):
 
 ```
 Review only. Do not edit, commit, push, comment on PRs, or start subagents.
 Repo: <abs path> Base: <sha> Intent: <intent> Out of scope: <scope> Checks: <results>
+Settled: <decisions made with the user, and accepted limitations>. Do not reopen these.
+Threat model: <what's in scope; what's out>
+Limits: <what you must never run or touch here, and where scratch goes>
 See: git diff <base> [-- <paths>]; git status --short (read untracked).
 Read surrounding code. Find bugs, broken callers, mismatch with intent.
 Skip style unless it hides a bug. Hold to the smallest change. Flag code,
 tests, or guards the intent does not need. Other paths, rare cases, small
-perf, extra compat: nits.
+perf, extra compat, scenarios outside the threat model: nits.
 blocker = intended case wrong. should = real bug callers will hit, in intent. nit = rest.
 Reply:
 VERDICT: APPROVE or CHANGES
 S1 [blocker|should|nit] <file>:<line> <claim>. Fix: <suggestion> (stable ids)
 ```
 
+A round 1 Astra review gets the same brief, ids prefixed `A`, plus
+`Focus: design and operations.`
+
+For a consequential behavioural invariant, add the method in
+`~/dotfiles/agents/references/empirical-review.md` to the brief. It applies
+only within the stated threat model.
+
 ## 3. Answer findings
 
-Check each finding and severity yourself. Another path, rare case, or
-small cost is a nit, whatever label it came with.
+Check each finding and severity yourself. Another path, rare case,
+small cost, or a scenario outside the threat model is a nit, whatever label
+it came with.
 
 - Agree: smallest fix. Prefer delete or narrow over new lock, cache,
   helper, or option. Fix the case that happened. Add one focused test
@@ -107,13 +124,17 @@ no concern of your own. Stuck: an item stays disputed after two replies,
 or budget ends. Show both sides in 2-3 lines each. The user decides.
 Budget end is not approval.
 
-Do not push during the loop. Push after agreement only if the user asked
-to push, ship, or update the PR. If you push to a PR, add above the model
-blurb:
+Do not merge during the loop. When the change has a PR, push each round's
+fixes to it so the PR stays current, unless the user said not to push. Merge
+after agreement only if the user asked to merge. When you push to a PR, add
+above the model blurb:
 
 `Reviewed with review-loop: <N> rounds with <model>. Sol verdict: approved`.
 
-Add `on <effort>` only if verified.
+Add `on <effort>` only if verified. If the review had a threat model, add it
+on the next line as `Threat model: <one line>`. Those lines are the only review
+note in the PR body; the ledger goes in your report.
 
-Report: rounds, model, what Sol changed, diff size before/after, fixed and
-declined findings with reasons, usage if exposed (else say not), pushed or not.
+Report: rounds, model, the threat model if there was one, what Sol changed,
+diff size before/after, fixed and declined findings with reasons, usage if
+exposed (else say not), pushed or not.
