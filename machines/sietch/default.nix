@@ -48,6 +48,9 @@
   };
 
   programs.steam.enable = true;
+  # The op CLI only: agents here sign in with the service-account token, since
+  # there is no desktop app to unlock it.
+  programs._1password.enable = true;
   environment = {
     systemPackages = with pkgs; [
       openrgb-with-all-plugins

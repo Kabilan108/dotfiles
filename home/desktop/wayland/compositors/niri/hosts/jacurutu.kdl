@@ -57,3 +57,4 @@ output "DP-3" {
 }
 
 spawn-sh-at-startup "swaybg -i $HOME/dotfiles/wallpapers/shoggoth-001.png -m fill"
+spawn-at-startup "1password" "--silent"
