@@ -16,6 +16,11 @@
 #   deploy-tag [-C DIR] allows-rollback TAG
 #       Exit 0 if TAG is valid and its signed message's first paragraph has
 #       the line "Allow-Rollback: yes".
+#   deploy-tag [-C DIR] moves-forward TAG HOST RUNNING
+#       The rule for switching HOST, which runs commit RUNNING (a trailing
+#       -dirty is dropped), to TAG's commit. Exit 0 if TAG is valid and allows
+#       a rollback, or if its commit descends from RUNNING. An unreadable
+#       RUNNING needs the rollback. Else print why and exit 1.
 #   deploy-tag [-C DIR] sign --key FILE [--message TEXT] HOST... REV
 #       Sign the next fleet tag at REV for the HOSTs with FILE, never an
 #       ssh-agent, check it, and print its name. The "Hosts:" line goes at the
@@ -54,6 +59,7 @@ usage: deploy-tag [-C DIR] latest HOST
        deploy-tag [-C DIR] verify TAG
        deploy-tag [-C DIR] names-host TAG HOST
        deploy-tag [-C DIR] allows-rollback TAG
+       deploy-tag [-C DIR] moves-forward TAG HOST RUNNING
        deploy-tag [-C DIR] sign --key FILE [--message TEXT] HOST... REV
        deploy-tag [-C DIR] push --key FILE TAG
 EOF
@@ -230,6 +236,23 @@ allows_rollback() {
   awk '/^$/ { exit } $0 == "Allow-Rollback: yes" { found = 1 } END { exit !found }' <<<"$message"
 }
 
+moves_forward() {
+  local tag=$1 host=$2 running=${3%-dirty} commit
+  if allows_rollback "$tag"; then
+    return 0
+  fi
+  verify "$tag" || return 1
+  if [[ ! $running =~ ^[0-9a-f]{40}$ ]]; then
+    refuse "$tag" "can't read the commit $host runs; deploying needs a tag signed with --allow-rollback"
+    return 1
+  fi
+  commit=$(g rev-parse "refs/tags/$tag^{commit}")
+  if ! g merge-base --is-ancestor "$running" "$commit" 2>/dev/null; then
+    refuse "$tag" "$commit doesn't descend from $running, which $host runs; a rollback needs a tag signed with --allow-rollback"
+    return 1
+  fi
+}
+
 # Fleet tags and HOST's old tags together, newest UTC time first.
 latest() {
   local host=$1 ref tag
@@ -320,6 +343,10 @@ names-host)
 allows-rollback)
   [[ $# -eq 2 ]] || usage
   allows_rollback "$2"
+  ;;
+moves-forward)
+  [[ $# -eq 4 ]] || usage
+  moves_forward "$2" "$3" "$4"
   ;;
 sign)
   shift

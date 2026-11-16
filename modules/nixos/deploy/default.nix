@@ -1,9 +1,9 @@
 # YubiKey-signed deploys; lib/fleet.nix `deploy` says which host plays which
-# part. Every host gets deploy-tag, which bin/rebuild uses. The controller gets
-# `deploy`, deploy-key, which `deploy` and bin/rebuild use to pick the
-# plugged-in key, and deploy-wait, which holds their signed rebuilds until CI
-# has published the heavy packages. Receivers build fleet tags naming them
-# through deploy-receiver.service, which the deploy-trigger socket starts and
+# part. Every host gets deploy-tag and deploy-switch, which bin/rebuild uses.
+# The controller gets `deploy`, deploy-key, which `deploy` and bin/rebuild use
+# to pick the plugged-in key, and deploy-wait, which holds their signed
+# rebuilds until CI has published the heavy packages. Receivers build fleet tags naming them through
+# deploy-receiver.service, which the deploy-trigger socket starts and
 # deploy-receiver-run records.
 {
   config,
@@ -82,6 +82,22 @@ let
     text = builtins.readFile ./deploy-key.sh;
   };
 
+  deploySwitch = pkgs.writeShellApplication {
+    name = "deploy-switch";
+    runtimeInputs = [
+      deployTag
+      pkgs.coreutils
+      pkgs.git
+      pkgs.util-linux
+      config.system.build.nixos-rebuild
+    ];
+    runtimeEnv = {
+      DEPLOY_SWITCH_LOCK = switchLock;
+      DEPLOY_NIXOS_VERSION = runningNixosVersion;
+    };
+    text = builtins.readFile ./deploy-switch.sh;
+  };
+
   deployWait = pkgs.writeShellApplication {
     name = "deploy-wait";
     runtimeInputs = [
@@ -93,9 +109,10 @@ let
       pkgs.python3
       config.nix.package
     ];
-    runtimeEnv.DEPLOY_GITHUB_REPO = lib.removeSuffix ".git" (
-      lib.removePrefix "https://github.com/" deploy.repo
-    );
+    runtimeEnv = {
+      DEPLOY_GITHUB_REPO = lib.removeSuffix ".git" (lib.removePrefix "https://github.com/" deploy.repo);
+      DEPLOY_REPO_URL = deploy.repo;
+    };
     text = builtins.readFile ./deploy-wait.sh;
   };
 
@@ -103,6 +120,7 @@ let
     name = "deploy";
     runtimeInputs = [
       deployKey
+      deploySwitch
       deployTag
       deployWait
       pkgs.coreutils
@@ -115,7 +133,7 @@ let
       DEPLOY_CONTROLLER = deploy.controller;
       DEPLOY_RECEIVERS = lib.concatStringsSep " " deploy.receivers;
       DEPLOY_BRANCH = deploy.branch;
-      DEPLOY_SWITCH_LOCK = switchLock;
+      DEPLOY_NIXOS_VERSION = runningNixosVersion;
     };
     text = builtins.readFile ./deploy.sh;
   };
@@ -230,6 +248,7 @@ in
     systemd.tmpfiles.rules = [ "f ${switchLock} 0600 root root -" ];
 
     environment.systemPackages = [
+      deploySwitch
       deployTag
     ]
     ++ lib.optionals (thisHost == deploy.controller) [

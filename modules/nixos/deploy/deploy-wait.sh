@@ -5,13 +5,17 @@
 #
 #   deploy-wait [-C DIR] TAG
 #
-# It runs `ci/cache-targets.py heavy` from TAG's commit, which evaluates only
-# this host's system at that commit and lists the packages marked "# wait" in
-# ci/cache-packages with an output in neither the local store nor the binary
-# cache. With none it exits 0 at once. Otherwise it finds the run of the cache
-# workflow that TAG's push started (a tag push runs with the tag as its
-# branch) and waits for the "build <package>" job of each listed package. A
-# package without a job once the plan has finished was already cached.
+# A tag that isn't on DEPLOY_REPO_URL started no CI run, such as one whose
+# push failed, so it says how to push it and exits 0 without waiting.
+#
+# Otherwise it runs `ci/cache-targets.py heavy` from TAG's commit, which
+# evaluates only this host's system at that commit and lists the packages
+# marked "# wait" in ci/cache-packages with an output in neither the local
+# store nor the binary cache. With none it exits 0 at once. Otherwise it finds
+# the run of the cache workflow that TAG's push started (a tag push runs with
+# the tag as its branch) and waits for the "build <package>" job of each
+# listed package. A package has no job when the plan found it cached; the
+# script counts it so only once the build matrix exists or the run succeeded.
 #
 # Exits 0 to build. If a job fails, CI can't be read, no run turns up within
 # DEPLOY_WAIT_FIND seconds, DEPLOY_WAIT_TIMEOUT seconds pass, or on Ctrl-C, it
@@ -20,6 +24,7 @@
 set -euo pipefail
 
 : "${DEPLOY_GITHUB_REPO:?DEPLOY_GITHUB_REPO must name the GitHub repo, as owner/name}"
+: "${DEPLOY_REPO_URL:?DEPLOY_REPO_URL must name the repo the tags are pushed to}"
 poll=${DEPLOY_WAIT_POLL:-20}
 find_for=${DEPLOY_WAIT_FIND:-120}
 timeout=${DEPLOY_WAIT_TIMEOUT:-3600}
@@ -76,6 +81,16 @@ commit=$(git -C "$repo" rev-parse --verify --quiet "refs/tags/$tag^{commit}") ||
   give_up "deploy-wait: no tag $tag in $repo."
 top=$(git -C "$repo" rev-parse --show-toplevel)
 
+# --exit-code makes 2 mean "no such ref"; anything else unexpected leaves it
+# to the run lookup below.
+on_remote=0
+git ls-remote --exit-code "$DEPLOY_REPO_URL" "refs/tags/$tag" >/dev/null || on_remote=$?
+if ((on_remote == 2)); then
+  echo "$tag isn't on GitHub, so no CI run builds for it. Building without waiting."
+  echo "Push it with: deploy-tag -C $top push --key <its key file> $tag"
+  exit 0
+fi
+
 # The planner and its package list come from the tagged commit, never from
 # the work tree, and it evaluates that commit from the repository's objects.
 echo "Checking which heavy packages $tag would compile here."
@@ -108,13 +123,15 @@ while :; do
 done
 echo "Waiting for CI to publish them: $url"
 
-# One "<package>\t<state>" line per pending package. A package has no job of
-# its own until the plan finishes; GitHub creates the whole build matrix at
-# once, so after that, a missing job means the plan found it cached.
+# One "<package>\t<state>" line per pending package. The job API doesn't
+# show the plan's "packages" output, but the build matrix is that list:
+# GitHub creates all of its jobs at once. So a package without a job wasn't
+# planned once some "build <package>" job exists, or once the run succeeded.
+# A run that ended any other way before building it failed for it.
 # shellcheck disable=SC2016 # jq variables
 states='
   (.jobs | map(select(.name == "plan")) | first) as $plan
-  | (.jobs | any(.name != "plan")) as $expanded
+  | (.jobs | any(.name | startswith("build ") and (contains("${{") | not))) as $expanded
   | .status as $run
   | .conclusion as $conclusion
   | .jobs as $jobs
@@ -126,11 +143,11 @@ states='
        if $job.status != "completed" then $job.status
        elif $job.conclusion == "success" then "published"
        else "failed: its job ended " + $job.conclusion end
-     elif $plan.status == "completed" then
-       if $plan.conclusion != "success" then "failed: the plan ended " + $plan.conclusion
-       elif $expanded or $run == "completed" then "cached"
-       else "plan done" end
-     elif $run == "completed" then "failed: the run ended " + ($conclusion // "early")
+     elif $plan.status == "completed" and $plan.conclusion != "success" then
+       "failed: the plan ended " + $plan.conclusion
+     elif $expanded or ($run == "completed" and $conclusion == "success") then "cached"
+     elif $run == "completed" then "failed: the run ended " + ($conclusion // "early") + " before building it"
+     elif $plan.status == "completed" then "plan done"
      else "plan " + ($plan.status // "queued") end]
   | @tsv'
 

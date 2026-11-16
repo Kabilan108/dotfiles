@@ -11,8 +11,9 @@
 #     hosts' tags are skipped without counting as refused),
 #   - points at a commit on DEPLOY_BRANCH,
 #   - descends from the commit the host runs now (system.configurationRevision,
-#     so a manual rebuild counts too), unless deploy-tag allows-rollback says
-#     the signed message permits a rollback,
+#     so a manual rebuild counts too), unless the signed message permits a
+#     rollback (deploy-tag moves-forward, the rule `deploy` applies to the
+#     controller too),
 #   - has a flake.lock that needs no changes.
 # It builds that commit, then takes DEPLOY_SWITCH_LOCK, which bin/rebuild
 # holds around its own switch, checks the running commit again and only then
@@ -46,22 +47,6 @@ running_commit() {
   rev=${rev%-dirty}
   if [[ $rev =~ ^[0-9a-f]{40}$ ]]; then
     echo "$rev"
-  fi
-}
-
-# Whether a tag may take this host from the running commit to its commit.
-moves_forward() {
-  local tag=$1 commit=$2 running=$3
-  if deploy-tag -C "$repo" allows-rollback "$tag"; then
-    return 0
-  fi
-  if [[ -z $running ]]; then
-    refuse "$tag" "can't read the commit $DEPLOY_HOST runs; deploying needs a tag signed with --allow-rollback"
-    return 1
-  fi
-  if ! git -C "$repo" merge-base --is-ancestor "$running" "$commit" 2>/dev/null; then
-    refuse "$tag" "$commit doesn't descend from $running, which $DEPLOY_HOST runs; a rollback needs a tag signed with --allow-rollback"
-    return 1
   fi
 }
 
@@ -102,7 +87,7 @@ while read -r ref; do
     refused=1
     continue
   fi
-  if ! moves_forward "$tag" "$commit" "$running"; then
+  if ! deploy-tag -C "$repo" moves-forward "$tag" "$DEPLOY_HOST" "$running"; then
     refused=1
     continue
   fi
@@ -151,7 +136,7 @@ if ! flock --nonblock 9; then
   echo "Waiting for a manual rebuild to finish"
   flock 9
 fi
-if ! moves_forward "$chosen" "$commit" "$(running_commit)"; then
+if ! deploy-tag -C "$repo" moves-forward "$chosen" "$DEPLOY_HOST" "$(running_commit)"; then
   echo "deploy-receiver: $DEPLOY_HOST changed while $chosen was building; not switching" >&2
   exit 1
 fi

@@ -285,6 +285,17 @@ replay-proof across the switch, a receiver compares the UTC time in a tag's
 name with the time of the last tag it deployed, which may still be a
 per-host tag. A tag no later than that never deploys.
 
+`deploy` holds jacurutu to the same forward-only rule (`deploy-tag
+moves-forward`). It checks before waiting for CI, and `deploy-switch` checks
+again once it holds `/run/fleet-switch.lock`, so a `rebuild` that finishes
+during the wait can't be undone. The lock is root-only, so that second check
+drops back to me with `runuser`: root never runs git in my checkout. A
+refusal fails jacurutu's line in the summary and leaves the other hosts
+alone. Both `deploy` and a clean signed `rebuild` build the tagged commit
+from git's objects (`git+file://…?rev=`), so a pull or an edit during the
+wait never reaches the build. `rebuild` doesn't check that it moves forward.
+It's my manual tool, and it lists the commits that drop out before I answer.
+
 On jacurutu, `deploy` and `rebuild` wait for this cache before a signed
 build. `deploy-wait` runs `ci/cache-targets.py heavy` from the tagged commit,
 which evaluates jacurutu's system alone and lists the packages marked
@@ -295,6 +306,37 @@ The switch still builds the signed commit, and Nix still checks the cache's
 signature on every path it downloads. A broken or lying run can make
 jacurutu wait, or compile what it would have compiled anyway. The planner
 runs as me, from the signed commit that is about to be built.
+
+Two cases end the wait early. A tag that isn't on GitHub, such as one whose
+push failed, started no run, so `deploy-wait` says how to push it and builds
+without waiting. And a run that ends without a job for a package counts as a
+cache hit only if the run succeeded or the build matrix left that package
+out. A run cancelled before its build jobs exist asks whether to build
+locally, like a failed job.
+
+#### Switching over (once, after the fleet-tag change merges)
+
+Receivers built before the change accept only `deploy/<host>/*` tags, and the
+new `deploy` never signs one. So the old tools on jacurutu bring each
+receiver across first, and the order matters:
+
+1. Run the old `deploy sietch`, then the old `deploy tleilax`. Both have to
+   succeed, each ending with the host running the new commit. After a power
+   cut tleilax waits at its boot passphrase prompt; unlock it first
+   (`ssh tleilax-unlock`).
+2. Only then pull `~/dotfiles` on jacurutu and run `rebuild`. That run still
+   has the old `deploy-tag`, so it signs one last `deploy/jacurutu/…` tag and
+   doesn't wait for CI.
+
+If jacurutu got the new tools before a receiver did, the new `deploy` can't
+reach that receiver. The previous system generation still has the old tools,
+and its `deploy` pins its own old `deploy-tag`. `ls -v
+/nix/var/nix/profiles/ | grep '^system-'` lists the generations, newest last;
+take the one before the rebuild and run
+`/nix/var/nix/profiles/system-<N>-link/sw/bin/deploy tleilax` (or `sietch`).
+It signs and pushes a per-host tag as before. The weekly `nix.gc` deletes
+generations older than three days, so do it soon. Once a receiver runs the
+new code, the new `deploy` works for it.
 
 ---
 

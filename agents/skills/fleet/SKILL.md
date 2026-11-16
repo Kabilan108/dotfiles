@@ -100,7 +100,8 @@ and approve nothing.
   never reads `~/dotfiles`, so an edit there deploys nothing.
 - A host only moves forward: the signed commit must descend from the one it
   runs, including Tony's manual rebuilds, and its `flake.lock` must be
-  complete. `deploy` always signs the tip of `origin/nixos`, so undo a bad
+  complete. `deploy` holds jacurutu to the same rule, checked again under the
+  switch lock; a refusal fails jacurutu alone. `deploy` always signs the tip of `origin/nixos`, so undo a bad
   change with a revert, which moves forward. Only when `nixos` itself was
   moved back or force-pushed does it take `deploy --allow-rollback`, which
   asks on the terminal even with `--yes`; that's Tony's call.
@@ -112,8 +113,9 @@ and approve nothing.
   shell. Don't try other commands there.
 - `rebuild` is Tony's manual rebuild of the host he's on, from `~/dotfiles`.
   It lists the commits since the last tag naming that host and asks. On
-  jacurutu, approving signs and pushes a fleet tag for jacurutu alone, and a
-  clean signed build waits for CI like `deploy` does. Leave it to him.
+  jacurutu, approving signs and pushes a fleet tag for jacurutu alone. A
+  clean signed build waits for CI like `deploy` does and builds the tagged
+  commit, not the checkout; it doesn't check moving forward. Leave it to him.
 - sietch's `~/dotfiles` still feeds `~/bin`, the agent configs and niri's
   `config.kdl` directly, so those change on `git pull` there, with or without
   a deploy. Pull it after a deploy so the two match.

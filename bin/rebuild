@@ -12,15 +12,18 @@
 # once you say so. --unsigned prints the same list and builds without asking
 # or signing.
 #
+# A clean build of a signed HEAD builds the tagged commit with deploy-switch,
+# so a pull or an edit in ~/dotfiles meanwhile can't reach it. On the
+# controller, where deploy-wait is installed, it first waits for CI to publish
+# the heavy packages it would otherwise compile, even when HEAD was signed
+# before; --no-wait skips the wait. Unsigned builds, --unsigned included, and builds with
+# uncommitted changes build the checkout as it stands and never wait. No
+# rebuild checks that it moves forward: that's yours to judge from the list.
+#
 # Without --key it signs with the key on whichever deploy YubiKey is plugged
 # in (deploy-key, installed with `deploy`), and with yk-nfc-deploy when both
 # are. When there's a tag to sign and no deploy YubiKey is plugged in, it
 # stops before asking.
-#
-# On the controller, where deploy-wait is installed, a clean build of a signed
-# HEAD first waits for CI to publish the heavy packages it would otherwise
-# compile, even when HEAD was signed before. --no-wait and --unsigned skip
-# that, and a build with uncommitted changes never waits.
 set -euo pipefail
 
 usage() {
@@ -162,10 +165,19 @@ if ! review; then
   echo "Not building."
   exit 1
 fi
-if [[ -n $signed_tag && $wait_for_ci == true && $unsigned == false ]] &&
-  command -v deploy-wait >/dev/null && ! deploy-wait -C "$repo" "$signed_tag"; then
+if [[ $unsigned == true ]]; then
+  signed_tag=""
+fi
+if [[ -n $signed_tag && $wait_for_ci == true ]] && command -v deploy-wait >/dev/null &&
+  ! deploy-wait -C "$repo" "$signed_tag"; then
   echo "Not building."
   exit 1
+fi
+if [[ -n $signed_tag ]]; then
+  if command -v deploy-switch >/dev/null; then
+    exec deploy-switch -C "$repo" "$signed_tag" "$host_name" "$action"
+  fi
+  echo "deploy-switch isn't installed yet, so this build uses the checkout."
 fi
 
 # The deploy receiver switches only under this lock (modules/nixos/deploy),

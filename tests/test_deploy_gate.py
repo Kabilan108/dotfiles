@@ -10,11 +10,12 @@ run-record.sh with the receiver in the background, or before replying with
 TEST_SYNC_START; the job disappears when the run ends), journalctl (follows a
 run's log), socat (runs the broker instead of connecting to the socket), ssh
 (sietch-agent and tleilax-agent reach two fake receivers, each with its own
-files under TEST_ROOT), deploy-wait, sudo, hostname and ykman (lists
-TEST_YKMAN_LIST, by default the nfc YubiKey). deploy-wait's own tests stub gh
-and the planner instead. The receiver's flake.lock check and its lock use the
-real nix and flock. Set DEPLOY_TEST_OPENSSH to a built tests/sk-dummy.nix to
-skip the nix build.
+files under TEST_ROOT; `deploy` and `rebuild` act on a third, "local"),
+deploy-wait, sudo (runs what takes the test's switch lock, and only records
+the rest), runuser, hostname and ykman (lists TEST_YKMAN_LIST, by default the
+nfc YubiKey). deploy-wait's own tests stub gh and the planner instead. The
+receiver's flake.lock check and its lock use the real nix and flock. Set
+DEPLOY_TEST_OPENSSH to a built tests/sk-dummy.nix to skip the nix build.
 """
 
 import base64
@@ -37,6 +38,7 @@ import time
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -83,7 +85,11 @@ STUBS = {
         '  ln -sfn "$system" result\n'
         '  if [[ -n ${{TEST_DURING_BUILD:-}} ]]; then bash -c "$TEST_DURING_BUILD"; fi\n'
         "  ;;\n"
-        'switch) [[ $2 == --store-path ]] && cat "$3/rev" > "$root/running" ;;\n'
+        "switch | test | boot)\n"
+        '  if [[ $2 == --store-path ]]; then rev=$(cat "$3/rev")\n'
+        '  elif [[ "$*" =~ rev=([0-9a-f]+) ]]; then rev=${{BASH_REMATCH[1]}}\n'
+        "  else exit 93; fi\n"
+        '  [[ $1 == boot ]] || echo "$rev" > "$root/running" ;;\n'
         "*) exit 94 ;;\n"
         "esac"
     ),
@@ -137,7 +143,7 @@ STUBS = {
     "ssh": (
         'if [[ "$*" == *git-receive-pack* ]]; then printf "%s\\n" "$@" > "{tmp}/push-ssh"; exit 1; fi\n'
         'case "$*" in\n'
-        '"sietch-agent deploy-trigger") ;;\n'
+        '"sietch-agent deploy-trigger") export TEST_ROOT="{tmp}" ;;\n'
         '"tleilax-agent deploy-trigger")\n'
         '  t="{tmp}/tleilax"\n'
         '  export TEST_ROOT=$t DEPLOY_HOST=tleilax DEPLOY_STATE_DIR=$t/state'
@@ -147,8 +153,18 @@ STUBS = {
         "esac\n"
         'exec bash "{scripts}/trigger.sh"'
     ),
-    "deploy-wait": 'echo "$*" >> "{tmp}/waits"\nexit "${{TEST_WAIT_EXIT:-0}}"',
-    "sudo": 'echo "$*" >> "{tmp}/sudo"\nexit "${{TEST_SUDO_EXIT:-0}}"',
+    "deploy-switch": 'exec bash "{scripts}/deploy-switch.sh" "$@"',
+    "deploy-wait": (
+        'echo "$*" >> "{tmp}/waits"\n'
+        'if [[ -n ${{TEST_DURING_WAIT:-}} ]]; then bash -c "$TEST_DURING_WAIT"; fi\n'
+        'exit "${{TEST_WAIT_EXIT:-0}}"'
+    ),
+    "sudo": (
+        'echo "$*" >> "{tmp}/sudo"\n'
+        '[[ $1 == flock && $2 == "{tmp}/switch.lock" ]] || exit 0\n'
+        'exec "$@"'
+    ),
+    "runuser": '[[ $1 == -u && -n $2 && $3 == -- ]] || exit 90\nshift 3\nexec "$@"',
     "hostname": 'echo "$TEST_HOSTNAME"',
 }
 
@@ -302,6 +318,9 @@ class DeployGate(unittest.TestCase):
         self.git("add", "flake.nix", "flake.lock")
         self.commit("one")
         self.set_running(self.rev("HEAD"))
+        self.local = self.tmp / "local"
+        self.local.mkdir()
+        (self.local / "running").write_text(self.rev("HEAD") + "\n")
         self.commit("two")
         self.git("push", "-q", "origin", "HEAD:nixos")
         self.git("switch", "-q", "-c", "side")
@@ -392,7 +411,20 @@ class DeployGate(unittest.TestCase):
         return self.run_cmd(["bash", str(SCRIPTS / "receiver.sh")], cwd=self.tmp, extra_env=extra)
 
     def deploy(self, *args: str, **extra: str) -> subprocess.CompletedProcess[str]:
-        return self.run_cmd(["bash", str(SCRIPTS / "deploy.sh"), *args], extra_env=extra)
+        return self.run_cmd(
+            ["bash", str(SCRIPTS / "deploy.sh"), *args],
+            extra_env={"TEST_ROOT": str(self.local), **extra},
+        )
+
+    def local_running(self) -> str:
+        return (self.local / "running").read_text().strip()
+
+    def tagged_build(self, commit: str, host: str = "jacurutu", action: str = "switch") -> str:
+        """What deploy-switch hands nixos-rebuild."""
+        return (
+            f"{action} --no-update-lock-file --flake git+file://{self.work.resolve()}"
+            f"?rev={commit}#{host}"
+        )
 
     def ykman_calls(self) -> list[str]:
         path = self.tmp / "ykman-calls"
@@ -1241,7 +1273,7 @@ class Rebuild(DeployGate):
         return self.run_cmd(
             [str(ROOT / "bin/rebuild"), *args],
             stdin=stdin,
-            extra_env={"TEST_HOSTNAME": host, **extra},
+            extra_env={"TEST_HOSTNAME": host, "TEST_ROOT": str(self.local), **extra},
         )
 
     def sudo_calls(self) -> list[str]:
@@ -1311,17 +1343,16 @@ class Rebuild(DeployGate):
         self.assertEqual(self.rev(f"{tag}^{{commit}}"), self.tip)
         self.assertEqual(self.git("tag", "-l", cwd=self.origin), tag)
         self.assertEqual(self.lines("waits"), [f"-C {self.work} {tag}"])
-        self.assertEqual(
-            self.sudo_calls(),
-            [f"flock /run/fleet-switch.lock nixos-rebuild switch --flake {self.work}#jacurutu"],
-        )
+        [call] = self.sudo_calls()
+        self.assertTrue(call.startswith(f"flock {self.tmp}/switch.lock "), call)
+        self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
 
         # HEAD is signed already; CI may still be building for it.
         r = self.rebuild()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn(f"HEAD is {tag}.", r.stdout)
         self.assertEqual(self.lines("waits"), [f"-C {self.work} {tag}"] * 2)
-        self.assertEqual(len(self.sudo_calls()), 2)
+        self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)] * 2)
 
         self.commit("four")
         r = self.rebuild("n\n")
@@ -1334,7 +1365,10 @@ class Rebuild(DeployGate):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(len(self.git("tag", "-l", "deploy/*").splitlines()), 1)
         self.assertEqual(len(self.lines("waits")), 2)
-        self.assertEqual(len(self.sudo_calls()), 3)
+        self.assertEqual(
+            self.sudo_calls()[2:],
+            [f"flock /run/fleet-switch.lock nixos-rebuild switch --flake {self.work}#jacurutu"],
+        )
 
     def test_a_failed_push_still_builds(self) -> None:
         self.give_key()
@@ -1434,7 +1468,12 @@ class Rebuild(DeployGate):
                 self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
                 self.assertIn("HEAD is deploy/fleet/", r.stdout)
                 self.assertEqual(self.lines("waits"), [])
-        self.assertEqual(len(self.sudo_calls()), 3)
+        # --unsigned builds the checkout even though HEAD is signed.
+        self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)] * 2)
+        self.assertEqual(
+            self.sudo_calls()[2:],
+            [f"flock /run/fleet-switch.lock nixos-rebuild switch --flake {self.work}#jacurutu"],
+        )
 
     def test_a_declined_wait_stops_the_build(self) -> None:
         self.give_key()
@@ -1473,7 +1512,7 @@ class Rebuild(DeployGate):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn(f"HEAD is {T1}.", r.stdout)
         self.assertNotIn("deploy-wait", r.stdout + r.stderr)
-        self.assertEqual(len(self.sudo_calls()), 1)
+        self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip, "sietch")])
 
     def test_before_deploy_wait_is_installed(self) -> None:
         self.give_key()
@@ -1481,6 +1520,68 @@ class Rebuild(DeployGate):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(len(self.git("tag", "-l", "deploy/fleet/*").splitlines()), 1)
         self.assertEqual(len(self.sudo_calls()), 1)
+
+    def test_a_signed_build_builds_the_tagged_commit(self) -> None:
+        # A pull lands in ~/dotfiles while the build waits for CI.
+        self.give_key()
+        pull = f'cd "{self.work}" && echo pulled > file && git commit -qam pulled'
+        r = self.rebuild("y\n", TEST_DURING_WAIT=pull)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotEqual(self.rev("HEAD"), self.tip)
+        self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
+        self.assertEqual(self.local_running(), self.tip)
+
+    def test_a_signed_test_or_boot_builds_the_tagged_commit(self) -> None:
+        self.give_key()
+        self.assertEqual(self.rebuild("y\n", args=("--no-wait", "boot")).returncode, 0)
+        self.assertEqual(self.rebuild(args=("test",)).returncode, 0)
+        self.assertEqual(
+            self.rebuilds(self.local),
+            [self.tagged_build(self.tip, action="boot"), self.tagged_build(self.tip, action="test")],
+        )
+
+    def test_a_signed_rebuild_may_move_back(self) -> None:
+        # Moving forward is checked by deploy only; rebuild leaves it to Tony.
+        self.give_key()
+        (self.local / "running").write_text(self.tip + "\n")
+        self.git("reset", "-q", "--hard", "HEAD^")
+        r = self.rebuild("y\n")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.local_running(), self.rev("HEAD"))
+
+    def test_before_deploy_switch_is_installed(self) -> None:
+        self.give_key()
+        (self.tmp / "bin/deploy-switch").unlink()
+        path = ":".join(
+            d for d in self.env["PATH"].split(":") if not (Path(d) / "deploy-switch").exists()
+        )
+        r = self.rebuild("y\n", PATH=path)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("deploy-switch isn't installed yet", r.stdout)
+        self.assertEqual(
+            self.sudo_calls(),
+            [f"flock /run/fleet-switch.lock nixos-rebuild switch --flake {self.work}#jacurutu"],
+        )
+
+    def test_retrying_after_a_failed_push_does_not_wait_for_ci(self) -> None:
+        self.give_key()
+        self.origin.rename(self.tmp / "offline.git")
+        self.assertEqual(self.rebuild("y\n").returncode, 0)
+        (self.tmp / "offline.git").rename(self.origin)
+        [tag] = self.git("tag", "-l", "deploy/*").splitlines()
+        # The real deploy-wait; gh fails loudly if it gets that far.
+        (self.tmp / "bin/deploy-wait").write_text(
+            f'#!/usr/bin/env bash\nexec bash "{SCRIPTS}/deploy-wait.sh" "$@"\n'
+        )
+        (self.tmp / "bin/gh").write_text(f'#!/usr/bin/env bash\necho "$*" >> "{self.tmp}/gh-calls"\nexit 1\n')
+        (self.tmp / "bin/gh").chmod(0o755)
+        r = self.rebuild()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"HEAD is {tag}.", r.stdout)
+        self.assertIn(f"{tag} isn't on GitHub, so no CI run builds for it.", r.stdout)
+        self.assertIn(f"push --key <its key file> {tag}", r.stdout)
+        self.assertEqual(self.lines("gh-calls"), [])
+        self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
 
     def test_an_old_per_host_tag_still_lists_what_changed(self) -> None:
         self.give_key()
@@ -1685,12 +1786,6 @@ class FleetDeploy(DeployGate):
     def deployed_tags(self) -> list[str]:
         return self.git("tag", "-l", "deploy/*", cwd=self.origin).splitlines()
 
-    def switch_line(self, commit: str) -> str:
-        return (
-            f"flock {self.tmp}/switch.lock nixos-rebuild switch --no-update-lock-file "
-            f"--flake git+file://{self.work.resolve()}?rev={commit}#jacurutu"
-        )
-
     def test_one_tag_deploys_the_whole_fleet(self) -> None:
         # Uncommitted changes in ~/dotfiles stay out of jacurutu's build.
         (self.work / "file").write_text("dirty")
@@ -1711,7 +1806,8 @@ class FleetDeploy(DeployGate):
             f"?rev={self.tip}#tleilax",
         )
         self.assertEqual(self.lines("waits"), [f"-C {self.work} {tag}"])
-        self.assertEqual(self.lines("sudo"), [self.switch_line(self.tip)])
+        self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
+        self.assertEqual(self.local_running(), self.tip)
         self.assertTrue(
             r.stdout.endswith(
                 f"Deploy of {self.tip[:12]}:\n  jacurutu runs {tag}\n"
@@ -1725,7 +1821,7 @@ class FleetDeploy(DeployGate):
         self.assertIn("nothing to sign", r.stdout)
         self.assertEqual(self.deployed_tags(), [tag])
         self.assertEqual(self.lines("waits"), [f"-C {self.work} {tag}"] * 2)
-        self.assertEqual(len(self.lines("sudo")), 2)
+        self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)] * 2)
 
     def test_receivers_deploy_in_parallel(self) -> None:
         # Each build waits until both have started; one at a time would fail.
@@ -1750,7 +1846,8 @@ class FleetDeploy(DeployGate):
         r = self.deploy("--yes", "--key", str(KEYS["yk"]))
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         [tag] = self.deployed_tags()
-        self.assertIn("tleilax: deploy-receiver: refusing", r.stdout)
+        self.assertIn("tleilax: deploy-tag: refusing", r.stdout)
+        self.assertIn("can't read the commit tleilax runs", r.stdout)
         self.assertIn(f"  jacurutu runs {tag}\n", r.stdout)
         self.assertIn(f"  sietch runs {tag}\n", r.stdout)
         self.assertIn("  tleilax failed: the deploy exited 1; see its log above\n", r.stdout)
@@ -1761,7 +1858,7 @@ class FleetDeploy(DeployGate):
         r = self.deploy("--yes", "--no-wait", "--key", str(KEYS["yk"]), "jacurutu")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(self.lines("waits"), [])
-        self.assertEqual(self.lines("sudo"), [self.switch_line(self.tip)])
+        self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
         self.assertEqual(self.rebuilds(), [])
 
     def test_a_declined_wait_leaves_jacurutu_alone(self) -> None:
@@ -1774,9 +1871,9 @@ class FleetDeploy(DeployGate):
         self.assertEqual(self.running(), self.tip)
 
     def test_a_failed_switch_is_reported(self) -> None:
-        r = self.deploy("--yes", "--key", str(KEYS["yk"]), "jacurutu", TEST_SUDO_EXIT="3")
+        r = self.deploy("--yes", "--key", str(KEYS["yk"]), "jacurutu", NIXOS_REBUILD_EXIT="3")
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
-        self.assertIn("  jacurutu failed: nixos-rebuild exited 3\n", r.stdout)
+        self.assertIn("  jacurutu failed: the switch exited 3; see above\n", r.stdout)
 
     def test_lists_commits_since_the_oldest_last_tag(self) -> None:
         self.sign(OLD1, "yk", rev="HEAD^", message="deploy sietch")
@@ -1787,7 +1884,76 @@ class FleetDeploy(DeployGate):
         self.assertIn(f"Commits on nixos since {OLD1}:", r.stdout)
         self.assertIn(" two\n", r.stdout)
         self.assertIn(" four\n", r.stdout)
-        self.assertEqual(self.lines("sudo"), [self.switch_line(four)])
+        self.assertEqual(self.rebuilds(self.local), [self.tagged_build(four)])
+
+    def ahead_of_nixos(self) -> str:
+        """Run jacurutu on a commit after nixos's tip, as a rebuild would."""
+        self.commit("ahead")
+        ahead = self.rev("HEAD")
+        (self.local / "running").write_text(ahead + "\n")
+        return ahead
+
+    def test_jacurutu_is_not_moved_back(self) -> None:
+        # The review's repro: nixos's tip already has a fleet tag, and
+        # jacurutu runs a later commit.
+        self.sign(T1, "yk", message="deploy jacurutu sietch\nHosts: jacurutu sietch")
+        ahead = self.ahead_of_nixos()
+        r = self.deploy("--yes", "--no-wait", "--key", str(KEYS["yk"]), "jacurutu", "sietch")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("nothing to sign", r.stdout)
+        self.assertIn(f"refusing {T1}: {self.tip} doesn't descend from {ahead}, which jacurutu runs", r.stderr)
+        self.assertIn(f"  jacurutu failed: {T1} would move it off the commit it runs; see above\n", r.stdout)
+        self.assertIn(f"  sietch runs {T1}\n", r.stdout)
+        self.assertIn("deploy: failed on jacurutu", r.stderr)
+        self.assertEqual(self.local_running(), ahead)
+        self.assertEqual(self.lines("sudo"), [])
+        self.assertEqual(self.running(), self.tip)
+
+    def test_jacurutu_needs_to_know_what_it_runs(self) -> None:
+        (self.local / "running").unlink()
+        r = self.deploy("--yes", "--key", str(KEYS["yk"]), "jacurutu")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("can't read the commit jacurutu runs", r.stderr)
+        self.assertEqual(self.lines("waits"), [])
+        self.assertEqual(self.lines("sudo"), [])
+
+    def test_a_switch_that_lands_while_this_one_waits_for_the_lock_wins(self) -> None:
+        # Tony's rebuild of a later commit holds the lock and finishes first.
+        ahead = self.ahead_of_nixos()
+        (self.local / "running").write_text(self.rev("HEAD^^") + "\n")
+        lock = self.tmp / "switch.lock"
+        # It switches once deploy-switch, past its first check, asks sudo.
+        holder = subprocess.Popen(
+            [
+                "flock", str(lock), "bash", "-c",
+                f'for _ in $(seq 300); do [[ -s "{self.tmp}/sudo" ]] && break; sleep 0.1; done; '
+                f'sleep 0.5; echo {ahead} > "{self.local}/running"',
+            ]
+        )
+        try:
+            while subprocess.run(["flock", "--nonblock", str(lock), "true"]).returncode == 0:
+                pass
+            r = self.deploy("--yes", "--no-wait", "--key", str(KEYS["yk"]), "jacurutu")
+        finally:
+            holder.wait(timeout=30)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn(f"{self.tip} doesn't descend from {ahead}, which jacurutu runs", r.stderr)
+        self.assertIn("jacurutu changed while this switch waited for the lock", r.stderr)
+        self.assertIn("  jacurutu failed: the switch exited 1; see above\n", r.stdout)
+        self.assertEqual(self.rebuilds(self.local), [])
+        self.assertEqual(self.local_running(), ahead)
+
+    def test_a_signed_rollback_moves_jacurutu_back(self) -> None:
+        self.ahead_of_nixos()
+        code, out = self.at_terminal(
+            ["bash", str(SCRIPTS / "deploy.sh"), "--allow-rollback", "--key", str(KEYS["yk"]), "jacurutu"],
+            "y\n",
+            extra_env={"TEST_ROOT": str(self.local)},
+        )
+        self.assertEqual(code, 0, out)
+        [tag] = self.deployed_tags()
+        self.assertIn("\nAllow-Rollback: yes\nHosts: jacurutu\n", self.git("cat-file", "tag", tag))
+        self.assertEqual(self.local_running(), self.tip)
 
     def test_a_rewritten_tag_of_any_host_needs_a_terminal(self) -> None:
         self.sign(OLD1, "yk", rev="HEAD^", message="deploy sietch")
@@ -1809,7 +1975,7 @@ class DeployWait(DeployGate):
         self.git("add", "ci")
         self.git("commit", "-q", "-m", "ci")
         self.tip = self.rev("HEAD")
-        self.sign(T1, "yk", message="rebuild jacurutu\nHosts: jacurutu", push=False)
+        self.sign(T1, "yk", message="rebuild jacurutu\nHosts: jacurutu")
         (self.work / "ci/cache-targets.py").write_text("uncommitted planner\n")
         (self.tmp / "gh").mkdir()
         bin_dir = self.tmp / "wait-bin"
@@ -1944,7 +2110,9 @@ class DeployWait(DeployGate):
             "the plan ended failure": self.run_json(
                 "completed", ("plan", "completed", "failure"), conclusion="failure"
             ),
-            "the run ended cancelled": self.run_json("completed", conclusion="cancelled"),
+            "the run ended cancelled before building it": self.run_json(
+                "completed", conclusion="cancelled"
+            ),
         }
         for reason, view in cases.items():
             with self.subTest(reason):
@@ -1971,6 +2139,69 @@ class DeployWait(DeployGate):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("Waiting on niri: plan done.", r.stdout)
         self.assertIn("niri was in the cache by the time CI planned.", r.stdout)
+
+    def test_a_run_cancelled_before_its_build_jobs_is_no_cache_hit(self) -> None:
+        # The review's repro: the plan succeeds, then the run is cancelled
+        # before the build matrix exists.
+        self.heavy(["niri"])
+        self.found()
+        views = {
+            "no build job": self.run_json(
+                "completed", ("plan", "completed", "success"), conclusion="cancelled"
+            ),
+            "an unexpanded build job": self.run_json(
+                "completed",
+                ("plan", "completed", "success"),
+                ("build ${{ matrix.package }}", "completed", "cancelled"),
+                conclusion="cancelled",
+            ),
+        }
+        for name, view in views.items():
+            with self.subTest(name):
+                (self.tmp / "gh/view.n").unlink(missing_ok=True)
+                self.respond("view", view)
+                r = self.wait()
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertNotIn("in the cache", r.stdout)
+                self.assertIn(
+                    "CI didn't publish niri (the run ended cancelled before building it).", r.stdout
+                )
+                code, out = self.at_terminal(self.cmd, "y\n")
+                self.assertEqual(code, 0, out)
+
+    def test_a_package_left_out_of_the_build_matrix_was_cached(self) -> None:
+        # Another package's build failed; niri was never planned.
+        self.heavy(["niri"])
+        self.found()
+        self.respond(
+            "view",
+            self.run_json(
+                "completed",
+                ("plan", "completed", "success"),
+                ("build ghostty", "completed", "failure"),
+                conclusion="failure",
+            ),
+        )
+        r = self.wait()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("niri was in the cache by the time CI planned.", r.stdout)
+
+    def test_a_tag_missing_from_github_skips_the_wait(self) -> None:
+        self.heavy(["niri"])
+        self.found()
+        self.sign(T2, "yk", message="rebuild jacurutu\nHosts: jacurutu", push=False)
+        r = self.run_cmd(["bash", str(SCRIPTS / "deploy-wait.sh"), "-C", str(self.work), T2])
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"{T2} isn't on GitHub, so no CI run builds for it. Building without waiting.", r.stdout)
+        self.assertIn(f"Push it with: deploy-tag -C {self.work.resolve()} push --key <its key file> {T2}", r.stdout)
+        self.assertEqual(self.gh_calls(), [])
+        self.assertFalse((self.tmp / "planner-flake").exists())
+
+    def test_an_unreachable_remote_still_looks_for_the_run(self) -> None:
+        self.heavy([])
+        r = self.wait(DEPLOY_REPO_URL=f"file://{self.tmp}/nowhere.git")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("Every heavy package is in the local store or the cache.", r.stdout)
 
     def test_a_job_waiting_for_approval_says_so(self) -> None:
         self.heavy(["niri"])
@@ -2072,7 +2303,7 @@ class DeployWait(DeployGate):
                 self.assertEqual(self.gh_calls(), [])
 
 
-def load_cache_targets():
+def load_cache_targets() -> Any:
     spec = importlib.util.spec_from_file_location("cache_targets", ROOT / "ci/cache-targets.py")
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)

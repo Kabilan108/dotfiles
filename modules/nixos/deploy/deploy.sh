@@ -16,21 +16,22 @@
 # The receivers start at once and in parallel (ssh <host>-agent
 # deploy-trigger), with each log line prefixed by the host's name. This host
 # first waits for CI to publish the heavy packages it would otherwise compile
-# (deploy-wait; --no-wait skips that), then switches under DEPLOY_SWITCH_LOCK
-# like bin/rebuild. It builds the tagged commit from the repository's objects
-# (git+file with ?rev=), so uncommitted changes in ~/dotfiles never reach the
-# build. It ends with a line per host and exits 1 if any host failed.
+# (deploy-wait; --no-wait skips that), then switches with deploy-switch: from
+# the tagged commit's objects, so uncommitted changes in ~/dotfiles never
+# reach the build, and under the lock bin/rebuild and the receivers use. It
+# ends with a line per host and exits 1 if any host failed.
 #
 # Without --key it signs with the key on whichever deploy YubiKey is plugged
 # in (deploy-key), and with yk-nfc-deploy when both are. It picks once, just
 # before asking, and only when there's a tag to sign.
 #
-# A host refuses a commit that doesn't descend from the one it runs.
-# --allow-rollback signs "Allow-Rollback: yes" into the tag to permit that,
-# and always asks on the terminal.
+# Every host refuses a commit that doesn't descend from the one it runs,
+# including this one, which checks before waiting for CI and again under the
+# lock. --allow-rollback signs "Allow-Rollback: yes" into the tag to permit
+# that, and always asks on the terminal. A refusal here fails this host only.
 set -euo pipefail
 
-: "${DEPLOY_CONTROLLER:?}" "${DEPLOY_RECEIVERS:?}" "${DEPLOY_BRANCH:?}" "${DEPLOY_SWITCH_LOCK:?}"
+: "${DEPLOY_CONTROLLER:?}" "${DEPLOY_RECEIVERS:?}" "${DEPLOY_BRANCH:?}" "${DEPLOY_NIXOS_VERSION:?}"
 
 repo=${DOTFILES:-$HOME/dotfiles}
 branch_ref=refs/remotes/origin/$DEPLOY_BRANCH
@@ -130,7 +131,6 @@ g fetch --quiet --force --prune --no-tags origin \
   "+refs/heads/$DEPLOY_BRANCH:$branch_ref" \
   "+refs/tags/deploy/*:refs/tags/deploy/*"
 target=$(g rev-parse "$branch_ref")
-top=$(g rev-parse --show-toplevel)
 
 declare -A last_tag=() last_commit=() deploys=() result=()
 untagged=() oldest="" oldest_commit="" current=1
@@ -234,18 +234,19 @@ done
 if listed "$DEPLOY_CONTROLLER" "${hosts[@]}"; then
   host=$DEPLOY_CONTROLLER
   tag=${deploys[$host]}
-  commit=$(g rev-parse "refs/tags/$tag^{commit}")
-  if ((wait_for_ci)) && ! deploy-wait -C "$repo" "$tag"; then
+  running=$("$DEPLOY_NIXOS_VERSION" --configuration-revision 2>/dev/null || true)
+  if ! deploy-tag -C "$repo" moves-forward "$tag" "$host" "$running"; then
+    result[$host]="failed: $tag would move it off the commit it runs; see above"
+  elif ((wait_for_ci)) && ! deploy-wait -C "$repo" "$tag"; then
     result[$host]="not rebuilt: CI hadn't published what it needs"
   else
     echo "Switching $host to $tag."
     status=0
-    sudo flock "$DEPLOY_SWITCH_LOCK" nixos-rebuild switch --no-update-lock-file \
-      --flake "git+file://$top?rev=$commit#$host" || status=$?
+    deploy-switch -C "$repo" --forward "$tag" "$host" || status=$?
     if ((status == 0)); then
       result[$host]="runs $tag"
     else
-      result[$host]="failed: nixos-rebuild exited $status"
+      result[$host]="failed: the switch exited $status; see above"
     fi
   fi
 fi
