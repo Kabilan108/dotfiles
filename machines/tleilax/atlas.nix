@@ -1,12 +1,8 @@
 { inputs, pkgs, ... }:
 let
-  # The flake declares x86_64-linux only, but atlas is pure Go (CGO off) and
-  # builds anywhere. Drop this once the atlas flake lists aarch64-linux.
-  atlas = (pkgs.callPackage "${inputs.atlas}/nix/package.nix" { }).overrideAttrs (old: {
-    meta = old.meta // {
-      platforms = old.meta.platforms ++ [ "aarch64-linux" ];
-    };
-  });
+  # tleilax takes none of the shared overlays, so build atlas here with the
+  # Pi's own package set, as the atlas overlay does elsewhere.
+  atlas = pkgs.callPackage "${inputs.atlas}/nix/package.nix" { };
 in
 {
   # No tailnet service: only Executor on this box calls it (executor.nix
