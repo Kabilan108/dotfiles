@@ -14,6 +14,7 @@ in
   if tleilaxReady then
     {
       "secrets/hark/tleilax-alerts.curl.age".publicKeys = tleilax;
+      "secrets/executor/tleilax-v2-keys.env.age".publicKeys = tleilax;
     }
   else
     { }

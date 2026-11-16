@@ -134,11 +134,11 @@
 		// Atlas runs on tleilax itself, on loopback, for Executor v2.
 		{"src": ["tag:credentials"], "dst": ["svc:hark"], "ip": ["tcp:443"]},
 
-		// Grokbot reaches Executor and sietch's T3 Code (Tailscale Serve on the
+		// Grokbot reaches both Executors and sietch's T3 Code (Tailscale Serve on the
 		// machine's own HTTPS address, which carries the T3 MCP) and nothing else.
 		{
 			"src": ["tag:grokbot"],
-			"dst": ["svc:executor", "sietch"],
+			"dst": ["svc:executor", "svc:executor-v2", "sietch"],
 			"ip":  ["tcp:443"],
 		},
 
@@ -236,7 +236,7 @@
 		},
 		{
 			"src":    "tag:grokbot",
-			"accept": ["svc:executor:443", "sietch:443"],
+			"accept": ["svc:executor:443", "svc:executor-v2:443", "sietch:443"],
 			"deny": [
 				"sietch:22",
 				"sietch:8096",
@@ -253,7 +253,6 @@
 				"svc:cliproxyapi:443",
 				"svc:cpa-admin:443",
 				"svc:blocky:443",
-				"svc:executor-v2:443",
 			],
 		},
 		{

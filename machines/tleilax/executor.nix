@@ -1,12 +1,29 @@
 # Executor v2 (beta), reachable as executor-v2.sole-pierce.ts.net. It starts
-# empty; nothing migrates from v1 on sietch. Its session and encryption keys
-# are generated into /var/lib/executor-v2 on first boot and never exist off
-# this box, so back up the whole directory, keys included.
-{ ... }:
+# empty; nothing migrates from v1 on sietch.
+#
+# BETTER_AUTH_SECRET and EXECUTOR_ENCRYPTION_KEY come from agenix, so the
+# data volume never holds the key that decrypts its credentials. Executor
+# refuses to start if the key source changes under an existing database, so
+# the secret must exist before the first boot: create it on jacurutu as in
+# docs/tleilax-install.md ("Executor v2 keys").
+{ config, ... }:
 let
   port = 8304;
+  keysFile = ../../secrets/executor/tleilax-v2-keys.env.age;
 in
 {
+  assertions = [
+    {
+      assertion = builtins.pathExists keysFile;
+      message = "Create secrets/executor/tleilax-v2-keys.env.age on jacurutu before deploying Executor v2 (docs/tleilax-install.md).";
+    }
+  ];
+
+  age.secrets.executor-v2-keys = {
+    file = keysFile;
+    mode = "0400";
+  };
+
   # Podman: no daemon to keep running on the Pi.
   virtualisation.podman.enable = true;
   virtualisation.oci-containers.backend = "podman";
@@ -17,6 +34,7 @@ in
     # Bump by tag (each beta is a new tag), then re-pin the digest.
     image = "ghcr.io/usefulsoftwareco/executor-selfhost:2.0.0-beta.54@sha256:4a6cdf338ad62ec85a08986518f60cc9dc1d3f81a1468b1f7d7ecef6ca20d16b";
     volumes = [ "/var/lib/executor-v2:/app/data" ];
+    environmentFiles = [ config.age.secrets.executor-v2-keys.path ];
     environment = {
       # Host networking keeps the container under network.nix's egress filter
       # (a bridge would forward around it) and lets it reach atlas on
