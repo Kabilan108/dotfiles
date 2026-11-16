@@ -2224,7 +2224,7 @@ class CacheTargets(unittest.TestCase):
             self.ct.main()
         # The plan ignores the local store: niri is built on jacurutu but
         # not cached, so CI still builds it.
-        self.assertEqual(json.loads(stdout.getvalue()), ["niri", "disktree", "pagebin"])
+        self.assertEqual(json.loads(stdout.getvalue())["packages"], ["niri", "disktree", "pagebin"])
 
 
 if __name__ == "__main__":
