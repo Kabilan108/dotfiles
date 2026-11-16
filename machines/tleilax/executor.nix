@@ -33,8 +33,8 @@ in
         name. Each port becomes an allowed `http://127.0.0.1:<port>` origin
         (EXECUTOR_URL_ALLOW_HTTP_ORIGINS) and one of the only loopback ports,
         besides DNS and Executor's own, that the `executor-v2` nftables table
-        lets Executor's UID reach. Executor reaches nothing else on loopback
-        or the tailnet, and the `egress` table still blocks the home LAN.
+        lets Executor's UID reach. Executor reaches nothing else on loopback,
+        the tailnet, the home LAN (router included) or over IPv6.
       '';
     };
   };
@@ -92,7 +92,7 @@ in
     };
 
     networking.nftables.tables.executor-v2 = {
-      family = "ip";
+      family = "inet";
       content = ''
         chain output {
           type filter hook output priority -10; policy accept;
@@ -106,7 +106,8 @@ in
           } } accept
 
           oifname { "lo", "tailscale0" } drop
-          ip daddr 100.64.0.0/10 drop
+          meta nfproto ipv6 drop
+          ip daddr { 10.0.0.0/8, 100.64.0.0/10, 169.254.0.0/16, 172.16.0.0/12, 192.168.0.0/16 } drop
         }
       '';
     };
