@@ -82,6 +82,8 @@
             ./modules/nixos/nvidia.nix
             ./modules/nixos/xbox-controller.nix
             ./modules/nixos/mullvad-vpn.nix
+            # Temporary. Remove with modules/nixos/keyring-lpe-mitigation.nix.
+            ./modules/nixos/keyring-lpe-mitigation.nix
           ];
         };
         jacurutu = makeSystem { name = "jacurutu"; };
@@ -96,6 +98,8 @@
             }
             configurationRevision
             ./machines/tleilax
+            # Temporary. Remove with modules/nixos/keyring-lpe-mitigation.nix.
+            ./modules/nixos/keyring-lpe-mitigation.nix
           ];
         };
       };
