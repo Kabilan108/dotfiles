@@ -17,16 +17,21 @@
 # so a pull, an edit or a moved tag meanwhile can't reach the build. On the
 # controller, where deploy-wait is installed, it first waits for CI to publish
 # the heavy packages it would otherwise compile, even when HEAD was signed
-# before; --no-wait skips the wait. Unsigned builds, --unsigned included,
-# builds with uncommitted changes, and HEADs only an old per-host tag covers
-# build the checkout as it stands and never wait. No rebuild checks that it
-# moves forward: that's yours to judge from the list.
+# before; --no-wait skips the wait. Unsigned builds, --unsigned included, and
+# builds with uncommitted changes build the checkout as it stands and never
+# wait. An old per-host tag at HEAD approves nothing, so HEAD counts as
+# unsigned. No rebuild checks that it moves forward: that's yours to judge
+# from the list.
 #
 # Without --key it signs with the key on whichever deploy YubiKey is plugged
 # in (deploy-key, installed with `deploy`), and with yk-nfc-deploy when both
 # are. When there's a tag to sign and no deploy YubiKey is plugged in, it
 # stops before asking.
 set -euo pipefail
+# No replace refs, grafts or commit-graph file: they can fake history (see
+# modules/nixos/deploy/deploy-tag.sh).
+export GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null
+export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.commitGraph GIT_CONFIG_VALUE_0=false
 
 usage() {
   echo "usage: rebuild [--key yk-nfc-deploy|yk-nano-deploy] [--unsigned] [--no-wait] [switch|test|boot]" >&2
@@ -88,8 +93,9 @@ show_ci_changes() {
 
 # A fleet tag naming this host at COMMIT approves a signed build. Records the
 # tag object and commit; deploy-wait and deploy-switch hold the tag to both,
-# so moving it while the build waits can't change what gets built. Older
-# per-host tags approve nothing, so builds they cover use the checkout.
+# so moving it while the build waits can't change what gets built. The old
+# deploy-tag that's still installed during the switch-over signs a per-host
+# tag, which approves nothing, so that one build uses the checkout.
 signed_tag="" signed_object="" signed_commit=""
 pin() {
   local tag=$1 commit=$2 object
@@ -103,14 +109,19 @@ pin() {
 # whole build. Each failure returns explicitly: errexit is off inside a
 # function called from `if`.
 review() {
-  local head last last_tag="" last_commit="" dirty answer tag
+  local head last last_tag="" last_commit="" dirty answer tag approved=false
   head=$(git -C "$repo" rev-parse HEAD) || return 1
   if last=$(deploy-tag -C "$repo" latest "$host_name"); then
     read -r last_tag last_commit <<<"$last"
   fi
   dirty=$(git -C "$repo" status --porcelain --untracked-files=no) || return 1
+  # Only a fleet tag approves; an old per-host tag only marks where the list
+  # of commits starts.
+  if [[ $last_commit == "$head" && $last_tag == deploy/fleet/* ]]; then
+    approved=true
+  fi
 
-  if [[ $last_commit == "$head" && -z $dirty ]]; then
+  if [[ $approved == true && -z $dirty ]]; then
     echo "HEAD is $last_tag."
     if [[ $unsigned == false ]]; then
       pin "$last_tag" "$head" || return 1
@@ -134,6 +145,8 @@ review() {
       show_log "$last_commit..HEAD"
       show_ci_changes "$last_commit..HEAD"
     fi
+  elif [[ $approved == false ]]; then
+    echo "HEAD has only $last_tag, an old per-host tag, which approves nothing."
   fi
   if [[ -n $dirty ]]; then
     echo "Uncommitted changes, built but not covered by any tag:"
@@ -144,7 +157,7 @@ review() {
     echo "Building unsigned (--unsigned)."
     return 0
   fi
-  if [[ $last_commit != "$head" && -z $key ]] && command -v deploy-key >/dev/null; then
+  if [[ $approved == false && -z $key ]] && command -v deploy-key >/dev/null; then
     if ! key=$(deploy-key); then
       echo "Plug in a deploy YubiKey, or build with --unsigned."
       return 1
@@ -152,7 +165,7 @@ review() {
   fi
   key=${key:-yk-nfc-deploy}
   key_file=$HOME/.ssh/$key
-  if [[ $last_commit != "$head" && -e $key_file ]]; then
+  if [[ $approved == false && -e $key_file ]]; then
     read -r -p "Sign a deploy tag for $host_name at ${head:0:12} with $key and build? [y]es, [u]nsigned build, [N]o: " answer
     case $answer in
     [yY]*)

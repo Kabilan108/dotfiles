@@ -30,6 +30,10 @@
 # lock. --allow-rollback signs "Allow-Rollback: yes" into the tag to permit
 # that, and always asks on the terminal. A refusal here fails this host only.
 set -euo pipefail
+# No replace refs, grafts or commit-graph file: they can fake history (see
+# deploy-tag.sh).
+export GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null
+export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.commitGraph GIT_CONFIG_VALUE_0=false
 
 : "${DEPLOY_CONTROLLER:?}" "${DEPLOY_RECEIVERS:?}" "${DEPLOY_BRANCH:?}" "${DEPLOY_NIXOS_VERSION:?}"
 

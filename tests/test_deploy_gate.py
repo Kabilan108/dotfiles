@@ -429,6 +429,45 @@ class DeployGate(unittest.TestCase):
         )
         return newest + f'{signer} tag -s -f -m "deploy sietch\nHosts: sietch" "$tag" {rev}'
 
+    def path_without(self, name: str) -> str:
+        """PATH with the stub for name removed and no other copy of it.
+
+        A host that already runs the tool has it in a directory next to git
+        and the rest, so each such directory becomes a copy without it.
+        """
+        (self.tmp / "bin" / name).unlink()
+        dirs = []
+        for i, d in enumerate(self.env["PATH"].split(":")):
+            if not (Path(d) / name).exists():
+                dirs.append(d)
+                continue
+            copy = self.tmp / f"path-without-{name}-{i}"
+            copy.mkdir()
+            for entry in Path(d).iterdir():
+                if entry.name != name:
+                    (copy / entry.name).symlink_to(entry)
+            dirs.append(str(copy))
+        return ":".join(dirs)
+
+    def forge_history(self, repo: Path, how: str, older: str, newer: str) -> None:
+        """Make older look like a child of newer in repo, with a replace ref
+        or a grafts file, and check that plain git believes it."""
+        if how == "replace":
+            tree = self.git("rev-parse", f"{older}^{{tree}}", cwd=repo)
+            forged = self.git("commit-tree", tree, "-p", newer, "-m", "forged", cwd=repo)
+            self.git("replace", older, forged, cwd=repo)
+        else:
+            git_dir = Path(self.git("rev-parse", "--absolute-git-dir", cwd=repo))
+            (git_dir / "info").mkdir(exist_ok=True)
+            (git_dir / "info/grafts").write_text(f"{older} {newer}\n")
+        plain = self.run_cmd(["git", "merge-base", "--is-ancestor", newer, older], cwd=repo)
+        self.assertEqual(plain.returncode, 0, f"{how} didn't fool plain git: {plain.stderr}")
+
+    def unforge_history(self, repo: Path, older: str) -> None:
+        self.run_cmd(["git", "replace", "-d", older], cwd=repo)
+        git_dir = Path(self.git("rev-parse", "--absolute-git-dir", cwd=repo))
+        (git_dir / "info/grafts").unlink(missing_ok=True)
+
     def local_running(self) -> str:
         return (self.local / "running").read_text().strip()
 
@@ -1330,21 +1369,7 @@ class Rebuild(DeployGate):
 
     def test_before_deploy_key_is_installed_it_signs_with_yk_nfc_deploy(self) -> None:
         self.give_key()
-        (self.tmp / "bin/deploy-key").unlink()
-        # A host that already runs deploy-key has it in a directory next to
-        # git and the rest, so swap each such directory for a copy without it.
-        dirs = []
-        for i, d in enumerate(self.env["PATH"].split(":")):
-            if not (Path(d) / "deploy-key").exists():
-                dirs.append(d)
-                continue
-            copy = self.tmp / f"path-without-deploy-key-{i}"
-            copy.mkdir()
-            for entry in Path(d).iterdir():
-                if entry.name != "deploy-key":
-                    (copy / entry.name).symlink_to(entry)
-            dirs.append(str(copy))
-        r = self.rebuild("y\n", PATH=":".join(dirs), TEST_YKMAN_LIST="")
+        r = self.rebuild("y\n", PATH=self.path_without("deploy-key"), TEST_YKMAN_LIST="")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(len(self.git("tag", "-l", "deploy/fleet/*").splitlines()), 1)
         self.assertEqual(self.ykman_calls(), [])
@@ -1433,11 +1458,7 @@ class Rebuild(DeployGate):
         self.assertEqual(len(self.sudo_calls()), 1)
 
     def test_before_deploy_tag_is_installed(self) -> None:
-        (self.tmp / "bin/deploy-tag").unlink()
-        # A host that already has deploy-tag installed mustn't lend it here.
-        path = ":".join(
-            d for d in self.env["PATH"].split(":") if not (Path(d) / "deploy-tag").exists()
-        )
+        path = self.path_without("deploy-tag")
         r = self.rebuild(PATH=path)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("deploy-tag isn't installed yet", r.stdout)
@@ -1530,10 +1551,7 @@ class Rebuild(DeployGate):
 
     def without_deploy_wait(self) -> str:
         """A PATH without deploy-wait, which only the controller has."""
-        (self.tmp / "bin/deploy-wait").unlink()
-        return ":".join(
-            d for d in self.env["PATH"].split(":") if not (Path(d) / "deploy-wait").exists()
-        )
+        return self.path_without("deploy-wait")
 
     def test_away_from_the_controller_it_never_waits(self) -> None:
         self.sign(T1, "yk", message="rebuild sietch\nHosts: sietch", push=False)
@@ -1599,17 +1617,30 @@ class Rebuild(DeployGate):
         self.assertIn("changed while this switch waited for the lock", r.stderr)
         self.assertEqual(self.rebuilds(self.local), [])
 
-    def test_an_old_per_host_tag_at_head_builds_the_checkout(self) -> None:
+    def test_an_old_per_host_tag_at_head_counts_as_unsigned(self) -> None:
         self.give_key()
-        self.sign("deploy/jacurutu/20261029T100000Z", "yk", message="rebuild", push=False)
-        r = self.rebuild()
+        old = "deploy/jacurutu/20261029T100000Z"
+        self.sign(old, "yk", message="rebuild", push=False)
+        r = self.rebuild("")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn(f"HEAD has only {old}, an old per-host tag, which approves nothing.", r.stdout)
+        self.assertNotIn(f"HEAD is {old}.", r.stdout)
+        self.assertIn("Not building.", r.stdout)
+        self.assertEqual(self.sudo_calls(), [])
+
+        r = self.rebuild("u\n")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn("HEAD is deploy/jacurutu/20261029T100000Z.", r.stdout)
         self.assertEqual(self.lines("waits"), [])
         self.assertEqual(
             self.sudo_calls(),
             [f"flock /run/fleet-switch.lock nixos-rebuild switch --flake {self.work}#jacurutu"],
         )
+
+        r = self.rebuild("y\n")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        [tag] = self.git("tag", "-l", "deploy/fleet/*").splitlines()
+        self.assertEqual(len(self.lines("waits")), 1)
+        self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
 
     def test_a_signed_test_or_boot_builds_the_tagged_commit(self) -> None:
         self.give_key()
@@ -1631,11 +1662,7 @@ class Rebuild(DeployGate):
 
     def test_before_deploy_switch_is_installed(self) -> None:
         self.give_key()
-        (self.tmp / "bin/deploy-switch").unlink()
-        path = ":".join(
-            d for d in self.env["PATH"].split(":") if not (Path(d) / "deploy-switch").exists()
-        )
-        r = self.rebuild("y\n", PATH=path)
+        r = self.rebuild("y\n", PATH=self.path_without("deploy-switch"))
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("deploy-switch isn't installed yet", r.stdout)
         self.assertEqual(
@@ -1779,6 +1806,22 @@ class FleetTags(DeployGate):
         self.assertEqual(self.running(), self.rev("HEAD^"))
         self.assertEqual(len(self.rebuilds()), 2)
 
+    def test_forged_history_cannot_fake_a_forward_move(self) -> None:
+        # The review's scenario: a tag signs an older commit than the host
+        # runs, and the repository is made to show the older one as a child
+        # of the newer.
+        older = self.rev("HEAD^")
+        self.set_running(self.tip)
+        clone = self.state / "dotfiles.git"
+        self.assertEqual(self.receive().returncode, 1)
+        for tag, how in [(T1, "replace"), (T2, "grafts")]:
+            with self.subTest(how):
+                self.forge_history(clone, how, older, self.tip)
+                self.sign(tag, "yk", rev=older)
+                self.assert_refused(f"{older} doesn't descend from {self.tip}")
+                self.assertEqual(self.running(), self.tip)
+                self.unforge_history(clone, older)
+
     def test_an_unreadable_state_file_stops_the_receiver(self) -> None:
         (self.state / "deployed").write_text("whatever 0123\n")
         self.sign(T1, "yk")
@@ -1884,6 +1927,17 @@ class FleetDeployTag(DeployGate):
                         self.approves(T1, "jacurutu", now, self.rev("HEAD^")),
                         "Hosts: line doesn't name jacurutu",
                     )
+
+    def test_moves_forward_ignores_forged_history(self) -> None:
+        older = self.rev("HEAD^")
+        self.sign(T1, "yk", rev=older, push=False)
+        for how in ["replace", "grafts"]:
+            with self.subTest(how):
+                self.forge_history(self.work, how, older, self.tip)
+                r = self.run_cmd(["deploy-tag", "moves-forward", T1, "sietch", self.tip])
+                self.assertEqual(r.returncode, 1, r.stderr)
+                self.assertIn(f"{older} doesn't descend from {self.tip}", r.stderr)
+                self.unforge_history(self.work, older)
 
     def test_latest_takes_fleet_and_old_tags_by_time(self) -> None:
         self.sign(OLD1, "yk", rev="HEAD^", message="deploy sietch", push=False)
@@ -2063,6 +2117,34 @@ class FleetDeploy(DeployGate):
         [tag] = [t for t in self.deployed_tags() if t.startswith("deploy/fleet/")]
         self.assertIn(f"  jacurutu runs {tag}\n", r.stdout)
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
+
+    def test_forged_history_cannot_move_jacurutu_back(self) -> None:
+        for how in ["replace", "grafts"]:
+            with self.subTest(how):
+                ahead = self.ahead_of_nixos()
+                self.forge_history(self.work, how, self.tip, ahead)
+                r = self.deploy("--yes", "--no-wait", "--key", str(KEYS["yk"]), "jacurutu")
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                refusal = f"{self.tip} doesn't descend from {ahead}, which jacurutu runs"
+                self.assertIn(refusal, r.stderr)
+                self.assertIn("  jacurutu failed:", r.stdout)
+                # deploy-switch refuses it on its own, too.
+                [tag] = self.git("tag", "-l", "deploy/fleet/*").splitlines()
+                r = self.run_cmd(
+                    [
+                        "bash", str(SCRIPTS / "deploy-switch.sh"), "-C", str(self.work),
+                        "--forward", "--object", self.rev(f"refs/tags/{tag}"),
+                        "--commit", self.tip, tag, "jacurutu",
+                    ],
+                    extra_env={"TEST_ROOT": str(self.local)},
+                )
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn(refusal, r.stderr)
+                self.assertEqual(self.lines("sudo"), [])
+                self.assertEqual(self.rebuilds(self.local), [])
+                self.assertEqual(self.local_running(), ahead)
+                self.unforge_history(self.work, self.tip)
+                self.git("reset", "-q", "--hard", self.tip)
 
     def test_jacurutu_needs_to_know_what_it_runs(self) -> None:
         (self.local / "running").unlink()
@@ -2416,6 +2498,18 @@ class DeployWait(DeployGate):
             (self.tmp / "planner-flake").read_text(),
             f"git+file://{self.work.resolve()}?rev={self.tip}\n",
         )
+
+    def test_it_plans_the_real_commit_under_a_replace_ref(self) -> None:
+        self.heavy([])
+        (self.work / "ci/cache-targets.py").write_text("forged planner\n")
+        self.git("add", "ci")
+        self.git("commit", "-q", "-m", "forged")
+        self.git("replace", self.tip, self.rev("HEAD"))
+        plain = self.run_cmd(["git", "show", f"{self.tip}:ci/cache-targets.py"])
+        self.assertEqual(plain.stdout, "forged planner\n")
+        r = self.wait()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual((self.tmp / "planner-script").read_text(), "committed planner\n")
 
     def test_the_push_hint_names_the_key_it_is_given(self) -> None:
         self.sign(T2, "yk", message="rebuild jacurutu\nHosts: jacurutu", push=False)

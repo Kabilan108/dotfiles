@@ -27,6 +27,10 @@
 # asks on the terminal whether to build locally anyway, and exits 1 without a
 # terminal or a yes. GitHub is polled every DEPLOY_WAIT_POLL seconds.
 set -euo pipefail
+# No replace refs, grafts or commit-graph file: they can fake history (see
+# deploy-tag.sh).
+export GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null
+export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.commitGraph GIT_CONFIG_VALUE_0=false
 
 : "${DEPLOY_GITHUB_REPO:?DEPLOY_GITHUB_REPO must name the GitHub repo, as owner/name}"
 : "${DEPLOY_REPO_URL:?DEPLOY_REPO_URL must name the repo the tags are pushed to}"
