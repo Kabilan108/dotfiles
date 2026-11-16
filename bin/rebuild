@@ -1,25 +1,30 @@
 #!/usr/bin/env bash
 # vim: syn=bash ft=bash
 #
-# rebuild [--key yk-nfc-deploy|yk-nano-deploy] [--unsigned] [switch|test|boot]:
+# rebuild [--key yk-nfc-deploy|yk-nano-deploy] [--unsigned] [--no-wait] [switch|test|boot]:
 # build this host from ~/dotfiles and hand the action (default switch) to
 # nixos-rebuild.
 #
-# First it lists the commits since this host's last signed deploy tag
-# (deploy/<host>/*) and any uncommitted changes, and asks before building them.
-# Where the YubiKey handles live (jacurutu), approving signs the next tag at
-# HEAD with the PIN and a touch and pushes it. Elsewhere it builds unsigned once
-# you say so. --unsigned prints the same list and builds without asking or
-# signing.
+# First it lists the commits since the last signed deploy tag naming this host
+# and any uncommitted changes, and asks before building them. Where the
+# YubiKey handles live (jacurutu), approving signs a fleet tag for this host
+# at HEAD with the PIN and a touch and pushes it. Elsewhere it builds unsigned
+# once you say so. --unsigned prints the same list and builds without asking
+# or signing.
 #
 # Without --key it signs with the key on whichever deploy YubiKey is plugged
 # in (deploy-key, installed with `deploy`), and with yk-nfc-deploy when both
 # are. When there's a tag to sign and no deploy YubiKey is plugged in, it
 # stops before asking.
+#
+# On the controller, where deploy-wait is installed, a clean build of a signed
+# HEAD first waits for CI to publish the heavy packages it would otherwise
+# compile, even when HEAD was signed before. --no-wait and --unsigned skip
+# that, and a build with uncommitted changes never waits.
 set -euo pipefail
 
 usage() {
-  echo "usage: rebuild [--key yk-nfc-deploy|yk-nano-deploy] [--unsigned] [switch|test|boot]" >&2
+  echo "usage: rebuild [--key yk-nfc-deploy|yk-nano-deploy] [--unsigned] [--no-wait] [switch|test|boot]" >&2
   echo "  --key defaults to the deploy key on the plugged-in YubiKey (yk-nfc-deploy if both are)." >&2
   exit 2
 }
@@ -28,6 +33,7 @@ host_name=$(hostname)
 repo=$HOME/dotfiles
 key=""
 unsigned=false
+wait_for_ci=true
 action=switch
 
 while (($#)); do
@@ -39,6 +45,10 @@ while (($#)); do
     ;;
   --unsigned)
     unsigned=true
+    shift
+    ;;
+  --no-wait)
+    wait_for_ci=false
     shift
     ;;
   switch | test | boot)
@@ -71,8 +81,10 @@ show_ci_changes() {
   fi
 }
 
-# Returns 0 to build. Each failure returns explicitly: errexit is off inside
-# a function called from `if`.
+# Returns 0 to build, and sets signed_tag when a pushed tag covers the whole
+# build. Each failure returns explicitly: errexit is off inside a function
+# called from `if`.
+signed_tag=""
 review() {
   local head last last_tag="" last_commit="" dirty answer tag
   head=$(git -C "$repo" rev-parse HEAD) || return 1
@@ -83,6 +95,7 @@ review() {
 
   if [[ $last_commit == "$head" && -z $dirty ]]; then
     echo "HEAD is $last_tag."
+    signed_tag=$last_tag
     return 0
   fi
   if [[ $last_commit != "$head" ]]; then
@@ -121,12 +134,14 @@ review() {
   key=${key:-yk-nfc-deploy}
   key_file=$HOME/.ssh/$key
   if [[ $last_commit != "$head" && -e $key_file ]]; then
-    read -r -p "Sign deploy/$host_name at ${head:0:12} with $key and build? [y]es, [u]nsigned build, [N]o: " answer
+    read -r -p "Sign a deploy tag for $host_name at ${head:0:12} with $key and build? [y]es, [u]nsigned build, [N]o: " answer
     case $answer in
     [yY]*)
       tag=$(deploy-tag -C "$repo" sign --key "$key_file" --message "rebuild $host_name" "$host_name" "$head") || return 1
       if ! deploy-tag -C "$repo" push --key "$key_file" "$tag"; then
         echo "Couldn't push $tag; building anyway. Push it later with: deploy-tag -C $repo push --key $key_file $tag"
+      elif [[ -z $dirty ]]; then
+        signed_tag=$tag
       fi
       return 0
       ;;
@@ -144,6 +159,11 @@ if ! command -v deploy-tag >/dev/null; then
   exit
 fi
 if ! review; then
+  echo "Not building."
+  exit 1
+fi
+if [[ -n $signed_tag && $wait_for_ci == true && $unsigned == false ]] &&
+  command -v deploy-wait >/dev/null && ! deploy-wait -C "$repo" "$signed_tag"; then
   echo "Not building."
   exit 1
 fi

@@ -267,6 +267,35 @@ What this doesn't stop: a bad workflow change inside a commit I deploy.
 `deploy` and `rebuild` list `.github/` changes on their own line for that
 reason. Nor does it stop a compromise of GitHub, Cachix or a pinned action.
 
+### Fleet tags and waiting for the cache (2026-11-15)
+
+One tag now approves a commit for several hosts: `deploy/fleet/<UTC time>`,
+with a `Hosts:` line in the first paragraph of its signed message. A fleet
+deploy costs one PIN and touch to sign and one to push, where per-host tags
+took two per host. The ruleset (`refs/tags/deploy/**/*`) and the
+`cache-publish` environment (`deploy/*/*`) both match fleet tags, so GitHub's
+settings didn't change. `fleet` is reserved: no host may take that name.
+
+A receiver builds a fleet tag only when its own name is on the `Hosts:` line,
+and every other check stays: the signature with touch and PIN, the commit on
+`nixos`, a forward move unless the tag signs `Allow-Rollback: yes`, and a
+complete `flake.lock`. The host list sits inside the signature, so nobody can
+add a host to a tag I signed. Receivers ignore the old per-host tags. To stay
+replay-proof across the switch, a receiver compares the UTC time in a tag's
+name with the time of the last tag it deployed, which may still be a
+per-host tag. A tag no later than that never deploys.
+
+On jacurutu, `deploy` and `rebuild` wait for this cache before a signed
+build. `deploy-wait` runs `ci/cache-targets.py heavy` from the tagged commit,
+which evaluates jacurutu's system alone and lists the packages marked
+`# wait` in `ci/cache-packages` that neither the local store nor the cache
+has. It then follows that tag's Actions run with `gh` until those packages'
+build jobs finish. It only reads GitHub, and it decides only when to build.
+The switch still builds the signed commit, and Nix still checks the cache's
+signature on every path it downloads. A broken or lying run can make
+jacurutu wait, or compile what it would have compiled anyway. The planner
+runs as me, from the signed commit that is about to be built.
+
 ---
 
 ## Selfhost service permission model (July 2026, post-migration)

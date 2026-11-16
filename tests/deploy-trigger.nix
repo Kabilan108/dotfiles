@@ -35,7 +35,7 @@ pkgs.testers.runNixOSTest {
           echo "stand-in receiver failing"
           exit 3
         fi
-        echo "deploy/sietch/20261029T100000Z 0123abc" > /var/lib/deploy-receiver/deployed
+        echo "deploy/fleet/20261029T100000Z 0123abc" > /var/lib/deploy-receiver/deployed
       ''}";
       # queued.service waits in the job queue for as long as blocker runs.
       systemd.services.blocker.serviceConfig = {
@@ -76,7 +76,7 @@ pkgs.testers.runNixOSTest {
 
     out = machine.succeed("su - kabilan -c deploy-trigger")
     assert "stand-in receiver ran as root" in out, out
-    assert "sietch deployed deploy/sietch/20261029T100000Z 0123abc" in out, out
+    assert "sietch deployed deploy/fleet/20261029T100000Z 0123abc" in out, out
     assert "sietch runs 0123456789abcdef0123456789abcdef01234567" in out, out
     queued_job_waits()
 
@@ -130,7 +130,7 @@ pkgs.testers.runNixOSTest {
     assert stand_in_runs() > runs
     machine.succeed("rm /run/noisy-deploy")
     out = machine.succeed("su - kabilan -c deploy-trigger")
-    assert "sietch deployed deploy/sietch/20261029T100000Z 0123abc" in out, out
+    assert "sietch deployed deploy/fleet/20261029T100000Z 0123abc" in out, out
     machine.succeed("systemctl stop 'never-reads-*'")
 
     # Control: a flush start does cancel the queued job, so the checks above

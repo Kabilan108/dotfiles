@@ -1,8 +1,10 @@
 # YubiKey-signed deploys; lib/fleet.nix `deploy` says which host plays which
 # part. Every host gets deploy-tag, which bin/rebuild uses. The controller gets
-# `deploy` and deploy-key, which both commands use to pick the plugged-in key.
-# Receivers build signed tags through deploy-receiver.service, which the
-# deploy-trigger socket starts and deploy-receiver-run records.
+# `deploy`, deploy-key, which `deploy` and bin/rebuild use to pick the
+# plugged-in key, and deploy-wait, which holds their signed rebuilds until CI
+# has published the heavy packages. Receivers build fleet tags naming them
+# through deploy-receiver.service, which the deploy-trigger socket starts and
+# deploy-receiver-run records.
 {
   config,
   lib,
@@ -15,6 +17,7 @@ let
   thisHost = config.networking.hostName;
   isReceiver = builtins.elem thisHost deploy.receivers;
   isGated = builtins.elem thisHost deploy.gatedAgentLogins;
+  deployHosts = [ deploy.controller ] ++ deploy.receivers;
   stateDir = "/var/lib/deploy-receiver";
   triggerSocket = "/run/deploy-trigger.sock";
   runningNixosVersion = "/run/current-system/sw/bin/nixos-version";
@@ -79,19 +82,40 @@ let
     text = builtins.readFile ./deploy-key.sh;
   };
 
+  deployWait = pkgs.writeShellApplication {
+    name = "deploy-wait";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.gh
+      pkgs.git
+      pkgs.gnutar
+      pkgs.jq
+      pkgs.python3
+      config.nix.package
+    ];
+    runtimeEnv.DEPLOY_GITHUB_REPO = lib.removeSuffix ".git" (
+      lib.removePrefix "https://github.com/" deploy.repo
+    );
+    text = builtins.readFile ./deploy-wait.sh;
+  };
+
   deployCommand = pkgs.writeShellApplication {
     name = "deploy";
     runtimeInputs = [
       deployKey
       deployTag
+      deployWait
       pkgs.coreutils
       pkgs.git
       pkgs.gnugrep
+      pkgs.gnused
       config.programs.ssh.package
     ];
     runtimeEnv = {
-      DEPLOY_HOSTS = lib.concatStringsSep " " deploy.receivers;
+      DEPLOY_CONTROLLER = deploy.controller;
+      DEPLOY_RECEIVERS = lib.concatStringsSep " " deploy.receivers;
       DEPLOY_BRANCH = deploy.branch;
+      DEPLOY_SWITCH_LOCK = switchLock;
     };
     text = builtins.readFile ./deploy.sh;
   };
@@ -183,6 +207,14 @@ in
         message = "lib/fleet.nix deploy.signerYubiKeys must name only keys in deploy.signers, and include deploy.defaultSigner.";
       }
       {
+        # Tags are deploy/<name>/<UTC time>, and deploy/fleet/* are the fleet
+        # tags, whose "Hosts:" line names hosts.
+        assertion =
+          !(fleet.hosts ? fleet)
+          && builtins.all (name: name != "fleet" && builtins.match "[a-z0-9-]+" name != null) deployHosts;
+        message = "lib/fleet.nix: deploy host names must match [a-z0-9-]+, and none may be named fleet.";
+      }
+      {
         assertion = lib.hasInfix switchLock (builtins.readFile ../../../bin/rebuild);
         message = "bin/rebuild must switch under the same lock as the receiver (${switchLock}).";
       }
@@ -203,6 +235,7 @@ in
     ++ lib.optionals (thisHost == deploy.controller) [
       deployCommand
       deployKey
+      deployWait
     ]
     ++ lib.optional isReceiver trigger
     ++ lib.optional isGated gate;
