@@ -79,6 +79,13 @@ show_ci_changes() {
   fi
 }
 
+resolve_key() {
+  case $key in
+  */*) key_file=$key ;;
+  *) key_file=$HOME/.ssh/$key ;;
+  esac
+}
+
 # Ask on the terminal. --yes answers for us, except for a rewritten history
 # or a rollback.
 confirm() {
@@ -118,6 +125,9 @@ while [[ $# -gt 0 ]]; do
   *) break ;;
   esac
 done
+if [[ -n $key ]]; then
+  resolve_key
+fi
 for host in "$@"; do
   listed "$host" "${fleet[@]}" || die "$host doesn't take deploys (hosts: ${fleet[*]})"
 done
@@ -127,6 +137,7 @@ for host in "${fleet[@]}"; do
     hosts+=("$host")
   fi
 done
+
 g fetch --quiet --force --prune --no-tags origin \
   "+refs/heads/$DEPLOY_BRANCH:$branch_ref" \
   "+refs/tags/deploy/*:refs/tags/deploy/*"
@@ -189,11 +200,8 @@ else
   fi
   if [[ -z $key ]]; then
     key=$(deploy-key) || die "nothing was signed"
+    resolve_key
   fi
-  case $key in
-  */*) key_file=$key ;;
-  *) key_file=$HOME/.ssh/$key ;;
-  esac
   confirm "Sign deploy/fleet for ${hosts[*]} at ${target:0:12} with $(basename "$key_file") and deploy it?" ||
     die "cancelled; nothing was signed"
   message=$(
@@ -237,7 +245,7 @@ if listed "$DEPLOY_CONTROLLER" "${hosts[@]}"; then
   running=$("$DEPLOY_NIXOS_VERSION" --configuration-revision 2>/dev/null || true)
   if ! deploy-tag -C "$repo" moves-forward "$tag" "$host" "$running"; then
     result[$host]="failed: $tag would move it off the commit it runs; see above"
-  elif ((wait_for_ci)) && ! deploy-wait -C "$repo" "$tag"; then
+  elif ((wait_for_ci)) && ! deploy-wait -C "$repo" ${key_file:+--key "$key_file"} "$tag"; then
     result[$host]="not rebuilt: CI hadn't published what it needs"
   else
     echo "Switching $host to $tag."

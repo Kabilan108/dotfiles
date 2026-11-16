@@ -1288,7 +1288,8 @@ class Rebuild(DeployGate):
         r = self.rebuild("y\n", TEST_YKMAN_LIST=NANO)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("signing with yk-nano-deploy", r.stderr)
-        self.assertEqual(len(self.git("tag", "-l", "deploy/fleet/*").splitlines()), 1)
+        [tag] = self.git("tag", "-l", "deploy/fleet/*").splitlines()
+        self.assertIn("\nHosts: jacurutu\n", self.git("cat-file", "tag", tag))
         self.assertEqual(len(self.sudo_calls()), 1)
 
     def test_without_a_deploy_yubikey_it_stops_before_asking(self) -> None:
@@ -1342,7 +1343,8 @@ class Rebuild(DeployGate):
         self.assertIn("\nHosts: jacurutu\n", self.git("cat-file", "tag", tag))
         self.assertEqual(self.rev(f"{tag}^{{commit}}"), self.tip)
         self.assertEqual(self.git("tag", "-l", cwd=self.origin), tag)
-        self.assertEqual(self.lines("waits"), [f"-C {self.work} {tag}"])
+        signed_with = f"-C {self.work} --key {self.tmp}/home/.ssh/yk-nfc-deploy {tag}"
+        self.assertEqual(self.lines("waits"), [signed_with])
         [call] = self.sudo_calls()
         self.assertTrue(call.startswith(f"flock {self.tmp}/switch.lock "), call)
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
@@ -1351,7 +1353,7 @@ class Rebuild(DeployGate):
         r = self.rebuild()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn(f"HEAD is {tag}.", r.stdout)
-        self.assertEqual(self.lines("waits"), [f"-C {self.work} {tag}"] * 2)
+        self.assertEqual(self.lines("waits"), [signed_with, f"-C {self.work} {tag}"])
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)] * 2)
 
         self.commit("four")
@@ -1582,6 +1584,10 @@ class Rebuild(DeployGate):
         self.assertIn(f"push --key <its key file> {tag}", r.stdout)
         self.assertEqual(self.lines("gh-calls"), [])
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
+        r = self.rebuild(args=("--key", "yk-nfc-deploy"))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"push --key {self.tmp}/home/.ssh/yk-nfc-deploy {tag}", r.stdout)
+        self.assertEqual(self.ykman_calls(), ["list"])
 
     def test_an_old_per_host_tag_still_lists_what_changed(self) -> None:
         self.give_key()
@@ -1805,7 +1811,7 @@ class FleetDeploy(DeployGate):
             f"build --no-update-lock-file --flake git+file://{self.tleilax}/state/dotfiles.git"
             f"?rev={self.tip}#tleilax",
         )
-        self.assertEqual(self.lines("waits"), [f"-C {self.work} {tag}"])
+        self.assertEqual(self.lines("waits"), [f"-C {self.work} --key {KEYS['yk']} {tag}"])
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
         self.assertEqual(self.local_running(), self.tip)
         self.assertTrue(
@@ -1820,7 +1826,7 @@ class FleetDeploy(DeployGate):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("nothing to sign", r.stdout)
         self.assertEqual(self.deployed_tags(), [tag])
-        self.assertEqual(self.lines("waits"), [f"-C {self.work} {tag}"] * 2)
+        self.assertEqual(self.lines("waits"), [f"-C {self.work} --key {KEYS['yk']} {tag}"] * 2)
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)] * 2)
 
     def test_receivers_deploy_in_parallel(self) -> None:
@@ -1954,6 +1960,55 @@ class FleetDeploy(DeployGate):
         [tag] = self.deployed_tags()
         self.assertIn("\nAllow-Rollback: yes\nHosts: jacurutu\n", self.git("cat-file", "tag", tag))
         self.assertEqual(self.local_running(), self.tip)
+
+    def test_one_fleet_deploy_picks_the_key_once(self) -> None:
+        self.install_key("yk", "yk-nano-deploy")
+        code, out = self.at_terminal(
+            ["bash", str(SCRIPTS / "deploy.sh")],
+            "y\n",
+            extra_env={"TEST_ROOT": str(self.local), "TEST_YKMAN_LIST": NANO},
+        )
+        self.assertEqual(code, 0, out)
+        [tag] = self.deployed_tags()
+        self.assertEqual(self.ykman_calls(), ["list"])
+        self.assertIn("signing with yk-nano-deploy, the deploy key", out)
+        self.assertIn(
+            f"Sign deploy/fleet for jacurutu sietch tleilax at {self.tip[:12]} "
+            "with yk-nano-deploy and deploy it?",
+            out,
+        )
+        self.assertEqual(out.count("touch the key to sign"), 1)
+        self.assertIn(f"touch yk-nano-deploy again to push {tag}", out)
+        self.assertIn(f"  tleilax runs {tag}", out)
+
+    def test_without_a_deploy_yubikey_the_fleet_deploy_stops_before_asking(self) -> None:
+        self.install_key("yk", "yk-nfc-deploy")
+        r = self.deploy("--yes", TEST_YKMAN_LIST=OTHER)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("no deploy YubiKey is plugged in", r.stderr)
+        self.assertIn("deploy: nothing was signed", r.stderr)
+        self.assertEqual(self.deployed_tags(), [])
+        self.assertNotIn("Starting the deploy", r.stdout)
+        self.assertEqual(self.rebuilds(), [])
+        self.assertEqual(self.rebuilds(self.tleilax), [])
+        self.assertEqual(self.lines("waits"), [])
+        self.assertEqual(self.lines("sudo"), [])
+
+    def test_key_flag_and_nothing_to_sign_never_ask_ykman(self) -> None:
+        r = self.deploy("--yes", "--key", str(KEYS["yk"]), TEST_YKMAN_LIST="")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        r = self.deploy("--yes", TEST_YKMAN_LIST="")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("nothing to sign", r.stdout)
+        self.assertEqual(self.ykman_calls(), [])
+        self.assertEqual(len(self.deployed_tags()), 1)
+        self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)] * 2)
+        # deploy-wait hears the key it was given, for its push hint.
+        [tag] = self.deployed_tags()
+        self.assertEqual(
+            self.lines("waits"),
+            [f"-C {self.work} --key {KEYS['yk']} {tag}", f"-C {self.work} {tag}"],
+        )
 
     def test_a_rewritten_tag_of_any_host_needs_a_terminal(self) -> None:
         self.sign(OLD1, "yk", rev="HEAD^", message="deploy sietch")
@@ -2196,6 +2251,15 @@ class DeployWait(DeployGate):
         self.assertIn(f"Push it with: deploy-tag -C {self.work.resolve()} push --key <its key file> {T2}", r.stdout)
         self.assertEqual(self.gh_calls(), [])
         self.assertFalse((self.tmp / "planner-flake").exists())
+
+    def test_the_push_hint_names_the_key_it_is_given(self) -> None:
+        self.sign(T2, "yk", message="rebuild jacurutu\nHosts: jacurutu", push=False)
+        r = self.run_cmd(
+            ["bash", str(SCRIPTS / "deploy-wait.sh"), "-C", str(self.work), "--key", "/keys/yk-nano-deploy", T2]
+        )
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"push --key /keys/yk-nano-deploy {T2}", r.stdout)
+        self.assertNotIn("<its key file>", r.stdout)
 
     def test_an_unreachable_remote_still_looks_for_the_run(self) -> None:
         self.heavy([])

@@ -169,7 +169,7 @@ if [[ $unsigned == true ]]; then
   signed_tag=""
 fi
 if [[ -n $signed_tag && $wait_for_ci == true ]] && command -v deploy-wait >/dev/null &&
-  ! deploy-wait -C "$repo" "$signed_tag"; then
+  ! deploy-wait -C "$repo" ${key:+--key "$HOME/.ssh/$key"} "$signed_tag"; then
   echo "Not building."
   exit 1
 fi

@@ -3,10 +3,11 @@
 # it would otherwise compile. `deploy` and bin/rebuild run it on the
 # controller before they switch.
 #
-#   deploy-wait [-C DIR] TAG
+#   deploy-wait [-C DIR] [--key FILE] TAG
 #
 # A tag that isn't on DEPLOY_REPO_URL started no CI run, such as one whose
-# push failed, so it says how to push it and exits 0 without waiting.
+# push failed, so it says how to push it, with the signing key FILE when the
+# caller knows it, and exits 0 without waiting.
 #
 # Otherwise it runs `ci/cache-targets.py heavy` from TAG's commit, which
 # evaluates only this host's system at that commit and lists the packages
@@ -30,7 +31,7 @@ find_for=${DEPLOY_WAIT_FIND:-120}
 timeout=${DEPLOY_WAIT_TIMEOUT:-3600}
 
 usage() {
-  echo "usage: deploy-wait [-C DIR] TAG" >&2
+  echo "usage: deploy-wait [-C DIR] [--key FILE] TAG" >&2
   exit 2
 }
 
@@ -39,10 +40,15 @@ if [[ ! $poll$find_for$timeout =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
-repo=.
+repo=. key_file=""
 if [[ ${1:-} == -C ]]; then
   [[ $# -ge 2 ]] || usage
   repo=$2
+  shift 2
+fi
+if [[ ${1:-} == --key ]]; then
+  [[ -n ${2:-} ]] || usage
+  key_file=$2
   shift 2
 fi
 [[ $# -eq 1 ]] || usage
@@ -87,7 +93,7 @@ on_remote=0
 git ls-remote --exit-code "$DEPLOY_REPO_URL" "refs/tags/$tag" >/dev/null || on_remote=$?
 if ((on_remote == 2)); then
   echo "$tag isn't on GitHub, so no CI run builds for it. Building without waiting."
-  echo "Push it with: deploy-tag -C $top push --key <its key file> $tag"
+  echo "Push it with: deploy-tag -C $top push --key ${key_file:-<its key file>} $tag"
   exit 0
 fi
 
