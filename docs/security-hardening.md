@@ -307,14 +307,6 @@ never what the tag names by then. `deploy-wait` plans that commit too, and
 approve a build. An old per-host tag at HEAD counts as no tag, so `rebuild`
 offers to sign a fleet tag, as for any unsigned HEAD.
 
-The same goes for history. Replace refs (`git replace`), a grafts file and the
-commit-graph file can each give a commit fake parents, and anything running
-as me can write them into `~/dotfiles`. A signed old commit could then seem
-to descend from the one jacurutu runs. So every script that checks tags or
-picks the signed source runs git with `GIT_NO_REPLACE_OBJECTS=1`,
-`GIT_GRAFT_FILE=/dev/null` and `core.commitGraph=false`, and reads only real
-objects. The receivers set them too, for their own clones.
-
 On jacurutu, `deploy` and `rebuild` wait for this cache before a signed
 build. `deploy-wait` runs `ci/cache-targets.py heavy` from the tagged commit,
 which evaluates jacurutu's system alone and lists the packages marked

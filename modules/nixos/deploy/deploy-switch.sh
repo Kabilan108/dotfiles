@@ -20,12 +20,6 @@
 # The checks under the lock run as the calling user, in the repository that
 # user owns.
 set -euo pipefail
-# No replace refs, grafts or commit-graph file: they can fake history (see
-# deploy-tag.sh).
-export GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null
-export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=core.commitGraph GIT_CONFIG_VALUE_0=false
-# An empty graft file still makes git print its deprecation advice.
-export GIT_CONFIG_KEY_1=advice.graftFileDeprecated GIT_CONFIG_VALUE_1=false
 
 : "${DEPLOY_SWITCH_LOCK:?}" "${DEPLOY_NIXOS_VERSION:?}"
 
