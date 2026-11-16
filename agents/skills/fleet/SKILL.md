@@ -61,22 +61,36 @@ inspecting or changing policy.
 
 ## Deploying
 
-Tony approves a commit by signing a git tag, `deploy/<host>/<UTC time>`, with
-his YubiKey. Hosts build only signed tags.
+Tony approves a commit for a set of hosts by signing one git tag,
+`deploy/fleet/<UTC time>`, with his YubiKey. The `Hosts:` line in its message
+names the hosts it approves, and a host builds only signed tags that name it.
+Older `deploy/<host>/<UTC time>` tags still count when listing what changed,
+and approve nothing.
 
-- `deploy <host>` runs on jacurutu. It fetches `origin/nixos`, lists the
-  commits since the host's last signed tag, asks, signs a new tag (the YubiKey
-  PIN and a touch), pushes it with the same key (the PIN and a touch again,
-  since only the repo's deploy keys may create deploy tags), and starts the
-  host's receiver over SSH. The tag also starts CI's binary cache publish.
-  With nothing new it skips the signing and only starts the receiver.
+- `deploy [HOST...]` runs on jacurutu; with no host it deploys jacurutu,
+  sietch and tleilax. It fetches `origin/nixos`, lists the commits since the
+  oldest of those hosts' last tags, asks once, signs one fleet tag (the
+  YubiKey PIN and a touch) and pushes it with the same key (the PIN and a
+  touch again, since only the repo's deploy keys may create deploy tags).
+  Then it starts the sietch and tleilax receivers in parallel over SSH, their
+  log lines prefixed by host, rebuilds jacurutu from the tagged commit, and
+  ends with one result line per host. The tag also starts CI's binary cache
+  publish. With nothing new for any host it skips the signing and only starts
+  the deploys.
 - Each YubiKey holds its own signer key: `yk-nfc-deploy` or `yk-nano-deploy`
   (`lib/fleet.nix` `deploy.signerYubiKeys` maps their serials). Without
   `--key`, `deploy` and `rebuild` run `deploy-key`, which reads the serials
   with `ykman list` and signs with the key that's plugged in. With both
   plugged in, or if ykman can't tell, they use `yk-nfc-deploy`. With neither
   plugged in they stop before asking; tell Tony which key to plug in.
-  `--key` overrides the choice.
+  `--key` overrides the choice. A fleet deploy picks once, for its one tag,
+  and the question names the key.
+- Before jacurutu builds, `deploy-wait` checks for packages marked `# wait`
+  in `ci/cache-packages` (niri, ghostty, dictator) that jacurutu would compile
+  because neither its store nor the cache has them. It prints the Actions run
+  and waits for those packages' `build <pkg>` jobs only. A failed job, a
+  timeout or Ctrl-C asks whether to build locally. `--no-wait` skips the
+  check.
 - You may run `deploy` on jacurutu, but only Tony can touch the key, and the
   new keys also need their PIN typed in a terminal. Start it in a tmux pane he
   can attach to and tell him with `notify-send`. `--yes` skips the question,
@@ -86,10 +100,11 @@ his YubiKey. Hosts build only signed tags.
   never reads `~/dotfiles`, so an edit there deploys nothing.
 - A host only moves forward: the signed commit must descend from the one it
   runs, including Tony's manual rebuilds, and its `flake.lock` must be
-  complete. `deploy` always signs the tip of `origin/nixos`, so undo a bad
+  complete. `deploy` holds jacurutu to the same rule, checked again under the
+  switch lock; a refusal fails jacurutu alone. `deploy` always signs the tip of `origin/nixos`, so undo a bad
   change with a revert, which moves forward. Only when `nixos` itself was
-  moved back does it take `deploy --allow-rollback <host>`, which asks on
-  the terminal even with `--yes`; that's Tony's call.
+  moved back or force-pushed does it take `deploy --allow-rollback`, which
+  asks on the terminal even with `--yes`; that's Tony's call.
 - sietch and tleilax take deploys. tleilax builds its own aarch64 closure, so
   its deploys are slow. Nothing else changes tleilax: no `nixos-rebuild
   --target-host`, no copied closures.
@@ -97,8 +112,13 @@ his YubiKey. Hosts build only signed tags.
   and sessionizer's inventory listing; it refuses everything else, including a
   shell. Don't try other commands there.
 - `rebuild` is Tony's manual rebuild of the host he's on, from `~/dotfiles`.
-  It lists the commits since that host's last signed tag and asks; on jacurutu,
-  approving signs and pushes a tag. Leave it to him.
+  It lists the commits since the last tag naming that host and asks. On
+  jacurutu, approving signs and pushes a fleet tag for jacurutu alone; the
+  `[f]leet` answer signs it for every host, so a later `deploy` skips signing,
+  but still rebuilds only jacurutu. A
+  clean signed build waits for CI like `deploy` does and builds the commit
+  the tag pointed at when it was checked, not the checkout, refusing a tag
+  that was moved since; it doesn't check moving forward. Leave it to him.
 - sietch's `~/dotfiles` still feeds `~/bin`, the agent configs and niri's
   `config.kdl` directly, so those change on `git pull` there, with or without
   a deploy. Pull it after a deploy so the two match.

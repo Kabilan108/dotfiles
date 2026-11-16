@@ -1,25 +1,42 @@
 #!/usr/bin/env bash
 # vim: syn=bash ft=bash
 #
-# rebuild [--key yk-nfc-deploy|yk-nano-deploy] [--unsigned] [switch|test|boot]:
+# rebuild [--key yk-nfc-deploy|yk-nano-deploy] [--unsigned] [--no-wait] [switch|test|boot]:
 # build this host from ~/dotfiles and hand the action (default switch) to
 # nixos-rebuild.
 #
-# First it lists the commits since this host's last signed deploy tag
-# (deploy/<host>/*) and any uncommitted changes, and asks before building them.
-# Where the YubiKey handles live (jacurutu), approving signs the next tag at
-# HEAD with the PIN and a touch and pushes it. Elsewhere it builds unsigned once
-# you say so. --unsigned prints the same list and builds without asking or
-# signing.
+# First it lists the commits since the last signed deploy tag naming this host
+# and any uncommitted changes, and asks before building them. Where the
+# YubiKey handles live (jacurutu), approving signs a fleet tag for this host
+# at HEAD with the PIN and a touch and pushes it; answering [f]leet signs it
+# for every host instead, so a later `deploy` finds it and needn't sign again,
+# while this run still builds only this host. Elsewhere it builds unsigned
+# once you say so. --unsigned prints the same list and builds without asking
+# or signing.
+#
+# A clean build of a HEAD that a fleet tag naming this host approves builds
+# that tag's commit with deploy-switch, pinned to the tag object it checked,
+# so a pull, an edit or a moved tag meanwhile can't reach the build. On the
+# controller, where deploy-wait is installed, it first waits for CI to publish
+# the heavy packages it would otherwise compile, even when HEAD was signed
+# before; --no-wait skips the wait. Unsigned builds, --unsigned included, and
+# builds with uncommitted changes build the checkout as it stands and never
+# wait. An old per-host tag at HEAD approves nothing, so HEAD counts as
+# unsigned. No rebuild checks that it moves forward: that's yours to judge
+# from the list.
 #
 # Without --key it signs with the key on whichever deploy YubiKey is plugged
 # in (deploy-key, installed with `deploy`), and with yk-nfc-deploy when both
 # are. When there's a tag to sign and no deploy YubiKey is plugged in, it
 # stops before asking.
 set -euo pipefail
+# No replace refs, grafts or commit-graph file: they can fake history (see
+# modules/nixos/deploy/deploy-tag.sh).
+export GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null
+export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.commitGraph GIT_CONFIG_VALUE_0=false
 
 usage() {
-  echo "usage: rebuild [--key yk-nfc-deploy|yk-nano-deploy] [--unsigned] [switch|test|boot]" >&2
+  echo "usage: rebuild [--key yk-nfc-deploy|yk-nano-deploy] [--unsigned] [--no-wait] [switch|test|boot]" >&2
   echo "  --key defaults to the deploy key on the plugged-in YubiKey (yk-nfc-deploy if both are)." >&2
   exit 2
 }
@@ -28,6 +45,7 @@ host_name=$(hostname)
 repo=$HOME/dotfiles
 key=""
 unsigned=false
+wait_for_ci=true
 action=switch
 
 while (($#)); do
@@ -39,6 +57,10 @@ while (($#)); do
     ;;
   --unsigned)
     unsigned=true
+    shift
+    ;;
+  --no-wait)
+    wait_for_ci=false
     shift
     ;;
   switch | test | boot)
@@ -71,18 +93,41 @@ show_ci_changes() {
   fi
 }
 
-# Returns 0 to build. Each failure returns explicitly: errexit is off inside
-# a function called from `if`.
+# A fleet tag naming this host at COMMIT approves a signed build. Records the
+# tag object and commit; deploy-wait and deploy-switch hold the tag to both,
+# so moving it while the build waits can't change what gets built. The old
+# deploy-tag that's still installed during the switch-over signs a per-host
+# tag, which approves nothing, so that one build uses the checkout.
+signed_tag="" signed_object="" signed_commit=""
+pin() {
+  local tag=$1 commit=$2 object
+  [[ $tag == deploy/fleet/* ]] || return 0
+  object=$(git -C "$repo" rev-parse --verify --quiet "refs/tags/$tag") || return 1
+  deploy-tag -C "$repo" approves "$tag" "$host_name" "$object" "$commit" || return 1
+  signed_tag=$tag signed_object=$object signed_commit=$commit
+}
+
+# Returns 0 to build, and pins the tag when a pushed fleet tag covers the
+# whole build. Each failure returns explicitly: errexit is off inside a
+# function called from `if`.
 review() {
-  local head last last_tag="" last_commit="" dirty answer tag
+  local head last last_tag="" last_commit="" dirty answer tag approved=false
   head=$(git -C "$repo" rev-parse HEAD) || return 1
   if last=$(deploy-tag -C "$repo" latest "$host_name"); then
     read -r last_tag last_commit <<<"$last"
   fi
   dirty=$(git -C "$repo" status --porcelain --untracked-files=no) || return 1
+  # Only a fleet tag approves; an old per-host tag only marks where the list
+  # of commits starts.
+  if [[ $last_commit == "$head" && $last_tag == deploy/fleet/* ]]; then
+    approved=true
+  fi
 
-  if [[ $last_commit == "$head" && -z $dirty ]]; then
+  if [[ $approved == true && -z $dirty ]]; then
     echo "HEAD is $last_tag."
+    if [[ $unsigned == false ]]; then
+      pin "$last_tag" "$head" || return 1
+    fi
     return 0
   fi
   if [[ $last_commit != "$head" ]]; then
@@ -102,6 +147,8 @@ review() {
       show_log "$last_commit..HEAD"
       show_ci_changes "$last_commit..HEAD"
     fi
+  elif [[ $approved == false ]]; then
+    echo "HEAD has only $last_tag, an old per-host tag, which approves nothing."
   fi
   if [[ -n $dirty ]]; then
     echo "Uncommitted changes, built but not covered by any tag:"
@@ -112,7 +159,7 @@ review() {
     echo "Building unsigned (--unsigned)."
     return 0
   fi
-  if [[ $last_commit != "$head" && -z $key ]] && command -v deploy-key >/dev/null; then
+  if [[ $approved == false && -z $key ]] && command -v deploy-key >/dev/null; then
     if ! key=$(deploy-key); then
       echo "Plug in a deploy YubiKey, or build with --unsigned."
       return 1
@@ -120,13 +167,23 @@ review() {
   fi
   key=${key:-yk-nfc-deploy}
   key_file=$HOME/.ssh/$key
-  if [[ $last_commit != "$head" && -e $key_file ]]; then
-    read -r -p "Sign deploy/$host_name at ${head:0:12} with $key and build? [y]es, [u]nsigned build, [N]o: " answer
+  if [[ $approved == false && -e $key_file ]]; then
+    read -r -p "Sign a deploy tag for $host_name at ${head:0:12} with $key and build? [y]es, [f]leet (every host), [u]nsigned build, [N]o: " answer
     case $answer in
-    [yY]*)
-      tag=$(deploy-tag -C "$repo" sign --key "$key_file" --message "rebuild $host_name" "$host_name" "$head") || return 1
+    [yYfF]*)
+      local -a hosts=("$host_name")
+      if [[ $answer == [fF]* ]]; then
+        read -r -a hosts <<<"$(deploy-tag fleet-hosts)" || return 1
+        if [[ " ${hosts[*]} " != *" $host_name "* ]]; then
+          echo "$host_name isn't a fleet host (${hosts[*]}), so a fleet tag wouldn't approve this build."
+          return 1
+        fi
+      fi
+      tag=$(deploy-tag -C "$repo" sign --key "$key_file" --message "rebuild $host_name" "${hosts[@]}" "$head") || return 1
       if ! deploy-tag -C "$repo" push --key "$key_file" "$tag"; then
         echo "Couldn't push $tag; building anyway. Push it later with: deploy-tag -C $repo push --key $key_file $tag"
+      elif [[ -z $dirty ]]; then
+        pin "$tag" "$head" || return 1
       fi
       return 0
       ;;
@@ -146,6 +203,18 @@ fi
 if ! review; then
   echo "Not building."
   exit 1
+fi
+if [[ -n $signed_tag && $wait_for_ci == true ]] && command -v deploy-wait >/dev/null &&
+  ! deploy-wait -C "$repo" ${key:+--key "$HOME/.ssh/$key"} --commit "$signed_commit" "$signed_tag"; then
+  echo "Not building."
+  exit 1
+fi
+if [[ -n $signed_tag ]]; then
+  if command -v deploy-switch >/dev/null; then
+    exec deploy-switch -C "$repo" --object "$signed_object" --commit "$signed_commit" \
+      "$signed_tag" "$host_name" "$action"
+  fi
+  echo "deploy-switch isn't installed yet, so this build uses the checkout."
 fi
 
 # The deploy receiver switches only under this lock (modules/nixos/deploy),

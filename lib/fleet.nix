@@ -163,10 +163,11 @@ rec {
   # Agent logins to gated hosts can only run modules/nixos/deploy/gate.sh.
   agentGateRestrictions = "command=\"/run/current-system/sw/bin/deploy-gate\",restrict,from=\"100.64.0.0/10\"";
 
-  # Signed deploys (modules/nixos/deploy). `deploy <host>` on the controller
-  # pushes a deploy/<host>/<UTC time> tag signed with a YubiKey. Each receiver
-  # fetches the repo over HTTPS and builds only tags that verify against
-  # `signers`.
+  # Signed deploys (modules/nixos/deploy). `deploy` on the controller pushes
+  # one deploy/fleet/<UTC time> tag signed with a YubiKey, whose "Hosts:" line
+  # names the hosts it approves. Each receiver fetches the repo over HTTPS and
+  # builds only tags that name it and verify against `signers`. No host may be
+  # named "fleet".
   deploy = {
     repo = "https://github.com/Kabilan108/dotfiles.git";
     # Tags go over SSH so the signer key can authenticate as a deploy key.

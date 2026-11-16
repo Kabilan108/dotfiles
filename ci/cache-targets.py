@@ -10,6 +10,11 @@
         CACHE_DIR into the store, then check that each one builds PNAME.
     cache-targets.py drvs PNAME
         Print PNAME's derivation paths, one per line.
+    cache-targets.py heavy [FLAKE]
+        Print a JSON list of the pnames marked "# wait" in ci/cache-packages
+        with a jacurutu output in neither the local store nor the cache, in
+        file order. FLAKE (default: this checkout) names the commit to
+        evaluate. It evaluates jacurutu only, so deploy-wait can run it there.
 
 Reading the derivations out of each host's system closure means CI builds
 exactly what the hosts would, and nothing they don't use.
@@ -26,6 +31,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 HOSTS = ["sietch", "jacurutu"]
+WAIT_HOST = "jacurutu"
 CACHE = "https://kabilan108.cachix.org"
 UPSTREAM = "https://cache.nixos.org"
 
@@ -49,9 +55,22 @@ host: (host.extendModules {
 """
 
 
+def entries() -> list[tuple[str, str]]:
+    """(pname, trailing comment) for each package line of ci/cache-packages."""
+    found = []
+    for line in (ROOT / "ci/cache-packages").read_text().splitlines():
+        name, _, comment = line.partition("#")
+        if name.strip():
+            found.append((name.strip(), comment.strip()))
+    return found
+
+
 def packages() -> list[str]:
-    lines = (ROOT / "ci/cache-packages").read_text().splitlines()
-    return [line.strip() for line in lines if line.strip() and not line.startswith("#")]
+    return [name for name, _ in entries()]
+
+
+def heavy_packages() -> list[str]:
+    return [name for name, comment in entries() if comment == "wait"]
 
 
 def run(*cmd: str) -> str:
@@ -136,22 +155,28 @@ def require_atuin_ifd() -> None:
         sys.exit(f"cache-targets: evaluating {ref} failed:\n{proc.stderr}")
 
 
-def targets(names: list[str]) -> dict[str, dict[str, list[str]]]:
-    """Map each pname to {drv path: [output paths]} across all hosts."""
+def closure(flake: str, host: str) -> list[str]:
+    """The derivations and sources in host's ungrafted system closure."""
+    top = run(
+        "nix", "eval", "--raw",
+        "--option", "allow-import-from-derivation", "true",
+        "--apply", UNGRAFTED_TOPLEVEL,
+        f"{flake}#nixosConfigurations.{host}",
+    )
+    return run("nix-store", "--query", "--requisites", top).split()
+
+
+def find(
+    names: list[str], flake: str, hosts: list[str]
+) -> tuple[dict[str, dict[str, list[str]]], set[str]]:
+    """Map each pname to {drv path: [output paths]} across hosts, and the
+    pnames seen in any of their systems."""
     name_re = re.compile(
         r"/[a-z0-9]{32}-(?:" + "|".join(map(re.escape, names)) + r")-[^/]*\.drv$"
     )
-    require_atuin_ifd()
     candidates: set[str] = set()
-    for host in HOSTS:
-        top = run(
-            "nix", "eval", "--raw",
-            "--option", "allow-import-from-derivation", "true",
-            "--apply", UNGRAFTED_TOPLEVEL,
-            f"{ROOT}#nixosConfigurations.{host}",
-        )
-        closure = run("nix-store", "--query", "--requisites", top).split()
-        candidates.update(p for p in closure if name_re.search(p))
+    for host in hosts:
+        candidates.update(p for p in closure(flake, host) if name_re.search(p))
 
     found: dict[str, dict[str, list[str]]] = {name: {} for name in names}
     seen: set[str] = set()
@@ -165,11 +190,29 @@ def targets(names: list[str]) -> dict[str, dict[str, list[str]]]:
         # Also skips nixpkgs builds of the same pname pulled in elsewhere.
         if not all(cached(out, UPSTREAM) for out in outs):
             found[pname][path] = outs
+    return found, seen
 
+
+def targets(names: list[str]) -> dict[str, dict[str, list[str]]]:
+    """Map each pname to {drv path: [output paths]} across all hosts."""
+    require_atuin_ifd()
+    found, seen = find(names, str(ROOT), HOSTS)
     missing = [name for name in names if name not in seen]
     if missing:
         sys.exit(f"cache-targets: not in any host system: {' '.join(missing)}")
     return found
+
+
+def heavy(flake: str) -> list[str]:
+    """The heavy pnames WAIT_HOST would have to build itself."""
+    names = heavy_packages()
+    found, _ = find(names, flake, [WAIT_HOST])
+    outs = {name: sorted({o for paths in drvs.values() for o in paths}) for name, drvs in found.items()}
+    every = sorted({o for paths in outs.values() for o in paths})
+    absent = set()
+    if every:
+        absent = set(run("nix-store", "--check-validity", "--print-invalid", *every).split())
+    return [name for name in names if any(o in absent and not cached(o) for o in outs[name])]
 
 
 def cached(path: str, cache: str = CACHE) -> bool:
@@ -204,6 +247,10 @@ def main() -> None:
             import_drvs(name, Path(cache), drvs)
         case ["drvs", name] if name in packages():
             print("\n".join(targets([name])[name]))
+        case ["heavy"]:
+            print(json.dumps(heavy(str(ROOT))))
+        case ["heavy", flake]:
+            print(json.dumps(heavy(flake)))
         case _:
             sys.exit(__doc__)
 

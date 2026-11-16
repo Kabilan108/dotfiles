@@ -267,6 +267,96 @@ What this doesn't stop: a bad workflow change inside a commit I deploy.
 `deploy` and `rebuild` list `.github/` changes on their own line for that
 reason. Nor does it stop a compromise of GitHub, Cachix or a pinned action.
 
+### Fleet tags and waiting for the cache (2026-11-15)
+
+One tag now approves a commit for several hosts: `deploy/fleet/<UTC time>`,
+with a `Hosts:` line in the first paragraph of its signed message. A fleet
+deploy costs one PIN and touch to sign and one to push, where per-host tags
+took two per host. The ruleset (`refs/tags/deploy/**/*`) and the
+`cache-publish` environment (`deploy/*/*`) both match fleet tags, so GitHub's
+settings didn't change. `fleet` is reserved: no host may take that name.
+
+A receiver builds a fleet tag only when its own name is on the `Hosts:` line,
+and every other check stays: the signature with touch and PIN, the commit on
+`nixos`, a forward move unless the tag signs `Allow-Rollback: yes`, and a
+complete `flake.lock`. The host list sits inside the signature, so nobody can
+add a host to a tag I signed. Receivers ignore the old per-host tags. To stay
+replay-proof across the switch, a receiver compares the UTC time in a tag's
+name with the time of the last tag it deployed, which may still be a
+per-host tag. A tag no later than that never deploys.
+
+`deploy` holds jacurutu to the same forward-only rule (`deploy-tag
+moves-forward`). It checks before waiting for CI, and `deploy-switch` checks
+again once it holds `/run/fleet-switch.lock`, so a `rebuild` that finishes
+during the wait can't be undone. The lock is root-only, so that second check
+drops back to me with `runuser`: root never runs git in my checkout. A
+refusal fails jacurutu's line in the summary and leaves the other hosts
+alone. Both `deploy` and a clean signed `rebuild` build the tagged commit
+from git's objects (`git+file://…?rev=`), so a pull or an edit during the
+wait never reaches the build. `rebuild` doesn't check that it moves forward.
+It's my manual tool, and it lists the commits that drop out before I answer.
+
+A tag in `~/dotfiles` is just a ref, and anything running as me can move it
+during the wait (`git tag -f`). So when `deploy` or `rebuild` checks the tag,
+it records the tag object and its commit. `deploy-switch` takes both and runs
+`deploy-tag approves` before `sudo` and again under the lock: the tag must
+still resolve to that object, which must verify, name this host on its
+`Hosts:` line and point at that commit. It then builds the recorded commit,
+never what the tag names by then. `deploy-wait` plans that commit too, and
+`deploy-tag push` pushes the object it verified, by ID. Only fleet tags
+approve a build. An old per-host tag at HEAD counts as no tag, so `rebuild`
+offers to sign a fleet tag, as for any unsigned HEAD.
+
+The same goes for history. Replace refs (`git replace`), a grafts file and the
+commit-graph file can each give a commit fake parents, and anything running
+as me can write them into `~/dotfiles`. A signed old commit could then seem
+to descend from the one jacurutu runs. So every script that checks tags or
+picks the signed source runs git with `GIT_NO_REPLACE_OBJECTS=1`,
+`GIT_GRAFT_FILE=/dev/null` and `core.commitGraph=false`, and reads only real
+objects. The receivers set them too, for their own clones.
+
+On jacurutu, `deploy` and `rebuild` wait for this cache before a signed
+build. `deploy-wait` runs `ci/cache-targets.py heavy` from the tagged commit,
+which evaluates jacurutu's system alone and lists the packages marked
+`# wait` in `ci/cache-packages` that neither the local store nor the cache
+has. It then follows that tag's Actions run with `gh` until those packages'
+build jobs finish. It only reads GitHub, and it decides only when to build.
+The switch still builds the signed commit, and Nix still checks the cache's
+signature on every path it downloads. A broken or lying run can make
+jacurutu wait, or compile what it would have compiled anyway. The planner
+runs as me, from the signed commit that is about to be built.
+
+Two cases end the wait early. A tag that isn't on GitHub, such as one whose
+push failed, started no run, so `deploy-wait` says how to push it and builds
+without waiting. And a run that ends without a job for a package counts as a
+cache hit only if the run succeeded or the build matrix left that package
+out. A run cancelled before its build jobs exist asks whether to build
+locally, like a failed job.
+
+#### Switching over (once, after the fleet-tag change merges)
+
+Receivers built before the change accept only `deploy/<host>/*` tags, and the
+new `deploy` never signs one. So the old tools on jacurutu bring each
+receiver across first, and the order matters:
+
+1. Run the old `deploy sietch`, then the old `deploy tleilax`. Both have to
+   succeed, each ending with the host running the new commit. After a power
+   cut tleilax waits at its boot passphrase prompt; unlock it first
+   (`ssh tleilax-unlock`).
+2. Only then pull `~/dotfiles` on jacurutu and run `rebuild`. That run still
+   has the old `deploy-tag`, so it signs one last `deploy/jacurutu/…` tag and
+   doesn't wait for CI.
+
+If jacurutu got the new tools before a receiver did, the new `deploy` can't
+reach that receiver. The previous system generation still has the old tools,
+and its `deploy` pins its own old `deploy-tag`. `ls -v
+/nix/var/nix/profiles/ | grep '^system-'` lists the generations, newest last;
+take the one before the rebuild and run
+`/nix/var/nix/profiles/system-<N>-link/sw/bin/deploy tleilax` (or `sietch`).
+It signs and pushes a per-host tag as before. The weekly `nix.gc` deletes
+generations older than three days, so do it soon. Once a receiver runs the
+new code, the new `deploy` works for it.
+
 ---
 
 ## Selfhost service permission model (July 2026, post-migration)
