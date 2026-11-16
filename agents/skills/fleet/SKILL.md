@@ -127,9 +127,10 @@ and approve nothing.
 
 - sietch takes heavy or parallel agent work and anything needing `/vault`
   data; jacurutu takes interactive and desktop tasks only.
-- tleilax is a locked-down Pi for credential services (Vaultwarden and
-  Executor move there). No agent work runs on it, and sietch has no access to
-  it at all: no SSH key, no tailnet grant, no secret it can decrypt. Its secrets
+- tleilax is a locked-down Pi for credential services: Executor v2 and atlas
+  run there, and Vaultwarden moves there. No agent work runs on it. sietch's
+  only way in is the `svc:executor-v2` tailnet service: no SSH key, no other
+  tailnet grant, no secret it can decrypt. Its secrets
   are encrypted to its host key and Tony's YubiKeys only.
 - After a reboot tleilax waits at boot for its disk passphrase, which Tony
   types over SSH with a YubiKey (`ssh tleilax-unlock` at home,

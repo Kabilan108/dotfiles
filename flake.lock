@@ -27,11 +27,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794806172,
-        "narHash": "sha256-C22wvDgAVccaHQOsHJ7kdFn3WMIKXMDXOD1SHKPffBI=",
+        "lastModified": 1794809079,
+        "narHash": "sha256-kBUvLF0sLmT+RE9jFKq4bxQ5h+YTxBHGoXNhlNTpAZg=",
         "owner": "kabilan108",
         "repo": "atlas",
-        "rev": "fe7e6ca0f25f1e99689a77bb01c8d7c77096ce5c",
+        "rev": "395b004c97ae37a1f39e574344c638b05e830c5a",
         "type": "github"
       },
       "original": {

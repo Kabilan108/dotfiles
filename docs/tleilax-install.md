@@ -626,6 +626,29 @@ login and no SSH on the LAN. Mount it from the installer as above, read
 and write a fresh auth key to `/mnt/var/lib/tailscale/first-boot-auth-key` if
 the first one expired or was used up.
 
+## Executor v2 keys (jacurutu)
+
+Executor v2 reads its session secret and credential encryption key from
+`secrets/executor/tleilax-v2-keys.env.age`. Create the file before the first
+deploy that includes Executor v2. Executor refuses to start if the key source
+changes under an existing database, and the tleilax config won't evaluate
+until the file exists. The keys go to files, never to the terminal:
+
+```sh
+umask 077
+d=$(mktemp -d)
+printf 'BETTER_AUTH_SECRET=%s\nEXECUTOR_ENCRYPTION_KEY=%s\n' \
+  "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" > "$d/keys.env"
+cd ~/dotfiles
+agenix -e secrets/executor/tleilax-v2-keys.env.age < "$d/keys.env"
+rm -rf "$d"
+```
+
+Check that each YubiKey can decrypt it, as in step 9, then commit the file.
+Losing it makes every credential stored in Executor v2 unreadable. Its two
+copies are this file and the YubiKeys that decrypt it, so never rotate
+`EXECUTOR_ENCRYPTION_KEY` in place.
+
 ## Unverified
 
 Confirmed by the 2026-11-03 install, done without a monitor: the Pi's
