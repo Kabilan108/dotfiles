@@ -6,13 +6,23 @@
 # refuses to start if the key source changes under an existing database, so
 # the secret must exist before the first boot: create it on jacurutu as in
 # docs/tleilax-install.md ("Executor v2 keys").
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   cfg = config.tleilax.executor;
   port = 8304;
   keysFile = ../../secrets/executor/tleilax-v2-keys.env.age;
   id = toString cfg.uid;
   localPorts = lib.attrValues cfg.localServices;
+  # IPv6 is refused below, so names that have both address families resolve
+  # to IPv4 first instead of waiting on a refused IPv6 address.
+  preferIPv4 = pkgs.writeText "executor-v2-gai.conf" ''
+    precedence ::ffff:0:0/96 100
+  '';
 in
 {
   options.tleilax.executor = {
@@ -72,6 +82,7 @@ in
       volumes = [
         "/var/lib/executor-v2:/app/data"
         "/var/cache/executor-v2-telemetry:/app/motel-data"
+        "${preferIPv4}:/etc/gai.conf:ro"
       ];
       environmentFiles = [ config.age.secrets.executor-v2-keys.path ];
       environment = {
@@ -105,8 +116,10 @@ in
             lib.concatMapStringsSep ", " toString ([ port ] ++ localPorts)
           } } accept
 
+          # Reject rather than drop: workerd tries a name's next address only
+          # after a connection fails, and a dropped one hangs until timeout.
+          meta nfproto ipv6 reject with icmpx admin-prohibited
           oifname { "lo", "tailscale0" } drop
-          meta nfproto ipv6 drop
           ip daddr { 10.0.0.0/8, 100.64.0.0/10, 169.254.0.0/16, 172.16.0.0/12, 192.168.0.0/16 } drop
         }
       '';
