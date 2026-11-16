@@ -55,6 +55,7 @@
             (./. + "/machines/${name}")
             ./configuration.nix
             ./user.nix
+            ./modules/nixos/agent-op.nix
             ./modules/nixos/docker.nix
             ./modules/nixos/fleet.nix
             ./modules/nixos/backup
