@@ -243,7 +243,7 @@ check inside the workflow can't stop that, because the pushed commit can
 delete the check. The gate is in GitHub's settings, which agents can't change:
 
 - Only deploy tags publish (`.github/workflows/cache.yml`). Pull requests
-  build the same packages without the token.
+  run only the plan job, without the token.
 - The `deploy tags` ruleset (`refs/tags/deploy/**/*`) blocks creating,
   updating and deleting deploy tags for everyone but the repo's deploy keys.
   The deploy keys are the two YubiKey signer keys, so `deploy-tag push` takes a
@@ -254,7 +254,14 @@ delete the check. The gate is in GitHub's settings, which agents can't change:
   myself as required reviewer until a test confirms an agent can't create a
   deploy tag, then drop it: the YubiKey touch is the approval.
 - The workflow never restores an Actions cache or another run's artifacts. A
-  branch run could have written them.
+  branch run could have written them. It reads one artifact from its own run:
+  the plan job's derivation closures, which spare each build job from
+  evaluating both hosts again. Only that run's jobs can write it, from the same
+  deploy-tagged commit. The build job downloads it by name without a `run-id`,
+  so it can't reach another run's. It imports only the derivations the plan
+  job's outputs name for its package, the store checks each path against its
+  content address, and the job refuses a derivation of a different pname. The
+  artifact expires after a day.
 
 What this doesn't stop: a bad workflow change inside a commit I deploy.
 `deploy` and `rebuild` list `.github/` changes on their own line for that

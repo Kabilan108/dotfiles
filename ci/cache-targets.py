@@ -1,8 +1,13 @@
 """Find the derivations CI caches, straight from the host systems.
 
-    cache-targets.py plan
-        Print a JSON list of the pnames in ci/cache-packages with an output
-        missing from the cache, in file order.
+    cache-targets.py plan [EXPORT_DIR]
+        Print {"packages": [...], "drvs": {pname: [...]}}: the pnames in
+        ci/cache-packages with an output missing from the cache, in file
+        order, and each one's derivation paths. With EXPORT_DIR, also copy
+        those derivations and their closures into a binary cache there.
+    cache-targets.py import PNAME CACHE_DIR DRV...
+        Copy the derivations DRV and their closures from the binary cache at
+        CACHE_DIR into the store, then check that each one builds PNAME.
     cache-targets.py drvs PNAME
         Print PNAME's derivation paths, one per line.
 
@@ -68,6 +73,45 @@ def show(drvs: list[str]) -> dict[str, dict]:
         for path, drv in shown.get("derivations", shown).items():
             out[store_path(path)] = drv
     return out
+
+
+def path_info(paths: list[str]) -> dict[str, dict]:
+    """`nix path-info --json` of paths and their closures, keyed by full store path."""
+    shown = json.loads(run("nix", "path-info", "--json", "--recursive", *paths))
+    return {store_path(path): info for path, info in shown.get("info", shown).items()}
+
+
+def export(drvs: list[str], dest: Path) -> None:
+    """Copy drvs and their closures into a binary cache at dest.
+
+    The import checks each path against its content address. A path without
+    one would need a signature instead, and CI has no key to sign it with.
+    """
+    unaddressed = sorted(path for path, info in path_info(drvs).items() if not info.get("ca"))
+    if unaddressed:
+        sys.exit("cache-targets: not content-addressed: " + " ".join(unaddressed))
+    run("nix", "copy", "--to", f"file://{dest.resolve()}?compression=zstd", *drvs)
+
+
+DRV_PATH = re.compile(r"/nix/store/[a-z0-9]{32}-[^/]+\.drv")
+
+
+def import_drvs(name: str, cache: Path, drvs: list[str]) -> None:
+    """Copy drvs from the binary cache and refuse any that don't build name.
+
+    Without --no-check-sigs, the store checks every copied path's content
+    against its content address.
+    """
+    bad = [drv for drv in drvs if not DRV_PATH.fullmatch(drv)]
+    if not drvs or bad:
+        sys.exit(f"cache-targets: expected derivation paths for {name}, got: {' '.join(bad)}")
+    run("nix", "copy", "--from", f"file://{cache.resolve()}", *drvs)
+    shown = show(drvs)
+    for path in drvs:
+        drv = shown[path]
+        pname = drv.get("env", {}).get("pname")
+        if pname != name or any("hash" in o or "hashAlgo" in o for o in drv["outputs"].values()):
+            sys.exit(f"cache-targets: {path} is not a build of {name}")
 
 
 def require_atuin_ifd() -> None:
@@ -145,14 +189,19 @@ def cached(path: str, cache: str = CACHE) -> bool:
 
 def main() -> None:
     match sys.argv[1:]:
-        case ["plan"]:
+        case ["plan", *export_dir] if len(export_dir) <= 1:
             found = targets(packages())
             todo = [
                 name
                 for name, drvs in found.items()
                 if drvs and not all(cached(out) for outs in drvs.values() for out in outs)
             ]
-            print(json.dumps(todo))
+            planned = {name: sorted(found[name]) for name in todo}
+            if export_dir and todo:
+                export(sorted(d for ds in planned.values() for d in ds), Path(export_dir[0]))
+            print(json.dumps({"packages": todo, "drvs": planned}))
+        case ["import", name, cache, *drvs] if name in packages():
+            import_drvs(name, Path(cache), drvs)
         case ["drvs", name] if name in packages():
             print("\n".join(targets([name])[name]))
         case _:
