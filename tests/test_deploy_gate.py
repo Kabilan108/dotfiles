@@ -8,8 +8,8 @@ fake systemd: StartUnit hands out a job ID, joins a pending job, and runs
 run-record.sh with the receiver in the background, or before replying with
 TEST_SYNC_START; the job disappears when the run ends), journalctl (follows a
 run's log), socat (runs the broker instead of connecting to the socket), ssh,
-sudo and hostname. The receiver's flake.lock check and its lock use the real nix
-and flock. Set
+sudo, hostname and ykman (lists TEST_YKMAN_LIST, by default the nfc YubiKey). The
+receiver's flake.lock check and its lock use the real nix and flock. Set
 DEPLOY_TEST_OPENSSH to a built tests/sk-dummy.nix to skip the nix build.
 """
 
@@ -37,11 +37,24 @@ T1 = "deploy/sietch/20261029T100000Z"
 T2 = "deploy/sietch/20261029T110000Z"
 T3 = "deploy/sietch/20261029T120000Z"
 
+# `ykman list` lines, for the serials in DEPLOY_KEY_SERIALS below.
+NFC = "YubiKey 5 NFC (5.7.1) [OTP+FIDO+CCID] Serial: 10000001"
+NANO = "YubiKey 5C Nano (5.7.1) [OTP+FIDO+CCID] Serial: 10000002"
+OTHER = "YubiKey 5C (5.4.3) [OTP+FIDO+CCID] Serial: 20000001"
+
 FLAKE = "{ outputs = _: { }; }\n"
 FLAKE_LOCK = '{"nodes":{"root":{}},"root":"root","version":7}\n'
 
 STUBS = {
     "deploy-tag": 'exec bash "{scripts}/deploy-tag.sh" "$@"',
+    "deploy-key": 'exec bash "{scripts}/deploy-key.sh" "$@"',
+    "ykman": (
+        'echo "$*" >> "{tmp}/ykman-calls"\n'
+        '[[ "$*" == list ]] || exit 96\n'
+        'echo "ERROR: Unable to list devices for connection" >&2\n'
+        '[[ ${{TEST_YKMAN_EXIT:-0}} == 0 ]] || exit "$TEST_YKMAN_EXIT"\n'
+        f'printf "%s\\n" "${{{{TEST_YKMAN_LIST-{NFC}}}}}"'
+    ),
     "nixos-rebuild": (
         'echo "$*" >> "{tmp}/rebuilds"\n'
         '[[ ${{NIXOS_REBUILD_EXIT:-0}} == 0 ]] || exit "$NIXOS_REBUILD_EXIT"\n'
@@ -247,6 +260,8 @@ class DeployGate(unittest.TestCase):
             "DEPLOY_NIXOS_VERSION": str(bin_dir / "nixos-version"),
             "DEPLOY_TRIGGER_SOCKET": str(self.tmp / "trigger.sock"),
             "DEPLOY_SWITCH_LOCK": str(self.tmp / "switch.lock"),
+            "DEPLOY_KEY_SERIALS": "10000002=yk-nano-deploy 10000001=yk-nfc-deploy",
+            "DEPLOY_DEFAULT_KEY": "yk-nfc-deploy",
             "DOTFILES": str(self.work),
         }
         self.state.mkdir()
@@ -348,6 +363,15 @@ class DeployGate(unittest.TestCase):
 
     def deploy(self, *args: str, **extra: str) -> subprocess.CompletedProcess[str]:
         return self.run_cmd(["bash", str(SCRIPTS / "deploy.sh"), *args], extra_env=extra)
+
+    def ykman_calls(self) -> list[str]:
+        path = self.tmp / "ykman-calls"
+        return path.read_text().splitlines() if path.exists() else []
+
+    def install_key(self, key: str, name: str) -> None:
+        ssh_dir = self.tmp / "home/.ssh"
+        ssh_dir.mkdir(exist_ok=True)
+        shutil.copy(KEYS[key], ssh_dir / name)
 
     def rebuilds(self) -> list[str]:
         path = self.tmp / "rebuilds"
@@ -745,6 +769,68 @@ class DeployTag(DeployGate):
         self.assertEqual(self.git("tag", "-l", cwd=self.origin), "")
 
 
+class DeployKey(DeployGate):
+    def pick(self, listing: str | None = None, **extra: str) -> subprocess.CompletedProcess[str]:
+        if listing is not None:
+            extra["TEST_YKMAN_LIST"] = listing
+        return self.run_cmd(["bash", str(SCRIPTS / "deploy-key.sh")], extra_env=extra)
+
+    def assert_picks(self, r: subprocess.CompletedProcess[str], key: str, says: str) -> None:
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout, key + "\n")
+        self.assertIn(says, r.stderr)
+        self.assertEqual(len(r.stderr.splitlines()), 1, r.stderr)
+
+    def assert_none(self, r: subprocess.CompletedProcess[str]) -> None:
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertEqual(r.stdout, "")
+        self.assertIn("no deploy YubiKey is plugged in", r.stderr)
+        self.assertIn("serial 10000001 for yk-nfc-deploy", r.stderr)
+        self.assertIn("serial 10000002 for yk-nano-deploy", r.stderr)
+
+    def test_one_known_yubikey(self) -> None:
+        for listing, key in [(NFC, "yk-nfc-deploy"), (NANO, "yk-nano-deploy")]:
+            with self.subTest(key=key):
+                self.assert_picks(self.pick(listing), key, f"signing with {key}, the deploy key")
+
+    def test_one_known_yubikey_beside_another(self) -> None:
+        self.assert_picks(self.pick(f"{OTHER}\n{NANO}"), "yk-nano-deploy", "yk-nano-deploy")
+
+    def test_both_known_yubikeys_use_the_default(self) -> None:
+        r = self.pick(f"{NANO}\n{NFC}")
+        self.assert_picks(r, "yk-nfc-deploy", "more than one deploy YubiKey is plugged in")
+        self.assertIn("signing with the default, yk-nfc-deploy", r.stderr)
+
+    def test_no_yubikey(self) -> None:
+        self.assert_none(self.pick(""))
+
+    def test_only_an_unknown_yubikey(self) -> None:
+        r = self.pick(OTHER)
+        self.assert_none(r)
+        self.assertIn(f"These YubiKeys hold no deploy key:\n  {OTHER}", r.stderr)
+
+    def test_a_yubikey_that_hides_its_serial_is_unknown(self) -> None:
+        r = self.pick("YubiKey 5 NFC (5.7.1) [FIDO]")
+        self.assert_none(r)
+        self.assertIn("  YubiKey 5 NFC (5.7.1) [FIDO]", r.stderr)
+
+    def test_a_failing_ykman_falls_back_to_the_default(self) -> None:
+        r = self.pick(NANO, TEST_YKMAN_EXIT="2")
+        self.assert_picks(r, "yk-nfc-deploy", "ykman list failed (exit 2); signing with yk-nfc-deploy")
+
+    def test_an_unreadable_yubikey_falls_back_to_the_default(self) -> None:
+        r = self.pick(f"{NANO}\nYubiKey 5 NFC [OTP+FIDO+CCID] <access denied>")
+        self.assert_picks(r, "yk-nfc-deploy", "can't open a plugged-in YubiKey")
+
+    def test_without_ykman_falls_back_to_the_default(self) -> None:
+        empty = self.tmp / "empty-path"
+        empty.mkdir()
+        bash = shutil.which("bash")
+        assert bash
+        r = self.run_cmd([bash, str(SCRIPTS / "deploy-key.sh")], extra_env={"PATH": str(empty)})
+        self.assert_picks(r, "yk-nfc-deploy", "ykman isn't installed")
+
+
 class Deploy(DeployGate):
     def deployed_tags(self) -> list[str]:
         return self.git("tag", "-l", "deploy/*", cwd=self.origin).splitlines()
@@ -785,6 +871,44 @@ class Deploy(DeployGate):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         [tag] = self.deployed_tags()
         self.assertTrue(r.stdout.endswith(f"sietch runs {tag}.\n"), r.stdout)
+
+    def test_signs_with_the_plugged_in_yubikey(self) -> None:
+        self.install_key("pin", "yk-nano-deploy")
+        r = self.run_cmd(
+            ["bash", str(SCRIPTS / "deploy.sh"), "--yes", "sietch"],
+            stdin="1234\n",
+            extra_env={"DEPLOY_REQUIRE_PIN": "1", "TEST_YKMAN_LIST": NANO},
+        )
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("signing with yk-nano-deploy", r.stderr)
+        [tag] = self.deployed_tags()
+        self.assertTrue(r.stdout.endswith(f"sietch runs {tag}.\n"), r.stdout)
+
+    def test_without_a_deploy_yubikey_it_stops_before_asking(self) -> None:
+        self.install_key("pin", "yk-nfc-deploy")
+        self.install_key("pin", "yk-nano-deploy")
+        for listing in ["", OTHER]:
+            with self.subTest(listing=listing):
+                r = self.deploy("sietch", TEST_YKMAN_LIST=listing)
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn("no deploy YubiKey is plugged in", r.stderr)
+                self.assertIn("deploy: nothing was signed", r.stderr)
+                self.assertNotIn("needs a terminal", r.stderr)
+                self.assertEqual(self.deployed_tags(), [])
+                self.assertEqual(self.rebuilds(), [])
+
+    def test_key_flag_skips_detection(self) -> None:
+        r = self.deploy("--yes", "--key", str(KEYS["yk"]), "sietch", TEST_YKMAN_LIST="")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(len(self.deployed_tags()), 1)
+        self.assertEqual(self.ykman_calls(), [])
+
+    def test_nothing_to_sign_needs_no_yubikey(self) -> None:
+        self.assertEqual(self.deploy("--yes", "--key", str(KEYS["yk"]), "sietch").returncode, 0)
+        r = self.deploy("--yes", "sietch", TEST_YKMAN_LIST="")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("nothing to sign", r.stdout)
+        self.assertEqual(self.ykman_calls(), [])
 
     def test_lists_ci_changes(self) -> None:
         r = self.deploy("--yes", "--key", str(KEYS["yk"]), "sietch")
@@ -1071,9 +1195,49 @@ class Rebuild(DeployGate):
         return path.read_text().splitlines() if path.exists() else []
 
     def give_key(self, key: str = "yk") -> None:
-        ssh_dir = self.tmp / "home/.ssh"
-        ssh_dir.mkdir(exist_ok=True)
-        shutil.copy(KEYS[key], ssh_dir / "yk-nfc-deploy")
+        self.install_key(key, "yk-nfc-deploy")
+
+    def test_signs_with_the_plugged_in_yubikey(self) -> None:
+        self.install_key("yk", "yk-nano-deploy")
+        r = self.rebuild("y\n", TEST_YKMAN_LIST=NANO)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("signing with yk-nano-deploy", r.stderr)
+        self.assertEqual(len(self.git("tag", "-l", "deploy/jacurutu/*").splitlines()), 1)
+        self.assertEqual(len(self.sudo_calls()), 1)
+
+    def test_without_a_deploy_yubikey_it_stops_before_asking(self) -> None:
+        self.give_key()
+        r = self.rebuild("y\n", TEST_YKMAN_LIST="")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("no deploy YubiKey is plugged in", r.stderr)
+        self.assertIn("Plug in a deploy YubiKey, or build with --unsigned.", r.stdout)
+        self.assertNotIn("Sign deploy/", r.stdout)
+        self.assertNotIn("Build this unsigned?", r.stdout)
+        self.assertEqual(self.git("tag", "-l"), "")
+        self.assertEqual(self.sudo_calls(), [])
+
+        r = self.rebuild("", args=("--unsigned",), TEST_YKMAN_LIST="")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(len(self.sudo_calls()), 1)
+        self.assertEqual(self.ykman_calls(), ["list"])
+
+    def test_key_flag_skips_detection(self) -> None:
+        self.install_key("yk", "yk-nano-deploy")
+        r = self.rebuild("y\n", args=("--key", "yk-nano-deploy"), TEST_YKMAN_LIST="")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(len(self.git("tag", "-l", "deploy/jacurutu/*").splitlines()), 1)
+        self.assertEqual(self.ykman_calls(), [])
+
+    def test_before_deploy_key_is_installed_it_signs_with_yk_nfc_deploy(self) -> None:
+        self.give_key()
+        (self.tmp / "bin/deploy-key").unlink()
+        path = ":".join(
+            d for d in self.env["PATH"].split(":") if not (Path(d) / "deploy-key").exists()
+        )
+        r = self.rebuild("y\n", PATH=path, TEST_YKMAN_LIST="")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(len(self.git("tag", "-l", "deploy/jacurutu/*").splitlines()), 1)
+        self.assertEqual(self.ykman_calls(), [])
 
     def test_a_failed_signature_stops_the_build(self) -> None:
         self.give_key("evil")

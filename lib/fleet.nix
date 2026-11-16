@@ -189,6 +189,14 @@ rec {
       "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAINdYzCkPMjG7hmNBaBJnsvrlIae82j9oTFWAMqzLY1IjAAAABHNzaDo= yk-nfc-deploy"
       "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIDJI4FILtC/aP8+XHS/nviSP9oI/S9Nj8iGq/khkaLLmAAAABHNzaDo= yk-nano-deploy"
     ];
+    # The serial of the YubiKey holding each signer key, so `deploy` and
+    # `rebuild` sign with whichever one is plugged in.
+    signerYubiKeys = {
+      yk-nfc-deploy = 37505721;
+      yk-nano-deploy = 37605527;
+    };
+    # Used when both are plugged in, or when ykman can't tell.
+    defaultSigner = "yk-nfc-deploy";
     # Also require the PIN flag in signatures.
     requirePin = true;
   };

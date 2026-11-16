@@ -11,16 +11,22 @@
 # HEAD with the PIN and a touch and pushes it. Elsewhere it builds unsigned once
 # you say so. --unsigned prints the same list and builds without asking or
 # signing.
+#
+# Without --key it signs with the key on whichever deploy YubiKey is plugged
+# in (deploy-key, installed with `deploy`), and with yk-nfc-deploy when both
+# are. When there's a tag to sign and no deploy YubiKey is plugged in, it
+# stops before asking.
 set -euo pipefail
 
 usage() {
   echo "usage: rebuild [--key yk-nfc-deploy|yk-nano-deploy] [--unsigned] [switch|test|boot]" >&2
+  echo "  --key defaults to the deploy key on the plugged-in YubiKey (yk-nfc-deploy if both are)." >&2
   exit 2
 }
 
 host_name=$(hostname)
 repo=$HOME/dotfiles
-key=yk-nfc-deploy
+key=""
 unsigned=false
 action=switch
 
@@ -42,7 +48,6 @@ while (($#)); do
   *) usage ;;
   esac
 done
-key_file=$HOME/.ssh/$key
 
 if [[ -n ${FLEET_HOST_ANSI:-} ]]; then
   printf 'Rebuilding dotfiles flake for \033[%sm%s\033[0m\n' "$FLEET_HOST_ANSI" "$host_name"
@@ -107,6 +112,14 @@ review() {
     echo "Building unsigned (--unsigned)."
     return 0
   fi
+  if [[ $last_commit != "$head" && -z $key ]] && command -v deploy-key >/dev/null; then
+    if ! key=$(deploy-key); then
+      echo "Plug in a deploy YubiKey, or build with --unsigned."
+      return 1
+    fi
+  fi
+  key=${key:-yk-nfc-deploy}
+  key_file=$HOME/.ssh/$key
   if [[ $last_commit != "$head" && -e $key_file ]]; then
     read -r -p "Sign deploy/$host_name at ${head:0:12} with $key and build? [y]es, [u]nsigned build, [N]o: " answer
     case $answer in
