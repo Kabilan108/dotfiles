@@ -1331,10 +1331,20 @@ class Rebuild(DeployGate):
     def test_before_deploy_key_is_installed_it_signs_with_yk_nfc_deploy(self) -> None:
         self.give_key()
         (self.tmp / "bin/deploy-key").unlink()
-        path = ":".join(
-            d for d in self.env["PATH"].split(":") if not (Path(d) / "deploy-key").exists()
-        )
-        r = self.rebuild("y\n", PATH=path, TEST_YKMAN_LIST="")
+        # A host that already runs deploy-key has it in a directory next to
+        # git and the rest, so swap each such directory for a copy without it.
+        dirs = []
+        for i, d in enumerate(self.env["PATH"].split(":")):
+            if not (Path(d) / "deploy-key").exists():
+                dirs.append(d)
+                continue
+            copy = self.tmp / f"path-without-deploy-key-{i}"
+            copy.mkdir()
+            for entry in Path(d).iterdir():
+                if entry.name != "deploy-key":
+                    (copy / entry.name).symlink_to(entry)
+            dirs.append(str(copy))
+        r = self.rebuild("y\n", PATH=":".join(dirs), TEST_YKMAN_LIST="")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(len(self.git("tag", "-l", "deploy/fleet/*").splitlines()), 1)
         self.assertEqual(self.ykman_calls(), [])
