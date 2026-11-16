@@ -29,6 +29,11 @@ in
   # library"), with the same root-only recipients as sietch's backups.
   "secrets/library/sietch-ro-smb.age".publicKeys = backupSietch;
   "secrets/library/sietch-rw-smb.age".publicKeys = backupSietch;
+
+  # 1password service accounts
+  "secrets/op/sietch-agents.age".publicKeys = backupSietch;
+  "secrets/op/jacurutu-agents.age".publicKeys = backupJacurutu;
+
   "secrets/agent-browser-encryption-key.age".publicKeys = [
     sietch
     jacurutu
