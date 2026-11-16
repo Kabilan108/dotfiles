@@ -15,8 +15,6 @@ let
     if isSietch then ./secrets/moberg/vpn/sietch-cert.age else ./secrets/moberg/vpn/cert.age;
   mobergVpnKeyFile =
     if isSietch then ./secrets/moberg/vpn/sietch-key.age else ./secrets/moberg/vpn/key.age;
-  opServiceAccountFile =
-    if isSietch then ./secrets/op/sietch-agents.age else ./secrets/op/jacurutu-agents.age;
   isHarkHost = builtins.elem hostName [
     "sietch"
     "jacurutu"
@@ -118,18 +116,6 @@ in
     secrets."secrets/gog-keyring-env" = {
       file = ./secrets/gogcli/keyring-env.age;
       mode = "0600";
-      owner = "kabilan";
-      group = "users";
-    };
-
-    # The host's 1Password service-account token for agents, as
-    # OP_SERVICE_ACCOUNT_TOKEN=... and encrypted to the host key. Load it for one
-    # command at a time, never from a shell profile: while it's set, `op` signs in
-    # as the service account instead of as Tony.
-    secrets."secrets/op/agents.age" = {
-      file = opServiceAccountFile;
-      path = "${home}/.config/op-agents/env";
-      mode = "0400";
       owner = "kabilan";
       group = "users";
     };
