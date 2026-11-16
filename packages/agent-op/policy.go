@@ -88,11 +88,11 @@ func parse(args []string) (*plan, error) {
 	}
 }
 
+// These subcommands run nothing, so every argument is checked: stopping at
+// `--` would trust a separator that op may read as a flag's value, as in
+// `whoami --config -- --debug`.
 func refuseFlags(args []string) error {
 	for _, arg := range args {
-		if arg == "--" {
-			return nil
-		}
 		if err := refuseFlag(arg); err != nil {
 			return err
 		}

@@ -41,6 +41,10 @@ func TestParseRefuses(t *testing.T) {
 		{"run --env-file without value", []string{"run", "--env-file"}},
 		{"run value flag eats --", []string{"run", "--environment", "--", "true"}},
 		{"run --version", []string{"run", "--version", "--", "true"}},
+		{"whoami flag after a consumed --", []string{"whoami", "--config", "--", "--cache=true"}},
+		{"vault list --debug after --", []string{"vault", "list", "--config", "--", "--debug"}},
+		{"item list --account after --", []string{"item", "list", "--vault", "--", "--account=x"}},
+		{"item list --session after --", []string{"item", "list", "--", "--session", "s"}},
 		{"run --no-masking after value flag", []string{"run", "--format", "json", "--no-masking", "--", "x"}},
 	}
 	for _, tt := range tests {
@@ -76,7 +80,7 @@ func TestParseAllows(t *testing.T) {
 			[]string{"item", "list", "--vault", "Dev", "--format=json"},
 			true,
 		},
-		{"item list stops at --", []string{"item", "list", "--", "--debug"}, nil, []string{"item", "list", "--", "--debug"}, true},
+		{"item list with --", []string{"item", "list", "--", "x"}, nil, []string{"item", "list", "--", "x"}, true},
 		{
 			"run",
 			[]string{"run", "--", "sh", "-c", "echo hi"},
