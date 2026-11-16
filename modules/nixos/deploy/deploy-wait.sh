@@ -30,7 +30,9 @@ set -euo pipefail
 # No replace refs, grafts or commit-graph file: they can fake history (see
 # deploy-tag.sh).
 export GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null
-export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.commitGraph GIT_CONFIG_VALUE_0=false
+export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=core.commitGraph GIT_CONFIG_VALUE_0=false
+# An empty graft file still makes git print its deprecation advice.
+export GIT_CONFIG_KEY_1=advice.graftFileDeprecated GIT_CONFIG_VALUE_1=false
 
 : "${DEPLOY_GITHUB_REPO:?DEPLOY_GITHUB_REPO must name the GitHub repo, as owner/name}"
 : "${DEPLOY_REPO_URL:?DEPLOY_REPO_URL must name the repo the tags are pushed to}"
