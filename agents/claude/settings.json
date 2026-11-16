@@ -52,7 +52,8 @@
       "Skill(tmux)",
       "mcp__deepwiki__ask_question",
       "Bash(ghostty +list-keybinds --default)",
-      "Bash(agent-op:*)"
+      "Bash(agent-op:*)",
+      "Bash(gh pr merge:*)"
     ],
     "deny": [
       "Read(//**/.envrc)",
