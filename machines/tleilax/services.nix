@@ -1,9 +1,14 @@
-# Credential services go here: Vaultwarden and Executor move in stage 5 of
-# the fleet security plan, after backups. Each one listens on loopback and
-# sets selfhost.tailnetServices.<name>.port; tag:credentials is the only tag
-# the tailnet policy lets advertise svc:vault and svc:executor. Their new
+# Credential services. Each one listens on loopback; a service reachable from
+# the tailnet also sets selfhost.tailnetServices.<name>.port, and
+# tag:credentials is the only tag the tailnet policy lets advertise it. Their
 # secrets are encrypted to this host and the YubiKey age recipients only
-# (secrets.nix).
+# (secrets.nix). Vaultwarden moves from sietch in stage 5 of the fleet
+# security plan, after backups. Executor v1 stays on sietch until v2 here
+# replaces it.
 {
-  imports = [ ../../modules/nixos/tailnet-services.nix ];
+  imports = [
+    ../../modules/nixos/tailnet-services.nix
+    ./atlas.nix
+    ./executor.nix
+  ];
 }
