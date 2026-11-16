@@ -60,7 +60,9 @@ export LC_ALL=C
 # tags or picks the signed source sets these, and deploy-switch keeps them
 # across sudo and runuser by setting them again on each side.
 export GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null
-export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.commitGraph GIT_CONFIG_VALUE_0=false
+export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=core.commitGraph GIT_CONFIG_VALUE_0=false
+# An empty graft file still makes git print its deprecation advice.
+export GIT_CONFIG_KEY_1=advice.graftFileDeprecated GIT_CONFIG_VALUE_1=false
 
 : "${DEPLOY_SIGNERS:?DEPLOY_SIGNERS must name an allowed-signers file}"
 if [[ ! ${DEPLOY_REQUIRE_TOUCH:-} =~ ^[01]$ || ! ${DEPLOY_REQUIRE_PIN:-} =~ ^[01]$ ]]; then

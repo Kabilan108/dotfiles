@@ -1340,6 +1340,7 @@ class Rebuild(DeployGate):
         r = self.rebuild("y\n", TEST_YKMAN_LIST=NANO)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("signing with yk-nano-deploy", r.stderr)
+        self.assertNotIn("graft", r.stderr)
         [tag] = self.git("tag", "-l", "deploy/fleet/*").splitlines()
         self.assertIn("\nHosts: jacurutu\n", self.git("cat-file", "tag", tag))
         self.assertEqual(len(self.sudo_calls()), 1)

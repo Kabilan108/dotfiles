@@ -343,9 +343,11 @@ receiver across first, and the order matters:
    succeed, each ending with the host running the new commit. After a power
    cut tleilax waits at its boot passphrase prompt; unlock it first
    (`ssh tleilax-unlock`).
-2. Only then pull `~/dotfiles` on jacurutu and run `rebuild`. That run still
-   has the old `deploy-tag`, so it signs one last `deploy/jacurutu/…` tag and
-   doesn't wait for CI.
+2. Only then pull `~/dotfiles` on jacurutu and run `rebuild`, and answer
+   `[u]nsigned build`. That run's new `rebuild` still has the old installed
+   `deploy-tag`, which can sign but can't check the tag afterwards, so a signed
+   answer takes both touches and then refuses to build. The receivers' deploys
+   at the same commit already filled the cache.
 
 If jacurutu got the new tools before a receiver did, the new `deploy` can't
 reach that receiver. The previous system generation still has the old tools,
