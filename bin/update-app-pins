@@ -7,6 +7,30 @@ cd "${1:?usage: update-app-pins REPO}"
 exec 9>"$(git rev-parse --git-path update-app-pins.lock)"
 flock -n 9 || exit 0
 
+notify() {
+  local title=$1 message=$2 kind=$3
+  printf '%s\n' "$message"
+  harkctl notify "$message" --title "$title" --project dotfiles \
+    --idempotency-key "update-app-pins-$kind-$(git rev-parse --short HEAD)-$(date +%F)" \
+    || echo 'harkctl notify failed' >&2
+}
+
+reported=false
+failure_context='App pin update stopped unexpectedly.'
+report_exit() {
+  local status=$1
+  if ((status != 0)) && ! $reported; then
+    notify 'App update problems' \
+      "$failure_context Exit status: $status. See journalctl --user -u update-app-pins." failure
+  fi
+}
+trap 'report_exit "$?"' EXIT
+
+skip() {
+  notify 'App update skipped' "$1" skipped
+  exit 0
+}
+
 # name, updater, pin file, package attribute
 apps=(
   "Helium:update-helium:packages/helium-version.json:helium"
@@ -17,20 +41,21 @@ apps=(
 build_inputs=(packages flake.nix flake.lock bin/update-helium bin/update-chatgpt-desktop bin/update-grok-bot)
 
 if [[ $(git branch --show-current) != nixos ]]; then
-  echo 'Skipping app pin update: checkout must be on nixos.'
-  exit 0
+  skip 'Skipping app pin update: checkout must be on nixos.'
 fi
 if [[ -n $(git status --porcelain --untracked-files=all -- "${build_inputs[@]}") ]]; then
-  echo 'Skipping app pin update: package inputs have local changes.'
-  exit 0
+  skip 'Skipping app pin update: package inputs have local changes.'
 fi
 
 export GIT_TERMINAL_PROMPT=0
 export GIT_SSH_COMMAND='ssh -o BatchMode=yes'
-git fetch origin refs/heads/nixos
+if ! git fetch origin refs/heads/nixos; then
+  failure_context='Cannot fetch origin/nixos. The service will retry in 15 minutes.'
+  # EX_TEMPFAIL: only this failure asks systemd to retry automatically.
+  exit 75
+fi
 if [[ $(git rev-parse HEAD) != "$(git rev-parse FETCH_HEAD)" ]]; then
-  echo 'Skipping app pin update: HEAD differs from origin/nixos. Pull or resolve pending commits first.'
-  exit 0
+  skip 'Skipping app pin update: HEAD differs from origin/nixos. Pull or resolve pending commits first.'
 fi
 
 join_list() {
@@ -83,15 +108,12 @@ fi
 if ((${#failed[@]})); then
   message+="Failed: $(join_list "${failed[@]}"). See journalctl --user -u update-app-pins."$'\n'
 fi
-printf '%s' "$message"
-
 title='App updates ready'
 if ((${#failed[@]})) || ! $pushed; then
   title='App update problems'
 fi
-harkctl notify "$message" --title "$title" --project dotfiles \
-  --idempotency-key "update-app-pins-$(git rev-parse --short HEAD)-$(date +%F)" \
-  || echo 'harkctl notify failed' >&2
+notify "$title" "$message" result
+reported=true
 
 if ((${#failed[@]})) || ! $pushed; then
   exit 1
