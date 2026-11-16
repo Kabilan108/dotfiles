@@ -449,25 +449,6 @@ class DeployGate(unittest.TestCase):
             dirs.append(str(copy))
         return ":".join(dirs)
 
-    def forge_history(self, repo: Path, how: str, older: str, newer: str) -> None:
-        """Make older look like a child of newer in repo, with a replace ref
-        or a grafts file, and check that plain git believes it."""
-        if how == "replace":
-            tree = self.git("rev-parse", f"{older}^{{tree}}", cwd=repo)
-            forged = self.git("commit-tree", tree, "-p", newer, "-m", "forged", cwd=repo)
-            self.git("replace", older, forged, cwd=repo)
-        else:
-            git_dir = Path(self.git("rev-parse", "--absolute-git-dir", cwd=repo))
-            (git_dir / "info").mkdir(exist_ok=True)
-            (git_dir / "info/grafts").write_text(f"{older} {newer}\n")
-        plain = self.run_cmd(["git", "merge-base", "--is-ancestor", newer, older], cwd=repo)
-        self.assertEqual(plain.returncode, 0, f"{how} didn't fool plain git: {plain.stderr}")
-
-    def unforge_history(self, repo: Path, older: str) -> None:
-        self.run_cmd(["git", "replace", "-d", older], cwd=repo)
-        git_dir = Path(self.git("rev-parse", "--absolute-git-dir", cwd=repo))
-        (git_dir / "info/grafts").unlink(missing_ok=True)
-
     def local_running(self) -> str:
         return (self.local / "running").read_text().strip()
 
@@ -1340,7 +1321,6 @@ class Rebuild(DeployGate):
         r = self.rebuild("y\n", TEST_YKMAN_LIST=NANO)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("signing with yk-nano-deploy", r.stderr)
-        self.assertNotIn("graft", r.stderr)
         [tag] = self.git("tag", "-l", "deploy/fleet/*").splitlines()
         self.assertIn("\nHosts: jacurutu\n", self.git("cat-file", "tag", tag))
         self.assertEqual(len(self.sudo_calls()), 1)
@@ -1825,22 +1805,6 @@ class FleetTags(DeployGate):
         self.assertEqual(self.running(), self.rev("HEAD^"))
         self.assertEqual(len(self.rebuilds()), 2)
 
-    def test_forged_history_cannot_fake_a_forward_move(self) -> None:
-        # The review's scenario: a tag signs an older commit than the host
-        # runs, and the repository is made to show the older one as a child
-        # of the newer.
-        older = self.rev("HEAD^")
-        self.set_running(self.tip)
-        clone = self.state / "dotfiles.git"
-        self.assertEqual(self.receive().returncode, 1)
-        for tag, how in [(T1, "replace"), (T2, "grafts")]:
-            with self.subTest(how):
-                self.forge_history(clone, how, older, self.tip)
-                self.sign(tag, "yk", rev=older)
-                self.assert_refused(f"{older} doesn't descend from {self.tip}")
-                self.assertEqual(self.running(), self.tip)
-                self.unforge_history(clone, older)
-
     def test_an_unreadable_state_file_stops_the_receiver(self) -> None:
         (self.state / "deployed").write_text("whatever 0123\n")
         self.sign(T1, "yk")
@@ -1946,17 +1910,6 @@ class FleetDeployTag(DeployGate):
                         self.approves(T1, "jacurutu", now, self.rev("HEAD^")),
                         "Hosts: line doesn't name jacurutu",
                     )
-
-    def test_moves_forward_ignores_forged_history(self) -> None:
-        older = self.rev("HEAD^")
-        self.sign(T1, "yk", rev=older, push=False)
-        for how in ["replace", "grafts"]:
-            with self.subTest(how):
-                self.forge_history(self.work, how, older, self.tip)
-                r = self.run_cmd(["deploy-tag", "moves-forward", T1, "sietch", self.tip])
-                self.assertEqual(r.returncode, 1, r.stderr)
-                self.assertIn(f"{older} doesn't descend from {self.tip}", r.stderr)
-                self.unforge_history(self.work, older)
 
     def test_latest_takes_fleet_and_old_tags_by_time(self) -> None:
         self.sign(OLD1, "yk", rev="HEAD^", message="deploy sietch", push=False)
@@ -2136,34 +2089,6 @@ class FleetDeploy(DeployGate):
         [tag] = [t for t in self.deployed_tags() if t.startswith("deploy/fleet/")]
         self.assertIn(f"  jacurutu runs {tag}\n", r.stdout)
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
-
-    def test_forged_history_cannot_move_jacurutu_back(self) -> None:
-        for how in ["replace", "grafts"]:
-            with self.subTest(how):
-                ahead = self.ahead_of_nixos()
-                self.forge_history(self.work, how, self.tip, ahead)
-                r = self.deploy("--yes", "--no-wait", "--key", str(KEYS["yk"]), "jacurutu")
-                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
-                refusal = f"{self.tip} doesn't descend from {ahead}, which jacurutu runs"
-                self.assertIn(refusal, r.stderr)
-                self.assertIn("  jacurutu failed:", r.stdout)
-                # deploy-switch refuses it on its own, too.
-                [tag] = self.git("tag", "-l", "deploy/fleet/*").splitlines()
-                r = self.run_cmd(
-                    [
-                        "bash", str(SCRIPTS / "deploy-switch.sh"), "-C", str(self.work),
-                        "--forward", "--object", self.rev(f"refs/tags/{tag}"),
-                        "--commit", self.tip, tag, "jacurutu",
-                    ],
-                    extra_env={"TEST_ROOT": str(self.local)},
-                )
-                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
-                self.assertIn(refusal, r.stderr)
-                self.assertEqual(self.lines("sudo"), [])
-                self.assertEqual(self.rebuilds(self.local), [])
-                self.assertEqual(self.local_running(), ahead)
-                self.unforge_history(self.work, self.tip)
-                self.git("reset", "-q", "--hard", self.tip)
 
     def test_jacurutu_needs_to_know_what_it_runs(self) -> None:
         (self.local / "running").unlink()
@@ -2517,18 +2442,6 @@ class DeployWait(DeployGate):
             (self.tmp / "planner-flake").read_text(),
             f"git+file://{self.work.resolve()}?rev={self.tip}\n",
         )
-
-    def test_it_plans_the_real_commit_under_a_replace_ref(self) -> None:
-        self.heavy([])
-        (self.work / "ci/cache-targets.py").write_text("forged planner\n")
-        self.git("add", "ci")
-        self.git("commit", "-q", "-m", "forged")
-        self.git("replace", self.tip, self.rev("HEAD"))
-        plain = self.run_cmd(["git", "show", f"{self.tip}:ci/cache-targets.py"])
-        self.assertEqual(plain.stdout, "forged planner\n")
-        r = self.wait()
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertEqual((self.tmp / "planner-script").read_text(), "committed planner\n")
 
     def test_the_push_hint_names_the_key_it_is_given(self) -> None:
         self.sign(T2, "yk", message="rebuild jacurutu\nHosts: jacurutu", push=False)

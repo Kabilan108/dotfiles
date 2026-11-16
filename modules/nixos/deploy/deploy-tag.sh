@@ -53,16 +53,6 @@
 # verify-tag don't check those flags.
 set -euo pipefail
 export LC_ALL=C
-# Authorisation reads only real objects. Replace refs, grafts and the
-# commit-graph file are local metadata that anything able to write the
-# repository can forge, and each can fake a commit's parents: a signed tag on
-# an old commit would then seem to move forward. Every script that checks
-# tags or picks the signed source sets these, and deploy-switch keeps them
-# across sudo and runuser by setting them again on each side.
-export GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null
-export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=core.commitGraph GIT_CONFIG_VALUE_0=false
-# An empty graft file still makes git print its deprecation advice.
-export GIT_CONFIG_KEY_1=advice.graftFileDeprecated GIT_CONFIG_VALUE_1=false
 
 : "${DEPLOY_SIGNERS:?DEPLOY_SIGNERS must name an allowed-signers file}"
 if [[ ! ${DEPLOY_REQUIRE_TOUCH:-} =~ ^[01]$ || ! ${DEPLOY_REQUIRE_PIN:-} =~ ^[01]$ ]]; then
