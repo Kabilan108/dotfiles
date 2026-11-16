@@ -71,10 +71,6 @@ jobs:
         package: ${{ fromJSON(needs.plan.outputs.packages) }}
     name: build ${{ matrix.package }}
     steps:
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
-          df -h /
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -86,6 +82,11 @@ jobs:
           python3 ci/cache-targets.py drvs "$PACKAGE" > "$RUNNER_TEMP/drvs"
           mapfile -t drvs < "$RUNNER_TEMP/drvs"
           nix build --no-link --print-out-paths -L "${drvs[@]/%/^*}" | tee "$RUNNER_TEMP/outputs"
+      # The space a build leaves, now that jobs keep the runner's preinstalled
+      # toolchains instead of deleting them first.
+      - name: Disk space
+        if: always()
+        run: df -h /
       - name: Publish
         if: startsWith(github.ref, 'refs/tags/deploy/')
         env:
