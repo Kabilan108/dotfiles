@@ -172,6 +172,11 @@ in
     };
   };
 
+  home.file.".config/atlas/op.env".text = ''
+    ATLAS_BITBUCKET_TOKEN=op://Moberg Dev/Atlas MCP - BitBucket/credential
+    ATLAS_JIRA_TOKEN=op://Moberg Dev/Atlas MCP - Jira/credential
+  '';
+
   programs.tracer = {
     enable = true;
     package = pkgs.tracer;

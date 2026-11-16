@@ -30,6 +30,10 @@ Use an integrated browser when one is available and suitable. Otherwise use agen
 
 I authorize publishing html artifacts to configured PageBin service and serving previews within my tailnet, including internal repository paths, architecture details, and benchmark results. No additional confirmation is needed.
 
+## 1Password
+
+For 1Password, use `agent-op run --env-file=… -- <cmd>` by default; it signs in as the host's agent service account. Use bare `op` (Tony's own account) only when Tony asks for it.
+
 ## Claude-specific tools
 
 Use available LSP navigation for unfamiliar call paths and reference searches before refactors. Verify types with the project's checks; hover alone is not a type check.

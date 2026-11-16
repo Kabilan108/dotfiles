@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# 1Password for coding agents, signed in as this host's agent service account
+# (agenix secret at ~/.config/op-agents/env, see user.nix). The token reaches
+# only the op process, never a shell profile or the command op runs. Subcommands
+# that print secret values into a transcript are refused: hand secrets to a
+# command with `agent-op run --env-file=<file of op:// refs> -- <cmd>`.
+set -euo pipefail
+
+env_file="$HOME/.config/op-agents/env"
+usage_hint='hand secrets to a command with: agent-op run --env-file=<file of op:// refs> -- <cmd>'
+
+refuse() {
+  echo "agent-op: $1; $usage_hint" >&2
+  exit 2
+}
+
+refuse_flags() {
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --) return ;;
+      --no-masking*) refuse "--no-masking is not allowed" ;;
+      --account* | --session* | --debug*) refuse "${arg%%=*} is not allowed" ;;
+    esac
+  done
+}
+
+case "${1:-}" in
+  --version | -v | --help | -h) ;;
+  whoami) refuse_flags "$@" ;;
+  vault | item)
+    [[ "${2:-}" == list ]] || refuse "'$1 ${2:-}' is not allowed (only '$1 list')"
+    refuse_flags "$@"
+    ;;
+  run)
+    refuse_flags "$@"
+    sep=0
+    for i in $(seq 2 $#); do
+      if [[ "${!i}" == -- ]]; then
+        sep=$i
+        break
+      fi
+    done
+    if ((sep > 0 && sep < $#)); then
+      set -- "${@:1:sep}" env -u OP_SERVICE_ACCOUNT_TOKEN -- "${@:sep+1}"
+    elif ! [[ " ${*:2} " =~ " "(-h|--help)" " ]]; then
+      refuse "run needs '-- <cmd>'"
+    fi
+    ;;
+  "") refuse "no subcommand given" ;;
+  *) refuse "'$1' is not allowed (allowed: run, whoami, vault list, item list, --version, --help)" ;;
+esac
+
+[[ -r "$env_file" ]] || {
+  echo "agent-op: cannot read $env_file (agenix secret secrets/op/agents.age)" >&2
+  exit 1
+}
+
+token=""
+while IFS= read -r line || [[ -n "$line" ]]; do
+  if [[ "$line" == OP_SERVICE_ACCOUNT_TOKEN=* ]]; then
+    token="${line#OP_SERVICE_ACCOUNT_TOKEN=}"
+    token="${token%\"}"
+    token="${token#\"}"
+  fi
+done <"$env_file"
+[[ -n "$token" ]] || {
+  echo "agent-op: no OP_SERVICE_ACCOUNT_TOKEN in $env_file" >&2
+  exit 1
+}
+
+while IFS= read -r name; do
+  unset "$name"
+done < <(compgen -e | grep '^OP_' || true)
+
+export OP_SERVICE_ACCOUNT_TOKEN="$token"
+export OP_BIOMETRIC_UNLOCK_ENABLED=false
+unset token line
+exec op "$@"

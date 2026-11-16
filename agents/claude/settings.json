@@ -51,7 +51,8 @@
       "Bash(tmux capture-pane:*)",
       "Skill(tmux)",
       "mcp__deepwiki__ask_question",
-      "Bash(ghostty +list-keybinds --default)"
+      "Bash(ghostty +list-keybinds --default)",
+      "Bash(agent-op:*)"
     ],
     "deny": [
       "Read(//**/.envrc)",
@@ -65,6 +66,7 @@
       "Read(~/.netrc)",
       "Read(~/.git-credentials)",
       "Read(~/.config/*/env)",
+      "Read(~/.config/op-agents/**)",
       "Read(~/.ssh/**)"
     ],
     "defaultMode": "auto"
@@ -145,7 +147,8 @@
   "autoMode": {
     "allow": [
       "$defaults",
-      "Uploading html artifacts to pagebin is allowed"
+      "Uploading html artifacts to pagebin is allowed",
+      "Running agent-op is allowed: it signs in to 1Password as the host's agent service account, which Tony set up for agents, and refuses subcommands that print secrets"
     ]
   },
   "voiceEnabled": true
