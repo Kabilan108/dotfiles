@@ -1,75 +1,140 @@
 ---
 name: review-loop
-description: Review loop for a committed change.
+description: Review loop for a code change. Use when the user says "review loop".
 ---
 
-# Review loop
+# review-loop
 
-You are the lead: the reviewer finds, you adjudicate and fix. The loop has **converged** when the reviewer reports "No remaining findings" on the current head. It runs the same on a local branch, a pushed branch or an open PR, and it ends at convergence.
+This is a workflow for making your code changes more correct before (or
+sometimes after) filing a pull request. tl;dr - use OpenAI's GPT Sol to review
+your code in a loop.
 
-## Reviewer
+Make the most minimal possible changes to appease the Sol reviewers. Be careful
+of scope creep and don't be scared to push back.
 
-GPT 6.1 Sol at xhigh effort, launched with the T3 `delegate_task` tool:
+## Budget
 
-```json
-{
-  "target": {"providerInstanceId": "codex", "model": "gpt-6.1-sol", "options": {"reasoningEffort": "xhigh"}},
-  "role": "review",
-  "mode": "async",
-  "title": "<repo> review r<k>",
-  "clientRequestId": "<repo>-<change>-review-r<k>",
-  "task": "<prompt from the template below>"
-}
+- Default: 3 rounds total. Round 1 is full. Later rounds check only
+  changed code and open findings.
+- Extend to 5 only for security, permissions, auth, data loss, or
+  state/concurrency, while a blocker or should inside the threat model stays
+  open with evidence. Or when the user asks.
+- Stop early if a round returns only nits. Declined nits and comment,
+  doc, or format-only fixes need no new round.
+- One reviewer by default. For high-risk behaviour or API/design changes,
+  round 1 may add GPT-6 Astra (`gpt-6-astra`) at high, focused on design and
+  operations. Later rounds use one reviewer. Reviewers must not start
+  subagents or reviewers.
+- Keep a ledger: id, severity, outcome, usage if returned. Never guess it.
+
+## 1. Scope
+
+Run `git status --short`. Do not stash, discard, or include unrelated
+changes. Limit review to the change paths if they separate cleanly.
+Otherwise stop and ask.
+
+Find the base after `git fetch origin`:
+
+- PR: `gh pr view <n> --json baseRefName,headRefOid`. Check out the branch
+  only if clean. Confirm `HEAD` is the PR head, or ahead only by this
+  change. Base: `git merge-base HEAD origin/<baseRefName>`.
+- Local: `git merge-base HEAD origin/<default-branch>`. No remote: a base
+  the user names, or `HEAD` for uncommitted changes only.
+
+The change is base to working tree in those paths, with untracked files.
+Use one diff command all rounds. State intent and out-of-scope in 1-2
+sentences. For security, permissions or auth changes, also state the threat
+model: what's in scope and what's out. Run covering checks. Do not send code
+this change breaks. Note missing or pre-failing checks in the brief.
+
+## 2. Start Sol
+
+In T3, call `orchestrator_capabilities`. Use GPT 6.1 Sol (`gpt-6.1-sol`) at
+xhigh on the default service tier, not fast or priority, unless the user
+names another: `target.options` `{"reasoningEffort": "xhigh", "serviceTier":
+"default"}`. Record provider, model, and effort only if exposed. Use
+`delegate_task` every round (`role: "review"`, `mode: "async"`). Save
+`taskId`. New `clientRequestId` per round. `childThreadId` is storage, not
+the next target. Do not use `t3_thread_send`, `create_threads`, or
+`t3_thread_launch` for review.
+
+If T3 tools are not listed, try one direct capability call. Outside T3, use
+a native Sol subagent and keep its ID. In Claude Code, use a custom subagent
+only if it is set up to run Sol. If no route runs Sol, report the blocker. Do
+not substitute a model.
+
+Do not edit scoped files while review runs. Wait for the notice. Do not
+poll or start reviewers beyond the budget. Timeout, error, or no reply is
+not approval. On failure, cancel, verify stop, restart with the ledger.
+
+Round 1 brief (T3 children get no history):
+
+```
+Review only. Do not edit, commit, push, comment on PRs, or start subagents.
+Repo: <abs path> Base: <sha> Intent: <intent> Out of scope: <scope> Checks: <results>
+Settled: <decisions made with the user, and accepted limitations>. Do not reopen these.
+Threat model: <what's in scope; what's out>
+Limits: <what you must never run or touch here, and where scratch goes>
+See: git diff <base> [-- <paths>]; git status --short (read untracked).
+Read surrounding code. Find bugs, broken callers, mismatch with intent.
+Skip style unless it hides a bug. Hold to the smallest change. Flag code,
+tests, or guards the intent does not need. Other paths, rare cases, small
+perf, extra compat, scenarios outside the threat model: nits.
+blocker = intended case wrong. should = real bug callers will hit, in intent. nit = rest.
+Reply:
+VERDICT: APPROVE or CHANGES
+S1 [blocker|should|nit] <file>:<line> <claim>. Fix: <suggestion> (stable ids)
 ```
 
-Keep any model or effort the user names. Each round is a new `delegate_task` call with its own `clientRequestId`. The reviewer starts every round with no memory, so the prompt carries the whole history. The result arrives as a notification: end the turn, then read it with `task_status`. Outside T3, launch the same prompt through `agent-run` (see `agent-run --help`).
+A round 1 Astra review gets the same brief, ids prefixed `A`, plus
+`Focus: design and operations.`
 
-## Steps
+For a consequential behavioural invariant, add the method in
+`~/dotfiles/agents/references/empirical-review.md` to the brief. It applies
+only within the stated threat model.
 
-1. **Freeze the head.** Commit the change and leave the tree clean. Record the base and head SHAs, the intended behaviour, the decisions already settled with the user, and the verification already run. Done when `git diff <base>..<head>` shows exactly what will ship.
+## 3. Answer findings
 
-2. **Run round k.** Fill in the prompt template, launch the reviewer, and wait for the notification. Done when a report with a verdict line has arrived for the current head. A failed run, a missing report, or a report on an older head is not a round.
+Check each finding and severity yourself. Another path, rare case,
+small cost, or a scenario outside the threat model is a nit, whatever label
+it came with.
 
-3. **Adjudicate every finding** against the source. Trace or reproduce it yourself before acting on it. Give each finding one verdict:
-   - **Fixed:** the fix.
-   - **Rejected:** the evidence (code path, test, measurement) showing the scenario cannot happen or is intended.
-   - **Deferred:** real, but outside this change. It goes in the log for the human reviewers.
+- Agree: smallest fix. Prefer delete or narrow over new lock, cache,
+  helper, or option. Fix the case that happened. Add one focused test
+  that fails without the fix, if intent needs it.
+- Disagree: say why, with evidence (file:line, test, output).
+- Out of scope or nit: decline in one line. List as follow-up.
 
-   Guard against scope creep: the change ships its intended behaviour and no more. Fix what breaks realistic use of this change. A rare edge case, a speculative hardening pass, or a feature the change doesn't need gets Rejected or Deferred with its reasoning, even when the reviewer is technically right; every added line is one more for the human reviewers to read. Push back with evidence rather than complying to converge.
+Update the ledger. Re-run checks and `git diff --shortstat <base>`. If
+review grew the diff, cut first. Do not agree just to end the loop.
 
-   Done when every finding has a verdict and its evidence.
+## 4. Next round
 
-4. **Advance the head.** Commit the fixes, rerun the repository's own checks with their exit codes captured, record the new head, and start round k+1 at step 2. The loop has converged when a round on the current head reports no remaining findings. A clean round on an earlier head does not count.
+Start one only if budget remains and a blocker or should is open, behavior code
+changed, or approval does not cover the current behavior diff. Use a fresh
+`delegate_task` in T3, or follow up the saved native ID. Send the round 1 brief,
+the ledger (`fixed:` / `disagree:` / `declined:` + evidence), the same base
+diff, and the change since last round. Tell Sol: open ids and changed code only.
+Mark each old id `resolved` or `still open: <reason>`.
 
-   Escalate to the user, and stop looping, when a finding stays disputed after two rebuttals, a fix needs a decision outside the settled design, or round 5 still has findings.
+## 5. Stop and ship
 
-5. **Write the review log.** For each round: its head SHA, the findings, their verdicts and evidence. Then the disputes and how they ended, and the final verdict. Keep it short enough to paste into a PR description or a reply to human reviewers. Done when the log accounts for every finding from every round.
+Agreed: APPROVE on the current behavior diff, no blocker or should open,
+no concern of your own. Stuck: an item stays disputed after two replies,
+or budget ends. Show both sides in 2-3 lines each. The user decides.
+Budget end is not approval.
 
-For a consequential behavioural invariant (concurrency, retention, authorization, untrusted input, cache identity, lifecycle), add the method in `~/dotfiles/agents/references/empirical-review.md` to the prompt.
+Do not merge during the loop. When the change has a PR, push each round's
+fixes to it so the PR stays current, unless the user said not to push. Merge
+after agreement only if the user asked to merge. When you push to a PR, add
+above the model blurb:
 
-## Prompt template
+`Reviewed with review-loop: <N> rounds with <model>. Sol verdict: approved`.
 
-Settled decisions and earlier verdicts keep the reviewer judging the execution instead of reopening choices the user already made. The environment section names the reviewer's read scope and commands; without one, Sol roams.
+Add `on <effort>` only if verified. If the review had a threat model, add it
+on the next line as `Threat model: <one line>`. Those lines are the only review
+note in the PR body; the ledger goes in your report.
 
-```markdown
-You are reviewing <change> in <repo>, round <k>. Checkout: <path>, branch <branch>, head <sha>, base <sha>. Review `git diff <base>..<head>`. This is a read-only review: report findings and leave files, commits, branches and remote state as they are.
-
-## Intended behaviour
-<what the change does and why>
-
-## Settled decisions
-<design choices made with the user, and accepted limitations>
-
-## Verification already run
-<checks and their results>
-
-## Earlier rounds
-<round 2 onward: each finding, its verdict (fixed in <sha>, rejected, or deferred), and the evidence>
-Confirm each fix. Contest a rejection only with a new concrete scenario.
-
-## Environment
-<how to build and test here; the paths you may read; where scratch files go; limits on I/O or long-running commands>
-
-## Output
-Findings, most severe first. For each: file:line, the defect in one sentence, a concrete failure scenario (input, then wrong result), a suggested fix, and CONFIRMED (reproduced or fully traced) or PLAUSIBLE. Report style issues only when they hide a bug. Rank by realistic impact on the intended behaviour; mark a finding that adds scope beyond it as SCOPE. End with exactly one line: "No remaining findings" or "N findings".
-```
+Report: rounds, model, the threat model if there was one, what Sol changed,
+diff size before/after, fixed and declined findings with reasons, usage if
+exposed (else say not), pushed or not.
