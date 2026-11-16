@@ -6,6 +6,7 @@
 {
   imports = [
     ../tailnet-services.nix
+    ./atlas.nix
     ./blocky.nix
     ./sera.nix
     ./cliproxyapi.nix
