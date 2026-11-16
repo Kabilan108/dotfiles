@@ -4,6 +4,10 @@
 # only the op process, never a shell profile or the command op runs. Subcommands
 # that print secret values into a transcript are refused: hand secrets to a
 # command with `agent-op run --env-file=<file of op:// refs> -- <cmd>`.
+#
+# This keeps the token and secret values out of transcripts; it is not a
+# security boundary. Agents run as the token file's owner, so the service
+# account's read-only vault scope is what limits them.
 set -euo pipefail
 
 env_file="$HOME/.config/op-agents/env"
@@ -14,15 +18,69 @@ refuse() {
   exit 2
 }
 
+refuse_flag() {
+  case "$1" in
+    --no-masking*) refuse "--no-masking is not allowed" ;;
+    --account* | --session* | --debug*) refuse "${1%%=*} is not allowed" ;;
+  esac
+}
+
+# whoami and the list commands run nothing, so every argument is checked: op
+# can read a `--` as a flag's value, as in `whoami --config -- --debug`.
 refuse_flags() {
   local arg
   for arg in "$@"; do
-    case "$arg" in
-      --) return ;;
-      --no-masking*) refuse "--no-masking is not allowed" ;;
-      --account* | --session* | --debug*) refuse "${arg%%=*} is not allowed" ;;
+    refuse_flag "$arg"
+  done
+}
+
+# op expands $VAR and ${VAR} in env files from its own environment, which holds
+# the token: `X=${OP_SERVICE_ACCOUNT_TOKEN}` hands it to the command, and
+# `X=op://${OP_SERVICE_ACCOUNT_TOKEN}/a/b` prints it in an error.
+check_env_file() {
+  [[ -r "$1" ]] || refuse "cannot read env file '$1'"
+  if grep -qF '$' -- "$1"; then
+    refuse "env file '$1' uses '\$'; variable expansion is not allowed"
+  fi
+}
+
+# op's flag parser treats a bare word before `--` as the command, which would
+# start it with the token, so only op's own flags may come before `--`. A flag
+# that takes a value consumes the next argument even when it is `--`, as op does.
+check_run() {
+  local arg name value help=0
+  run_args=(run)
+  run_cmd=()
+  while (($#)); do
+    arg=$1
+    shift
+    if [[ "$arg" == -- ]]; then
+      run_cmd=("$@")
+      break
+    fi
+    refuse_flag "$arg"
+    name=${arg%%=*}
+    case "$name" in
+      -h | --help)
+        help=1
+        run_args+=("$arg")
+        ;;
+      --iso-timestamps | --no-color) run_args+=("$arg") ;;
+      --env-file | --environment | --config | --encoding | --format)
+        if [[ "$arg" == *=* ]]; then
+          value=${arg#*=}
+        else
+          (($#)) || refuse "$name needs a value"
+          value=$1
+          shift
+        fi
+        [[ "$name" != --env-file ]] || check_env_file "$value"
+        run_args+=("$name=$value")
+        ;;
+      *) refuse "'$arg' is not allowed before run's '--' (allowed: --env-file, --environment, --config, --encoding, --format, --iso-timestamps, --no-color, --help)" ;;
     esac
   done
+  ((${#run_cmd[@]} > 0 || help)) || refuse "run needs '-- <cmd>'"
 }
 
 case "${1:-}" in
@@ -33,18 +91,12 @@ case "${1:-}" in
     refuse_flags "$@"
     ;;
   run)
-    refuse_flags "$@"
-    sep=0
-    for i in $(seq 2 $#); do
-      if [[ "${!i}" == -- ]]; then
-        sep=$i
-        break
-      fi
-    done
-    if ((sep > 0 && sep < $#)); then
-      set -- "${@:1:sep}" env -u OP_SERVICE_ACCOUNT_TOKEN -- "${@:sep+1}"
-    elif ! [[ " ${*:2} " =~ " "(-h|--help)" " ]]; then
-      refuse "run needs '-- <cmd>'"
+    shift
+    check_run "$@"
+    if ((${#run_cmd[@]} > 0)); then
+      set -- "${run_args[@]}" -- env -u OP_SERVICE_ACCOUNT_TOKEN -- "${run_cmd[@]}"
+    else
+      set -- "${run_args[@]}"
     fi
     ;;
   "") refuse "no subcommand given" ;;
