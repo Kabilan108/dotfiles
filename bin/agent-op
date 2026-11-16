@@ -121,9 +121,10 @@ done <"$env_file"
   exit 1
 }
 
-while IFS= read -r name; do
+# ${!OP_@}, not compgen: the bash that `env bash` finds may lack completion builtins.
+for name in "${!OP_@}"; do
   unset "$name"
-done < <(compgen -e | grep '^OP_' || true)
+done
 
 export OP_SERVICE_ACCOUNT_TOKEN="$token"
 export OP_BIOMETRIC_UNLOCK_ENABLED=false
