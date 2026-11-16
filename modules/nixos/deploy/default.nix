@@ -64,6 +64,8 @@ let
       DEPLOY_PUSH_KNOWN_HOSTS = "${pkgs.writeText "deploy-push-known-hosts" deploy.pushKnownHosts}";
       DEPLOY_REQUIRE_TOUCH = "1";
       DEPLOY_REQUIRE_PIN = if deploy.requirePin then "1" else "0";
+      DEPLOY_CONTROLLER = deploy.controller;
+      DEPLOY_RECEIVERS = lib.concatStringsSep " " deploy.receivers;
     };
     text = builtins.readFile ./deploy-tag.sh;
   };

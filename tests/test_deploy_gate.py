@@ -1344,6 +1344,24 @@ class Rebuild(DeployGate):
         self.assertIn("\nHosts: jacurutu\n", self.git("cat-file", "tag", tag))
         self.assertEqual(len(self.sudo_calls()), 1)
 
+    def test_fleet_answer_signs_for_every_host_and_builds_only_this_one(self) -> None:
+        self.give_key()
+        r = self.rebuild("f\n", TEST_YKMAN_LIST=NFC)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        [tag] = self.git("tag", "-l", "deploy/fleet/*").splitlines()
+        self.assertIn("\nHosts: jacurutu sietch\n", self.git("cat-file", "tag", tag))
+        [call] = self.sudo_calls()
+        self.assertIn("jacurutu", call)
+        self.assertNotIn("sietch", call)
+
+    def test_fleet_answer_refuses_a_host_outside_the_fleet(self) -> None:
+        self.give_key()
+        r = self.rebuild("f\n", host="arrakis", TEST_YKMAN_LIST=NFC)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("arrakis isn't a fleet host", r.stdout)
+        self.assertEqual(self.git("tag", "-l"), "")
+        self.assertEqual(self.sudo_calls(), [])
+
     def test_without_a_deploy_yubikey_it_stops_before_asking(self) -> None:
         self.give_key()
         r = self.rebuild("y\n", TEST_YKMAN_LIST="")

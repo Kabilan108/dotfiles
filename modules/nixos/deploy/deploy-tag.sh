@@ -32,6 +32,9 @@
 #       Sign the next fleet tag at REV for the HOSTs with FILE, never an
 #       ssh-agent, check it, and print its name. The "Hosts:" line goes at the
 #       end of TEXT's first paragraph.
+#   deploy-tag [-C DIR] fleet-hosts
+#       Print every host a fleet tag can approve: the controller, then the
+#       receivers.
 #   deploy-tag [-C DIR] push --key FILE TAG
 #       Check TAG and push it to DEPLOY_PUSH_URL, authenticating with FILE.
 #       GitHub's tag ruleset lets only the repo's deploy keys create deploy/*
@@ -77,6 +80,7 @@ usage: deploy-tag [-C DIR] latest HOST
        deploy-tag [-C DIR] moves-forward TAG HOST RUNNING [OBJECT]
        deploy-tag [-C DIR] approves TAG HOST OBJECT COMMIT
        deploy-tag [-C DIR] sign --key FILE [--message TEXT] HOST... REV
+       deploy-tag [-C DIR] fleet-hosts
        deploy-tag [-C DIR] push --key FILE TAG
 EOF
   exit 2
@@ -393,6 +397,11 @@ allows-rollback)
 moves-forward)
   [[ $# -eq 4 || $# -eq 5 ]] || usage
   moves_forward "$2" "$3" "$4" "${5:-refs/tags/$2}"
+  ;;
+fleet-hosts)
+  [[ $# -eq 1 ]] || usage
+  : "${DEPLOY_CONTROLLER:?}" "${DEPLOY_RECEIVERS:?}"
+  echo "$DEPLOY_CONTROLLER $DEPLOY_RECEIVERS"
   ;;
 approves)
   [[ $# -eq 5 ]] || usage

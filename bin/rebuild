@@ -8,7 +8,9 @@
 # First it lists the commits since the last signed deploy tag naming this host
 # and any uncommitted changes, and asks before building them. Where the
 # YubiKey handles live (jacurutu), approving signs a fleet tag for this host
-# at HEAD with the PIN and a touch and pushes it. Elsewhere it builds unsigned
+# at HEAD with the PIN and a touch and pushes it; answering [f]leet signs it
+# for every host instead, so a later `deploy` finds it and needn't sign again,
+# while this run still builds only this host. Elsewhere it builds unsigned
 # once you say so. --unsigned prints the same list and builds without asking
 # or signing.
 #
@@ -166,10 +168,18 @@ review() {
   key=${key:-yk-nfc-deploy}
   key_file=$HOME/.ssh/$key
   if [[ $approved == false && -e $key_file ]]; then
-    read -r -p "Sign a deploy tag for $host_name at ${head:0:12} with $key and build? [y]es, [u]nsigned build, [N]o: " answer
+    read -r -p "Sign a deploy tag for $host_name at ${head:0:12} with $key and build? [y]es, [f]leet (every host), [u]nsigned build, [N]o: " answer
     case $answer in
-    [yY]*)
-      tag=$(deploy-tag -C "$repo" sign --key "$key_file" --message "rebuild $host_name" "$host_name" "$head") || return 1
+    [yYfF]*)
+      local -a hosts=("$host_name")
+      if [[ $answer == [fF]* ]]; then
+        read -r -a hosts <<<"$(deploy-tag fleet-hosts)" || return 1
+        if [[ " ${hosts[*]} " != *" $host_name "* ]]; then
+          echo "$host_name isn't a fleet host (${hosts[*]}), so a fleet tag wouldn't approve this build."
+          return 1
+        fi
+      fi
+      tag=$(deploy-tag -C "$repo" sign --key "$key_file" --message "rebuild $host_name" "${hosts[@]}" "$head") || return 1
       if ! deploy-tag -C "$repo" push --key "$key_file" "$tag"; then
         echo "Couldn't push $tag; building anyway. Push it later with: deploy-tag -C $repo push --key $key_file $tag"
       elif [[ -z $dirty ]]; then

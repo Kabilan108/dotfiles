@@ -113,7 +113,9 @@ and approve nothing.
   shell. Don't try other commands there.
 - `rebuild` is Tony's manual rebuild of the host he's on, from `~/dotfiles`.
   It lists the commits since the last tag naming that host and asks. On
-  jacurutu, approving signs and pushes a fleet tag for jacurutu alone. A
+  jacurutu, approving signs and pushes a fleet tag for jacurutu alone; the
+  `[f]leet` answer signs it for every host, so a later `deploy` skips signing,
+  but still rebuilds only jacurutu. A
   clean signed build waits for CI like `deploy` does and builds the commit
   the tag pointed at when it was checked, not the checkout, refusing a tag
   that was moved since; it doesn't check moving forward. Leave it to him.
