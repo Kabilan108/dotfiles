@@ -166,8 +166,8 @@ address and failure through its LAN address, using `ControlPath=none` to avoid
 reusing an existing connection. A Tailscale failure requires local-console
 recovery. Keep a working session open while checking the new policy.
 
-Status: OpenSSH 10.3 supports `sk-ssh-ed25519` ✓. `ykman` not installed yet;
-confirm `libfido2` present when generating the first sk key.
+Status: OpenSSH 10.3 supports `sk-ssh-ed25519` ✓. Confirm `libfido2` is present
+when generating the first sk key.
 
 ### Split: interactive vs automation
 - **Interactive (human → sietch/jacurutu/tleilax):** `ed25519-sk` hardware key, touch
@@ -410,7 +410,6 @@ Restic to the NAS replaced the Google Drive screenshot job (`docs/backups.md`).
 
 ## NixOS / flake changes needed (minimal)
 
-- [ ] Install `ykman` (yubikey-manager) for FIDO2 PIN + key management.
 - [ ] Confirm `libfido2` available for `ed25519-sk` (test by generating a key).
 - [ ] `services.pcscd.enable = true` — ONLY if adopting desktop Yubico Authenticator
       or GPG/PIV-on-card. Not needed for phone-NFC TOTP or browser passkeys.
@@ -422,7 +421,7 @@ Restic to the NAS replaced the Google Drive screenshot job (`docs/backups.md`).
 
 **Phase 0 — tonight**
 - [ ] Delete the plaintext recovery-codes file.
-- [ ] Set FIDO2 PIN on both keys (`ykman`), record offline.
+- [ ] Set FIDO2 PIN on both keys, record offline.
 
 **Phase 1 — vault + foundation**
 - [ ] WebAuthn 2FA on Vaultwarden (both keys) + save recovery code offline.
