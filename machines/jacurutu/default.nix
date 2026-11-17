@@ -125,6 +125,12 @@ in
       credentialsFile = config.age.secrets.backup-smb.path;
     };
     passwordFile = config.age.secrets.backup-restic.path;
+    # 05:00 EST, 06:00 EDT.
+    timer = {
+      OnCalendar = "*-*-* 10:00:00 UTC";
+      RandomizedDelaySec = "30m";
+      Persistent = "true";
+    };
     inhibitsSleep = true;
     statusPush.host = "sietch";
     jobs.files = {

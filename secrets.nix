@@ -15,6 +15,8 @@ in
     {
       "secrets/hark/tleilax-alerts.curl.age".publicKeys = tleilax;
       "secrets/executor/tleilax-v2-keys.env.age".publicKeys = tleilax;
+      "secrets/backup/tleilax-smb.age".publicKeys = tleilax;
+      "secrets/backup/tleilax-restic.age".publicKeys = tleilax;
     }
   else
     { }

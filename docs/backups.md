@@ -2,8 +2,8 @@
 
 Restic stores encrypted backups on the NAS. Coverage and exclusions live in each
 host's `dotfiles.backup.jobs`: [jacurutu](../machines/jacurutu/default.nix),
-[sietch](../machines/sietch/default.nix). Shared behavior is in
-[modules/nixos/backup](../modules/nixos/backup/default.nix).
+[sietch](../machines/sietch/default.nix), [tleilax](../machines/tleilax/backup.nix).
+Shared behavior is in [modules/nixos/backup](../modules/nixos/backup/default.nix).
 See [NAS policy](nas-network-policy.md) for access and NAS snapshot recovery.
 
 ## Run and inspect
@@ -66,7 +66,8 @@ snapshots tagged `archive`.
 ## Credentials and first setup
 
 Keep the NAS share, login and Restic password in the machine's 1Password item
-and on the paper recovery sheet. Edit agenix secrets on jacurutu with a YubiKey:
+and on the paper recovery sheet. Edit agenix secrets on jacurutu with a YubiKey
+(`<host>` is sietch, jacurutu or tleilax):
 
 ```sh
 agenix -e secrets/backup/<host>-smb.age -i ~/.config/age/yk-nfc.txt
@@ -80,3 +81,106 @@ For a new host, register its host public key and secret recipients, configure it
 NAS account and job, then deploy. Initialize the repository once, deliberately,
 with `sudo restic-files init`. Run the service and verify a restore, failure
 alerts, and remote status delivery before calling setup complete.
+
+## tleilax: Executor v2
+
+tleilax backs up `/var/lib/executor-v2` (the container's `/app/data`, owned by
+940:940): the PGlite database and each app's source as a git repository. It
+skips the telemetry cache, the podman image store and `/run/agenix`. Atlas is
+stateless.
+
+- **The key.** A restore is useless without `EXECUTOR_ENCRYPTION_KEY` from
+  `secrets/executor/tleilax-v2-keys.env.age`, which only tleilax's host key and
+  the YubiKeys decrypt. Never regenerate that file.
+- **Nightly.** PGlite has no live backup, so `restic-backups-executor` stops
+  `podman-executor-v2`, takes the snapshot and starts it again, also when the
+  snapshot fails. Executor is down while the snapshot runs.
+- **Before an image update.** `/var/lib/backup/versions/executor` records the
+  image Executor last started with. When the configured image differs, the
+  unit's start condition takes a snapshot tagged `executor` and `pre-update`
+  first, while the old container is stopped. If that snapshot fails, Executor
+  stays stopped and Hark gets "Update held on tleilax"; after fixing the cause,
+  `sudo systemctl start podman-executor-v2` tries again. The image is recorded
+  only after a snapshot succeeds. A first start with no recorded image records
+  it without a snapshot.
+- **Alerts.** tleilax sends through its own Hark credential, project "Fleet":
+  a job that failed after its retries, a held update, and the daily staleness
+  check of its own job (no success in 72 hours). Its backup units skip the
+  generic failed-unit alert, which would fire on every retry.
+- **Network.** The share is reached over the tailnet at `dar-es-balat`'s tailnet
+  address, on TCP 445 only. The Executor nftables table filters only Executor's
+  UID, so the kernel's SMB socket passes it.
+
+Commands on tleilax:
+
+```sh
+sudo systemctl start restic-backups-executor
+journalctl -u restic-backups-executor -u podman-executor-v2
+cat /var/lib/backup-status/tleilax-executor.json
+sudo restic-executor snapshots
+sudo backup-restore-check-executor            # latest snapshot
+sudo backup-restore-check-executor SNAPSHOT_ID
+```
+
+`backup-restore-check-executor` restores the snapshot into a scratch directory
+under `/var/lib`, gives it to 940:940, and starts the live container's pinned
+image on it as `executor-v2-restore-check`: same user, environment and key file,
+`--network=none`, no ports, and an empty telemetry directory. With no network
+the copy can't refresh OAuth tokens and break the live instance's. It passes
+when the container stays up, `executor-host health` succeeds, and the logs show
+no migration or key error. Then it runs `git fsck` on every git repository it
+finds in the restored data. It removes the container and the restored copy
+whatever happens.
+
+### Rolling back an Executor update
+
+The old image needs the data from before the update, since the new one may have
+migrated it. That data is the newest snapshot tagged `pre-update`. In order:
+
+1. On tleilax, stop the nightly job and Executor:
+   `sudo systemctl stop restic-backups-executor.timer podman-executor-v2.service`.
+2. Move the data aside:
+   `sudo mv /var/lib/executor-v2 /var/lib/executor-v2.rollback-$(date +%Y%m%d-%H%M)`.
+3. Restore the snapshot and give it to Executor's user:
+
+   ```sh
+   sudo restic-executor restore latest --tag pre-update --target /var/lib/executor-v2-restore
+   sudo mv /var/lib/executor-v2-restore/var/lib/executor-v2 /var/lib/executor-v2
+   sudo rm -r /var/lib/executor-v2-restore
+   sudo chown -R 940:940 /var/lib/executor-v2
+   ```
+
+4. On jacurutu, revert the image pin in `machines/tleilax/executor.nix` (or the
+   commit that bumped it), push to `nixos` and `deploy`. The deploy takes one
+   more pre-update snapshot, of the restored data, before the old image starts.
+5. On tleilax, check that it's healthy and running the old image:
+   `sudo podman exec executor-v2 executor-host health` and
+   `sudo podman inspect --format '{{.ImageName}}' executor-v2`.
+6. Start the nightly job again: `sudo systemctl start restic-backups-executor.timer`.
+   Delete `/var/lib/executor-v2.rollback-*` once you're sure.
+
+### tleilax NAS setup
+
+Set in DSM on 2026-11-17, copied from `backup-jacurutu` and
+`svc-backup-jacurutu` after reading their settings:
+
+- Shared folder `backup-tleilax` on Volume 1, description "Backups from
+  tleilax". Not hidden in My Network Places, sub-folders not hidden, recycle
+  bin off, no share encryption or WriteOnce, data checksum on, compression
+  off, no quota. Read/Write for `svc-backup-tleilax` and, by DSM's default,
+  the `administrators` group.
+- Snapshots in Snapshot Replication: every day from 01:05, every 6 hours,
+  last at 19:05, immutable for 7 days. Smart Retention keeps 14 daily,
+  8 weekly and 12 monthly snapshots plus the 5 latest. GMT naming and "Make
+  snapshot visible" are off.
+- `svc-backup-tleilax`: Read/Write on `backup-tleilax` and No access on
+  `archive`, `backup-jacurutu`, `backup-sietch`, `cloud-drive`, `homes`,
+  `library` and `photo`. SMB is allowed; AFP, Cloud Sync, DSM, FTP, File
+  Station, SFTP, Synology Photos, Universal Search and rsync are denied. It
+  belongs to `users` only. Its description and "Disallow the user to change
+  account password" were already set and stayed as they were.
+- Left alone: the other service accounts have an explicit No access entry
+  on `backup-jacurutu` but none on `backup-tleilax`. They still can't reach
+  it, since none of their groups has a permission on it.
+- Firewall, profile `default`: allow TCP 445 from `100.73.84.103/255.255.255.255`,
+  a copy of jacurutu's `100.108.28.4` rule placed below it, above deny-all.

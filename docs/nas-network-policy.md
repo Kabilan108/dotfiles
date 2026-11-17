@@ -30,7 +30,7 @@ copy. DSM firewall and shared-folder permissions are configured on the NAS.
 | `sietch` wired Ethernet | LAN | SMB3, TCP 445 | `library` (`svc-library-ro`, `svc-library-rw`) |
 | `sietch` wired Ethernet | LAN | SMB3, TCP 445 | `backup-sietch` only |
 | Pixel 9 | Tailscale | NAS HTTPS, TCP 443 | Synology Photos |
-| `tleilax` | Either | None by default | Add a narrow rule only for a concrete service |
+| `tleilax` | Tailscale (`100.73.84.103`) | SMB3, TCP 445 | `backup-tleilax` only (`svc-backup-tleilax`); no LAN path, its egress filter blocks the LAN |
 | Other LAN and IoT devices | LAN | None | Default deny |
 | NAS | Tailnet or LAN | Fleet machines | No initiated connections by default |
 

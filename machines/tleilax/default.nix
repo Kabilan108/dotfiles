@@ -18,6 +18,7 @@ in
     ../../modules/nixos/fleet.nix
     ../../modules/nixos/deploy
     ./alerts.nix
+    ./backup.nix
     ./disko.nix
     ./hardware.nix
     ./initrd-unlock.nix
