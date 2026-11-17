@@ -9,9 +9,9 @@ Executor v2 runs on tleilax at `https://executor-v2.sole-pierce.ts.net/mcp`. Eac
 
 ## Tools
 
-Each app has hand-written tools at the top, such as `tools.gmail.search` or `tools.gmail.send`, and generated ones from the service's API under `api`. Start with the hand-written tools and drop into `api` for anything they don't cover. Search returns exact paths and input types; describe a tool before its first call.
+Gmail, Calendar, Drive, Sheets and Tasks have hand-written tools at the top, such as `tools.gmail.search`, and tools generated from the service's API under `tools.<app>.api`, such as `tools.gmail.api.users.gmailUsersDraftsSend`. Start with the hand-written tools and drop into `api` for anything they don't cover. Apps without hand-written tools, such as Outlook and Slack, have their generated tools at the top. Search returns exact paths and input types; describe a tool before its first call.
 
-Accounts are linked in Executor, so calls never pick one. Tools that span several accounts (Gmail, Calendar, Drive) take an `account` address in their input to narrow to one.
+Accounts are linked in Executor. Where an app has several, hand-written tools take an `account` address and generated tools take an `accountId`, which search lists beside each app.
 
 ## Approvals
 
