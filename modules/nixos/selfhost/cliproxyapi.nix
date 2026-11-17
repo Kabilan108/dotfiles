@@ -7,8 +7,9 @@
 let
   cliproxyapi = pkgs.callPackage ../../../packages/cliproxyapi.nix { };
   configPath = "/var/lib/cliproxyapi/config.yaml";
-  # CPA serves inference and management on one listener. Local callers such as
-  # sera use it directly; each tailnet service reaches only its own front.
+  # CPA serves inference and management on one listener. Local callers (the
+  # cpa-usage-front for sera) use it directly; each tailnet service reaches only
+  # its own front.
   apiPort = 8317;
   inferencePort = 8320;
   adminPort = 8321;

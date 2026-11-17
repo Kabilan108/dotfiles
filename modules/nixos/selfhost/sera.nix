@@ -1,5 +1,4 @@
 {
-  config,
   lib,
   pkgs,
   ...
@@ -12,8 +11,8 @@ in
   systemd.services.sera = {
     description = "Sera quota companion USB collector";
     wantedBy = [ "multi-user.target" ];
-    after = [ "cliproxyapi.service" ];
-    wants = [ "cliproxyapi.service" ];
+    after = [ "cpa-usage-front.service" ];
+    wants = [ "cpa-usage-front.service" ];
     environment = {
       PYTHONPATH = "${project}/src";
       PYTHONDONTWRITEBYTECODE = "1";
@@ -25,8 +24,7 @@ in
       Group = "users";
       SupplementaryGroups = [ "dialout" ];
       WorkingDirectory = project;
-      ExecStart = "${lib.getExe python} -m sera_collector.bridge --key-env-file %d/proxy-env --state-file /var/lib/sera/state.sqlite --status-file /var/lib/sera/status.json";
-      LoadCredential = [ "proxy-env:${config.age.secrets.selfhost-cliproxyapi-env.path}" ];
+      ExecStart = "${lib.getExe python} -m sera_collector.bridge --api-base http://127.0.0.1:8322/v0/management/ --state-file /var/lib/sera/state.sqlite --status-file /var/lib/sera/status.json";
       StateDirectory = "sera";
       StateDirectoryMode = "0700";
       UMask = "0077";
