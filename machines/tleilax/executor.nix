@@ -125,6 +125,9 @@ in
       extraOptions = [
         "--network=host"
         "--init"
+        # On SIGTERM the host gives workerd 15 seconds to finish, then kills
+        # it; Podman's default 10 would kill the container first.
+        "--stop-timeout=30"
       ];
     };
 
