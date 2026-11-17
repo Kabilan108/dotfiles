@@ -21,6 +21,10 @@
   # remote administration. Local console access is the recovery path.
   networking.firewall.interfaces.tailscale0.allowedTCPPorts = [ 22 ];
 
+  # Agents run as kabilan here, so no operator: changing Tailscale (Serve
+  # backends included) needs sudo. The empty value clears the shared default.
+  services.tailscale.extraSetFlags = lib.mkForce [ "--operator=" ];
+
   # Leave Bluetooth available for deliberate use, but keep its radio off on boot.
   hardware.bluetooth.powerOnBoot = lib.mkForce false;
 
