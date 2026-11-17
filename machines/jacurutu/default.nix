@@ -7,6 +7,53 @@
 }:
 let
   fleet = import ../../lib/fleet.nix;
+  homeDir = config.users.users.kabilan.home;
+  projectBackupRoots = [
+    "/vault/work"
+    "/vault/repos"
+    "/vault/experiments"
+  ];
+  browserBackupRoots = [
+    "${homeDir}/.config/net.imput.helium"
+    "${homeDir}/.config/zen"
+  ];
+  projectBackupExcludes = [
+    "node_modules"
+    ".venv"
+    "venv"
+    ".direnv"
+    ".uv-cache"
+    ".uv_cache"
+    "uv-cache"
+    "uv-python"
+    ".pnpm-store"
+    ".npm"
+    ".yarn/cache"
+    ".yarn/unplugged"
+    ".cargo/registry"
+    ".cargo/git"
+    ".gradle"
+    "__pycache__"
+    ".pytest_cache"
+    ".mypy_cache"
+    ".ruff_cache"
+    ".next"
+    ".nuxt"
+    ".turbo"
+  ];
+  browserBackupExcludes = [
+    "Cache"
+    "Code Cache"
+    "GPUCache"
+    "ShaderCache"
+    "GrShaderCache"
+    "DawnCache"
+    "DawnGraphiteCache"
+    "DawnWebGPUCache"
+    "cache2"
+    "startupCache"
+    "shader-cache"
+  ];
 in
 {
   imports = [
@@ -80,10 +127,38 @@ in
     passwordFile = config.age.secrets.backup-restic.path;
     inhibitsSleep = true;
     statusPush.host = "sietch";
-    jobs.files.paths = [
-      "/vault/notes/coppermind"
-      "/vault/userdata/media"
-    ];
+    jobs.files = {
+      paths = [
+        "/vault/notes/coppermind"
+        "/vault/userdata/media"
+        # The other Moberg data trees are recoverable from COS.
+        "/vault/moberg-data/backups"
+        "/vault/moberg-data/projects"
+      ]
+      ++ projectBackupRoots
+      ++ browserBackupRoots;
+      # Keep Git metadata, nested source checkouts and local/ignored data.
+      # Scope regenerable dependency/cache exclusions to the project trees.
+      exclude =
+        lib.concatMap (
+          root:
+          map (subpath: "${root}/**/${subpath}") projectBackupExcludes
+          # A branch or worktree can have the same name as a dependency dir.
+          ++ [ "!${root}/**/.git/**" ]
+        ) projectBackupRoots
+        # Clean dependency clones fetched by these projects, not authored source.
+        ++ [
+          "/vault/repos/zeta.nvim/vendor/zed"
+          "/vault/work/moberg/maestro/vendor/t3code"
+          "/vault/work/moberg/maestro/vendor/terragon-oss"
+          "/vault/work/moberg/dev-server/vendor/jupyter-ai-persona-manager"
+          "/vault/work/moberg/dev-server/vendor/jupyter-ai-jupyternaut"
+          "/vault/work/moberg/dev-server/vendor/jupyter-ai-claude-code"
+        ]
+        ++ lib.concatMap (
+          root: map (subpath: "${root}/**/${subpath}") browserBackupExcludes
+        ) browserBackupRoots;
+    };
   };
 
   home-manager.users.kabilan = {

@@ -1,201 +1,78 @@
 # Backups
 
-Restic backups from each machine to its own share on the NAS (`dar-es-balat`,
-a DS225+). Module: `modules/nixos/backup`. NAS access rules:
-[`nas-network-policy.md`](./nas-network-policy.md).
+Restic stores encrypted backups on the NAS. Coverage and exclusions live in each
+host's `dotfiles.backup.jobs`: [jacurutu](../machines/jacurutu/default.nix),
+[sietch](../machines/sietch/default.nix). Shared behavior is in
+[modules/nixos/backup](../modules/nixos/backup/default.nix).
+See [NAS policy](nas-network-policy.md) for access and NAS snapshot recovery.
 
-## Design
+## Run and inspect
 
-- One Restic repository per machine, in `restic/` on that machine's share:
-  `\\10.0.0.240\backup-sietch\restic` and `\\dar-es-balat\backup-jacurutu\restic`.
-- sietch reaches the NAS over the wired LAN, jacurutu over the tailnet. The NAS
-  firewall allows TCP 445 from jacurutu's tailnet address only, and that rule
-  depends on the NAS running Tailscale in kernel mode
-  ([Tailscale mode](./nas-network-policy.md#tailscale-mode)).
-- Each machine mounts its share at `/var/lib/backup/nas` on first use (root-only
-  parent, SMB 3.1.1 with encryption). If the NAS can't be reached, the run fails
-  rather than writing anywhere local.
-- Every backup is encrypted with that repository's Restic password. The NAS
-  holds ciphertext only.
-- **Older restore points are protected by the NAS, not by Restic.** Both backup
-  shares take a snapshot every 6 hours (01:05, 07:05, 13:05, 19:05 Eastern),
-  immutable for 7 days, kept 14 daily / 8 weekly / 12 monthly. The backup
-  accounts have SMB access to their own share only, no DSM, and sietch has no
-  network path to DSM, so a compromised machine can damage at most its live
-  repository and the backups since the last NAS snapshot. Recovery is rolling
-  the share back to a snapshot in DSM.
-- **Nothing prunes.** Restic keeps every snapshot until pruning is switched on,
-  which waits until a size alert says it's needed. The repositories are never
-  initialised automatically, so a deleted repository fails the next run instead
-  of being replaced by an empty one.
-- Backup secrets are encrypted to the machine's root-only SSH host key
-  (`/etc/ssh/ssh_host_ed25519_key`) and Tony's two YubiKey age identities
-  (`ageRecipients` in `lib/fleet.nix`), never to a user key. Agents running
-  as `kabilan` can't read them; Tony edits them on jacurutu with a YubiKey.
-
-## What each machine backs up
-
-| Machine | Job | Contents |
-|---|---|---|
-| sietch | `files` | `/vault/notes/coppermind` (the whole vault, including `.git` and ignored files), `/vault/userdata/media` |
-| sietch | `services` | Vaultwarden (`db.sqlite3` copy, attachments, sends, `config.json`, `rsa_key*`), Executor (`data.db` copy and the rest of its state), Hark (`hark.sqlite` copy and `backups/`) |
-| jacurutu | `files` | `/vault/notes/coppermind`, `/vault/userdata/media` |
-| tleilax | later | Vaultwarden and Executor, after its rebuild |
-
-Live SQLite databases are never read directly. Before each `services` run,
-SQLite's online `.backup` copies each one into a fresh staging directory, run
-as the database's owner (`vaultwarden`, UID 65532 for Executor, `hark`), and
-`PRAGMA quick_check` checks the copy. A failed copy fails the run; a stale copy
-is never reused. The live files are excluded.
-
-Not backed up: `/vault/userdata/hark/` (reproducible builds, a test database,
-dev files) and `/vault/userdata/hark-downloads/` (APKs rebuilt from the Hark
-repo plus the keystore in agenix and Vaultwarden). The media library lives on
-the NAS's `library` share, not on sietch; it can all be downloaded again, so
-it has NAS snapshots only ([`nas-network-policy.md`](./nas-network-policy.md),
-"Media library").
-
-## Schedule, retries and alerts
-
-- Jobs run nightly around 00:00 (up to 30 minutes of random delay), finishing
-  before the NAS's 01:05 snapshot. Timers are persistent, so a laptop that was
-  asleep runs its backup when it wakes; jacurutu holds off sleep while one runs.
-- A failed run retries 3 times, 15 minutes apart. After the last retry,
-  `backup-alert@` sends one Hark alert. An incomplete backup (Restic exit 3,
-  such as an unreadable file) counts as a failure.
-- A run whose repository isn't reachable (the NAS mount failed) fails in
-  seconds, before Restic starts, instead of Restic retrying it for many
-  minutes per attempt.
-- Alerts run as `kabilan`, through the Fleet maintenance webhook. Root never
-  reads that user-writable curl config.
-- Monthly, on the 8th, `restic-backups-check` reads back 5% of the stored data.
-- After each successful run the machine records its status in
-  `/var/lib/backup-status/<host>-<job>.json` (readable by everyone): last
-  attempt and result, last success, repository size and NAS free space. It
-  alerts once when the repository passes 100 GiB or NAS free space drops below
-  15%.
-- jacurutu also sends its status to sietch, where it lands in
-  `~kabilan/.local/state/backup-status/jacurutu-<job>.json`. It connects with
-  its host key, which sietch accepts only for that forced command, only from
-  jacurutu's tailnet address.
-- jacurutu's own alerts reach Hark only over the tailnet, so an offline laptop
-  can't send them. Instead, sietch's daily `backup-stale-check` (as `kabilan`,
-  around noon) alerts once when a received job hasn't succeeded in 72 hours,
-  or when jacurutu has sent no status at all. It alerts again only after a
-  fresh success; a failed alert is retried the next day.
-
-## Commands
-
-Every job gets a root wrapper with the repository and password set:
-`restic-files`, `restic-services`, `restic-check`. They all point at the same
-repository.
+Run these on the machine whose backup you want:
 
 ```sh
-sudo systemctl start restic-backups-files      # run a job now
-journalctl -u restic-backups-files             # its log
-sudo restic-files snapshots                    # list restore points
-sudo restic-files restore latest --tag files --target /tmp/restore --include /vault/notes/coppermind/some-note.md
-cat /var/lib/backup-status/*.json              # last results
-sudo systemctl start backup-stale-check        # sietch: check jacurutu's status now
+sudo systemctl start restic-backups-files
+journalctl -u restic-backups-files
+cat /var/lib/backup-status/*.json
+sudo restic-files snapshots
 ```
 
-Restored files land under the target with their full path. Restore into a
-temporary directory, never over live data.
+`restic-files` and `restic-services` select that host's repository and credentials.
+Use the scheduled service to run its preparation and status hooks. For a manual
+Restic command, first check that `snapshots` opens the existing NAS repository.
+Never use `init` to work around an unreachable or missing repository.
 
-### Restoring a database
+## Restore
 
-Restore the `services` snapshot, then use the copy under
-`/var/lib/backup-staging/services/<name>/` in the restored tree. Run
-`sqlite3 <copy> 'PRAGMA integrity_check;'` before using it. Executor also needs
-`EXECUTOR_SECRET_KEY` from `secrets/selfhost/executor-env.age` to read its
-data.
-
-### Restoring without the machine
-
-From any Linux machine with Restic: mount the share with that machine's NAS
-account, then `restic -r <mount>/restic restore latest --target <dir>`, giving
-the Restic password from Vaultwarden or the paper copy.
-
-### One-off archive
+Restore into a separate directory, then inspect and compare before replacing
+anything live. Use a specific snapshot ID when testing a particular backup:
 
 ```sh
-sudo restic-files backup --tag archive /vault/notes/drexel-senior
+sudo restic-files restore SNAPSHOT_ID --target /tmp/restore \
+  --include /vault/notes/coppermind/some-note.md
 ```
 
-Snapshots tagged `archive` must be kept by any future pruning
-(`--keep-tag archive`).
+Files appear beneath the target with their snapshot paths. For service databases,
+restore the staged copy under `/var/lib/backup-staging/services/<name>/`, run
+`sqlite3 <copy> 'PRAGMA integrity_check;'`, then test the application. Executor
+also needs its original `EXECUTOR_SECRET_KEY` to read encrypted data.
 
-## Setting up a machine
+Close browsers for the initial browser-profile backup and recovery test. Ordinary
+file backups taken while a browser is open may contain inconsistent databases;
+a profile alone may not recover cookies or passwords tied to the desktop keyring.
 
-### Vaultwarden
+If the machine is lost, mount its NAS share on another Linux machine and run
+`restic -r <mount>/restic restore SNAPSHOT_ID --target <dir>`. Get the NAS login
+and Restic password from Vaultwarden or the paper recovery sheet. If the live
+repository was damaged, recover an earlier NAS snapshot through DSM first.
 
-Each machine's NAS login (`svc-backup-sietch`, `svc-backup-jacurutu`) already
-has an item. Add to it:
+## One-off archive
 
-- A hidden custom field **Restic password**: a new passphrase from the
-  generator (6–7 words, hyphen-separated).
-- In notes: the repository location from the Design section, and "Restore:
-  ~/dotfiles/docs/backups.md".
+```sh
+sudo restic-files snapshots
+sudo restic-files backup --tag archive /path/to/preserve
+```
 
-Copy the share, NAS account and Restic password onto the paper recovery sheet.
+Manual backups do not inherit the scheduled job's source list or exclusions.
+Pass `--exclude` or `--exclude-file` explicitly. Preview with `--dry-run -vv`.
+Require exit 0; exit 3 means the snapshot is incomplete. Record the snapshot ID
+and restore representative files before relying on it. Future pruning must keep
+snapshots tagged `archive`.
 
-### Secrets
+## Credentials and first setup
 
-On jacurutu, in `~/dotfiles`, with a YubiKey plugged in (PIN once, then a
-touch per decryption):
+Keep the NAS share, login and Restic password in the machine's Vaultwarden item
+and on the paper recovery sheet. Edit agenix secrets on jacurutu with a YubiKey:
 
 ```sh
 agenix -e secrets/backup/<host>-smb.age -i ~/.config/age/yk-nfc.txt
 agenix -e secrets/backup/<host>-restic.age -i ~/.config/age/yk-nfc.txt
 ```
 
-Use `yk-nano.txt` with the other key.
+Use `yk-nano.txt` with the other key. The SMB secret contains `username=` and
+`password=` lines; the Restic secret contains the repository password.
 
-The `smb` file holds `username=svc-backup-<host>` and `password=REPLACE_ME`;
-replace only `REPLACE_ME` with the NAS password. The `restic` file holds only
-`REPLACE_ME`; replace it with the Restic password. A job refuses to run while
-its Restic password is still the placeholder.
-
-Then set `dotfiles.backup.enable = true` in `machines/<host>/default.nix`,
-commit, push, and deploy that host. Afterwards, on it:
-
-```sh
-sudo restic-files init                  # once, after the real password is in
-sudo systemctl start restic-backups-files
-```
-
-### jacurutu rollout
-
-For an agent on jacurutu, with Tony. Don't do any of this from sietch.
-
-1. After the backup PR is merged, rebuild jacurutu. Activation creates
-   `/etc/ssh/ssh_host_ed25519_key`, because jacurutu runs no sshd.
-2. Put the public key (`cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub`) in
-   `lib/fleet.nix` as `hosts.jacurutu.hostPubkey`.
-3. In `secrets.nix`, add
-   `backupJacurutu = [ fleet.hosts.jacurutu.hostPubkey ] ++ fleet.ageRecipients;`
-   beside `backupSietch`, and entries for `secrets/backup/jacurutu-smb.age`
-   and `secrets/backup/jacurutu-restic.age` with `backupJacurutu`. Create the
-   placeholders without a terminal (agenix reads stdin):
-   `printf 'username=svc-backup-jacurutu\npassword=REPLACE_ME\n' | agenix -e secrets/backup/jacurutu-smb.age`
-   and `printf 'REPLACE_ME\n' | agenix -e secrets/backup/jacurutu-restic.age`.
-4. Check that `/vault/notes/coppermind` and `/vault/userdata/media` exist, and
-   report their sizes.
-5. Tony fills in the secrets (Secrets section above), enables the module and
-   rebuilds jacurutu, and deploys sietch so sietch accepts jacurutu's status.
-6. `sudo restic-files init`, then run the first backup. It goes over the
-   tailnet and may take a while; Restic resumes an interrupted first run.
-7. Checks: a restore into `/tmp`, the status file on sietch, and a failed
-   run that retries, then alerts. Block only the NAS so the alert can reach
-   Hark: `sudo ip rule add to <NAS tailnet IP> prohibit priority 100`, and
-   `ip rule del` the same rule afterwards. With Tailscale down the alert
-   can't be sent; sietch's stale check covers that case.
-
-## Later
-
-- tleilax gets its own share, NAS account and job after its rebuild; its
-  secrets are encrypted to its own host key and the YubiKeys, never sietch's.
-- Pruning (14 daily / 8 weekly / 12 monthly, plus `--keep-tag archive`), when
-  the size alert asks for it. With pruning on, use `--keep-within-*` rules so
-  a compromised machine can't push real snapshots out with fake ones.
-- An off-NAS copy and a second NAS disk. Until then the NAS is a single disk.
+For a new host, register its host public key and secret recipients, configure its
+NAS account and job, then deploy. Initialize the repository once, deliberately,
+with `sudo restic-files init`. Run the service and verify a restore, failure
+alerts, and remote status delivery before calling setup complete.
