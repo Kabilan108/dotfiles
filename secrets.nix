@@ -17,6 +17,7 @@ in
       "secrets/executor/tleilax-v2-keys.env.age".publicKeys = tleilax;
       "secrets/backup/tleilax-smb.age".publicKeys = tleilax;
       "secrets/backup/tleilax-restic.age".publicKeys = tleilax;
+      "secrets/moberg/tleilax-openvpn.ovpn.age".publicKeys = tleilax;
     }
   else
     { }
