@@ -18,6 +18,16 @@ let
   keysFile = ../../secrets/executor/tleilax-v2-keys.env.age;
   id = toString cfg.uid;
   localPorts = lib.attrValues cfg.localServices;
+  vpn = config.tleilax.mobergVpn;
+  officePorts = lib.unique (
+    map (
+      origin:
+      let
+        explicit = builtins.match "https://[^/]+:([0-9]+)" origin;
+      in
+      if explicit == null then 443 else lib.toInt (builtins.head explicit)
+    ) cfg.officeServices
+  );
   # IPv6 is refused below, so names that have both address families resolve
   # to IPv4 first instead of waiting on a refused IPv6 address.
   preferIPv4 = pkgs.writeText "executor-v2-gai.conf" ''
@@ -45,6 +55,20 @@ in
         besides DNS and Executor's own, that the `executor-v2` nftables table
         lets Executor's UID reach. Executor reaches nothing else on loopback,
         the tailnet, the home LAN (router included) or over IPv6.
+      '';
+    };
+
+    officeServices = lib.mkOption {
+      type = lib.types.listOf (lib.types.strMatching "https://[a-z0-9.-]+(:[0-9]+)?");
+      default = [ ];
+      example = [ "https://pipelines.office.bedsideinfo.org" ];
+      description = ''
+        HTTPS origins on the Moberg office network that Executor v2 apps may
+        call, through the VPN in moberg-vpn.nix. Each is an allowed origin
+        (EXECUTOR_URL_ALLOW_HTTP_ORIGINS), the only way Executor connects to
+        a name that resolves to a private address, and its port is one the
+        `executor-v2` nftables table lets Executor's UID reach on the office
+        subnet, through the tunnel only.
       '';
     };
   };
@@ -90,9 +114,11 @@ in
         PORT = toString port;
         BETTER_AUTH_URL = "https://executor-v2.sole-pierce.ts.net";
         EXECUTOR_DISABLE_ANALYTICS = "1";
-        EXECUTOR_APPS_ALLOW_PRIVATE_FETCH = lib.boolToString (cfg.localServices != { });
+        EXECUTOR_APPS_ALLOW_PRIVATE_FETCH = lib.boolToString (
+          cfg.localServices != { } || cfg.officeServices != [ ]
+        );
         EXECUTOR_URL_ALLOW_HTTP_ORIGINS = builtins.toJSON (
-          map (p: "http://127.0.0.1:${toString p}") localPorts
+          map (p: "http://127.0.0.1:${toString p}") localPorts ++ cfg.officeServices
         );
         EXECUTOR_APP_WORKERS = "16";
       };
@@ -122,7 +148,11 @@ in
           oifname "lo" ip daddr 127.0.0.1 tcp dport { ${
             lib.concatMapStringsSep ", " toString ([ port ] ++ localPorts)
           } } accept
-
+          ${lib.optionalString (officePorts != [ ]) ''
+            oifname "${vpn.interface}" ip daddr ${vpn.subnet} tcp dport { ${
+              lib.concatMapStringsSep ", " toString officePorts
+            } } accept
+          ''}
           # Reject rather than drop: workerd tries a name's next address only
           # after a connection fails, and a dropped one hangs until timeout.
           meta nfproto ipv6 reject with icmpx admin-prohibited
