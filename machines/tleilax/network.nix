@@ -1,7 +1,7 @@
 # Ethernet with DHCP (reserve the Pi's address on the router; lib/fleet.nix
 # initrdUnlock.lanAddress). SSH is reachable on the tailnet only, where the
 # policy lets jacurutu in and keeps sietch out (docs/tailscale-policy.jsonc).
-{ ... }:
+{ config, ... }:
 let
   # Xfinity default gateway. If the LAN subnet changes, update this.
   gateway = "10.0.0.1";
@@ -22,9 +22,10 @@ in
   # IPv4 only, so the egress filter below has no LAN IPv6 prefix to chase.
   networking.enableIPv6 = false;
 
-  # The Pi may reach the internet (cache.nixos.org, GitHub) and the tailnet
-  # (governed by the policy), but can't open connections to other hosts on
-  # the home LAN. Replies to inbound connections ride the established rule.
+  # The Pi may reach the internet (cache.nixos.org, GitHub), the tailnet
+  # (governed by the policy) and the Moberg office subnet over its VPN, but
+  # can't open connections to other hosts on the home LAN. Replies to
+  # inbound connections ride the established rule.
   networking.nftables = {
     enable = true;
     tables.egress = {
@@ -42,6 +43,9 @@ in
           udp dport { 67, 68 } accept
           udp dport 53 accept
           tcp dport 53 accept
+
+          # The Moberg office, only through its VPN (moberg-vpn.nix).
+          oifname "${config.tleilax.mobergVpn.interface}" ip daddr ${config.tleilax.mobergVpn.subnet} accept
 
           ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } drop
         }
