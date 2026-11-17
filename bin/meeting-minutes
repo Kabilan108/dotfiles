@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import base64
 import fcntl
 import hashlib
 import json
@@ -96,7 +95,7 @@ CONTEXT_GATHERING_ENABLED = (
     os.environ.get("MEETING_MINUTES_CONTEXT_GATHERING", "1").strip() != "0"
 )
 EXECUTOR_URL = os.environ.get(
-    "MEETING_MINUTES_EXECUTOR_URL", "https://executor.sole-pierce.ts.net/mcp"
+    "MEETING_MINUTES_EXECUTOR_URL", "https://executor-v2.sole-pierce.ts.net/mcp"
 )
 EXECUTOR_KEY_FILE = Path(
     os.environ.get(
@@ -1663,25 +1662,37 @@ class MeetingRun:
 
 @dataclass(frozen=True)
 class ReadOperation:
-    path: str
+    """One generated Executor v2 API tool, called on one fixed account.
+    Arguments named in `path_arguments` fill the request path and the rest its
+    query; `constant` query values are always sent."""
+
+    tool: str
+    account: str
     arguments: dict[str, str]
     required: frozenset[str] = frozenset()
     fixed: tuple[tuple[str, Any], ...] = ()
+    path_arguments: frozenset[str] = frozenset()
+    constant: tuple[tuple[str, Any], ...] = ()
 
 
-OUTLOOK_CALENDAR = "outlook_calendar.user.mobergAnalyticsCalendar"
-OUTLOOK_MAIL = "outlook_mail.user.mobergAnalyticsEmail"
+GOOGLE_CALENDAR_ACCOUNT = "acc_d1d4b8a8-6ff8-4827-9e38-d11543b2b1e1"
+GOOGLE_DRIVE_ACCOUNT = "acc_e7c4b9c6-b534-4b60-9d16-1946f416384e"
+OUTLOOK_ACCOUNT = "acc_e499bd43-0123-4e7e-bcee-526ffe6ea9ff"
+SLACK_ACCOUNT = "acc_e4cc7016-9cfa-4c74-9376-049babae9668"
 
 # The only Executor operations this pipeline can run. Each maps to one fixed
-# tool path; argument names and types are checked, and values reach Executor
-# only as JSON literals inside a fixed `return await tools.<path>(...)` line.
+# tool and account; argument names and types are checked, and values reach
+# Executor only as JSON literals inside a fixed `return await tools...(...)`
+# line.
 EXECUTOR_READ_OPERATIONS: dict[str, ReadOperation] = {
     "calendar.calendarList.list": ReadOperation(
-        "google_calendar.user.tonykabilanokeke.calendar.calendarList.list",
+        '["google-calendar"].api.users.calendarCalendarListList',
+        GOOGLE_CALENDAR_ACCOUNT,
         {"showDeleted": "bool", "showHidden": "bool", "pageToken": "str"},
     ),
     "calendar.events.list": ReadOperation(
-        "google_calendar.user.tonykabilanokeke.calendar.events.list",
+        '["google-calendar"].api.calendars.calendarEventsList',
+        GOOGLE_CALENDAR_ACCOUNT,
         {
             "calendarId": "str",
             "timeMin": "str",
@@ -1693,39 +1704,44 @@ EXECUTOR_READ_OPERATIONS: dict[str, ReadOperation] = {
             "pageToken": "str",
         },
         required=frozenset({"calendarId", "timeMin", "timeMax"}),
+        path_arguments=frozenset({"calendarId"}),
     ),
     "drive.files.list": ReadOperation(
-        "google_drive.user.tonykabilanokeke.drive.files.list",
+        '["google-drive"].api.files.driveFilesList',
+        GOOGLE_DRIVE_ACCOUNT,
         {"q": "str", "fields": "str", "pageSize": "int", "pageToken": "str"},
         required=frozenset({"q"}),
     ),
     "drive.files.export": ReadOperation(
-        "google_drive.user.tonykabilanokeke.drive.files.export",
+        '["google-drive"].api.files.driveFilesExport',
+        GOOGLE_DRIVE_ACCOUNT,
         {"fileId": "str", "mimeType": "str"},
         required=frozenset({"fileId", "mimeType"}),
         fixed=(("mimeType", "text/markdown"),),
+        path_arguments=frozenset({"fileId"}),
     ),
+    # The account supplies Slack's token in place of the empty one.
     "slack.search": ReadOperation(
-        "slack_mcp.user.moberganalyticsslackmcp.slack_search_public_and_private",
+        ".slack.search.messages",
+        SLACK_ACCOUNT,
         {
-            "filters": "str",
-            "keywords": "strs",
+            "query": "str",
+            "count": "int",
+            "page": "int",
             "sort": "str",
             "sort_dir": "str",
-            "limit": "int",
-            "cursor": "str",
-            "response_format": "str",
-            "include_context": "bool",
         },
-        required=frozenset({"filters"}),
-        fixed=(("response_format", "detailed"),),
+        required=frozenset({"query"}),
+        constant=(("token", ""),),
     ),
     "outlook.calendars.list": ReadOperation(
-        f"{OUTLOOK_CALENDAR}.meCalendar.meListCalendars",
+        ".outlook.meCalendar.meListCalendars",
+        OUTLOOK_ACCOUNT,
         {"$top": "int", "$skip": "int", "$select": "strs"},
     ),
     "outlook.calendarView.list": ReadOperation(
-        f"{OUTLOOK_CALENDAR}.meCalendar.meCalendarsListCalendarView",
+        ".outlook.meCalendar.meCalendarsListCalendarView",
+        OUTLOOK_ACCOUNT,
         {
             "calendar-id": "str",
             "startDateTime": "str",
@@ -1735,9 +1751,11 @@ EXECUTOR_READ_OPERATIONS: dict[str, ReadOperation] = {
             "$select": "strs",
         },
         required=frozenset({"calendar-id", "startDateTime", "endDateTime"}),
+        path_arguments=frozenset({"calendar-id"}),
     ),
     "outlook.messages.list": ReadOperation(
-        f"{OUTLOOK_MAIL}.meMessage.meListMessages",
+        ".outlook.meMessage.meListMessages",
+        OUTLOOK_ACCOUNT,
         {
             "$filter": "str",
             "$orderby": "strs",
@@ -1781,8 +1799,26 @@ def executor_read_code(operation: str, arguments: dict[str, Any]) -> str:
     for name, value in spec.fixed:
         if name in arguments and arguments[name] != value:
             raise MeetingMinutesError(f"{operation} only allows {name}={value}")
-    literal = json.dumps(arguments, ensure_ascii=True, sort_keys=True)
-    return f"return await tools.{spec.path}({literal});"
+    request: dict[str, Any] = {
+        "query": {
+            **{
+                name: value
+                for name, value in arguments.items()
+                if name not in spec.path_arguments
+            },
+            **dict(spec.constant),
+        }
+    }
+    if spec.path_arguments:
+        request["path"] = {
+            name: value
+            for name, value in arguments.items()
+            if name in spec.path_arguments
+        }
+    literal = json.dumps(
+        {"accountId": spec.account, "input": request}, ensure_ascii=True, sort_keys=True
+    )
+    return f"return await tools{spec.tool}({literal});"
 
 
 def executor_api_key() -> str:
@@ -1803,9 +1839,9 @@ def executor_api_key() -> str:
 
 
 class ExecutorClient:
-    """Executor over its MCP endpoint with an API key, without an agent. The
-    only call it makes is `execute` with code from executor_read_code, and it
-    never resumes a paused execution."""
+    """Executor over its MCP endpoint with a personal access token, without an
+    agent. The only call it makes is `execute` with code from
+    executor_read_code, and it never resumes a paused execution."""
 
     def __init__(self, url: str = EXECUTOR_URL, token: str | None = None) -> None:
         self.url = url
@@ -1861,23 +1897,44 @@ class ExecutorClient:
         reply = self._rpc(
             "tools/call", {"name": "execute", "arguments": {"code": code}}
         )
+        text = "\n".join(
+            str(block.get("text") or "")
+            for block in reply.get("content") or []
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
+        if reply.get("isError"):
+            raise MeetingMinutesError(
+                f"Executor {operation} failed: {clean_text(text)[:300]}"
+            )
         envelope = reply.get("structuredContent")
+        if not isinstance(envelope, dict):
+            try:
+                envelope = json.loads(text)
+            except json.JSONDecodeError:
+                envelope = None
         if not isinstance(envelope, dict):
             raise MeetingMinutesError(
                 f"Executor {operation} returned no result envelope"
             )
         if envelope.get("status") != "completed":
-            detail = clean_text(envelope.get("error"))[:300]
-            raise MeetingMinutesError(
-                f"Executor {operation} {envelope.get('status')}: {detail}"
-            )
-        value = envelope.get("result")
-        if not isinstance(value, dict) or not value.get("ok"):
-            error = value.get("error") if isinstance(value, dict) else value
+            raise MeetingMinutesError(f"Executor {operation} {envelope.get('status')}")
+        execution = envelope.get("execution")
+        if not isinstance(execution, dict) or execution.get("ok") is not True:
+            error = execution.get("error") if isinstance(execution, dict) else None
+            if isinstance(error, dict):
+                error = error.get("message") or error
             raise MeetingMinutesError(
                 f"Executor {operation} failed: {str(error)[:300]}"
             )
-        return value.get("data")
+        value = execution.get("value")
+        if isinstance(value, dict) and (
+            value.get("isError") is True or value.get("ok") is False
+        ):
+            error = value.get("error") or value.get("content") or value
+            raise MeetingMinutesError(
+                f"Executor {operation} failed: {str(error)[:300]}"
+            )
+        return value
 
 
 def codex_config() -> str:
@@ -3070,21 +3127,6 @@ def empty_email(status: str, error: str = "") -> dict[str, Any]:
     return empty_section(status, error, window="", messages=[])
 
 
-def decode_tool_file(value: Any) -> str:
-    if (
-        not isinstance(value, dict)
-        or value.get("_tag") != "ToolFile"
-        or value.get("encoding") != "base64"
-    ):
-        raise MeetingMinutesError("Drive export did not return a base64 file")
-    try:
-        return base64.b64decode(str(value.get("data") or "")).decode(
-            "utf-8", errors="replace"
-        )
-    except ValueError as error:
-        raise MeetingMinutesError("Drive export returned invalid base64") from error
-
-
 def parse_gemini_doc(text: str) -> tuple[str, list[tuple[str, str, str]]]:
     """Split a Meet "Notes by Gemini" export into its summary/details prose and
     the transcript tab's (speaker, Meet timestamp, text) lines."""
@@ -3178,7 +3220,9 @@ def find_meet_notes(run: MeetingRun, executor: ExecutorClient) -> dict[str, Any]
     exported = executor.read(
         "drive.files.export", {"fileId": file["id"], "mimeType": "text/markdown"}
     )
-    notes, utterances = parse_gemini_doc(decode_tool_file(exported))
+    if not isinstance(exported, str):
+        raise MeetingMinutesError("Drive export did not return text")
+    notes, utterances = parse_gemini_doc(exported)
     return {
         **empty_meet("found"),
         "title": clean_text(file.get("name")),
@@ -3189,94 +3233,85 @@ def find_meet_notes(run: MeetingRun, executor: ExecutorClient) -> dict[str, Any]
     }
 
 
-def slack_result_text(data: Any) -> str:
-    content = data.get("content") if isinstance(data, dict) else None
-    texts = [
-        str(block.get("text") or "")
-        for block in content or []
-        if isinstance(block, dict) and block.get("type") == "text"
-    ]
-    joined = "\n".join(texts)
-    try:
-        parsed = json.loads(joined)
-    except json.JSONDecodeError:
-        return joined
-    if isinstance(parsed, dict):
-        return f"{parsed.get('results') or ''}\n{parsed.get('pagination_info') or ''}"
-    return joined
+def slack_channel_name(channel: dict[str, Any]) -> str:
+    if channel.get("is_im"):
+        return "DM"
+    if channel.get("is_mpim"):
+        return "Group DM"
+    name = clean_text(channel.get("name"))
+    return f"#{name}" if name else ""
 
 
-def slack_field_reader(block: str) -> Callable[[str], str]:
-    def field_value(name: str) -> str:
-        match = re.search(rf"^{name}:[ \t]*(.*)$", block, flags=re.MULTILINE)
-        return match.group(1).strip() if match else ""
-
-    return field_value
-
-
-def parse_slack_results(text: str) -> list[dict[str, Any]]:
+def parse_slack_matches(
+    data: Any, names: dict[str, str]
+) -> tuple[list[dict[str, Any]], bool]:
+    """Messages from a Slack `search.messages` page, with authors named from
+    the registry's Slack ids where known, and whether a later page exists."""
+    results = data.get("messages") if isinstance(data, dict) else None
+    if not isinstance(results, dict):
+        raise MeetingMinutesError("Slack search returned no messages object")
     messages = []
-    for block in re.split(r"^### Result \d+ of \d+\s*$", text, flags=re.MULTILINE)[1:]:
-        field_value = slack_field_reader(block)
-        channel = re.match(r"(.*?)\s*\(ID: (\w+)\)", field_value("Channel"))
-        author = re.match(r"(.*?)\s*(?:<[^>]*>)?\s*\(ID: (\w+)\)", field_value("From"))
-        permalink = re.search(r"\((https?://[^)\s]+)\)", field_value("Permalink"))
-        body = re.search(r"^Text:[ \t]*\n?(.*?)(?:\n---\s*$|\Z)", block, re.M | re.S)
-        try:
-            sent = datetime.fromtimestamp(float(field_value("Message_ts")))
-        except ValueError:
+    for match in results.get("matches") or []:
+        if not isinstance(match, dict):
             continue
+        channel = match.get("channel") if isinstance(match.get("channel"), dict) else {}
+        author_id = match.get("user") if isinstance(match.get("user"), str) else ""
+        try:
+            sent = datetime.fromtimestamp(float(match.get("ts") or ""))
+        except (TypeError, ValueError):
+            continue
+        direct = channel.get("is_im") or channel.get("is_mpim")
         messages.append(
             {
-                "channel": clean_text(channel.group(1))
-                if channel
-                else field_value("Channel"),
-                "channel_id": channel.group(2) if channel else "",
-                "participants": field_value("Participants"),
-                "author": clean_text(author.group(1))
-                if author
-                else field_value("From"),
-                "author_id": author.group(2) if author else "",
+                "channel": slack_channel_name(channel),
+                "channel_id": clean_text(channel.get("id")),
+                "participants": clean_text(channel.get("name")) if direct else "",
+                "author": names.get(author_id) or clean_text(match.get("username")),
+                "author_id": author_id,
                 "timestamp": sent.astimezone().isoformat(),
-                "text": clean_text(body.group(1) if body else "")[:600],
-                "permalink": permalink.group(1) if permalink else "",
+                "text": clean_text(match.get("text"))[:600],
+                "permalink": clean_text(match.get("permalink")),
             }
         )
-    return messages
+    paging = results.get("paging") if isinstance(results.get("paging"), dict) else {}
+    try:
+        more = int(paging.get("page") or 0) < int(paging.get("pages") or 0)
+    except (TypeError, ValueError):
+        more = False
+    return messages, more
 
 
 def run_slack_query(
     executor: ExecutorClient,
     query: dict[str, Any],
     window: tuple[datetime, datetime],
+    names: dict[str, str],
     found: dict[tuple[str, str], dict[str, Any]],
     failures: list[str],
 ) -> None:
-    cursor = ""
-    for _ in range(SLACK_PAGE_LIMIT):
+    search = " ".join([*query.get("keywords", []), query["filters"]])
+    for page in range(1, SLACK_PAGE_LIMIT + 1):
         arguments = {
-            **query,
+            "query": search,
             "sort": "timestamp",
             "sort_dir": "asc",
-            "limit": 20,
-            "response_format": "detailed",
-            "include_context": False,
-            **({"cursor": cursor} if cursor else {}),
+            "count": 20,
+            "page": page,
         }
         try:
-            text = slack_result_text(executor.read("slack.search", arguments))
+            messages, more = parse_slack_matches(
+                executor.read("slack.search", arguments), names
+            )
         except MeetingMinutesError as error:
             failures.append(f"{query['filters']}: {error}")
             return
-        for message in parse_slack_results(text):
+        for message in messages:
             sent = datetime.fromisoformat(message["timestamp"])
             if window[0] <= sent <= window[1]:
                 key = (message["channel_id"], message["timestamp"])
                 message["matched"] = query.get("keywords", [""])[0]
                 found.setdefault(key, message)
-        next_cursor = re.search(r"use cursor `([^`]+)`", text)
-        cursor = next_cursor.group(1) if next_cursor else ""
-        if not cursor:
+        if not more:
             return
 
 
@@ -3307,10 +3342,18 @@ def search_slack(
         if SLACK_KEYWORD.fullmatch(keyword):
             queries.append({"filters": dates, "keywords": [keyword]})
 
+    names = {
+        entry["user_id"]: person.name
+        for person in registry.everyone()
+        for entry in person.slack
+        if entry.get("user_id")
+    }
     found: dict[tuple[str, str], dict[str, Any]] = {}
     failures: list[str] = []
     for query in queries:
-        run_slack_query(executor, query, (window_start, window_end), found, failures)
+        run_slack_query(
+            executor, query, (window_start, window_end), names, found, failures
+        )
     # A conversation that was busy just before or during the meeting is often
     # how it was arranged (a DM asking for a call, a huddle starting), even
     # when its other participant is never named in the transcript.
@@ -3330,7 +3373,9 @@ def search_slack(
     for channel_id in active_channels:
         query = {"filters": f"in:<#{channel_id}> {dates}"}
         queries.append(query)
-        run_slack_query(executor, query, (window_start, window_end), found, failures)
+        run_slack_query(
+            executor, query, (window_start, window_end), names, found, failures
+        )
 
     likely_ids = {
         entry.get("user_id", "") for person in people for entry in person.slack
