@@ -88,13 +88,6 @@ in
           owner = "kabilan";
           group = "users";
         };
-    secrets."secrets/executor/russ-playlist-sync.age" = lib.mkIf isSietch {
-      file = ./secrets/executor/russ-playlist-sync.age;
-      path = "${home}/.config/russ-playlist-sync/executor-env";
-      mode = "0600";
-      owner = "kabilan";
-      group = "users";
-    };
     # Was sietch's ~/.android/debug.keystore; apps already on the phone carry its signature.
     secrets."secrets/android/personal-keystore.age" = lib.mkIf isSietch {
       file = ./secrets/android/personal-keystore.age;
