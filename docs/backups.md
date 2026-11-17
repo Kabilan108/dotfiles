@@ -37,13 +37,17 @@ restore the staged copy under `/var/lib/backup-staging/services/<name>/`, run
 `sqlite3 <copy> 'PRAGMA integrity_check;'`, then test the application. Executor
 also needs its original `EXECUTOR_SECRET_KEY` to read encrypted data.
 
+Vaultwarden was retired in favour of 1Password in November 2026, and sietch's
+`services` job no longer backs it up. Snapshots taken before then still hold
+`/var/lib/vaultwarden` and the staged `vaultwarden` database.
+
 Close browsers for the initial browser-profile backup and recovery test. Ordinary
 file backups taken while a browser is open may contain inconsistent databases;
 a profile alone may not recover cookies or passwords tied to the desktop keyring.
 
 If the machine is lost, mount its NAS share on another Linux machine and run
 `restic -r <mount>/restic restore SNAPSHOT_ID --target <dir>`. Get the NAS login
-and Restic password from Vaultwarden or the paper recovery sheet. If the live
+and Restic password from 1Password or the paper recovery sheet. If the live
 repository was damaged, recover an earlier NAS snapshot through DSM first.
 
 ## One-off archive
@@ -61,7 +65,7 @@ snapshots tagged `archive`.
 
 ## Credentials and first setup
 
-Keep the NAS share, login and Restic password in the machine's Vaultwarden item
+Keep the NAS share, login and Restic password in the machine's 1Password item
 and on the paper recovery sheet. Edit agenix secrets on jacurutu with a YubiKey:
 
 ```sh

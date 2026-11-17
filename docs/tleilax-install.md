@@ -13,6 +13,9 @@ The config is `machines/tleilax/`. Steps say where they run: **jacurutu**, the
 **Pi console** (HDMI and a USB keyboard), the **installer** (the NixOS image
 running on the Pi), or the **Tailscale admin console**.
 
+Vaultwarden is not one of tleilax's services. It was retired in favour of
+1Password in November 2026 instead of moving here.
+
 Lines marked **Unverified** describe things nobody has tested on this Pi yet.
 They are collected again at the end.
 
@@ -28,8 +31,7 @@ You need:
 - access to the router's admin page, for a DHCP reservation.
 
 Pick the disk passphrase now and store it somewhere that doesn't depend on
-the Pi. Vaultwarden will move to tleilax, so a copy only in Vaultwarden is
-locked inside the box it unlocks.
+the Pi, such as 1Password.
 
 ## 1. Inventory the old Pi (jacurutu, read-only)
 
@@ -167,12 +169,10 @@ step 9. Don't run `agenix -e` on a tleilax file before step 7: until then,
 1. Paste `docs/tailscale-policy.jsonc` into the policy editor and save. It
    adds `tag:credentials`, drops sietch's grant to tleilax and lets
    `tag:credentials` reach `svc:hark` for alerts. `tag:server` (sietch)
-   stays an approver for `svc:vault` and `svc:executor` until those services
-   move in stage 5, so Vaultwarden keeps working through this install.
-   Removing `tag:server` there is part of stage 5.
-2. Check Vaultwarden anyway: open the vault in a browser or sync a Bitwarden
-   client.
-3. Make the key tleilax uses to join the tailnet on its first boot. Go to
+   stays an approver for `svc:executor` until Executor moves in stage 5, so
+   sietch's Executor keeps working through this install. Removing
+   `tag:server` there is part of stage 5.
+2. Make the key tleilax uses to join the tailnet on its first boot. Go to
    **Settings → Keys → Generate auth key** and set:
    - **Description:** `tleilax first boot`
    - **Reusable:** off

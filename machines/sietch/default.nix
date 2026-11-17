@@ -64,6 +64,9 @@
   systemd.tmpfiles.rules = [
     "d /vault/userdata/tracer-ingest 0755 kabilan users -"
     "d /vault/userdata/tracer-ingest/jacurutu 0755 kabilan users -"
+    # Vaultwarden was retired for 1Password; its data stays until the stage 8
+    # re-key. Its user is gone, so keep the folder away from whoever gets that UID.
+    "z /var/lib/vaultwarden 0700 root root -"
   ];
 
   home-manager.users.kabilan = {
@@ -109,21 +112,14 @@
       ];
       services = {
         paths = [
-          "/var/lib/vaultwarden"
           "/var/lib/executor"
           "/vault/userdata/hark-server"
         ];
         exclude = [
-          "/var/lib/vaultwarden/db.sqlite3*"
-          "/var/lib/vaultwarden/icon_cache"
           "/var/lib/executor/data.db*"
           "/vault/userdata/hark-server/hark.sqlite*"
         ];
         sqlite = {
-          vaultwarden = {
-            database = "/var/lib/vaultwarden/db.sqlite3";
-            user = "vaultwarden";
-          };
           # The container's distroless nonroot user, with no entry on the host.
           executor = {
             database = "/var/lib/executor/data.db";

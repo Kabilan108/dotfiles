@@ -147,7 +147,6 @@ in
   "secrets/selfhost/cliproxyapi-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/t3-tunnel-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/siren-env.age".publicKeys = [ sietch ];
-  "secrets/selfhost/vaultwarden-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/hark-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/hark-fcm-service-account.age".publicKeys = [ sietch ];
 
