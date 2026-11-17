@@ -5,9 +5,9 @@
 		// coding agents on dedicated agent boxes (none today)
 		"tag:agent": ["autogroup:admin"],
 
-		// tleilax: credential services (Executor). Once Executor moves (stage 5),
-		// the only tag that may advertise svc:executor. Vaultwarden was retired
-		// in favour of 1Password and does not move here.
+		// tleilax: credential services (Executor v2, atlas). Vaultwarden was
+		// retired in favour of 1Password, and Executor v1 is replaced by v2
+		// rather than moved here.
 		"tag:credentials": ["autogroup:admin"],
 
 		// machines that exclusively need media (sietch::jellyfin) access
