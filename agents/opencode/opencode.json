@@ -14,7 +14,7 @@
     },
     "executor": {
       "type": "remote",
-      "url": "https://executor.sole-pierce.ts.net/mcp",
+      "url": "https://executor-v2.sole-pierce.ts.net/mcp?elicitation_mode=browser",
       "enabled": true
     }
   }

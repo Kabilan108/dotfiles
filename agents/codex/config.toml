@@ -53,7 +53,7 @@ requires_openai_auth = false
 supports_websockets = true
 
 [mcp_servers.executor]
-url = "https://executor.sole-pierce.ts.net/mcp"
+url = "https://executor-v2.sole-pierce.ts.net/mcp?elicitation_mode=browser"
 
 [mcp_servers.deepwiki]
 url = "https://mcp.deepwiki.com/mcp"
