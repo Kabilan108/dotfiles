@@ -14,6 +14,8 @@
   nixpkgs.config.android_sdk.accept_license = true;
 
   dotfiles.docker.rootlessDevelopment.enable = true;
+  # Its operator is still kabilan, so agents can change this client without
+  # sudo. Revisit if the office moves to Headscale.
   dotfiles.mobergTailscale.enable = true;
   services.teamviewer.enable = true;
 
