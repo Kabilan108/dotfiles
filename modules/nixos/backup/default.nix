@@ -23,6 +23,9 @@ let
   hostKey = "/etc/ssh/ssh_host_ed25519_key";
   # Where backup-status-receive stores other hosts' status files.
   receivedDir = "${config.users.users.kabilan.home}/.local/state/backup-status";
+  credentialAlerts = cfg.alert.credentialFile != null;
+  staleMarks =
+    if credentialAlerts then "/var/lib/backup-stale-check" else "${receivedDir}/.stale-alerted";
 
   sqliteType = lib.types.submodule {
     options = {
@@ -52,6 +55,12 @@ let
         default = { };
         description = "Databases copied into this job's staging directory before each run. Exclude the live files from `paths`.";
       };
+      stopUnits = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        example = [ "podman-executor-v2.service" ];
+        description = "Units stopped while the job takes its snapshot, for data that has no live backup. They start again when the job ends, whether or not the snapshot succeeded.";
+      };
     };
   };
 
@@ -75,7 +84,8 @@ let
     runtimeEnv = {
       BACKUP_HOST = thisHost;
       BACKUP_STATUS_DIR = statusDir;
-      BACKUP_ALERT_CURL_CONFIG = cfg.alert.curlConfig;
+      # Empty with a credential file: the alert reads $CREDENTIALS_DIRECTORY.
+      BACKUP_ALERT_CURL_CONFIG = lib.optionalString (!credentialAlerts) cfg.alert.curlConfig;
       BACKUP_ALERT_PROJECT = cfg.alert.project;
       BACKUP_ALERT_OUTPUT = lib.optionalString (cfg.alert.outputFile != null) cfg.alert.outputFile;
       BACKUP_RECEIVED_DIR = receivedDir;
@@ -90,8 +100,14 @@ let
       pkgs.jq
     ];
     runtimeEnv = {
+      BACKUP_HOST = thisHost;
+      BACKUP_STATUS_DIR = statusDir;
       BACKUP_RECEIVED_DIR = receivedDir;
+      BACKUP_STALE_MARKS = staleMarks;
       BACKUP_STALE_HOSTS = lib.concatStringsSep " " cfg.statusReceive;
+      BACKUP_STALE_OWN_JOBS = lib.optionalString cfg.staleness.ownJobs (
+        lib.concatStringsSep " " (lib.attrNames cfg.jobs)
+      );
       BACKUP_STALE_AFTER_SEC = toString (cfg.staleness.afterHours * 3600);
       BACKUP_ALERT = lib.getExe alert;
     };
@@ -145,8 +161,8 @@ let
   };
 
   # Refuses to run while either secret still holds the placeholder.
-  guard = pkgs.writeShellScript "backup-guard" ''
-    if [ "$(${pkgs.coreutils}/bin/cat "$RESTIC_PASSWORD_FILE")" = ${cfg.placeholder} ]; then
+  guard = ''
+    if [ "$(${pkgs.coreutils}/bin/cat ${lib.escapeShellArg cfg.passwordFile})" = ${cfg.placeholder} ]; then
       echo "backup: the Restic password is still the placeholder" >&2
       exit 1
     fi
@@ -170,10 +186,14 @@ let
     fi
   '';
 
+  repositoryReady = pkgs.writeShellScript "backup-repository-ready" (guard + repositoryCheck);
+
   # Retries are counted by backup-retry, not systemd's Restart=: its start
   # limit is a time window, which slow attempts (a lock wait, a long upload)
   # outlast, so it would retry forever without alerting.
   retryCommand = name: "${lib.getExe retry} ${name}";
+
+  systemctl = "${config.systemd.package}/bin/systemctl";
 
   resticJob = name: job: {
     inherit (cfg) passwordFile repository inhibitsSleep;
@@ -208,13 +228,29 @@ let
           )
         }
       ''}
+      ${lib.optionalString (
+        job.stopUnits != [ ]
+      ) "${systemctl} stop ${lib.escapeShellArgs job.stopUnits}"}
     '';
+    # ExecStopPost, so the units start again after a failed snapshot too.
     backupCleanupCommand = ''
+      ${lib.optionalString (job.stopUnits != [ ]) ''
+        ${systemctl} start ${lib.escapeShellArgs job.stopUnits} || echo "backup: starting the stopped units failed" >&2
+      ''}
       ${lib.optionalString (job.sqlite != { }) "rm -rf -- ${stagingDir}/${name}"}
       ${lib.getExe status} ${name} || echo "backup: recording the status failed" >&2
       ${retryCommand name}
     '';
   };
+
+  alertServiceConfig =
+    if credentialAlerts then
+      {
+        DynamicUser = true;
+        LoadCredential = "webhook:${cfg.alert.credentialFile}";
+      }
+    else
+      { User = cfg.alert.user; };
 in
 {
   options.dotfiles.backup = {
@@ -255,10 +291,11 @@ in
       default = { };
     };
 
+    # UTC: a switch briefly drops /etc/zoneinfo, and a local-time timer recalculated then can fire early.
     timer = lib.mkOption {
       type = lib.types.attrsOf lib.types.str;
       default = {
-        OnCalendar = "00:00";
+        OnCalendar = "*-*-* 09:00:00 UTC";
         RandomizedDelaySec = "30m";
         Persistent = "true";
       };
@@ -267,6 +304,13 @@ in
     inhibitsSleep = lib.mkOption {
       type = lib.types.bool;
       default = false;
+    };
+
+    repositoryReady = lib.mkOption {
+      type = lib.types.package;
+      readOnly = true;
+      default = repositoryReady;
+      description = "Command that resets the NAS mount and fails fast when the repository can't be reached or the password is the placeholder.";
     };
 
     retry = {
@@ -292,7 +336,7 @@ in
       timer = lib.mkOption {
         type = lib.types.attrsOf lib.types.str;
         default = {
-          OnCalendar = "*-*-08 03:00";
+          OnCalendar = "*-*-08 08:00:00 UTC";
           RandomizedDelaySec = "1h";
           Persistent = "true";
         };
@@ -308,6 +352,15 @@ in
       curlConfig = lib.mkOption {
         type = lib.types.str;
         default = "/home/kabilan/.config/hark/integrations/fleet-maintenance.curl";
+      };
+      credentialFile = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = ''
+          Root-only curl config (`url = "..."`) of the Hark webhook. When set,
+          alerts and the staleness check run as a dynamic user that gets the
+          file as a systemd credential, instead of as `user` with `curlConfig`.
+        '';
       };
       project = lib.mkOption {
         type = lib.types.str;
@@ -354,12 +407,17 @@ in
       afterHours = lib.mkOption {
         type = lib.types.ints.positive;
         default = 72;
-        description = "Alert once when a received host's job hasn't succeeded for this long, or the host has sent no status.";
+        description = "Alert once when a checked job hasn't succeeded for this long, or a received host has sent no status.";
+      };
+      ownJobs = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Also check this host's own jobs, for a host that sends its status nowhere.";
       };
       timer = lib.mkOption {
         type = lib.types.attrsOf lib.types.str;
         default = {
-          OnCalendar = "12:00";
+          OnCalendar = "*-*-* 17:00:00 UTC";
           RandomizedDelaySec = "1h";
           Persistent = "true";
         };
@@ -401,6 +459,10 @@ in
         {
           assertion = cfg.jobs != { };
           message = "dotfiles.backup: enable needs at least one job";
+        }
+        {
+          assertion = !(credentialAlerts && cfg.statusReceive != [ ]);
+          message = "dotfiles.backup: alert.credentialFile runs the staleness check as a dynamic user, which can't read the statuses received in kabilan's home";
         }
       ];
 
@@ -461,25 +523,28 @@ in
       systemd.services = {
         "backup-alert@" = {
           description = "Send a backup alert to Hark";
+          after = [ "network-online.target" ];
+          wants = [ "network-online.target" ];
           serviceConfig = {
             Type = "oneshot";
-            User = cfg.alert.user;
             ExecStart = "${lib.getExe alert} %i";
-          };
+          }
+          // alertServiceConfig;
         };
       }
-      // lib.optionalAttrs (cfg.statusReceive != [ ]) {
+      // lib.optionalAttrs (cfg.statusReceive != [ ] || cfg.staleness.ownJobs) {
         backup-stale-check = {
-          description = "Alert when a host's received backup status goes stale";
+          description = "Alert when a host's backup status goes stale";
           serviceConfig = {
             Type = "oneshot";
-            User = cfg.alert.user;
             ExecStart = lib.getExe staleCheck;
-          };
+          }
+          // alertServiceConfig
+          // lib.optionalAttrs credentialAlerts { StateDirectory = "backup-stale-check"; };
         };
       };
 
-      systemd.timers = lib.mkIf (cfg.statusReceive != [ ]) {
+      systemd.timers = lib.mkIf (cfg.statusReceive != [ ] || cfg.staleness.ownJobs) {
         backup-stale-check = {
           wantedBy = [ "timers.target" ];
           timerConfig = cfg.staleness.timer;

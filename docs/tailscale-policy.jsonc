@@ -128,9 +128,11 @@
 			"ip":  ["tcp:443"],
 		},
 
-		// tleilax sends failed-unit alerts to Hark and reaches nothing else.
-		// Atlas runs on tleilax itself, on loopback, for Executor v2.
+		// tleilax sends failed-unit alerts to Hark and backs up Executor v2 to
+		// its own NAS share over SMB, and reaches nothing else. Atlas runs on
+		// tleilax itself, on loopback, for Executor v2.
 		{"src": ["tag:credentials"], "dst": ["svc:hark"], "ip": ["tcp:443"]},
+		{"src": ["tag:credentials"], "dst": ["tag:nas"], "ip": ["tcp:445"]},
 
 		// Grokbot reaches both Executors and sietch's T3 Code (Tailscale Serve on the
 		// machine's own HTTPS address, which carries the T3 MCP) and nothing else.
@@ -204,11 +206,14 @@
 		},
 		{
 			"src":    "tag:credentials",
-			"accept": ["svc:hark:443"],
+			"accept": ["svc:hark:443", "tag:nas:445"],
 			"deny": [
 				"sietch:22",
+				"sietch:445",
 				"jacurutu:22",
+				"jacurutu:445",
 				"tag:nas:443",
+				"tag:nas:22",
 				"svc:cliproxyapi:443",
 				"svc:cpa-admin:443",
 			],

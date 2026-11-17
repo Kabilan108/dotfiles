@@ -108,7 +108,14 @@ in
         chain output {
           type filter hook output priority -10; policy accept;
 
-          meta skuid != ${id} accept
+          # Only Executor's own sockets go through the rules below. A kernel
+          # socket, such as the backup's SMB mount over tailscale0, has no
+          # owner UID, so `meta skuid` matches neither it nor its negation;
+          # matching the UID positively lets it pass.
+          meta skuid ${id} jump executor
+        }
+
+        chain executor {
           ct state established,related accept
 
           oifname "lo" ip daddr 127.0.0.53 meta l4proto { tcp, udp } th dport 53 accept

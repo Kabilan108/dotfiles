@@ -1,10 +1,12 @@
 # shellcheck shell=bash
 # backup-alert INSTANCE [ARGS]
-# Runs as the alert user (backup-alert@.service or backup-stale-check), never
-# as root.
+# Runs as the alert user, or as a dynamic user holding the webhook as a
+# credential (backup-alert@.service or backup-stale-check), never as root.
 #   restic-backups-<job>  the job failed after all its retries
 #   threshold-<job>       the job's status crossed a size or free-space threshold
-#   stale HOST [JOB]      HOST's received JOB status is stale, or HOST sent none
+#   preupdate-<job>       the snapshot before an update failed; the update is held
+#   stale HOST [JOB]      HOST's JOB status is stale, or HOST sent none
+#   test                  a test of the alert path
 
 instance="$1"
 
@@ -25,6 +27,11 @@ case "$instance" in
       + (if .low_free then " NAS free space is below its threshold." else "" end)
     ' "$file")"
     ;;
+  preupdate-*)
+    job="${instance#preupdate-}"
+    title="Update held on $BACKUP_HOST"
+    body="The $job snapshot before an update failed, so the update is held and its service stays stopped. Check the service's journal on $BACKUP_HOST."
+    ;;
   stale)
     host="$2"
     job="${3:-}"
@@ -33,10 +40,24 @@ case "$instance" in
     if [ -z "$job" ]; then
       body="$BACKUP_HOST has received no backup status from $host."
     else
-      body="$(jq -r --arg host "$host" '
-        "The \(.job) backup job on \($host) last succeeded \(.last_success // "never"). Its last reported attempt was \(.last_attempt // "unknown") (\(.last_result // "unknown"))."
-      ' "$BACKUP_RECEIVED_DIR/$host-$job.json") Check \`journalctl -u restic-backups-$job\` on $host."
+      if [ "$host" = "$BACKUP_HOST" ]; then
+        file="$BACKUP_STATUS_DIR/$host-$job.json"
+      else
+        file="$BACKUP_RECEIVED_DIR/$host-$job.json"
+      fi
+      if [ -e "$file" ]; then
+        body="$(jq -r --arg host "$host" '
+          "The \(.job) backup job on \($host) last succeeded \(.last_success // "never"). Its last reported attempt was \(.last_attempt // "unknown") (\(.last_result // "unknown"))."
+        ' "$file")"
+      else
+        body="The $job backup job on $host has no recorded run."
+      fi
+      body="$body Check \`journalctl -u restic-backups-$job\` on $host."
     fi
+    ;;
+  test)
+    title="Backup alert test from $BACKUP_HOST"
+    body="A test of the backup alerts on $BACKUP_HOST. Nothing failed."
     ;;
   *)
     echo "backup-alert: unknown instance $instance" >&2
@@ -52,8 +73,13 @@ if [ -n "$BACKUP_ALERT_OUTPUT" ]; then
   exit 0
 fi
 
+curl_config="$BACKUP_ALERT_CURL_CONFIG"
+if [ -z "$curl_config" ]; then
+  curl_config="${CREDENTIALS_DIRECTORY:?backup-alert: no curl config and no credential}/webhook"
+fi
+
 printf '%s' "$payload" | curl \
-  --config "$BACKUP_ALERT_CURL_CONFIG" \
+  --config "$curl_config" \
   --silent \
   --show-error \
   --fail \

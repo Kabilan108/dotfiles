@@ -108,6 +108,12 @@
       credentialsFile = config.age.secrets.backup-smb.path;
     };
     passwordFile = config.age.secrets.backup-restic.path;
+    # 04:00 EST, 05:00 EDT.
+    timer = {
+      OnCalendar = "*-*-* 09:00:00 UTC";
+      RandomizedDelaySec = "30m";
+      Persistent = "true";
+    };
     statusReceive = [ "jacurutu" ];
     jobs = {
       files.paths = [
