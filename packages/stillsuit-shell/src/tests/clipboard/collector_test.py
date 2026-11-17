@@ -27,9 +27,8 @@ FAKE_PASTE = HERE / "fake-wl-paste"
 FAKE_COPY = HERE / "fake-wl-copy"
 FAKE_NIRI = HERE / "fake-niri"
 BLOB_GONE = 3
-BW_EXTENSION = "chrome-extension://nngceckbapebfimnlniiiahkandclblb/"
 ONEPASSWORD_EXTENSION = "chrome-extension://aeblfdkhhhdcdjpifhhbdiojplfjncoa/"
-VAULT = "https://vault.sole-pierce.ts.net"
+WEB_VAULT = "https://vault.example.test"
 SECRET = b"hunter2-correct-horse"
 TEXT = "text/plain;charset=utf-8"
 CHROMIUM = "chromium/x-source-url"
@@ -42,6 +41,7 @@ DEFAULT_GECKO_APP_IDS = (r"^(zen|zen-beta|zen-browser|zen-alpha|zen-twilight|app
 # (Firefox 157, Chromium 154, Bitwarden extension 2026.9.3), duplicates and
 # order kept. The probe's vault origin was https://localhost:8222.
 PROBE_VAULT = "https://localhost:8222"
+PROBE_EXTENSION = "chrome-extension://nngceckbapebfimnlniiiahkandclblb/"
 FIREFOX_PLAIN = [TEXT, "UTF8_STRING", "COMPOUND_TEXT", "TEXT", "text/plain", "STRING", TEXT, "text/plain",
                  "SAVE_TARGETS"]
 FIREFOX_EXTENSION = FIREFOX_PLAIN
@@ -153,7 +153,6 @@ class CollectorCase(unittest.TestCase):
     def emit(self, *extra: str, env: dict[str, str] | None = None, stdin: bytes = b"") -> dict:
         result = self.run_collector(
             "emit", "--state-dir", str(self.state), "--wl-paste", str(FAKE_PASTE),
-            f"--secret-source-prefix={BW_EXTENSION}", f"--secret-source-prefix={VAULT}",
             f"--secret-source-prefix={ONEPASSWORD_EXTENSION}",
             *extra, env=env, stdin=stdin,
         )
@@ -226,14 +225,6 @@ class ClassificationTests(CollectorCase):
     def test_nothing_copied_is_empty(self) -> None:
         self.assertEqual(self.emit(), {"kind": "skipped", "reason": "empty"})
 
-    def test_chromium_bitwarden_extension_is_skipped(self) -> None:
-        self.offer({
-            "text/plain;charset=utf-8": SECRET,
-            "chromium/x-source-url": (BW_EXTENSION + "offscreen-document/index.html").encode(),
-        })
-        self.assertEqual(self.emit(), {"kind": "skipped", "reason": "source"})
-        self.assert_no_secret_on_disk()
-
     def test_chromium_onepassword_extension_is_skipped_without_reading_payload(self) -> None:
         for page in ("popup.html", "offscreen.html"):
             with self.subTest(page=page):
@@ -268,9 +259,9 @@ class ClassificationTests(CollectorCase):
     def test_chromium_vault_origin_is_skipped(self) -> None:
         self.offer({
             "text/plain;charset=utf-8": SECRET,
-            "chromium/x-source-url": b"HTTPS://Vault.Sole-Pierce.ts.net/#/vault",
+            "chromium/x-source-url": b"HTTPS://Vault.Example.TEST/#/vault",
         })
-        self.assertEqual(self.emit(), {"kind": "skipped", "reason": "source"})
+        self.assertEqual(self.emit(f"--secret-source-prefix={WEB_VAULT}"), {"kind": "skipped", "reason": "source"})
 
     def test_chromium_other_page_is_recorded(self) -> None:
         self.offer({
@@ -280,14 +271,15 @@ class ClassificationTests(CollectorCase):
         self.assertEqual(self.emit()["kind"], "text")
 
     def test_firefox_vault_origin_is_skipped(self) -> None:
-        for encoded in (utf16(VAULT + "/"), b"\xff\xfe" + utf16(VAULT), (VAULT + "/#/").encode()):
+        for encoded in (utf16(WEB_VAULT + "/"), b"\xff\xfe" + utf16(WEB_VAULT), (WEB_VAULT + "/#/").encode()):
             with self.subTest(encoded=encoded[:6]):
                 self.offer({
                     "text/plain;charset=utf-8": SECRET,
                     "text/x-moz-url-priv": encoded,
                     "text/html": b"<b>x</b>",
                 })
-                self.assertEqual(self.emit(), {"kind": "skipped", "reason": "source"})
+                self.assertEqual(self.emit(f"--secret-source-prefix={WEB_VAULT}"),
+                                 {"kind": "skipped", "reason": "source"})
                 self.assert_no_secret_on_disk()
 
     def test_clear_payloads_without_gecko_shape_are_empty(self) -> None:
@@ -311,7 +303,7 @@ class ClassificationTests(CollectorCase):
         self.assertEqual(self.blobs(), [first["sha"]])
 
     def test_clear_from_secret_source_is_skipped_not_cleared(self) -> None:
-        self.offer({"text/plain;charset=utf-8": b"\x00", "chromium/x-source-url": BW_EXTENSION.encode()})
+        self.offer({"text/plain;charset=utf-8": b"\x00", "chromium/x-source-url": ONEPASSWORD_EXTENSION.encode()})
         self.assertEqual(self.emit(), {"kind": "skipped", "reason": "source"})
 
     def test_whitespace_only_text_is_empty(self) -> None:
@@ -395,7 +387,7 @@ class ClassificationTests(CollectorCase):
     def test_marker_change_during_read_is_dropped(self) -> None:
         self.offer(
             {"text/plain;charset=utf-8": SECRET, "chromium/x-source-url": b"https://example.com/"},
-            after_payloads={"chromium/x-source-url": BW_EXTENSION.encode()},
+            after_payloads={"chromium/x-source-url": ONEPASSWORD_EXTENSION.encode()},
         )
         self.assertEqual(self.emit(), {"kind": "skipped", "reason": "changed"})
         self.assert_no_secret_on_disk()
@@ -811,13 +803,13 @@ class CopyAndWatchTests(CollectorCase):
         result = self.run_collector(
             "watch", "--state-dir", str(self.state), "--collector", collector,
             "--wl-paste", str(FAKE_PASTE), "--max-text-bytes", "10", "--max-image-bytes", "20",
-            f"--secret-source-prefix={BW_EXTENSION}", "--secret-source-prefix=-dash",
+            f"--secret-source-prefix={ONEPASSWORD_EXTENSION}", "--secret-source-prefix=-dash",
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((self.fake / "watch.argv").read_text().splitlines(), [
             "--watch", collector, "emit", "--state-dir", str(self.state),
             "--wl-paste", str(FAKE_PASTE), "--max-text-bytes", "10", "--max-image-bytes", "20",
-            f"--secret-source-prefix={BW_EXTENSION}", "--secret-source-prefix=-dash",
+            f"--secret-source-prefix={ONEPASSWORD_EXTENSION}", "--secret-source-prefix=-dash",
             "--unattributed-firefox=skip", f"--gecko-app-ids={DEFAULT_GECKO_APP_IDS}", "--focus-settle-ms=2000",
         ])
 
@@ -894,7 +886,7 @@ class ProbeCase(CollectorCase):
         self.offer(payloads, types=types)
 
     def probe_emit(self, *extra: str) -> dict:
-        return self.emit(f"--secret-source-prefix={PROBE_VAULT}", *extra)
+        return self.emit(f"--secret-source-prefix={PROBE_EXTENSION}", f"--secret-source-prefix={PROBE_VAULT}", *extra)
 
 
 class ProbeTests(ProbeCase):
@@ -957,7 +949,7 @@ class ProbeTests(ProbeCase):
         self.assertEqual(self.probe_emit("--unattributed-firefox=record"), {"kind": "skipped", "reason": "empty"})
 
     def test_chromium_extension_password_is_skipped(self) -> None:
-        self.chromium(CHROMIUM_EXTENSION, self.PASSWORD, BW_EXTENSION
+        self.chromium(CHROMIUM_EXTENSION, self.PASSWORD, PROBE_EXTENSION
                       + "popup/index.html#/view-cipher?cipherId=1bbd5ec6-9d73-4975-8748-0da727ee2426&type=1")
         self.assertEqual(self.probe_emit(), {"kind": "skipped", "reason": "source"})
         self.assertEqual(self.reads(), [CHROMIUM])
@@ -990,7 +982,7 @@ class ProbeTests(ProbeCase):
         self.assertEqual((event["kind"], event["preview"]), ("text", self.URL.decode()))
 
     def test_chromium_clear_records_nothing_and_never_clears(self) -> None:
-        offscreen = BW_EXTENSION + "offscreen-document/index.html"
+        offscreen = PROBE_EXTENSION + "offscreen-document/index.html"
         self.chromium(CHROMIUM_CLEAR, None, offscreen)
         self.assertEqual(self.probe_emit(), {"kind": "skipped", "reason": "source"})
         # Without a matching prefix there is still no text to read.

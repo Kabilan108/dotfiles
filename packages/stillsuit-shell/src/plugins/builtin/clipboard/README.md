@@ -19,7 +19,7 @@ prints one JSON event. `Service.qml` is the only writer of
 | `ttlHours` | 72 | Entries expire this long after their last use. |
 | `maxTextBytes`, `maxImageBytes` | 1 MiB, 20 MiB | Larger payloads are skipped. |
 | `clearPurgeWindowSec` | 330 | How long after a capture a clear can still purge it. |
-| `secretSourcePrefixes` | Bitwarden and 1Password Chromium extensions, the vault origin | Source URL prefixes whose copies are skipped. |
+| `secretSourcePrefixes` | 1Password's Chromium extension | Source URL prefixes whose copies are skipped. |
 | `unattributedFirefox` | `"skip"` | `"skip"` or `"record"`; see rule 4. |
 | `geckoAppIds` | Zen, Firefox and LibreWolf app ids | Python regular expression, searched in the `app_id` of the focused window (rule 4). |
 | `gcGraceSec` | 120 | Grace period for the crash-leftover sweep. |
@@ -39,8 +39,8 @@ is checked again after the last payload read:
 3. `chromium/x-source-url` or `text/x-moz-url-priv` starts with a configured
    secret source prefix. HTTPS origins on 1password.com, 1password.eu and
    1password.ca, including account subdomains, are always excluded when
-   offered in these markers. This catches Bitwarden and 1Password extension
-   origins in Chromium and Helium, and web-vault origins in either browser.
+   offered in these markers. This catches the 1Password extension origin in
+   Chromium and Helium, and web-vault origins in either browser.
 4. With `unattributedFirefox = "skip"`, an unattributed Gecko copy: the offer
    has GTK3's plain-text shape (`SAVE_TARGETS`, `COMPOUND_TEXT` and
    `text/plain;charset=utf-8` twice), no page origin in

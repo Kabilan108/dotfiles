@@ -42,7 +42,7 @@ events="$root/events"
 watch_err="$root/watch.err"
 : >"$events"
 "$collector" watch --state-dir "$state" --collector "$collector" --wl-paste "$(command -v wl-paste)" --owner-pid $$ \
-    --secret-source-prefix=chrome-extension://nngceckbapebfimnlniiiahkandclblb/ \
+    --secret-source-prefix=chrome-extension://aeblfdkhhhdcdjpifhhbdiojplfjncoa/ \
     >"$events" 2>"$watch_err" &
 watch_pid=$!
 

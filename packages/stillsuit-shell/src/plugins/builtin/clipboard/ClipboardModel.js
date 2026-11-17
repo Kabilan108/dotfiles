@@ -23,9 +23,7 @@ var GC_FOLLOW_UP_GAP_MS = 10 * 60 * 1000
 var GC_FOLLOW_UP_MARGIN_MS = 1000
 
 var DEFAULT_SECRET_SOURCE_PREFIXES = [
-    "chrome-extension://nngceckbapebfimnlniiiahkandclblb/",
-    "chrome-extension://aeblfdkhhhdcdjpifhhbdiojplfjncoa/",
-    "https://vault.sole-pierce.ts.net"
+    "chrome-extension://aeblfdkhhhdcdjpifhhbdiojplfjncoa/"
 ]
 
 function _number(value, fallback, min, max) {

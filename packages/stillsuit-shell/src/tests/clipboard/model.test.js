@@ -35,7 +35,7 @@ function feed(events, options) {
     assert.equal(opts.maxImageBytes, 20 * 1024 * 1024)
     assert.equal(opts.gcGraceSec, 120)
     assert.deepEqual(opts.secretSourcePrefixes, Model.DEFAULT_SECRET_SOURCE_PREFIXES)
-    assert.ok(opts.secretSourcePrefixes.includes("chrome-extension://aeblfdkhhhdcdjpifhhbdiojplfjncoa/"))
+    assert.deepEqual(opts.secretSourcePrefixes, ["chrome-extension://aeblfdkhhhdcdjpifhhbdiojplfjncoa/"])
     const listLike = { length: 2, 0: "https://a/", 1: "" }
     assert.deepEqual(Model.options({ secretSourcePrefixes: listLike }).secretSourcePrefixes, ["https://a/"])
     assert.deepEqual(Model.options({ secretSourcePrefixes: [] }).secretSourcePrefixes, [])

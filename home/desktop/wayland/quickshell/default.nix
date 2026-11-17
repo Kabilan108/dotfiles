@@ -185,8 +185,8 @@ in
           maxTextBytes = 1048576;
           maxImageBytes = 20971520;
           clearPurgeWindowSec = 330;
-          # Bitwarden's Zen/Firefox extension copies offer the same MIME types
-          # as an address-bar copy and as any GTK3 app's text copy. With
+          # Password-manager extension copies in Zen/Firefox offer the same
+          # MIME types as an address-bar copy and as any GTK3 app's text copy. With
           # "skip", such an offer is recorded only when niri shows the same
           # settled focus before and after the payload read: a window not
           # matching geckoAppIds, stamped by niri, newest stamp, and focused
@@ -197,11 +197,7 @@ in
           focusSettleMs = 2000;
           geckoAppIds = "^(zen|zen-beta|zen-browser|zen-alpha|zen-twilight|app\\.zen_browser\\.zen|firefox|firefox-esr|firefox-nightly|librewolf|org\\.mozilla\\.firefox)$";
           niriPath = niri;
-          secretSourcePrefixes = [
-            "chrome-extension://nngceckbapebfimnlniiiahkandclblb/"
-            "chrome-extension://aeblfdkhhhdcdjpifhhbdiojplfjncoa/"
-            "https://vault.sole-pierce.ts.net"
-          ];
+          secretSourcePrefixes = [ "chrome-extension://aeblfdkhhhdcdjpifhhbdiojplfjncoa/" ];
         };
       }
     )

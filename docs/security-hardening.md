@@ -53,7 +53,7 @@ YubiKey functions in play:
 Accounts where compromise is catastrophic. Use **passkey** where passwordless is
 offered, else **security-key-2FA**. No TOTP unless forced (then TOTP on the keys).
 
-- [ ] Vaultwarden (do FIRST)
+- [ ] 1Password (do FIRST)
 - [ ] Email / Outlook (reset path for everything)
 - [ ] Google account
 - [ ] GitHub
@@ -69,10 +69,10 @@ offered, else **security-key-2FA**. No TOTP unless forced (then TOTP on the keys
 slots, avoid discoverable creds, or for shared/work accounts.
 
 ### Tier 2 — Ordinary accounts
-- Passwords: strong + unique in Vaultwarden.
-- Passkeys: stored in Vaultwarden (syncable, recoverable, phishing-resistant).
+- Passwords: strong + unique in 1Password.
+- Passkeys: stored in 1Password (syncable, recoverable, phishing-resistant).
 - TOTP: default to **Yubico Authenticator** (keeps factor separate from the vault,
-  removes Google-cloud dependency). Vaultwarden-TOTP only for genuinely throwaway
+  removes Google-cloud dependency). 1Password TOTP only for genuinely throwaway
   accounts.
 
 ---
@@ -89,31 +89,20 @@ slots, avoid discoverable creds, or for shared/work accounts.
 
 ---
 
-## Vaultwarden hardening
+## Password manager: 1Password
 
-Good news: Vaultwarden is **zero-knowledge** — vault data is encrypted client-side
-with the master password. The `vaultwarden-data` volume holds ciphertext; FDE is a
-secondary layer. The real attack surface is the **decrypted client session**.
+Vaultwarden was retired in favour of 1Password in November 2026. It did not
+move to tleilax. sietch no longer serves `svc:vault`, and its `services` backup
+job no longer copies `/var/lib/vaultwarden`. The folder stays on sietch, owned
+by `root:root` with mode 0700, until the stage 8 re-key deletes it. Older
+`services` snapshots keep their copies.
 
-### Server side (`modules/nixos/selfhost/vaultwarden.nix` — native since July 2026)
-- [x] No more docker image — native `services.vaultwarden`, updates pinned by flake.lock
-- [x] Argon2-hashed `ADMIN_TOKEN` via agenix, Tailscale-only
-- [x] `SIGNUPS_ALLOWED: false`
-- [x] Tailscale-only access (svc:vault, localhost-bound backend, 80/443 closed)
-- [x] `/var/lib/vaultwarden` is in sietch's `services` backup job (`docs/backups.md`).
-
-### Client side (where it actually matters)
-- [x] **WebAuthn 2FA, both keys**. Re-registered 2026-07-08 against the new
-      `vault.sole-pierce.ts.net` domain (WebAuthn creds are domain-bound — any
-      future domain change breaks them again; keep the recovery code offline
-      and disable 2FA *before* the move next time).
-- [ ] **Shorten vault timeout** drastically (15–30 min or "on system lock").
-- [ ] Timeout action = **lock**; require master password / biometric on unlock.
-- Desktop app does NOT replace the browser extension (extension does autofill).
-  It can hold biometric-unlock state for the extension, but Linux fprintd setup is
-  fiddly — skip unless wanted; shortening the extension timeout gets ~90% of the win.
-- Residual risk: malware running while vault is unlocked → handled by sandboxing track.
-- [ ] Store the **Vaultwarden recovery code OFFLINE** (not in the vault — circular).
+The attack surface is the **unlocked client session**:
+- [ ] **Security-key 2FA, both keys**, on the 1Password account.
+- [ ] **Shorten the lock timeout** drastically (15–30 min or "on system lock").
+- Residual risk: malware running while 1Password is unlocked → handled by the
+  sandboxing track.
+- [ ] Store the **1Password Emergency Kit OFFLINE** (not in the vault — circular).
 
 ---
 
@@ -374,7 +363,7 @@ for filesystem access, in priority order:
    `chmod g-w` silently caps ACL entries; `mv`-ed files don't inherit defaults.
 
 Hardening posture per service type:
-- **Native nixpkgs modules** (vaultwarden, jellyfin): upstream units already ship
+- **Native nixpkgs modules** (jellyfin): upstream units already ship
   syscall filters, capability bounding, ProtectSystem etc. — don't duplicate.
 - **Own flake modules** (siren): baseline is dedicated user + `NoNewPrivileges`,
   `PrivateTmp`, `ProtectSystem=strict`, `ProtectHome`, `ReadWritePaths` scoped;
@@ -408,7 +397,7 @@ a single choke point for what agents may invoke.
   token. Directly serves priority #2 (secrets off disk) for the agent fleet.
 - **Do not flip `EXECUTOR_ALLOW_LOCAL_NETWORK`** (default/pinned `false`): its
   QuickJS sandbox executes semi-trusted code, and loopback on sietch includes
-  vaultwarden, jellyfin, and siren.
+  jellyfin and siren.
 
 ---
 
@@ -473,7 +462,7 @@ elevated host access.
 
 Restic to the NAS replaced the Google Drive screenshot job (`docs/backups.md`).
 
-- [x] Vaultwarden, Executor and Hark state in sietch's `services` job.
+- [x] Executor and Hark state in sietch's `services` job.
 - [x] Encrypted at rest (Restic) and in transit (SMB 3.1.1 encryption).
 - [x] Older restore points survive a wiped client: the NAS's immutable snapshots.
 - [x] Google Drive dropped as a target.
@@ -508,12 +497,11 @@ Restic to the NAS replaced the Google Drive screenshot job (`docs/backups.md`).
 - [ ] Set FIDO2 PIN on both keys, record offline.
 
 **Phase 1 — vault + foundation**
-- [ ] WebAuthn 2FA on Vaultwarden (both keys) + save recovery code offline.
-- [ ] Shorten vault timeout, require master password on unlock.
-- [ ] Pin Vaultwarden image digest.
+- [ ] Security-key 2FA on 1Password (both keys) + Emergency Kit offline.
+- [ ] Shorten the 1Password lock timeout.
 
 **Phase 2 — account sweep (manual, ongoing)**
-For each account in Vaultwarden:
+For each account in 1Password:
 - [ ] Rotate weak/leaked passwords → strong + unique.
 - [ ] Decide tier. Crown jewel → passkey/security-key on both keys.
 - [ ] TOTP present → migrate to Yubico Authenticator (both keys), drop from Google Auth.

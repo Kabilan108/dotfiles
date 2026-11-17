@@ -21,7 +21,7 @@ All service definitions live in `modules/nixos/selfhost/` (imported by `machines
 - Prefer a **native NixOS module** (`services.<name>`) when nixpkgs has one — better integration, no image drift.
 - For your own projects, expose a `nixosModules.default` from the project's flake and consume it as a flake input (see `siren.nix` + the siren repo's flake; updates = `nix flake update <input>`).
 - Otherwise use `virtualisation.oci-containers.containers.<name>` (backend is docker on this host; see `executor.nix`). Digest-pin third-party images (`update-image-pins` skill).
-- Pick a free localhost port in the 83xx range (`ss -tln | grep 83`). Current allocations: 8096 jellyfin, 8222 vaultwarden, 8301 siren, 8302 executor, 8303 atlas.
+- Pick a free localhost port in the 83xx range (`ss -tln | grep 83`). Current allocations: 8096 jellyfin, 8301 siren, 8302 executor, 8303 atlas.
 
 ### 2. Secrets (if the service needs any)
 
@@ -65,7 +65,7 @@ Create `modules/nixos/selfhost/<name>.nix` and add it to `imports` in `modules/n
 }
 ```
 
-For a native module, set its listen address/port to `127.0.0.1:83XX` and point `selfhost.tailnetServices.<name>.port` at it (see `vaultwarden.nix` and `jellyfin.nix`).
+For a native module, set its listen address/port to `127.0.0.1:83XX` and point `selfhost.tailnetServices.<name>.port` at it (see `siren.nix` and `jellyfin.nix`).
 
 Filesystem access for the service user follows the rules in `docs/security-hardening.md` ("Selfhost service permission model"): ownership for the owner, group for peers, tmpfiles `A+` ACLs for the exception (e.g. siren on the shared HF cache).
 
