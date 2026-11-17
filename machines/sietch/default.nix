@@ -73,9 +73,21 @@
     # Vaultwarden was retired for 1Password; its data stays until the stage 8
     # re-key. Its user is gone, so keep the folder away from whoever gets that UID.
     "z /var/lib/vaultwarden 0700 root root -"
+    "d /vault/userdata/vms 0755 kabilan users -"
   ];
 
   home-manager.users.kabilan = {
+    # Agents start every VM in this slice (see the vms skill). The cap leaves
+    # half of sietch's 32 threads and most of its 62 GiB for everything else.
+    systemd.user.slices.vms = {
+      Unit.Description = "VMs started by agents";
+      Slice = {
+        CPUQuota = "1600%";
+        MemoryMax = "28G";
+        MemorySwapMax = "0";
+      };
+    };
+
     dotfiles.services = {
       flake-update.enable = true;
       russ-playlist-sync.enable = true;
