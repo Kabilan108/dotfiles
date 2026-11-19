@@ -207,27 +207,33 @@ Summary: Dev environment review.
 """
 
 
-def slack_results(messages: list[dict[str, str]]) -> dict[str, Any]:
-    matches = [
-        {
-            "channel": (
-                {"id": message["channel_id"], "is_im": True, "name": "UOWNER0001"}
-                if message["channel"] == "DM"
-                else {"id": message["channel_id"], "name": message["channel"][1:]}
-            ),
-            "user": message["author_id"],
-            "username": message["author"].split()[0].lower(),
-            "ts": message["ts"],
-            "text": message["text"],
-            "permalink": f"https://example.slack.com/archives/{message['channel_id']}/p1",
-        }
-        for message in messages
-    ]
-    return {
-        "ok": True,
-        "query": "",
-        "messages": {"matches": matches, "paging": {"page": 1, "pages": 1}},
+def slack_results(messages: list[dict[str, str]], cursor: str = "") -> dict[str, Any]:
+    """A Slack MCP `slack_search_public_and_private` reply in its detailed
+    format, with each author under their Slack display name."""
+    blocks = "\n\n---\n\n".join(
+        f"### Result {index} of {len(messages)}\n"
+        f"Channel: {message['channel']} (ID: {message['channel_id']})\n"
+        + (
+            "Participants: Tony Okeke (ID: UOWNER0001)\n"
+            if message["channel"] == "DM"
+            else ""
+        )
+        + f"From: {message['author'].split()[0]} <a@example.com> "
+        f"(ID: {message['author_id']}) \n"
+        f"Time: whatever\n"
+        f"Message_ts: {message['ts']}\n"
+        f"Permalink: [link](https://example.slack.com/archives/{message['channel_id']}/p1)\n"
+        f"Text: \n{message['text']}"
+        for index, message in enumerate(messages, start=1)
+    )
+    payload = {
+        "results": f"# Search Results for: x\n\n## Messages ({len(messages)} results)\n"
+        + blocks,
+        "pagination_info": (
+            f"For the next page of results use cursor `{cursor}`\n" if cursor else ""
+        ),
     }
+    return {"content": [{"type": "text", "text": json.dumps(payload)}]}
 
 
 SLACK_MESSAGES = [
@@ -270,7 +276,7 @@ PATHS = {
     "events": '["google-calendar"].api.calendars.calendarEventsList',
     "drive_list": '["google-drive"].api.files.driveFilesList',
     "drive_export": '["google-drive"].api.files.driveFilesExport',
-    "slack": ".slack.search.messages",
+    "slack": '["slack-mcp"].slack_search_public_and_private',
     "outlook_calendars": ".outlook.meCalendar.meListCalendars",
     "outlook_view": ".outlook.meCalendar.meCalendarsListCalendarView",
     "outlook_mail": ".outlook.meMessage.meListMessages",
@@ -278,7 +284,7 @@ PATHS = {
 ACCOUNTS = {
     '["google-calendar"]': "acc_d1d4b8a8-6ff8-4827-9e38-d11543b2b1e1",
     '["google-drive"]': "acc_e7c4b9c6-b534-4b60-9d16-1946f416384e",
-    ".slack": "acc_e4cc7016-9cfa-4c74-9376-049babae9668",
+    '["slack-mcp"]': "acc_477c5881-f82d-45d6-ad8c-a71af5e1dbb7",
     ".outlook": "acc_e499bd43-0123-4e7e-bcee-526ffe6ea9ff",
 }
 TOOL_CALL = re.compile(
@@ -420,9 +426,9 @@ def default_handlers() -> dict[str, Callable[[dict[str, Any]], Any]]:
 
 class FakeExecutor:
     """Executor v2's MCP endpoint, accepting only `execute` calls of the form
-    `return await tools<path>({accountId, input: {path?, query}});` on the
-    path's own account, and recording every call with its path and query
-    arguments merged."""
+    `return await tools<path>({accountId, input});` on the path's own account,
+    where an API tool's input is `{path?, query}` and an MCP tool's is its
+    arguments, and recording every call with its arguments."""
 
     def __init__(self, handlers: dict[str, Callable[[dict[str, Any]], Any]]) -> None:
         self.handlers = handlers
@@ -470,11 +476,15 @@ class FakeExecutor:
         assert set(literal) == {"accountId", "input"}
         app = next(prefix for prefix in ACCOUNTS if path.startswith(prefix))
         assert literal["accountId"] == ACCOUNTS[app]
-        assert set(literal["input"]) <= {"path", "query"}
-        query = dict(literal["input"].get("query", {}))
-        if app == ".slack":
-            assert query.pop("token") == ""
-        arguments = {**literal["input"].get("path", {}), **query}
+        if app == '["slack-mcp"]':
+            arguments = dict(literal["input"])
+            assert arguments["response_format"] == "detailed"
+        else:
+            assert set(literal["input"]) <= {"path", "query"}
+            arguments = {
+                **literal["input"].get("path", {}),
+                **literal["input"].get("query", {}),
+            }
         self.calls.append((path, arguments))
         try:
             value = self.handlers[path](arguments)
@@ -828,10 +838,8 @@ def test_executor_reads_are_allowlisted_and_json_encoded(
     assert match is not None
     assert match.group(1) == PATHS["slack"]
     literal = json.loads(match.group(2))
-    assert literal["accountId"] == ACCOUNTS[".slack"]
-    assert literal["input"] == {
-        "query": {"query": f"after:2026-10-12 {hostile}", "token": ""}
-    }
+    assert literal["accountId"] == ACCOUNTS['["slack-mcp"]']
+    assert literal["input"] == {"query": f"after:2026-10-12 {hostile}"}
     assert code.count("tools") == 1 + hostile.count("tools")
     assert "\u2028" not in code_for("slack.search", {"query": "\u2028"})
     events = json.loads(
@@ -851,9 +859,10 @@ def test_executor_reads_are_allowlisted_and_json_encoded(
         ("slack.send", {"query": "x"}),
         ("chat.postMessage", {"text": "x"}),
         ("slack.search", {"query": "x", "channel_id": "C1"}),
-        ("slack.search", {"count": 5}),
-        ("slack.search", {"query": "x", "token": "xoxp-1"}),
-        ("slack.search", {"query": "x", "highlight": True}),
+        ("slack.search", {"limit": 5}),
+        ("slack.search", {"query": "x", "response_format": "concise"}),
+        ("slack.search", {"query": "x", "include_bots": True}),
+        ("slack.search", {"query": "x", "cursor": 1}),
         ("slack.search", {"query": {"$gt": ""}}),
         ("drive.files.export", {"fileId": "abc", "mimeType": "application/pdf"}),
         ("outlook.messages.list", {"$filter": "x", "$search": "x"}),
@@ -1275,6 +1284,43 @@ def test_outlook_reads_page_with_skip_and_keep_only_related_mail(
     }
     tokened = namespace["search_email"](run, client, registry, [ada], [], {})
     assert tokened["status"] == "partial"
+
+
+def test_slack_reads_follow_cursors_and_name_registry_authors(
+    tmp_path: Path, executor: FakeExecutor, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def slack_page(arguments: dict[str, Any]) -> dict[str, Any]:
+        if arguments.get("cursor") == "UEFHRToy":
+            return slack_results([UNNAMED_CALLER])
+        return slack_results(SLACK_MESSAGES[:1], cursor="UEFHRToy")
+
+    executor.handlers[PATHS["slack"]] = slack_page
+    env, _, _, _ = pipeline_env(tmp_path, executor)
+    namespace = load_script(env, monkeypatch)
+    run = make_run(namespace, tmp_path / "work")
+    client, _ = namespace["connect_executor"]()
+    registry = namespace["load_registry"]()
+
+    found = namespace["search_slack"](run, client, registry, [], ["devflake"])
+
+    cursors = [
+        arguments.get("cursor", "")
+        for path, arguments in executor.calls
+        if path == PATHS["slack"] and arguments["query"].startswith("devflake ")
+    ]
+    assert cursors == ["", "UEFHRToy"]
+    assert found["status"] == "found" and found["error"] == ""
+    first = found["messages"][0]
+    assert {key: first[key] for key in ("author", "channel", "text")} == {
+        "author": "Katherine",
+        "channel": "DM",
+        "text": "free for a quick call?",
+    }
+    assert found["messages"][1]["author"] == "Ada Lovelace"
+    assert found["messages"][1]["participants"] == "Tony Okeke (ID: UOWNER0001)"
+    assert found["messages"][1]["permalink"] == (
+        "https://example.slack.com/archives/D00000001/p1"
+    )
 
 
 def test_outlook_calendar_failure_is_reported_beside_google(

@@ -1662,9 +1662,9 @@ class MeetingRun:
 
 @dataclass(frozen=True)
 class ReadOperation:
-    """One generated Executor v2 API tool, called on one fixed account.
-    Arguments named in `path_arguments` fill the request path and the rest its
-    query; `constant` query values are always sent."""
+    """One Executor v2 tool, called on one fixed account. An MCP tool takes
+    the arguments as its input; for a generated API tool, arguments named in
+    `path_arguments` fill the request path and the rest its query."""
 
     tool: str
     account: str
@@ -1672,13 +1672,13 @@ class ReadOperation:
     required: frozenset[str] = frozenset()
     fixed: tuple[tuple[str, Any], ...] = ()
     path_arguments: frozenset[str] = frozenset()
-    constant: tuple[tuple[str, Any], ...] = ()
+    mcp: bool = False
 
 
 GOOGLE_CALENDAR_ACCOUNT = "acc_d1d4b8a8-6ff8-4827-9e38-d11543b2b1e1"
 GOOGLE_DRIVE_ACCOUNT = "acc_e7c4b9c6-b534-4b60-9d16-1946f416384e"
 OUTLOOK_ACCOUNT = "acc_e499bd43-0123-4e7e-bcee-526ffe6ea9ff"
-SLACK_ACCOUNT = "acc_e4cc7016-9cfa-4c74-9376-049babae9668"
+SLACK_ACCOUNT = "acc_477c5881-f82d-45d6-ad8c-a71af5e1dbb7"
 
 # The only Executor operations this pipeline can run. Each maps to one fixed
 # tool and account; argument names and types are checked, and values reach
@@ -1720,19 +1720,21 @@ EXECUTOR_READ_OPERATIONS: dict[str, ReadOperation] = {
         fixed=(("mimeType", "text/markdown"),),
         path_arguments=frozenset({"fileId"}),
     ),
-    # The account supplies Slack's token in place of the empty one.
     "slack.search": ReadOperation(
-        ".slack.search.messages",
+        '["slack-mcp"].slack_search_public_and_private',
         SLACK_ACCOUNT,
         {
             "query": "str",
-            "count": "int",
-            "page": "int",
             "sort": "str",
             "sort_dir": "str",
+            "limit": "int",
+            "cursor": "str",
+            "response_format": "str",
+            "include_context": "bool",
         },
         required=frozenset({"query"}),
-        constant=(("token", ""),),
+        fixed=(("response_format", "detailed"),),
+        mcp=True,
     ),
     "outlook.calendars.list": ReadOperation(
         ".outlook.meCalendar.meListCalendars",
@@ -1799,16 +1801,17 @@ def executor_read_code(operation: str, arguments: dict[str, Any]) -> str:
     for name, value in spec.fixed:
         if name in arguments and arguments[name] != value:
             raise MeetingMinutesError(f"{operation} only allows {name}={value}")
-    request: dict[str, Any] = {
-        "query": {
-            **{
+    request: dict[str, Any]
+    if spec.mcp:
+        request = dict(arguments)
+    else:
+        request = {
+            "query": {
                 name: value
                 for name, value in arguments.items()
                 if name not in spec.path_arguments
-            },
-            **dict(spec.constant),
+            }
         }
-    }
     if spec.path_arguments:
         request["path"] = {
             name: value
@@ -3233,52 +3236,66 @@ def find_meet_notes(run: MeetingRun, executor: ExecutorClient) -> dict[str, Any]
     }
 
 
-def slack_channel_name(channel: dict[str, Any]) -> str:
-    if channel.get("is_im"):
-        return "DM"
-    if channel.get("is_mpim"):
-        return "Group DM"
-    name = clean_text(channel.get("name"))
-    return f"#{name}" if name else ""
+def slack_search_page(data: Any) -> tuple[str, str]:
+    """The results text of a Slack MCP search reply and its next-page cursor."""
+    content = data.get("content") if isinstance(data, dict) else None
+    text = "\n".join(
+        str(block.get("text") or "")
+        for block in content or []
+        if isinstance(block, dict) and block.get("type") == "text"
+    )
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        parsed = None
+    if isinstance(parsed, dict):
+        results = str(parsed.get("results") or "")
+        pagination = str(parsed.get("pagination_info") or "")
+    else:
+        results = pagination = text
+    cursor = re.search(r"use cursor `([^`]+)`", pagination)
+    return results, cursor.group(1) if cursor else ""
 
 
-def parse_slack_matches(
-    data: Any, names: dict[str, str]
-) -> tuple[list[dict[str, Any]], bool]:
-    """Messages from a Slack `search.messages` page, with authors named from
-    the registry's Slack ids where known, and whether a later page exists."""
-    results = data.get("messages") if isinstance(data, dict) else None
-    if not isinstance(results, dict):
-        raise MeetingMinutesError("Slack search returned no messages object")
+def slack_field_reader(block: str) -> Callable[[str], str]:
+    def field_value(name: str) -> str:
+        match = re.search(rf"^{name}:[ \t]*(.*)$", block, flags=re.MULTILINE)
+        return match.group(1).strip() if match else ""
+
+    return field_value
+
+
+def parse_slack_results(text: str, names: dict[str, str]) -> list[dict[str, Any]]:
+    """Messages from a Slack MCP search's detailed results, with authors named
+    from the registry's Slack ids where known."""
     messages = []
-    for match in results.get("matches") or []:
-        if not isinstance(match, dict):
-            continue
-        channel = match.get("channel") if isinstance(match.get("channel"), dict) else {}
-        author_id = match.get("user") if isinstance(match.get("user"), str) else ""
+    for block in re.split(r"^### Result \d+ of \d+\s*$", text, flags=re.MULTILINE)[1:]:
+        field_value = slack_field_reader(block)
+        channel = re.match(r"(.*?)\s*\(ID: (\w+)\)", field_value("Channel"))
+        author = re.match(r"(.*?)\s*(?:<[^>]*>)?\s*\(ID: (\w+)\)", field_value("From"))
+        permalink = re.search(r"\((https?://[^)\s]+)\)", field_value("Permalink"))
+        body = re.search(r"^Text:[ \t]*\n?(.*?)(?:\n---\s*$|\Z)", block, re.M | re.S)
         try:
-            sent = datetime.fromtimestamp(float(match.get("ts") or ""))
-        except (TypeError, ValueError):
+            sent = datetime.fromtimestamp(float(field_value("Message_ts")))
+        except ValueError:
             continue
-        direct = channel.get("is_im") or channel.get("is_mpim")
+        author_id = author.group(2) if author else ""
         messages.append(
             {
-                "channel": slack_channel_name(channel),
-                "channel_id": clean_text(channel.get("id")),
-                "participants": clean_text(channel.get("name")) if direct else "",
-                "author": names.get(author_id) or clean_text(match.get("username")),
+                "channel": clean_text(channel.group(1))
+                if channel
+                else field_value("Channel"),
+                "channel_id": channel.group(2) if channel else "",
+                "participants": field_value("Participants"),
+                "author": names.get(author_id)
+                or (clean_text(author.group(1)) if author else field_value("From")),
                 "author_id": author_id,
                 "timestamp": sent.astimezone().isoformat(),
-                "text": clean_text(match.get("text"))[:600],
-                "permalink": clean_text(match.get("permalink")),
+                "text": clean_text(body.group(1) if body else "")[:600],
+                "permalink": permalink.group(1) if permalink else "",
             }
         )
-    paging = results.get("paging") if isinstance(results.get("paging"), dict) else {}
-    try:
-        more = int(paging.get("page") or 0) < int(paging.get("pages") or 0)
-    except (TypeError, ValueError):
-        more = False
-    return messages, more
+    return messages
 
 
 def run_slack_query(
@@ -3290,28 +3307,31 @@ def run_slack_query(
     failures: list[str],
 ) -> None:
     search = " ".join([*query.get("keywords", []), query["filters"]])
-    for page in range(1, SLACK_PAGE_LIMIT + 1):
+    cursor = ""
+    for _ in range(SLACK_PAGE_LIMIT):
         arguments = {
             "query": search,
             "sort": "timestamp",
             "sort_dir": "asc",
-            "count": 20,
-            "page": page,
+            "limit": 20,
+            "response_format": "detailed",
+            "include_context": False,
+            **({"cursor": cursor} if cursor else {}),
         }
         try:
-            messages, more = parse_slack_matches(
-                executor.read("slack.search", arguments), names
+            results, cursor = slack_search_page(
+                executor.read("slack.search", arguments)
             )
         except MeetingMinutesError as error:
             failures.append(f"{query['filters']}: {error}")
             return
-        for message in messages:
+        for message in parse_slack_results(results, names):
             sent = datetime.fromisoformat(message["timestamp"])
             if window[0] <= sent <= window[1]:
                 key = (message["channel_id"], message["timestamp"])
                 message["matched"] = query.get("keywords", [""])[0]
                 found.setdefault(key, message)
-        if not more:
+        if not cursor:
             return
 
 

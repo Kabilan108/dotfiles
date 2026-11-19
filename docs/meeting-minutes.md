@@ -26,6 +26,10 @@ Meeting sessions live under that home, not `~/.codex/sessions`. To inspect one b
 
 Executor v2 (`https://executor-v2.sole-pierce.ts.net/mcp`) is called directly with a personal access token read from `~/.config/meeting-minutes/executor-env` (agenix `secrets/executor/meeting-minutes.age`). Only the read operations in `EXECUTOR_READ_OPERATIONS` can run, each on one fixed account.
 
+## Slack
+
+Slack searches go through the `slack-mcp` app, Slack's own MCP server, with its `slack_search_public_and_private` tool. Queries are built only from registry Slack ids, single-word transcript keywords, Slack channel ids, and dates. The pipeline always asks for the detailed text format, parses each result's channel, author, timestamp, permalink, and text from it, and follows the reply's cursor for up to five pages of 20. Authors with a Slack id in the registry get their registry name; others keep their Slack display name.
+
 ## Outlook
 
 Outlook reads go through the `outlook` app's tony@moberganalytics.com account. `MEETING_MINUTES_CALENDAR_SOURCES` defaults to `google,outlook`. The Outlook source reads every calendar in the account, including holiday and birthday calendars, and converts Graph's UTC times to America/New_York. A failed Outlook read appears in `calendar_errors` and sends the calendar notification, and the Google candidates are still used.
