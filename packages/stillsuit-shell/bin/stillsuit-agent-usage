@@ -12,6 +12,7 @@ import os
 import re
 import select
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -29,6 +30,22 @@ CACHE_SECONDS = 180
 RATE_LIMIT_BACKOFF_SECONDS = 300
 MAX_RATE_LIMIT_BACKOFF_SECONDS = 3600
 FAILURE_KEY = "_failure"
+ANTIGRAVITY_MIN_VERSION = (1, 1, 11)
+ANTIGRAVITY_TIMEOUT_SECONDS = 30
+ANTIGRAVITY_MAX_OUTPUT_BYTES = 1_048_576
+# agy briefly prints "not signed in" while it refreshes a valid login, so that
+# notice never counts. A running probe stops only for the blocking login prompt.
+ANTIGRAVITY_LOGIN_PROMPT_MARKERS = (
+    "authentication required",
+    "waiting for authentication",
+)
+ANTIGRAVITY_SIGN_IN_MARKERS = (
+    *ANTIGRAVITY_LOGIN_PROMPT_MARKERS,
+    "not logged in",
+    "login required",
+    "please log in",
+    "please sign in",
+)
 ACCOUNT_ID_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:[-.][a-z0-9]+)*$")
 
 Account = dict[str, Any]
@@ -46,6 +63,7 @@ class _AccountState:
 
 
 _account_states: dict[str, _AccountState] = {}
+_agy_versions: dict[tuple[str, int, int, int], tuple[int, int, int]] = {}
 
 
 def _utc_now() -> dt.datetime:
@@ -142,6 +160,11 @@ def discover_accounts(request: dict[str, Any]) -> list[Account]:
                 _account("claude", "Default", home / ".claude", "default"),
             ]
         )
+        if shutil.which("agy"):
+            antigravity_home = home / ".gemini" / "antigravity-cli"
+            discovered.append(
+                _account("antigravity", "Default", antigravity_home, "default")
+            )
 
     shadow_value = str(request.get("shadowRoot") or "").strip()
     if shadow_value:
@@ -522,7 +545,7 @@ def _terminate(process: subprocess.Popen[str]) -> None:
             pass
 
 
-def _codex_runtime_parent() -> Path | None:
+def _private_runtime_parent() -> Path | None:
     value = os.environ.get("XDG_RUNTIME_DIR", "").strip()
     if not value:
         return None
@@ -561,7 +584,7 @@ def _collect_codex(account: Account) -> Account:
         result.update(status="unavailable", statusText="Codex is not installed")
         return result
     with tempfile.TemporaryDirectory(
-        prefix="stillsuit-codex-", dir=_codex_runtime_parent()
+        prefix="stillsuit-codex-", dir=_private_runtime_parent()
     ) as probe_value:
         probe_dir = Path(probe_value)
         try:
@@ -653,6 +676,285 @@ def _collect_codex(account: Account) -> Account:
             _terminate(process)
 
 
+def _stop_process_group(process: subprocess.Popen[bytes]) -> None:
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except OSError:
+        pass
+    try:
+        process.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except OSError:
+            pass
+        process.wait()
+
+
+def _agy_environment(probe_dir: Path) -> dict[str, str]:
+    """Run agy with browser launchers that fail, so a probe never opens a sign-in page."""
+    launcher_dir = probe_dir / "bin"
+    launcher_dir.mkdir(mode=0o700)
+    for name in ("open", "xdg-open"):
+        launcher = launcher_dir / name
+        launcher.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+        launcher.chmod(0o700)
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join(
+        [str(launcher_dir), environment.get("PATH", "/usr/bin:/bin")]
+    )
+    environment["BROWSER"] = str(launcher_dir / "xdg-open")
+    # agy ignores any other spelling, including "1".
+    environment["AGY_CLI_DISABLE_AUTO_UPDATE"] = "true"
+    return environment
+
+
+def _agy_version(
+    agy: str, environment: dict[str, str], probe_dir: Path
+) -> tuple[int, int, int] | None:
+    """Return agy's version, or None when its output is not major.minor.patch."""
+    stat = os.stat(agy)
+    key = (agy, stat.st_ino, stat.st_size, stat.st_mtime_ns)
+    if key in _agy_versions:
+        return _agy_versions[key]
+    completed = subprocess.run(
+        [agy, "--version"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        cwd=probe_dir,
+        env=environment,
+        timeout=5,
+        check=False,
+    )
+    match = re.fullmatch(
+        r"(\d+)\.(\d+)\.(\d+)", completed.stdout.decode("utf-8", "replace").strip()
+    )
+    if completed.returncode != 0 or match is None:
+        return None
+    version = (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+    _agy_versions.clear()
+    _agy_versions[key] = version
+    return version
+
+
+def _agy_requested_sign_in(stderr_path: Path, markers: tuple[str, ...]) -> bool:
+    try:
+        with stderr_path.open("rb") as stream:
+            text = stream.read(65536).decode("utf-8", "replace").casefold()
+    except OSError:
+        return False
+    return any(marker in text for marker in markers)
+
+
+def _run_agy_usage(
+    agy: str, environment: dict[str, str], probe_dir: Path
+) -> tuple[str, Any]:
+    """Run agy's print-mode usage report and classify the outcome.
+
+    agy's stderr can carry an OAuth URL, so it is only scanned for fixed
+    sign-in markers and is never returned.
+    """
+    stdout_path = probe_dir / "usage.json"
+    stderr_path = probe_dir / "stderr.log"
+    command = [
+        agy,
+        "-p",
+        "/usage",
+        "--output-format",
+        "json",
+        "--print-timeout",
+        f"{ANTIGRAVITY_TIMEOUT_SECONDS - 5}s",
+        "--log-file",
+        str(probe_dir / "agy.log"),
+    ]
+    with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
+        try:
+            process = subprocess.Popen(
+                command,
+                stdin=subprocess.DEVNULL,
+                stdout=stdout,
+                stderr=stderr,
+                cwd=probe_dir,
+                env=environment,
+                start_new_session=True,
+            )
+        except OSError:
+            return "launch-failed", None
+    try:
+        deadline = time.monotonic() + ANTIGRAVITY_TIMEOUT_SECONDS
+        while True:
+            try:
+                process.wait(timeout=0.25)
+                break
+            except subprocess.TimeoutExpired:
+                pass
+            # Signed out, agy waits a minute for a browser login that never comes.
+            if _agy_requested_sign_in(stderr_path, ANTIGRAVITY_LOGIN_PROMPT_MARKERS):
+                return "signed-out", None
+            if stdout_path.stat().st_size > ANTIGRAVITY_MAX_OUTPUT_BYTES:
+                return "invalid", None
+            if time.monotonic() >= deadline:
+                return "timed-out", None
+    finally:
+        _stop_process_group(process)
+    with stdout_path.open("rb") as stream:
+        raw = stream.read(ANTIGRAVITY_MAX_OUTPUT_BYTES + 1)
+    if len(raw) > ANTIGRAVITY_MAX_OUTPUT_BYTES:
+        return "invalid", None
+    try:
+        report = json.loads(raw.decode("utf-8", errors="replace"))
+    except json.JSONDecodeError:
+        report = None
+    if not isinstance(report, dict) or report.get("status") != "SUCCESS":
+        error = str(report.get("error") or "") if isinstance(report, dict) else ""
+        if "authentication" in error.casefold() or _agy_requested_sign_in(
+            stderr_path, ANTIGRAVITY_SIGN_IN_MARKERS
+        ):
+            return "signed-out", None
+        return ("failed" if isinstance(report, dict) else "invalid"), None
+    command_report = report.get("command")
+    if not isinstance(command_report, dict) or command_report.get("name") != "usage":
+        return "invalid", None
+    data = command_report.get("data")
+    return "report", data if isinstance(data, dict) else {}
+
+
+def _antigravity_group_label(name: str) -> str:
+    lowered = name.casefold()
+    if lowered == "gemini models":
+        return "Gemini"
+    if lowered == "claude and gpt models":
+        return "Claude + GPT"
+    return re.sub(r"\s+models$", "", name, flags=re.IGNORECASE).strip() or "Quota"
+
+
+def _antigravity_cadence(*values: str) -> tuple[int, str]:
+    """Order and label a bucket by its window, falling back to its id and name."""
+    for value in values:
+        lowered = value.casefold()
+        if not lowered:
+            continue
+        if lowered == "5h" or "5h" in lowered or "five hour" in lowered:
+            return 0, "5 hour"
+        if "week" in lowered:
+            return 1, "Weekly"
+    return 2, ""
+
+
+def _first(entry: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if entry.get(key) is not None:
+            return entry[key]
+    return None
+
+
+def _antigravity_windows(report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Map agy quota groups to windows, hiding families nobody has used yet."""
+    groups = report.get("groups")
+    families: list[list[dict[str, Any]]] = []
+    for group in groups if isinstance(groups, list) else []:
+        if not isinstance(group, dict):
+            continue
+        group_label = _antigravity_group_label(
+            str(_first(group, "displayName", "display_name", "name") or "").strip()
+        )
+        buckets = group.get("buckets")
+        family: list[tuple[int, dict[str, Any]]] = []
+        for bucket in buckets if isinstance(buckets, list) else []:
+            if not isinstance(bucket, dict) or bucket.get("disabled") is True:
+                continue
+            bucket_id = str(_first(bucket, "bucketId", "bucket_id", "id") or "").strip()
+            if not bucket_id:
+                continue
+            remaining_value = _first(bucket, "remainingFraction", "remaining_fraction")
+            nested = bucket.get("remaining")
+            if remaining_value is None and isinstance(nested, dict):
+                remaining_value = _first(
+                    nested, "remainingFraction", "remaining_fraction"
+                )
+            remaining = _normalize_percent(remaining_value, False)
+            if remaining < 0:
+                continue
+            name = str(_first(bucket, "displayName", "display_name", "name") or "")
+            order, cadence = _antigravity_cadence(
+                str(bucket.get("window") or ""), bucket_id, name
+            )
+            family.append(
+                (
+                    order,
+                    {
+                        "id": f"antigravity-{_slug(bucket_id)}",
+                        "label": f"{group_label} {cadence or name.strip() or 'Limit'}",
+                        "used": 1 - remaining,
+                        "resetsAt": _normalize_reset(
+                            _first(bucket, "resetTime", "reset_time")
+                        ),
+                    },
+                )
+            )
+        if family:
+            family.sort(key=lambda entry: entry[0])
+            families.append([window for _, window in family])
+    touched = [
+        family for family in families if any(window["used"] > 0 for window in family)
+    ]
+    return [window for family in (touched or families) for window in family]
+
+
+def _collect_antigravity(account: Account) -> Account:
+    result = _empty_result(account)
+    agy = shutil.which("agy")
+    if not agy:
+        result.update(
+            status="unavailable", statusText="Antigravity CLI is not installed"
+        )
+        return result
+    with tempfile.TemporaryDirectory(
+        prefix="stillsuit-agy-", dir=_private_runtime_parent()
+    ) as probe_value:
+        probe_dir = Path(probe_value)
+        try:
+            environment = _agy_environment(probe_dir)
+            version = _agy_version(agy, environment, probe_dir)
+        except subprocess.TimeoutExpired:
+            return _fetch_failed(result, "error", "Antigravity CLI timed out")
+        except OSError:
+            return _fetch_failed(
+                result, "unavailable", "Antigravity CLI could not start"
+            )
+        if version is None:
+            result.update(status="unavailable", statusText="Unrecognized agy version")
+            return result
+        # Older agy builds can send an unknown slash command to a model as a prompt.
+        if version < ANTIGRAVITY_MIN_VERSION:
+            result.update(status="unavailable", statusText="Update agy to show usage")
+            return result
+        try:
+            outcome, report = _run_agy_usage(agy, environment, probe_dir)
+        except OSError:
+            return _fetch_failed(result, "error", "Antigravity usage is unavailable")
+    if outcome == "signed-out":
+        result.update(status="signed-out", statusText="Run agy to sign in")
+        return result
+    if outcome == "launch-failed":
+        return _fetch_failed(result, "unavailable", "Antigravity CLI could not start")
+    if outcome == "timed-out":
+        return _fetch_failed(result, "error", "Antigravity usage timed out")
+    if outcome == "invalid":
+        return _fetch_failed(result, "error", "Antigravity returned invalid usage data")
+    if outcome != "report":
+        return _fetch_failed(result, "error", "Antigravity usage request failed")
+    windows = _antigravity_windows(report)
+    result.update(
+        windows=windows,
+        status="ready" if windows else "empty",
+        statusText="" if windows else "No limit windows returned",
+        fetchedAt=_iso_now(),
+    )
+    return result
+
+
 def _retry_at(wait: float) -> str:
     try:
         return (_utc_now() + dt.timedelta(seconds=wait)).isoformat()
@@ -692,6 +994,8 @@ def _collect_account(account: Account, force: bool) -> Account:
             return state.result
     if account["provider"] == "claude":
         result = _collect_claude(account)
+    elif account["provider"] == "antigravity":
+        result = _collect_antigravity(account)
     else:
         result = _collect_codex(account)
     failure = result.pop(FAILURE_KEY, None)
@@ -730,7 +1034,7 @@ def collect_snapshot(request: dict[str, Any]) -> Snapshot:
         results = list(
             executor.map(lambda account: _collect_account(account, force), accounts)
         )
-    order = {"codex": 0, "claude": 1}
+    order = {"codex": 0, "claude": 1, "antigravity": 2}
     results.sort(
         key=lambda account: (
             order.get(str(account.get("provider")), 9),

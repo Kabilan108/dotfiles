@@ -1,18 +1,23 @@
 # Agent usage plugin
 
-This plugin shows Codex and Claude Code subscription limits across local CLI
-profiles. Its helper never modifies the monitored profiles. OAuth tokens stay
+This plugin shows Codex, Claude Code, and Antigravity (`agy`) subscription
+limits across local CLI profiles. Its helper never modifies the monitored profiles. OAuth tokens stay
 inside the collector and never enter QML, process arguments, logs, or the
 returned snapshot.
 
 ## Account discovery
 
-The configured `homeDir` contributes both ambient profiles:
+The configured `homeDir` contributes the ambient profiles:
 
 | Provider | Config directory |
 |---|---|
 | Codex | `<homeDir>/.codex` |
 | Claude Code | `<homeDir>/.claude` |
+| Antigravity | `<homeDir>/.gemini/antigravity-cli`, listed only when `agy` is installed |
+
+agy keeps its Google sign-in in the system keyring rather than in its config
+directory, so Antigravity has only the default account: no shadow or explicit
+accounts.
 
 The collector also scans `shadowRoot`. A directory named `codex--rani` is a
 direct `CODEX_HOME`. For `claude--work`, the collector accepts both supported
@@ -60,6 +65,21 @@ deduplicated. Explicit IDs use lowercase letters, numbers, dots, and hyphens.
   usage endpoint without following redirects. An expired or absent access
   token is not refreshed by the plugin. Opening Claude Code refreshes the
   CLI-owned sign-in.
+- Antigravity runs the installed `agy -p /usage --output-format json`, the
+  non-interactive usage report, following CodexBar's print-mode source. agy
+  1.2.2 and later require a CSRF token on their local quota server, and agy
+  does not expose it. The run uses a private working directory, sends agy's
+  log there with `--log-file`, sets `AGY_CLI_DISABLE_AUTO_UPDATE=true`, and puts
+  failing `open`/`xdg-open` launchers first on `PATH`, so a probe can neither
+  update agy nor open a sign-in page. The collector requires agy 1.1.11 or
+  later, because older builds can send an unknown slash command to a model as a
+  prompt. When signed out, agy prints a sign-in URL and waits a minute. The
+  collector watches stderr for that request, stops the process group at once,
+  and reports `Run agy to sign in`; stderr is never returned. Each report shows
+  the Gemini and Claude + GPT families with their 5-hour and weekly windows,
+  plus any model-specific family such as Gemini 4 Argon. As in CodexBar, a
+  family whose every window is still unused stays hidden until it is used,
+  unless every family is unused.
 
 The service requests a snapshot when it starts and about every five minutes
 after that. Each interval is randomized by up to 10% in either direction, so
@@ -83,7 +103,7 @@ successful read clears the backoff.
 ## Presentation
 
 The bar shows the overall Weekly quota remaining for each reporting default
-Codex and Claude account. Shorter windows and model-specific limits remain in
+Codex and Claude account. Antigravity appears in the panel only. Shorter windows and model-specific limits remain in
 the panel. Signed-out providers, shadow accounts, and accounts without an
 overall Weekly window do not add marks or affect the bar value. Refreshing
 keeps the last snapshot visible until its replacement arrives.
@@ -92,4 +112,6 @@ The panel uses a flat account list with large provider marks, account names,
 plans, identities, and separators. Limit rows span the account width and use
 the provider color. Bars fill from empty to the percentage remaining, so a
 shrinking bar means the account is closer to its limit. The provider marks use
-the supplied `codex.svg` and `claude.svg` assets.
+the supplied `codex.svg`, `claude.svg`, and `antigravity.svg` assets. The
+Antigravity mark is the arch from CodexBar's logo (MIT) with a plain gradient,
+because Qt's SVG renderer does not support the original's masks and filters.

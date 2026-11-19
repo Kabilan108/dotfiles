@@ -86,11 +86,35 @@ ShellRoot {
                 status: "refresh-required",
                 statusText: "Open Claude Code to refresh sign-in",
                 windows: []
+            },
+            {
+                id: "antigravity-default",
+                provider: "antigravity",
+                source: "default",
+                label: "Default",
+                plan: "",
+                identity: "",
+                status: "ready",
+                statusText: "",
+                windows: [
+                    {
+                        id: "antigravity-gemini-5h",
+                        label: "Gemini 5 hour",
+                        used: 0.25,
+                        resetsAt: "2030-01-01T05:00:00+00:00"
+                    },
+                    {
+                        id: "antigravity-gemini-weekly",
+                        label: "Gemini Weekly",
+                        used: 0.98,
+                        resetsAt: "2030-01-08T00:00:00+00:00"
+                    }
+                ]
             }
         ]
         property var summary: ({
-                                   accountCount: 3,
-                                   readyCount: 2,
+                                   accountCount: 4,
+                                   readyCount: 3,
                                    maxUsed: 0.99
                                })
 
@@ -159,10 +183,12 @@ ShellRoot {
             verify(String(widget.secondaryIconSource) === "",
                    "signed-out default Claude hidden from bar")
             verify(widget.hasCodex && !widget.hasClaude, "only reporting default providers shown")
+            verify(widget.label === "9%" && widget.secondaryLabel === "",
+                   "Antigravity stays out of the bar")
             usage.refreshing = true
             verify(!widget.busy, "refresh keeps bar value visible")
             usage.refreshing = false
-            verify(usage.accountCount === 3 && usage.readyCount === 2, "multi-account summary")
+            verify(usage.accountCount === 4 && usage.readyCount === 3, "multi-account summary")
             verify(usage.statusRole(fakeModel.accounts[0]) === "success", "ready status role")
             verify(usage.statusRole(fakeModel.accounts[2]) === "warning", "expired status role")
             verify(usage.refresh(true) === "ok" && refreshes === 1, "refresh delegation")
@@ -236,6 +262,12 @@ ShellRoot {
                                                     })
             verify(panel !== null, "panel construction")
             panel.nowMs = Date.parse("2030-01-01T01:12:00+00:00")
+            verify(panel._providerLabel("antigravity") === "Antigravity", "Antigravity label")
+            verify(String(panel._providerIcon("antigravity")).endsWith("/assets/antigravity.svg"),
+                   "Antigravity mark")
+            verify(String(panel._providerIcon("codex")).endsWith("/assets/codex.svg"), "Codex mark")
+            verify(Qt.colorEqual(panel._providerColor("antigravity"),
+                                 fakeContext.theme.semantic.status.info), "Antigravity color")
             verify(panel._staleText(staleClaude)
                    === "Rate limited · showing data from 1h 12m ago · retry in 18m",
                    "panel stale text: " + panel._staleText(staleClaude))

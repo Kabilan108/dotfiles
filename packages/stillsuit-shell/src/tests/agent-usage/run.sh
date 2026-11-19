@@ -55,6 +55,7 @@ if rg -F 'kind: "raised"' \
 fi
 test -f "$source_root/plugins/builtin/agent-usage/assets/codex.svg"
 test -f "$source_root/plugins/builtin/agent-usage/assets/claude.svg"
+test -f "$source_root/plugins/builtin/agent-usage/assets/antigravity.svg"
 jq -e '.barWidget.defaultSection == "right" and .barWidget.order == 0' \
     "$source_root/plugins/builtin/agent-usage/manifest.json" >/dev/null
 jq -e '.barWidget.order > 0' \

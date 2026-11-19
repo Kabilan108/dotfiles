@@ -26,6 +26,7 @@ let
     pkgs.callPackage ../../../../packages/stillsuit-shell/remmina-list-helper.nix
       { };
   agentUsageHelper = pkgs.callPackage ../../../../packages/stillsuit-shell/agent-usage-helper.nix {
+    agyBin = "${homeDir}/.local/bin/agy";
     codexBin = "${homeDir}/.local/bin/codex";
   };
   clipboardCollector =

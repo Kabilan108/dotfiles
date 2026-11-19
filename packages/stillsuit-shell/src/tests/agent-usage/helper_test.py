@@ -66,6 +66,40 @@ def main() -> None:
         assert by_id["codex-rani"]["configDir"] == str(codex_shadow)
         assert by_id["claude-direct"]["configDir"] == str(direct_claude)
         assert by_id["claude-t3"]["configDir"] == str(t3_claude)
+        original_which = helper.shutil.which
+        helper.shutil.which = lambda name: None
+        try:
+            without_agy = helper.discover_accounts({"homeDir": str(home)})
+        finally:
+            helper.shutil.which = original_which
+        assert all(account["provider"] != "antigravity" for account in without_agy), (
+            "Antigravity is listed only when agy is installed"
+        )
+
+        antigravity_home = home / ".gemini" / "antigravity-cli"
+        helper.shutil.which = lambda name: "/fixture/agy" if name == "agy" else None
+        try:
+            with_agy = helper.discover_accounts({"homeDir": str(home)})
+        finally:
+            helper.shutil.which = original_which
+        assert [account["id"] for account in with_agy] == [
+            "codex-default",
+            "claude-default",
+            "antigravity-default",
+        ]
+        assert with_agy[2]["configDir"] == str(antigravity_home)
+        assert all(
+            account["provider"] != "antigravity"
+            for account in helper.discover_accounts(
+                {
+                    "homeDir": str(home),
+                    "includeDefaults": False,
+                    "accounts": [
+                        {"provider": "antigravity", "configDir": str(antigravity_home)}
+                    ],
+                }
+            )
+        ), "agy keeps its sign-in in the keyring, so only the default account exists"
 
         configured_home = root / "configured-home"
         configured = helper.discover_accounts(
@@ -321,7 +355,6 @@ for line in sys.stdin:
             }
         )
         (codex_dir / "auth.json").write_text(auth_contents)
-        original_which = helper.shutil.which
         helper.shutil.which = lambda name: str(fake_codex) if name == "codex" else None
         try:
             codex_result = helper._collect_codex(
@@ -341,6 +374,169 @@ for line in sys.stdin:
         assert rpc_error_result["statusText"] == "Codex usage is unavailable"
         assert [path.name for path in codex_dir.iterdir()] == ["auth.json"]
         assert (codex_dir / "auth.json").read_text() == auth_contents
+
+        agy_report = {
+            "groups": [
+                {
+                    "name": "Gemini Models",
+                    "buckets": [
+                        {
+                            "id": "gemini-weekly",
+                            "name": "Weekly Limit Remaining",
+                            "window": "weekly",
+                            "remaining_fraction": 0.75,
+                            "reset_time": "2030-01-08T00:00:00Z",
+                        },
+                        {
+                            "id": "gemini-5h",
+                            "name": "Five Hour Limit Remaining",
+                            "window": "5h",
+                            "remaining_fraction": 0.5,
+                            "reset_time": "2030-01-01T05:00:00Z",
+                        },
+                    ],
+                },
+                {
+                    "name": "Claude and GPT models",
+                    "buckets": [
+                        {"id": "3p-weekly", "window": "weekly", "remaining_fraction": 1},
+                        {"id": "3p-5h", "window": "5h", "remaining_fraction": 1},
+                    ],
+                },
+                {
+                    "displayName": "Gemini 4 Argon",
+                    "buckets": [
+                        {
+                            "bucketId": "gemini-argon-wtu-weekly",
+                            "displayName": "Gemini 4 Argon Weekly Limit",
+                            "remaining": {"remainingFraction": 0.9},
+                            "resetTime": "2030-01-08T00:00:00Z",
+                        },
+                        {"id": "argon-disabled", "disabled": True, "remaining_fraction": 0},
+                        {"id": "argon-unknown", "window": "5h"},
+                    ],
+                },
+            ]
+        }
+        agy_windows = helper._antigravity_windows(agy_report)
+        assert [window["label"] for window in agy_windows] == [
+            "Gemini 5 hour",
+            "Gemini Weekly",
+            "Gemini 4 Argon Weekly",
+        ], "unused families are hidden; disabled and unknown buckets are skipped"
+        assert [window["used"] for window in agy_windows] == [0.5, 0.25, 0.09999999999999998]
+        assert agy_windows[0]["id"] == "antigravity-gemini-5h"
+        assert agy_windows[1]["resetsAt"] == "2030-01-08T00:00:00+00:00"
+        untouched = helper._antigravity_windows({"groups": agy_report["groups"][1:2]})
+        assert [window["label"] for window in untouched] == [
+            "Claude + GPT 5 hour",
+            "Claude + GPT Weekly",
+        ], "every family stays visible when none has been used"
+        assert helper._antigravity_windows({"groups": "invalid"}) == []
+
+        agy_success = json.dumps(
+            {
+                "conversation_id": "",
+                "status": "SUCCESS",
+                "command": {"name": "usage", "data": agy_report},
+            }
+        )
+        fake_agy = root / "fake-agy"
+        fake_agy.write_text(
+            f"""#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+mode = os.environ.get("STILLSUIT_TEST_AGY", "success")
+if sys.argv[1:] == ["--version"]:
+    Path(os.environ["STILLSUIT_TEST_AGY_COUNT"]).open("a").write("v")
+    print({{"old": "1.1.10", "odd": "nightly"}}.get(mode, "1.5.12"))
+    raise SystemExit(0)
+args = sys.argv[1:]
+expected = ["-p", "/usage", "--output-format", "json", "--print-timeout", "25s", "--log-file"]
+if args[:-1] != expected:
+    raise SystemExit(2)
+probe = Path.cwd()
+if Path(args[-1]).parent != probe or probe.stat().st_mode & 0o777 != 0o700:
+    raise SystemExit(3)
+if os.environ.get("AGY_CLI_DISABLE_AUTO_UPDATE") != "true":
+    raise SystemExit(4)
+if subprocess.run(["xdg-open", "https://example.test"]).returncode == 0:
+    raise SystemExit(5)
+if subprocess.run([os.environ["BROWSER"], "https://example.test"]).returncode == 0:
+    raise SystemExit(6)
+if sys.stdin.read() != "":
+    raise SystemExit(7)
+Path(args[-1]).write_text("agy log")
+print("You are currently not signed in", file=sys.stderr, flush=True)
+if mode == "refreshing":
+    time.sleep(1)
+    print({agy_success!r})
+elif mode == "signed-out":
+    print("Authentication required. Please visit the URL to log in:", file=sys.stderr, flush=True)
+    print("  https://accounts.example.test/auth?secret-state", file=sys.stderr, flush=True)
+    time.sleep(60)
+elif mode == "error":
+    print('{{"status":"ERROR","error":"quota service unavailable"}}')
+else:
+    print({agy_success!r})
+"""
+        )
+        fake_agy.chmod(0o755)
+        version_count = root / "agy-version-count"
+        os.environ["STILLSUIT_TEST_AGY_COUNT"] = str(version_count)
+        agy_account = helper._account("antigravity", "Default", root, "default")
+
+        def collect_agy(mode: str) -> dict[str, Any]:
+            os.environ["STILLSUIT_TEST_AGY"] = mode
+            return helper._collect_antigravity(agy_account)
+
+        helper.shutil.which = lambda name: str(fake_agy) if name == "agy" else None
+        try:
+            agy_result = collect_agy("success")
+            assert collect_agy("success")["status"] == "ready"
+            assert version_count.read_text() == "v", "the agy version is cached per binary"
+            assert collect_agy("refreshing")["status"] == "ready", (
+                "a transient not-signed-in notice does not stop a refreshing login"
+            )
+            started = time.monotonic()
+            agy_signed_out = collect_agy("signed-out")
+            signed_out_seconds = time.monotonic() - started
+            agy_error = collect_agy("error")
+            helper._agy_versions.clear()
+            agy_old = collect_agy("old")
+            helper._agy_versions.clear()
+            agy_odd = collect_agy("odd")
+            helper._agy_versions.clear()
+        finally:
+            os.environ.pop("STILLSUIT_TEST_AGY", None)
+            os.environ.pop("STILLSUIT_TEST_AGY_COUNT", None)
+            helper.shutil.which = original_which
+        assert agy_result["status"] == "ready", agy_result
+        assert agy_result["windows"] == agy_windows
+        assert agy_result["identity"] == "" and agy_result["plan"] == ""
+        assert agy_signed_out["status"] == "signed-out"
+        assert agy_signed_out["statusText"] == "Run agy to sign in"
+        assert signed_out_seconds < 5, "a sign-in prompt stops the probe at once"
+        assert "secret-state" not in json.dumps(agy_signed_out)
+        assert agy_error["status"] == "error"
+        assert agy_error["statusText"] == "Antigravity usage request failed"
+        assert helper.FAILURE_KEY in agy_error
+        assert agy_old["statusText"] == "Update agy to show usage"
+        assert agy_odd["statusText"] == "Unrecognized agy version"
+        assert not any(
+            path.name.startswith("stillsuit-agy-")
+            for path in Path(os.environ["XDG_RUNTIME_DIR"]).iterdir()
+        ), "probe directories are removed"
+        helper.shutil.which = lambda name: None
+        try:
+            missing_agy = helper._collect_antigravity(agy_account)
+        finally:
+            helper.shutil.which = original_which
+        assert missing_agy["statusText"] == "Antigravity CLI is not installed"
 
         assert helper._retry_after_seconds("120") == 120
         assert helper._retry_after_seconds(" 0 ") == 0
@@ -492,12 +688,14 @@ for line in sys.stdin:
             return result
 
         helper._collect_account = fake_collect
+        helper.shutil.which = lambda name: None
         try:
             snapshot = helper.collect_snapshot(
                 {"homeDir": str(home), "includeDefaults": True}
             )
         finally:
             helper._collect_account = original_collect
+            helper.shutil.which = original_which
         assert snapshot["summary"] == {
             "accountCount": 2,
             "readyCount": 2,

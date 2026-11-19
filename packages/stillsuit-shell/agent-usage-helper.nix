@@ -1,4 +1,5 @@
 {
+  agyBin,
   codexBin,
   python3,
   runCommand,
@@ -6,17 +7,18 @@
 }:
 
 let
-  # Probe usage with the codex update-agents installs, the same one used
-  # interactively, not a second copy from nixpkgs. Only codex is exposed.
-  userCodex = runCommand "stillsuit-user-codex" { } ''
+  # Probe usage with the CLIs update-agents installs, the same ones used
+  # interactively, not second copies from nixpkgs. Only these are exposed.
+  userAgents = runCommand "stillsuit-user-agents" { } ''
     mkdir -p $out/bin
+    ln -s ${agyBin} $out/bin/agy
     ln -s ${codexBin} $out/bin/codex
   '';
 in
 writeShellApplication {
   name = "stillsuit-agent-usage";
   runtimeInputs = [
-    userCodex
+    userAgents
     python3
   ];
   text = ''

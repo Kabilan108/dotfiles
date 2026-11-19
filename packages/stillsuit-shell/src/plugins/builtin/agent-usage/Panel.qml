@@ -144,7 +144,7 @@ Item {
                         theme: root.context.theme
                         mode: "empty"
                         title: "No accounts found"
-                        message: "Sign in with Codex or Claude Code, or add a configured account."
+                        message: "Sign in with Codex, Claude Code or agy, or add a configured account."
                         iconName: "agent"
                     }
 
@@ -159,10 +159,8 @@ Item {
                             readonly property var account: modelData || ({})
                             readonly property var windows: account && account.windows
                                                            ? account.windows : []
-                            readonly property color providerColor: String(account.provider)
-                                                                   === "claude"
-                                                                   ? root.context.theme.semantic.status.warning :
-                                                                     root.context.theme.semantic.accent.primary
+                            readonly property color providerColor: root._providerColor(
+                                                                       account.provider)
 
                             Layout.fillWidth: true
                             spacing: 0
@@ -362,12 +360,24 @@ Item {
     }
 
     function _providerLabel(provider) {
-        return String(provider) === "claude" ? "Claude Code" : "Codex"
+        var name = String(provider)
+        return name === "claude" ? "Claude Code" : name === "antigravity" ? "Antigravity" : "Codex"
     }
 
     function _providerIcon(provider) {
-        return String(provider) === "claude" ? Qt.resolvedUrl("assets/claude.svg") : Qt.resolvedUrl(
-                                                   "assets/codex.svg")
+        var name = String(provider)
+        return Qt.resolvedUrl("assets/" + (name === "claude" || name === "antigravity" ? name :
+                                                                                         "codex")
+                              + ".svg")
+    }
+
+    function _providerColor(provider) {
+        var name = String(provider)
+        if (name === "claude")
+            return context.theme.semantic.status.warning
+        if (name === "antigravity")
+            return context.theme.semantic.status.info
+        return context.theme.semantic.accent.primary
     }
 
     function _statusColor(account) {
