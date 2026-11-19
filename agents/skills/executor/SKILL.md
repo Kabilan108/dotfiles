@@ -17,7 +17,8 @@ Accounts are linked in Executor. Where an app has several, hand-written tools ta
 
 Agents sign in with browser approvals. A call that needs Tony's approval returns an `approvalUrl` and a `requestId` instead of a result. Approving in the browser only records his answer: the call runs when you call `resume({ requestId })`, and the request expires about 10 to 15 minutes after it was issued. So keep your turn open:
 - Show Tony the link while you work, without ending your turn. In T3 Code, send it with `send_to_user`; text before a tool call may not reach him.
-- Call `resume({ requestId })` straight away, and again while it returns the same pending request, until it completes, is refused or expires.
+- Check whether Tony has decided with `tools.executor.toolCalls.list({ query: { status: "awaiting-approval" } })` and each entry's `approval.decision`. Don't poll with `resume`: while the request is pending it echoes the whole call input, which can be hundreds of KB for an app commit.
+- Once he has decided, call `resume({ requestId })` once to run the call and collect its result.
 - If it expires, say so and issue the call again with a fresh link, rather than assuming it ran.
 
 A refused call is final: report it rather than retrying another way.
