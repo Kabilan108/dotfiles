@@ -17,7 +17,7 @@ skill installs everywhere. --host previews/selects a target host.
 Use DOTFILES_DIR to select a checkout; default is ~/dotfiles.
 
 Sources:
-  agents/skills           -> claude, codex, opencode
+  agents/skills           -> claude, codex, opencode, antigravity
   agents/claude-skills    -> claude
   agents/codex-skills     -> codex
   agents/opencode-skills  -> opencode
@@ -26,6 +26,7 @@ Targets:
   agents/claude/skills
   agents/codex/skills
   agents/opencode/skills
+  agents/antigravity/skills
 EOF
 }
 
@@ -81,6 +82,7 @@ declare -A target_dirs=(
   [claude]="$agents_dir/claude/skills"
   [codex]="$agents_dir/codex/skills"
   [opencode]="$agents_dir/opencode/skills"
+  [antigravity]="$agents_dir/antigravity/skills"
 )
 
 declare -A desired_sources=()

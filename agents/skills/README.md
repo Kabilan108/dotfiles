@@ -9,4 +9,4 @@ metadata:
   fleet-hosts: sietch            # or "sietch,jacurutu"
 ```
 
-`bin/sync-agent-skills` installs shared and harness-specific skills for Claude, Codex, and OpenCode. Use `--dry-run --host jacurutu` or `--host sietch` to inspect availability. Project-local skills live in the owning repository’s `.agents/skills/` directory. Pi’s separately managed skill directory is not covered by this sync command.
+`bin/sync-agent-skills` installs shared and harness-specific skills for Claude, Codex, OpenCode, and Antigravity (shared skills only). Use `--dry-run --host jacurutu` or `--host sietch` to inspect availability. Project-local skills live in the owning repository’s `.agents/skills/` directory. Pi’s separately managed skill directory is not covered by this sync command.

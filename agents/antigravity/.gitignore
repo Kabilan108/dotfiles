@@ -1,0 +1,7 @@
+*
+!.gitignore
+!AGENTS.md
+!mcp_config.json
+!skills/
+skills/*
+!skills/.gitignore

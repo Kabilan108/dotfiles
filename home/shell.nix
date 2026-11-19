@@ -103,6 +103,12 @@ in
     ".claude".source = agentLink "claude";
     ".codex".source = agentLink "codex";
     ".config/opencode".source = agentLink "opencode";
+    # agy writes elsewhere in ~/.gemini, so only its shared config dir is linked.
+    # force lets activation replace a hand-made link to the same checkout.
+    ".gemini/config" = {
+      source = agentLink "antigravity";
+      force = true;
+    };
 
     ".gitconfig".source = cfgLink ".gitconfig";
     ".ipython/profile_default/ipython_config.py".source = cfgLink "ipython_config.py";
