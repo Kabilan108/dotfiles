@@ -6,8 +6,8 @@
 		"tag:agent": ["autogroup:admin"],
 
 		// tleilax: credential services (Executor v2, atlas). Vaultwarden was
-		// retired in favour of 1Password, and Executor v1 is replaced by v2
-		// rather than moved here.
+		// retired in favour of 1Password, and Executor v1 was retired from
+		// sietch rather than moved here.
 		"tag:credentials": ["autogroup:admin"],
 
 		// machines that exclusively need media (sietch::jellyfin) access
@@ -29,9 +29,6 @@
 			"svc:blocky":      ["tag:server"],
 			"svc:cliproxyapi": ["tag:server"],
 			"svc:cpa-admin":   ["tag:server"],
-			// tag:server stays until Executor leaves sietch (stage 5); drop it
-			// in the same change that retires sietch's copy.
-			"svc:executor": ["tag:server", "tag:credentials"],
 			"svc:executor-v2": ["tag:credentials"],
 			"svc:hark":     ["tag:server"],
 			"svc:jellyfin": ["tag:server"],
@@ -97,7 +94,6 @@
 		{
 			"src": ["autogroup:member"],
 			"dst": [
-				"svc:executor",
 				"svc:executor-v2",
 				"svc:hark",
 				"svc:jellyfin",
@@ -114,7 +110,6 @@
 			"dst": [
 				"svc:cliproxyapi",
 				"svc:siren",
-				"svc:executor",
 				"svc:executor-v2",
 				"svc:hark",
 			],
@@ -134,11 +129,11 @@
 		{"src": ["tag:credentials"], "dst": ["svc:hark"], "ip": ["tcp:443"]},
 		{"src": ["tag:credentials"], "dst": ["tag:nas"], "ip": ["tcp:445"]},
 
-		// Grokbot reaches both Executors and sietch's T3 Code (Tailscale Serve on the
+		// Grokbot reaches Executor v2 and sietch's T3 Code (Tailscale Serve on the
 		// machine's own HTTPS address, which carries the T3 MCP) and nothing else.
 		{
 			"src": ["tag:grokbot"],
-			"dst": ["svc:executor", "svc:executor-v2", "sietch"],
+			"dst": ["svc:executor-v2", "sietch"],
 			"ip":  ["tcp:443"],
 		},
 
@@ -146,7 +141,7 @@
 		{"src": ["tag:media"], "dst": ["svc:jellyfin"], "ip": ["tcp:443"]},
 		{
 			"src": ["tag:agent"],
-			"dst": ["svc:cliproxyapi", "svc:siren", "svc:executor", "svc:hark"],
+			"dst": ["svc:cliproxyapi", "svc:siren", "svc:hark"],
 			"ip":  ["tcp:443"],
 		},
 	],
@@ -237,7 +232,7 @@
 		},
 		{
 			"src":    "tag:grokbot",
-			"accept": ["svc:executor:443", "svc:executor-v2:443", "sietch:443"],
+			"accept": ["svc:executor-v2:443", "sietch:443"],
 			"deny": [
 				"sietch:22",
 				"sietch:8096",

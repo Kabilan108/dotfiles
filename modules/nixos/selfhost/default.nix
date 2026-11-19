@@ -10,7 +10,6 @@
     ./sera.nix
     ./cliproxyapi.nix
     ./cpa-usage-front.nix
-    ./executor.nix
     ./hark.nix
     ./jellyfin.nix
     ./library.nix

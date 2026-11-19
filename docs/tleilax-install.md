@@ -168,10 +168,7 @@ step 9. Don't run `agenix -e` on a tleilax file before step 7: until then,
 
 1. Paste `docs/tailscale-policy.jsonc` into the policy editor and save. It
    adds `tag:credentials`, drops sietch's grant to tleilax and lets
-   `tag:credentials` reach `svc:hark` for alerts. `tag:server` (sietch)
-   stays an approver for `svc:executor` until Executor moves in stage 5, so
-   sietch's Executor keeps working through this install. Removing
-   `tag:server` there is part of stage 5.
+   `tag:credentials` reach `svc:hark` for alerts.
 2. Make the key tleilax uses to join the tailnet on its first boot. Go to
    **Settings → Keys → Generate auth key** and set:
    - **Description:** `tleilax first boot`
