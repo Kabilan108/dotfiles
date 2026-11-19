@@ -7,3 +7,12 @@ backend = "aqua:vercel-labs/agent-browser"
 [tools.agent-browser."platforms.linux-x64"]
 checksum = "sha1:7e7761892777264352010d1a4e247566255d7d9d"
 url = "https://registry.npmjs.org/agent-browser/-/agent-browser-0.39.4.tgz"
+
+[[tools.gog]]
+version = "0.48.0"
+backend = "aqua:openclaw/gogcli"
+
+[tools.gog."platforms.linux-x64"]
+checksum = "sha256:8809d2f4fe95a0299b1a2a5c6bc912c4aba4b90a7b5e2c1f5cf11b9945a50004"
+url = "https://github.com/openclaw/gogcli/releases/download/v0.48.0/gogcli_0.48.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/openclaw/gogcli/releases/assets/714816349"

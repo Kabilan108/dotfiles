@@ -25,9 +25,10 @@ fi
 
 export MISE_GLOBAL_CONFIG_FILE="$PWD/config/mise/config.toml"
 export MISE_CEILING_PATHS="$PWD"
-mise upgrade --global agent-browser
-mise install --locked agent-browser
+mise upgrade --global agent-browser gog
+mise install --locked agent-browser gog
 mise exec --locked -- agent-browser --version
+mise exec --locked -- gog --version
 
 if git diff --quiet -- config/mise/mise.lock; then
   echo 'Mise lock is already current.'

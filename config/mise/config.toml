@@ -6,7 +6,9 @@ aqua.registries = ["file:///home/kabilan/dotfiles/config/mise/registry.yaml"]
 
 [tool_alias]
 agent-browser = "aqua:vercel-labs/agent-browser"
+gog = "aqua:openclaw/gogcli"
 
 [tools]
 # Track eligible releases; mise.lock pins the version used by the launcher.
 agent-browser = "latest"
+gog = "latest"

@@ -34,10 +34,10 @@ let
     done
 
     # Install the shared lock without selecting releases or modifying Git files.
-    update_tool agent-browser ${pkgs.coreutils}/bin/env \
+    update_tool mise-tools ${pkgs.coreutils}/bin/env \
       MISE_GLOBAL_CONFIG_FILE=${lib.escapeShellArg "${homeDir}/dotfiles/config/mise/config.toml"} \
       MISE_CEILING_PATHS="$PWD" \
-      ${lib.getExe pkgs.mise} install --locked agent-browser
+      ${lib.getExe pkgs.mise} install --locked agent-browser gog
 
     if (( ''${#failures[@]} )); then
       printf 'Tool updates failed: %s\n' "''${failures[*]}" >&2

@@ -15,19 +15,15 @@ let
     export GOG_HOME=${lib.escapeShellArg gogHome}
     export GOG_KEYRING_BACKEND=file
 
-    exec ${lib.getExe cfg.package} "$@"
+    # Use the shared lock even inside a project with its own mise config.
+    export MISE_GLOBAL_CONFIG_FILE=${lib.escapeShellArg "${config.home.homeDirectory}/dotfiles/config/mise/config.toml"}
+    export MISE_CEILING_PATHS="$PWD"
+    exec ${lib.getExe pkgs.mise} exec --locked -- gog "$@"
   '';
 in
 {
   options.programs.gogcli = {
     enable = lib.mkEnableOption "gog Google Workspace CLI with headless authentication";
-
-    package = lib.mkOption {
-      type = lib.types.package;
-      default = pkgs.callPackage ../../packages/gogcli.nix { };
-      defaultText = lib.literalExpression "pkgs.callPackage ../../packages/gogcli.nix { }";
-      description = "The gogcli package to wrap.";
-    };
 
     oauthClientFile = lib.mkOption {
       type = lib.types.str;
@@ -43,7 +39,10 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ gog ];
+    home.packages = [
+      pkgs.mise
+      gog
+    ];
 
     home.activation.initializeGogcli = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       if [[ -r ${lib.escapeShellArg cfg.oauthClientFile} && -r ${lib.escapeShellArg cfg.keyringEnvironmentFile} ]]; then
