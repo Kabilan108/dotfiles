@@ -141,7 +141,7 @@
 		{"src": ["tag:media"], "dst": ["svc:jellyfin"], "ip": ["tcp:443"]},
 		{
 			"src": ["tag:agent"],
-			"dst": ["svc:cliproxyapi", "svc:siren", "svc:hark"],
+			"dst": ["svc:cliproxyapi", "svc:siren", "svc:executor-v2", "svc:hark"],
 			"ip":  ["tcp:443"],
 		},
 	],
@@ -227,7 +227,7 @@
 		},
 		{
 			"src":    "tag:agent",
-			"accept": ["svc:cliproxyapi:443"],
+			"accept": ["svc:cliproxyapi:443", "svc:executor-v2:443"],
 			"deny":   ["svc:cpa-admin:443"],
 		},
 		{
