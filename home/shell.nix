@@ -109,6 +109,9 @@ in
       source = agentLink "antigravity";
       force = true;
     };
+    # Keep CLI settings separate from agents/antigravity so settings.json does
+    # not also appear inside ~/.gemini/config.
+    ".gemini/antigravity-cli/settings.json".source = agentLink "antigravity-cli/settings.json";
 
     ".gitconfig".source = cfgLink ".gitconfig";
     ".ipython/profile_default/ipython_config.py".source = cfgLink "ipython_config.py";
