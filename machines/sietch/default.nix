@@ -27,21 +27,6 @@
   # backends included) needs sudo. The empty value clears the shared default.
   services.tailscale.extraSetFlags = lib.mkForce [ "--operator=" ];
 
-  # A bind mount rather than a symlink, so ~/repos/x and /vault/repos/x are one
-  # path to tools like direnv that key their allow lists on the path.
-  fileSystems."/home/kabilan/repos" = {
-    device = "/vault/repos";
-    fsType = "none";
-    options = [ "bind" ];
-  };
-  # systemd won't mount over the old symlink; swap it for a directory first.
-  system.activationScripts.reposMountpoint = ''
-    if [ -L /home/kabilan/repos ]; then
-      rm /home/kabilan/repos
-      install -d -m 0755 -o kabilan -g users /home/kabilan/repos
-    fi
-  '';
-
   # Leave Bluetooth available for deliberate use, but keep its radio off on boot.
   hardware.bluetooth.powerOnBoot = lib.mkForce false;
 

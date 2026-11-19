@@ -57,6 +57,7 @@
             ./user.nix
             ./modules/nixos/docker.nix
             ./modules/nixos/fleet.nix
+            ./modules/nixos/repos-mount.nix
             ./modules/nixos/backup
             ./modules/nixos/deploy
             ./modules/nixos/moberg-vpn.nix
