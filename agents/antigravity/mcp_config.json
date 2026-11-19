@@ -2,11 +2,11 @@
   "mcpServers": {
     "deepwiki": {
       "disabled": false,
-      "serverUrl": "https://mcp.deepwiki.com/mcp"
+      "url": "https://mcp.deepwiki.com/mcp"
     },
     "executor": {
       "disabled": false,
-      "serverUrl": "https://executor-v2.sole-pierce.ts.net/mcp?elicitation_mode=browser"
+      "url": "https://executor-v2.sole-pierce.ts.net/mcp?elicitation_mode=browser"
     }
   }
 }

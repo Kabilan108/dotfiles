@@ -44,6 +44,98 @@ let
 
   colors = config.lib.stylix.colors.withHashtag;
   themeName = "stylix";
+
+  # agy rewrites ~/.gemini/antigravity-cli/settings.json atomically (replacing
+  # symlinks), and T3 Code isolates GEMINI_HOME per provider instance while only
+  # symlinking config/skills. Enforce CLI baseline settings in place (preserving
+  # runtime-added keys and trustedWorkspaces) and bridge AGENTS.md, mcp_config.json,
+  # and mcp_oauth_tokens.json into existing T3 Antigravity profiles.
+  # Tradeoffs:
+  # - T3 disables Antigravity as a background text-generation model when a profile
+  #   has non-empty mcp_config.json (fine while textGenerationModelSelection uses Codex).
+  # - New or reset T3 profiles are bridged on the next home-manager activation.
+  syncAntigravityConfig = pkgs.writeShellApplication {
+    name = "sync-antigravity-config";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.diffutils
+      pkgs.jq
+    ];
+    text = ''
+      repo_root="''${DOTFILES_DIR:-$HOME/dotfiles}"
+      cli_dir="$HOME/.gemini/antigravity-cli"
+      settings="$cli_dir/settings.json"
+      defaults="$repo_root/agents/antigravity-cli/settings.json"
+
+      tmp=""
+      cleanup() {
+        if [[ -n "$tmp" ]]; then
+          rm -f "$tmp"
+        fi
+      }
+      trap cleanup EXIT
+
+      if [[ -r "$defaults" ]]; then
+        mkdir -p "$cli_dir"
+        if [[ ! -e "$settings" ]] || [[ -f "$settings" && ! -s "$settings" ]]; then
+          rm -f "$settings"
+          install -m 0600 "$defaults" "$settings"
+        elif jq -e 'type == "object"' "$settings" >/dev/null 2>&1; then
+          tmp="$(mktemp "$cli_dir/.settings.json.XXXXXX")"
+          jq -s '
+            def dedup: reduce .[] as $x ([]; if index($x) then . else . + [$x] end);
+            .[0] as $cur | .[1] as $def |
+            ($cur * $def)
+            | if (($cur.trustedWorkspaces | type) == "array") or (($def.trustedWorkspaces | type) == "array") then
+                .trustedWorkspaces = ((
+                  (if ($cur.trustedWorkspaces | type) == "array" then $cur.trustedWorkspaces else [] end)
+                  + (if ($def.trustedWorkspaces | type) == "array" then $def.trustedWorkspaces else [] end)
+                ) | dedup)
+              else . end
+          ' "$settings" "$defaults" > "$tmp"
+          chmod 0600 "$tmp"
+          if [[ -L "$settings" ]] || ! cmp -s "$tmp" "$settings"; then
+            mv -f "$tmp" "$settings"
+          else
+            rm -f "$tmp"
+          fi
+          tmp=""
+        else
+          echo "sync-antigravity-config: skipping merge for non-object JSON at $settings" >&2
+        fi
+      fi
+
+      ensure_link() {
+        local target="$1" link_path="$2"
+        if [[ -L "$link_path" && "$(readlink "$link_path")" == "$target" ]]; then
+          return 0
+        fi
+        if [[ ! -e "$link_path" && ! -L "$link_path" ]] || [[ -L "$link_path" ]] || [[ -f "$link_path" && ! -s "$link_path" ]]; then
+          mkdir -p "$(dirname "$link_path")"
+          ln -sfnT "$target" "$link_path"
+        else
+          echo "sync-antigravity-config: leaving non-empty file untouched: $link_path" >&2
+        fi
+      }
+
+      t3_root="$HOME/.t3/userdata/providers/antigravity"
+      if [[ -d "$t3_root" ]]; then
+        shopt -s nullglob
+        for profile in "$t3_root"/*/; do
+          profile="''${profile%/}"
+          if [[ -e "$HOME/.gemini/config/AGENTS.md" ]]; then
+            ensure_link "$HOME/.gemini/config/AGENTS.md" "$profile/config/AGENTS.md"
+          fi
+          if [[ -e "$HOME/.gemini/config/mcp_config.json" ]]; then
+            ensure_link "$HOME/.gemini/config/mcp_config.json" "$profile/config/mcp_config.json"
+          fi
+          if [[ -d "$profile/antigravity-acp" && -d "$cli_dir" ]]; then
+            ensure_link "$cli_dir/mcp_oauth_tokens.json" "$profile/antigravity-acp/mcp_oauth_tokens.json"
+          fi
+        done
+      fi
+    '';
+  };
 in
 {
   imports = [
@@ -109,9 +201,6 @@ in
       source = agentLink "antigravity";
       force = true;
     };
-    # Keep CLI settings separate from agents/antigravity so settings.json does
-    # not also appear inside ~/.gemini/config.
-    ".gemini/antigravity-cli/settings.json".source = agentLink "antigravity-cli/settings.json";
 
     ".gitconfig".source = cfgLink ".gitconfig";
     ".ipython/profile_default/ipython_config.py".source = cfgLink "ipython_config.py";
@@ -139,6 +228,10 @@ in
 
   home.activation.syncAgentSkills = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     PATH="${pkgs.jq}/bin:$PATH" $DRY_RUN_CMD ${homeDir}/dotfiles/bin/sync-agent-skills
+  '';
+
+  home.activation.syncAntigravityConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    $DRY_RUN_CMD ${lib.getExe syncAntigravityConfig}
   '';
 
   # nix-direnv
