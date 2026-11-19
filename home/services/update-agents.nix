@@ -54,6 +54,7 @@ let
     update_agent codex codex update
     update_agent pi pi update
     update_agent claude claude upgrade
+    update_agent agy agy update
 
     if (( ''${#failures[@]} )); then
       printf 'Agent updates failed: %s\n' "''${failures[*]}" >&2
