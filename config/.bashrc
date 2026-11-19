@@ -201,6 +201,26 @@ function fvi() {
   nvim -- "$file"
 }
 
+# agy skips the system keyring whenever SSH_* env vars are set, even when the
+# user D-Bus session bus and unlocked gnome-keyring are reachable. Hide SSH_*
+# from agy when the local session bus exists so SSH/tmux sessions reuse the same
+# keyring sign-in as desktop and T3 Code.
+function agy() {
+  local bin bus
+  bin="$(type -P agy)" || {
+    echo "agy: command not found" >&2
+    return 127
+  }
+  bus="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus"
+  if [[ -S "$bus" ]]; then
+    env -u SSH_CONNECTION -u SSH_CLIENT -u SSH_TTY \
+      DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$bus}" \
+      "$bin" "$@"
+  else
+    "$bin" "$@"
+  fi
+}
+
 ### -> ALIASES
 
 # interactive ssh WITHOUT auto-attaching the remote tmux session
