@@ -368,7 +368,7 @@ Hardening posture per service type:
 - **Own flake modules** (siren): baseline is dedicated user + `NoNewPrivileges`,
   `PrivateTmp`, `ProtectSystem=strict`, `ProtectHome`, `ReadWritePaths` scoped;
   no `PrivateDevices` when GPU access is needed.
-- **Containers** (executor): namespace isolation instead; images digest-pinned
+- **Containers**: namespace isolation instead; images digest-pinned
   (`bin/image-pins`, `update-image-pins` skill), never auto-pulled.
 
 Accepted trade-offs (deliberate, revisit if threat model shifts):
@@ -383,21 +383,12 @@ from user-level malware. The remaining levers are the `docker` group
 (root-equivalent for kabilan) and the sandboxing track below. Tracked with
 backups in dotfiles issue #7.
 
-### Executor (MCP gateway) — part of the secrets-off-disk track
+### Executor (MCP gateway)
 
-Executor (`executor.sole-pierce.ts.net`, added 2026-07-08) is not just another
-service: it centralizes agent tool credentials server-side, encrypted at rest
-(`EXECUTOR_SECRET_KEY`, held in agenix — a stolen `data.db` alone is not
-decryptable). Agents authenticate to `/mcp` with per-agent bearer tokens/OAuth
-and never see upstream credentials; per-tool policies (allow/approve/block) are
-a single choke point for what agents may invoke.
-
-- **Plan:** migrate per-agent MCP endpoints and API keys out of agent config
-  files into Executor connections, so agent configs hold only an executor
-  token. Directly serves priority #2 (secrets off disk) for the agent fleet.
-- **Do not flip `EXECUTOR_ALLOW_LOCAL_NETWORK`** (default/pinned `false`): its
-  QuickJS sandbox executes semi-trusted code, and loopback on sietch includes
-  jellyfin and siren.
+Executor v2 runs on tleilax (`executor-v2.sole-pierce.ts.net`, see
+`machines/tleilax/executor.nix`). It holds agent tool credentials encrypted at
+rest, and agents reach it with per-agent tokens. sietch's v1 instance was
+retired in November 2026; sietch's agents now reach v2 over `svc:executor-v2`.
 
 ---
 
@@ -462,7 +453,7 @@ elevated host access.
 
 Restic to the NAS replaced the Google Drive screenshot job (`docs/backups.md`).
 
-- [x] Executor and Hark state in sietch's `services` job.
+- [x] Hark state in sietch's `services` job; Executor v2 state on tleilax.
 - [x] Encrypted at rest (Restic) and in transit (SMB 3.1.1 encryption).
 - [x] Older restore points survive a wiped client: the NAS's immutable snapshots.
 - [x] Google Drive dropped as a target.

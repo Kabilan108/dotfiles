@@ -34,8 +34,13 @@ sudo restic-files restore SNAPSHOT_ID --target /tmp/restore \
 
 Files appear beneath the target with their snapshot paths. For service databases,
 restore the staged copy under `/var/lib/backup-staging/services/<name>/`, run
-`sqlite3 <copy> 'PRAGMA integrity_check;'`, then test the application. Executor
-also needs its original `EXECUTOR_SECRET_KEY` to read encrypted data.
+`sqlite3 <copy> 'PRAGMA integrity_check;'`, then test the application.
+
+Executor v1 was retired from sietch in November 2026, and sietch's `services`
+job no longer backs it up. Snapshots taken before then still hold
+`/var/lib/executor` and the staged `executor` database. Reading its encrypted
+data needs v1's `EXECUTOR_SECRET_KEY`, from `secrets/selfhost/executor-env.age`
+in git history.
 
 Vaultwarden was retired in favour of 1Password in November 2026, and sietch's
 `services` job no longer backs it up. Snapshots taken before then still hold

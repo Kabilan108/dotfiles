@@ -122,24 +122,11 @@
         "/vault/userdata/media"
       ];
       services = {
-        paths = [
-          "/var/lib/executor"
-          "/vault/userdata/hark-server"
-        ];
-        exclude = [
-          "/var/lib/executor/data.db*"
-          "/vault/userdata/hark-server/hark.sqlite*"
-        ];
-        sqlite = {
-          # The container's distroless nonroot user, with no entry on the host.
-          executor = {
-            database = "/var/lib/executor/data.db";
-            user = "65532";
-          };
-          hark = {
-            database = "/vault/userdata/hark-server/hark.sqlite";
-            user = "hark";
-          };
+        paths = [ "/vault/userdata/hark-server" ];
+        exclude = [ "/vault/userdata/hark-server/hark.sqlite*" ];
+        sqlite.hark = {
+          database = "/vault/userdata/hark-server/hark.sqlite";
+          user = "hark";
         };
       };
     };

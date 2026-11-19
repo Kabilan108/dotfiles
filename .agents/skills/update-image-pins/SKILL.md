@@ -36,7 +36,7 @@ flake inputs update via `nix flake update <input>`.
 
    ```sh
    bin/image-pins update            # all drifted
-   bin/image-pins update executor   # one image, by substring
+   bin/image-pins update <name>     # one image, by substring
    ```
 
    (Or Edit the `.nix` file directly — the pin line is self-describing.)
