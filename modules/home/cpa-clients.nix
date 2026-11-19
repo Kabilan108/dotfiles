@@ -1,4 +1,9 @@
-{ config, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   # CLIProxyAPI on sietch. Its access key is a tailnet-only shared key, not a
   # secret; the tailscale policy is what limits who can reach the service.
@@ -16,7 +21,6 @@ let
       unset ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN
       export ANTHROPIC_BASE_URL=${cpaUrl}
       export ANTHROPIC_AUTH_TOKEN=${cpaKey}
-      export CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1
       exec ${claudeBin} "$@"
     '';
   };
@@ -32,15 +36,28 @@ let
     '';
   };
 
+  # Each wrapper reaches only its own subscription's models, so no account
+  # serves another vendor's harness. CPA's Antigravity models carry their own
+  # IDs (claude-*-high, gemini-*), distinct from the Anthropic and OpenAI ones.
+  #
   # Antigravity's enterprise gateway mode skips Google sign-in and speaks the
   # Gemini API, which CPA serves on /v1beta. Without a model list agy offers
   # CPA's whole catalog in arbitrary order and starts on its first entry.
+  antigravityModels = [
+    "gemini-4-hydrogen-xhigh"
+    "gemini-4-argon-high"
+    "gemini-4-neon-xhigh"
+    "gemini-3.8-flash-high"
+    "claude-opus-5-5-high"
+    "claude-sonnet-5-5-high"
+    "gpt-oss-120b-medium"
+  ];
   agy-cpa = pkgs.writeShellApplication {
     name = "agy-cpa";
     text = ''
       export AGY_LLM_GATEWAY_URL=${cpaUrl}
       export AGY_LLM_GATEWAY_API_KEY=${cpaKey}
-      export AGY_LLM_GATEWAY_MODELS="''${AGY_LLM_GATEWAY_MODELS:-claude-opus-5-5,claude-sonnet-5-5,claude-fable-5-2,claude-haiku-5-5,gpt-6.1-sol,gpt-6.2-sol,gpt-6-astra}"
+      export AGY_LLM_GATEWAY_MODELS=${lib.concatStringsSep "," antigravityModels}
       exec ${agyBin} "$@"
     '';
   };
