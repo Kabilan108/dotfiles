@@ -101,7 +101,7 @@ in
 
     virtualisation.oci-containers.containers.executor-v2 = {
       # Bump by tag (each beta is a new tag), then re-pin the digest.
-      image = "ghcr.io/usefulsoftwareco/executor-selfhost:2.0.0-beta.54@sha256:4a6cdf338ad62ec85a08986518f60cc9dc1d3f81a1468b1f7d7ecef6ca20d16b";
+      image = "ghcr.io/usefulsoftwareco/executor-selfhost:2.0.0-beta.61@sha256:9ac9dd7c64d78cc166d9fba0ec277eaaee67166b741b67eec31d64562a1fcf98";
       user = "${id}:${id}";
       volumes = [
         "/var/lib/executor-v2:/app/data"
@@ -114,6 +114,8 @@ in
         PORT = toString port;
         BETTER_AUTH_URL = "https://executor-v2.sole-pierce.ts.net";
         EXECUTOR_DISABLE_ANALYTICS = "1";
+        # This PR flow tracks releases, so skip the daily npm dist-tags check.
+        EXECUTOR_NO_UPDATE_CHECK = "1";
         EXECUTOR_APPS_ALLOW_PRIVATE_FETCH = lib.boolToString (
           cfg.localServices != { } || cfg.officeServices != [ ]
         );
