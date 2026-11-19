@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>TITLE · Moberg Analytics</title>
+<style>
+  :root {
+    color-scheme: light;
+    --blue: #207dea;
+    --blue-dark: #1459ad;
+    --blue-tint: #eef5fe;
+    --blue-line: #cfe2fb;
+    --ink: #14213d;
+    --ink-soft: #4a5875;
+    --line: #e3e8f0;
+    --page: #ffffff;
+    --panel: #f7f9fc;
+    --code-bg: #f4f7fb;
+    --warn: #8a5a00;
+    --warn-line: #e0a020;
+    --warn-tint: #fff7e6;
+  }
+  html { background: var(--page); color: var(--ink); }
+  body {
+    margin: 0;
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--page);
+    color: var(--ink);
+  }
+  header.top { border-bottom: 4px solid var(--blue); background: var(--page); }
+  .top-inner, main, footer { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+  .top-inner { display: flex; align-items: center; gap: 16px; padding-top: 22px; padding-bottom: 18px; }
+  .top-inner img { width: 56px; height: 56px; flex: none; }
+  .brand { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--blue); font-weight: 700; margin: 0; }
+  h1 { font-size: 28px; line-height: 1.2; margin: 2px 0 0; }
+  .freshness { color: var(--ink-soft); font-size: 14px; margin: 18px 0 0; }
+  .lead { font-size: 18px; color: var(--ink-soft); margin: 16px 0 0; }
+  h2 { font-size: 21px; margin: 44px 0 10px; padding-top: 6px; }
+  h2 .num { display: inline-block; min-width: 28px; height: 28px; line-height: 28px; text-align: center; border-radius: 50%; background: var(--blue); color: #fff; font-size: 15px; margin-right: 10px; vertical-align: 2px; }
+  h3 { font-size: 17px; margin: 26px 0 6px; }
+  a { color: var(--blue-dark); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-left: 3px solid var(--blue); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 26px 0 6px; padding: 0; list-style: none; }
+  .steps li { background: var(--blue-tint); border: 1px solid var(--blue-line); border-radius: 8px; padding: 12px 14px; font-size: 14px; }
+  .steps li b { display: block; color: var(--blue-dark); font-size: 15px; margin-bottom: 2px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 20px 8px; margin-top: 22px; }
+  .panel h3 { margin-top: 14px; }
+  .panel ul { padding-left: 20px; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; margin: 12px 0; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { background: var(--blue-tint); color: var(--blue-dark); font-weight: 600; border-bottom: 1px solid var(--blue-line); }
+  td code { white-space: nowrap; }
+  .note { background: var(--blue-tint); border-left: 3px solid var(--blue); padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 14px 0; }
+  .warn { background: var(--warn-tint); border-left: 3px solid var(--warn-line); padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 14px 0; }
+  .warn b { color: var(--warn); }
+  details { border: 1px solid var(--line); border-radius: 6px; padding: 8px 14px; margin: 12px 0; }
+  details summary { cursor: pointer; font-weight: 600; color: var(--blue-dark); }
+  .links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+  .links a { display: block; border: 1px solid var(--blue-line); border-radius: 8px; padding: 12px 14px; text-decoration: none; background: var(--page); }
+  .links a b { display: block; color: var(--blue-dark); }
+  .links a span { color: var(--ink-soft); font-size: 14px; }
+  footer { margin-top: 56px; padding-top: 18px; padding-bottom: 40px; border-top: 1px solid var(--line); color: var(--ink-soft); font-size: 14px; }
+  @media (max-width: 640px) {
+    h1 { font-size: 23px; }
+    .top-inner img { width: 44px; height: 44px; }
+    .steps, .links { grid-template-columns: 1fr 1fr; }
+    td code { white-space: normal; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <img src="data:image/png;base64,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" alt="Moberg Analytics logo">
+    <div>
+      <p class="brand">Moberg Analytics</p>
+      <h1>TITLE</h1>
+    </div>
+  </div>
+</header>
+
+<main>
+  <p class="freshness" data-freshness>Updated DAY MONTH YEAR · WHAT THIS COVERS</p>
+  <p class="lead">What this page is and what the reader gets from it.</p>
+
+  <h2 id="section">Section</h2>
+  <p>Content.</p>
+</main>
+
+<footer>
+  © YEAR Moberg Analytics, Inc. Questions: <a href="mailto:CONTACT">CONTACT</a>
+</footer>
+</body>
+</html>

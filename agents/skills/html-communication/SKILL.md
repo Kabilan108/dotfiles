@@ -47,6 +47,8 @@ PageBin shows the page edge to edge over white, and none of a thread's theme var
 - Pick a palette that suits this page, name its variables yourself, and set the background and text colour on `html` or `body`. A page that follows the reader's light/dark setting defines both palettes.
 - Keep text at least 16px from the screen edge on a phone: pad `body`, `main` or the outer wrapper.
 
+Load the [Moberg Analytics template](references/moberg-analytics.md) only when Tony asks for it by name.
+
 ### Page shape
 
 - **Skimmable top layer.** What this is, the outcome or main claims, and what you need from the reader. Depth (evidence, method, raw tables, long excerpts) goes in collapsible sections under the point it supports. A dense subject stays as dense as it needs to be, one level down.
