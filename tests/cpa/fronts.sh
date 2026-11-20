@@ -104,6 +104,24 @@ migration_fixture_checks() {
   check "second preStart creates no extra backup" test "${#backups[@]}" -eq 1
   check "second preStart leaves the backup intact" cmp -s "$here/legacy.yaml" "$backup"
 
+  section "legacy migration tolerates what CPA tolerates"
+  config=$run/tolerant/config.yaml
+  mkdir -p "$run/tolerant"
+  cp "$here/legacy.yaml" "$config"
+  "$yq" -i '."claude-api-key" = [null] + ."claude-api-key" | ."claude-api-key"[1]."retired-setting" = true' "$config"
+  check "null list entry and unknown nested field migrate (exit 0)" run_pre_start "$config" pre-start-tolerant
+  check "the credential beside them survives" yq_is dummy-claude-key '."api-keys".claude[].keys[]."api-key"' "$config"
+
+  section "a config that cannot convert leaves no backup"
+  config=$run/broken/config.yaml
+  mkdir -p "$run/broken"
+  printf 'api-keys: [dummy]\nport: {not: a-port}\n' > "$config"
+  cp "$config" "$run/broken.yaml"
+  check "preStart fails on an unconvertible config" pre_start_fails "$config" pre-start-broken
+  check "the unconvertible config is untouched" cmp -s "$run/broken.yaml" "$config"
+  backups=("$config".pre-v8.*)
+  check "no backup is written for it" test ! -e "${backups[0]}"
+
   section "preStart on a v8 config"
   config=$run/v8/config.yaml
   mkdir -p "$run/v8"

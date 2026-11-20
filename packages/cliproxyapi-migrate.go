@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
@@ -44,30 +45,37 @@ func migrate(path string) error {
 			return nil
 		}
 	}
-	backupPath := path + ".pre-v8." + time.Now().UTC().Format("20060102T150405.000000000Z")
-	backup, err := os.OpenFile(backupPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		return err
-	}
-	if err = writeSynced(backup, data); err != nil {
-		return err
-	}
 	for i := 0; i < len(root.Content); i += 2 {
 		if root.Content[i].Value == "management" && root.Content[i+1].Tag == "!!null" {
 			root.Content = append(root.Content[:i], root.Content[i+2:]...)
 			break
 		}
 	}
-	data, err = yaml.Marshal(&document)
+	for i := 1; i < len(root.Content); i += 2 {
+		if list := root.Content[i]; list.Kind == yaml.SequenceNode {
+			list.Content = slices.DeleteFunc(list.Content, func(item *yaml.Node) bool {
+				return item.Tag == "!!null"
+			})
+		}
+	}
+	converted, err := yaml.Marshal(&document)
 	if err != nil {
 		return err
 	}
 	config.SetV8MigrationWarnFunc(func(string, string) {})
-	migrated, _, err := config.NormalizeConfigLayout(data, true)
+	migrated, _, err := config.NormalizeConfigLayout(converted, true)
 	if err != nil {
 		return err
 	}
-	if err = config.ValidateV8Config(migrated); err != nil {
+	if _, err = config.ParseConfigBytes(migrated); err != nil {
+		return err
+	}
+	backupPath := path + ".pre-v8." + time.Now().UTC().Format("20060102T150405.000000000Z")
+	backup, err := os.OpenFile(backupPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return err
+	}
+	if err = writeSynced(backup, data); err != nil {
 		return err
 	}
 	temp, err := os.CreateTemp(filepath.Dir(path), ".config-v8-*")
