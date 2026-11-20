@@ -197,7 +197,11 @@ func directoryPreview(row Row, ctx previewContext) ([]string, string) {
 	}
 	lines := append([]string{title, subtitle}, hostNotes(row, ctx)...)
 	lines = append(lines, "", previewField(iconFolder, "path", abbreviatePath(sanitize(row.Target))))
-	hint := paint(colorOverlay0, "enter creates session "+directorySessionName(row.Target)+" on "+row.Host)
+	hint := "enter creates session"
+	if row.Local {
+		hint += " " + sanitize(sessionNameForDirectory(row.Target, sessionIDsByName()))
+	}
+	hint = paint(colorOverlay0, hint+" on "+row.Host)
 	summary := row.Summary
 	if summary == nil {
 		if row.Local && ctx.loading {
@@ -210,16 +214,6 @@ func directoryPreview(row Row, ctx previewContext) ([]string, string) {
 		return lines, hint
 	}
 	return append(lines, summaryLines(summary, ctx)...), hint
-}
-
-func directorySessionName(path string) string {
-	path = strings.TrimRight(path, "/")
-	name := path[strings.LastIndex(path, "/")+1:]
-	name = unsafeSessionChars.ReplaceAllString(sanitize(name), "_")
-	if name == "" {
-		return "shell"
-	}
-	return name
 }
 
 func summaryLines(summary *DirSummary, ctx previewContext) []string {
