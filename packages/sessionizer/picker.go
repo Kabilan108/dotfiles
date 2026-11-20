@@ -66,6 +66,7 @@ func (item listItem) height() int {
 
 type pickerModel struct {
 	rows           []Row
+	hintNames      map[string]string
 	visible        []int
 	items          []listItem
 	itemOf         []int
@@ -169,6 +170,7 @@ func (m *pickerModel) applyRefresh(msg refreshMsg) {
 	keep := m.selectedID()
 	fresh := remoteRows(msg.host, msg.cache, m.favorites)
 	m.rows = m.rank.mergeHostRows(m.rows, msg.host.Name, fresh, keep)
+	m.hintNames = nil
 	m.refilter(keep)
 }
 
