@@ -6,6 +6,8 @@
 }:
 let
   cfg = config.dotfiles.services.solaar;
+  thumbButton = 195;
+  fallbackWithoutGestures = 196;
   mouseSerials = [
     "DFDC1A38"
     "C80A6735"
@@ -31,8 +33,8 @@ let
                 "_NAME": "Wireless Mouse MX Master 2S",
             }
             data.append(device)
-        device.setdefault("divert-keys", {})[195] = 1
-        device.setdefault("reprogrammable-keys", {})[195] = 196
+        device.setdefault("divert-keys", {})[${toString thumbButton}] = 1
+        device.setdefault("reprogrammable-keys", {})[${toString thumbButton}] = ${toString fallbackWithoutGestures}
         device.setdefault("_sensitive", {}).update({
             "divert-keys": False,
             "reprogrammable-keys": False,

@@ -36,7 +36,8 @@ let
       status=$(systemctl show --property=ExecMainStatus --value "$unit")
       title="$host: $unit failed"
       body="Result: $result, exit status $status. Run journalctl -u $unit on $host."
-      key="fleet-alert:$host:$unit:$(date -u +%Y%m%dT%H)"
+      hour_bucket=$(date -u +%Y%m%dT%H)
+      key="fleet-alert:$host:$unit:$hour_bucket"
       jq -cn --arg title "$title" --arg body "$body" \
         '{title: $title, body: $body, project: "Fleet"}' |
         curl \
