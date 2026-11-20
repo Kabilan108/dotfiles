@@ -238,14 +238,6 @@ Scope {
             stateFile.reload()
     }
 
-    function pollStatus() {
-        if (!configured || actionRunning || statusPoll.running)
-            return "busy"
-        statusPoll.command = [helperPath, "status"]
-        statusPoll.running = true
-        return "started"
-    }
-
     function _run(argv, kind) {
         if (!configured || actionRunning)
             return "unavailable"
@@ -391,25 +383,6 @@ Scope {
         running: root.active
         repeat: true
         onTriggered: root._updateElapsed()
-    }
-
-    Timer {
-        interval: 1000
-        running: root.configured && root.exporting
-        repeat: true
-        onTriggered: root.pollStatus()
-    }
-
-    Process {
-        id: statusPoll
-        stdout: StdioCollector {
-            waitForEnd: true
-            onStreamFinished: if (text.trim() !== "")
-                                  root._apply(text)
-        }
-        stderr: StdioCollector {
-            waitForEnd: true
-        }
     }
 
     Process {
