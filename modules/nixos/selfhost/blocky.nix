@@ -111,9 +111,22 @@ in
       "network-online.target"
       "tailscaled.service"
     ];
-    startLimitIntervalSec = 0;
+    startLimitIntervalSec = 120;
+    startLimitBurst = 5;
+    path = [
+      pkgs.iproute2
+      pkgs.jq
+    ];
+    preStart = ''
+      until ip -j -4 address show dev ${lib.escapeShellArg config.services.tailscale.interfaceName} \
+        | jq -e --arg ip ${lib.escapeShellArg tailscaleIp} 'any(.[].addr_info[]; .local == $ip)' >/dev/null 2>&1; do
+        sleep 1
+      done
+    '';
     serviceConfig = {
       RestartSec = "5s";
+      TimeoutStartSec = "infinity";
+      RestrictAddressFamilies = [ "AF_NETLINK" ];
       LoadCredential = [ "denylist:${config.age.secrets.selfhost-blocky-denylist.path}" ];
       StandardOutput = "null";
       StandardError = "null";
