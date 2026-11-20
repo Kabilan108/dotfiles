@@ -63,8 +63,7 @@ nix flake update
 │   ├── cursor.nix           # Cursor IDE
 ├── wallpapers/              # Desktop wallpapers
 ├── scripts/                 # Utility scripts
-│   ├── bootstrap.sh         # Legacy dotfile symlinks
-│   └── partitioning.sh      # Disk partitioning helper
+│   └── bootstrap.sh         # Legacy dotfile symlinks
 ├── selfhost/                # Docker services
 │   └── compose.yml          # Open-WebUI, Jellyfin, etc.
 └── secrets/                 # Encrypted secrets (agenix)
