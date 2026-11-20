@@ -15,7 +15,6 @@
 - When changing a bonus or penalty constant in `model/Matcher.js`, recheck the pruning in `score`. It skips fields using ceilings derived from those constants: penalties only grow with the field index, and every non-zero bonus is at least BONUS_CAMEL_123.
 - Keep `leadingRows` in `model/Engine.js` in place of a plain sort. A full comparator sort of a 1,500-row result costs about 15,000 JS calls in V4, and V4's Array sort is not stable, which is why `rowsAt` breaks ties by input index. A plain stable sort gives the same rows, only slower.
 - Credit Elephant (abenz1267/elephant, GPL-3.0) when touching the usage boost. `model/History.js` reimplements its CalcUsageScore formula with two differences: related stored queries contribute their best per-record boost instead of a summed count, and the length difference divides as (1 + delta), so results do not depend on map iteration order. `model/providers/apps.js` takes its field order and MIN_SCORE of 30 from Elephant's desktopapplications provider.
-- Reimplement Elephant's logic; do not paste its code without adding its notice. The formula is reimplemented, so GPL-3.0 places no obligation on these files. Copying is allowed (this repo is AGPL-3.0, and section 13 of both licences permits the combination), but the copied file must keep Elephant's copyright notice, which needs an entry in `scripts/comment-lint.baseline.json`.
 
 ## Rows
 
