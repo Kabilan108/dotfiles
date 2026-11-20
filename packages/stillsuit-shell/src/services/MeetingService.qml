@@ -106,13 +106,7 @@ Scope {
             _reset("corrupt", "meeting status is not an object")
             return
         }
-        var legacy = value.schemaVersion === undefined
-        if (legacy && !_isLegacyStatus(value)) {
-            _reset("unsupported",
-                   "unversioned meeting status does not match the pre-version schema")
-            return
-        }
-        if (!legacy && Number(value.schemaVersion) !== 1) {
+        if (Number(value.schemaVersion) !== 1) {
             _reset("unsupported", "meeting status schemaVersion must be 1")
             return
         }
@@ -128,14 +122,8 @@ Scope {
         progress = Math.max(0, Math.round(Number(value.progress || 0)))
         total = Math.max(0, Math.round(Number(value.total || 0)))
         visibleUntil = Math.max(0, Number(value.visible_until || 0))
-        stateStatus = legacy ? "migrated" : "ready"
-        if (legacy) {
-            var migrated = JSON.parse(JSON.stringify(value))
-            migrated.schemaVersion = 1
-            snapshot = migrated
-        } else {
-            snapshot = value
-        }
+        stateStatus = "ready"
+        snapshot = value
     }
 
     function _applyJobs(raw) {
@@ -180,14 +168,6 @@ Scope {
         jobsSnapshot = value
         jobs = next
         jobsStateStatus = "ready"
-    }
-
-    function _isLegacyStatus(value) {
-        return typeof value.job_id === "string" && typeof value.phase === "string"
-                && typeof value.label === "string" && typeof value.note_path === "string"
-                && typeof value.error === "string" && typeof value.progress === "number" && isFinite(
-                    value.progress) && typeof value.total === "number" && isFinite(value.total)
-                && typeof value.updated_at === "number" && isFinite(value.updated_at)
     }
 
     function _job(jobId) {

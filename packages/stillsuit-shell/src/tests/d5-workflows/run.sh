@@ -296,10 +296,7 @@ wait_json '.meeting.failed and .meeting.visible and .meeting.failureVisible
 
 printf '%s\n' '{"job_id":"legacy-job","phase":"completed","label":"legacy fixture","progress":1,"total":1,"note_path":"/tmp/legacy-note.md","error":"","updated_at":1788134400,"visible_until":4102444800}' > "$STILLSUIT_FIXTURE_MEETING_STATE"
 [[ $(ipc refresh) == ok ]]
-wait_json '.meeting.status == "migrated" and .meeting.completed and .meeting.label == "legacy fixture" and .meeting.snapshotSchemaVersion == 1' >/dev/null
-printf '%s\n' '{"phase":"completed"}' > "$STILLSUIT_FIXTURE_MEETING_STATE"
-[[ $(ipc refresh) == ok ]]
-wait_json '.meeting.status == "unsupported" and .meeting.phase == "idle"' >/dev/null
+wait_json '.meeting.status == "unsupported" and .meeting.phase == "idle" and (.meeting.completed | not) and .meeting.label == "" and .meeting.errorMessage == "meeting status schemaVersion must be 1"' >/dev/null
 
 printf '%s\n' '{broken' > "$STILLSUIT_FIXTURE_RECORDING_STATE"
 [[ $(ipc refresh) == ok ]]
