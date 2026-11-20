@@ -186,7 +186,6 @@ in
         enable = false;
         settings = {
           helperPath = lib.getExe devCheckoutsHelper;
-          openHelperPath = lib.getExe openHelper;
         };
       }
     )

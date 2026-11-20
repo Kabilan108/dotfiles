@@ -115,6 +115,7 @@ fi
 
 jq -e '.outputs >= 1 and .toastViews == .outputs and .widgetViews == .outputs' \
   >/dev/null <<<"$(view_ipc topology)"
+[[ $(view_ipc linkProof) == ok ]]
 slot() { printf '.decks[] | select(.key == "%s") | .slots[] | select(.key == "%s")' "$1" "$2"; }
 deck() { printf '.decks[] | select(.key == "%s")' "$1"; }
 

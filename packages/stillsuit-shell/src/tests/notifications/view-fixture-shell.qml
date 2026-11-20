@@ -14,6 +14,63 @@ ShellRoot {
     property var toastViews: []
     property var widgets: []
     property var captured: ({})
+    property var openedUrls: []
+    property var warnings: []
+    property string openStatus: "ok"
+
+    function linkButton(item) {
+        if (item.label === "Open link" && typeof item.clicked === "function")
+            return item
+        for (var index = 0; index < item.children.length; index++) {
+            var found = linkButton(item.children[index])
+            if (found)
+                return found
+        }
+        return null
+    }
+
+    function checkLink() {
+        openedUrls = []
+        warnings = []
+        var row = toastRow("link", "app:link", 0)
+        row.link = {
+            url: "https://example.com/meeting?q=a%20b#join",
+            label: "Open link"
+        }
+        var component = Qt.createComponent("src/plugins/builtin/notifications/NotificationCard.qml",
+                                           Component.PreferSynchronous)
+        if (component.status !== Component.Ready)
+            return component.errorString()
+        var card = component.createObject(null, {
+                                              context: fixtureContext,
+                                              service: notificationService,
+                                              snapshot: row
+                                          })
+        if (!card)
+            return "link card construction failed"
+        try {
+            var button = linkButton(card)
+            if (!button)
+                return "link button missing"
+            openStatus = "ok"
+            button.clicked()
+            if (openedUrls.length !== 1 || openedUrls[0] !== row.link.url || warnings.length !== 0)
+                return "link button did not submit the exact URL to the host"
+            openStatus = "unavailable"
+            button.clicked()
+            if (warnings.length !== 1 || warnings[0]
+                    !== "Open notification link returned unavailable")
+                return "host launch failure was not reported"
+            card.snapshot = toastRow("no-link", "app:link", 0)
+            button.clicked()
+            if (openedUrls.length !== 2)
+                return "missing link reached the host"
+            return "ok"
+        } finally {
+            card.destroy()
+            openStatus = "ok"
+        }
+    }
 
     function firstOutputId() {
         return Quickshell.screens.length > 0 ? Quickshell.screens[0].name : ""
@@ -156,11 +213,16 @@ ShellRoot {
                                   })
         property var logger: ({
                                   warn: function (message) {
+                                      fixture.warnings = fixture.warnings.concat([message])
                                       console.warn(message)
                                   }
                               })
         property var services: serviceFacade
         property var actions: ({
+                                   openUrl: function (url) {
+                                       fixture.openedUrls = fixture.openedUrls.concat([url])
+                                       return fixture.openStatus
+                                   },
                                    surfaceToggle: function (pluginId, payloadJson) {
                                        return "ok"
                                    }
@@ -211,6 +273,9 @@ ShellRoot {
 
     IpcHandler {
         target: "stillsuit-notification-view-fixture"
+        function linkProof(): string {
+            return fixture.checkLink()
+        }
         function ready(): string {
             var screenCount = Quickshell.screens.length
             return fixture.themeReady && notificationService.ready

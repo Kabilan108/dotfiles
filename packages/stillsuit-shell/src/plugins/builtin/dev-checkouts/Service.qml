@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
 QtObject {
@@ -11,7 +10,6 @@ QtObject {
     readonly property var values: context && context.settings && context.settings.values
                                   ? context.settings.values : ({})
     readonly property string helperPath: String(values.helperPath || "")
-    readonly property string openHelperPath: String(values.openHelperPath || "")
     readonly property int refreshIntervalSec: Math.max(30, Number(values.refreshIntervalSec || 90))
     readonly property var primaryLinks: values.primaryLinks && typeof values.primaryLinks
                                         === "object" && typeof values.primaryLinks.length
@@ -216,13 +214,8 @@ QtObject {
 
     function openLink(link) {
         var url = link ? String(link.url || "") : ""
-        if (!/^https?:\/\//.test(url))
-            return "invalid"
-        if (openHelperPath.charAt(0) !== "/") {
-            lastError = "Set openHelperPath to open links"
-            return "unavailable"
-        }
-        Quickshell.execDetached([openHelperPath, url])
-        return "started"
+        var result = context.actions.openUrl(url)
+        lastError = result === "ok" ? "" : "Couldn't open link: " + result
+        return result
     }
 }

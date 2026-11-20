@@ -36,8 +36,8 @@ if rg -n '^[^/]*\b(Timer|Process|Socket)\b' "$plugin_root/Widget.qml" "$plugin_r
     printf 'dev-checkouts views own state they should leave to the service\n' >&2
     exit 1
 fi
-if rg -n '^[^/]*openUrlExternally' "$plugin_root"; then
-    printf 'dev-checkouts must open links through openHelperPath\n' >&2
+if rg -n 'openUrlExternally|openHelperPath|execDetached' "$plugin_root"; then
+    printf 'dev-checkouts must open links through context.actions.openUrl\n' >&2
     exit 1
 fi
 rg -F 'readonly property bool hostedPanel: true' "$plugin_root/Panel.qml" >/dev/null
@@ -62,9 +62,7 @@ case "\${1:-}" in
     *) exit 2 ;;
 esac
 HELPER
-printf '#!%s\nprintf "%%s\\n" "$1" >%q\n' "$bash_path" "$fixture_root/opened.txt" \
-    >"$fixture_root/open.sh"
-chmod +x "$fixture_root/helper.sh" "$fixture_root/open.sh"
+chmod +x "$fixture_root/helper.sh"
 
 fixture_config="$XDG_CONFIG_HOME/quickshell/$STILLSUIT_CONFIG_ID"
 mkdir -p "$fixture_config/plugins" "$fixture_config/qml/Stillsuit"
