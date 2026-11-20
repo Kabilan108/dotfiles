@@ -15,8 +15,6 @@ ShellAction {
     readonly property int fastMotionDuration: reducedMotion ? 0 : theme.motion.fast
     readonly property int normalMotionDuration: reducedMotion ? 0 : theme.motion.normal
 
-    // Owner-controlled by design: the component proposes the next state and
-    // does not change checked until the owner accepts and publishes it.
     signal toggled(bool requestedChecked)
 
     accessibleFallback: label

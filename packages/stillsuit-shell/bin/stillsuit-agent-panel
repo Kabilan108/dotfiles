@@ -12,7 +12,6 @@ readonly SHUTDOWN_POLL_ATTEMPTS=100
 readonly WINDOW_OPEN_POLL_INTERVAL="0.05"
 readonly WINDOW_OPEN_POLL_ATTEMPTS=100
 readonly SELF=${STILLSUIT_AGENT_PANEL_SELF:-$(readlink -f "${BASH_SOURCE[0]}")}
-# Ghostty 1.3 prepends "--posix" to the command it starts in a new window.
 readonly GHOSTTY_COMMAND="direct:$SELF attach"
 
 usage() {
@@ -42,8 +41,6 @@ flock --timeout 10 9 || {
   exit 75
 }
 
-# A newly started tmux server must not retain the panel lock after we exit.
-# Close it for every tmux invocation, including server-starting queries.
 tmux() {
   command tmux "$@" 9>&-
 }
@@ -90,8 +87,6 @@ session_state() {
   fi
 }
 
-# The config supplies the agent as an argv array and a working directory.
-# It is data, never a shell fragment: each element becomes one tmux argument.
 read_launch_config() {
   local config
   if [[ -e $CONFIG_FILE ]]; then

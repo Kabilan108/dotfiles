@@ -6,7 +6,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Catppuccin Mocha.
 const (
 	colorBase     = "#1e1e2e"
 	colorSurface0 = "#313244"
@@ -29,7 +28,6 @@ const (
 	colorMauve    = "#cba6f7"
 )
 
-// Nerd Font Material Design glyphs.
 const (
 	iconTerminal = "\U000F018D"
 	iconFile     = "\U000F0214"
@@ -52,8 +50,6 @@ const (
 	iconClock    = "\U000F0954"
 )
 
-// The fleet data has no icons, so machines are matched by name; any other
-// host gets the server glyph the tmux status line uses.
 var hostIcons = map[string]string{
 	"jacurutu": iconLaptop,
 	"sietch":   iconServer,

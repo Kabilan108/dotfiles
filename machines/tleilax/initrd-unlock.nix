@@ -1,15 +1,3 @@
-# Unlock the LUKS root over SSH at boot. The systemd initrd brings up
-# Ethernet with DHCP and runs sshd on lib/fleet.nix initrdUnlock.port. Logging
-# in as root answers the passphrase prompt and does nothing else. Only the
-# YubiKey logins of hosts allowed into tleilax (jacurutu) are authorized. The
-# HDMI console asks for the passphrase at the same time.
-#
-# u-boot's extlinux loader can't append secrets to the initrd, and
-# boot.initrd.network.ssh.hostKeys would put the private key in the
-# world-readable Nix store. So the boot environment's host key sits on the
-# unencrypted boot partition, where an appended key would end up anyway, and
-# a unit copies it in before sshd starts. It is not the system's host key,
-# which stays on the encrypted root.
 {
   config,
   utils,

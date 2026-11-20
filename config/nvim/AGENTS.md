@@ -109,3 +109,33 @@ This is a modern Neovim configuration built around **Lazy.nvim** plugin manageme
 - **Telescope** - Fuzzy finder with extensive integrations
 - **nvim-cmp** - Completion engine with multiple sources
 - **droid.nvim** - Custom AI assistant (local plugin)
+
+## Neovim vault notes
+
+### markdown-oxide
+
+- Keep `didChangeWatchedFiles` dynamic registration in the `markdown_oxide` entry of `lua/config/lsp.lua`. markdown-oxide relies on file watching to see notes created outside Neovim; the inotifywait backend comes from `home/shell.nix`.
+- Keep the `moxide.findReferences` handler in `lua/config/lsp.lua`. markdown-oxide's reference code lenses call that client-side command and Neovim does not ship it; drop the handler if Neovim gains a native one.
+
+### Link tools
+
+- Exclude code examples in any tool that reads or rewrites links: collect fenced code, indented code, HTML and metadata ranges from the outer Markdown tree first, and resolve reference definitions from the outer document only. Fenced Markdown code injects its own Markdown parser, so injected trees contain links and definitions from examples (`lua/custom/moberg_link_references.lua`, `lua/custom/note_link_yank.lua`).
+- Generate and reuse only reference IDs markdown-oxide can parse: at least two characters, no whitespace or brackets, no leading caret. markdown-oxide 0.25.12 sets those limits, which is why one-character IDs get a `link-` prefix; loosen the checks if a later release relaxes them.
+- Keep `p` and `P` in `lua/custom/moberg_links.lua` putting through the expression register. That keeps counts, undo and dot-repeat, and leaves the source register and the system clipboard untouched; writing the formatted link to a register would not.
+- Keep the `vim.paste` override buffering every chunk before it formats. Terminal pastes can split even a single URL across several chunks.
+- Resolve a wikilink by asking markdown-oxide for the definition at the start of the link target, not at the cursor, and collapse the returned locations to one file. The cursor may sit on an alias or heading, and heading and block targets return several locations in the same file.
+
+### Notes and templates
+
+- Keep `render` in `lua/custom/note_templates.lua` to named placeholder substitution. Vault templates are files other tools can edit, so they must never execute code; computed values come from `weekly_context`.
+- Keep `create` opening with exclusive create even though `:Today` checks for the file first. Obsidian or another Neovim can create the same note in between, and an existing note must never be overwritten.
+
+### Prose layout
+
+- `lua/custom/readable_width.lua` caps text width with an empty pad window on the right because Neovim has no native maximum width for soft-wrapped text.
+- Keep all three pad autocmds. `focusable = false` only covers `<C-w>w`-style cycling, so `WinEnter` bounces directional moves such as `<C-w>l` off the pad; `QuitPre` closes the pad when `:q` hits the last real window; `WinClosed` covers `:close` and similar commands, which skip `QuitPre`.
+
+### Task conventions
+
+- Mirror the vault's checkbox statuses (`[/]`, `[-]`, `[!]`, `[?]`, `[~]`) in the render-markdown `checkbox.custom` table in `lua/plugins.lua`. They come from the coppermind vault's Obsidian Tasks config and its custom-checkboxes CSS snippet, so a change there needs the matching change here.
+- `is_old_task` in `lua/custom/vault_tags.lua` skips inline checkbox lines and `#todo` lines because they are leftovers of the retired Obsidian Tasks setup and number in the hundreds; TaskNotes tags tasks in frontmatter. Change it if inline tasks return as a live convention.

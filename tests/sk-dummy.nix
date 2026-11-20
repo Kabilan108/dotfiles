@@ -1,6 +1,3 @@
-# OpenSSH plus its test-only software security key (sk-dummy.so), so the
-# deploy gate tests can sign like a YubiKey without one. Signatures carry
-# whatever touch and PIN flags the key file asks for.
 { pkgs }:
 pkgs.openssh.overrideAttrs (old: {
   pname = "openssh-sk-dummy";

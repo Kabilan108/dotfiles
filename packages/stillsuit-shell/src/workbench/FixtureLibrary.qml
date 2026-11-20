@@ -1,4 +1,3 @@
-// Loads every fixture document under a directory and exposes them by id.
 import QtQuick
 import Quickshell.Io
 

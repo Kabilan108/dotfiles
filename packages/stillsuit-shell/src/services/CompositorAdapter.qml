@@ -2,10 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 
-// Read-only HostContext v1 compositor snapshot. NiriService is its only writer.
-// Rows are never mutated after assignment: a changed row is replaced by a new
-// object and an unchanged row keeps its identity, so keyed views such as
-// ScriptModel only touch the rows that changed.
 QtObject {
     id: root
 
@@ -16,9 +12,6 @@ QtObject {
     property string focusedOutputId: ""
     property var workspaces: []
     property var windows: []
-    // The id of the window niri most recently flagged focused. It survives
-    // focus moving to a layer surface (a Stillsuit menu or panel) or to no
-    // window, and becomes null once that window closes.
     readonly property var lastFocusedWindowId: root._lastFocusedWindowId
     property var _lastFocusedWindowId: null
 
@@ -31,8 +24,6 @@ QtObject {
                       })
     }
 
-    // Applies only the collections present in `changes`; absent keys keep
-    // their current value. Passing the current array back is a no-op.
     function update(changes) {
         var nextOutputs = "outputs" in changes ? _mergeRows(outputs, changes.outputs) : outputs
         var nextWorkspaces = "workspaces" in changes ? _mergeRows(workspaces, changes.workspaces) :
@@ -64,9 +55,6 @@ QtObject {
         return changed
     }
 
-    // Returns `previous` when nothing differs. Otherwise returns a new array
-    // that reuses every previous row whose content is unchanged (matched by
-    // position, then by id) and stores a detached copy of each changed row.
     function _mergeRows(previous, next) {
         if (next === previous)
             return previous

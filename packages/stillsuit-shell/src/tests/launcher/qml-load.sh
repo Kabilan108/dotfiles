@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Loads every launcher model file through Quickshell's QML engine (V4), runs a
-# few engine queries there and asserts per-keystroke budgets at 400 and 1,500 apps.
 
 set -euo pipefail
 

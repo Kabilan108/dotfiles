@@ -30,8 +30,6 @@ ShellRoot {
         return true
     }
 
-    // Same generator as load.js syntheticApps, so node and V4 time the same
-    // catalog.
     function syntheticApps(count) {
         var words = ["alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india",
                      "juliet", "kilo", "lima", "mike", "november", "oscar", "papa", "quebec",
@@ -77,10 +75,6 @@ ShellRoot {
         return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * fraction))]
     }
 
-    // Times every prefix of each word as one keystroke, three rounds. Date.now()
-    // has 1 ms resolution, so each figure is rounded down to a whole ms.
-    // prepare_ms of a later, larger catalog includes V4 growing its heap; a
-    // fresh process prepares 1,500 apps in about 150 ms.
     function measure(engine, appCount) {
         var history = History.create(null)
         var now = Date.now()
@@ -285,8 +279,6 @@ ShellRoot {
         opened = engine.activate(edited, "")
         if (!expect(opened && opened.path === "/home/test/notes.md", "copy edit ignored"))
             return
-        // V4 lets push() and index writes through on a frozen array, so the
-        // mutated row itself must still be refused.
         var ghost = engine.run("ghost", "combi", env).rows[0]
         try {
             ghost.actions.push({

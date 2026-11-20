@@ -1,13 +1,8 @@
--- autocmd.lua
--- various autocommands
-
 local utils = require 'utils'
 
--- custom indentation
 utils.setup_custom_indentation({ 'python', 'kotlin' }, { usetab = false, width = 4 })
 utils.setup_custom_indentation('go', { usetab = true, width = 4 })
 
--- highlight when copying
 vim.api.nvim_create_autocmd('TextYankPost', {
   desc = 'Highlight when yanking (copying) text',
   group = vim.api.nvim_create_augroup('kickstart-highlight-yank', { clear = true }),
@@ -16,7 +11,6 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
--- lsp keymaps: only available when lsp ataches
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('lsp-attach', { clear = true }),
   callback = function(event)
@@ -54,10 +48,6 @@ vim.api.nvim_create_autocmd('LspAttach', {
     utils.map('<leader>ca', 'n', vim.lsp.buf.code_action, 'code action', opts)
     utils.map('<leader>dq', 'n', vim.diagnostic.setloclist, 'show diagnostic quickfix', opts)
 
-    -- the following two autocommands are used to highlight references of the
-    -- word under your cursor when your cursor rests there for a little while.
-    --    see `:help cursorhold` for information about when this is executed
-    -- when you move your cursor, the highlights will be cleared (the second autocommand).
     local client = vim.lsp.get_client_by_id(event.data.client_id)
     if client and client.server_capabilities.documentHighlightProvider then
       local highlight_augroup = vim.api.nvim_create_augroup('lsp-highlight', { clear = false })

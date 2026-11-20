@@ -89,7 +89,6 @@ func writeDefaultConfig() error {
 
 var searchPathDepth = regexp.MustCompile(`^(.+):([0-9]+)$`)
 
-// parseSearchPath reads "path" or "path:depth".
 func parseSearchPath(value string, defaultDepth int) (string, int) {
 	if match := searchPathDepth.FindStringSubmatch(value); match != nil {
 		depth, err := strconv.Atoi(match[2])

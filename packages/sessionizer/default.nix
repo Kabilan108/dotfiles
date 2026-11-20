@@ -1,6 +1,3 @@
-# The fleet tmux session picker. Every host installs it: the laptop runs the
-# picker, and other hosts answer its `sessionizer --inventory` and proxy
-# commands through "$HOME/bin/sessionizer".
 {
   lib,
   buildGoModule,
@@ -31,9 +28,6 @@ buildGoModule {
     "-w"
   ];
 
-  # Suffix, not prefix: the picker must talk to the tmux server with the
-  # user's own tmux. deploy-gate runs it with a bare PATH, and the inventory
-  # needs git for directory status.
   postInstall = ''
     wrapProgram $out/bin/sessionizer \
       --suffix PATH : ${

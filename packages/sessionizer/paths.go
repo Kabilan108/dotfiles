@@ -48,8 +48,6 @@ func favoritesPath() string {
 	return filepath.Join(xdgDir("XDG_STATE_HOME", ".local", "state"), "sessionizer", "favorites.json")
 }
 
-// privateRuntimeDir returns a 0700 directory under XDG_RUNTIME_DIR that only
-// this user owns, creating it if needed.
 func privateRuntimeDir(name string) (string, error) {
 	runtime := os.Getenv("XDG_RUNTIME_DIR")
 	if runtime == "" {

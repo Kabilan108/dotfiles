@@ -1,5 +1,3 @@
-# Explicit adapter for an imported Base16 scheme. Rich themes bypass this
-# lossy adapter and supply their own neutral and chromatic ramps to compile.nix.
 {
   scheme,
   baseline ? import ./catppuccin-mocha.nix,

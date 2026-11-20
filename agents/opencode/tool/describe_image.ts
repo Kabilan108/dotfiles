@@ -3,15 +3,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-// -------- Configuration --------
 const VISION_MODEL = "claude-haiku-4-5";
 const ZEN_BASE = "https://opencode.ai/zen/v1";
 
-// -------- Auth --------
 function getApiKey(): string | undefined {
   if (process.env.OPENCODE_API_KEY) return process.env.OPENCODE_API_KEY;
 
-  // Fall back to reading the auth store (handles OAuth sign-in via the app)
   try {
     const dataDir =
       process.env.XDG_DATA_HOME || join(homedir(), ".local", "share");
@@ -23,7 +20,6 @@ function getApiKey(): string | undefined {
   return undefined;
 }
 
-// -------- Types --------
 type MessageWithParts = {
   info: { role: string; id: string };
   parts: Array<{
@@ -36,7 +32,6 @@ type MessageWithParts = {
 
 type ImagePart = { mime: string; filename?: string; url: string };
 
-// -------- Internals --------
 function findImages(messages: MessageWithParts[]): ImagePart[] {
   return messages.flatMap((m) =>
     m.parts
@@ -87,7 +82,6 @@ async function describe(
   return data.choices[0]?.message?.content || "No description returned.";
 }
 
-// -------- Tool --------
 export default tool({
   description:
     "Describe an image attached to this conversation. Use this tool whenever you encounter an ERROR about unsupported image input instead of telling the user you cannot view images. Sends the image to a vision-capable model and returns a text description.",

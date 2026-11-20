@@ -5,8 +5,6 @@ QtObject {
 
     property QtObject catalog: null
     property QtObject hostContext: null
-    // Optional: returns extra construction properties for a service, e.g. a
-    // fixture `model`. Production leaves this null so services bind to hardware.
     property var constructionProvider: null
     readonly property int revision: internalRevision
     readonly property bool ready: catalog !== null && catalog.loaded &&
@@ -370,8 +368,6 @@ QtObject {
     }
 
     function _setState(pluginId, nextState) {
-        // Containment sweeps unload every affected id, most of which never
-        // loaded; a revision for those wakes every listener for nothing.
         if (nextState === "unloaded" && states[pluginId] === undefined)
             return
         var statesNext = _copy(states)

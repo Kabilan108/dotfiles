@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Other hosts run "$HOME/bin/sessionizer"; the build comes from
-# packages/sessionizer through home-manager.
 set -euo pipefail
 
 for candidate in "/etc/profiles/per-user/$USER/bin/sessionizer" "$HOME/.nix-profile/bin/sessionizer"; do

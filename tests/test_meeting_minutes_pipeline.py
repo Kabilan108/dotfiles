@@ -1233,7 +1233,6 @@ def test_outlook_reads_page_with_skip_and_keep_only_related_mail(
     tmp_path: Path, executor: FakeExecutor, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def mail_page(arguments: dict[str, Any]) -> dict[str, Any]:
-        # Graph may return short pages; the next link says where to resume.
         skip = arguments.get("$skip", 0)
         following = skip + arguments["$top"] - 1
         link = f"https://graph.example/me/messages?%24top=2&%24skip={following}"

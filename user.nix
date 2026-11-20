@@ -31,8 +31,6 @@ in
   users.users.kabilan = {
     isNormalUser = true;
     description = "Tony Kabilan Okeke";
-    # Sietch development uses the unprivileged user daemon. Keep rootful
-    # Docker membership on other hosts until their workflows are migrated.
     extraGroups = [
       "networkmanager"
       "wheel"
@@ -46,8 +44,6 @@ in
 
   environment.systemPackages = [ pkgs.bashInteractive ];
 
-  # Android builds sign phone installs with this (store and key password "android",
-  # alias "androiddebugkey").
   environment.sessionVariables = lib.mkIf isSietch {
     ANDROID_PERSONAL_KEYSTORE = personalKeystore;
   };
@@ -55,7 +51,6 @@ in
   age = {
     identityPaths = [ "${home}/.ssh/id_ed25519" ];
     secretsDir = "/run/agenix";
-    # Replace the encrypted placeholder with the auth profiles' key before activation.
     secrets."secrets/agent-browser-encryption-key.age" = {
       file = ./secrets/agent-browser-encryption-key.age;
       path = "${home}/.agent-browser/.encryption-key";
@@ -77,8 +72,6 @@ in
       owner = "kabilan";
       group = "users";
     };
-    # The key is minted in Executor by hand; until it is encrypted here the
-    # pipeline runs without calendar and context lookups and says so.
     secrets."secrets/executor/meeting-minutes.age" =
       lib.mkIf (builtins.pathExists ./secrets/executor/meeting-minutes.age)
         {
@@ -88,7 +81,6 @@ in
           owner = "kabilan";
           group = "users";
         };
-    # Was sietch's ~/.android/debug.keystore; apps already on the phone carry its signature.
     secrets."secrets/android/personal-keystore.age" = lib.mkIf isSietch {
       file = ./secrets/android/personal-keystore.age;
       path = personalKeystore;
@@ -115,10 +107,6 @@ in
       group = "users";
     };
 
-    # The host's 1Password service-account token for agents, as
-    # OP_SERVICE_ACCOUNT_TOKEN=... and encrypted to the host key. Load it for one
-    # command at a time, never from a shell profile: while it's set, `op` signs in
-    # as the service account instead of as Tony.
     secrets."secrets/op/agents.age" = {
       file = opServiceAccountFile;
       path = "${home}/.config/op-agents/env";
@@ -127,7 +115,6 @@ in
       group = "users";
     };
 
-    # .config/moberg dir
     secrets."secrets/moberg/credentials.env.age" = {
       file = ./secrets/moberg/credentials.env.age;
       path = "${home}/.config/moberg/credentials.env";
@@ -195,15 +182,12 @@ in
       group = "users";
     };
 
-    # Root's nix reads this through /etc/nix/nix.conf, so only root may own it.
-    # A copy kabilan owns could be rewritten to load plugins into root's nix.
     secrets."secrets/nix-access-tokens.age" = {
       file = ./secrets/nix-access-tokens.age;
       mode = "0400";
       owner = "root";
       group = "root";
     };
-    # kabilan's copy, for flake fetching in the unprivileged nix client.
     secrets."secrets/nix-access-tokens-user.age" = {
       file = ./secrets/nix-access-tokens.age;
       mode = "0400";
@@ -212,8 +196,6 @@ in
     };
   };
 
-  # Codex's sandbox hides /run/agenix. Nix ignores its whole config if an
-  # include path is in a hidden directory, but skips an unreadable link.
   environment.etc."nix/access-tokens.conf".source =
     config.age.secrets."secrets/nix-access-tokens.age".path;
 
@@ -231,7 +213,6 @@ in
       (
         { config, ... }:
         {
-          # Same link trick as /etc/nix/access-tokens.conf, for the user's nix.conf.
           xdg.configFile."nix/access-tokens.conf".source = config.lib.file.mkOutOfStoreSymlink userTokensPath;
           xdg.configFile."nix/nix.conf".text = ''
             !include access-tokens.conf

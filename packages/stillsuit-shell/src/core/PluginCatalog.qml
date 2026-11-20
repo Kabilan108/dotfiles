@@ -24,8 +24,6 @@ QtObject {
     property QtObject hostContext: null
     property QtObject serviceRegistry: null
     property var outputScreens: []
-    // Narrow facade the bar uses to report each entry's center x per output
-    // (SurfaceRouter.barAnchorFacade); panels open centered on that anchor.
     property QtObject panelAnchors: null
     property url fallbackBarUrl: Qt.resolvedUrl("../plugins/builtin/bar/Bar.qml")
     property Component fallbackBarComponent: null
@@ -75,8 +73,6 @@ QtObject {
     property int barToken: 0
     property var barComponent: null
     property var barInstance: null
-    // Bar slots compare registrations by identity, so an unchanged widget must
-    // keep handing out the same record or every revision rebuilds it.
     property var registrationCache: ({})
     property var topologicalCache: null
     property var topologicalCacheEntries: null
@@ -301,9 +297,6 @@ QtObject {
         return ""
     }
 
-    // Every service and surface revision walks this order; entries are replaced
-    // wholesale on install, so the object identity is the cache key. Callers
-    // receive a copy because some reverse it in place.
     function topologicalOrder() {
         if (topologicalCacheEntries !== internalEntries) {
             topologicalCache = _computeTopologicalOrder()
@@ -948,10 +941,6 @@ QtObject {
         _syncWidgetRegistrations()
     }
 
-    // Withdrawn or replaced registrations are pushed at once, so a widget never
-    // outlives the component, context, or service it was built from. Pure
-    // additions are batched: a startup burst of widget and service loads
-    // becomes one bar update instead of one per load.
     function _syncWidgetRegistrations() {
         if (!barInstance || !("widgetRegistrations" in barInstance))
             return

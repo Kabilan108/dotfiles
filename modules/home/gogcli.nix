@@ -15,7 +15,6 @@ let
     export GOG_HOME=${lib.escapeShellArg gogHome}
     export GOG_KEYRING_BACKEND=file
 
-    # Use the shared lock even inside a project with its own mise config.
     export MISE_GLOBAL_CONFIG_FILE=${lib.escapeShellArg "${config.home.homeDirectory}/dotfiles/config/mise/config.toml"}
     export MISE_CEILING_PATHS="$PWD"
     exec ${lib.getExe pkgs.mise} exec --locked -- gog "$@"

@@ -1,6 +1,3 @@
--- :Today opens or creates this ISO week's log at today's "### Wed, Oct 07" heading.
--- Missing logs are rendered from the vault's templates/neovim/weekly-log.md.
-
 local function vault_root()
   return vim.fs.root(0, '.obsidian') or vim.fs.normalize '~/notes'
 end

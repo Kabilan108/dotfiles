@@ -19,7 +19,6 @@ QtObject {
     property bool refreshQueued: false
     property string lastError: ""
     property int localRevision: 0
-    // Spread polls from several machines sharing one account by ±10%.
     property real refreshJitter: _nextRefreshJitter()
 
     readonly property string apiVersion: "1"
@@ -29,7 +28,6 @@ QtObject {
     readonly property string homeDir: String(values.homeDir || "")
     readonly property string shadowRoot: String(values.shadowRoot || "")
     readonly property bool includeDefaults: values.includeDefaults !== false
-    // Settings lists arrive as QVariantList, which fails Array.isArray in Qt.
     readonly property var configuredAccounts: values.accounts && typeof values.accounts
                                               === "object" && typeof values.accounts.length
                                               === "number" ? Array.prototype.slice.call(

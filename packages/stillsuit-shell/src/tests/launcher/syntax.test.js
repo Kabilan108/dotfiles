@@ -1,5 +1,3 @@
-// QML's V4 engine loads these files as plain scripts. Reject syntax it lacks
-// and any module plumbing other than the guarded module.exports.
 const assert = require("node:assert/strict")
 const fs = require("node:fs")
 const path = require("node:path")
@@ -49,7 +47,6 @@ for (const file of files) {
     }
     assert.match(source, /if \(typeof module !== "undefined"\) \{\n    module\.exports = \{/,
         `${path.relative(modelDir, file)} ends with the guarded module.exports`)
-    // Runs as a classic script with no module or require in scope, as QML does.
     const context = vm.createContext({ console })
     vm.runInContext(source, context, { filename: file })
 }

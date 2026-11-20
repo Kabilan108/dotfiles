@@ -1,6 +1,3 @@
-# Restic backups to the NAS; runbook in docs/backups.md. Each host writes to
-# its own SMB share. The NAS's immutable snapshots of that share protect older
-# restore points from a compromised host, so no job here ever prunes.
 {
   config,
   lib,
@@ -14,14 +11,12 @@ let
   fleet = import ../../../lib/fleet.nix;
   thisHost = config.networking.hostName;
 
-  # Root-only, so ordinary users can't trigger or browse the automount.
   stateDir = "/var/lib/backup";
   mountPoint = "${stateDir}/nas";
   stagingDir = "/var/lib/backup-staging";
   statusDir = "/var/lib/backup-status";
   retryDir = "/run/backup-retry";
   hostKey = "/etc/ssh/ssh_host_ed25519_key";
-  # Where backup-status-receive stores other hosts' status files.
   receivedDir = "${config.users.users.kabilan.home}/.local/state/backup-status";
   credentialAlerts = cfg.alert.credentialFile != null;
   staleMarks =
@@ -84,7 +79,6 @@ let
     runtimeEnv = {
       BACKUP_HOST = thisHost;
       BACKUP_STATUS_DIR = statusDir;
-      # Empty with a credential file: the alert reads $CREDENTIALS_DIRECTORY.
       BACKUP_ALERT_CURL_CONFIG = lib.optionalString (!credentialAlerts) cfg.alert.curlConfig;
       BACKUP_ALERT_PROJECT = cfg.alert.project;
       BACKUP_ALERT_OUTPUT = lib.optionalString (cfg.alert.outputFile != null) cfg.alert.outputFile;
@@ -160,7 +154,6 @@ let
     text = builtins.readFile ./status-receive.sh;
   };
 
-  # Refuses to run while either secret still holds the placeholder.
   guard = ''
     if [ "$(${pkgs.coreutils}/bin/cat ${lib.escapeShellArg cfg.passwordFile})" = ${cfg.placeholder} ]; then
       echo "backup: the Restic password is still the placeholder" >&2
@@ -168,17 +161,12 @@ let
     fi
   '';
 
-  # A burst of failed mounts during an outage trips the mount's start limit,
-  # which leaves the automount failed and the share's path an empty local
-  # directory until something resets it. Each run resets it first.
   mountUnit = utils.escapeSystemdPath mountPoint;
   mountReset = lib.optionalString (cfg.nas != null) ''
     ${config.systemd.package}/bin/systemctl reset-failed ${mountUnit}.mount ${mountUnit}.automount || true
     ${config.systemd.package}/bin/systemctl start ${mountUnit}.automount || true
   '';
 
-  # Fails in seconds when the NAS is unreachable. Restic itself would keep
-  # retrying the missing config with backoff for many minutes per attempt.
   repositoryCheck = mountReset + ''
     if [ ! -e ${lib.escapeShellArg cfg.repository}/config ]; then
       echo "backup: repository ${cfg.repository} is not reachable" >&2
@@ -188,9 +176,6 @@ let
 
   repositoryReady = pkgs.writeShellScript "backup-repository-ready" (guard + repositoryCheck);
 
-  # Retries are counted by backup-retry, not systemd's Restart=: its start
-  # limit is a time window, which slow attempts (a lock wait, a long upload)
-  # outlast, so it would retry forever without alerting.
   retryCommand = name: "${lib.getExe retry} ${name}";
 
   systemctl = "${config.systemd.package}/bin/systemctl";
@@ -198,8 +183,6 @@ let
   resticJob = name: job: {
     inherit (cfg) passwordFile repository inhibitsSleep;
     initialize = false;
-    # Without a terminal restic reports nothing until it ends; one line a
-    # minute shows a long first run moving in the journal.
     progressFps = 1.0 / 60;
     paths = job.paths ++ lib.optional (job.sqlite != { }) "${stagingDir}/${name}";
     inherit (job) exclude;
@@ -208,8 +191,6 @@ let
       "--tag ${name}"
     ];
     timerConfig = cfg.timer;
-    # restic treats --files-from entries as patterns and silently skips one
-    # that matches nothing, so a moved source would otherwise back up nothing.
     backupPrepareCommand = ''
       ${guard}
       ${repositoryCheck}
@@ -232,7 +213,6 @@ let
         job.stopUnits != [ ]
       ) "${systemctl} stop ${lib.escapeShellArgs job.stopUnits}"}
     '';
-    # ExecStopPost, so the units start again after a failed snapshot too.
     backupCleanupCommand = ''
       ${lib.optionalString (job.stopUnits != [ ]) ''
         ${systemctl} start ${lib.escapeShellArgs job.stopUnits} || echo "backup: starting the stopped units failed" >&2
@@ -291,7 +271,6 @@ in
       default = { };
     };
 
-    # UTC: a switch briefly drops /etc/zoneinfo, and a local-time timer recalculated then can fire early.
     timer = lib.mkOption {
       type = lib.types.attrsOf lib.types.str;
       default = {
@@ -436,15 +415,9 @@ in
       ) (builtins.filter (host: fleet.hosts.${host}.hostPubkey != null) cfg.statusReceive);
     }
 
-    # A host with a NAS configured gets its root-only host key before backups
-    # are switched on, because its backup secrets are encrypted to that key.
     (lib.mkIf (cfg.nas != null) (
-      # agenix skips identities it can't read, so this is harmless before the
-      # key exists. (The VM test has no agenix.)
       lib.optionalAttrs (options ? age) { age.identityPaths = lib.mkAfter [ hostKey ]; }
       // {
-
-        # jacurutu runs no sshd, so nothing else creates its host key.
         system.activationScripts.backupHostKey = ''
           if [ ! -e ${hostKey} ]; then
             mkdir -p /etc/ssh
@@ -488,8 +461,6 @@ in
             "nodev"
             "nosuid"
             "noexec"
-            # Mounted on first use, so a laptop away from the NAS fails the run
-            # instead of writing into an empty local directory.
             "x-systemd.automount"
             "x-systemd.idle-timeout=600"
             "x-systemd.mount-timeout=30s"

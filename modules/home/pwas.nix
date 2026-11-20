@@ -14,7 +14,7 @@ let
     app:
     let
       inherit (app) name url profile;
-      iconSlug = app.icon; # dashboardicons slug (png)
+      iconSlug = app.icon;
       wmClass = if app.class == null then name else app.class;
       cats = app.categories;
       iconPath = "${iconDir}/${iconSlug}.png";
@@ -24,7 +24,7 @@ let
       name = lib.replaceStrings [ " " ] [ "-" ] (lib.toLower name);
       value = {
         inherit name exec;
-        icon = iconPath; # absolute path works fine
+        icon = iconPath;
         terminal = false;
         type = "Application";
         comment = "PWA: ${name}";
@@ -95,10 +95,8 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # create .desktop entries
     xdg.desktopEntries = builtins.listToAttrs (map mkEntry cfg.apps);
 
-    # fetch/update icons at activation time
     home.activation.pwaIcons = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       ${iconFetcher}
     '';

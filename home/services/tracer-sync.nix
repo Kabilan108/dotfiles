@@ -29,10 +29,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # tracer push replaces the old raw rsync: it transfers only new/changed
-    # transcripts and the receiver merge-preserves annotations (tags/outcome)
-    # instead of clobbering them, which is what allows receiver-side pipeline
-    # tags like wiki:compiled to survive re-pushes.
     programs.tracer.settings.push.remotes = [
       {
         name = cfg.target;
@@ -45,8 +41,6 @@ in
       Unit.Description = "Push tracer archive to ${cfg.target}";
       Service = {
         Type = "oneshot";
-        # tracer shells out to plain `ssh <host>`; identity/BatchMode come from
-        # the sshHost alias in ~/.ssh/config, not from flags here.
         Environment = [ "PATH=${lib.makeBinPath [ pkgs.openssh ]}" ];
         ExecStart = "${config.programs.tracer.package}/bin/tracer push ${cfg.target}";
       };

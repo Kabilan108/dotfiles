@@ -1,8 +1,3 @@
--- plugins.lua
--- set up plugins for nvim
-
--- local local_plugins = vim.fn.stdpath 'config' .. '/plugins'
-
 return {
   'numToStr/Comment.nvim',
   'nvim-lua/plenary.nvim',
@@ -44,7 +39,6 @@ return {
         ['<C-A-r>'] = 'actions.refresh',
       },
     },
-    -- Lazy loading is not recommended because it is very tricky to make it work correctly in all situations.
     lazy = false,
   },
 
@@ -86,7 +80,6 @@ return {
     end,
   },
 
-  -- autocompletion
   {
     'hrsh7th/nvim-cmp',
     event = 'InsertEnter',
@@ -102,7 +95,6 @@ return {
     end,
   },
 
-  -- Add LuaSnip configuration
   {
     'L3MON4D3/LuaSnip',
     event = 'InsertEnter',
@@ -152,7 +144,6 @@ return {
     end,
   },
 
-  -- todo comments
   {
     'folke/todo-comments.nvim',
     event = 'VimEnter',
@@ -176,7 +167,6 @@ return {
     end,
   },
 
-  -- telescope
   {
     'nvim-telescope/telescope.nvim',
     dependencies = { 'nvim-telescope/telescope-ui-select.nvim' },
@@ -258,8 +248,6 @@ return {
           ['ui-select'] = { require('telescope.themes').get_dropdown {} },
         },
       }
-      -- To get ui-select loaded and working with telescope, you need to call
-      -- load_extension, somewhere after setup function:
       require('telescope').load_extension 'ui-select'
     end,
   },
@@ -374,23 +362,11 @@ return {
     end,
   },
 
-  -- mini.nvim
-  { -- Collection of various small independent plugins/modules
+  {
     'echasnovski/mini.nvim',
     config = function()
-      -- Better Around/Inside textobjects
-      --
-      -- Examples:
-      --  - va)  - [V]isually select [A]round [)]paren
-      --  - yinq - [Y]ank [I]nside [N]ext [']quote
-      --  - ci'  - [C]hange [I]nside [']quote
       require('mini.ai').setup { n_lines = 500 }
 
-      -- Add/delete/replace surroundings (brackets, quotes, etc.)
-      --
-      -- - saiw) - [S]urround [A]dd [I]nner [W]ord [)]Paren
-      -- - sd'   - [S]urround [D]elete [']quotes
-      -- - sr)'  - [S]urround [R]eplace [)] [']
       require('mini.surround').setup {
         highlight_duration = 1000,
       }
@@ -401,7 +377,6 @@ return {
     end,
   },
 
-  -- treesitter
   {
     'nvim-treesitter/nvim-treesitter',
     branch = 'main',
@@ -431,7 +406,6 @@ return {
     end,
   },
 
-  -- markdown rendering
   {
     'MeanderingProgrammer/render-markdown.nvim',
     ft = { 'markdown' },
@@ -441,7 +415,6 @@ return {
         return vim.fs.root(buf, '.obsidian') == nil
       end,
       checkbox = {
-        -- statuses from the vault's Obsidian Tasks config and custom-checkboxes.css snippet
         custom = {
           todo = { raw = '[/]', rendered = '󰥔 ', highlight = 'RenderMarkdownTodo' },
           cancelled = {
@@ -458,7 +431,6 @@ return {
     },
   },
 
-  -- treesitter-context: sticky context for classes/functions
   {
     'nvim-treesitter/nvim-treesitter-context',
     event = { 'BufReadPost', 'BufNewFile' },
@@ -476,13 +448,11 @@ return {
     },
   },
 
-  -- conform
   {
     'stevearc/conform.nvim',
     event = { 'BufReadPre', 'BufNewFile' },
     opts = function()
       return {
-        -- run format on save, falling back to LSP if no external formatter
         formatters_by_ft = {
           lua = { 'stylua' },
           python = { 'ruff_organize_imports', 'ruff_format' },
@@ -499,7 +469,6 @@ return {
     end,
   },
 
-  -- theme (catppuccin)
   {
     'catppuccin/nvim',
     name = 'catppuccin',
@@ -547,7 +516,6 @@ return {
         },
         custom_highlights = function(colors)
           return {
-            -- Better folding colors
             Folded = { bg = colors.surface0, fg = colors.overlay1, style = { 'italic' } },
             FoldColumn = { bg = 'NONE', fg = colors.surface2 },
           }
@@ -557,7 +525,6 @@ return {
     end,
   },
 
-  -- diffview for reviewing changes
   {
     'sindrets/diffview.nvim',
     cmd = { 'DiffviewOpen', 'DiffviewFileHistory' },
@@ -574,7 +541,6 @@ return {
     },
   },
 
-  -- git signs
   {
     'lewis6991/gitsigns.nvim',
     event = { 'BufReadPre', 'BufNewFile' },
@@ -613,7 +579,7 @@ return {
         current_line_blame = true,
         current_line_blame_opts = {
           virt_text = true,
-          virt_text_pos = 'eol', -- 'eol' | 'overlay' | 'right_align'
+          virt_text_pos = 'eol',
           delay = 200,
           ignore_whitespace = false,
           virt_text_priority = 100,
@@ -625,7 +591,6 @@ return {
         status_formatter = nil,
         max_file_length = 40000,
         preview_config = {
-          -- Options passed to nvim_open_win
           border = 'single',
           style = 'minimal',
           relative = 'cursor',

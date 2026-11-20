@@ -8,10 +8,6 @@ let
   gtk-icon-theme = "Adwaita";
   cursor-theme = "catppuccin-mocha-mauve-cursors";
 
-  # Libadwaita apps refuse to load named GTK themes, so the gresource at
-  # resource:///org/gnome/theme/gtk.css is never registered and the CSS
-  # import chain that home-manager generates silently fails.
-  # Fix: extract every gtk-4.0 gresource to plain files so file:// imports work.
   extractGtkGresources =
     themePkg:
     pkgs.runCommand "${themePkg.name}-gtk4-extracted"
@@ -35,8 +31,6 @@ in
 {
   home.sessionVariables.GTK_THEME = gtk-theme;
 
-  # color-scheme is the portal-based setting that libadwaita reads for dark mode.
-  # gtk-application-prefer-dark-theme only works for GTK3 and non-libadwaita GTK4.
   dconf.settings = {
     "org/gnome/desktop/interface" = {
       color-scheme = "prefer-dark";

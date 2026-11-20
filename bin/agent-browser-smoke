@@ -36,8 +36,6 @@ output{display:block;margin-top:24px}</style>
 <button onclick="document.querySelector('output').textContent='Saved: '+document.querySelector('input').value">Save</button>
 <output>Waiting</output>''')
 
-    # Retain only the configured executable from browser-specific environment.
-    # Never inherit auto-connect, auth restoration, or a shared profile.
     env = {
         key: value for key, value in os.environ.items()
         if not key.startswith('AGENT_BROWSER_')

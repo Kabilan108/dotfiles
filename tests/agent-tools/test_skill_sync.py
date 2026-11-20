@@ -21,7 +21,6 @@ with tempfile.TemporaryDirectory() as temp:
         )
         assert p.returncode == code, p.stdout + p.stderr
 
-    # Activation must not depend on the external hostname utility.
     fake_bin = root / "bin"
     fake_bin.mkdir()
     hostname = fake_bin / "hostname"

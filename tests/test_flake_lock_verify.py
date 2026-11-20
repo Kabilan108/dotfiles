@@ -165,8 +165,6 @@ def lock(nodes: dict[str, Any], root_inputs: dict[str, Any]) -> dict[str, Any]:
     return {"nodes": {"root": {"inputs": root_inputs}, **nodes}, "root": "root", "version": 7}
 
 
-# NixOS/nixpkgs: n1 <- n2 <- n3 on nixos-unstable; master runs one commit
-# ahead (m4), and "fork" only exists in a fork, on top of n3.
 N1, N2, N3, M4, FORK = (sha(x) for x in ("n1", "n2", "n3", "m4", "fork"))
 H1, H2, H3, H4 = sha("h1"), sha("h2"), sha("h3"), sha("h4")
 D1 = sha("d1")
@@ -205,8 +203,6 @@ FORGE: dict[str, Any] = {
             "parents": {G1: [], G2: [G1], GFORK: [G1]},
         },
     },
-    # Declared inputs per rev. At h3, home-manager moved `old` to master; at
-    # h4 it dropped `old`.
     "flakes": {
         H1: HM_INPUTS,
         H2: HM_INPUTS,
@@ -428,8 +424,6 @@ class FlakeLockVerify(unittest.TestCase):
         self.assertIn("does not descend from the old rev", out)
 
     def test_children_of_a_follows_alias_are_compared(self) -> None:
-        # a and b lock the same source but a's child is newer. Turning a into
-        # an alias of b leaves path a unchanged and downgrades a/child.
         base = base_root_lock()
         base["nodes"].update(
             a=gh_node("o", "a", A1, inputs={"child": "c_new"}),
@@ -483,8 +477,6 @@ class FlakeLockVerify(unittest.TestCase):
         self.assertIn(f"source declared by home-manager at {H3[:9]}", out)
 
     def test_shared_node_is_checked_against_each_binding(self) -> None:
-        # boot-nixpkgs is a valid root input, but home-manager declares `old`
-        # as nixos-unstable, so binding it there must fail.
         root = updated_root_lock()
         root["nodes"]["home-manager"]["inputs"]["old"] = "boot-nixpkgs"
         del root["nodes"]["nixpkgs_3"]
@@ -500,8 +492,6 @@ class FlakeLockVerify(unittest.TestCase):
         self.assertIn("home-manager/nixpkgs: the root flake.nix declares follows 'nixpkgs', the lock has ['boot-nixpkgs']", out)
 
     def test_follows_redirect_with_the_same_source_fails(self) -> None:
-        # home-manager/nixpkgs moves forward along the same branch, but to the
-        # node behind home-manager/old instead of the root nixpkgs it follows.
         base = base_root_lock()
         base["nodes"]["nixpkgs"] = gh_node("NixOS", "nixpkgs", N1, ref="nixos-unstable")
         self.set_base(base)
@@ -514,7 +504,6 @@ class FlakeLockVerify(unittest.TestCase):
         self.assertIn("home-manager/nixpkgs: the root flake.nix declares follows 'nixpkgs'", out)
 
     def test_unused_override_does_not_block_an_upstream_removal(self) -> None:
-        # The root still overrides home-manager's `data`, but h4 dropped it.
         base = base_root_lock()
         base["nodes"]["data"] = gh_node("o", "data", D1, flake=False)
         base["nodes"]["home-manager"]["inputs"]["data"] = "data"
@@ -527,8 +516,6 @@ class FlakeLockVerify(unittest.TestCase):
         self.assertIn("PASS   home-manager/data: input removed", out)
 
     def test_paths_below_a_follows_alias_use_the_followed_context(self) -> None:
-        # The root's alias override for `old` is ignored by Nix, because
-        # alias reuses home-manager. home-manager at h3 moved `old` to master.
         flake = copy.deepcopy(ROOT_FLAKE)
         flake["inputs"]["alias"] = {
             "follows": "home-manager",
@@ -549,8 +536,6 @@ class FlakeLockVerify(unittest.TestCase):
         self.assertIn(f"home-manager/old: source declared by home-manager at {H3[:9]}", out)
 
     def test_flake_flag_comes_from_the_own_declaration(self) -> None:
-        # The root overrides home-manager's `data` source; home-manager
-        # declares it flake = false, and Nix keeps that flag.
         base = base_root_lock()
         base["nodes"]["data"] = gh_node("o", "data", D1, flake=False)
         base["nodes"]["home-manager"]["inputs"]["data"] = "data"

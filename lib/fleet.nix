@@ -1,7 +1,6 @@
 rec {
   tailnet = "sole-pierce.ts.net";
 
-  # Colors are catppuccin-mocha accents; ansi is the SGR code used in PS1.
   hosts = {
     jacurutu = {
       role = "control-plane";
@@ -23,8 +22,6 @@ rec {
       ];
       hostPubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMq054yvlbd3s0Zm6ElHrs7PfAVnWzP7Yboy6HzXu2t2";
       keys = {
-        # hardware only: yk-nfc travels with the user, yk-nano is the backup in
-        # storage. id_ed25519 is the agenix identity, never a login key.
         human = [
           "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIAU2WbCLrvbZce+BFRjxjqGfc2atw+UW1OzuUL0xoQP0AAAABHNzaDo= yk-nfc"
           "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIC2osOfuEavgTyeKIekDC3QRInB5F7+OwbNr8rI0gxeOAAAABHNzaDo= yk-nano"
@@ -63,7 +60,6 @@ rec {
         "~/dotfiles"
         "~/repos"
       ];
-      # Nothing: sietch runs coding agents, so it gets no way into tleilax.
       canAccess = [ ];
       hostPubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK4epXn3of3DRuL94bGopsFYecrci2nviKPJdibX3T0r";
       keys = {
@@ -95,18 +91,12 @@ rec {
       };
       roots = [ ];
       canAccess = [ ];
-      # Generated at install (docs/tleilax-install.md); agenix decrypts with it.
       hostPubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOKfdOeSaXW6GgykD4yw5OR9Vx4DgHOymTtWqLcHP27V";
       keys = {
         human = [ ];
         agent = [ ];
       };
       sshKeyFiles = [ ];
-      # SSH into the boot environment to type the disk passphrase
-      # (machines/tleilax/initrd-unlock.nix). The host key is separate from
-      # hostPubkey and lives on the unencrypted boot partition. lanAddress
-      # and hostPubkey are filled in during the install. Away from home the
-      # connection jumps through jumpHost, which only forwards it.
       initrdUnlock = {
         port = 2222;
         lanAddress = "10.0.0.67";
@@ -116,13 +106,11 @@ rec {
     };
   };
 
-  # age-plugin-yubikey recipients (nano, nfc)
   ageRecipients = [
     "age1yubikey1qdk0g0dsffy22c3e239vwkymlncwh5jsktgmcm7pel3e852vwz2uk75d858"
     "age1yubikey1qgcaju2dyk8wjlpdweh2rqs9tx48x2rn9c6836kkhhg22ludqnxrcjqgglw"
   ];
 
-  # Non-SSH devices belong in the inventory without entering the access matrix.
   devices = {
     tko-pixel-9 = {
       role = "phone";
@@ -147,10 +135,7 @@ rec {
     };
   };
 
-  # Extra authorized keys per host, outside the access matrix.
   extraAuthorizedKeys = {
-    # Forced-command key for the Stillsuit dev-checkouts plugin on jacurutu;
-    # it can only list checkouts and pause or resume one by name.
     sietch = [
       "command=\"/etc/profiles/per-user/kabilan/bin/moberg-dev-checkouts\",restrict,from=\"100.64.0.0/10\" ${mobergStatusKey}"
     ];
@@ -160,19 +145,11 @@ rec {
 
   agentKeyRestrictions = "from=\"100.64.0.0/10\",no-agent-forwarding,no-X11-forwarding,no-port-forwarding";
 
-  # Agent logins to gated hosts can only run modules/nixos/deploy/gate.sh.
   agentGateRestrictions = "command=\"/run/current-system/sw/bin/deploy-gate\",restrict,from=\"100.64.0.0/10\"";
 
-  # Signed deploys (modules/nixos/deploy). `deploy` on the controller pushes
-  # one deploy/fleet/<UTC time> tag signed with a YubiKey, whose "Hosts:" line
-  # names the hosts it approves. Each receiver fetches the repo over HTTPS and
-  # builds only tags that name it and verify against `signers`. No host may be
-  # named "fleet".
   deploy = {
     repo = "https://github.com/Kabilan108/dotfiles.git";
-    # Tags go over SSH so the signer key can authenticate as a deploy key.
     pushUrl = "git@github.com:Kabilan108/dotfiles.git";
-    # From `gh api meta`.
     pushKnownHosts = "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n";
     branch = "nixos";
     controller = "jacurutu";
@@ -180,25 +157,16 @@ rec {
       "sietch"
       "tleilax"
     ];
-    # Gated hosts also need sessionizer in their system packages.
     gatedAgentLogins = [ "tleilax" ];
-    # One key per YubiKey, made with `ssh-keygen -t ed25519-sk -O
-    # verify-required`. They are separate from the touch-only login keys in
-    # hosts.jacurutu.keys.human. Each key's comment is its allowed-signers
-    # principal.
     signers = [
       "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAINdYzCkPMjG7hmNBaBJnsvrlIae82j9oTFWAMqzLY1IjAAAABHNzaDo= yk-nfc-deploy"
       "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIDJI4FILtC/aP8+XHS/nviSP9oI/S9Nj8iGq/khkaLLmAAAABHNzaDo= yk-nano-deploy"
     ];
-    # The serial of the YubiKey holding each signer key, so `deploy` and
-    # `rebuild` sign with whichever one is plugged in.
     signerYubiKeys = {
       yk-nfc-deploy = 37505721;
       yk-nano-deploy = 37605527;
     };
-    # Used when both are plugged in, or when ykman can't tell.
     defaultSigner = "yk-nfc-deploy";
-    # Also require the PIN flag in signatures.
     requirePin = true;
   };
 

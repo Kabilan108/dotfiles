@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+"""Fail when a subsystem note or an ADR names a repo path that no longer exists.
+
+Usage: notes-check
+
+Checks every nested AGENTS.md outside the agent-harness directories, and every
+docs/adr/*.md. In those files a backticked token is treated as a repo path when its
+first segment is a top-level entry of the repo, or when it ends in a source file
+extension; it must then exist relative to the file's directory, beneath it, or from
+the repo root. `path#symbol` also requires the symbol text in that file. Each entry
+of an ADR's `paths:` frontmatter must exist.
+"""
+
+from __future__ import annotations
+
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+REPO = Path(
+    subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"], check=True, capture_output=True, text=True
+    ).stdout.strip()
+)
+HARNESS_DIRS = re.compile(
+    r"^(agents/(codex|claude|antigravity|opencode|pi|skills|[a-z]+-skills)/|\.agents/skills/|\.claude/)"
+)
+SOURCE_SUFFIXES = {
+    ".nix", ".sh", ".py", ".qml", ".js", ".mjs", ".ts", ".mts", ".go", ".lua",
+    ".kdl", ".toml", ".yaml", ".yml", ".json", ".jsonc", ".md", ".age", ".conf",
+}
+TOKEN = re.compile(r"`([^`\s]+)`")
+NOT_A_PATH = re.compile(r"^[~/$<\-.@]|://|[*?\[\]{}()=|;,'\"\\]|\.\.")
+
+
+def tracked(pattern: str) -> list[str]:
+    output = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", pattern],
+        cwd=REPO, check=True, capture_output=True, text=True,
+    ).stdout
+    return [line for line in output.splitlines() if line]
+
+
+def resolve(token: str, base: Path, top_level: set[str], basenames: dict[str, list[str]]) -> Path | None | bool:
+    path = token.rstrip("/")
+    first = path.split("/", 1)[0]
+    rooted = "/" in path and first in top_level
+    sourcey = Path(path).suffix in SOURCE_SUFFIXES
+    if not rooted and not sourcey:
+        return True
+    for candidate in (base / path, REPO / path):
+        if candidate.exists():
+            return candidate
+    if "/" not in path:
+        beneath = [p for p in basenames.get(path, []) if p.startswith(f"{base.relative_to(REPO)}/")]
+        if base == REPO:
+            beneath = basenames.get(path, [])
+        if beneath:
+            return REPO / beneath[0]
+    return None
+
+
+def frontmatter_paths(text: str) -> list[str]:
+    if not text.startswith("---\n"):
+        return []
+    block = text.split("---\n", 2)[1]
+    return [line.strip()[2:].strip() for line in block.splitlines() if line.strip().startswith("- ")]
+
+
+def main() -> int:
+    files = [
+        f
+        for f in tracked("*AGENTS.md")
+        if Path(f).name == "AGENTS.md" and f != "AGENTS.md" and not HARNESS_DIRS.match(f)
+    ]
+    files += tracked("docs/adr/[0-9]*.md")
+    top_level = {p.name for p in REPO.iterdir()}
+    basenames: dict[str, list[str]] = {}
+    for path in tracked("*"):
+        basenames.setdefault(Path(path).name, []).append(path)
+    failures: list[str] = []
+    for file in files:
+        text = (REPO / file).read_text()
+        base = (REPO / file).parent
+        for entry in frontmatter_paths(text):
+            if not (REPO / entry).exists():
+                failures.append(f"{file}: paths entry does not exist: {entry}")
+        in_fence = False
+        for number, line in enumerate(text.splitlines(), 1):
+            if line.lstrip().startswith("```"):
+                in_fence = not in_fence
+            if in_fence:
+                continue
+            for token in TOKEN.findall(line):
+                path, _, symbol = token.partition("#")
+                if NOT_A_PATH.search(path):
+                    continue
+                found = resolve(path, base, top_level, basenames)
+                if found is None:
+                    failures.append(f"{file}:{number}: no such path: {path}")
+                elif symbol and found is not True and found.is_file() and symbol not in found.read_text(errors="replace"):
+                    failures.append(f"{file}:{number}: {path} no longer contains {symbol}")
+    for failure in failures:
+        print(failure, file=sys.stderr)
+    if failures:
+        print(
+            "\nA note or ADR points at something that is gone. Update or delete the record "
+            "in this commit (see AGENTS.md, 'Notes and decisions').",
+            file=sys.stderr,
+        )
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

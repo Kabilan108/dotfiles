@@ -40,8 +40,6 @@ Item {
                                                                                          ? "Last recording failed" :
                                                                                            "Ready"
     property bool opened: false
-    // keepLoaded panels exist on every output; only the opened one follows
-    // the meter so hidden panels do no work per scan tick.
     readonly property var levels: opened && dictator ? dictator.levels || [] : []
     readonly property real scanPos: opened && dictator ? dictator.scanPos : 0
 

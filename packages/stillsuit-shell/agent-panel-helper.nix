@@ -37,8 +37,6 @@ stdenvNoCC.mkDerivation {
     install -Dm0755 "$src" "$out/libexec/stillsuit-agent-panel"
     substituteInPlace "$out/libexec/stillsuit-agent-panel" \
       --replace-fail '#!/usr/bin/env bash' '#!${lib.getExe bash}'
-    # The helper's own tools are pinned; the configured agent command resolves
-    # against the session PATH that tmux inherits, so any agent can be used.
     makeWrapper "$out/libexec/stillsuit-agent-panel" "$out/bin/stillsuit-agent-panel" \
       --prefix PATH : ${lib.escapeShellArg (lib.makeBinPath runtimeInputs)} \
       --set STILLSUIT_AGENT_PANEL_SELF "$out/bin/stillsuit-agent-panel"

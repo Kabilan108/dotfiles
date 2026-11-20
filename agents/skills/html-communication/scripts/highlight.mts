@@ -1,6 +1,3 @@
-// Syntax-highlights <pre><code> blocks in HTML artifacts, in place, with no runtime JavaScript.
-// Usage: node highlight.mts page.html [more.html ...] [--root <repo>]
-
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import { createHighlighter, type Highlighter, type ThemedToken } from "./vendor/shiki.mjs";

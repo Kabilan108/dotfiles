@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Runs bin/stillsuit-app-launch against stub busctl, systemd-run, and
-# notify-send commands and checks the systemd-run argv, unit name, working
-# directory, environment, and the failure notifications.
-# Checks are single-quoted so check() evaluates them after each run.
 # shellcheck disable=SC2016,SC2034
 set -euo pipefail
 
@@ -17,16 +13,12 @@ session_bin="$work/session bin"
 mkdir -p "$stubs" "$record" "$work/home" "$work/project dir" "$session_bin"
 bash_bin=$(command -v bash)
 cat_bin=$(command -v cat)
-# Programs the session PATH resolves. A file named --help checks that an
-# option-like program still resolves and stays after --.
 for program in prog --help; do
     printf '#!%s\n' "$bash_bin" >"$session_bin/$program"
     chmod +x "$session_bin/$program"
 done
 touch "$session_bin/not-executable"
 
-# The helper execs systemd-run under env -i, so the stub cannot rely on its
-# environment to find the record directory or any tool.
 cat >"$stubs/systemd-run" <<EOF
 #!$bash_bin
 printf '%s\0' "\$@" >"$record/argv"
@@ -48,8 +40,6 @@ printf '%s\0' "\$@" >"$record/notify"
 EOF
 chmod +x "$stubs/systemd-run" "$stubs/busctl" "$stubs/notify-send"
 
-# PATHs missing a tool: no systemd-run, a systemd-run that is not executable,
-# and no env, so the exec itself fails.
 partial_path() {
     local dir=$work/$1 tool
     shift
@@ -102,8 +92,6 @@ run_helper() {
     set -e
 }
 
-# A failed launch exits 1, starts nothing, and posts one notification that
-# names the label and the reason but none of the program's argv.
 expect_notified() {
     reason=$1
     check '[[ $status -eq 1 && ! -e $record/argv ]]' "failed launch exits 1 without systemd-run: $reason"

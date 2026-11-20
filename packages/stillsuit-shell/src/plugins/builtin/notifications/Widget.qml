@@ -1,8 +1,6 @@
 import QtQuick
 import "../../../ui" as Ui
 
-// The bell toggles quiet mode. While quiet, it shows how many notifications
-// will replay when quiet ends.
 Ui.ShellBarCluster {
     id: root
 

@@ -1,10 +1,6 @@
 # shellcheck shell=bash
-# Run the packaged preStart and CPA as a transient user unit with the [Service]
-# settings of the generated cliproxyapi.service. Sourced by run.sh.
 # shellcheck disable=SC2154 # run.sh and resolved.sh set the paths, ports and keys
 
-# These need root, point at the real service, or are replaced below. Every other
-# [Service] line, including new sandbox settings, passes through unchanged.
 hardened_skip='^(User|Group|EnvironmentFile|ExecStart|Restart|RestartSec|StateDirectory|WorkingDirectory|Environment="CLIPROXY_CONFIG)='
 
 hardened_props() {
@@ -22,8 +18,6 @@ hardened_props() {
       ;;
     esac
     $in_service && [[ -n $line && ! $line =~ $hardened_skip ]] || continue
-    # ProtectHome=true would hide the user unit's state directory. tmpfs leaves
-    # an empty home with only that directory bound back in.
     if [[ $line == ProtectHome=true ]]; then
       hardened_args+=(-p ProtectHome=tmpfs -p BindPaths="$hardened_state")
       continue

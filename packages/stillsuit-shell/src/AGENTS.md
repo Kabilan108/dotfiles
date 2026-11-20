@@ -1,0 +1,5 @@
+# Stillsuit source notes
+
+- Read a list-valued plugin setting by checking for an object with a numeric `length` and copying it (`Array.prototype.slice.call` or an index loop), never with `Array.isArray`. Settings cross the QML property boundary as `QVariantList`, which fails `Array.isArray` in Qt's JS engine, so the setting silently falls back to its default. `listValue` in `services/NotificationPolicy.js` is the reference.
+- Keep `core/HostNotice.qml` shaped like a `Quickshell.Services.Notifications` notification (same properties, `closed`, `dismiss`, `expire`). `services/NotificationService.qml` tracks host notices such as containment reports through the same path as D-Bus ones, with no D-Bus round trip.
+- After a Quickshell upgrade, re-run the fixtures under `tests` (d2-compositor, d3-services, d5-workflows, bar-v2, launcher-qml, app-launch, connectivity) and remove any workaround whose binding changed. The services and plugins compensate for Quickshell 0.3 behaviours that those fixtures pin.

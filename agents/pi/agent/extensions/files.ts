@@ -1,12 +1,3 @@
-/**
- * Files Extension
- *
- * /files command lists files in the current git tree (plus session-referenced files)
- * and offers quick actions like reveal in yazi, edit in nvim, diff with delta/difftastic, etc.
- *
- * Adapted for a tmux + neovim + yazi workflow with Catppuccin Mocha theming.
- */
-
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -23,8 +14,6 @@ import {
   Spacer,
   Text,
 } from "@mariozechner/pi-tui";
-
-// ── Types ──────────────────────────────────────────────────────────────
 
 type ContentBlock = {
   type?: string;
@@ -68,12 +57,8 @@ type SessionFileChange = {
 
 type FileAction = "edit" | "diffDelta" | "diffDifftastic" | "reveal" | "open" | "addToPrompt";
 
-// ── Nerd Font Icons ────────────────────────────────────────────────────
-
 const ICONS: Record<string, string> = {
-  // directories
   dir: "\uf07c ",
-  // file types (Seti-UI / devicons range — works with Nerd Fonts)
   ts: "\ue628 ",
   tsx: "\ue628 ",
   js: "\ue74e ",
@@ -111,28 +96,23 @@ const getFileIcon = (filePath: string, isDirectory: boolean): string => {
   const basename = path.basename(filePath);
   const ext = path.extname(basename).slice(1).toLowerCase();
 
-  // check full basename first (e.g. .gitignore)
   if (basename.startsWith(".git")) return ICONS.gitignore;
   if (basename === "flake.lock" || basename.endsWith(".lock")) return ICONS.lock;
 
   return ICONS[ext] ?? ICONS.default;
 };
 
-// ── ANSI helpers (Catppuccin Mocha palette) ────────────────────────────
-
 const ansi = {
-  green: (s: string) => `\x1b[38;2;166;227;161m${s}\x1b[0m`, // base0B - green
-  yellow: (s: string) => `\x1b[38;2;249;226;175m${s}\x1b[0m`, // base0A - yellow
-  red: (s: string) => `\x1b[38;2;243;139;168m${s}\x1b[0m`, // base08 - red
-  blue: (s: string) => `\x1b[38;2;137;180;250m${s}\x1b[0m`, // base0D - blue
-  cyan: (s: string) => `\x1b[38;2;148;226;213m${s}\x1b[0m`, // base0B - teal
-  mauve: (s: string) => `\x1b[38;2;203;166;247m${s}\x1b[0m`, // base0E - mauve
-  peach: (s: string) => `\x1b[38;2;250;179;135m${s}\x1b[0m`, // base09 - peach
-  dim: (s: string) => `\x1b[38;2;108;112;134m${s}\x1b[0m`, // overlay0
+  green: (s: string) => `\x1b[38;2;166;227;161m${s}\x1b[0m`,
+  yellow: (s: string) => `\x1b[38;2;249;226;175m${s}\x1b[0m`,
+  red: (s: string) => `\x1b[38;2;243;139;168m${s}\x1b[0m`,
+  blue: (s: string) => `\x1b[38;2;137;180;250m${s}\x1b[0m`,
+  cyan: (s: string) => `\x1b[38;2;148;226;213m${s}\x1b[0m`,
+  mauve: (s: string) => `\x1b[38;2;203;166;247m${s}\x1b[0m`,
+  peach: (s: string) => `\x1b[38;2;250;179;135m${s}\x1b[0m`,
+  dim: (s: string) => `\x1b[38;2;108;112;134m${s}\x1b[0m`,
   bold: (s: string) => `\x1b[1m${s}\x1b[22m`,
 };
-
-// ── Reference extraction ───────────────────────────────────────────────
 
 const FILE_TAG_REGEX = /<file\s+name=["']([^"']+)["']>/g;
 const FILE_URL_REGEX = /file:\/\/[^\s"'<>]+/g;
@@ -180,8 +160,6 @@ const extractFileReferencesFromEntry = (entry: SessionEntry): string[] => {
   if (entry.type === "custom_message") return extractFileReferencesFromContent(entry.content);
   return [];
 };
-
-// ── Path normalization ─────────────────────────────────────────────────
 
 const sanitizeReference = (raw: string): string => {
   let value = raw.trim();
@@ -240,8 +218,6 @@ const formatDisplayPath = (absolutePath: string, cwd: string): string => {
   }
   return absolutePath;
 };
-
-// ── File collection ────────────────────────────────────────────────────
 
 const collectRecentFileReferences = (
   entries: SessionEntry[],
@@ -355,8 +331,6 @@ const collectSessionFileChanges = (
   return fileMap;
 };
 
-// ── Git helpers ────────────────────────────────────────────────────────
-
 const splitNullSeparated = (value: string): string[] => value.split("\0").filter(Boolean);
 
 const getGitRoot = async (pi: ExtensionAPI, cwd: string): Promise<string | null> => {
@@ -435,8 +409,6 @@ const getGitFiles = async (
 
   return { tracked, files };
 };
-
-// ── Build file entries ─────────────────────────────────────────────────
 
 const buildFileEntries = async (
   pi: ExtensionAPI,
@@ -579,24 +551,22 @@ const buildFileEntries = async (
   return { files, gitRoot };
 };
 
-// ── Colorized file label ───────────────────────────────────────────────
-
 const getStatusColor = (status: string | undefined): ((s: string) => string) | null => {
   if (!status) return null;
   const code = status.charAt(0);
   switch (code) {
     case "M":
-      return ansi.yellow; // modified
+      return ansi.yellow;
     case "A":
-      return ansi.green; // added
+      return ansi.green;
     case "D":
-      return ansi.red; // deleted
+      return ansi.red;
     case "R":
-      return ansi.mauve; // renamed
+      return ansi.mauve;
     case "?":
-      return ansi.cyan; // untracked
+      return ansi.cyan;
     case "U":
-      return ansi.red; // unmerged
+      return ansi.red;
     default:
       return ansi.peach;
   }
@@ -618,8 +588,6 @@ const formatFileLabel = (file: FileEntry): string => {
   return `${icon}${name}${coloredBadge}${sessionMark}${refMark}`;
 };
 
-// ── tmux helpers ───────────────────────────────────────────────────────
-
 const inTmux = (): boolean => Boolean(process.env.TMUX);
 
 const tmuxSplitRun = async (
@@ -639,15 +607,12 @@ const tmuxSplitRun = async (
   }
 };
 
-// ── Actions ────────────────────────────────────────────────────────────
-
 const editInNvim = async (
   pi: ExtensionAPI,
   ctx: ExtensionContext,
   target: FileEntry,
 ): Promise<void> => {
   if (!existsSync(target.resolvedPath) && !target.isDirectory) {
-    // new file - nvim can create it
   }
   if (target.isDirectory) {
     ctx.ui.notify("Cannot edit a directory", "warning");
@@ -669,8 +634,6 @@ const diffWithDelta = async (
   gitRoot: string,
 ): Promise<void> => {
   const relativePath = path.relative(gitRoot, target.resolvedPath).split(path.sep).join("/");
-  // Use git diff piped through delta (which is the configured pager, so just git diff works)
-  // but we want it in a split, so run in a subshell
   const cmd = `git diff HEAD -- '${relativePath.replace(/'/g, "'\\''")}' | delta --paging=always; read -n1 -r -p 'Press any key to close...'`;
   await tmuxSplitRun(pi, ctx, `bash -c "${cmd.replace(/"/g, '\\"')}"`, gitRoot);
 };
@@ -682,7 +645,6 @@ const diffWithDifftastic = async (
   gitRoot: string,
 ): Promise<void> => {
   const relativePath = path.relative(gitRoot, target.resolvedPath).split(path.sep).join("/");
-  // uses the git ddiff alias (difftastic)
   const cmd = `git -c diff.external=difft diff HEAD -- '${relativePath.replace(/'/g, "'\\''")}'; read -n1 -r -p 'Press any key to close...'`;
   await tmuxSplitRun(pi, ctx, `bash -c "${cmd.replace(/"/g, '\\"')}"`, gitRoot);
 };
@@ -697,8 +659,6 @@ const revealInYazi = async (
     return;
   }
 
-  // yazi takes positional [ENTRIES] to set the focused entry
-  // for files, pass the file path so yazi opens its parent dir with that file selected
   const yaziTarget = target.resolvedPath.replace(/'/g, "'\\''");
   const cwd = target.isDirectory ? target.resolvedPath : path.dirname(target.resolvedPath);
 
@@ -727,8 +687,6 @@ const addFileToPrompt = (ctx: ExtensionContext, target: FileEntry): void => {
   ctx.ui.setEditorText(`${current}${separator}${mention}`);
   ctx.ui.notify(`Added ${mention} to prompt`, "info");
 };
-
-// ── Action selector ────────────────────────────────────────────────────
 
 const showActionSelector = async (
   ctx: ExtensionContext,
@@ -780,8 +738,6 @@ const showActionSelector = async (
     };
   });
 };
-
-// ── File selector ──────────────────────────────────────────────────────
 
 const showFileSelector = async (
   ctx: ExtensionContext,
@@ -873,7 +829,6 @@ const showFileSelector = async (
           return selected ? files.find((f) => f.canonicalPath === selected.value) : undefined;
         };
 
-        // ctrl+e → edit in nvim
         if (matchesKey(data, "ctrl+e")) {
           const file = getSelectedFile();
           if (file && !file.isDirectory) {
@@ -883,7 +838,6 @@ const showFileSelector = async (
           }
         }
 
-        // ctrl+d → diff with delta
         if (matchesKey(data, "ctrl+d")) {
           const file = getSelectedFile();
           if (file?.isTracked && !file.isDirectory && gitRoot) {
@@ -896,7 +850,6 @@ const showFileSelector = async (
           return;
         }
 
-        // ctrl+alt+d → diff with difftastic
         if (matchesKey(data, "ctrl+alt+d")) {
           const file = getSelectedFile();
           if (file?.isTracked && !file.isDirectory && gitRoot) {
@@ -909,7 +862,6 @@ const showFileSelector = async (
           return;
         }
 
-        // ctrl+y → reveal in yazi
         if (matchesKey(data, "ctrl+y")) {
           const file = getSelectedFile();
           if (file) {
@@ -947,8 +899,6 @@ const showFileSelector = async (
   return { selected, quickAction };
 };
 
-// ── Main browser loop ──────────────────────────────────────────────────
-
 const runFileBrowser = async (pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> => {
   if (!ctx.hasUI) {
     ctx.ui.notify("Files requires interactive mode", "error");
@@ -972,7 +922,6 @@ const runFileBrowser = async (pi: ExtensionAPI, ctx: ExtensionContext): Promise<
     const canEdit = !selected.isDirectory && selected.exists;
     const canDiff = selected.isTracked && !selected.isDirectory && Boolean(gitRoot);
 
-    // Resolve the action (quick action from shortcut, or show menu)
     let action: FileAction | null = quickAction;
     if (!action) {
       action = await showActionSelector(ctx, {
@@ -983,7 +932,6 @@ const runFileBrowser = async (pi: ExtensionAPI, ctx: ExtensionContext): Promise<
     }
     if (!action) continue;
 
-    // Execute and close
     switch (action) {
       case "edit":
         await editInNvim(pi, ctx, selected);
@@ -1006,8 +954,6 @@ const runFileBrowser = async (pi: ExtensionAPI, ctx: ExtensionContext): Promise<
     }
   }
 };
-
-// ── Extension entry point ──────────────────────────────────────────────
 
 export default function (pi: ExtensionAPI): void {
   pi.registerCommand("files", {

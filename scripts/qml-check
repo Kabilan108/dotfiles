@@ -21,8 +21,6 @@ case "$mode" in
         exit "$status"
         ;;
     syntax)
-        # Duplicate-id diagnostics also flag separate implicit delegate scopes.
-        # Keep that category in the full manual lint, outside this parser check.
         exec qmllint --ignore-settings --only-explicit-categories \
             --syntax error --syntax.id-quotation error "$@"
         ;;

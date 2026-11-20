@@ -1,17 +1,3 @@
-// Ordering is most recently focused first, windows that were never focused
-// last. The empty query is alt-tab style: the current window moves to the end
-// so the first row is the previous window. With a query, matches within
-// Matcher.STRONG_MATCH_RATIO of the best one keep strict recency order, the
-// current window included; weaker matches follow by score.
-//
-// The current window is env.currentWindowId when that window still exists,
-// else the one niri flags focused, else the one with the newest focus
-// timestamp. While the launcher's layer surface holds keyboard focus niri flags
-// no window at all, and it debounces stamp updates, so right after a focus
-// change the newest stamp can still be the previous window's. The service
-// captures the flagged window as it opens, before the menu takes focus, or the
-// compositor's lastFocusedWindowId when a layer surface already holds focus.
-
 var meta = { id: "windows", label: "Windows", icon: "preferences-system-windows", snapshot: "windows" }
 
 function safeString(value) {
@@ -87,7 +73,6 @@ function itemsOf(env) {
     return env.prepared && env.prepared.windows ? env.prepared.windows : prepare(env.windows, env.matcher)
 }
 
-// Items arrive in recency order, so the first one holds the newest stamp.
 function currentOf(items, currentWindowId) {
     var captured = currentWindowId === undefined || currentWindowId === null || currentWindowId === ""
         ? NaN : Number(currentWindowId)

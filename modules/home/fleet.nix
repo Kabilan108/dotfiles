@@ -19,17 +19,12 @@ let
       "~/.ssh/${name}"
       "~/.ssh/id_ed25519"
     ];
-    # without this, ssh also offers every key the desktop ssh-agent holds -
-    # including the passwordless agent-<host> key, silently bypassing the
-    # hardware-key requirement for human logins
     IdentitiesOnly = "yes";
     ControlMaster = "auto";
     ControlPath = "~/.ssh/cm-%r@%h-%p";
     ControlPersist = "4h";
   }) reachable;
 
-  # non-interactive identities for agents/scripts: never touch the YubiKey,
-  # never prompt, authenticate with this machine's restricted agent key
   agentSshSettings = lib.mapAttrs' (
     name: host:
     lib.nameValuePair "${name}-agent" {
@@ -38,10 +33,6 @@ let
       IdentityFile = "~/.ssh/agent-${thisHost}";
       IdentitiesOnly = "yes";
       BatchMode = "yes";
-      # Share one connection between agent-key commands, like the sessionizer
-      # inventory. The socket path must differ from the login connection's
-      # cm-%r@%h-%p, or agent-key commands would ride a hardware-key login.
-      # Anything that can use the socket can already read the key.
       ControlMaster = "auto";
       ControlPath = "~/.ssh/cm-agent-%r@%h-%p";
       ControlPersist = "10m";
@@ -50,11 +41,6 @@ let
     }
   ) reachable;
 
-  # Boot-time disk unlock (lib/fleet.nix initrdUnlock), with the hardware
-  # keys only. The boot environment's host key is pinned under
-  # <host>-initrd in /etc/ssh/ssh_known_hosts (modules/nixos/fleet.nix); any
-  # other key is refused. The -away alias jumps through initrdUnlock.jumpHost,
-  # which only forwards the encrypted connection.
   unlockTargets = lib.filterAttrs (_: host: (host.initrdUnlock.lanAddress or null) != null) reachable;
   unlockSshSettings = lib.concatMapAttrs (
     name: host:
@@ -109,8 +95,6 @@ let
     - OS: ${device.os}
   '';
 
-  # Machine-readable fleet registry for scripts (schema below is the contract; bump
-  # version on breaking changes). Keys are deliberately left out.
   fleetJson = builtins.toJSON {
     version = 1;
     inherit (fleet) tailnet;
@@ -164,21 +148,15 @@ in
           User = "git";
           IdentityFile = "~/.ssh/github";
         };
-        # Keep existing SSH URLs working after the November 2026 hostname migration.
         "bitbucket.org ssh.bitbucket.org" = {
           HostName = "ssh.bitbucket.org";
           User = "git";
           IdentityFile = "~/.ssh/moberg-bitbucket";
-          # IPv6 connections to Bitbucket time out on this network.
           AddressFamily = "inet";
         };
       };
   };
 
-  # Materialize ~/.ssh/config as a real user-owned file instead of a
-  # nix-store symlink: agent harness shells see the store through an
-  # id-mapped mount (files stat as nobody), and ssh rejects a config it
-  # thinks isn't owned by the user ("Bad owner or permissions").
   home.file.".ssh/config" = {
     target = lib.mkForce ".ssh/config_source";
     onChange = ''
@@ -197,7 +175,6 @@ in
 
   home.file.".config/fleet/fleet.json".text = fleetJson;
 
-  # name, color, Tailscale IP: the remote hosts sessionizer lists.
   home.file.".config/fleet/hosts".text =
     lib.concatStringsSep "\n" (
       lib.mapAttrsToList (name: host: "${name}\t${host.color.hex}\t${host.tailscaleIp}") reachable

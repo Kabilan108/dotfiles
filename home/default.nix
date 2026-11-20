@@ -34,10 +34,6 @@ let
     "application/toml"
     "application/sql"
   ];
-  # Electron apps only build AT-SPI accessibility trees (agent computer use:
-  # `acu ui` / `acu act`) when launched with this flag; the session-wide a11y
-  # bus flag is not enough. Wraps the binaries and rewrites desktop entries
-  # that hardcode the store path.
   withElectronA11y =
     pkg: bins:
     pkgs.symlinkJoin {
@@ -196,15 +192,11 @@ in
 
   programs.appimages.enable = true;
 
-  # GLib can only launch Terminal=true entries (nvim.desktop) through
-  # xdg-terminal-exec or a hardcoded terminal list that lacks Ghostty.
   xdg.terminal-exec = {
     enable = true;
     settings.default = [ "com.mitchellh.ghostty.desktop" ];
   };
 
-  # Writes ~/.config/user-dirs.dirs. Downloads live in a lowercase folder, so
-  # scout's gd, browsers and file dialogs need telling.
   xdg.userDirs = {
     enable = true;
     setSessionVariables = true;
@@ -213,10 +205,8 @@ in
 
   xdg.mimeApps = {
     enable = true;
-    # Zotero's desktop entry claims text/plain, which every code/markdown type inherits.
     associations.removed."text/plain" = "zotero.desktop";
     defaultApplications = lib.genAttrs textMimeTypes (_: textEditorDesktop) // {
-      # Images - explicit MIME types (wildcards don't work in XDG)
       "image/avif" = "org.gnome.Loupe.desktop";
       "image/bmp" = "org.gnome.Loupe.desktop";
       "image/gif" = "org.gnome.Loupe.desktop";
@@ -241,7 +231,6 @@ in
       "application/vnd.comicbook+zip" = "org.gnome.Papers.desktop";
       "application/x-cbz" = "org.gnome.Papers.desktop";
 
-      # default browser
       "application/xhtml+xml" = defaultBrowserDesktop;
       "application/x-extension-htm" = defaultBrowserDesktop;
       "application/x-extension-html" = defaultBrowserDesktop;
@@ -261,7 +250,6 @@ in
   };
 
   home.packages = with pkgs; [
-    # desktop apps
     (withElectronA11y discord [
       "Discord"
       "discord"
@@ -279,7 +267,6 @@ in
     (withElectronA11y slack [ "slack" ])
     zotero
 
-    # media/file handling
     inputs.disktree.packages.${systemName}.default
     gparted
     gpu-screen-recorder-gtk
@@ -291,12 +278,10 @@ in
     yt-dlp
     zip
 
-    # build tools
     clang-tools
     cmake
     gnumake
 
-    # dev utils
     ast-grep
     bat
     bubblewrap
@@ -322,7 +307,6 @@ in
     tree-sitter
     vhs
 
-    # lsp & formatters
     bash-language-server
     biome
     dockerfile-language-server
@@ -339,7 +323,6 @@ in
     typescript-language-server
     yaml-language-server
 
-    # languages
     bun
     cargo
     clang
@@ -350,7 +333,7 @@ in
     nixd
     nixfmt
     nodejs_24
-    ruby # needed for `try`
+    ruby
     pnpm
     python312
     uv

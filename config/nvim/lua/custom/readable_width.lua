@@ -1,7 +1,3 @@
--- Caps vault notes at a readable width: an empty, unfocusable window on the far right of the tab
--- takes the spare columns, so text soft-wraps at WIDTH. Other splits share what's left as usual.
--- Buffers opt in by setting vim.b.readable_width (see after/ftplugin/markdown.lua).
-
 local M = {}
 
 local WIDTH = 100
@@ -45,7 +41,6 @@ local function open()
   vim.wo[win].fillchars = 'eob: '
 end
 
--- open, resize or close this tab's pad to match vim.t.readable_width and the screen size
 local function sync()
   local pad = pad_win()
   local wanted = vim.t.readable_width and pad_width() >= MIN_PAD
@@ -67,8 +62,6 @@ local group = vim.api.nvim_create_augroup('readable_width', {})
 
 vim.api.nvim_create_autocmd({ 'VimResized', 'TabEnter' }, { group = group, callback = sync })
 
--- buffers opt in with vim.b.readable_width (vault markdown sets it); the first one shown in a tab
--- turns the cap on there, unless it was toggled off in that tab
 vim.api.nvim_create_autocmd('BufWinEnter', {
   group = group,
   callback = function()
@@ -81,7 +74,6 @@ vim.api.nvim_create_autocmd('BufWinEnter', {
   end,
 })
 
--- focusable=false only covers <C-w>w and friends; directional moves (<C-w>l) still land here
 vim.api.nvim_create_autocmd('WinEnter', {
   group = group,
   callback = function()
@@ -91,7 +83,6 @@ vim.api.nvim_create_autocmd('WinEnter', {
   end,
 })
 
--- :q on the last real window should quit, not leave the pad behind
 vim.api.nvim_create_autocmd('QuitPre', {
   group = group,
   callback = function()
@@ -102,7 +93,6 @@ vim.api.nvim_create_autocmd('QuitPre', {
   end,
 })
 
--- :close and friends skip QuitPre
 vim.api.nvim_create_autocmd('WinClosed', {
   group = group,
   callback = function()

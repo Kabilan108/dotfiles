@@ -1,0 +1,11 @@
+# NixOS modules notes
+
+- Before changing a Bitbucket host key in `fleet.nix`, copy it from https://bitbucket.org/site/ssh and check its fingerprint against https://support.atlassian.com/bitbucket-cloud/docs/configure-ssh-and-two-step-verification/. The three pinned keys (ed25519, ECDSA, RSA) were verified against both sources.
+- Keep the niri application profile in `nvidia.nix` that sets `GLVidHeapReuseRatio` to 0. Without it the NVIDIA driver's heap-reuse heuristic keeps about 1 GiB of freed buffers pooled in niri instead of about 100 MiB (https://yalter.github.io/niri/Nvidia.html).
+- Keep the polkit rule in `virt-manager.nix` under `mkBefore`. System libvirt is root-equivalent, and the libvirtd module's own rule passes libvirtd group members without a password, so ours must run first. It returns `AUTH_ADMIN`, which has no grant caching, so every connection asks for an admin password.
+- Keep `OPTIONS+="static_node=kvm"` on the KVM udev rule in `virt-manager.nix`. systemd ships the KVM device node as 0666 and its own static_node rule resets it to that whenever udevd restarts; the option makes udevd reapply group kvm, mode 0660 each time.
+- Keep the nixbld ACL entry on the KVM device node. Nix's build sandbox drops supplementary groups, so kvm group membership never reaches NixOS tests; their primary group, nixbld, survives.
+- Keep the repos directory in the home a bind mount of the vault copy (`repos-mount.nix`), not a symlink. Tools such as direnv key their allow lists on the real path, so a symlink gives every checkout two paths. The activation script removes an old symlink first because systemd will not mount over one.
+- In `docker-storage-guard.py`, the group and other write-bit check (0o022) also rules out an ACL that grants write: in a mode word the group class carries the effective POSIX ACL mask. Do not replace it with an owner-only check.
+- Keep the tmpfiles `d` rule for the moberg config directory in `docker.nix`. agenix can create that directory as root before Home Manager links the Docker user config into it; the rule resets the directory's owner without touching the secrets inside.
+- Keep `teamviewerd` out of boot (`wantedBy` forced empty in `teamviewer.nix`). It is a root daemon that only matters while TeamViewer is in use, so start it by hand first.

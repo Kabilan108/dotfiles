@@ -13,18 +13,10 @@ Scope {
 
     required property var context
 
-    // The host owns component loading and supplies only ready registrations.
-    // Each immutable record has component, context, manifest, defaultSection,
-    // allowMultiple, order, optional service, and an optional release(message)
-    // callback. The bar must not receive a catalog or composition root.
     property var widgetRegistrations: []
 
-    // The host supplies Quickshell.screens. It remains the only source of
-    // actual output objects, while the bar stays independent of host globals.
     property var outputScreens: []
 
-    // Host-injected anchor facade (set/clear); each slot reports its entry's
-    // center x in output coordinates so panels open centered beneath it.
     property var panelAnchors: null
 
     readonly property bool shadowMode: context && context.settings && context.settings.values
@@ -63,8 +55,6 @@ Scope {
         return records
     }
 
-    // ScriptModel requires unique values. The host hands out one record per
-    // plugin, so the same record object listed twice is collapsed to one slot.
     function registrationsFor(section) {
         var records = recordsFor(section)
         var registrations = []
@@ -75,8 +65,6 @@ Scope {
         return registrations
     }
 
-    // Computed once per registration change instead of per output, and diffed
-    // by ScriptModel so an unchanged registration keeps its slot and widget.
     readonly property var leftRegistrations: registrationsFor("left")
     readonly property var centerRegistrations: registrationsFor("center")
     readonly property var rightRegistrations: registrationsFor("right")
@@ -120,8 +108,6 @@ Scope {
                     objectName: "stillsuit-bar-dismiss"
                     anchors.fill: parent
                     acceptedButtons: Qt.AllButtons
-                    // Widgets above this area receive their own presses first.
-                    // Also leave disabled widgets and unhandled buttons alone.
                     function handlePress(x, y) {
                         var slots = [leftSlot, centerSlot, rightSlot]
                         for (var i = 0; i < slots.length; i++) {

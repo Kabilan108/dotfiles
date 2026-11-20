@@ -14,7 +14,6 @@
           Value = true;
           Status = "locked";
         };
-        # File dialogs through the portal, so they open in scout.
         "widget.use-xdg-desktop-portal.file-picker" = {
           Value = 1;
           Status = "default";

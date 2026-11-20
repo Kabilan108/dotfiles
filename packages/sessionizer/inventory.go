@@ -9,10 +9,6 @@ import (
 	"strconv"
 )
 
-// The inventory is what `sessionizer --inventory` prints for another host's
-// picker. The Python picker read id, name, windows, attached, activity, and
-// path, with windows and attached as strings; keep those as they were so
-// mixed versions still read each other.
 type Inventory struct {
 	Sessions    []InventorySession   `json:"sessions"`
 	Directories []InventoryDirectory `json:"directories"`
@@ -37,8 +33,6 @@ type InventoryDirectory struct {
 	Summary *DirSummary `json:"summary,omitempty"`
 }
 
-// Recency matches tmuxSession.Recency. An older host's inventory has only
-// activity, which already folds in last_attached.
 func (s InventorySession) Recency() int64 {
 	if s.LastAttached > 0 {
 		return s.LastAttached
@@ -80,7 +74,6 @@ func readLocalState() localState {
 	return localState{sessions: sessions, panes: listAllPanes()}
 }
 
-// userSessions drops the picker's own proxy sessions.
 func (s localState) userSessions() []tmuxSession {
 	var result []tmuxSession
 	for _, session := range s.sessions {

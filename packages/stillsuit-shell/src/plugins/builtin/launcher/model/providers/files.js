@@ -1,18 +1,3 @@
-// Snapshot: env.filesResult {text, paths} from the service's async fd run.
-// Rows come only from a result whose text equals the current query, so a slow
-// reply for an older query never shows.
-//
-// Query forms (fdQuery turns them into an fd regular expression):
-// - words: the file name contains each word, in order ("nix flake").
-// - a glob without "/": the whole file name matches ("*.pdf", "report-??.txt").
-// - anything with "/": matched against the path below the search root, so
-//   "downloads/ pdf" and "downloads/*.pdf" find PDFs in a Downloads folder.
-//   A leading "/" starts a folder name ("/dl" skips "nodl"). With a glob the
-//   pattern must reach the end of the path; without one it may stop anywhere.
-// Spaces stand for "anything", "*" for anything within one folder or name,
-// "**" for anything across folders, "?" for one character. Every other
-// character is literal. Matching ignores case unless the text has a capital.
-
 var meta = { id: "files", label: "Files", icon: "shell:folder" }
 
 var MAX_PATHS = 1000
@@ -59,8 +44,6 @@ function isGlob(text) {
     return /[*?]/.test(text)
 }
 
-// fd refuses a name pattern containing "/", so name globs use "." for "any
-// character"; a name holds no "/" anyway.
 function translate(text, path) {
     var any = path ? "[^/]" : "."
     var out = ""
@@ -88,8 +71,6 @@ function translate(text, path) {
     return out
 }
 
-// Returns {pattern, fullPath, caseSensitive} for fd, or null when there is
-// nothing to search for. root is the absolute search root fd walks.
 function fdQuery(text, root) {
     var value = safeString(text).trim()
     if (value === "") return null
@@ -111,8 +92,6 @@ function fdQuery(text, root) {
     }
 }
 
-// Glob and path queries rank by their literal characters; plain words rank
-// as typed.
 function scoreText(text) {
     if (!isGlob(text) && text.indexOf("/") < 0) return text
     return text.replace(/[*?\s]+/g, "")
@@ -156,8 +135,6 @@ function query(text, env) {
             text: shown,
             subtext: "",
             icon: directory ? "shell:folder" : "shell:file",
-            // fd already matched the path; keep its rows even when the fuzzy
-            // matcher disagrees (globs and spaces are not fuzzy patterns).
             score: match.score > 0 ? match.score : 1,
             positions: match.score > 0 ? positions : [],
             actions: [

@@ -1,5 +1,4 @@
 # shellcheck shell=bash
-# Helpers shared by the CPA test sections. Sourced by run.sh.
 # shellcheck disable=SC2154 # run.sh sets $out and resolved.sh sets $python
 
 total_passes=0
@@ -21,7 +20,6 @@ fail() {
   echo "FAIL $*"
 }
 
-# check <label> <command...>: pass when the command succeeds.
 check() {
   local label=$1
   shift
@@ -42,8 +40,6 @@ section() {
   printf '\n== %s\n' "$1"
 }
 
-# expect_http "<codes>" <label> <curl args...>: pass when the status is one of codes.
-# The response body (or headers, with -I) is left in $out/body.
 expect_http() {
   local expected=$1 label=$2 code
   shift 2
@@ -67,7 +63,6 @@ wait_http() {
   return 1
 }
 
-# free_ports <n>: print n loopback ports that were free a moment ago.
 free_ports() {
   "$python" -I -c '
 import socket, sys
@@ -85,16 +80,12 @@ stop_pid() {
   return 0
 }
 
-# CPA writes logs to ./logs when that directory exists and is writable, and to
-# <auth-dir>/logs otherwise. Each helper takes the state dir, with auth/ inside.
 has_main_log() {
   [[ -e $1/logs/main.log || -e $1/auth/logs/main.log ]]
 }
 
 no_main_log() { ! has_main_log "$1"; }
 
-# With request logging off, CPA still writes error-*.log for each failed
-# request on its API routes. No config key turns that off.
 only_error_logs() {
   local file
   for file in "$1"/logs/* "$1"/logs/.[!.]* "$1"/auth/logs/* "$1"/auth/logs/.[!.]*; do

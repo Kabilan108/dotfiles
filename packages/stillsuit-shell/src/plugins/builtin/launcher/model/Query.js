@@ -1,5 +1,3 @@
-// A prefix is only recognised as the first character of the raw input, so
-// "foo/bar" in combi stays an app query.
 var PREFIXES = {
     "/": "files",
     ">": "remmina",
@@ -36,8 +34,6 @@ function isLow(code) {
     return code >= 0xDC00 && code <= 0xDFFF
 }
 
-// Cuts to `limit` UTF-16 units without splitting a surrogate pair and replaces
-// lone surrogates with U+FFFD, so the result is safe for encodeURIComponent.
 function wellFormed(text, limit) {
     var cut = text
     if (text.length > limit) {
@@ -68,8 +64,6 @@ function prefixProvider(character) {
     return Object.prototype.hasOwnProperty.call(PREFIXES, character) ? PREFIXES[character] : ""
 }
 
-// Returns {mode, raw, prefix, providerIds, text}. `prefix` is "" or the prefix
-// character; `text` has the prefix removed and surrounding whitespace trimmed.
 function parse(rawInput, mode) {
     var raw = wellFormed(safeString(rawInput), MAX_INPUT_LENGTH)
     var modeName = normalizeMode(mode)

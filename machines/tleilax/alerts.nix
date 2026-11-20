@@ -1,7 +1,3 @@
-# Every failed system unit posts to Hark (svc:hark on the tailnet) in the
-# "Fleet" project. The webhook is a Hark service integration that only this
-# host can decrypt (secrets.nix). Until that file exists the alerts are off.
-# The message names the unit and its result, never log lines.
 {
   config,
   lib,
@@ -24,9 +20,6 @@ let
     text = ''
       unit=$1
       host=${config.networking.hostName}
-      # A drop-in can't clear OnFailure=, a dependency, so the skips are here:
-      # units that alert on their own, and this unit's own instances, so a
-      # failed alert doesn't alert in turn.
       case " $FLEET_ALERT_EXCLUDE " in
         *" $unit "*)
           echo "fleet-alert: $unit alerts on its own"
@@ -43,7 +36,6 @@ let
       status=$(systemctl show --property=ExecMainStatus --value "$unit")
       title="$host: $unit failed"
       body="Result: $result, exit status $status. Run journalctl -u $unit on $host."
-      # One alert per unit per hour, however often it fails.
       key="fleet-alert:$host:$unit:$(date -u +%Y%m%dT%H)"
       jq -cn --arg title "$title" --arg body "$body" \
         '{title: $title, body: $body, project: "Fleet"}' |
@@ -99,7 +91,6 @@ in
       };
     };
 
-    # Applies OnFailure= to every service; fleet-alert skips the ones above.
     systemd.packages = [
       (pkgs.runCommand "fleet-alert-dropins" { } ''
         mkdir -p "$out/etc/systemd/system/service.d"

@@ -11,8 +11,6 @@ let
   cfgLink = name: config.lib.file.mkOutOfStoreSymlink "${confDir}/${name}";
   agentLink = name: config.lib.file.mkOutOfStoreSymlink "${homeDir}/dotfiles/agents/${name}";
 
-  # 3.2.0 makes cached shells repeatedly invalidate each other via profile timestamps.
-  # Keep 3.1.2 until a release includes https://github.com/nix-community/nix-direnv/pull/790.
   nixDirenvUnresholved = pkgs.nix-direnv.unresholved.overrideAttrs (_: rec {
     version = "3.1.2";
     src = pkgs.fetchFromGitHub {
@@ -32,28 +30,16 @@ let
     src = nixDirenvUnresholved;
   });
 
-  # Point clients that ship their own roots (certifi, pip) at the NixOS store,
-  # which picks up trust-store fixes on rebuild.
   systemCaEnv = rec {
     SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt";
     REQUESTS_CA_BUNDLE = SSL_CERT_FILE;
     PIP_CERT = SSL_CERT_FILE;
-    # Deno ignores SSL_CERT_FILE and otherwise uses its bundled roots.
     DENO_TLS_CA_STORE = "system";
   };
 
   colors = config.lib.stylix.colors.withHashtag;
   themeName = "stylix";
 
-  # agy rewrites ~/.gemini/antigravity-cli/settings.json atomically (replacing
-  # symlinks), and T3 Code isolates GEMINI_HOME per provider instance while only
-  # symlinking config/skills. Enforce CLI baseline settings in place (preserving
-  # runtime-added keys and trustedWorkspaces) and bridge AGENTS.md, mcp_config.json,
-  # and mcp_oauth_tokens.json into existing T3 Antigravity profiles.
-  # Tradeoffs:
-  # - T3 disables Antigravity as a background text-generation model when a profile
-  #   has non-empty mcp_config.json (fine while textGenerationModelSelection uses Codex).
-  # - New or reset T3 profiles are bridged on the next home-manager activation.
   syncAntigravityConfig = pkgs.writeShellApplication {
     name = "sync-antigravity-config";
     runtimeInputs = [
@@ -171,9 +157,6 @@ in
     UV_MALWARE_CHECK = "1";
     UV_SYSTEM_PYTHON = "0";
 
-    # Fleet hosts set RequestTTY=yes for tmux-on-ssh. A TTY merges remote
-    # stderr into stdout, which breaks Nix's remote ops: nixos-rebuild
-    # --build-host parsed build progress as the result path. Only Nix reads this.
     NIX_SSHOPTS = "-o RequestTTY=no";
 
     USER_DATA = "/vault/userdata";
@@ -182,8 +165,6 @@ in
     FASTAI_HOME = "${USER_DATA}/fastai";
     GOPATH = "${USER_DATA}/go";
     HF_HOME = "${USER_DATA}/huggingface";
-    # HF_HOME is a model cache shared with services (siren); keep login
-    # credentials (token, stored_tokens) out of it.
     HF_TOKEN_PATH = "$HOME/.config/huggingface/token";
     HF_DATASETS_CACHE = "$HF_HOME/datasets";
     OLLAMA_MODELS = "${USER_DATA}/ollama/models";
@@ -195,8 +176,6 @@ in
     ".claude".source = agentLink "claude";
     ".codex".source = agentLink "codex";
     ".config/opencode".source = agentLink "opencode";
-    # agy writes elsewhere in ~/.gemini, so only its shared config dir is linked.
-    # force lets activation replace a hand-made link to the same checkout.
     ".gemini/config" = {
       source = agentLink "antigravity";
       force = true;
@@ -218,7 +197,6 @@ in
     "media".source = config.lib.file.mkOutOfStoreSymlink "/vault/userdata/media";
   };
 
-  # bin/sessionizer runs this build. See packages/sessionizer.
   home.packages = [ (pkgs.callPackage ../packages/sessionizer { }) ];
 
   home.file.".sessionizer".text = ''
@@ -234,7 +212,6 @@ in
     $DRY_RUN_CMD ${lib.getExe syncAntigravityConfig}
   '';
 
-  # nix-direnv
   programs.direnv = {
     enable = true;
     enableBashIntegration = true;
@@ -256,8 +233,6 @@ in
       theme.name = themeName;
       threads.capture = true;
       daemon.autostart = false;
-      # Off: Atuin for Teams uploads a server-readable copy of all shell history
-      # and every agent thread, beside the end-to-end encrypted sync.
       teams.enabled = false;
     };
     themes = {
@@ -314,7 +289,6 @@ in
 
   programs.neovim = {
     enable = true;
-    # Use Neovim's inotifywait backend for LSP workspace file watching on Linux.
     extraPackages = [ pkgs.inotify-tools ];
     defaultEditor = true;
     viAlias = true;

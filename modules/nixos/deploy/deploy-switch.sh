@@ -1,24 +1,4 @@
 # shellcheck shell=bash
-# Switch this host to a signed fleet tag's commit under DEPLOY_SWITCH_LOCK,
-# the lock the receivers and bin/rebuild switch under. `deploy` runs it for
-# the controller, and bin/rebuild for a clean build of a signed HEAD.
-#
-#   deploy-switch [-C DIR] [--forward] --object OBJECT --commit COMMIT
-#                 TAG HOST [switch|test|boot]
-#
-# OBJECT and COMMIT are the tag object and commit the caller recorded when it
-# signed or checked TAG. Before asking sudo for the lock, and again once it
-# holds it, this requires `deploy-tag approves`: TAG still resolves to OBJECT,
-# which verifies, names HOST on its "Hosts:" line and points at COMMIT. Then
-# it builds COMMIT straight from the repository's objects
-# (git+file://DIR?rev=COMMIT, with --no-update-lock-file), never whatever TAG
-# names by then, so neither the work tree nor a moved tag reaches the build.
-#
-# --forward adds the receivers' ancestry rule, deploy-tag moves-forward:
-# COMMIT must descend from the commit this host runs, unless OBJECT allows a
-# rollback. A switch that finishes while this one waits for the lock counts.
-# The checks under the lock run as the calling user, in the repository that
-# user owns.
 set -euo pipefail
 
 : "${DEPLOY_SWITCH_LOCK:?}" "${DEPLOY_NIXOS_VERSION:?}"
@@ -32,7 +12,6 @@ running() {
   "$DEPLOY_NIXOS_VERSION" --configuration-revision 2>/dev/null || true
 }
 
-# As root, holding the lock (see the end of this file).
 if [[ ${1:-} == --locked ]]; then
   [[ $# -eq 10 ]] || usage
   user=$2 forward=$3 top=$4 tag=$5 host=$6 object=$7 commit=$8 action=$9 deploy_tag=${10}

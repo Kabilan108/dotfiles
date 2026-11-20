@@ -68,7 +68,6 @@ function actionSnapshots(actions) {
     return result
 }
 
-// The spec's `value` hint, 0 to 100, as a fraction; -1 when there is none.
 function progressOf(snapshot) {
     var hints = (snapshot || {}).hints || {}
     if (hints.value === undefined || hints.value === null || hints.value === "") return -1
@@ -76,8 +75,6 @@ function progressOf(snapshot) {
     return isFinite(value) ? Math.max(0, Math.min(1, value / 100)) : -1
 }
 
-// Volume and brightness tools reuse one card through a stack tag instead of
-// a replaces_id they would have to remember.
 function stackTagOf(snapshot) {
     var hints = (snapshot || {}).hints || {}
     return safeString(hints["x-dunst-stack-tag"] || hints["x-canonical-private-synchronous"])
@@ -202,8 +199,6 @@ function emptyState() {
     return { quiet: false, quietSince: 0, popups: [], held: [], corrupt: false }
 }
 
-// Reads every schema this file has had. Version 2's history, finite snoozes,
-// and per-source mutes from early version 3 files are all dropped.
 function parseState(raw, limits, now) {
     var bounds = limits || {}
     var popupLimit = Math.max(1, Math.round(finiteNumber(bounds.popupRows, 40)))
@@ -246,7 +241,6 @@ function serializeState(state) {
     }, null, 2) + "\n"
 }
 
-// Keys present in `previous` and missing from `next`.
 function keysRemoved(previous, next) {
     var retained = {}
     var nextRows = Array.isArray(next) ? next : []

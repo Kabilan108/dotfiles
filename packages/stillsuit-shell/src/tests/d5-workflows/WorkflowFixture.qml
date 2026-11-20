@@ -59,8 +59,6 @@ ShellRoot {
         context: fixtureContext
         meeting: workflows.meeting
     }
-    // Two output views share one global OSD service, as SurfaceRouter passes
-    // the same service object to each production OsdOverlay.
     property var overlayViews: [
         {
             outputId: "fixture-a",

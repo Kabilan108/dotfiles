@@ -14,7 +14,6 @@ let
     hash = pin.signatureHash;
   };
 
-  # Runtime libraries, following nixpkgs' google-chrome package.
   deps = with pkgs; [
     alsa-lib
     at-spi2-atk
@@ -92,7 +91,6 @@ pkgs.stdenvNoCC.mkDerivation {
     gsettings-desktop-schemas
   ];
 
-  # The pinned hash fixes the bytes; the signature proves Helium published them.
   postUnpack = ''
     gpg --homedir "$TMPDIR/gnupg" --dearmor < ${./helium-signing-key.asc} > "$TMPDIR/helium.gpg"
     gpgv --keyring "$TMPDIR/helium.gpg" ${signature} ${tarball}

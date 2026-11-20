@@ -31,8 +31,6 @@
         options = "--delete-older-than 3d";
       };
       settings = {
-        # kabilan108: CI builds from YubiKey-signed deploy tags
-        # (.github/workflows/cache.yml). ghostty and atuin: their flakes' own builds.
         extra-substituters = [
           "https://kabilan108.cachix.org"
           "https://ghostty.cachix.org"
@@ -47,12 +45,10 @@
           "nix-command"
           "flakes"
         ];
-        # automatically detect duplicated store paths
         auto-optimise-store = true;
       };
     };
 
-    # configure bluetooth & audio
     hardware = {
       bluetooth.enable = true;
       bluetooth.powerOnBoot = true;
@@ -91,7 +87,6 @@
         pulse.enable = true;
         wireplumber.extraConfig."51-bluetooth" = {
           "wireplumber.settings" = {
-            # Keep high-fidelity playback; calls use a separate microphone.
             "bluetooth.autoswitch-to-headset-profile" = false;
           };
         };
@@ -125,17 +120,14 @@
 
       pkgs.atlas
 
-      # file system support
       gvfs
       udisks2
       virtiofsd
 
-      # media utils
       ffmpeg-full
       imagemagick
       libmtp
 
-      # system utils
       fuse
       git
       git-lfs
@@ -150,7 +142,6 @@
       wget
     ];
 
-    # link /libexec from dreivations to /run/current-system/sw
     environment.pathsToLink = [
       "/libexec"
       "/share/bash-completion"

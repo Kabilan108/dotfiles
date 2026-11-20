@@ -57,14 +57,11 @@ in
 
     systemd.tmpfiles.rules = lib.mkIf cfg.enable [
       "d /vault/userdata/docker-rootless 0700 kabilan users -"
-      # Agenix can create this parent as root before Home Manager links Docker's
-      # user configuration. Set the directory owner without touching secrets.
       "d ${config.users.users.kabilan.home}/.config/moberg 0755 kabilan users -"
     ];
     users.users.kabilan.uid = lib.mkIf cfg.enable (lib.mkDefault 1000);
     systemd.user.services.docker.unitConfig.ConditionUser = lib.mkIf cfg.enable (lib.mkForce "kabilan");
     systemd.services.docker = lib.mkIf cfg.enable {
-      # Load the new checks on the next start without restarting live Executor.
       restartIfChanged = false;
       unitConfig.RequiresMountsFor = "/vault/userdata/docker";
       after = [ "systemd-tmpfiles-setup.service" ];

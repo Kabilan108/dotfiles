@@ -8,8 +8,6 @@ import "plugins/builtin/workspaces" as Workspaces
 ShellRoot {
     id: fixture
 
-    // The fixture loads services and plugins from the live checkout. A hot
-    // reload triggered by an unrelated edit would reset the state under test.
     settings.watchFiles: false
 
     property var markedWorkspaces: []

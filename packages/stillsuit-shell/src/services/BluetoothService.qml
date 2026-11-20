@@ -70,8 +70,6 @@ QtObject {
     readonly property int revision: (model && model.revision !== undefined ? Number(model.revision) :
                                                                              0) + localRevision
 
-    // Node properties (api.bluez5.address) are only populated on bound
-    // nodes, so sinks are bound just while a connect selects its audio output.
     readonly property var audioCandidateNodes: operation === "audio-default" ? pipewireNodes.filter(
                                                                                    function (node) {
                                                                                        return node

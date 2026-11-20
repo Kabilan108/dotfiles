@@ -10,8 +10,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// previewContext is what the preview needs beyond the row: the time, the
-// column's width, and the state of the row's host.
 type previewContext struct {
 	now     time.Time
 	width   int
@@ -74,7 +72,6 @@ func hostNotes(row Row, ctx previewContext) []string {
 	return notes
 }
 
-// previewLines renders the preview for row and the hint pinned under it.
 func previewLines(row Row, ctx previewContext) ([]string, string) {
 	if row.Session {
 		return sessionPreview(row, ctx)
@@ -141,8 +138,6 @@ func windowCount(panes []Pane) int {
 	return count
 }
 
-// windowLines draws a session's windows as a tree: one line per window with
-// its first pane, then a └ line for each other pane.
 func windowLines(panes []Pane) []string {
 	var lines []string
 	previous := "\x00"
@@ -217,8 +212,6 @@ func directoryPreview(row Row, ctx previewContext) ([]string, string) {
 	return append(lines, summaryLines(summary, ctx)...), hint
 }
 
-// directorySessionName is the name a new session for path usually gets;
-// sessionNameForDirectory adds the parent's name when that one is taken.
 func directorySessionName(path string) string {
 	path = strings.TrimRight(path, "/")
 	name := path[strings.LastIndex(path, "/")+1:]
@@ -270,8 +263,6 @@ func summaryLines(summary *DirSummary, ctx previewContext) []string {
 	return lines
 }
 
-// entryColumns lays out directory entries row by row in as many columns as
-// the preview fits.
 func entryColumns(entries []DirEntry, width int) []string {
 	if len(entries) == 0 {
 		return nil
@@ -304,7 +295,6 @@ func entryCell(entry DirEntry, width int) string {
 	return paint(colorText, fit(icon+" "+entry.Name, width-1)+" ")
 }
 
-// sanitize drops control characters, which would break the layout.
 func sanitize(value string) string {
 	return strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) {

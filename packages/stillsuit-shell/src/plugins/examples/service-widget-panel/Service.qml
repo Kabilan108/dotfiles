@@ -1,9 +1,5 @@
 import QtQuick
 
-// One instance shell-wide. Owns state, timers, and any process or socket;
-// per-output views only read it and call its methods. Other plugins reach it
-// through context.services.get("stillsuit.example-counter") after declaring
-// it in their manifest `dependencies`.
 QtObject {
     id: root
 

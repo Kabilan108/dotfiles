@@ -163,8 +163,6 @@ func TestSectionsAndCursorSkipHeaders(t *testing.T) {
 		session("sietch", "$5", 700),
 		directory("jacurutu", "/j/a"),
 		directory("sietch", "/s/a"),
-		// A refresh appends new favorites after the other sessions; they
-		// still belong under FAVORITES.
 		favorite(directory("sietch", "/s/fav")),
 	}
 	cases := []struct {
@@ -310,11 +308,8 @@ func TestOlderInventoryRenders(t *testing.T) {
 	}
 }
 
-// drain runs cmd and everything it leads to, feeding each message back to
-// the model.
 func drain(model *pickerModel, cmd tea.Cmd) { drainExcept(model, cmd, nil) }
 
-// drainExcept is drain, dropping the messages drop matches.
 func drainExcept(model *pickerModel, cmd tea.Cmd, drop func(tea.Msg) bool) {
 	pending := []tea.Cmd{cmd}
 	for len(pending) > 0 {
@@ -340,8 +335,7 @@ func TestSelectedDirectoryRereadsGit(t *testing.T) {
 	down := tea.KeyMsg{Type: tea.KeyDown}
 	up := tea.KeyMsg{Type: tea.KeyUp}
 	cases := []struct {
-		name string
-		// seed puts a matching cache entry with dirty 99 in place first.
+		name   string
 		seed   bool
 		fail   bool
 		drive  func(t *testing.T, model *pickerModel)

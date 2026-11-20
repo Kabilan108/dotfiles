@@ -1,8 +1,3 @@
-// Stillsuit plugin workbench: the production core (catalog, service registry,
-// surface router, panel hosts, IPC facade) running against fixture-driven
-// service models and a synthetic compositor, inside an isolated XDG sandbox.
-// Plugins under the sandbox root are discovered and reloaded exactly as in
-// production; the stillsuit-workbench launcher owns process and environment.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -22,13 +17,8 @@ ShellRoot {
     readonly property string themePath: Quickshell.env("STILLSUIT_THEME_PATH") || ""
     readonly property string initialFixtureId: Quickshell.env("STILLSUIT_WORKBENCH_FIXTURE")
                                                || "default"
-    // Interactive runs share the real session and draw on one chosen output
-    // in bar shadow mode; headless runs own every screen of their compositor.
     readonly property string outputFilter: Quickshell.env("STILLSUIT_WORKBENCH_OUTPUT") || ""
     readonly property bool shadowMode: Quickshell.env("STILLSUIT_WORKBENCH_SHADOW") === "1"
-    // In shadow mode the production bar still owns the top edge. Everything
-    // the core positions from barOuterGap (bar, panel hosts, toasts) moves
-    // down together so the two bars stack instead of overlapping.
     readonly property real shadowOffset: shadowMode && effectiveTheme.metrics
                                          ? effectiveTheme.metrics.barHeight
                                            + effectiveTheme.metrics.barOuterGap
@@ -287,9 +277,6 @@ ShellRoot {
         return true
     }
 
-    // Services are constructed by the real registry with real context; the
-    // workbench only swaps their `model` input afterwards. Any service without
-    // a fixture entry keeps whatever it would do in production.
     function applyModels() {
         var ids = ["stillsuit.battery", "stillsuit.power", "stillsuit.network",
                    "stillsuit.bluetooth", "stillsuit.audio", "stillsuit.agent-usage",
@@ -369,9 +356,6 @@ ShellRoot {
             presentNotification(specs[specIndex])
     }
 
-    // The workflow services read state files; the launcher points them at
-    // sandbox paths, and each fixture writes what the recorder and meeting
-    // worker would have produced.
     function _writeWorkflowState(document) {
         var runtimeRoot = Quickshell.env("STILLSUIT_WORKBENCH_STATE") || ""
         if (runtimeRoot === "")

@@ -1,6 +1,3 @@
-# VM test for modules/nixos/backup with a local repository in place of the NAS
-# share. From the repo root:
-#   nix build --impure --expr 'import ./tests/backup.nix { pkgs = (builtins.getFlake "git+file://${toString ./.}").inputs.nixpkgs.legacyPackages.x86_64-linux; }'
 { pkgs }:
 pkgs.testers.runNixOSTest {
   name = "backup";
@@ -10,7 +7,6 @@ pkgs.testers.runNixOSTest {
       imports = [ ../modules/nixos/backup ];
       networking.hostName = "testhost";
       users.users.kabilan.isNormalUser = true;
-      # Writes the authorized_keys file the status receiver test reads.
       services.openssh.enable = true;
       users.users.svc = {
         isSystemUser = true;
@@ -35,7 +31,6 @@ pkgs.testers.runNixOSTest {
         };
         alert = {
           outputFile = "/var/lib/alerts.log";
-          # Always below, so the first success alerts and the next doesn't.
           nasFreePercent = 100;
         };
         statusReceive = [ "sietch" ];
@@ -47,7 +42,6 @@ pkgs.testers.runNixOSTest {
         };
         jobs = {
           files.paths = [ "/data/files" ];
-          # Write-only in sysfs, so even root's read fails: restic exits 3.
           partial.paths = [
             "/data/files"
             "/sys/bus/pci/rescan"
@@ -121,7 +115,6 @@ pkgs.testers.runNixOSTest {
             ).strip())
         assert attempts() == 3, f"expected 3 attempts, saw {attempts()}"
         assert alert_count("The files backup job failed") == 1, alerts()
-        # The count resets after the alert: the next run gets a full budget.
         run_to_failure("files")
         assert attempts() == 6, f"expected 6 attempts, saw {attempts()}"
         assert alert_count("The files backup job failed") == 2, alerts()
@@ -226,7 +219,6 @@ pkgs.testers.runNixOSTest {
         machine.succeed(f"echo '{body}' | su - kabilan -c '{receiver}'")
 
     def stale_check():
-        # Back-to-back starts here would trip systemd's start limit.
         machine.succeed("systemctl reset-failed backup-stale-check.service")
         machine.succeed("systemctl start backup-stale-check.service")
 

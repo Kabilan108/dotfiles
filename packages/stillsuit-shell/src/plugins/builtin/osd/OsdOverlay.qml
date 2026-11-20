@@ -3,8 +3,6 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 
-// Per-output presentation only. Volume and backlight observation stays in the
-// global Service.
 Scope {
     id: root
 

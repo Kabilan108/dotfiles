@@ -1,6 +1,3 @@
-// Builds the `model` objects that Stillsuit services accept in place of live
-// hardware and helpers, from one fixture document. Services keep their own
-// derived state; only the inputs are synthetic.
 import QtQuick
 
 QtObject {
@@ -231,7 +228,6 @@ QtObject {
         var next = {}
         var s = services
         if (s["stillsuit.battery"]) {
-            // Fixtures write human percentages; the service expects UPower's 0-1 scale.
             var battery = _plain(s["stillsuit.battery"])
             if (battery.device && battery.device.percentage > 1)
                 battery.device.percentage = battery.device.percentage / 100
@@ -262,8 +258,6 @@ QtObject {
         }
         if (s["stillsuit.agent-usage"])
             next["stillsuit.agent-usage"] = agentUsageComponent.createObject(root, _plain(s["stillsuit.agent-usage"]))
-        // Every fixture gets a clipboard model, empty unless it lists items:
-        // without one the service would start the collector on the session.
         next["stillsuit.clipboard"] = clipboardComponent.createObject(root,
             _plain(s["stillsuit.clipboard"] || { items: [] }))
         if (s["stillsuit.tray"]) {

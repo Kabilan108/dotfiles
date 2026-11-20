@@ -2,9 +2,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Projection of meeting-minutes' durable status and bounded queue snapshot.
-// The worker owns every job. This service may request an explicit retry for a
-// failed job, but never retries while loading state or recovering after reload.
 Scope {
     id: root
 
@@ -237,9 +234,6 @@ Scope {
         return _runAction([helperPath, "retry", selected.jobId], selected.jobId, "")
     }
 
-    // Discard permanently removes a failed job from the durable jobs.json
-    // queue. It goes through the same typed host-action process as retry so
-    // the worker (never this service) owns the mutation of on-disk state.
     function discard(jobId) {
         var selected = _job(jobId)
         if (!retryConfigured || !selected || selected.phase !== "error" || actionRunning)

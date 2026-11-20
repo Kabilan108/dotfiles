@@ -247,8 +247,6 @@ ShellRoot {
                 return
             }
 
-            // Quickshell 0.3 exposes UPower percentages on the same normalized
-            // 0.0-1.0 scale. A wire-level 1 percent therefore arrives as 0.01.
             fakeBattery.device = ({
                                       isPresent: true,
                                       percentage: 0.01,

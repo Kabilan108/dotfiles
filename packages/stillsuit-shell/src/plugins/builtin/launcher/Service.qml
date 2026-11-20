@@ -15,13 +15,6 @@ import "model/providers/profiles.js" as Profiles
 import "model/providers/web.js" as Web
 import "model/providers/windows.js" as Windows
 
-// Launcher state and intent execution. The menu is a view over `rows`.
-//
-// Everything is driven by the menu being open: snapshots are rebuilt lazily
-// when a provider that reads them is active and their source changed, and the
-// qalc and fd lookups only run for the text currently shown. Closing kills
-// any lookup, stops every timer, and drops the rows. Source changes that
-// arrive while closed only mark a snapshot stale.
 Scope {
     id: root
 
@@ -64,19 +57,13 @@ Scope {
     property bool opened: false
     property string mode: Query.DEFAULT_MODE
     property string query: ""
-    // Row objects from the engine's latest run; see model/Engine.js.
     property var rows: []
     property int selectedIndex: 0
-    // Index into the selected row's actions that Enter runs.
     property int actionIndex: 0
     property string prefix: ""
     property var providerIds: []
-    // The clipboard picker lists only images; reset on every open.
     property bool clipboardImagesOnly: false
-    // Why the last action was refused, shown until the query changes or an
-    // action succeeds; "" when there is nothing to report.
     property string actionError: ""
-    // The provider a prefix selected, or "" without a prefix.
     readonly property string prefixProvider: prefix !== "" && providerIds.length === 1
                                              ? providerIds[0] : ""
     readonly property var selectedRow: selectedIndex >= 0 && selectedIndex < rows.length
@@ -89,15 +76,11 @@ Scope {
     readonly property bool connectionsBusy: connectionsProcess.running
     readonly property bool busy: calcBusy || filesBusy || connectionsBusy
     readonly property bool clipboardActive: providerIds.indexOf("clipboard") !== -1
-    // A lookup, debounce, or rescan is scheduled or running. Always false
-    // while closed; the debounced history write is not counted.
     readonly property bool pendingWork: appsTimer.running || calcDebounce.running
                                         || calcTimeout.running || connectionsProcess.running
                                         || calcProcess.running || filesDebounce.running
                                         || filesTimeout.running || filesProcess.running
 
-    // The clipboard service is a declared dependency; its own status reports
-    // a broken watcher, and a missing service is reported here.
     readonly property QtObject clipboard: context && context.services ? (context.services.revision,
                                                                          context.services.get(
                                                                              "stillsuit.clipboard")) :
@@ -125,10 +108,6 @@ Scope {
     property var _iconCache: ({})
     property var _windows: []
     property int _windowsRevision: -1
-    // The window niri flagged focused when the menu opened, else the
-    // compositor's last focused window if it is still open, else null. Once
-    // the menu (or a panel opened before it) holds keyboard focus niri flags
-    // none, and its debounced focus stamps can still name the previous window.
     property var _currentWindowId: null
     property var _profiles: ({
                                  active: "",
@@ -160,8 +139,6 @@ Scope {
     function open(payload) {
         var request = _request(payload)
         _ensureHistory()
-        // A mode switch reopens the menu while it holds focus; keep what the
-        // first open saw.
         var focusedId = _focusedWindowId()
         if (focusedId !== null || !opened)
             _currentWindowId = focusedId !== null ? focusedId : _lastFocusedWindowId()
@@ -205,7 +182,6 @@ Scope {
         filesResult = null
     }
 
-    // The menu's requested mode, so a toggle can decide to switch instead of close.
     function requestedMode(payload) {
         return _request(payload).mode
     }
@@ -251,13 +227,10 @@ Scope {
         var count = selectedRow && selectedRow.actions ? selectedRow.actions.length : 0
         if (count < 2)
             return
-        // An armed action is a choice a background refresh must keep.
         _userMoved = true
         actionIndex = ((actionIndex + delta) % count + count) % count
     }
 
-    // Runs `actionId` of rows[index], or the row's default action for "".
-    // Returns the action's status, or "none" when nothing ran.
     function activate(index, actionId) {
         if (!opened || index < 0 || index >= rows.length)
             return "none"
@@ -266,8 +239,6 @@ Scope {
         if (!intent)
             return "none"
         if (intent.type === "window.focus") {
-            // Focus runs after the surface closes, too late to report a
-            // failure, so a window that already vanished is caught here.
             var windowId = intent.id
             if (!_windowExists(windowId)) {
                 _refuse(intent, row, "gone")
@@ -294,7 +265,6 @@ Scope {
         return status
     }
 
-    // A window's app id names its desktop entry far more often than an icon.
     function iconForAppId(appId) {
         var key = String(appId || "")
         if (key === "")
@@ -509,8 +479,6 @@ Scope {
         _syncPending(result.pending || {})
     }
 
-    // The armed action follows its id; one that disappeared falls back to
-    // the default.
     function _actionIndexOf(row, actionId) {
         var actions = row.actions || []
         for (var index = 0; actionId !== "" && index < actions.length; index++) {
@@ -672,7 +640,6 @@ Scope {
         }
         _clipboardSource = service
         _clipboardItems = items
-        // A replaced service can restart its revision count.
         _clipboardRevision = _clipboardRevision === revision ? revision + 1 : revision
     }
 
@@ -744,8 +711,6 @@ Scope {
         _calcRunGeneration = _calcGeneration
         _calcRunText = _calcWanted
         _calcExitCode = -1
-        // "--" ends qalc's options, so input such as "-v" stays an expression.
-        // ASCII output keeps a copied "-2" pasteable where U+2212 is not.
         calcProcess.command = [qalcPath, "-t", "-u8", "-m", String(qalcTimeoutMs - 500), "--",
                                _calcRunText]
         calcProcess.running = true
@@ -817,12 +782,6 @@ Scope {
         _filesRunText = _filesWanted
         _filesExitCode = -1
         _filesTimedOut = false
-        // Hidden files are skipped and ignore files respected: under a home
-        // directory those are caches, build output, and VCS internals.
-        // Directory symlinks are followed because home directories link into
-        // other volumes, which would also follow Nix `result` links into the
-        // store and dependency trees, so those names are excluded.
-        // The pattern syntax is documented in model/providers/files.js.
         var command = [fdPath, "--follow", "--max-results", String(fdMaxResults), "--absolute-path",
                        "--color", "never", "--exclude", "result", "--exclude", "result-*",
                        "--exclude", "node_modules", "--exclude", ".direnv", "--exclude", ".git",
@@ -843,8 +802,6 @@ Scope {
             var paths = []
             if (_filesExitCode === 0 || _filesTimedOut) {
                 var parts = String(filesOutput.text || "").split("\u0000")
-                // A timed-out fd can stop mid-record; only NUL-terminated
-                // records are complete paths.
                 parts.pop()
                 for (var index = 0; index < parts.length; index++) {
                     if (parts[index] !== "")
@@ -884,8 +841,6 @@ Scope {
             root._appsDirty = true
             if (!root.opened)
                 return
-            // The first scan of a fresh process lands while the menu may
-            // already show an empty list; later rescans are debounced.
             if (root._apps.length === 0)
                 Qt.callLater(root._rerun)
             else

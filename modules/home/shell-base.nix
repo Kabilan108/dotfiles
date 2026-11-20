@@ -1,7 +1,3 @@
-# The shell every fleet host shares: bash, tmux and the host's colors.
-# sietch and jacurutu link the files into their ~/dotfiles checkouts and let
-# tpm fetch tmux plugins. tleilax has no checkout: it gets Nix store copies
-# and tmux plugins from nixpkgs.
 {
   config,
   lib,
@@ -22,7 +18,6 @@ let
     else
       ../../config + "/${name}";
 
-  # Loaded in this order; continuum must come last.
   tmuxPlugins = with pkgs.tmuxPlugins; [
     {
       repo = "sainnhe/tmux-fzf";
@@ -54,7 +49,6 @@ let
     }
   ];
 
-  # tpm reads @plugin lines from files that ~/.tmux.conf sources.
   tpmPlugins = ''
     set -g @plugin 'tmux-plugins/tpm'
     ${lib.concatMapStrings (plugin: "set -g @plugin '${plugin.repo}'\n") tmuxPlugins}

@@ -1,17 +1,5 @@
 #!/usr/bin/env bash
 # vim: syn=bash ft=bash
-#
-# Force a running Obsidian instance to notice externally-written files.
-# Obsidian's file watcher unreliably misses external writes (mount/inotify
-# race), leaving files out of metadataCache so task queries and TaskNotes go
-# blind. reconcileFile() surgically re-syncs one path — handles creation,
-# modification, and deletion — without a full vault reload.
-#
-# Best-effort by design: exits 0 when obsidian-cli or a running vault is
-# absent, because a fresh Obsidian launch performs a full vault scan and
-# needs no help. Callers should fire-and-forget.
-#
-# Usage: obsidian-reconcile <path>...   (absolute or vault-relative paths)
 
 set -uo pipefail
 

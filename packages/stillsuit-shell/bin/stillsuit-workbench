@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Runs the Stillsuit plugin workbench: the production core against fixture
-# service models, in an isolated XDG sandbox. Interactive runs draw on one
-# output of the current session with the bar in shadow mode; --headless runs
-# own a headless sway for tests.
 set -euo pipefail
 
 usage() {
@@ -69,8 +65,6 @@ done
 fixture_root="$source_root/../design-lab/fixtures"
 [[ -d $fixture_root ]] || fixture_root="${STILLSUIT_WORKBENCH_FIXTURES:?no fixture directory}"
 schema_path="$source_root/../schemas/manifest.v1.json"
-# The packaged helper carries its Python dependencies (jsonschema); the raw
-# script under a --source checkout does not, so it is only a fallback.
 plugin_helper=$(command -v stillsuit-plugins || true)
 [[ -n $plugin_helper ]] || plugin_helper="$source_root/../bin/stillsuit-plugins"
 [[ -x $plugin_helper ]] || plugin_helper=""
@@ -98,8 +92,6 @@ ipc() {
   XDG_RUNTIME_DIR="$runtime_root" quickshell ipc --pid "$pid" call "$@"
 }
 
-# While the workbench owns an output, the live shell's banners go elsewhere.
-# Only interactive runs on a real session touch the production preferences.
 live_prefs_config="${XDG_CONFIG_HOME:-$HOME/.config}/stillsuit/runtime-discovery.json"
 steer_live_banners() {
   [[ -f $live_prefs_config ]] || return 0
@@ -158,7 +150,6 @@ mkdir -p "$runtime_root" "$config_home/stillsuit" "$data_home" "$state_home" "$w
 chmod 700 "$runtime_root"
 : > "$workflow_root/recording.json"
 
-# Named module imports (Stillsuit.Ui, Stillsuit.Services) for sandbox plugins.
 qml_root="$sandbox_root/qml/Stillsuit"
 mkdir -p "$qml_root"
 ln -sfn "$source_root/ui" "$qml_root/Ui"
@@ -206,8 +197,6 @@ cleanup() {
 trap cleanup EXIT
 [[ $shadow -eq 1 ]] && steer_live_banners "$output_name"
 
-# The sandbox publisher stands in for pagebin: it waits like an upload, fails
-# for paths containing "fail", and otherwise prints a fake viewer URL.
 cat > "$workflow_root/publish" <<'SH'
 #!/usr/bin/env bash
 sleep 2
@@ -218,8 +207,6 @@ printf '{"id":"wb-fixture","url":"https://pagebin.example/v/wb-fixture#k"}\n'
 SH
 chmod +x "$workflow_root/publish"
 
-# Seed: every builtin plugin with sandbox-safe settings. Nothing here reaches
-# real helpers, sockets, or the session bus.
 python3 - "$source_root" "$config_home/stillsuit/seed.json" "$workflow_root" "$shadow" <<'PY'
 import json, sys
 from pathlib import Path
@@ -250,8 +237,6 @@ for folder in sorted(builtin.iterdir()):
 seed_path.write_text(json.dumps({"schemaVersion": 1, "selectedBar": "stillsuit.bar", "plugins": rows}, indent=2))
 PY
 
-# workbench/plugins holds review tools (icon gallery) that only this sandbox
-# discovers; production enumerates the Nix plugin registry, never this tree.
 cat > "$config_home/stillsuit/runtime-discovery.json" <<JSON
 {
   "seed": "$config_home/stillsuit/seed.json",

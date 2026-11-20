@@ -20,7 +20,6 @@ in
       };
       Service = {
         Type = "oneshot";
-        # A failed fetch exits with EX_TEMPFAIL. Other failures need attention.
         RestartForceExitStatus = [ 75 ];
         RestartSec = "15m";
         TimeoutStartSec = "45m";

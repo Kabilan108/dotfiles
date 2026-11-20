@@ -6,10 +6,7 @@ Item {
     id: root
 
     required property var theme
-    // Symbolic icon from the generated catalog in icons/, tinted with the role color.
     property string name: "circle"
-    // Optional caller-supplied image (plugin assets such as provider marks).
-    // Rendered with its own colors; the named icon shows while it is unavailable.
     property url source: ""
     property string role: "primary"
     property string sizeRole: "medium"
@@ -24,8 +21,6 @@ Item {
     implicitHeight: pixelSize
     Accessible.name: accessibleName !== "" ? accessibleName : name.replace(/-/g, " ")
 
-    // sourceSize decodes at display size, so there is no minification for a
-    // mipmap chain to smooth; it would only cost texture memory.
     Image {
         id: brand
         anchors.fill: parent
@@ -46,14 +41,10 @@ Item {
         smooth: true
     }
 
-    // The markup read and tinting are shared per engine in IconCache, so a bar
-    // full of icons reads each file once instead of once per instance.
     function _symbolicSource(iconName) {
         return IconCache.symbolicSource(iconName, _catalog)
     }
 
-    // icons/README.md and the icon-pack generator read this list as the source
-    // of truth; IconCache evaluates it once per engine.
     function _catalog() {
         return ["add", "agent", "apps", "audio", "battery", "battery-alert", "battery-charging",
                 "battery-level-0", "battery-level-1", "battery-level-2", "battery-level-3",

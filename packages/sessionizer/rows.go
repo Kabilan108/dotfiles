@@ -26,7 +26,6 @@ type Row struct {
 	Git      bool
 	Favorite bool
 	Current  bool
-	// Status is the remote host's cache status; empty for local rows.
 	Status   string
 	Panes    []Pane
 	HasPanes bool
@@ -38,7 +37,6 @@ func directoryRowID(host, path string) string {
 	return "dir:" + host + ":" + path
 }
 
-// favoriteKey keeps the Python picker's keys, so favorites.json carries over.
 func (r Row) favoriteKey() string {
 	if r.Session {
 		return "session:" + r.Host + ":" + r.Name
@@ -163,9 +161,6 @@ func remoteRows(host FleetHost, cache hostCache, favorites map[string]bool) []Ro
 	return rows
 }
 
-// markCurrent flags the row for the session this client shows: a local
-// session, or through a proxy, the remote session that proxy shows. A remote
-// session the cache doesn't have yet is added.
 func markCurrent(rows []Row, state localState, localHost string, hosts []FleetHost, favorites map[string]bool) []Row {
 	id := tmuxDisplay("#{session_id}")
 	if id == "" {
@@ -203,7 +198,6 @@ func markCurrent(rows []Row, state localState, localHost string, hosts []FleetHo
 	return rows
 }
 
-// section is the list heading a row sits under.
 type section int
 
 const (
@@ -228,7 +222,6 @@ func (r Row) section() section {
 	return sectionDirectories
 }
 
-// hostRank orders machines: this one first, then remote hosts in fleet order.
 type hostRank map[string]int
 
 func newHostRank(local string, hosts []FleetHost) hostRank {
@@ -239,9 +232,6 @@ func newHostRank(local string, hosts []FleetHost) hostRank {
 	return rank
 }
 
-// compareRows orders the current session first, then favorites, then
-// sessions by when they were last visited, then directories by machine.
-// Directories on one machine keep their scan order.
 func (rank hostRank) compareRows(a, b Row) int {
 	if a.Current != b.Current {
 		return boolFirst(a.Current)
@@ -275,11 +265,6 @@ func (rank hostRank) sortRows(rows []Row) {
 	slices.SortStableFunc(rows, rank.compareRows)
 }
 
-// mergeHostRows folds a host's fresh rows into an open picker without moving
-// rows that are already shown. Rows the host no longer has drop out, except
-// the current one, which can be newer than a cached inventory, and the
-// selected one, so a refresh never moves the cursor. New sessions go after
-// the last session and new directories at the end.
 func (rank hostRank) mergeHostRows(rows []Row, host string, fresh []Row, selected string) []Row {
 	freshByID := make(map[string]Row, len(fresh))
 	for _, row := range fresh {
@@ -357,7 +342,6 @@ func saveFavorites(favorites map[string]bool) error {
 	return writeFileAtomic(favoritesPath(), append(data, '\n'), 0o644)
 }
 
-// toggleFavorite flips row's favorite state on disk and reports the new one.
 func toggleFavorite(row Row) (bool, error) {
 	favorites := loadFavorites()
 	favorite := !row.isFavorite(favorites)
@@ -377,9 +361,6 @@ type queryTerm struct {
 	caseSensitive bool
 }
 
-// parseQuery splits a query into terms that must all match the row's machine
-// and name. "!term" excludes; any uppercase letter makes a term case
-// sensitive.
 func parseQuery(query string) []queryTerm {
 	var terms []queryTerm
 	for _, field := range strings.Fields(query) {

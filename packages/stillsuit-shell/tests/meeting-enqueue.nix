@@ -51,8 +51,6 @@ pkgs.runCommand "stillsuit-meeting-enqueue-test"
     test "$(<"$systemctl_log")" = \
       "--user start --no-block meeting-minutes-worker.service"
 
-    # Failed jobs stay failed until an explicit retry. Retry keeps the identity,
-    # increments attempt under the job lock, and dispatches the worker once.
     temporary_job="$state_dir/jobs/$job_id.tmp"
     jq '.phase = "error" | .error = "fixture failure"' \
       "$state_dir/jobs/$job_id.json" > "$temporary_job"

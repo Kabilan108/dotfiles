@@ -5,12 +5,6 @@ import Quickshell.Io
 import "plugins/builtin/launcher" as Launcher
 import "tests/FixtureTheme.js" as FixtureTheme
 
-// Drives the launcher service and menu against a fake host context, fixture
-// desktop entries, and fake qalc and fd scripts that log every run. Keys are
-// real key events sent to the fixture window, so they reach the menu through
-// the focused search field. Each step acts once and then waits for its
-// condition; the run stops at the first failed step and prints
-// LAUNCHER_QML_OK or LAUNCHER_QML_FAIL lines.
 ShellRoot {
     id: root
 
@@ -20,7 +14,6 @@ ShellRoot {
     readonly property string screenshotDir: Quickshell.env("LAUNCHER_FIXTURE_SCREENSHOTS")
     readonly property string applicationsDir: Quickshell.env("LAUNCHER_FIXTURE_APPLICATIONS")
     property var calls: []
-    // Action name -> status the fake host returns instead of success.
     property var refusals: ({})
     property var warnings: []
     property real mark: 0
@@ -94,8 +87,6 @@ ShellRoot {
         return !!field && field.inputItem.activeFocus
     }
 
-    // Sends a key press and release to the window; the focused search field
-    // receives it. Returns whether the event was delivered.
     function key(code, modifiers) {
         expect(fieldFocused(), "the search field has focus before key " + code)
         return events.keyClick(code, modifiers || 0, -1)
@@ -106,13 +97,10 @@ ShellRoot {
             events.keyClickChar(text.charAt(index), 0, -1)
     }
 
-    // Replaces the field text in one edit, which reaches the service through
-    // the field's text change like typing does.
     function type(text) {
         menu.fieldItem().text = text
     }
 
-    // The order MenuHost uses: open the content, show it, focus the scope.
     function openMenu(payload) {
         menu.open(payload)
         menu.visible = true
@@ -133,7 +121,6 @@ ShellRoot {
         return menu.findNamed(menu, "launcher-results")
     }
 
-    // Delegate per row key for every row the list has an item for.
     function delegatesByKey() {
         var list = resultList()
         list.forceLayout()
@@ -146,8 +133,6 @@ ShellRoot {
         return result
     }
 
-    // Checks that rows still on screen kept their delegate and that every
-    // delegate shows the row at its index.
     function checkDelegates(before, label) {
         var after = delegatesByKey()
         var kept = 0
@@ -177,9 +162,6 @@ ShellRoot {
         return after
     }
 
-    // What each visible row's icon slot shows: the pack glyph name once its
-    // image is ready, "app:<icon>" for a theme icon, or "letter:<label>" when
-    // the theme lookup failed and the monogram placeholder is up.
     function rowGlyphs() {
         var list = resultList()
         list.forceLayout()
@@ -522,7 +504,6 @@ ShellRoot {
         })
     }
 
-    // {name, act(), until() -> bool, timeout ms (default 3000)}
     property var steps: [
         {
             name: "desktop entries scanned",
@@ -1102,8 +1083,6 @@ ShellRoot {
         {
             name: "power rows render pack glyphs, not theme lookups or letters",
             act: function () {
-                // The fixture has no icon theme, like a system without
-                // non-symbolic names; theme lookups would fall back to letters.
                 root.expect(root.rowGlyphs().join(" ") === "lock sleep logout refresh power",
                             "power rows show ShellIcon glyphs: " + root.rowGlyphs())
                 root.screenshot("power")
@@ -1275,8 +1254,6 @@ ShellRoot {
             }
         },
         {
-            // niri flags no window once the menu holds focus, and its
-            // debounced stamps can still put the previous window newest.
             name: "the window focused at open stays current",
             act: function () {
                 var saved = root.fakeCompositor.windows
@@ -1324,9 +1301,6 @@ ShellRoot {
             }
         },
         {
-            // Another layer surface (a Stillsuit panel) holds the keyboard as
-            // the menu opens, so niri flags no window; the compositor's last
-            // focused window stands in, unless it is no longer open.
             name: "with no flagged window the last focused one is current",
             act: function () {
                 var saved = root.fakeCompositor.windows
@@ -1602,8 +1576,6 @@ ShellRoot {
         onTriggered: root.tick()
     }
 
-    // Real key delivery spins the event loop, so the timer can fire while a
-    // step is still acting; a nested tick would advance the step twice.
     property bool ticking: false
 
     function tick() {

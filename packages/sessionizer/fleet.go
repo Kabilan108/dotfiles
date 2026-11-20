@@ -48,8 +48,6 @@ func localHostname() string {
 	return name
 }
 
-// remoteHosts returns the configured remote hosts this machine can reach,
-// in fleet order. A machine without an agent key reaches none.
 func remoteHosts(config Config) []FleetHost {
 	keyPath := filepath.Join(homeDir(), ".ssh", "agent-"+localHostname())
 	if _, err := os.Stat(keyPath); err != nil {
@@ -65,10 +63,6 @@ func remoteHosts(config Config) []FleetHost {
 	return result
 }
 
-// remoteSessionizer is the command another host runs. deploy-gate on gated
-// hosts allows exactly `"$HOME/bin/sessionizer" --inventory`, so keep that
-// spelling. SESSIONIZER_REMOTE_PROGRAM swaps in another build on the remote
-// side for testing; gated hosts then refuse the inventory.
 func remoteSessionizer(args ...string) string {
 	program := `"$HOME/bin/sessionizer"`
 	if override := os.Getenv("SESSIONIZER_REMOTE_PROGRAM"); override != "" {
@@ -87,8 +81,6 @@ func agentSSH(host, remote string) []string {
 	}
 }
 
-// masterSSH runs remote over an already open login connection and fails
-// rather than authenticate, so it never asks for a security key touch.
 func masterSSH(host, remote string) []string {
 	return []string{
 		"ssh", "-T", "-n",
@@ -139,8 +131,6 @@ func writeHostCache(host string, cache hostCache) error {
 	return writeFileAtomic(hostCachePath(host), data, 0o600)
 }
 
-// refreshHost fetches host's inventory over the agent key and caches it. It
-// returns the cache it wrote, or the previous one marked offline.
 func refreshHost(host FleetHost) hostCache {
 	if err := os.MkdirAll(remoteCacheDir(), 0o755); err != nil {
 		return readHostCache(host.Name)
@@ -185,8 +175,6 @@ func refreshHost(host FleetHost) hostCache {
 	return cache
 }
 
-// markVisited bumps a cached remote session to now, so the next picker
-// orders it correctly before its refresh lands.
 func markVisited(host, sessionID string) {
 	cache := readHostCache(host)
 	now := time.Now().Unix()

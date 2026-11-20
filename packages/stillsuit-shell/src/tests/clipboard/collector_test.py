@@ -37,9 +37,6 @@ RFH_TOKEN = "chromium/x-internal-source-rfh-token"
 DEFAULT_GECKO_APP_IDS = (r"^(zen|zen-beta|zen-browser|zen-alpha|zen-twilight|app\.zen_browser\.zen"
                          r"|firefox|firefox-esr|firefox-nightly|librewolf|org\.mozilla\.firefox)$")
 
-# Exact `wl-paste --list-types` output from the 2026-10-05 Wayland probe
-# (Firefox 157, Chromium 154, Bitwarden extension 2026.9.3), duplicates and
-# order kept. The probe's vault origin was https://localhost:8222.
 PROBE_VAULT = "https://localhost:8222"
 PROBE_EXTENSION = "chrome-extension://nngceckbapebfimnlniiiahkandclblb/"
 FIREFOX_PLAIN = [TEXT, "UTF8_STRING", "COMPOUND_TEXT", "TEXT", "text/plain", "STRING", TEXT, "text/plain",
@@ -56,7 +53,6 @@ CHROMIUM_VAULT = CHROMIUM_EXTENSION
 CHROMIUM_PAGE = ["text/plain", TEXT, "UTF8_STRING", RFH_TOKEN, TEXT, "TEXT", CHROMIUM, "STRING", "text/html"]
 CHROMIUM_URLBAR = [TEXT, "text/plain", TEXT, "UTF8_STRING", "TEXT", "STRING"]
 CHROMIUM_CLEAR = [RFH_TOKEN, CHROMIUM]
-# Text offers of other toolkits, none with Gecko's GTK3 shape.
 QT_TEXT = ["text/plain", TEXT, "UTF8_STRING", "TEXT", "STRING"]
 FOOT_TEXT = [TEXT, "text/plain", "UTF8_STRING", "TEXT", "STRING"]
 WL_COPY_TEXT = ["text/plain", TEXT, "TEXT", "STRING", "UTF8_STRING"]
@@ -113,9 +109,6 @@ class CollectorCase(unittest.TestCase):
         full_env["XDG_RUNTIME_DIR"] = str(self.runtime)
         for inherited in ("CLIPBOARD_STATE", "STILLSUIT_CLIPBOARD_WATCH_PID"):
             full_env.pop(inherited, None)
-        # Every fake wl-paste call is a Python startup, so a multi-read offer
-        # can near a tight text bound on its own; the stall tests set
-        # text_gate to 250 ms and stall the reads past it.
         full_env["STILLSUIT_CLIPBOARD_TEXT_GATE_SEC"] = self.text_gate
         full_env.update(env or {})
         return full_env
@@ -214,7 +207,6 @@ class ClassificationTests(CollectorCase):
         self.assertEqual(self.emit(env={"CLIPBOARD_STATE": "nil"}), {"kind": "skipped", "reason": "empty"})
 
     def test_nil_clipboard_state_never_clears(self) -> None:
-        # Both browsers announce their clear with state=nil before the data event.
         for state in ("nil", "clear"):
             with self.subTest(state=state):
                 self.offer({TEXT: b"", "text/plain": b""}, types=FIREFOX_CLEAR)
@@ -283,8 +275,6 @@ class ClassificationTests(CollectorCase):
                 self.assert_no_secret_on_disk()
 
     def test_clear_payloads_without_gecko_shape_are_empty(self) -> None:
-        # Only Firefox's Bitwarden clear needs a purge, and it is Gecko-shaped;
-        # any other app's empty, NUL or space text is just empty.
         for payload in (b"", b"\x00", b" "):
             with self.subTest(payload=payload):
                 self.offer({"text/plain;charset=utf-8": payload, "text/plain": payload})
@@ -292,9 +282,6 @@ class ClassificationTests(CollectorCase):
         self.assertEqual(self.blobs(), [])
 
     def test_failed_wl_copy_after_wl_copy_is_not_a_clear(self) -> None:
-        # Two unrelated wl-copy offers share a type list. When the second
-        # sender fails, wl-paste still exits 0 with zero bytes; that read must
-        # not purge the first copy, so it is skipped rather than a clear.
         self.offer(dict.fromkeys(WL_COPY_TEXT, b"first copy"), types=WL_COPY_TEXT)
         first = self.emit()
         self.assertEqual((first["kind"], first["shape"]), ("text", shape_of(WL_COPY_TEXT)))
@@ -416,8 +403,6 @@ class ClassificationTests(CollectorCase):
 
 
     def test_offer_returning_to_previous_during_read_is_dropped(self) -> None:
-        # Types and markers come from offer A, the payload from secret offer B,
-        # and A is back before the recheck: only a second payload read sees it.
         self.offer(
             {TEXT: SECRET, "chromium/x-source-url": b"https://example.com/"},
             after_payloads={TEXT: b"what A really offers"},
@@ -911,8 +896,6 @@ class ProbeTests(ProbeCase):
         self.assertEqual((event["kind"], event["mime"], event["preview"]), ("text", TEXT, self.PAGE_TEXT.decode()))
 
     def test_firefox_address_bar_copy_is_skipped(self) -> None:
-        # The cost of the rule: Zen/Firefox address-bar copies offer exactly
-        # what the extension's password copy offers.
         self.firefox(FIREFOX_URLBAR, self.URL)
         self.assertEqual(self.probe_emit(), {"kind": "skipped", "reason": "unattributed"})
         self.assertEqual(self.blobs(), [])
@@ -934,9 +917,6 @@ class ProbeTests(ProbeCase):
         self.assertEqual(self.blobs(), [])
 
     def test_clear_shape_matches_only_the_same_offer_types(self) -> None:
-        # The model purges on a clear only when its shape matches the newest
-        # capture's: the extension's clear offers what its copy offered. A
-        # failed transfer from an app without Gecko's shape is no clear at all.
         self.firefox(FIREFOX_EXTENSION, self.PASSWORD)
         copied = self.probe_emit("--unattributed-firefox=record")
         self.firefox(FIREFOX_CLEAR, b"")
@@ -962,9 +942,6 @@ class ProbeTests(ProbeCase):
         self.assert_no_secret_on_disk(self.PASSWORD)
 
     def test_stalled_text_classification_is_skipped(self) -> None:
-        # Benign offer A can answer the metadata reads while a secret offer B
-        # answers the payload reads (A, B, A, B); that needs the reads to
-        # stall long enough for several copies.
         self.text_gate = "0.25"
         self.chromium(CHROMIUM_PAGE, self.PAGE_TEXT, "http://localhost:8333/")
         (self.fake / "read-delay").write_text("0.15", encoding="utf-8")
@@ -985,7 +962,6 @@ class ProbeTests(ProbeCase):
         offscreen = PROBE_EXTENSION + "offscreen-document/index.html"
         self.chromium(CHROMIUM_CLEAR, None, offscreen)
         self.assertEqual(self.probe_emit(), {"kind": "skipped", "reason": "source"})
-        # Without a matching prefix there is still no text to read.
         self.chromium(CHROMIUM_CLEAR, None, offscreen)
         result = self.run_collector("emit", "--state-dir", str(self.state), "--wl-paste", str(FAKE_PASTE))
         self.assertEqual(json.loads(result.stdout), {"kind": "skipped", "reason": "unsupported"})
@@ -1107,8 +1083,6 @@ class AttributionTests(ProbeCase):
                          "niri is asked before the first payload read and after the last")
 
     def test_empty_gtk3_offer_in_skip_mode_is_not_a_clear(self) -> None:
-        # A settled GTK3 app's empty, NUL or space offer has the Gecko shape;
-        # in the default mode it must not purge that app's previous copy.
         for payload in (b"", b"\x00", b" "):
             with self.subTest(payload=payload):
                 self.samples(self.settled_editor(), self.settled_editor())
@@ -1116,8 +1090,6 @@ class AttributionTests(ProbeCase):
                 self.assertEqual(self.niri_emit(), {"kind": "skipped", "reason": "empty"})
 
     def test_stalled_reads_between_identical_samples_are_skipped(self) -> None:
-        # A mouse-only Zen visit commits no niri stamp, so both answers can
-        # match while a stalled read returned the browser's copy.
         self.text_gate = "0.25"
         self.samples(self.settled_editor(), self.settled_editor())
         self.firefox(FIREFOX_EXTENSION, self.PASSWORD)
@@ -1129,12 +1101,9 @@ class AttributionTests(ProbeCase):
         self.assert_no_secret_on_disk(self.PASSWORD)
 
     def test_slow_first_focus_answer_counts_toward_the_gate(self) -> None:
-        # niri takes its snapshot, then answers late: a Zen visit in that
-        # time happens after the snapshot the first sample reflects.
         self.text_gate = "0.25"
         self.samples(self.settled_editor(), self.settled_editor())
         self.firefox(FIREFOX_EXTENSION, self.PASSWORD)
-        # Below niri's 0.3 s timeout, but with the reads past the 250 ms gate.
         (self.fake / "niri-sleep.1").write_text("0.2", encoding="utf-8")
         (self.fake / "read-delay").write_text("0.03", encoding="utf-8")
         self.assertEqual(self.niri_emit(), {"kind": "skipped", "reason": "unattributed"})
@@ -1148,15 +1117,12 @@ class AttributionTests(ProbeCase):
                 self.assert_password_skipped()
 
     def test_gecko_focused_in_the_second_sample_is_skipped(self) -> None:
-        # Settle 0 leaves the Gecko match as the only reason to skip.
         zen_after_first = [{"id": 1, "app_id": self.EDITOR, "is_focused": False, "focus_age_ms": 60_000},
                            {"id": 2, "app_id": self.ZEN, "is_focused": True, "focus_age_ms": -1}]
         self.samples(self.settled_editor(), zen_after_first)
         self.assert_password_skipped_after_reading("", "--focus-settle-ms=0")
 
     def test_switch_between_samples_is_skipped(self) -> None:
-        # The first answer approved the editor; then focus moved, and a Zen
-        # copy made in that time is what the payload reads returned.
         editor, zen = self.settled_editor()
         second_answers = {
             "Zen focused, not yet stamped": [{**editor, "is_focused": False}, {**zen, "is_focused": True}],
@@ -1173,7 +1139,6 @@ class AttributionTests(ProbeCase):
                 self.assert_password_skipped_after_reading(name)
 
     def test_focus_moved_between_samples_is_skipped(self) -> None:
-        # Settle 0 makes the second focus settled, so only the change skips.
         editor, zen = self.settled_editor()
         second_answers = {
             "another app": [{**editor, "is_focused": False}, zen,
@@ -1204,15 +1169,11 @@ class AttributionTests(ProbeCase):
                 self.assert_password_skipped_after_reading(name)
 
     def test_copy_then_quick_switch_away_from_zen_is_skipped(self) -> None:
-        # Copied in Zen, then Alt-Tab to a GTK3 app before the collector asked.
         self.history(self.EDITOR, 50, previous=self.ZEN, previous_ms_ago=10_000)
         self.assert_password_skipped("a focus change 50 ms old leaves the copy with Zen")
         self.assertEqual(self.niri_calls(), ["msg --json windows"], "niri is asked once")
 
     def test_switch_away_from_zen_inside_niris_debounce_is_skipped(self) -> None:
-        # niri stamps a refocused window only after recent-windows debounce
-        # (750 ms): until then the focused editor keeps its old stamp and Zen's
-        # is the newest.
         self.windows({"id": 1, "app_id": self.EDITOR, "is_focused": True, "focus_age_ms": 3_600_000},
                      {"id": 2, "app_id": self.ZEN, "is_focused": False, "focus_age_ms": 30_000})
         self.assert_password_skipped("a focus niri has not committed yet is unsettled")
@@ -1232,8 +1193,6 @@ class AttributionTests(ProbeCase):
                 self.assert_password_skipped(name)
 
     def test_two_hop_switch_from_zen_is_skipped(self) -> None:
-        # Zen, then another app long enough for niri to stamp it, then the
-        # editor: the newest unfocused window is the intermediate app.
         hops = [{"id": 2, "app_id": self.TERMINAL_GTK, "is_focused": False, "focus_age_ms": 1_000},
                 {"id": 3, "app_id": self.ZEN, "is_focused": False, "focus_age_ms": 2_500}]
         cases = {
@@ -1423,8 +1382,6 @@ class OrphanTests(CollectorCase):
         self.assertTrue((self.fake / "watch.argv").exists())
 
     def test_watch_orphaned_before_it_started_collects_nothing(self) -> None:
-        # The owner spawns watch and dies before watch arms its death signal,
-        # so watch starts already reparented to a subreaper.
         child_pid = self.tmp / "child.pid"
         child_err = self.tmp / "child.err"
         owner = subprocess.run(
@@ -1458,8 +1415,6 @@ class OrphanTests(CollectorCase):
         self.assertIn(b"watch outlived its owner", child_err.read_bytes())
 
     def test_watcher_killed_during_emit_bootstrap(self) -> None:
-        # The fake wl-paste starts emit through a shell that sleeps before
-        # exec; the watcher dies meanwhile, so emit starts already orphaned.
         scenario = self.fake / "scenarios" / "01"
         (scenario / "payloads").mkdir(parents=True)
         (scenario / "types").write_text(TEXT + "\n", encoding="utf-8")

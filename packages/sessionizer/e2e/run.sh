@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Usage: run.sh BINARY
-# End-to-end run of the picker and proxy sessions against a throwaway fixture
-# of three tmux servers and a fake ssh. It never touches your own tmux.
 set -uo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 BIN=$(realpath "$1")
@@ -13,12 +10,8 @@ check() {
   if eval "$2" >/dev/null 2>&1; then echo "PASS  $1"; else echo "FAIL  $1"; failures=$((failures + 1)); fi
 }
 popup() { waitfor '! screen | grep -qE "[┌┐└┘]"'; (key M-s >/dev/null 2>&1 &); waitfor 'screen | grep -q "insert>"' && waitfor '! screen | grep -q "󰑓"'; }
-# The picker's list is the column between the popup's border and the
-# preview's. Each row takes two lines; its first is bar, kind icon, name.
 list_column() { awk -F'│' '{ print $2 }'; }
 row_tops() { list_column | grep -E '^(▌| ) [^ ]'; }
-# first_row prints the first row's top line, which must sit in a HERE section
-# right under the rule below the prompt.
 first_row() { awk -F'│' 'state == 1 { if ($2 !~ /^HERE /) exit; state = 2; next } state == 2 { print $2; exit } !state && /│─────/ { state = 1 }'; }
 type_keys() { local text=$1 i; for ((i = 0; i < ${#text}; i++)); do key "${text:i:1}"; done; }
 local_session() { L list-clients -F '#{session_name}' | head -1; }

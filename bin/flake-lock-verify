@@ -487,7 +487,6 @@ class Verifier:
             specs.append((spec if isinstance(spec, dict) else None, where))
         own, own_where = specs[-1]
         if own is None:
-            # Nix ignores overrides for inputs the flake doesn't declare.
             return None
         flake = own.get("flake", True)
         for depth, (spec, where) in enumerate(specs):
@@ -521,9 +520,6 @@ class Verifier:
         name = "/".join(path)
         if decl.follows is not None:
             declared = "/".join(decl.follows)
-            # Nix may record a follows chain already resolved one step, so
-            # compare where the two paths lead. The target's own binding is
-            # checked separately.
             if not isinstance(edge, list) or resolve(pr, edge) != resolve(pr, decl.follows):
                 return FAIL, f"{name}: {decl.where} declares follows {declared!r}, the lock has {edge!r}"
             return PASS, f"{name}: follows {declared} as {decl.where} declares"
@@ -608,9 +604,6 @@ def check_lock(
     if flake_text is not None:
         root_flake.write_text(flake_text)
 
-    # Each binding is checked in its own context, shallowest first, so a
-    # child sees the final status of the binding above it. Paths below a
-    # follows alias are checked where Nix instantiates them.
     path_status = {path: r.status for r, c in zip(results, changes) for path in c.paths}
     bindings: dict[str, tuple[Change, Result]] = {}
     for change, result in zip(changes, results):

@@ -17,7 +17,6 @@
           helium = import ./packages/helium.nix { pkgs = final; };
         })
         (import ./packages/rust-system-libs.nix)
-        # Builds pagebin with this overlay set's bun, which `bun build --compile` embeds.
         inputs.pagebin.overlays.default
         inputs.atlas.overlays.default
         inputs.hark.overlays.default
@@ -26,7 +25,6 @@
         inputs.atuin.overlays.default
       ];
 
-      # The deploy receiver only moves forward from this commit.
       configurationRevision = {
         system.configurationRevision = self.rev or self.dirtyRev or null;
       };
@@ -44,8 +42,6 @@
                 hostPlatform = system;
                 config = {
                   allowUnfree = true;
-                  # Zotero 10 bundles Firefox 140 ESR, which reached end of life on
-                  # 2026-10-13. Remove once nixpkgs' Zotero moves to a supported ESR.
                   permittedInsecurePackages = [ "firefox-esr-140-bin-unwrapped-140.17.0esr" ];
                 };
                 inherit overlays;
@@ -68,7 +64,6 @@
             ./modules/nixos/teamviewer.nix
             ./modules/nixos/syncthing.nix
             ./modules/nixos/desktop-wayland.nix
-            # niri-flake packages and caches niri; its config.kdl lives in HM as a manual file.
             inputs."niri-flake".nixosModules.niri
             ./modules/nixos/wayland/niri.nix
           ]
@@ -86,7 +81,6 @@
           ];
         };
         jacurutu = makeSystem { name = "jacurutu"; };
-        # The Pi keeps none of the desktop modules or overlays above.
         tleilax = nixpkgs.lib.nixosSystem {
           specialArgs = { inherit inputs; };
           modules = [
@@ -115,8 +109,32 @@
         in
         pkgs.mkShell {
           DOTFILES_QML_IMPORT_PATH = "${pkgs.qt6.qtdeclarative}/lib/qt-6/qml:${pkgs.quickshell}/lib/qt-6/qml";
+          COMMENT_LINT_GRAMMARS = pkgs.linkFarm "comment-lint-grammars" (
+            map
+              (name: {
+                name = "${name}.so";
+                path = "${pkgs.tree-sitter-grammars."tree-sitter-${name}"}/parser";
+              })
+              [
+                "nix"
+                "bash"
+                "python"
+                "qmljs"
+                "javascript"
+                "typescript"
+                "go"
+                "lua"
+                "kdl"
+                "toml"
+                "yaml"
+                "json"
+              ]
+          );
           packages = [
-            (pkgs.python3.withPackages (ps: [ ps.jsonschema ]))
+            (pkgs.python3.withPackages (ps: [
+              ps.jsonschema
+              ps.tree-sitter
+            ]))
             pkgs.quickshell
             pkgs.sway
             pkgs.jq
@@ -134,16 +152,13 @@
     };
 
   inputs = {
-    # machine setup
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
-    # 3rd party flakes
     agenix = {
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # tleilax's disk layout, used once at install and for its fileSystems.
     disko = {
       url = "github:nix-community/disko/latest";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -152,8 +167,6 @@
       url = "gitlab:rycee/nur-expressions?dir=pkgs/firefox-addons";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # Build with the system nixpkgs so ghostty gets its glibc, Mesa ABI and
-    # security fixes (its own nixpkgs shipped brotli 1.2.0, CVE-2026-111497).
     ghostty = {
       url = "github:ghostty-org/ghostty/v1.4.0";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -162,8 +175,6 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # niri-flake stopped bumping its niri-unstable pin in August 2026; track
-    # niri directly so fixes (e.g. SHM screencasting on NVIDIA) reach us.
     "niri-flake" = {
       url = "github:sodiboo/niri-flake";
       inputs.niri-unstable.url = "github:niri-wm/niri";
@@ -182,7 +193,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # tools i maintain
     atlas = {
       url = "github:kabilan108/atlas";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -227,8 +237,6 @@
       url = "github:kabilan108/tracer";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # Built with Atuin's own nixpkgs and toolchain, unfollowed, so the release
-    # matches atuin.cachix.org. Keep it on a release tag CI has cached.
     atuin.url = "github:atuinsh/atuin/v18.24.8";
   };
 }

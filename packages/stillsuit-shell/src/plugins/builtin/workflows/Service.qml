@@ -2,9 +2,6 @@ import QtQuick
 import Quickshell
 import "../../../services" as Services
 
-// The host constructs this aggregate exactly once. Consumers must obtain it
-// through context.services.get("stillsuit.workflows") rather than importing or
-// constructing its children.
 Scope {
     id: root
 

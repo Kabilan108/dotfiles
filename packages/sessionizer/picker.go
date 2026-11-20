@@ -9,14 +9,10 @@ import (
 )
 
 const (
-	// host chips, prompt, and a rule above the list; a rule and the key
-	// hints below it.
 	chromeLines     = 5
 	minPreviewWidth = 70
 	listPercent     = 53
-	// gitDebounce waits for the cursor to settle before reading a
-	// directory's git status, so scrolling past repositories runs no git.
-	gitDebounce = 150 * time.Millisecond
+	gitDebounce     = 150 * time.Millisecond
 )
 
 type kindFilter int
@@ -53,8 +49,6 @@ type summaryMsg struct {
 	summary *DirSummary
 }
 
-// listItem is one entry of the drawn list: a section header, or the row at
-// visible[row].
 type listItem struct {
 	section section
 	count   int
@@ -71,40 +65,34 @@ func (item listItem) height() int {
 }
 
 type pickerModel struct {
-	rows    []Row
-	visible []int
-	items   []listItem
-	// itemOf maps a visible position to its item; lineStart[i] is the line
-	// item i starts on, with the total line count at the end.
-	itemOf      []int
-	lineStart   []int
-	hostCounts  map[string]int
-	cursor      int
-	top         int
-	query       []rune
-	normal      bool
-	machines    []string
-	colors      map[string]string
-	machine     int
-	kind        kindFilter
-	width       int
-	height      int
-	hosts       []hostState
-	rank        hostRank
-	favorites   map[string]bool
-	selected    *Row
-	message     string
-	now         func() time.Time
-	refresh     func(FleetHost) hostCache
-	git         *gitCache
-	gitDebounce time.Duration
-	// gitSelected is the selection a git read was last scheduled for;
-	// gitPending holds the rows whose read is running, and freshGit the
-	// latest read for each row, which wins over a summary landing later.
-	gitSelected string
-	gitPending  map[string]bool
-	freshGit    map[string]*GitDetails
-	// summaryLoading holds the local directories whose listing is being read.
+	rows           []Row
+	visible        []int
+	items          []listItem
+	itemOf         []int
+	lineStart      []int
+	hostCounts     map[string]int
+	cursor         int
+	top            int
+	query          []rune
+	normal         bool
+	machines       []string
+	colors         map[string]string
+	machine        int
+	kind           kindFilter
+	width          int
+	height         int
+	hosts          []hostState
+	rank           hostRank
+	favorites      map[string]bool
+	selected       *Row
+	message        string
+	now            func() time.Time
+	refresh        func(FleetHost) hostCache
+	git            *gitCache
+	gitDebounce    time.Duration
+	gitSelected    string
+	gitPending     map[string]bool
+	freshGit       map[string]*GitDetails
 	summaryLoading map[string]bool
 }
 
@@ -213,11 +201,6 @@ func (m *pickerModel) applyGit(msg gitMsg) {
 	}
 }
 
-// loadSelected reads the selected local directory for the preview, off the
-// update loop, since a directory can sit on a slow or hung filesystem.
-// Cached git details show as soon as the listing does when the repository
-// hasn't changed; either way a fresh read follows once the cursor settles,
-// because the cache can't see unstaged edits.
 func (m *pickerModel) loadSelected() tea.Cmd {
 	if m.cursor < 0 || m.cursor >= len(m.visible) {
 		return nil
@@ -249,8 +232,6 @@ func (m *pickerModel) loadSelected() tea.Cmd {
 	return tea.Batch(commands...)
 }
 
-// startGit reads the selected directory's git status once the cursor has
-// rested on it, unless a read for it is already running.
 func (m *pickerModel) startGit(msg gitTickMsg) tea.Cmd {
 	row, ok := m.current()
 	if !ok || row.ID != msg.id || m.gitPending[msg.id] || m.git == nil {
@@ -396,9 +377,6 @@ func (m *pickerModel) kindAllows(row Row) bool {
 	return true
 }
 
-// refilter recomputes the visible rows, grouped by section in row order.
-// The cursor stays on keep when it is still visible and goes to the first
-// row otherwise.
 func (m *pickerModel) refilter(keep string) {
 	terms := parseQuery(string(m.query))
 	machine := m.machines[m.machine]
@@ -470,14 +448,10 @@ func (m *pickerModel) pageRows() int {
 	return max(1, m.listHeight()/2)
 }
 
-// linesBetween counts the lines items first through last take.
 func (m *pickerModel) linesBetween(first, last int) int {
 	return m.lineStart[last+1] - m.lineStart[first]
 }
 
-// scrollToCursor moves the top of the list as little as it can to show the
-// cursor's row whole, with its section header when it is the section's
-// first row. The list always starts on a whole item.
 func (m *pickerModel) scrollToCursor() {
 	if len(m.items) == 0 || len(m.visible) == 0 {
 		m.top = 0
@@ -501,7 +475,6 @@ func (m *pickerModel) scrollToCursor() {
 	}
 }
 
-// shownItems is the range of items that fit whole from the top.
 func (m *pickerModel) shownItems() (int, int) {
 	height := m.listHeight()
 	end := m.top

@@ -64,8 +64,6 @@ fixture_config="$XDG_CONFIG_HOME/quickshell/$STILLSUIT_CONFIG_ID"
 mkdir -p "$(dirname -- "$fixture_config")"
 cp -R -- "$source_root" "$fixture_config"
 cp -- "$script_dir/fixture-shell.qml" "$fixture_config/shell.qml"
-# The fixture must exercise the production directory descriptor. Every shared
-# type used by this lane remains part of that public UI surface.
 while IFS= read -r descriptor; do
     rg -Fx -- "$descriptor" "$source_root/ui/qmldir" >/dev/null
 done < "$script_dir/ui.qmldir"

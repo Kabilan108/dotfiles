@@ -5,8 +5,6 @@
   ...
 }:
 let
-  # Pinned to 15.83.3 for TV-2026-1011 (CVE-2026-111585, CVE-2026-92372) until
-  # nixpkgs ships >= 15.83; then go back to `inherit (pkgs.teamviewer) version src`.
   teamviewer = pkgs.teamviewer.overrideAttrs (old: {
     version = "15.83.3";
     src = pkgs.fetchurl {
@@ -22,7 +20,6 @@ in
   config = lib.mkIf config.services.teamviewer.enable {
     services.teamviewer.package = lib.mkDefault teamviewer;
 
-    # Keep the root daemon out of boot; it only runs while TeamViewer is in use.
     systemd.services.teamviewerd.wantedBy = lib.mkForce [ ];
   };
 }

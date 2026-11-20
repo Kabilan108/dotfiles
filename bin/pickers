@@ -69,7 +69,6 @@ split=0
 type=""
 context=""
 
-# Parse command line arguments
 while [ $# -gt 0 ]; do
   case "$1" in
   --split)
@@ -89,12 +88,10 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-# Check if type is provided and valid
 if [ -z "$type" ]; then
   usage
 fi
 
-# Execute the appropriate command based on type and split flag
 if [ "$type" = "dirs" ]; then
   if [ "$split" -eq 1 ]; then
     pick_dir | xargs -I DIR tmux split-window -c DIR

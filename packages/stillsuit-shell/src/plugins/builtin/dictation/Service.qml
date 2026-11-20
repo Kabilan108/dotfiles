@@ -2,9 +2,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Recording control and recent transcripts for the dictation panel. Live
-// state and levels come from the shared Dictator OSD projection in the
-// workflows aggregate; this service only adds commands and history reads.
 Scope {
     id: root
 
@@ -117,7 +114,6 @@ Scope {
         recentStatus = "ready"
     }
 
-    // A finished recording lands in history after the daemon returns to idle.
     onStateChanged: {
         var was = previousState
         previousState = state

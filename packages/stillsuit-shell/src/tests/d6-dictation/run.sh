@@ -63,47 +63,37 @@ wait_json() {
 qs --no-color -p "$config_dir" >"$tmp_dir/quickshell.log" 2>&1 &
 shell_pid=$!
 
-# History loads on construction from the literal CLI argv and keeps rows in order.
 state=$(wait_json '.apiVersion == "1" and .configured and .connected and .state == "idle" and .recentStatus == "ready"')
 jq -e '(.recent | length) == 2 and .recent[0].id == 42 and .recent[1].id == 41 and .recent[0].durationMs == 21227 and .canToggle and (.canCancel | not)' >/dev/null <<<"$state"
 [[ $(sed -n '1p' "$STILLSUIT_FIXTURE_DICTATOR_LOG") == 'transcripts -n 5' ]]
 
-# Toggle dispatches exactly one argv and refuses to overlap itself.
 [[ $(ipc toggle) == started ]]
 for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_DICTATOR_LOG") -ge 2 ]] && break; sleep 0.02; done
 [[ $(sed -n '2p' "$STILLSUIT_FIXTURE_DICTATOR_LOG") == 'toggle' ]]
 wait_json '.actionRunning | not' >/dev/null
 
-# Live state comes from the OSD socket, not from the command result.
 touch "$tmp_dir/start-recording"
 wait_json '.state == "recording" and .canToggle and .canCancel' >/dev/null
 [[ $(ipc cancel) == started ]]
 for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_DICTATOR_LOG") -ge 3 ]] && break; sleep 0.02; done
 [[ $(sed -n '3p' "$STILLSUIT_FIXTURE_DICTATOR_LOG") == 'cancel' ]]
 
-# Returning to idle refreshes history once without an explicit request.
 wait_json '.state == "idle"' >/dev/null
 for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_DICTATOR_LOG") -ge 4 ]] && break; sleep 0.02; done
 [[ $(sed -n '4p' "$STILLSUIT_FIXTURE_DICTATOR_LOG") == 'transcripts -n 5' ]]
 
-# A failing command surfaces its last stderr line and clears the busy flag.
 touch "$STILLSUIT_FIXTURE_DICTATOR_FAIL"
 [[ $(ipc toggle) == started ]]
 wait_json '.errorMessage == "error: daemon refused toggle" and (.actionRunning | not)' >/dev/null
 
-# The launcher starts the configured GUI executable detached, with no arguments.
 [[ $(ipc openWindow) == started ]]
 for _ in {1..100}; do [[ -s $STILLSUIT_FIXTURE_DICTATOR_GUI_LOG ]] && break; sleep 0.02; done
 [[ $(<"$STILLSUIT_FIXTURE_DICTATOR_GUI_LOG") == 'launched' ]]
 jq -e '.launchCount == 1' >/dev/null <<<"$(ipc state)"
 
-# Copy puts the full transcript, newlines included, on the clipboard.
 [[ $(ipc copy 0) == copied ]]
 [[ $(ipc clipboard) == $'First line\n\nsecond paragraph' ]]
 
-# Waveforms are scene-graph bars, not a repainted Canvas. While the transcribing
-# scan advances, a closed keepLoaded panel keeps its geometry; once opened, it
-# follows the scan.
 if rg -n 'Canvas \{|requestPaint' "$package_dir/src/plugins/builtin/dictation/Panel.qml"; then
   echo "dictation waveform repaints a Canvas" >&2
   exit 1

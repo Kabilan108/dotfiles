@@ -26,14 +26,12 @@ let
       fi
     }
 
-    # Trusted owner-maintained package: follow Git HEAD without a release-age hold.
     update_tool viewh5 ${pkgs.uv}/bin/uv tool install -U --from git+https://github.com/kabilan108/viewh5 viewh5
 
     for package in @steipete/summarize ccusage @earendil-works/pi-coding-agent; do
       update_tool "$package" ${pkgs.pnpm}/bin/pnpm add -g -y "$package"
     done
 
-    # Install the shared lock without selecting releases or modifying Git files.
     update_tool mise-tools ${pkgs.coreutils}/bin/env \
       MISE_GLOBAL_CONFIG_FILE=${lib.escapeShellArg "${homeDir}/dotfiles/config/mise/config.toml"} \
       MISE_CEILING_PATHS="$PWD" \

@@ -21,10 +21,6 @@ let
           ${themeSource}
         cp ${themeSource} "$out"
       '';
-  # Stylix accepts a realized YAML path or an already-parsed scheme. This is
-  # deliberately an attrset: a writeText derivation is not realized while the
-  # module graph is being evaluated and would be parsed as a scalar store-path
-  # string instead of as YAML.
   base16Projection = {
     scheme = "Stillsuit Catppuccin Mocha";
     author = "Catppuccin contributors; Stillsuit projection";
@@ -65,8 +61,6 @@ in
 
       xdg.configFile."stillsuit/theme.json".source = validatedTheme;
 
-      # This projection is deliberately one-way. Stillsuit reads the semantic
-      # record above; existing Stylix consumers receive only these 16 colors.
       stylix.base16Scheme = base16Projection;
     })
   ];

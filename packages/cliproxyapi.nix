@@ -30,7 +30,6 @@ buildGoModule rec {
     mv "$out/bin/server" "$out/bin/cli-proxy-api"
   '';
 
-  # Update the portal and backend together; the service serves this immutable asset.
   passthru.managementPanel = linkFarm "cliproxyapi-management-panel-1.27.3" [
     {
       name = "management.html";

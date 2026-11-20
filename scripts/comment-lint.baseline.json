@@ -1,0 +1,15 @@
+{
+  ".github/workflows/cache.yml": 6,
+  "agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh": 2,
+  "agents/skills/html-communication/scripts/lint.py": 2,
+  "packages/stillsuit-shell/src/plugins/builtin/bar/Bar.qml": 4,
+  "packages/stillsuit-shell/src/plugins/builtin/bar/WidgetSlot.qml": 2,
+  "packages/stillsuit-shell/src/plugins/builtin/launcher/model/Matcher.js": 8,
+  "packages/stillsuit-shell/src/services/NotificationModel.js": 3,
+  "packages/stillsuit-shell/src/services/NotificationService.qml": 3,
+  "packages/stillsuit-shell/src/ui/CursorSurface.qml": 21,
+  "packages/stillsuit-shell/src/ui/Panel.qml": 21,
+  "packages/stillsuit-shell/src/ui/PanelKeyCatcher.qml": 21,
+  "packages/stillsuit-shell/src/ui/PointerMoveGate.qml": 21,
+  "packages/stillsuit-shell/src/ui/ShellAction.qml": 3
+}

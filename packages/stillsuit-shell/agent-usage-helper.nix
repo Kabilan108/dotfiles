@@ -7,8 +7,6 @@
 }:
 
 let
-  # Probe usage with the CLIs update-agents installs, the same ones used
-  # interactively, not second copies from nixpkgs. Only these are exposed.
   userAgents = runCommand "stillsuit-user-agents" { } ''
     mkdir -p $out/bin
     ln -s ${agyBin} $out/bin/agy

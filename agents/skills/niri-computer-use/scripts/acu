@@ -90,8 +90,6 @@ def resolve_tool(name: str) -> str:
     return path
 
 
-# ---------------------------------------------------------------- niri IPC
-
 
 def niri_json(query: str) -> Any:
     proc = run(["niri", "msg", "-j", query])
@@ -177,8 +175,6 @@ def floating_origin(window: dict[str, Any]) -> tuple[int, int] | None:
     return (int(ox + pos[0] + offset[0]), int(oy + pos[1] + offset[1]))
 
 
-# ---------------------------------------------------------------- input
-
 
 def wlrctl(*args: str) -> None:
     run([resolve_tool("wlrctl"), *args])
@@ -235,8 +231,6 @@ def send_key(chord: str, *, desktop: bool | None = None) -> None:
     run(args)
 
 
-# ---------------------------------------------------------------- focus
-
 
 def remember_focus(window_id: int | None) -> None:
     RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
@@ -271,8 +265,6 @@ def focus_window(window_id: int, *, remember: bool = True) -> None:
     die(f"focus-window {window_id} did not take effect (focused: {focused_window_id()})")
 
 
-# ---------------------------------------------------------------- clipboard
-
 
 def clipboard_save() -> tuple[str, bytes] | None:
     wl_paste = shutil.which("wl-paste")
@@ -294,8 +286,6 @@ def clipboard_restore(saved: tuple[str, bytes] | None) -> None:
     if saved is None or not wl_copy:
         return
     mime, content = saved
-    # wl-copy forks a daemon that inherits pipes; capturing output would hang
-    # this process waiting for EOF, so send everything to /dev/null.
     subprocess.run(
         [wl_copy, "-t", mime],
         input=content,
@@ -303,8 +293,6 @@ def clipboard_restore(saved: tuple[str, bytes] | None) -> None:
         stderr=subprocess.DEVNULL,
     )
 
-
-# ---------------------------------------------------------------- shot
 
 
 def png_dimensions(path: Path) -> tuple[int, int]:
@@ -354,7 +342,6 @@ def shot_window(window: dict[str, Any], out: Path) -> None:
     else:
         clipboard_restore(saved_clip)
         die(f"niri did not write a screenshot for window {window['id']} to {out}")
-    # niri always copies the shot to the clipboard; undo that.
     if saved_clip is not None:
         clipboard_restore(saved_clip)
     else:
@@ -362,8 +349,6 @@ def shot_window(window: dict[str, Any], out: Path) -> None:
         if wl_copy:
             subprocess.run([wl_copy, "--clear"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-
-# ---------------------------------------------------------------- at-spi
 
 ATSPI_HELPER = r'''
 import json, sys
@@ -536,8 +521,6 @@ def atspi_call(request: dict[str, Any]) -> dict[str, Any]:
         die(result["error"], hint=hint)
     return result
 
-
-# ================================================================ commands
 
 
 def cmd_doctor(_args: argparse.Namespace) -> None:
@@ -772,7 +755,6 @@ def cmd_click(args: argparse.Namespace) -> None:
         origin = floating_origin(window) if window.get("is_floating") else None
         restore_tiling = False
         if origin is None:
-            # Float the window (keeps its size) so niri reports an exact origin.
             niri_action("toggle-window-floating", "--id", str(window["id"]))
             restore_tiling = True
             time.sleep(0.2)
@@ -910,8 +892,6 @@ def cmd_restore(_args: argparse.Namespace) -> None:
     focused = focused_window_id()
     print(f"restored: overview closed, focused window {focused}")
 
-
-# ================================================================ argparse
 
 
 def add_target_flags(parser: argparse.ArgumentParser) -> None:

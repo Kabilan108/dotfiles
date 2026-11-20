@@ -27,7 +27,6 @@ end
 local function reference(buf, label)
   local parser = vim.treesitter.get_parser(buf, 'markdown')
   local query = vim.treesitter.query.parse('markdown', '(link_reference_definition) @definition')
-  -- Use only the outer document, so definitions inside code examples cannot win.
   for _, tree in ipairs(parser:parse()) do
     for _, node in query:iter_captures(tree:root(), buf) do
       local id = text(child(node, 'link_label'), buf)
@@ -101,8 +100,6 @@ function M.target(buf, row, col)
     end
     ancestor = ancestor:parent()
   end
-  -- A wikilink's alias or heading can be under the cursor. Ask the LSP at
-  -- the start of its target instead, and deduplicate heading/block locations.
   local line = vim.api.nvim_buf_get_lines(buf, row, row + 1, false)[1]
   local start = 1
   while true do

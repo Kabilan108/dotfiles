@@ -89,7 +89,6 @@ ShellRoot {
         }
     }
 
-    // These keep the real execDetached spawn.
     Services.AppLaunch {
         id: realHelper
         helperPath: root.helper
@@ -141,7 +140,6 @@ ShellRoot {
                + " " + last())
     }
 
-    // Before the startup check has finished, nothing reaches the helper.
     function runEarlyChecks() {
         expect(launcher.helperState === "checking" && launcher.helperChecks === 1,
                "the helper check starts at startup: " + launcher.helperState)
@@ -360,7 +358,6 @@ ShellRoot {
         }
     }
 
-    // Completion order between this root and its children is not defined.
     Component.onCompleted: Qt.callLater(function () {
         try {
             runEarlyChecks()

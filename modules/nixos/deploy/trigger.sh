@@ -1,13 +1,4 @@
 # shellcheck shell=bash
-# Start a deploy through the deploy-trigger socket, follow the receiver's log,
-# and print what this host deployed and runs. Exits 0 only if the receiver run
-# serving this request succeeded. Only members of the deploy-trigger group may
-# connect.
-#
-# The broker replies with the systemd job it queued or joined. The run that job
-# starts records itself in DEPLOY_RUNS (run-record.sh), so this finds its
-# outcome however soon the run ends; the unit's own state is gone once systemd
-# unloads it.
 set -euo pipefail
 
 reply=$(timeout 30 socat -u "UNIX-CONNECT:$DEPLOY_TRIGGER_SOCKET" - || true)
@@ -17,7 +8,6 @@ if [[ ! $reply =~ ^deploy-trigger:\ queued\ job\ ([0-9]+)$ ]]; then
 fi
 job=${BASH_REMATCH[1]}
 
-# Prints "<invocation id> <state>" from the job's latest record, if any.
 run_record() {
   awk -v job="$job" '$1 == job { invocation = $2; state = $3 }
     END { if (invocation != "") print invocation, state }' "$DEPLOY_RUNS" 2>/dev/null || true
@@ -25,8 +15,6 @@ run_record() {
 
 job_pending() {
   local jobs
-  # Activation can restart systemd and disconnect this query. Only a
-  # successful query can tell us the job is gone; retry failures next poll.
   if ! jobs=$(systemctl list-jobs --no-legend); then
     return 0
   fi
@@ -44,7 +32,6 @@ while :; do
     break
   fi
   if ! job_pending; then
-    # The exit record is written before the job ends, so one last look.
     read -r invocation state <<<"$(run_record)" || true
     break
   fi

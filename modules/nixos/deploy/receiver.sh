@@ -1,29 +1,4 @@
 # shellcheck shell=bash
-# Build and switch this host to its newest valid fleet tag naming it. Runs as
-# root from deploy-receiver.service and takes no input, so a caller can only
-# say "now".
-#
-# It fetches DEPLOY_BRANCH and the deploy/fleet/* tags over HTTPS into a
-# root-owned bare clone. Then it walks the tags whose UTC time is later than
-# that of the tag it last deployed, newest first, and picks the first that:
-#   - deploy-tag verifies,
-#   - names DEPLOY_HOST on its "Hosts:" line (deploy-tag names-host; other
-#     hosts' tags are skipped without counting as refused),
-#   - points at a commit on DEPLOY_BRANCH,
-#   - descends from the commit the host runs now (system.configurationRevision,
-#     so a manual rebuild counts too), unless the signed message permits a
-#     rollback (deploy-tag moves-forward, the rule `deploy` applies to the
-#     controller too),
-#   - has a flake.lock that needs no changes.
-# It builds that commit, then takes DEPLOY_SWITCH_LOCK, which bin/rebuild
-# holds around its own switch, checks the running commit again and only then
-# switches. A tag no later than the last deployed one is never deployed, and
-# neither is a commit behind the running one, so a withheld or replayed signed
-# tag can't roll the host back, even past a manual rebuild that finishes while
-# this one builds.
-#
-# The state file may still name an old deploy/<host>/<UTC time> tag; only its
-# UTC time counts. This receiver ignores those tags.
 set -euo pipefail
 export LC_ALL=C
 
@@ -39,8 +14,6 @@ refuse() {
   echo "deploy-receiver: refusing $1: $2" >&2
 }
 
-# The commit this host runs, without the -dirty suffix a dirty manual rebuild
-# reports, or nothing if it can't tell.
 running_commit() {
   local rev
   rev=$("$DEPLOY_NIXOS_VERSION" --configuration-revision 2>/dev/null || true)
@@ -118,16 +91,11 @@ if [[ -z $chosen ]]; then
   exit 0
 fi
 
-# Build first, outside the lock. The result link in the state directory keeps
-# the system from garbage collection until the switch. --no-write-lock-file is
-# left out on purpose: in Nix 2.34 it turns the refusal from
-# --no-update-lock-file back into a warning.
 echo "Building $chosen ($commit) for $DEPLOY_HOST"
 cd "$DEPLOY_STATE_DIR"
 nixos-rebuild build --no-update-lock-file --flake "git+file://$repo?rev=$commit#$DEPLOY_HOST"
 system=$(readlink -f result)
 
-# Root-only, so nobody else can hold it.
 saved_umask=$(umask)
 umask 077
 exec 9>>"$DEPLOY_SWITCH_LOCK"

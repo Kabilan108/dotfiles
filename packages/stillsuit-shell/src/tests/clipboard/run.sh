@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# stillsuit.clipboard tests. From the repository root:
-#   nix develop -c bash packages/stillsuit-shell/src/tests/clipboard/run.sh
-# CLIPBOARD_E2E=1 adds the headless sway run (needs sway and wl-clipboard):
-#   nix shell nixpkgs#sway nixpkgs#wl-clipboard nixpkgs#quickshell nixpkgs#jq \
-#     nixpkgs#ripgrep nixpkgs#nodejs -c env CLIPBOARD_E2E=1 bash .../run.sh
-# STILLSUIT_CLIPBOARD_COLLECTOR=<path> tests a built collector instead of bin/.
 
 set -uo pipefail
 

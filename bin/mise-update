@@ -34,7 +34,5 @@ if git diff --quiet -- config/mise/mise.lock; then
   echo 'Mise lock is already current.'
   exit 0
 fi
-# Commit only this lock, preserving unrelated staged and unstaged work.
 git -c commit.gpgsign=false commit --only -m 'chore: update mise tool lock' -- config/mise/mise.lock
-# No force or rebase. A rejected push leaves the commit for manual recovery.
 git push origin HEAD:refs/heads/nixos

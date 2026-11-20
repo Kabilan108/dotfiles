@@ -40,7 +40,6 @@ first.providerIds.push("mutated")
 assert.deepEqual(Query.parse("", "combi").providerIds, ["calc", "apps", "web"], "the mode table is not shared")
 assert.equal(Query.parse("x".repeat(5000), "combi").text.length, 1024)
 
-// Input is cut on code point boundaries and lone surrogates become U+FFFD.
 assert.equal(Query.parse("x".repeat(1023) + "\u{1F600}", "combi").text, "x".repeat(1023))
 assert.equal(Query.parse("x".repeat(1022) + "\u{1F600}", "combi").text, "x".repeat(1022) + "\u{1F600}")
 assert.equal(Query.parse("a\uD800b\uDC00c\uD83D", "combi").text, "a\uFFFDb\uFFFDc\uFFFD")

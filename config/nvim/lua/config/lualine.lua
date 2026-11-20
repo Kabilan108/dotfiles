@@ -1,6 +1,3 @@
--- lualine.lua
--- configure lualine
-
 local colors = require('catppuccin.palettes').get_palette 'mocha'
 
 local conditions = {
@@ -17,17 +14,14 @@ local conditions = {
   end,
 }
 
--- Config
 local config = {
   options = {
-    -- Disable sections and component separators
     component_separators = '',
     section_separators = '',
     theme = 'catppuccin-mocha',
     disabled_filetypes = { statusline = { 'readable-pad' } },
   },
   sections = {
-    -- these are to remove the defaults
     lualine_a = {},
     lualine_b = {},
     lualine_y = {},
@@ -56,13 +50,11 @@ local config = {
       { 'location' },
       { 'progress', color = { fg = colors.fg } },
       {
-        -- spacer to middle
         function()
           return '%='
         end,
       },
       {
-        -- lsp info
         function()
           local names = {}
           for _, c in ipairs(vim.lsp.get_clients { bufnr = 0 }) do
@@ -110,7 +102,6 @@ local config = {
     },
   },
   inactive_sections = {
-    -- these are to remove the defaults
     lualine_a = {},
     lualine_b = {},
     lualine_y = {},

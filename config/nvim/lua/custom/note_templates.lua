@@ -1,6 +1,5 @@
 local M = {}
 
--- Substitute named values only. Templates never execute code.
 function M.render(path, values)
   local template = table.concat(vim.fn.readfile(path), '\n') .. '\n'
   return (
@@ -16,7 +15,6 @@ end
 function M.weekly_context(timestamp)
   local date = os.date('*t', timestamp)
   local monday_offset = (date.wday + 5) % 7
-  -- Calendar arithmetic at local noon keeps dates correct across DST changes.
   local function day(offset)
     return os.time { year = date.year, month = date.month, day = date.day - monday_offset + offset, hour = 12 }
   end
@@ -37,7 +35,6 @@ function M.weekly_context(timestamp)
   }
 end
 
--- Exclusive creation prevents a concurrent editor from having its note overwritten.
 function M.create(path, contents)
   vim.fn.mkdir(vim.fs.dirname(path), 'p')
   local fd, err, code = vim.uv.fs_open(path, 'wx', 420)

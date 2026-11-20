@@ -1,94 +1,59 @@
 # shellcheck shell=bash
 # vim: syn=bash ft=bash
 
-# if not running interactively, don't do anything
 case $- in
 *i*) ;;
 *) return ;;
 esac
 
-# Interactive ssh terminals land in a persistent tmux session. Remote tools
-# may start an interactive login shell without allocating a terminal.
 if [[ -n $SSH_TTY && -z $TMUX && -z $NO_TMUX ]] && command -v tmux >/dev/null 2>&1; then
   exec tmux new-session -A -s main
 fi
 
-### -> GENERAL SETTINGS
-
-# update window size after each command
 shopt -s checkwinsize
 
-# trim long paths in the prompt
 PROMPT_DIRTRIM=2
 
-# enable history expansion; typing '!!<space>' inserts last command
 bind Space:magic-space
 
-# recursive file globbing
 shopt -s globstar 2>/dev/null
 
-# case-insensitive path expansion
 shopt -s nocaseglob
 
-# vim mode
 set -o vi
 
-# colored GCC warnings and errors
 export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
 
-# enable CTRL+L and CTRL+Alt+L to clear terminal
 bind '"\C-l":"clear\n"'
 bind '"\C-A-l":"clear\n"'
 
-### -> SMARTER TAB-COMPLETION
-
-# case insensitive file completion
 bind "set completion-ignore-case on"
 
-# show matches for ambiguous patters on first tab press
 bind "set show-all-if-ambiguous on"
 
-# add trailing slash when autocompleting symlinks to directories
 bind "set mark-symlinked-directories on"
 
-### -> HISTORY DEFAULTS
-
-# append to history file, dont overwrite
 shopt -s histappend
 
-# save multi-line commands as one command
 shopt -s cmdhist
 
-# huge history
 HISTSIZE=100000
 HISTFILESIZE=100000
 
-# avoid duplicate entries
 HISTCONTROL="erasedups:ignoreboth"
 
-# use ISO8601 timestamp
-# %F = '%Y-%m-%d'
-# %T = '%H:%M:%S'
 HISTTIMEFORMAT='%F %T '
 
-# incremental history search
 bind '"\e[A": history-search-backward'
 bind '"\e[B": history-search-forward'
 bind '"\e[C": forward-char'
 bind '"\e[D": backward-char'
 
-### -> DIRECTORY NAVIGATION
-
-# correct spelling errors during tab-completion
 shopt -s dirspell 2>/dev/null
 
-# correct spelling errors in args to cd
 shopt -s cdspell 2>/dev/null
 
-# this allows you to bookmark locations by setting variables to folder paths
 shopt -s cdable_vars
-
-### -> PROMPT
 
 __bash_prompt() {
   local exit_code=$1
@@ -159,8 +124,6 @@ precmd() {
 __bash_prompt 0
 export PROMPT_DIRTRIM=2
 
-#### --> FUNCTIONS
-
 function tmuxa() {
   if [[ -z "$1" ]]; then
     echo "Usage: tmuxa <session>"
@@ -201,10 +164,6 @@ function fvi() {
   nvim -- "$file"
 }
 
-# agy skips the system keyring whenever SSH_* env vars are set, even when the
-# user D-Bus session bus and unlocked gnome-keyring are reachable. Hide SSH_*
-# from agy when the local session bus exists so SSH/tmux sessions reuse the same
-# keyring sign-in as desktop and T3 Code.
 function agy() {
   local bin bus
   bin="$(type -P agy)" || {
@@ -221,9 +180,6 @@ function agy() {
   fi
 }
 
-### -> ALIASES
-
-# interactive ssh WITHOUT auto-attaching the remote tmux session
 rawssh() {
   ssh -t "$@" 'NO_TMUX=1 exec bash -il'
 }
@@ -264,13 +220,6 @@ if [ -n "$WAYLAND_DISPLAY" ]; then
   alias clipboard='wl-paste'
 fi
 
-### -> AUTO-START NIRI
-
-# Auto-start compositor on TTY1
-# - Only runs if not already in a graphical session or tmux
-# - Only runs on the TTY1 console itself (preserves TTY2-6 for troubleshooting);
-#   XDG_VTNR alone leaks into tmux panes started without DISPLAY
-# - exec replaces shell process, so exiting the compositor logs you out cleanly
 if [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ] && [ -z "$TMUX" ] \
   && [ -z "$SSH_CONNECTION" ] && [ "$(tty)" = /dev/tty1 ]; then
   if command -v niri-session >/dev/null 2>&1; then

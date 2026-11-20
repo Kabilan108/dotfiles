@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Usage: setup.sh BINARY FIXTURE_DIR
-# Builds a three-server fixture in FIXTURE_DIR: driver (the terminal), local
-# (the origin host), remote (a fleet host reached through a fake ssh).
 set -euo pipefail
 BIN=$1
 F=$2

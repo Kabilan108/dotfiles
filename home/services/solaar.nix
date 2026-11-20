@@ -31,8 +31,6 @@ let
                 "_NAME": "Wireless Mouse MX Master 2S",
             }
             data.append(device)
-        # Divert the thumb button to HID++ notifications. Keep its firmware fallback
-        # free of gesture navigation, which suppressed movement when the switch stuck.
         device.setdefault("divert-keys", {})[195] = 1
         device.setdefault("reprogrammable-keys", {})[195] = 196
         device.setdefault("_sensitive", {}).update({
@@ -65,7 +63,6 @@ in
     ];
 
     xdg.configFile."solaar/rules.yaml" = {
-      # Replace the local rule created while testing the physical button.
       force = true;
       text = ''
         ---

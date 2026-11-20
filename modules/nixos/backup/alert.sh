@@ -1,12 +1,4 @@
 # shellcheck shell=bash
-# backup-alert INSTANCE [ARGS]
-# Runs as the alert user, or as a dynamic user holding the webhook as a
-# credential (backup-alert@.service or backup-stale-check), never as root.
-#   restic-backups-<job>  the job failed after all its retries
-#   threshold-<job>       the job's status crossed a size or free-space threshold
-#   preupdate-<job>       the snapshot before an update failed; the update is held
-#   stale HOST [JOB]      HOST's JOB status is stale, or HOST sent none
-#   test                  a test of the alert path
 
 instance="$1"
 

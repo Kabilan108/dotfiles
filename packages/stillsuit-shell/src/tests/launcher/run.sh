@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Launcher model suite. The QML load check needs quickshell on PATH (the repo
-# dev shell has it); set STILLSUIT_LAUNCHER_REQUIRE_QML=1 to fail instead of
-# skipping when it is missing.
 
 set -euo pipefail
 

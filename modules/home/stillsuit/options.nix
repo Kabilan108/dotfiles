@@ -6,8 +6,6 @@
 }:
 let
   inherit (lib) mkOption types;
-  # Session actions run directly from the shell, whose PATH holds only the
-  # exact runtime inputs, so the program must be an absolute path.
   sessionArgv =
     types.addCheck (types.listOf types.str) (
       argv: argv == [ ] || lib.hasPrefix "/" (builtins.head argv)
@@ -62,7 +60,6 @@ in
     package = mkOption {
       type = types.package;
       default = pkgs.callPackage ../../../packages/stillsuit-shell/default.nix {
-        # wl-copy and wl-paste exec `cat` to move clipboard data.
         runtimeInputs =
           config.programs.stillsuitShell.runtimeInputs
           ++ [

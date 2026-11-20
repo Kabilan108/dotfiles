@@ -28,8 +28,6 @@ HOSTS = ("sietch", "jacurutu")
 BRANCH_PREFIX = "auto/flake-update-"
 KEEP_RUNS = 8
 BUILD_TIMEOUT = 3 * 3600
-# Every build shares this budget; home/services/flake-update.nix allows 10h,
-# which leaves time to report and clean up.
 JOB_BUDGET = 9 * 3600
 RETRY_MIN_LEFT = 30 * 60
 deadline = time.monotonic() + JOB_BUDGET
@@ -195,7 +193,6 @@ def build_host(worktree: Path, run_dir: Path, state_dir: Path, host: str, old: s
     step = build_step(cmd, run_dir / f"build-{host}.log")
     retried = None
     if not step.ok and time_left() > RETRY_MIN_LEFT:
-        # Upstream test suites flake; a second try rebuilds only what failed.
         retried = step.log
         step = build_step(cmd, run_dir / f"build-{host}-retry.log")
     diff = None
@@ -203,7 +200,6 @@ def build_host(worktree: Path, run_dir: Path, state_dir: Path, host: str, old: s
         diff_step = run_step(
             ["nix", "store", "diff-closures", old, step.output], run_dir / f"diff-{host}.log"
         )
-        # diff-closures colours its output even into a pipe.
         diff = ANSI_RE.sub("", diff_step.output) if diff_step.ok else f"diff-closures failed:\n{tail(diff_step.log)}"
     return Build(host, step, old, diff, retried)
 

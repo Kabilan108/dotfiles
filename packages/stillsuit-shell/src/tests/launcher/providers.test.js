@@ -4,7 +4,6 @@ const L = require("./load.js")
 const Calc = L.providers.calc
 const Web = L.providers.web
 
-// Calc gating
 const mathPositives = [
     "2+2*3", "2 + 2", "1/3", "2^10", "(1+2)*3", "-5 + 3", "10 mod 3", "5!", "50%", "15% of 80",
     "sqrt(2)", "sqrt 2", "sin(pi/2)", "log10(1000)", "2*pi", "1,000 * 3", "3.5e3 / 7", "7 × 6", "8 ÷ 2",
@@ -22,7 +21,6 @@ const mathNegatives = [
 for (const input of mathPositives) assert.equal(Calc.looksLikeMath(input), true, `math: ${input}`)
 for (const input of mathNegatives) assert.equal(Calc.looksLikeMath(input), false, `not math: ${input}`)
 
-// URL detection
 const urls = [
     ["example.com", "https://example.com"],
     ["github.com/foo/bar?x=1#y", "https://github.com/foo/bar?x=1#y"],
@@ -46,11 +44,9 @@ const notUrls = [
 ]
 for (const input of notUrls) assert.equal(Web.detectUrl(input), "", `not url: ${input}`)
 
-// Web search template encoding
 assert.equal(Web.searchUrl("https://unduck.link?q=%TERM%", "c++ & rust"), "https://unduck.link?q=c%2B%2B%20%26%20rust")
 assert.equal(Web.searchUrl("https://x.test/%TERM%/%TERM%", "a b"), "https://x.test/a%20b/a%20b")
 
-// Clipboard
 {
     const engine = L.createEngine()
     const items = [
@@ -87,7 +83,6 @@ assert.equal(Web.searchUrl("https://x.test/%TERM%/%TERM%", "a b"), "https://x.te
     assert.equal(engine.run("", "clipboard", env).rows.length, 4, "the filter is per run")
 }
 
-// File query forms become fd patterns
 {
     const files = L.providers.files
     const root = "/home/me"
@@ -124,7 +119,6 @@ assert.equal(Web.searchUrl("https://x.test/%TERM%/%TERM%", "a b"), "https://x.te
     assert.equal(files.fdQuery("x/y", root).fullPath, true)
 }
 
-// Calc and files providers ignore results for other text, also when called directly
 {
     const engine = L.createEngine()
     const ctx = engine.context({ calcResult: { text: "1+1", value: "2" } }, "1+2", "combi")
@@ -137,7 +131,6 @@ assert.equal(Web.searchUrl("https://x.test/%TERM%/%TERM%", "a b"), "https://x.te
     assert.equal(files.pending("", fctx), "")
 }
 
-// Intents: only the declared types and fields, never a command line
 {
     const engine = L.createEngine()
     const env = {

@@ -1,18 +1,4 @@
 # shellcheck shell=bash
-# Print the name of the deploy key (~/.ssh/NAME) whose YubiKey is plugged in.
-#
-#   deploy-key
-#
-# DEPLOY_KEY_SERIALS maps YubiKey serials to key names, as
-# "SERIAL=NAME SERIAL=NAME". With exactly one of those YubiKeys plugged in it
-# prints that key's name. With more than one it prints DEPLOY_DEFAULT_KEY.
-# With none it explains what to plug in and exits 1. If ykman is missing or
-# can't read the YubiKeys, it warns and prints DEPLOY_DEFAULT_KEY. Messages go
-# to stderr.
-#
-# `ykman list` reads each key's serial over PC/SC or USB HID without a PIN or
-# a touch. Without pcscd it still reads them over the FIDO HID interface,
-# which signing already needs.
 set -euo pipefail
 
 : "${DEPLOY_KEY_SERIALS:?}" "${DEPLOY_DEFAULT_KEY:?}"
@@ -29,8 +15,6 @@ fall_back() {
 }
 
 command -v ykman >/dev/null || fall_back "ykman isn't installed, so it can't tell which YubiKey is plugged in"
-# ykman logs each transport that fails to stderr, even when another one reads
-# the key, so only its exit status counts.
 status=0
 listing=$(ykman list 2>/dev/null) || status=$?
 ((status == 0)) || fall_back "ykman list failed (exit $status)"

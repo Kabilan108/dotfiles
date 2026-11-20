@@ -19,8 +19,6 @@ var agentPatterns = func() []*regexp.Regexp {
 	return patterns
 }()
 
-// detectAgents names the coding agents a pane runs, from its window name,
-// command, title, and the processes under its shell.
 func detectAgents(pane Pane) []string {
 	text := strings.ToLower(strings.Join([]string{
 		pane.WindowName, pane.Command, pane.Title, descendantProcessText(pane.PID),
@@ -34,8 +32,6 @@ func detectAgents(pane Pane) []string {
 	return found
 }
 
-// uniqueAgents lists each agent a session's panes run once, in the order
-// they first appear.
 func uniqueAgents(panes []Pane) []string {
 	var agents []string
 	for _, pane := range panes {

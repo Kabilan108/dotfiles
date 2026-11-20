@@ -76,8 +76,6 @@ ShellRoot {
                 return
             }
 
-            // Match loader completion ordering: readiness changes before the
-            // contribution failure and its registry revision are recorded.
             surfaces.pendingLoadCount = 1
             surfaces.pendingLoadCount = 0
             surfaces.records = ({

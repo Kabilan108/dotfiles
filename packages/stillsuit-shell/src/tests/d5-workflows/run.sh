@@ -39,8 +39,6 @@ export STILLSUIT_FIXTURE_PUBLISH_HELPER="$fixture_dir/fake-publish"
 export STILLSUIT_FIXTURE_PUBLISH_LOG="$tmp_dir/publish.log"
 export STILLSUIT_FIXTURE_SOCKET="$tmp_dir/dictator.sock"
 export STILLSUIT_FIXTURE_MEETING_LOG="$tmp_dir/meeting-helper.log"
-# This fixture exercises services only; force the isolated renderer rather than
-# attaching an overlay test to the live compositor.
 export QT_QPA_PLATFORM=offscreen
 mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME" "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
@@ -111,21 +109,17 @@ stop_shell() {
   shell_pid=""
 }
 
-# Start the shell before the daemon. Repeated failed attempts must continue
-# until a server appears, without reloading either service.
 start_shell
 wait_json '.dictator.reconnectAttempts >= 2 and .dictator.connectionState == "error"' >/dev/null
 start_socket_server
 wait_json '.dictator.socketConnections == 1 and .dictator.state == "recording" and .dictator.reconnectAttempts == 0' >/dev/null
 
-# A daemon crash leaves a stale socket path. Recover after connection refused.
 stop_socket_server
 wait_json '.dictator.connectionState == "error" and .dictator.reconnectAttempts >= 2 and (.dictator.visible | not) and .dictator.duration == ""' >/dev/null
 rm -- "$STILLSUIT_FIXTURE_SOCKET"
 start_socket_server
 wait_json '.dictator.socketConnections == 2 and .dictator.state == "recording" and .dictator.reconnectAttempts == 0' >/dev/null
 
-# Also recover when the daemon removes its socket during a clean shutdown.
 stop_socket_server
 rm -- "$STILLSUIT_FIXTURE_SOCKET"
 wait_json '.dictator.connectionState == "error" and .dictator.reconnectAttempts >= 2 and (.dictator.visible | not)' >/dev/null
@@ -135,15 +129,11 @@ wait_json '.recording.status == "ready" and .meeting.jobsStatus == "ready"' >/de
 state=$(ipc state)
 jq -e '.serviceObjects == 1 and .osdServiceObjects == 1 and .overlays == 2 and .overlaySharesOsdService and .dictator.levels == 23 and .dictator.state == "recording" and .meeting.visible and .meeting.completed and .meeting.label == "fixture"' >/dev/null <<<"$state"
 
-# The shell shows only failed jobs, newest first, capped at five. Queued,
-# processing, and completed meetings remain durable but do not become history UI.
 jq -e '.queue.failedCount == 5 and .queue.rowLimit == 5
   and (.queue.jobs | length) == 5
   and [.queue.jobs[].title] == ["Failed C","Failed D","Failed E","Failed F","Failed G"]
   and ([.queue.jobs[].phase] | all(. == "error"))' >/dev/null <<<"$state"
 
-# Completion closes after exactly five seconds of unpaused ticks. Pointer or
-# focus interaction uses the same model flag and preserves the remaining time.
 [[ $(ipc completionStart) == ok ]]
 [[ $(ipc completionTick 2000) == waiting ]]
 [[ $(ipc completionInteract true) == ok ]]
@@ -154,8 +144,6 @@ jq -e '.completion.remainingMs == 3000 and .completion.interactionActive and .co
 [[ $(ipc completionTick 1) == expired ]]
 jq -e '.completion.remainingMs == 0 and (.completion.running | not) and .completion.expirationCount == 1' >/dev/null <<<"$(ipc state)"
 
-# The global service derives elapsed time once per second from the recorder's
-# timestamps. No helper rewrite is needed, and a current pause stays excluded.
 first_elapsed=$(jq -r '.recording.elapsedSeconds' <<<"$state")
 sleep 1.2
 second_elapsed=$(jq -r '.recording.elapsedSeconds' <<<"$(ipc state)")
@@ -172,9 +160,6 @@ paused_elapsed=$(jq -r '.recording.elapsedSeconds' <<<"$paused_state")
 sleep 1.2
 [[ $(jq -r '.recording.elapsedSeconds' <<<"$(ipc state)") == "$paused_elapsed" ]]
 
-# Quickshell 0.3 FileView watches the target's parent directory even when the
-# target was missing at startup. External creation must load without an IPC
-# refresh or a helper action.
 stop_shell
 rm -- "$STILLSUIT_FIXTURE_RECORDING_STATE"
 start_shell
@@ -182,9 +167,6 @@ wait_json '.recording.status == "missing" and .recording.phase == "idle"' >/dev/
 printf '{"schemaVersion":1,"phase":"recording","pid":1,"monitor":"DP-1","started_at":%s}\n' "$(date +%s)" > "$STILLSUIT_FIXTURE_RECORDING_STATE"
 wait_json '.recording.status == "ready" and .recording.phase == "recording"' >/dev/null
 
-# Drive the real recorder helper through start and stop --meeting using only
-# temporary fake process and enqueue executables. Feed its emitted version-1
-# state directly into the production RecordingService parser.
 mkdir -p "$HOME/bin" "$tmp_dir/actual-recordings"
 cp "$fixture_dir/fake-meeting-minutes" "$HOME/bin/meeting-minutes"
 recorder_helper="$package_dir/../../bin/stillsuit-recorder"
@@ -201,12 +183,10 @@ wait_json '.recording.status == "ready" and .recording.phase == "meeting_queued"
 meeting_recording=$(jq -r '.output' "$tmp_dir/recorder-meeting.json")
 [[ $(<"$STILLSUIT_FIXTURE_MEETING_LOG") == "enqueue --recording $meeting_recording --started-at "*" --duration-seconds "* ]]
 
-# The action uses only literal argv; the fake helper sees the exact reviewed order.
 [[ $(ipc start) == started ]]
 for _ in {1..100}; do [[ -s $STILLSUIT_FIXTURE_HELPER_LOG ]] && break; sleep 0.02; done
 [[ $(<"$STILLSUIT_FIXTURE_HELPER_LOG") == 'start --directory /tmp/fixture-recordings --monitor DP-1 --title fixture-title --target monitor --no-annotate --desktop-audio --no-microphone' ]]
 
-# The zero-argument D4 contract uses only reviewed configured defaults.
 [[ $(ipc d4Start) == started ]]
 for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 2 ]] && break; sleep 0.02; done
 [[ $(sed -n '2p' "$STILLSUIT_FIXTURE_HELPER_LOG") == 'start --directory /tmp/fixture-recordings --monitor DP-1 --title fixture-default-title --target monitor --no-annotate --desktop-audio --no-microphone' ]]
@@ -214,8 +194,6 @@ for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 2 ]] && 
 for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 3 ]] && break; sleep 0.02; done
 [[ $(sed -n '3p' "$STILLSUIT_FIXTURE_HELPER_LOG") == 'stop' ]]
 
-# Every active transport action maps to one fixed argv and waits for the prior
-# dispatch to finish. No panel-local process owns the recorder.
 printf '{"schemaVersion":1,"phase":"recording","pid":1,"monitor":"DP-1","started_at":%s,"output":"/tmp/fixture-recordings/active.mp4"}\n' "$(date +%s)" > "$STILLSUIT_FIXTURE_RECORDING_STATE"
 [[ $(ipc refresh) == ok ]]
 wait_json '.recording.active' >/dev/null
@@ -232,8 +210,6 @@ for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 6 ]] && 
 for _ in {1..100}; do [[ $(wc -l < "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 7 ]] && break; sleep 0.02; done
 [[ $(sed -n '7p' "$STILLSUIT_FIXTURE_HELPER_LOG") == 'cancel' ]]
 
-# Rename output is applied from the helper response before copy/open actions.
-# The copied path therefore follows the successful rename.
 printf '%s\n' '{"schemaVersion":1,"phase":"completed","output":"/tmp/fixture-recordings/original.mp4","title":"original","elapsed_seconds":62,"size_bytes":2048}' > "$STILLSUIT_FIXTURE_RECORDING_STATE"
 [[ $(ipc refresh) == ok ]]
 wait_json '.recording.completed and .recording.outputFilename == "original.mp4"' >/dev/null
@@ -242,9 +218,6 @@ wait_json '.recording.outputFilename == "renamed fixture.mp4" and (.recording.ac
 [[ $(ipc copyPath) == copied ]]
 jq -e '.recording.copiedPath == "/tmp/fixture-recordings/renamed fixture.mp4"' >/dev/null <<<"$(ipc state)"
 
-# Exports run through the helper action slot. The service then polls status
-# so the helper can settle the worker, and the export fields follow the state
-# file: running, then completed with the export path, or error with a message.
 [[ $(ipc exportAs gif) == started ]]
 wait_json '.recording.exportPhase == "running" and .recording.exporting and .recording.exportFormat == "gif"
   and .recording.exportOutput == "/tmp/fixture-recordings/renamed fixture.gif"' >/dev/null
@@ -261,7 +234,6 @@ wait_json '.recording.exportPhase == "error" and .recording.exportFormat == "web
   and .recording.exportError == "ffmpeg exited 1" and (.recording.exporting | not)' >/dev/null
 [[ $(ipc copyExportPath) == unavailable ]]
 rm -f -- "$STILLSUIT_FIXTURE_RECORDING_STATE.export-fail"
-# Non-monitor targets and their selector rectangle round-trip through the parser.
 [[ $(ipc startBadTarget) == invalid ]]
 [[ $(ipc startRegion) == started ]]
 wait_json '(.recording.actionRunning | not)' >/dev/null
@@ -273,9 +245,6 @@ wait_json '.recording.target == "region" and .recording.annotate and .recording.
 printf '%s\n' '{"schemaVersion":1,"phase":"completed","output":"/tmp/fixture-recordings/renamed fixture.mp4","title":"renamed fixture","elapsed_seconds":62,"size_bytes":2048}' > "$STILLSUIT_FIXTURE_RECORDING_STATE"
 [[ $(ipc refresh) == ok ]]
 wait_json '.recording.completed and .recording.target == "monitor" and .recording.rect == null' >/dev/null
-# Publishing runs outside the helper action slot and copies the returned URL.
-# A repeat publish of the same output re-copies without another upload, and a
-# failure surfaces the publisher's last stderr line.
 [[ $(ipc publish) == started ]]
 wait_json '(.recording.publishing | not) and .recording.publishedUrl == "https://pagebin.example/v/fixture#k"' >/dev/null
 [[ $(sed -n '1p' "$STILLSUIT_FIXTURE_PUBLISH_LOG") == '/tmp/fixture-recordings/renamed fixture.mp4' ]]
@@ -305,15 +274,11 @@ jq -e '.meeting.copiedNotePath == "/tmp/fixture-note.md"
   and (.meeting.completionVisible | not)' >/dev/null <<<"$(ipc state)"
 [[ $(ipc copyMeetingPath) == unavailable ]]
 
-# Retry is manual, reuses the same identity, increments attempt, and rejects a
-# second dispatch while the first is pending.
 retry_id=$(printf 'c%.0s' {1..32})
 [[ $(ipc doubleRetry "$retry_id") == '["started","unavailable"]' ]]
 wait_json ".meeting.jobs[] | select(.jobId == \"$retry_id\" and .phase == \"queued\" and .attempt == 2)" >/dev/null
 [[ $(grep -c "^retry $retry_id$" "$STILLSUIT_FIXTURE_MEETING_CONTROL_LOG") -eq 1 ]]
 
-# As failures resolve, the recovery list shrinks. Completed results never fill
-# the freed slots, and refresh does not trigger another retry.
 temporary_jobs="$STILLSUIT_FIXTURE_MEETING_JOBS.tmp"
 jq '(.jobs[] | select(.job_id == ("d"*32) or .job_id == ("e"*32) or .job_id == ("f"*32))).phase = "completed"
   | (.jobs[] | select(.phase == "completed" and .note_path == null)).note_path = "/tmp/resolved.md"' \
@@ -328,9 +293,6 @@ printf '%s\n' '{"schemaVersion":1,"phase":"error","label":"fixture failed","erro
 wait_json '.meeting.failed and .meeting.visible and .meeting.failureVisible
   and .meeting.label == "fixture failed" and .meeting.errorMessage == "fixture error"' >/dev/null
 
-# The previous meeting-minutes writer emitted this exact field family without
-# schemaVersion. The read-only service migrates it in memory until the producer
-# replaces the durable file on its next update.
 printf '%s\n' '{"job_id":"legacy-job","phase":"completed","label":"legacy fixture","progress":1,"total":1,"note_path":"/tmp/legacy-note.md","error":"","updated_at":1788134400,"visible_until":4102444800}' > "$STILLSUIT_FIXTURE_MEETING_STATE"
 [[ $(ipc refresh) == ok ]]
 wait_json '.meeting.status == "migrated" and .meeting.completed and .meeting.label == "legacy fixture" and .meeting.snapshotSchemaVersion == 1' >/dev/null
@@ -338,7 +300,6 @@ printf '%s\n' '{"phase":"completed"}' > "$STILLSUIT_FIXTURE_MEETING_STATE"
 [[ $(ipc refresh) == ok ]]
 wait_json '.meeting.status == "unsupported" and .meeting.phase == "idle"' >/dev/null
 
-# Corrupt and future-version durable state are contained without commanding the helper.
 printf '%s\n' '{broken' > "$STILLSUIT_FIXTURE_RECORDING_STATE"
 [[ $(ipc refresh) == ok ]]
 wait_json '.recording.status == "corrupt" and .recording.phase == "idle"' >/dev/null
@@ -346,8 +307,6 @@ printf '%s\n' '{"schemaVersion":2,"phase":"recording"}' > "$STILLSUIT_FIXTURE_ME
 [[ $(ipc refresh) == ok ]]
 wait_json '.meeting.status == "unsupported" and .meeting.phase == "idle"' >/dev/null
 
-# A live-looking recorder is external authority. Destroy/recreate the fixture
-# and prove it neither invokes stop nor signals this private fake process.
 sleep 60 &
 fake_recorder_pid=$!
 printf '{"schemaVersion":1,"phase":"recording","pid":%s,"monitor":"DP-1"}\n' "$fake_recorder_pid" > "$STILLSUIT_FIXTURE_RECORDING_STATE"
@@ -360,7 +319,6 @@ start_shell
 kill -0 "$fake_recorder_pid"
 [[ $(grep -c '^retry ' "$STILLSUIT_FIXTURE_MEETING_CONTROL_LOG") -eq "$retry_count_before_reload" ]]
 
-# Presentational per-output files may not own workflow authority.
 if rg -n '(^|[^[:alnum:]_])(Timer|FileView|PwObjectTracker|Socket|Process|IpcHandler)[[:space:]]*\{' "$package_dir/src/plugins/builtin/osd/OsdOverlay.qml"; then
   echo "presentational OSD overlay owns workflow authority" >&2
   exit 1

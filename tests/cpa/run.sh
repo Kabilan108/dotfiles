@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# Test the CPA (cliproxyapi) gateway that this checkout builds for sietch: the
-# unit's preStart, both nginx fronts, the management API, logging and the
-# unit's sandbox. Dummy keys, free loopback ports and temp state only; the
-# running service and /var/lib/cliproxyapi are never touched. See README.md.
-#
-#   tests/cpa/run.sh [--browser] [--keep]
-#
-# --browser  also log into the dashboard with agent-browser
-# --keep     keep the temp directory even when every check passes
 set -uo pipefail
 # shellcheck source-path=SCRIPTDIR
 
@@ -74,7 +65,6 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-# The nix build output goes to a file; on a version bump it includes the CPA compile.
 # shellcheck disable=SC2154 # resolved.sh sets the store paths and drvs
 resolve() {
   local vars=$run/resolved.sh

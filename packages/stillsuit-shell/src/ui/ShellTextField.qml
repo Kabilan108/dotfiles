@@ -14,10 +14,6 @@ FocusScope {
     readonly property alias inputItem: input
     readonly property real cursorWidth: 2
 
-    // Emitted before the field edits text. Accept the event to keep it from
-    // the field, for keys such as Up, Down, Tab, or Ctrl+K that a parent owns.
-    // Unaccepted keys the field ignores (Escape, Up, Down) keep propagating
-    // to parent items.
     signal keyPressed(var event)
     signal accepted
 
@@ -79,8 +75,6 @@ FocusScope {
         onAccepted: root.accepted()
     }
 
-    // The caret sits at the start of an empty field; the placeholder starts
-    // just past it so the two don't touch.
     ShellText {
         theme: root.theme
         anchors.fill: input

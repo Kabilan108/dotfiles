@@ -104,21 +104,13 @@ EXECUTOR_KEY_FILE = Path(
     )
 ).expanduser()
 RESULT_SCHEMA_VERSION = 3
-# Bump when a prompt or validation rule changes so cached results regenerate.
 GENERATION_VERSION = "2026-11-11.1"
-# Unknown speakers below this much talk time are usually diarization noise
-# (cross-talk, a cough); they stay in the result JSON but not in attendees.
 UNKNOWN_SPEAKER_MIN_SECONDS = 15.0
 SPEAKER_LABEL_PATTERN = re.compile(r"\bSPEAKER_\d+\b")
-# Transcript lines given to the model as citation anchors: one speaker's
-# consecutive segments merged up to this span, so every cited claim lands
-# within half a minute of what was said.
 ANCHOR_MAX_SECONDS = 25.0
 ANCHOR_MAX_GAP_SECONDS = 3.0
 CITATION_MAX_LINES = 3
 CITATION_MAX_SECONDS = 60.0
-# Per item: cited spots this close together display as one wider range, and
-# an item shows at most CITATION_MAX_RANGES ranges.
 CITATION_MERGE_GAP_SECONDS = 10.0
 CITATION_MERGED_MAX_SECONDS = 90.0
 CITATION_MAX_RANGES = 3
@@ -128,19 +120,7 @@ EMAIL_MESSAGE_LIMIT = 20
 EMAIL_PAGE_SIZE = 50
 EMAIL_PAGE_LIMIT = 6
 EMAIL_TEXT_LIMIT = 1500
-# Likely attendees are on much unrelated mail, so a message tied to the meeting
-# only by who sent or received it must arrive this close to the meeting.
 EMAIL_ATTENDEE_ONLY_SECONDS = 60 * 60
-# Every Codex run reads meeting content from outside the vault (transcripts,
-# Slack, email, Meet notes, calendar text), so none may hold a tool that acts on the
-# world. Codex runs from a pipeline-owned CODEX_HOME whose config.toml the
-# pipeline writes; nothing from the user's Codex config (MCP servers, hooks,
-# plugins, profiles, project trust) is loaded. Only the login is shared, and
-# with it the lock Codex takes around login writes. Codex runs in a workspace
-# outside $HOME, because it also reads `.codex/config.toml` from every parent
-# of its working directory, and ~/.codex is one.
-# Codex 0.166 keeps `unified_exec` on whatever the config says; with
-# `shell_tool` off it exposes no command tool, which the tool check confirms.
 CODEX_HOME_DIR = Path(
     os.environ.get("MEETING_MINUTES_CODEX_HOME", STATE_DIR / "codex-home")
 ).expanduser()
@@ -180,12 +160,6 @@ CODEX_DISABLED_FEATURES = (
     "sleep_tool",
     "view_image",
 )
-# Exactly what Codex 0.166 offers under that config, checked before each
-# process sends any meeting content. `exec` runs JavaScript in an isolate with no file
-# system or network and can only call the nested tools listed here:
-# `apply_patch` (refused by the read-only sandbox with approvals off), MCP
-# resource readers (no servers are configured), and a clock. Anything else,
-# such as an MCP namespace or sub-agents, fails the run.
 CODEX_EXPECTED_TOOLS = frozenset(
     {
         "namespace:functions",
@@ -203,16 +177,12 @@ CODEX_EXPECTED_TOOLS = frozenset(
 CODEX_QUIET_ITEM_TYPES = frozenset({"agent_message", "reasoning", "error", "todo_list"})
 COMPLETION_VISIBLE_SECONDS = 10
 ERROR_VISIBLE_SECONDS = 600
-# Siren's job phases are surfaced as-is; the indicator shows these labels.
 SIREN_PHASE_LABELS = {
     "chunking": "Splitting meeting audio",
     "transcribing": "Transcribing meeting",
     "diarizing": "Identifying meeting speakers",
     "aligning": "Aligning transcript speakers",
 }
-# The vault owner attends most meetings and is the registry's `owner` record;
-# only his own follow-ups become checkboxes (everyone else's are recorded, not
-# tasked). These defaults apply when the registry has no owner record.
 PROJECT_CONTEXTS = ("moberg", "xploit", "personal", "tooling")
 VAULT_OWNER_ID = "tony"
 VAULT_OWNER_NAME = "Tony Kabilan Okeke"
@@ -848,7 +818,6 @@ def prepare_upload_audio(job: dict[str, Any]) -> Path:
         destination.unlink(missing_ok=True)
 
     work.mkdir(parents=True, exist_ok=True)
-    # A SIGKILLed transcode leaves its temp behind; these are hundreds of MB.
     for abandoned in work.glob(f".{destination.stem}.*.tmp.flac"):
         abandoned.unlink(missing_ok=True)
     temporary = destination.with_name(
@@ -1097,8 +1066,6 @@ def poll_transcript_job(job: dict[str, Any], siren_job_id: str) -> None:
             phase = "preparing"
             label = "Waiting on siren"
 
-        # Progress belongs in both durable job state and the current-status
-        # projection so a shell reload does not erase the visible stage.
         if announced is None or announced[0] != phase:
             set_phase(
                 job,
@@ -1680,10 +1647,6 @@ GOOGLE_DRIVE_ACCOUNT = "acc_e7c4b9c6-b534-4b60-9d16-1946f416384e"
 OUTLOOK_ACCOUNT = "acc_e499bd43-0123-4e7e-bcee-526ffe6ea9ff"
 SLACK_ACCOUNT = "acc_477c5881-f82d-45d6-ad8c-a71af5e1dbb7"
 
-# The only Executor operations this pipeline can run. Each maps to one fixed
-# tool and account; argument names and types are checked, and values reach
-# Executor only as JSON literals inside a fixed `return await tools...(...)`
-# line.
 EXECUTOR_READ_OPERATIONS: dict[str, ReadOperation] = {
     "calendar.calendarList.list": ReadOperation(
         '["google-calendar"].api.users.calendarCalendarListList',
@@ -2333,8 +2296,6 @@ def run_codex_agent(
         "--output-schema",
         str(schema_path.resolve()),
         "--output-last-message",
-        # Home Manager's ~/media link traverses /nix/store. Codex's file
-        # handling cannot open output through that chain; use the real path.
         str(output_path.resolve()),
     )
     return run_codex([*command, "-"], prompt, log_prefix)
@@ -2633,8 +2594,6 @@ def outlook_calendar_source(
     }
 
 
-# Each calendar source reads one calendar system through fixed Executor reads
-# and returns {status, error, candidates}.
 CALENDAR_SOURCE_READERS: dict[
     str, Callable[[MeetingRun, ExecutorClient], dict[str, Any]]
 ] = {
@@ -3374,9 +3333,6 @@ def search_slack(
         run_slack_query(
             executor, query, (window_start, window_end), names, found, failures
         )
-    # A conversation that was busy just before or during the meeting is often
-    # how it was arranged (a DM asking for a call, a huddle starting), even
-    # when its other participant is never named in the transcript.
     active_channels = sorted(
         {
             message["channel_id"]
@@ -5679,7 +5635,6 @@ def append_weekly_backlink(job: dict[str, Any], minutes: dict[str, Any]) -> None
         raise MeetingMinutesError(f"Weekly log does not exist: {weekly_path}")
     text = weekly_path.read_text()
     link = f"[[01-logs/meetings/{job['canonical_stem']}|{minutes['title']}]]"
-    # also matches backlinks written in the older [[meetings/<stem>|...]] form
     if f"meetings/{job['canonical_stem']}|" in text:
         return
     heading = meeting_time.strftime("### %a, %b ")
@@ -5883,8 +5838,6 @@ def sync_artifacts() -> None:
         "--itemize-changes",
         "--partial-dir=.rsync-partial",
     ]
-    # Publication and retries must finish before sync snapshots the job paths.
-    # Otherwise rsync can remove a recording while its job still needs it.
     with LOCK_PATH.open("a+") as worker_lock, ARTIFACT_SYNC_LOCK_PATH.open("a+") as lock:
         fcntl.flock(worker_lock.fileno(), fcntl.LOCK_EX)
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
@@ -5895,7 +5848,6 @@ def sync_artifacts() -> None:
                 continue
             stem = str(job.get("canonical_stem") or "")
             if stem:
-                # A crash may leave the rename durable before the path update.
                 exclusions.append(f"--exclude=/{stem}.mp4")
                 exclusions.append(f"--exclude=/{stem}.*.mka")
             for field in ("recording_path", "video_path"):

@@ -11,7 +11,6 @@ let
   agentPanelHelper = cfg.integrations.agentPanelHelperPackage;
   exactRuntimeInputs =
     cfg.runtimeInputs
-    # wl-copy and wl-paste exec `cat` to move clipboard data.
     ++ [
       pkgs.coreutils
       pkgs.wl-clipboard
@@ -84,10 +83,6 @@ in
             ExecStart = lib.escapeShellArgs ([ executable ] ++ arguments);
             Restart = "on-failure";
             RestartSec = 2;
-            # Keep informational shell logs across restarts in the journal.
-            # configuration.nix bounds the shared journal to 14 days, 1 GiB
-            # persistent / 256 MiB runtime. No unbounded per-service copy.
-            # Read with: journalctl --user -u stillsuit-shell --since '14 days ago'
             StandardOutput = "journal";
             StandardError = "journal";
             SyslogIdentifier = "stillsuit-shell";

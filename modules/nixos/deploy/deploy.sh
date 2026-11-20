@@ -1,34 +1,4 @@
 # shellcheck shell=bash
-# Approve DEPLOY_BRANCH for a set of hosts with one YubiKey-signed fleet tag,
-# push it, and have every host build it.
-#
-#   deploy [--yes] [--allow-rollback] [--no-wait]
-#          [--key yk-nfc-deploy|yk-nano-deploy|FILE] [HOST...]
-#
-# The hosts are DEPLOY_CONTROLLER (this one) and the receivers in
-# DEPLOY_RECEIVERS; with no HOST it deploys them all. It fetches origin in
-# ~/dotfiles, lists the commits since the oldest of the hosts' last signed
-# tags, and asks before signing one deploy/fleet/<UTC time> tag whose "Hosts:"
-# line names them all. --yes skips that question, never the touch. If every
-# host's last tag is already at the tip, it signs nothing and only starts the
-# deploys.
-#
-# The receivers start at once and in parallel (ssh <host>-agent
-# deploy-trigger), with each log line prefixed by the host's name. This host
-# first waits for CI to publish the heavy packages it would otherwise compile
-# (deploy-wait; --no-wait skips that), then switches with deploy-switch: from
-# the tagged commit's objects, so uncommitted changes in ~/dotfiles never
-# reach the build, and under the lock bin/rebuild and the receivers use. It
-# ends with a line per host and exits 1 if any host failed.
-#
-# Without --key it signs with the key on whichever deploy YubiKey is plugged
-# in (deploy-key), and with yk-nfc-deploy when both are. It picks once, just
-# before asking, and only when there's a tag to sign.
-#
-# Every host refuses a commit that doesn't descend from the one it runs,
-# including this one, which checks before waiting for CI and again under the
-# lock. --allow-rollback signs "Allow-Rollback: yes" into the tag to permit
-# that, and always asks on the terminal. A refusal here fails this host only.
 set -euo pipefail
 
 : "${DEPLOY_CONTROLLER:?}" "${DEPLOY_RECEIVERS:?}" "${DEPLOY_BRANCH:?}" "${DEPLOY_NIXOS_VERSION:?}"
@@ -48,7 +18,6 @@ die() {
   exit 1
 }
 
-# No pager: it would take the terminal and swallow the answer to confirm.
 g() {
   git -C "$repo" --no-pager "$@"
 }
@@ -66,8 +35,6 @@ show_log() {
   g log --no-decorate --format='  %h %<(16,trunc)%an %s' "$@"
 }
 
-# A deploy tag also lets that commit's CI publish to the binary cache, so
-# workflow changes get their own line.
 show_ci_changes() {
   local changed file
   changed=$(g log --format= --name-only "$@" -- .github | sed '/^$/d' | sort -u)
@@ -86,8 +53,6 @@ resolve_key() {
   esac
 }
 
-# Ask on the terminal. --yes answers for us, except for a rewritten history
-# or a rollback.
 confirm() {
   local answer
   if ((yes && !rewritten && !allow_rollback)); then
@@ -153,7 +118,6 @@ for host in "${hosts[@]}"; do
     if [[ -z $oldest || ${tag##*/} < ${oldest##*/} ]]; then
       oldest=$tag oldest_commit=$commit
     fi
-    # Old per-host tags approve nothing, so they don't make a host current.
     [[ $commit == "$target" && $tag == deploy/fleet/* ]] || current=0
   else
     untagged+=("$host")
@@ -211,7 +175,6 @@ else
       echo "Allow-Rollback: yes"
     fi
     echo
-    # A carriage return in a commit subject would make the tag invalid.
     g log --no-decorate --format='%h %s' -50 "$range" | tr -d '\r'
   )
   tag=$(deploy-tag -C "$repo" sign --key "$key_file" --message "$message" "${hosts[@]}" "$target")
@@ -225,7 +188,6 @@ fi
 logs=$(mktemp -d)
 trap 'rm -rf "$logs"' EXIT
 
-# Runs in the background. A deploy goes on on its host whatever happens here.
 start_receiver() {
   local host=$1 status=0
   ssh "$host-agent" deploy-trigger </dev/null 2>&1 | tee "$logs/$host.log" | sed -u "s/^/$host: /" ||
@@ -243,8 +205,6 @@ done
 if listed "$DEPLOY_CONTROLLER" "${hosts[@]}"; then
   host=$DEPLOY_CONTROLLER
   tag=${deploys[$host]}
-  # Recorded once. The wait and the switch hold the tag to this object and
-  # to the tip this deploy is for.
   object=$(g rev-parse --verify --quiet "refs/tags/$tag" || true)
   running=$("$DEPLOY_NIXOS_VERSION" --configuration-revision 2>/dev/null || true)
   if ! deploy-tag -C "$repo" approves "$tag" "$host" "$object" "$target"; then

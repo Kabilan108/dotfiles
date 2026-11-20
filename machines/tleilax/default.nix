@@ -1,7 +1,3 @@
-# tleilax: Raspberry Pi 4 for credential services. No coding agents run here.
-# Only jacurutu reaches it: Tony's YubiKeys log in, and the laptop's agent
-# key can only start a signed deploy or list tmux sessions (deploy-gate).
-# Install and recovery: docs/tleilax-install.md.
 {
   inputs,
   pkgs,
@@ -30,8 +26,6 @@ in
   time.timeZone = "America/New_York";
   i18n.defaultLocale = "en_US.UTF-8";
 
-  # Root's Nix only. kabilan isn't a trusted user, and the only binary cache
-  # is cache.nixos.org; nothing sietch signs or serves is trusted.
   nix = {
     settings = {
       experimental-features = [
@@ -50,7 +44,6 @@ in
 
   users.mutableUsers = false;
   users.users.root.hashedPassword = "!";
-  # No password: SSH keys from lib/fleet.nix (modules/nixos/fleet.nix) only.
   users.users.kabilan = {
     isNormalUser = true;
     extraGroups = [ "wheel" ];
@@ -60,9 +53,7 @@ in
 
   services.openssh = {
     enable = true;
-    # Reachable over Tailscale only (network.nix).
     openFirewall = false;
-    # agenix decrypts with this key; it never leaves the encrypted root.
     hostKeys = [
       {
         path = "/etc/ssh/ssh_host_ed25519_key";
@@ -100,12 +91,7 @@ in
     users.kabilan = {
       imports = [ ../../modules/home/shell-base.nix ];
       dotfiles.shellBase.fromCheckout = false;
-      # The laptop's picker attaches through "$HOME/bin/sessionizer".
       home.file."bin/sessionizer".source = "${sessionizer}/bin/sessionizer";
-      # Offer only the home directory. deploy-gate gives the laptop's agent
-      # key the inventory alone, which carries the picker's previews; opening
-      # a session here goes over Tony's login connection. Depth 0 means the
-      # search path itself.
       xdg.configFile."sessionizer/config.json".text = builtins.toJSON {
         search_paths = [ "~" ];
         max_depth = 0;

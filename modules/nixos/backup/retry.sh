@@ -1,10 +1,4 @@
 # shellcheck shell=bash
-# backup-retry JOB
-# Runs after every attempt of a job (ExecStopPost). Counts failed attempts in
-# $BACKUP_RETRY_DIR/JOB, independent of how long each one took. A failure with
-# retries left schedules the next attempt; the last one alerts once and resets
-# the count, so the next scheduled run starts with a full budget. A success
-# resets it too and cancels a pending retry.
 
 job="$1"
 unit="restic-backups-$job.service"
@@ -12,7 +6,6 @@ counter="$BACKUP_RETRY_DIR/$job"
 
 if [ "${SERVICE_RESULT:-}" = success ]; then
   rm -f -- "$counter"
-  # A retry still pending from an earlier failure would run the job again.
   systemctl stop "backup-retry-$job.timer" 2> /dev/null || true
   exit 0
 fi

@@ -48,10 +48,6 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 0
 
-        // service.items is a fresh filtered array whenever any item's status
-        // changes. Live items are unique SystemTrayItem objects, but their
-        // app-chosen `id` strings are not guaranteed unique, so the diff keys
-        // on object identity to keep each icon's delegate and decoded image.
         Repeater {
             model: ScriptModel {
                 values: root.items

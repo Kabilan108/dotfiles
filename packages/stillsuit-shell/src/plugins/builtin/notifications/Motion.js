@@ -1,19 +1,11 @@
-// Springs described by perceptual duration and bounce, sampled in closed form
-// so a retarget starts from the exact position and velocity. The math and the
-// tokens follow Rune's rune-motion (crates/rune-motion/src/{spring,layer,
-// tokens}.rs at e5a6431), the motion system Hokum's cards are drawn with.
-
-// Hokum's card restack spring, and Rune's SETTLE pair for presence.
 var LAYOUT = { duration: 0.38, bounce: 0.12 }
 var ENTER = { duration: 0.30, bounce: 0 }
 var EXIT = { duration: 0.24, bounce: 0 }
 var SNAP = { duration: 0.25, bounce: 0 }
 
-// Hokum's slide entrance: 48 pt in from the screen edge, faded, at 0.97.
 var ENTER_OFFSET = 48
 var ENTER_SCALE = 0.97
 
-// ω = 2π / duration; ζ = 1 − bounce, or 1 / (1 + bounce) when overdamped.
 function omega(spring) {
     return 2 * Math.PI / Math.max(0.001, Number(spring.duration))
 }
@@ -23,7 +15,6 @@ function zeta(spring) {
     return bounce >= 0 ? 1 - bounce : 1 / (1 + bounce)
 }
 
-// Coefficients for leaving `offset` (position − target) with velocity `v0`.
 function solve(spring, offset, v0) {
     var w = omega(spring)
     var z = zeta(spring)
@@ -46,7 +37,6 @@ function solve(spring, offset, v0) {
     return { kind: "over", c: [c1, a - c1, r1, r2] }
 }
 
-// [offset, velocity] at `tau` seconds into the solved segment.
 function sample(solved, tau) {
     var c = solved.c
     var t = Math.max(0, tau)
@@ -68,9 +58,6 @@ function sample(solved, tau) {
     return [0, 0]
 }
 
-// Presence: the rendered list keeps a removed key, flagged as exiting, at its
-// old place until its exit animation ends and the view drops it. A key that
-// comes back before then is live again in the same delegate.
 function merge(rendered, keys) {
     var previous = Array.isArray(rendered) ? rendered : []
     var current = Array.isArray(keys) ? keys.map(String) : []
@@ -82,7 +69,6 @@ function merge(rendered, keys) {
     for (var resultIndex = 0; resultIndex < result.length; resultIndex++)
         placed[result[resultIndex].key] = true
 
-    // Each departed key goes after the nearest earlier neighbour it had.
     var anchor = -1
     for (var previousIndex = 0; previousIndex < previous.length; previousIndex++) {
         var entry = previous[previousIndex] || {}

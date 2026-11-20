@@ -118,13 +118,10 @@ jq -e '.outputs >= 1 and .toastViews == .outputs and .widgetViews == .outputs' \
 slot() { printf '.decks[] | select(.key == "%s") | .slots[] | select(.key == "%s")' "$1" "$2"; }
 deck() { printf '.decks[] | select(.key == "%s")' "$1"; }
 
-# A new card enters from the edge, faded, and settles in place.
 entering=$(view_ipc add a app:one)
 jq -e "$(slot app:one a) | .presence < 0.5 and .offsetX > 24" >/dev/null <<<"$entering"
 wait_view "$(slot app:one a) | .presence == 1 and .offsetX == 0" >/dev/null
 
-# A revision updates the card in place; a same-source arrival goes in front
-# and the earlier card moves back into the peek.
 view_ipc capture >/dev/null
 jq -e "$(slot app:one a) | .alive" >/dev/null <<<"$(view_ipc touch a)"
 view_ipc add b app:one >/dev/null
@@ -132,7 +129,6 @@ stacked=$(wait_view "$(slot app:one b) | .presence == 1")
 jq -e "[$(deck app:one) | .slots[].key] == [\"b\", \"a\"] and ($(slot app:one a) | .alive and .y == 10)" \
   >/dev/null <<<"$stacked"
 
-# Decks stack top-down, newest source first.
 view_ipc add c app:two >/dev/null
 view_ipc add d app:three >/dev/null
 layout=$(wait_view "($(deck app:two) | .y == .targetY) and ($(deck app:one) | .y == .targetY)
@@ -143,8 +139,6 @@ jq -e "($(deck app:one) | .targetY) - ($(deck app:two) | .targetY) == ($(deck ap
   >/dev/null <<<"$layout"
 before_y=$(jq "$(deck app:one) | .targetY" <<<"$layout")
 
-# Removing the middle source: its card leaves in place while the deck below
-# moves up at once, and every other delegate survives the mid-list removal.
 view_ipc capture >/dev/null
 leaving=$(view_ipc dismiss c)
 jq -e "($(deck app:two) | .exiting) and ($(slot app:two c) | .exiting)" >/dev/null <<<"$leaving"
@@ -155,7 +149,6 @@ wait_view '[.decks[].key] | index("app:two") == null' >/dev/null
 jq -e 'all(.alive)' >/dev/null <<<"$(view_ipc decksAlive)"
 wait_view "($(deck app:one) | .y == .targetY)" >/dev/null
 
-# A flick carries its speed into the exit; the card behind steps forward.
 swiped=$(view_ipc swipe b)
 jq -e "$(slot app:one b) | .exiting and .offsetX >= 120" >/dev/null <<<"$swiped"
 sleep 0.05
@@ -163,11 +156,9 @@ jq -e "$(slot app:one b) | .offsetX > 140" >/dev/null <<<"$(view_ipc state)"
 wait_view "[$(deck app:one) | .slots[].key] == [\"a\"] and ($(slot app:one a) | .y == 0)" >/dev/null
 jq -e '.popups | index("b") == null' >/dev/null <<<"$(view_ipc state)"
 
-# A drag that does not reach the threshold springs back and keeps the card.
 jq -e "$(slot app:one a) | .exiting | not" >/dev/null <<<"$(view_ipc snapBack a)"
 wait_view "$(slot app:one a) | .offsetX == 0 and (.exiting | not)" >/dev/null
 
-# Hover spreads a deck into a list; leaving folds it back into the peek.
 view_ipc add e app:one >/dev/null
 wait_view "$(slot app:one e) | .presence == 1" >/dev/null
 view_ipc expand app:one >/dev/null
@@ -176,8 +167,6 @@ jq -e "($(deck app:one) | .layoutHeight) > ($(slot app:one a) | .y)" >/dev/null 
 view_ipc collapse >/dev/null
 wait_view "$(slot app:one a) | .y == 10" >/dev/null
 
-# The bell toggles quiet: every toast leaves and the overlay unmaps after the
-# last exit; turning quiet off replays them.
 quiet=$(view_ipc clickWidget)
 jq -e '.quiet and .icon == "notifications-off" and .label == "3"' >/dev/null <<<"$quiet"
 jq -e '(.rendered | length) > 0 and all(.decks[]; .exiting)' >/dev/null <<<"$(view_ipc state)"

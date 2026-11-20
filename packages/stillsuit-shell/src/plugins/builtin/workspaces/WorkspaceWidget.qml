@@ -1,6 +1,3 @@
-// Ported from the retired v1 shell (TopBar and NiriState views)
-// for Lane D4. This view uses HostContext compositor snapshots only and contains
-// no Omarchy Quattro code.
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -40,11 +37,6 @@ Item {
 
             spacing: 2
 
-            // The model holds plain string keys, so a compositor event keeps
-            // each workspace's cell instead of recreating every cell. Rows are
-            // not used as values: with objectProp, Quickshell 0.3.1's
-            // ScriptModel rewrites positions after a changed row without
-            // checking keys, handing a removed cell to its neighbour.
             Repeater {
                 model: ScriptModel {
                     values: root.workspaceKeys.keys
@@ -188,8 +180,6 @@ Item {
                                                                 1
     }
 
-    // One pass over the windows yields both the column count and the focused
-    // column of the active workspace.
     function columnStateForWorkspace(rows, workspace) {
         if (!workspace)
             return {

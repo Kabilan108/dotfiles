@@ -3,8 +3,6 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
 
-// The sole observer for volume and backlight state. Per-output overlays receive
-// this object from SurfaceRouter as their `service` construction property.
 Scope {
     id: root
 

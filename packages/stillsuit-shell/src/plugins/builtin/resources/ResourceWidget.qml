@@ -15,7 +15,6 @@ Item {
     readonly property string panelId: "stillsuit.resources"
     readonly property bool selected: context.panels && context.panels.selectedId === panelId
                                      && context.panels.selectedOutputId === outputId
-    // This plugin draws a two-row tooltip; the bar's text-only tooltip stays empty.
     property string tooltipText: ""
     readonly property string cpuLabel: "CPU:"
     readonly property string memoryLabel: "MEM:"

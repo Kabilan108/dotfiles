@@ -2,9 +2,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Polls `dev co list --json` on sietch through the fixed helper and owns the
-// last good checkout list. The same helper pauses or resumes one checkout at a
-// time. Views only read state and call refresh(), pause(), resume(), openLink().
 QtObject {
     id: root
 
@@ -14,11 +11,8 @@ QtObject {
     readonly property var values: context && context.settings && context.settings.values
                                   ? context.settings.values : ({})
     readonly property string helperPath: String(values.helperPath || "")
-    // Qt.openUrlExternally finds no browser from the shell's service
-    // environment, so links go through the fixed desktop opener.
     readonly property string openHelperPath: String(values.openHelperPath || "")
     readonly property int refreshIntervalSec: Math.max(30, Number(values.refreshIntervalSec || 90))
-    // Settings lists arrive as QVariantList, which fails Array.isArray in Qt.
     readonly property var primaryLinks: values.primaryLinks && typeof values.primaryLinks
                                         === "object" && typeof values.primaryLinks.length
                                         === "number" ? Array.prototype.slice.call(
@@ -34,7 +28,6 @@ QtObject {
     property bool loaded: false
     property string actionName: ""
     property string actionVerb: ""
-    // Kept apart from lastError, which every successful poll clears.
     property string actionError: ""
     readonly property bool acting: actionName !== ""
 

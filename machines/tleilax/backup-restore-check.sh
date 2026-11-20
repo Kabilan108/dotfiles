@@ -1,13 +1,4 @@
 # shellcheck shell=bash
-# backup-restore-check-executor [SNAPSHOT]
-# Restores SNAPSHOT (default: the latest executor snapshot) into a scratch
-# directory and starts Executor v2 on it in a throwaway container: the live
-# container's pinned image, user, environment and key file, but no network,
-# so the copy can't refresh OAuth tokens and break the live ones, and an empty
-# telemetry directory instead of the live one. It passes when the container stays
-# up, `executor-host health` succeeds and the logs show no migration or key
-# error. It then runs git fsck over every git repository in the restored
-# data. The container and the restored copy are always removed.
 
 snapshot="${1:-latest}"
 name="executor-v2-restore-check"
@@ -31,7 +22,6 @@ if [ "$(id -u)" != 0 ]; then
 fi
 
 trap cleanup EXIT
-# A container left by a check that was killed.
 podman rm --force --ignore "$name" > /dev/null 2>&1 || true
 
 "$CHECK_REPOSITORY_READY"
@@ -93,9 +83,6 @@ if bad="$(grep -Ei 'error|fail|fatal|panic|refus' <<< "$logs" | grep -Ei 'migrat
 fi
 echo "The container stayed up and its logs show no migration or key error."
 
-# App sources are git repositories somewhere under the data directory: find
-# every directory holding HEAD, objects/ and refs/ (a .git directory or a
-# bare repository).
 repos=0
 broken=0
 while IFS= read -r -d '' head; do

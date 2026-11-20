@@ -51,7 +51,6 @@ LOCK_NAME = ".lock"
 EMPTY_HISTORY = b'{"schemaVersion":1,"entries":[]}\n'
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
 TEMP_PREFIX = ".tmp-"
-# A MIME type or an X11-style atom such as UTF8_STRING; never starts with "-".
 MIME_RE = re.compile(
     r"^(?:[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}"
     r"(?:;[ ]?[A-Za-z0-9_.-]{1,64}=[A-Za-z0-9_.-]{1,64})?"
@@ -68,43 +67,26 @@ UNATTRIBUTED_FIREFOX_MODES = ("skip", "record")
 DEFAULT_GECKO_APP_IDS = (r"^(zen|zen-beta|zen-browser|zen-alpha|zen-twilight|app\.zen_browser\.zen"
                          r"|firefox|firefox-esr|firefox-nightly|librewolf|org\.mozilla\.firefox)$")
 NIRI_TIMEOUT_SEC = 0.3
-# Separate wl-paste calls cannot be tied to one offer, so a text copy is kept
-# only when its whole classification (types, markers, two payload reads and,
-# for GTK3-shaped offers, two niri samples) fits in this bound. It normally
-# takes 20-40 ms, but a VM encoding a screen recording in software measured
-# 250-280 ms, so the bound leaves room for load. Mixing another offer's
-# metadata with a secret's payload, or hiding a browser visit between
-# identical niri samples, still needs several human actions inside it.
 TEXT_GATE_SEC = 1.0
 NIRI_REPLY_BYTES = 1024 * 1024
 DEFAULT_FOCUS_SETTLE_MS = 2000
 TEXT_TYPES = ("text/plain;charset=utf-8", "UTF8_STRING", "text/plain")
-# Image preference order after image/png follows Omarchy's clipboard capture.sh
-# (basecamp/omarchy, MIT License).
 IMAGE_TYPES = ("image/png", "image/jpeg", "image/webp", "image/gif", "image/bmp", "image/tiff")
-# Bitwarden's extension clears with "\u0000" (Chromium), "" (Firefox) or " "
-# (legacy fallback). Only Firefox's clear offers text, with the unattributed
-# Gecko shape, so only an offer of that shape is a clear; any other app's
-# empty text, such as a failed sender's zero bytes, is just empty.
 CLEAR_PAYLOADS = (b"", b"\x00", b" ")
 
 PREVIEW_BYTES = 2048
 MARKER_BYTES = 8192
 READ_TIMEOUT_SEC = 5.0
 LOCK_TIMEOUT_SEC = 5.0
-# A capture stages its payload in a temp file before taking the lock, so gc
-# leaves temp files this young alone whatever its grace period.
 TEMP_MIN_AGE_SEC = 600.0
 BLOB_GONE = 3
 DEFAULT_MAX_TEXT = 1024 * 1024
 DEFAULT_MAX_IMAGE = 20 * 1024 * 1024
 PR_SET_PDEATHSIG = 1
-# `watch` exports its pid to wl-paste, and so to every emit wl-paste starts.
 WATCH_PID_ENV = "STILLSUIT_CLIPBOARD_WATCH_PID"
 WL_PASTE_COMM = "wl-paste"
 STOP_SIGNALS = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
 OPEN_DIR = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
-# O_NONBLOCK keeps a planted FIFO from blocking the open; S_ISREG rejects it.
 OPEN_READ = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
 
 
@@ -166,12 +148,11 @@ class Offer:
 def _is_secret_source(marker: str | None, prefixes: list[str]) -> bool:
     if not marker:
         return False
-    # Web vaults include account-specific subdomains in all three regions.
     try:
         source = urllib.parse.urlsplit(marker)
         host = (source.hostname or "").lower().rstrip(".")
     except ValueError:
-        return True  # Malformed origins cannot vouch for a safe source.
+        return True
     if source.scheme.lower() == "https" and any(
         host == domain or host.endswith("." + domain)
         for domain in ("1password.com", "1password.eu", "1password.ca")
@@ -243,8 +224,6 @@ def _is_gecko(window: dict, policy: argparse.Namespace) -> bool:
     return not isinstance(app_id, str) or policy.gecko_app_ids.search(app_id) is not None
 
 
-# Offers matching a rule are dropped before their payload is read; the first
-# match names the skip reason. `policy` is the parsed emit arguments.
 SKIP_RULES: tuple[tuple[str, Callable[[Offer, argparse.Namespace], bool]], ...] = (
     ("hint", lambda offer, policy: PASSWORD_HINT in offer.types),
     ("source", lambda offer, policy: bool(offer.unreadable)),
@@ -593,9 +572,6 @@ def _classify(args: argparse.Namespace) -> dict:
     reason = _skip_reason(offer, args)
     if reason is not None:
         return {"kind": "skipped", "reason": reason}
-    # A GTK3-shaped copy is kept only when niri shows the same settled
-    # non-Gecko focus before the first payload read and after the last: a
-    # switch to Zen and a copy between the two keeps the offer's shape.
     gated = args.unattributed_firefox == "skip" and offer.unattributed_gecko
     focus = _settled_focus(args) if gated else None
     if gated and focus is None:
@@ -614,10 +590,6 @@ def _classify(args: argparse.Namespace) -> dict:
     if payload is None:
         return {"kind": "skipped", "reason": "error"}
 
-    # Each read may hit a different offer. Re-reading the types and markers
-    # catches a change that stuck; re-reading the payload catches one that
-    # came back (A, then secret B, then A again), where the first payload came
-    # from B under A's markers. B's own event classifies B.
     if _read_offer(args.wl_paste) != offer:
         return {"kind": "skipped", "reason": "changed"}
     try:
@@ -632,9 +604,6 @@ def _classify(args: argparse.Namespace) -> dict:
         return {"kind": "skipped", "reason": "unattributed" if gated else "changed"}
 
     if text_mime:
-        # Only record mode keeps Firefox/Zen extension copies, so only there
-        # can a Bitwarden clear need to purge one; elsewhere a same-shaped
-        # empty offer from a GTK3 app would delete that app's last copy.
         if payload in CLEAR_PAYLOADS and offer.unattributed_gecko and args.unattributed_firefox == "record":
             return {"kind": "clear", "shape": _shape(offer.types)}
         if payload in CLEAR_PAYLOADS or not payload.strip():
@@ -684,8 +653,6 @@ def _parent_and_comm(pid: int) -> tuple[int, str] | None:
         comm = Path(f"/proc/{pid}/comm").read_text(encoding="utf-8", errors="replace").rstrip("\n")
     except OSError:
         return None
-    # The comm field is parenthesized and may hold spaces or ")"; state and
-    # ppid follow the last ")".
     fields = stat_line[stat_line.rfind(")") + 1:].split()
     try:
         return int(fields[1]), comm
@@ -711,8 +678,6 @@ def _started_by_watch() -> bool:
 
 
 def cmd_emit(args: argparse.Namespace) -> int:
-    # Once wl-paste is gone nothing reads the event, and a payload collected
-    # after that must not reach disk.
     if not _die_with_parent(signal.SIGKILL):
         return 1
     if not _started_by_watch():
@@ -909,8 +874,6 @@ def cmd_watch(args: argparse.Namespace) -> int:
         return 2
     if not _die_with_parent(signal.SIGTERM):
         return 1
-    # The owner may have died before the death signal was armed; we were
-    # then reparented to a subreaper and would collect forever.
     if args.owner_pid is not None and os.getppid() != args.owner_pid:
         print("stillsuit-clipboard-collector: watch outlived its owner", file=sys.stderr)
         return 1
@@ -939,7 +902,6 @@ def cmd_watch(args: argparse.Namespace) -> int:
     for signum in STOP_SIGNALS:
         signal.signal(signum, stop)
     signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
-    # Wait without reaping so the group id cannot be reused before the kill.
     os.waitid(os.P_PID, child.pid, os.WEXITED | os.WNOWAIT)
     _kill_group(child.pid)
     status = child.wait()

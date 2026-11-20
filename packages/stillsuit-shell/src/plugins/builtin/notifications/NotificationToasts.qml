@@ -16,16 +16,11 @@ Scope {
     readonly property real cardWidth: context.theme.metrics.panelWidth
     readonly property real edgeGap: context.theme.metrics.spaceUnit * 2
     readonly property real spacing: context.theme.metrics.spaceUnit * 2
-    // Room left of the cards for a leftward swipe and the cards' shadows.
     readonly property real slack: 64
 
-    // Decks on screen, including ones whose last cards are still leaving,
-    // and the last data each had.
     property var rendered: []
     property var deckCache: ({})
     property real extent: 0
-    // False from the moment the overlay maps until it has presented a frame,
-    // so an entrance starts on screen instead of during the map.
     property bool surfaceReady: false
     readonly property bool overlayVisible: rendered.length > 0
 
@@ -73,8 +68,6 @@ Scope {
         return null
     }
 
-    // Live decks stack top-down; a leaving deck keeps its place and leaves
-    // the flow, so the ones below move up while its cards exit.
     function relayout() {
         var y = 0
         for (var index = 0; index < rendered.length; index++) {
@@ -134,7 +127,6 @@ Scope {
         WlrLayershell.namespace: "stillsuit.notifications"
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-        // Only the cards take the pointer; everywhere else clicks pass through.
         Item {
             id: inputArea
             x: root.slack

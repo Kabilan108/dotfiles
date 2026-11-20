@@ -2,10 +2,6 @@ import QtQuick
 import Quickshell
 import Stillsuit.Ui as Ui
 
-// Compact context menu for one tray item, rendered in-shell from its DBusMenu
-// through nested QsMenuOpener objects. Each level keeps its own live opener: a
-// child entry is owned by its parent opener's model, so a single reused opener
-// would destroy the entry being displayed.
 Item {
     id: root
     readonly property bool hostedPanel: true
@@ -43,9 +39,6 @@ Item {
     readonly property var currentChildren: submenuDepth > 0 ? submenuStack[submenuDepth
                                                                            - 1].opener.children :
                                                               rootOpener.children
-    // Entering a level rebuilds the rows under a cursor that has not moved;
-    // ignore clicks for a beat so a double-click cannot fire the row that took
-    // the spot. A timestamp rather than a Timer: per-output views own no timers.
     readonly property int settleMs: 250
     property real settleUntil: 0
 
@@ -149,9 +142,6 @@ Item {
         context.actions.surfaceClose("stillsuit.tray")
     }
 
-    // The root row of a submenu-less app menu often repeats the app's own name
-    // as a disabled title entry followed by a separator; the header already
-    // says which item this is, so skip that pair.
     function rowHidden(entry, index) {
         if (!entry)
             return true
@@ -198,8 +188,6 @@ Item {
             }
             spacing: 0
 
-            // Submenu header: names the level and walks back out. Pinned above
-            // the scroll area so the way back stays reachable in a tall menu.
             Item {
                 id: backRow
                 visible: root.submenuDepth > 0
@@ -254,8 +242,6 @@ Item {
                 color: root.theme.semantic.outline.subtle
             }
 
-            // Open windows for this app, before the app's own menu: the most
-            // common reason to click a tray icon is to get back to the window.
             Column {
                 id: windowSection
                 visible: root.activeWindows.length > 0

@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# App-launch contract: the helper script against stub systemd tools, then the
-# AppLaunch service and its context actions in an offscreen shell, including
-# the startup helper check through real processes.
 set -euo pipefail
 test_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source_dir=$(cd -- "$test_dir/../.." && pwd)
@@ -68,8 +65,6 @@ cat >"$fixture_dir/stubs/wl-copy" <<STUB
 STUB
 chmod +x "$fixture_dir/stubs/wl-copy"
 
-# A stand-in for the launch helper: --check passes, a launch records its argv
-# one argument per line, followed by an end marker.
 launch_log="$fixture_dir/launches"
 cat >"$fixture_dir/helper/stillsuit-app-launch" <<STUB
 #!$bash_bin
@@ -109,8 +104,6 @@ for _ in {1..100}; do
 done
 [[ $(ipc copyState) == '{"running":false,"pending":false}' ]] || fail "copies did not drain"
 
-# A helper that did not exist at startup becomes usable after one launch
-# finds it unavailable and starts a re-check.
 [[ $(ipc helperState late) == '{"state":"unavailable","checks":1}' ]] \
     || fail "late helper before install: $(ipc helperState late)"
 cp "$fixture_dir/helper/stillsuit-app-launch" "$fixture_dir/late/stillsuit-app-launch"
