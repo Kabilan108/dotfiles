@@ -9,6 +9,7 @@
 
 ## Other scripts
 
+- `try-session` reads `TRY_BIN` and `TRY_PATH` from the `try-session.env` file that `home/shell.nix` writes under the XDG config directory, not from the environment. It runs in a tmux popup, and a long-lived tmux server never sees session variables added after it started.
 - Rebuild sietch before expecting a change to `flake-update-pr` to run. `home/services/flake-update.nix` starts a Nix store copy of the script, so the weekly job never runs whatever an agent left in sietch's checkout.
 - Keep `JOB_BUDGET` in `flake-update-pr` below `TimeoutStartSec` in `home/services/flake-update.nix`. The job makes three builds of up to `BUILD_TIMEOUT` (3 h) each when caches miss; the 9 h budget leaves one hour of the unit's 10 h for reporting and cleanup. Raising the build timeout, the budget or the number of host builds means raising the unit timeout too.
 - In `update-app-pins`, exit 75 (EX_TEMPFAIL) only for a failure systemd should retry by itself; today that is a failed fetch. `home/services/update-app-pins.nix` sets `RestartForceExitStatus = [ 75 ]` with a 15 minute delay, and every other exit status waits for Tony.

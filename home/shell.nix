@@ -302,4 +302,9 @@ in
     enable = true;
     path = "~/experiments";
   };
+
+  xdg.configFile."try-session.env".text = ''
+    TRY_BIN=${lib.escapeShellArg (lib.getExe' config.programs.try.package "try")}
+    TRY_PATH=${lib.escapeShellArg config.programs.try.path}
+  '';
 }
