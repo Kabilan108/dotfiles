@@ -2,14 +2,19 @@ import json
 import sys
 from pathlib import Path
 
-CATEGORIES = {"tautology", "stale", "excuse", "decision", "keep"}
+CATEGORIES = {"tautology", "stale", "excuse", "reason", "keep"}
+HOMES = {"code", "test", "note", "adr"}
 
 
-def problems(blocks_path: Path, audit_path: Path, adr_dir: Path) -> list[str]:
+def problems(blocks_path: Path, audit_path: Path, drafts: Path) -> list[str]:
     wanted = {block["id"] for block in json.loads(blocks_path.read_text())}
     audit = json.loads(audit_path.read_text())
     issues = {issue["key"] for issue in audit.get("issues", [])}
-    adrs = {adr["slug"] for adr in audit.get("adrs", [])}
+    itemised = {
+        cid
+        for item in audit.get("code_items", []) + audit.get("test_items", [])
+        for cid in item.get("ids", [])
+    }
     found: list[str] = []
     seen: dict[str, dict] = {}
     for comment in audit["comments"]:
@@ -21,14 +26,22 @@ def problems(blocks_path: Path, audit_path: Path, adr_dir: Path) -> list[str]:
             found.append(f"unknown category {category!r} for {cid}")
         if category == "excuse" and comment.get("issue") not in issues:
             found.append(f"excuse without an issue: {cid}")
-        if category == "decision" and comment.get("adr") not in adrs and not comment.get("documented_in"):
-            found.append(f"decision without an ADR or documented_in: {cid}")
         if category == "keep" and not comment.get("reason"):
             found.append(f"keep without a reason: {cid}")
+        if category != "reason":
+            continue
+        home, target = comment.get("home"), comment.get("target", "")
+        if home not in HOMES:
+            found.append(f"reason without a valid home: {cid}")
+        elif home in {"code", "test"} and cid not in itemised:
+            found.append(f"{home} home without an item: {cid}")
+        elif home == "note" and not (drafts / "notes" / target).is_file():
+            found.append(f"note draft missing for {cid}: {target}")
+        elif home == "adr" and not (drafts / target).is_file():
+            found.append(f"ADR draft missing for {cid}: {target}")
     listed = {cid for cid, comment in seen.items() if not comment.get("embedded")}
     found += [f"missing {cid}" for cid in sorted(wanted - listed)]
     found += [f"not in the blocks file: {cid}" for cid in sorted(listed - wanted)]
-    found += [f"ADR draft missing: {slug}" for slug in sorted(adrs) if not (adr_dir / f"{slug}.md").exists()]
     found += [
         f"issue needs a title and body: {issue['key']}"
         for issue in audit.get("issues", [])
@@ -39,9 +52,9 @@ def problems(blocks_path: Path, audit_path: Path, adr_dir: Path) -> list[str]:
 
 def main() -> int:
     if len(sys.argv) != 4:
-        sys.exit("usage: validate-audit.py BLOCKS_JSON AUDIT_JSON ADR_DIR")
-    blocks, audit, adr_dir = (Path(arg) for arg in sys.argv[1:])
-    found = problems(blocks, audit, adr_dir)
+        sys.exit("usage: validate-audit.py BLOCKS_JSON AUDIT_JSON DRAFTS_DIR")
+    blocks, audit, drafts = (Path(arg) for arg in sys.argv[1:])
+    found = problems(blocks, audit, drafts)
     if found:
         print("\n".join(found))
         return 1

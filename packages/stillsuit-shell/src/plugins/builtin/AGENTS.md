@@ -1,0 +1,3 @@
+# Built-in plugin notes
+
+- Give a `ScriptModel` plain string keys and let each delegate read its row from a key map, as `launcher/Menu.qml` (`keyedRows`) and `workspaces/WorkspaceWidget.qml` (`workspaceKeys`) do; do not hand it object rows with `objectProp`. Quickshell 0.3.1 rewrites positions after a changed or removed object row without checking keys, so a removed row's delegate goes to its neighbour. If upstream starts diffing object rows by key the pattern can be reconsidered, but keep the regression checks in `../../tests/d2-compositor/run-fixtures.sh` and `../../tests/launcher-qml/fixture-shell.qml`.

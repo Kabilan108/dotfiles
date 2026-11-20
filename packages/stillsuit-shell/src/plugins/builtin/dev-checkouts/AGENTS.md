@@ -1,0 +1,6 @@
+# Dev-checkouts plugin notes
+
+- Keep three places in step when changing a request: `Service.qml` here, the `stillsuit-dev-checkouts` helper in `home/desktop/wayland/quickshell/default.nix`, and the `moberg-dev-checkouts` command in `home/services/moberg.nix`. The helper sends only the request words (`status`, `pause NAME`, `resume NAME`) over SSH, and the command on sietch parses SSH_ORIGINAL_COMMAND as the whole request.
+- Do not widen the `moberg-status@jacurutu` key in `lib/fleet.nix`. It sits in `extraAuthorizedKeys`, outside the fleet access matrix, with a forced command, `restrict` and a tailnet-only `from`, so the desktop can list checkouts and pause or resume one by name and nothing else.
+- Keep `moberg-dev-checkouts` running the checkout's devcli venv directly instead of the dev shell. A forced SSH command has no login environment, and loading direnv and the nix shell costs seconds on every poll. The command breaks if the venv moves or starts needing the dev shell's environment; Docker's endpoint comes from the moberg docker.toml under the user's config directory.
+- Leave the plugin declared with `enable = false`. It is Moberg work tooling, and the "moberg" Stillsuit runtime profile turns it on.

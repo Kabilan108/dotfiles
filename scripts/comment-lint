@@ -324,8 +324,9 @@ def command_check(args: argparse.Namespace) -> int:
         print(failure, file=sys.stderr)
     if failures:
         print(
-            "\nComments are banned: move decisions into docs/adr/, file an issue for "
-            "workarounds, delete the rest. See docs/adr/0001-ban-code-comments.md.",
+            "\nComments are banned. Put the reason in the code, a test, the subsystem's "
+            "AGENTS.md or docs/adr/, and file an issue for a workaround. "
+            "See docs/adr/0001-ban-code-comments.md.",
             file=sys.stderr,
         )
     return 1 if failures else 0

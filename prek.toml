@@ -88,3 +88,12 @@ entry = "direnv exec . scripts/comment-lint check"
 language = "system"
 require_serial = true
 types = ["text"]
+
+[[repos.hooks]]
+id = "notes-check"
+name = "notes-check (notes and ADRs name paths that exist)"
+entry = "direnv exec . scripts/notes-check"
+language = "system"
+require_serial = true
+pass_filenames = false
+always_run = true
