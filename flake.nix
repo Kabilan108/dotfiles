@@ -17,6 +17,7 @@
           helium = import ./packages/helium.nix { pkgs = final; };
         })
         (import ./packages/rust-system-libs.nix)
+        (import ./packages/security-overrides.nix)
         inputs.pagebin.overlays.default
         inputs.atlas.overlays.default
         inputs.hark.overlays.default
@@ -87,6 +88,7 @@
             {
               nixpkgs = {
                 hostPlatform = "aarch64-linux";
+                overlays = [ (import ./packages/security-overrides.nix) ];
               };
             }
             configurationRevision
