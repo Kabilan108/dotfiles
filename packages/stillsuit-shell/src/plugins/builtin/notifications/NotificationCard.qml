@@ -336,8 +336,13 @@ Ui.ShellSurface {
                 iconName: root.snapshot.link && root.snapshot.link.meeting ? "notifications" :
                                                                              "chevron-right"
                 compact: true
-                onClicked: if (root.snapshot.link)
-                               Qt.openUrlExternally(root.snapshot.link.url)
+                onClicked: {
+                    if (!root.snapshot.link)
+                        return
+                    var result = root.context.actions.openUrl(root.snapshot.link.url)
+                    if (result !== "ok")
+                        root.context.logger.warn("Open notification link returned " + result)
+                }
             }
         }
 

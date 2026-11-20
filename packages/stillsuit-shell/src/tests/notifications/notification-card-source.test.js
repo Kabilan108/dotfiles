@@ -27,6 +27,7 @@ assert.doesNotMatch(widgetSource, /surfaceToggle|unread/)
 assert.doesNotMatch(serviceSource, /history|unread|markRead|openCenter|centerRows/i)
 
 assert.match(cardSource, /textFormat:\s*Text\.PlainText/)
+assert.doesNotMatch(cardSource + deckSource + toastsSource, /openUrlExternally|execDetached/)
 assert.doesNotMatch(cardSource, /textFormat:\s*Text\.StyledText/)
 assert.match(serviceSource, /bodyMarkupSupported:\s*false/)
 assert.match(cardSource, /import "\.\.\/\.\.\/\.\.\/ui" as Ui/)

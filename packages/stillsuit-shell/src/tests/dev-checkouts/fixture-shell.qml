@@ -8,13 +8,14 @@ ShellRoot {
     id: root
 
     property int checks: 0
+    property string openStatus: "ok"
+    property string openedUrl: ""
     readonly property string fixtureRoot: Quickshell.env("DEV_CHECKOUTS_FIXTURE_ROOT")
     property var fakeContext: QtObject {
         property var theme: FixtureTheme.create()
         property var settings: QtObject {
             property var values: ({
                                       helperPath: root.fixtureRoot + "/helper.sh",
-                                      openHelperPath: root.fixtureRoot + "/open.sh",
                                       refreshIntervalSec: 3600
                                   })
         }
@@ -23,6 +24,10 @@ ShellRoot {
             property string selectedOutputId: ""
         }
         property var actions: QtObject {
+            function openUrl(url) {
+                root.openedUrl = url
+                return root.openStatus
+            }
             function surfaceToggle(pluginId, payloadJson) {
                 return "ok"
             }
@@ -93,10 +98,18 @@ ShellRoot {
                                                                               }) === "grafana",
                    "known and unknown link labels")
 
+            root.openStatus = "invalid"
             verify(service.openLink({
                                         url: "file:///etc/passwd"
-                                    }) === "invalid", "non-http links refused")
-            verify(service.openLink(live[1]) === "started", "link opener started")
+                                    }) === "invalid" && root.openedUrl === "file:///etc/passwd",
+                   "host URL validation result is returned")
+            root.openStatus = "unavailable"
+            verify(service.openLink(live[1]) === "unavailable" && service.lastError
+                   === "Couldn't open link: unavailable", "host launch failure is visible")
+            root.openStatus = "ok"
+            verify(service.openLink(live[1]) === "ok" && service.lastError === "",
+                   "host accepted the link and cleared the error")
+            verify(root.openedUrl === "http://100.64.0.2:8887", "host received the exact URL")
 
             var widget = create("plugins/dev-checkouts/Widget.qml", {
                                     context: fakeContext,
@@ -169,9 +182,6 @@ ShellRoot {
                 actionLog.reload()
                 root.verify(actionLog.text().trim() === "resume t3code-e52c4300\npause dev-server-1",
                             "helper received verb and name: " + actionLog.text())
-                openLog.reload()
-                var opened = openLog.text().trim()
-                root.verify(opened === "http://100.64.0.2:8887", "opener received URL: " + opened)
                 console.log("DEV_CHECKOUTS_FIXTURE_OK " + root.checks + " checks")
                 Qt.exit(0)
             } catch (error) {
@@ -183,12 +193,6 @@ ShellRoot {
     FileView {
         id: actionLog
         path: root.fixtureRoot + "/actions.txt"
-        blockLoading: true
-    }
-
-    FileView {
-        id: openLog
-        path: root.fixtureRoot + "/opened.txt"
         blockLoading: true
     }
 }
