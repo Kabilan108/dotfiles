@@ -612,8 +612,6 @@ const editInNvim = async (
   ctx: ExtensionContext,
   target: FileEntry,
 ): Promise<void> => {
-  if (!existsSync(target.resolvedPath) && !target.isDirectory) {
-  }
   if (target.isDirectory) {
     ctx.ui.notify("Cannot edit a directory", "warning");
     return;
