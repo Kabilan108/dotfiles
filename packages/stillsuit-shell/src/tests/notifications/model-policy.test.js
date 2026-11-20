@@ -82,6 +82,31 @@ assert.equal(Policy.quietClass({ ...first, hints: { transient: true } }, true, {
 assert.equal(Policy.quietClass(first, true, {}), "silenced-ephemeral", "stacked status cards are not replayed")
 assert.equal(Policy.quietClass(first, false, {}), "visible")
 
+const malformedPatterns = {
+    notifications: { quietBypass: { summaryPatterns: ["[", "[", "^urgent"] } }
+}
+const warnings = []
+const warn = message => warnings.push(message)
+assert.equal(Policy.quietClass({ ...first, hints: {} }, true, malformedPatterns), "silenced-retained",
+    "a malformed optional rule leaves normal quiet handling intact without a logger")
+const compiled = Policy.notificationsPolicy(malformedPatterns, warn)
+assert.equal(compiled.quietBypass.summaryPatterns.length, 1, "invalid patterns are dropped")
+assert.equal(warnings.length, 1, "duplicate bad patterns produce one warning")
+assert.match(warnings[0], /notifications\.quietBypass\.summaryPatterns/)
+assert(warnings[0].includes('"["'), "the warning identifies the rejected pattern")
+assert.match(warnings[0], /SyntaxError/, "the warning includes the compilation error")
+assert.equal(Policy.notificationsPolicy(malformedPatterns, warn).quietBypass.summaryPatterns[0],
+    compiled.quietBypass.summaryPatterns[0], "patterns are compiled once")
+assert.equal(Policy.quietClass({ ...first, summary: "urgent message" }, true, malformedPatterns), "bypass",
+    "a valid rule after a malformed pattern still matches")
+assert.equal(Policy.quietClass(first, false, malformedPatterns), "visible",
+    "a malformed pattern cannot block a notification outside quiet mode")
+assert.equal(Policy.quietClass({ ...first, urgency: 2 }, true, malformedPatterns), "bypass",
+    "a malformed pattern cannot block critical notification bypass")
+assert.equal(warnings.length, 1, "subsequent policy evaluations do not repeat the warning")
+Policy.notificationsPolicy({ notifications: { quietBypass: { summaryPatterns: ["("] } } }, warn)
+assert.equal(warnings.length, 2, "each distinct malformed pattern is reported")
+
 assert.equal(Policy.viewState({ ...first, urgency: 2 }), "danger")
 assert.equal(Policy.viewState({ ...first, urgency: 0 }), "muted")
 assert.equal(Policy.viewState({ ...first, hints: { "x-stillsuit-state": "success" } }), "success")

@@ -330,6 +330,14 @@ presentation=$(ipc presentationProof)
 jq -e '.outputA == 8 and .outputB == 0 and .overlap == 0' >/dev/null <<<"$presentation"
 ipc dismissAll >/dev/null
 
+python3 - "$tmp_dir/quickshell.log" <<'PY'
+import sys
+from pathlib import Path
+
+log = Path(sys.argv[1]).read_text()
+assert log.count('Invalid notifications.quietBypass.summaryPatterns pattern "[":') == 1, log
+PY
+
 [[ $(ipc toggleQuiet) == on ]]
 send_notification -a chat-app -t 5000 -A default=Open "held-across-restart"
 wait_for_json '(.held | length) == 1' >/dev/null

@@ -18,7 +18,35 @@ function boundedNumber(value, fallback, minimum, maximum) {
     return Math.max(minimum, Math.min(maximum, number))
 }
 
-function notificationsPolicy(settings) {
+var summaryPatternCache = Object.create(null)
+
+function compiledSummaryPatterns(values, reportWarning) {
+    var patterns = listValue(values) || []
+    var compiled = []
+    for (var index = 0; index < patterns.length; index++) {
+        var pattern = stringValue(patterns[index])
+        var cached = summaryPatternCache[pattern]
+        if (!cached) {
+            cached = { regex: null, error: "", reported: false }
+            try {
+                cached.regex = new RegExp(pattern)
+            } catch (error) {
+                cached.error = String(error)
+            }
+            summaryPatternCache[pattern] = cached
+        }
+        if (cached.regex) {
+            compiled.push(cached.regex)
+        } else if (!cached.reported && typeof reportWarning === "function") {
+            cached.reported = true
+            reportWarning("Invalid notifications.quietBypass.summaryPatterns pattern "
+                + JSON.stringify(pattern) + ": " + cached.error)
+        }
+    }
+    return compiled
+}
+
+function notificationsPolicy(settings, reportWarning) {
     var values = settings && settings.notifications ? settings.notifications : {}
     var bypass = values.quietBypass || values.dndBypass || {}
     return {
@@ -37,7 +65,7 @@ function notificationsPolicy(settings) {
             appUrgencies: listValue(bypass.appUrgencies) || [
                 { appName: "notify-send", urgency: "critical" }
             ],
-            summaryPatterns: listValue(bypass.summaryPatterns) || []
+            summaryPatterns: compiledSummaryPatterns(bypass.summaryPatterns, reportWarning)
         }
     }
 }
@@ -105,10 +133,7 @@ function shouldBypassQuiet(snapshot, settings) {
     }
 
     for (var patternIndex = 0; patternIndex < policy.summaryPatterns.length; patternIndex++) {
-        try {
-            if (new RegExp(stringValue(policy.summaryPatterns[patternIndex])).test(summary)) return true
-        } catch (error) {
-        }
+        if (policy.summaryPatterns[patternIndex].test(summary)) return true
     }
     return false
 }
