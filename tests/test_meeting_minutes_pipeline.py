@@ -1526,6 +1526,29 @@ def test_finalize_writes_minutes_data_and_only_proposes_named_new_people(
     )
 
 
+def test_append_weekly_backlink_leaves_older_backlink_form_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env, vault, _, _ = pipeline_env(tmp_path)
+    stem = "2026-10-13-tooling-dev-environment-review"
+    weekly = vault / "01-logs/2026-w42.md"
+    original = (
+        "### Tue, Oct 13\n\n"
+        "- work\n\n"
+        f"- Meeting notes: [[meetings/{stem}|Older title]]\n"
+    )
+    weekly.write_text(original)
+    namespace = load_script(env, monkeypatch)
+    job = {
+        "recording_started_at": STARTED_EPOCH,
+        "canonical_stem": stem,
+    }
+
+    namespace["append_weekly_backlink"](job, {"title": "Dev environment review"})
+
+    assert weekly.read_text() == original
+
+
 def test_meetings_tony_did_not_speak_in_propose_no_one(
     tmp_path: Path, executor: FakeExecutor, monkeypatch: pytest.MonkeyPatch
 ) -> None:
