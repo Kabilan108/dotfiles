@@ -7,22 +7,26 @@
 let
   homeDir = "/home/kabilan";
   niriConfigDir = "${homeDir}/dotfiles/home/desktop/wayland/compositors/niri";
+  acuTools = with pkgs; [
+    wlrctl
+    wev
+    dotool
+    grim
+  ];
 in
 {
   imports = [
     ../../swaylock.nix
   ];
 
-  home.packages = with pkgs; [
-    swayidle
-    swaybg
-    xwayland-satellite
-
-    wlrctl
-    wev
-    dotool
-    grim
-  ];
+  home.packages =
+    with pkgs;
+    [
+      swayidle
+      swaybg
+      xwayland-satellite
+    ]
+    ++ acuTools;
 
   programs.niri.config = null;
 
