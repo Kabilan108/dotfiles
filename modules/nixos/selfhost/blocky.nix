@@ -105,30 +105,27 @@ in
     before = lib.mkForce [ ];
     wants = lib.mkForce [
       "network-online.target"
+      "tailscaled.service"
     ];
-    requires = [ "tailscaled.service" ];
     after = [
       "network-online.target"
       "tailscaled.service"
     ];
-    startLimitIntervalSec = 300;
-    startLimitBurst = 3;
+    startLimitIntervalSec = 120;
+    startLimitBurst = 5;
     path = [
       pkgs.iproute2
       pkgs.jq
     ];
     preStart = ''
-      for _ in $(seq 1 30); do
-        if ip -j -4 address show dev ${lib.escapeShellArg config.services.tailscale.interfaceName} \
-          | jq -e --arg ip ${lib.escapeShellArg tailscaleIp} 'any(.[].addr_info[]; .local == $ip)' >/dev/null 2>&1; then
-          exit 0
-        fi
+      until ip -j -4 address show dev ${lib.escapeShellArg config.services.tailscale.interfaceName} \
+        | jq -e --arg ip ${lib.escapeShellArg tailscaleIp} 'any(.[].addr_info[]; .local == $ip)' >/dev/null 2>&1; do
         sleep 1
       done
-      exit 1
     '';
     serviceConfig = {
       RestartSec = "5s";
+      TimeoutStartSec = "infinity";
       RestrictAddressFamilies = [ "AF_NETLINK" ];
       LoadCredential = [ "denylist:${config.age.secrets.selfhost-blocky-denylist.path}" ];
       StandardOutput = "null";

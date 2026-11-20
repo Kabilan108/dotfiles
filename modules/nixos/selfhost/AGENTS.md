@@ -7,6 +7,7 @@ The permission model for these services is in `docs/security-hardening.md` ("Sel
 - Keep the package patch that removes `api.RegisterOpenAPIEndpoints` and `configureDebugHandler`. Blocky's HTTP listener serves unauthenticated management and profiling routes, even on loopback. `--replace-fail` breaks the build when upstream changes those two lines, which is the cue to review the patch.
 - Keep upstreams and `bootstrapDns` as DoH by IP literal. The host's own resolver may be Blocky, so Blocky can't depend on DNS to find its upstreams.
 - Keep `before = lib.mkForce [ ]` and the ordering after `tailscaled.service`. The nixpkgs module orders Blocky before `nss-lookup.target` as an early-boot resolver, but this instance binds the node's Tailscale IP.
+- Keep the `preStart` wait for the Tailscale address unbounded (`TimeoutStartSec = "infinity"`). Blocky is the fleet's DNS and tailscaled can take minutes to get its address after an outage, so waiting must never count as a failure; the start limit (5 in 120 s) is for a Blocky that starts and then dies.
 - Keep stdout and stderr on null and the query log off. Blocky's `log.privacy` redaction preserves name lengths and isn't applied to every error. Turn output back on only while debugging.
 - `LimitCORE=0` and `MemorySwapMax=0` are set on nginx and tailscaled as well as Blocky because Tailscale Serve and the nginx front both handle decrypted DoH messages. The limits apply to everything those two services do on the host.
 
