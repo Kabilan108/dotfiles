@@ -228,6 +228,7 @@ func TestFleetHostIcons(t *testing.T) {
 	if err := os.Remove(fleetHostsPath()); err != nil {
 		t.Fatal(err)
 	}
+	fleetHostIcons = nil
 	if got := hostIcon("jacurutu"); got != iconServer {
 		t.Fatalf("missing fleet file: got %q, want server glyph", got)
 	}
