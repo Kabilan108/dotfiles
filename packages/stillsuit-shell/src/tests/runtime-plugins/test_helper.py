@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
+from unittest.mock import DEFAULT, patch
 
 
 def main() -> None:
@@ -110,8 +111,38 @@ def main() -> None:
             cached_sources = watcher.sources
             seed.write_text(seed.read_text())
             assert watcher.poll() is not None and watcher.sources is not cached_sources
+            seed.write_text(seed.read_text())
+            with patch.object(helper, "scan", wraps=helper.scan,
+                              side_effect=[OSError("scan failed"), DEFAULT]) as scans:
+                try:
+                    watcher.poll()
+                except OSError as error:
+                    assert str(error) == "scan failed"
+                    assert watcher.inputs is None, "a failed scan must invalidate the previous input snapshot"
+                else:
+                    raise AssertionError("the first scan must fail")
+                assert watcher.poll() is not None, "a failed scan must retry without another file change"
+                assert scans.call_count == 2
+                assert watcher.poll() is None
         finally:
             helper.generation = original_generation
+
+        target = root / "symlink-target"
+        target.mkdir()
+        target_manifest = target / "manifest.json"
+        target_manifest.write_text(json.dumps(manifest))
+        linked = tracked / "a-symlink"
+        linked.symlink_to(target, target_is_directory=True)
+        watcher = helper.Watcher(configuration)
+        blocked = watcher.poll()
+        assert blocked is not None and not blocked[0]["plugins"], "a rejected symlink still claims its manifest ID"
+        assert watcher.poll() is None
+        target_manifest.write_text(json.dumps(dict(manifest, id="stillsuit.renamed")))
+        unblocked = watcher.poll()
+        assert unblocked is not None, "editing a symlink target's manifest must trigger a rescan"
+        assert unblocked[0]["plugins"][0]["manifest"]["id"] == "stillsuit.example"
+        linked.unlink()
+
         placed, _ = helper.scan(configuration, {"stillsuit.example": {"enabled": False, "section": "left", "order": 7}})
         assert not placed["plugins"][0]["enabled"]
         assert placed["plugins"][0]["manifest"]["barWidget"]["order"] == 7
