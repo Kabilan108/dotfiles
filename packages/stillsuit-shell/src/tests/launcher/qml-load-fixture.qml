@@ -13,6 +13,7 @@ import "model/providers/power.js" as Power
 import "model/providers/profiles.js" as Profiles
 import "model/providers/files.js" as Files
 import "model/providers/clipboard.js" as Clipboard
+import "synthetic-apps.js" as SyntheticApps
 
 ShellRoot {
     id: fixture
@@ -30,47 +31,6 @@ ShellRoot {
         return true
     }
 
-    function syntheticApps(count) {
-        var words = ["alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india",
-                     "juliet", "kilo", "lima", "mike", "november", "oscar", "papa", "quebec",
-                     "romeo", "sierra", "tango", "uniform", "victor", "whiskey", "xray", "yankee",
-                     "zulu", "studio", "editor", "manager", "viewer", "player", "browser",
-                     "terminal", "monitor"]
-        var result = []
-        var seed = 12345
-        function next() {
-            seed = (seed * 1103515245 + 12345) & 0x7fffffff
-            return seed
-        }
-        function capitalized(word) {
-            return word.charAt(0).toUpperCase() + word.slice(1)
-        }
-        for (var index = 0; index < count; index++) {
-            var nameWords = []
-            var length = 1 + next() % 3
-            for (var w = 0; w < length; w++)
-                nameWords.push(capitalized(words[next() % words.length]))
-            var keywords = []
-            for (var k = 0; k < 4; k++)
-                keywords.push(words[next() % words.length])
-            var genericName = words[next() % words.length] + " " + words[next() % words.length]
-            var comment = "A synthetic " + words[next() % words.length] + " application for "
-            comment += words[next() % words.length] + " and " + words[next() % words.length]
-            result.push({
-                            id: "synthetic-" + index,
-                            name: nameWords.join(" ") + " " + index,
-                            genericName: genericName,
-                            comment: comment,
-                            keywords: keywords,
-                            icon: "synthetic-" + index,
-                            categories: [],
-                            actions: [],
-                            runInTerminal: false
-                        })
-        }
-        return result
-    }
-
     function percentile(sorted, fraction) {
         return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * fraction))]
     }
@@ -82,7 +42,7 @@ ShellRoot {
             history.record("al", "apps:synthetic-" + (record * 7 % appCount), now - (record % 12)
                            * 86400000)
         var env = {
-            apps: syntheticApps(appCount),
+            apps: SyntheticApps.syntheticApps(appCount),
             history: history,
             settings: {
                 maxResults: 100
