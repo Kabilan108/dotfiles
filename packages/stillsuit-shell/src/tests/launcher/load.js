@@ -1,4 +1,5 @@
 const path = require("node:path")
+const { syntheticApps } = require("./synthetic-apps.js")
 
 const modelDir = path.join(__dirname, "../../plugins/builtin/launcher/model")
 const providerNames = ["apps", "calc", "web", "windows", "power", "profiles", "files", "clipboard", "remmina"]
@@ -90,36 +91,6 @@ const WINDOWS = [
 
 const DAY = 24 * 60 * 60 * 1000
 const NOW = Date.UTC(2026, 9, 5, 12, 0, 0)
-
-function syntheticApps(count) {
-    const words = ["alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel",
-        "india", "juliet", "kilo", "lima", "mike", "november", "oscar", "papa", "quebec",
-        "romeo", "sierra", "tango", "uniform", "victor", "whiskey", "xray", "yankee", "zulu",
-        "studio", "editor", "manager", "viewer", "player", "browser", "terminal", "monitor"]
-    const result = []
-    let seed = 12345
-    function next() {
-        seed = (seed * 1103515245 + 12345) & 0x7fffffff
-        return seed
-    }
-    for (let index = 0; index < count; index++) {
-        const nameWords = []
-        const length = 1 + next() % 3
-        for (let w = 0; w < length; w++) {
-            const word = words[next() % words.length]
-            nameWords.push(word.charAt(0).toUpperCase() + word.slice(1))
-        }
-        const keywords = []
-        for (let k = 0; k < 4; k++) keywords.push(words[next() % words.length])
-        result.push(app("synthetic-" + index, nameWords.join(" ") + " " + index, {
-            genericName: words[next() % words.length] + " " + words[next() % words.length],
-            comment: "A synthetic " + words[next() % words.length] + " application for "
-                + words[next() % words.length] + " and " + words[next() % words.length],
-            keywords
-        }))
-    }
-    return result
-}
 
 module.exports = {
     Matcher,

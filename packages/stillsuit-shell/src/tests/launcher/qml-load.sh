@@ -27,6 +27,7 @@ chmod 700 "$XDG_RUNTIME_DIR"
 config_dir="$XDG_CONFIG_HOME/stillsuit-launcher-qml-fixture"
 mkdir -p "$config_dir"
 cp -R -- "$model_dir" "$config_dir/model"
+cp -- "$script_dir/synthetic-apps.js" "$config_dir/synthetic-apps.js"
 cp -- "$script_dir/qml-load-fixture.qml" "$config_dir/shell.qml"
 
 log="$fixture_root/fixture.log"
