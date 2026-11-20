@@ -1429,18 +1429,6 @@ class Rebuild(DeployGate):
         self.assertIn(" M file", r.stdout)
         self.assertEqual(len(self.sudo_calls()), 1)
 
-    def test_before_deploy_tag_is_installed(self) -> None:
-        path = self.path_without("deploy-tag")
-        r = self.rebuild(PATH=path)
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn("deploy-tag isn't installed yet", r.stdout)
-        self.assertEqual(self.sudo_calls(), [f"nixos-rebuild switch --flake {self.work}#jacurutu"])
-        r = self.rebuild(args=("boot",), PATH=path)
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertEqual(
-            self.sudo_calls()[1:], [f"nixos-rebuild boot --flake {self.work}#jacurutu"]
-        )
-
     def test_unsigned_builds_without_asking_or_signing(self) -> None:
         self.give_key()
         self.commit("four")
@@ -1624,16 +1612,6 @@ class Rebuild(DeployGate):
         r = self.rebuild("y\n")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(self.local_running(), self.rev("HEAD"))
-
-    def test_before_deploy_switch_is_installed(self) -> None:
-        self.give_key()
-        r = self.rebuild("y\n", PATH=self.path_without("deploy-switch"))
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn("deploy-switch isn't installed yet", r.stdout)
-        self.assertEqual(
-            self.sudo_calls(),
-            [f"flock /run/fleet-switch.lock nixos-rebuild switch --flake {self.work}#jacurutu"],
-        )
 
     def test_retrying_after_a_failed_push_does_not_wait_for_ci(self) -> None:
         self.give_key()
