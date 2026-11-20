@@ -355,6 +355,8 @@ ShellRoot {
                 root.publicPanels = contexts.panelsFacadeComponent.createObject(root)
                 var host = testRouter.panelHosts[testCompositor.focusedOutputId]
                 verify(testRouter.open("a", "") === "ok", "open first panel")
+                verify(host.exclusionMode === ExclusionMode.Ignore,
+                       "panel geometry is in output coordinates")
                 var first = host.panelContent
                 verify(first && first.opened && host.visible, "first panel displayed")
                 verify(testRouter.open("b", "") === "ok", "request delayed replacement")

@@ -425,6 +425,7 @@ class ClassificationTests(CollectorCase):
             ("chromium/x-source-url", None),
             ("chromium/x-source-url", b"https://example.com/" + b"x" * 8192),
             ("chromium/x-source-url", b"chrome-extension://\xff\xfe\xfd"),
+            ("chromium/x-source-url", b"https://[bad"),
             ("text/x-moz-url-priv", None),
             ("text/x-moz-url-priv", b"\xff\xfe" + "https://".encode("utf-16-le") + b"\x00\xd8"),
         ]
@@ -691,6 +692,19 @@ class CopyAndWatchTests(CollectorCase):
         for sha in (linked, subdir, hashlib.sha256(b"none").hexdigest()):
             with self.subTest(sha=sha[:8]):
                 self.assertEqual(self.copy(sha, "text/plain").returncode, BLOB_GONE)
+        self.assertFalse((self.fake / "wl-copy.argv").exists())
+
+    def test_copy_refuses_fifo_without_blocking(self) -> None:
+        blobs = self.state / "blobs"
+        blobs.mkdir(parents=True)
+        sha = hashlib.sha256(b"fifo").hexdigest()
+        os.mkfifo(blobs / sha, mode=0o600)
+        result = subprocess.run(
+            [*self.command(), "copy", "--state-dir", str(self.state), "--sha", sha,
+             "--mime", "text/plain", "--wl-copy", str(FAKE_COPY)],
+            capture_output=True, env=self.collector_env(), timeout=2, check=False,
+        )
+        self.assertNotEqual(result.returncode, 0, result.stderr)
         self.assertFalse((self.fake / "wl-copy.argv").exists())
 
     def test_copy_without_blob_directory_reports_the_blob_gone(self) -> None:

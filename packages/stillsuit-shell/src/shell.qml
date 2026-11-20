@@ -58,7 +58,7 @@ ShellRoot {
     }
 
     Component {
-        id: builtinFallbackBar
+        id: headlessShadowBarStub
         QtObject {
             required property var context
             readonly property bool emergencyFallback: true
@@ -73,7 +73,7 @@ ShellRoot {
         serviceRegistry: serviceRegistry
         outputScreens: Quickshell.screens
         panelAnchors: surfaceRouter.barAnchorFacade
-        fallbackBarComponent: shell.shadowMode ? builtinFallbackBar : null
+        fallbackBarComponent: shell.shadowMode ? headlessShadowBarStub : null
         fallbackContext: null
     }
 
