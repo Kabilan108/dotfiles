@@ -107,6 +107,7 @@ let
         roots
         canAccess
         color
+        icon
         ;
       hostname = "${name}.${fleet.tailnet}";
       ip = host.tailscaleIp;
@@ -177,7 +178,9 @@ in
 
   home.file.".config/fleet/hosts".text =
     lib.concatStringsSep "\n" (
-      lib.mapAttrsToList (name: host: "${name}\t${host.color.hex}\t${host.tailscaleIp}") reachable
+      lib.mapAttrsToList (name: host: "${name}\t${host.color.hex}\t${host.tailscaleIp}\t${host.icon}") (
+        reachable // { ${thisHost} = self; }
+      )
     )
     + "\n";
 }

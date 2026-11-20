@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"syscall"
 	"testing"
@@ -148,6 +149,88 @@ func TestOlderInventoryParses(t *testing.T) {
 	var parsed InventorySession
 	if err := json.Unmarshal([]byte(numeric), &parsed); err != nil || parsed.Windows != "3" {
 		t.Fatalf("numeric windows: %v %+v", err, parsed)
+	}
+}
+
+func TestMarkVisitedBumpsCachedRecency(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	host := FleetHost{Name: "remote"}
+	cache := hostCache{
+		Status:  statusOnline,
+		Updated: 100,
+		Sessions: []InventorySession{
+			{ID: "$3", Name: "visited", LastAttached: 10, Activity: 20},
+			{ID: "$4", Name: "newer", LastAttached: 30, Activity: 40},
+		},
+		Directories: []InventoryDirectory{{Name: "repo", Path: "/repo"}},
+	}
+	if err := writeHostCache(host.Name, cache); err != nil {
+		t.Fatal(err)
+	}
+	rank := newHostRank("local", []FleetHost{host})
+	rows := remoteRows(host, cache, nil)
+	rank.sortRows(rows)
+	if rows[0].Target != "$4" {
+		t.Fatalf("expected $4 ahead of $3 before visiting, got %v", ids(rows))
+	}
+	before := time.Now().Unix()
+	markVisited(host.Name, "$3")
+	after := time.Now().Unix()
+	updated := readHostCache(host.Name)
+	if len(updated.Sessions) != len(cache.Sessions) {
+		t.Fatalf("cached sessions changed: %+v", updated)
+	}
+	visited := updated.Sessions[0]
+	if visited.Recency() < before || visited.Recency() > after || visited.Activity != visited.LastAttached {
+		t.Fatalf("visited session recency not updated to now: %+v", visited)
+	}
+	cache.Sessions[0].LastAttached = visited.LastAttached
+	cache.Sessions[0].Activity = visited.Activity
+	if !reflect.DeepEqual(updated, cache) {
+		t.Fatalf("unrelated cache data changed: got %+v, want %+v", updated, cache)
+	}
+	rows = remoteRows(host, updated, nil)
+	rank.sortRows(rows)
+	if rows[0].Target != "$3" {
+		t.Fatalf("visited session did not sort first: %v", ids(rows))
+	}
+}
+
+func TestFleetHostIcons(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	if err := writeFileAtomic(fleetHostsPath(), []byte(
+		"renamed-laptop\t#89b4fa\t100.1.2.3\t󰌢\n"+
+			"jacurutu\t#cba6f7\t100.1.2.4\t󰐿\n"+
+			"legacy\t#a6e3a1\t100.1.2.5\n"+
+			"empty-icon\t#a6e3a1\t100.1.2.6\t\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fleetHostIcons = nil
+	t.Cleanup(func() { fleetHostIcons = nil })
+	want := []FleetHost{
+		{Name: "renamed-laptop", Color: "#89b4fa", Address: "100.1.2.3", Icon: "󰌢"},
+		{Name: "jacurutu", Color: "#cba6f7", Address: "100.1.2.4", Icon: "󰐿"},
+		{Name: "legacy", Color: "#a6e3a1", Address: "100.1.2.5"},
+		{Name: "empty-icon", Color: "#a6e3a1", Address: "100.1.2.6"},
+	}
+	if got := readFleetHosts(); !slices.Equal(got, want) {
+		t.Fatalf("fleet hosts: got %+v, want %+v", got, want)
+	}
+	for _, host := range append(want, FleetHost{Name: "unknown"}) {
+		expected := host.Icon
+		if expected == "" {
+			expected = iconServer
+		}
+		if got := hostIcon(host.Name); got != expected {
+			t.Errorf("%s icon: got %q, want %q", host.Name, got, expected)
+		}
+	}
+	if err := os.Remove(fleetHostsPath()); err != nil {
+		t.Fatal(err)
+	}
+	fleetHostIcons = nil
+	if got := hostIcon("jacurutu"); got != iconServer {
+		t.Fatalf("missing fleet file: got %q, want server glyph", got)
 	}
 }
 

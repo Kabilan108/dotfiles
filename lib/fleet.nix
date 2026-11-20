@@ -4,6 +4,7 @@ rec {
   hosts = {
     jacurutu = {
       role = "control-plane";
+      icon = "󰌢";
       description = "Framework laptop; daily driver and orchestration brain. Nothing SSHes into it.";
       tailscaleIp = "100.108.28.4";
       user = "kabilan";
@@ -47,6 +48,7 @@ rec {
 
     sietch = {
       role = "agent-worker";
+      icon = "󰒋";
       description = "Server; runs day-job agent sessions (t3 serve + codex remote-control in the 'agents' tmux session, port 3773), selfhost services behind Tailscale Services, and the authoritative tracer archive.";
       tailscaleIp = "100.71.183.33";
       user = "kabilan";
@@ -81,6 +83,7 @@ rec {
 
     tleilax = {
       role = "credentials";
+      icon = "󰐿";
       description = "Raspberry Pi 4 on Ethernet; locked-down box for credential services: Executor v2 and atlas. No coding agents run here. Only jacurutu reaches it; it accesses nothing.";
       tailscaleIp = "100.73.84.103";
       user = "kabilan";

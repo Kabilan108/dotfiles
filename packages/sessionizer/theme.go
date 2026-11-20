@@ -34,11 +34,9 @@ const (
 	iconReadme   = "\U000F0219"
 	iconFolder   = "\U000F024B"
 	iconGit      = "\U000F02A2"
-	iconLaptop   = "\U000F0322"
 	iconSearch   = "\U000F0349"
 	iconAttached = "\U000F0379"
 	iconNode     = "\U000F0399"
-	iconPi       = "\U000F043F"
 	iconRefresh  = "\U000F0453"
 	iconServer   = "\U000F048B"
 	iconStar     = "\U000F04CE"
@@ -50,14 +48,16 @@ const (
 	iconClock    = "\U000F0954"
 )
 
-var hostIcons = map[string]string{
-	"jacurutu": iconLaptop,
-	"sietch":   iconServer,
-	"tleilax":  iconPi,
-}
+var fleetHostIcons map[string]string
 
 func hostIcon(host string) string {
-	if icon, ok := hostIcons[host]; ok {
+	if fleetHostIcons == nil {
+		fleetHostIcons = map[string]string{}
+		for _, entry := range readFleetHosts() {
+			fleetHostIcons[entry.Name] = entry.Icon
+		}
+	}
+	if icon := fleetHostIcons[host]; icon != "" {
 		return icon
 	}
 	return iconServer

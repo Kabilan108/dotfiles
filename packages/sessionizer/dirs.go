@@ -33,6 +33,7 @@ const (
 	readmeReadLimit   = 8 << 10
 	readmeLineLimit   = 200
 	gitBudget         = 5 * time.Second
+	inventoryTimeout  = 15 * time.Second
 )
 
 type foundDirectory struct {
