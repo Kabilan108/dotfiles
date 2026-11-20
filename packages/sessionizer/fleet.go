@@ -15,6 +15,7 @@ type FleetHost struct {
 	Name    string
 	Color   string
 	Address string
+	Icon    string
 }
 
 var hostNamePattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
@@ -30,11 +31,15 @@ func readFleetHosts() []FleetHost {
 		if len(fields) < 3 || !hostNamePattern.MatchString(fields[0]) {
 			continue
 		}
-		hosts = append(hosts, FleetHost{
+		host := FleetHost{
 			Name:    fields[0],
 			Color:   fields[1],
 			Address: fields[2],
-		})
+		}
+		if len(fields) >= 4 {
+			host.Icon = fields[3]
+		}
+		hosts = append(hosts, host)
 	}
 	return hosts
 }
@@ -149,7 +154,7 @@ func refreshHost(host FleetHost) hostCache {
 	if previous.Status == statusOnline && time.Now().Unix()-previous.Updated < 3 {
 		return previous
 	}
-	out, err := run(runOptions{timeout: 15 * time.Second}, agentSSH(host.Name, remoteSessionizer("--inventory"))...)
+	out, err := run(runOptions{timeout: inventoryTimeout}, agentSSH(host.Name, remoteSessionizer("--inventory"))...)
 	var inventory Inventory
 	if err == nil {
 		err = json.Unmarshal([]byte(out), &inventory)
