@@ -6,8 +6,10 @@ log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG_FILE"; }
 log "=== try-session started ==="
 log "args: $*"
 
-if [[ -z "${TRY_BIN:-}" || -z "${TRY_PATH:-}" ]]; then
-  echo "try-session: TRY_BIN and TRY_PATH must be configured" >&2
+config="${XDG_CONFIG_HOME:-$HOME/.config}/try-session.env"
+# shellcheck source=/dev/null
+if ! . "$config" || [[ -z "${TRY_BIN:-}" || -z "${TRY_PATH:-}" ]]; then
+  echo "try-session: $config must set TRY_BIN and TRY_PATH" >&2
   exit 1
 fi
 
