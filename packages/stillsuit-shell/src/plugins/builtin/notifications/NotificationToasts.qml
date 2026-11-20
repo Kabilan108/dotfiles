@@ -16,7 +16,7 @@ Scope {
     readonly property real cardWidth: context.theme.metrics.panelWidth
     readonly property real edgeGap: context.theme.metrics.spaceUnit * 2
     readonly property real spacing: context.theme.metrics.spaceUnit * 2
-    readonly property real slack: 64
+    readonly property real swipeAndShadowRoom: 64
 
     property var rendered: []
     property var deckCache: ({})
@@ -117,7 +117,7 @@ Scope {
         aboveWindows: true
         focusable: false
         color: "transparent"
-        implicitWidth: root.slack + root.cardWidth + root.edgeGap
+        implicitWidth: root.swipeAndShadowRoom + root.cardWidth + root.edgeGap
         implicitHeight: Math.max(1, root.screen.height - root.context.theme.metrics.barHeight
                                  - root.context.theme.metrics.spaceUnit * 4)
         mask: Region {
@@ -129,7 +129,7 @@ Scope {
 
         Item {
             id: inputArea
-            x: root.slack
+            x: root.swipeAndShadowRoom
             width: root.cardWidth
             height: Math.max(1, root.extent)
         }
@@ -143,7 +143,7 @@ Scope {
 
         Item {
             id: stack
-            x: root.slack
+            x: root.swipeAndShadowRoom
             width: root.cardWidth
             height: parent.height
 

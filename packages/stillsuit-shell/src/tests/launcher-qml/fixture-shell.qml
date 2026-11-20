@@ -335,6 +335,16 @@ ShellRoot {
         }
     }
 
+    Component {
+        id: replacementClipboardComponent
+        QtObject {
+            property var items: []
+            property int revision: 0
+            property string status: "ok"
+            property string error: ""
+        }
+    }
+
     property QtObject fakeServices: QtObject {
         property int revision: 1
         function has(id) {
@@ -768,6 +778,47 @@ ShellRoot {
                 root.fakeClipboard.items = root.savedItems
                 root.fakeClipboard.revision++
                 root.fakeActions.surfaceClose("stillsuit.launcher")
+            },
+            until: function () {
+                return true
+            }
+        },
+        {
+            name: "a replaced clipboard service with the same revision refreshes rows",
+            act: function () {
+                root.openMenu('{"mode":"clipboard"}')
+                root.expect(root.rowTexts()[0] === "clipboard:hello world",
+                            "original clipboard rows loaded: " + root.rowTexts())
+                var lastRevision = service._clipboardRevision
+                var previous = root.fakeClipboard
+                var replacement = replacementClipboardComponent.createObject(root, {
+                                                                                 revision: lastRevision,
+                                                                                 items: [
+                                                                                     {
+                                                                                         id: "r1",
+                                                                                         kind: "text",
+                                                                                         mime: "text/plain",
+                                                                                         bytes: 14,
+                                                                                         preview: "restarted clip",
+                                                                                         created: 5000,
+                                                                                         lastUsed: 5000,
+                                                                                         path: ""
+                                                                                     }
+                                                                                 ]
+                                                                             })
+                root.fakeActions.surfaceClose("stillsuit.launcher")
+                root.fakeClipboard = replacement
+                root.fakeServices.revision++
+                root.openMenu('{"mode":"clipboard"}')
+                root.expect(service._clipboardRevision !== lastRevision,
+                            "replaced clipboard bumps the launcher revision: "
+                            + service._clipboardRevision)
+                root.expect(root.rowTexts().join("|") === "clipboard:restarted clip",
+                            "replaced clipboard rows show the new items: " + root.rowTexts())
+                root.fakeActions.surfaceClose("stillsuit.launcher")
+                root.fakeClipboard = previous
+                root.fakeServices.revision++
+                replacement.destroy()
             },
             until: function () {
                 return true

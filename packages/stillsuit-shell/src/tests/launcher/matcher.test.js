@@ -44,7 +44,8 @@ assert.equal(score("vsc", ["Visual Studio Code"], { acronym: false }).acronym, f
 assert.equal(Matcher.prepare("camelCaseWord x264 7zip").acronym, "ccwx27")
 
 assert.equal(score("contact", ["Calculator", "", "calculation arithmetic scientific financial",
-    "Perform arithmetic, scientific or financial calculations"]).score, 0)
+    "Perform arithmetic, scientific or financial calculations"]).score, 0,
+    "Omarchy app-search loose match ('contact' vs Calculator) must stay a non-match")
 
 assert.deepEqual(score("über", ["Ein Über Ding"]).positions, [4, 5, 6, 7])
 assert.equal(score("ÜBER", ["über"]).score > 0, true)

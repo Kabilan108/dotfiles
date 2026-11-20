@@ -36,6 +36,8 @@ var CLASS_NUMBER = 6
 
 var WHITE_CHARS = " \t\n\v\f\r\x85\xA0"
 var DELIMITER_CHARS = "/,:;|"
+var GENERAL_PUNCTUATION_START = 0x2000
+var MISC_SYMBOLS_AND_ARROWS_END = 0x2bff
 
 var NO_MATCH = Object.freeze({ score: 0, field: -1, positions: Object.freeze([]) })
 
@@ -75,7 +77,7 @@ function charClass(code) {
     if (ch.toLowerCase() !== ch) return CLASS_UPPER
     if (ch.toUpperCase() !== ch) return CLASS_LOWER
     if (/\s/.test(ch)) return CLASS_WHITE
-    if (code >= 0x2000 && code <= 0x2bff) return CLASS_NON_WORD
+    if (code >= GENERAL_PUNCTUATION_START && code <= MISC_SYMBOLS_AND_ARROWS_END) return CLASS_NON_WORD
     return CLASS_LETTER
 }
 

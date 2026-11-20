@@ -129,6 +129,24 @@ assert.equal(Web.searchUrl("https://x.test/%TERM%/%TERM%", "a b"), "https://x.te
     assert.deepEqual(files.query("b", fctx), [])
     assert.equal(files.pending("b", fctx), "b")
     assert.equal(files.pending("", fctx), "")
+    const spacedCtx = engine.context({
+        filesResult: { text: "nix flake", paths: ["/home/me/notes/nix-flake.md"] },
+        settings: { searchRoot: "/home/me" }
+    }, "/nix flake", "combi")
+    assert.equal(spacedCtx.matcher.score("nix flake", ["nix-flake.md", "notes/nix-flake.md"]).score, 0)
+    const spacedRows = files.query("nix flake", spacedCtx)
+    assert.equal(spacedRows.length, 1, "fd rows stay when the fuzzy matcher disagrees")
+    assert.equal(spacedRows[0].score, 1)
+    assert.deepEqual(spacedRows[0].positions, [])
+    const globCtx = engine.context({
+        filesResult: { text: "*", paths: ["/home/me/notes/nix-flake.md"] },
+        settings: { searchRoot: "/home/me" }
+    }, "/*", "combi")
+    assert.equal(globCtx.matcher.score("", ["nix-flake.md", "notes/nix-flake.md"]).score, 0)
+    const globRows = files.query("*", globCtx)
+    assert.equal(globRows.length, 1, "glob fd rows stay when the fuzzy matcher scores 0")
+    assert.equal(globRows[0].score, 1)
+    assert.deepEqual(globRows[0].positions, [])
 }
 
 {
