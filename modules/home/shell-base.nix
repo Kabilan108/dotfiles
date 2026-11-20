@@ -74,6 +74,13 @@ in
   };
 
   config = {
+    assertions = [
+      {
+        assertion = (lib.last tmuxPlugins).repo == "tmux-plugins/tmux-continuum";
+        message = "tmux-continuum must load last; add new plugins before it";
+      }
+    ];
+
     programs.bash = {
       enable = true;
       initExtra = builtins.readFile ../../config/.bashrc;

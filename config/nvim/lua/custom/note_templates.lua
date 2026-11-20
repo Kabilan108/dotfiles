@@ -1,5 +1,7 @@
 local M = {}
 
+local DST_SAFE_HOUR = 12
+
 function M.render(path, values)
   local template = table.concat(vim.fn.readfile(path), '\n') .. '\n'
   return (
@@ -16,7 +18,7 @@ function M.weekly_context(timestamp)
   local date = os.date('*t', timestamp)
   local monday_offset = (date.wday + 5) % 7
   local function day(offset)
-    return os.time { year = date.year, month = date.month, day = date.day - monday_offset + offset, hour = 12 }
+    return os.time { year = date.year, month = date.month, day = date.day - monday_offset + offset, hour = DST_SAFE_HOUR }
   end
 
   local monday = day(0)
