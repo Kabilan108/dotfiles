@@ -27,8 +27,12 @@ ranks are integers, so recency only orders equal ranks.
 
 ## Consequences
 
-The formula is a reimplementation, not copied code. Keep it that way while
-Elephant is GPL-3.0.
+The formula and its constants are reimplemented, not copied, so Elephant's
+licence places no obligation on `History.js`, and the credit is a courtesy.
+Copying Elephant code would still be allowed. This repo is AGPL-3.0, and
+section 13 of GPL-3.0 and of AGPL-3.0 permits combining the two. Copied code
+would need to keep Elephant's copyright notice in the file that holds it, and
+`scripts/comment-lint.baseline.json` would need an entry for that notice.
 
 ## Where
 
