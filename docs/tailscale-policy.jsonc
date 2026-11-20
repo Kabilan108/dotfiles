@@ -31,7 +31,6 @@
 		"tleilax":     "100.73.84.103",
 		"pixel-9":     "100.66.90.94",
 		"ipad":        "100.120.97.93",
-		"moberg-demo": "100.79.75.43",
 	},
 
 	"grants": [
@@ -42,8 +41,6 @@
 		{"src": ["jacurutu"], "dst": ["*"], "ip": ["*"]},
 
 		{"src": ["sietch"], "dst": ["pixel-9"], "ip": ["tcp:*"]},
-
-		{"src": ["sietch"], "dst": ["moberg-demo"], "ip": ["tcp:22"]},
 
 		{
 			"src": ["pixel-9"],
