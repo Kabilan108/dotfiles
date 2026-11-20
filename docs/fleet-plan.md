@@ -105,9 +105,10 @@ id→URL cache). Actual pagebin CLI changes happen in that repo, not here.
 
 ### Phase 7 — tracer ingestion + learning loop [dotfiles side done 2026-07-12]
 
-- `tracer-sync` (jacurutu): daily systemd user timer rsyncing the archive to
-  `sietch:/vault/userdata/tracer-ingest/jacurutu/` over the restricted
-  `agent-jacurutu` key.
+- `tracer-sync` (jacurutu): daily systemd user timer that runs
+  `tracer push sietch` (since tracer v0.2.0, 2026-07-21), pushing the archive to
+  `sietch:/vault/userdata/tracer-ingest/jacurutu/` through the `sietch-agent`
+  SSH alias, which uses the restricted `agent-jacurutu` key in batch mode.
 - `tracer-digest` (sietch): headless `claude -p` review of new sessions
   across both archive roots → digest markdown + Hark summary.
   First run auto-seeds sessions older than 14 days as seen. **Manual-first**:
