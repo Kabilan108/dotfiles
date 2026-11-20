@@ -21,6 +21,9 @@ ShellRoot {
                                             popupLimit: 5,
                                             deckRowLimit: 8,
                                             heldLimit: fixture.heldLimit,
+                                            quietBypass: {
+                                                summaryPatterns: ["[", "["]
+                                            },
                                             normalTimeoutMs: 5000,
                                             lowTimeoutMs: 4000
                                         }

@@ -20,7 +20,7 @@ Scope {
     readonly property var settings: context && context.settings ? context.settings.values || ({}) : (
                                                                       {})
 
-    readonly property var policy: NotificationPolicy.notificationsPolicy(settings)
+    readonly property var policy: NotificationPolicy.notificationsPolicy(settings, root.logWarning)
     readonly property bool ownsBus: !(settings && settings.shadowMode === true) && !(settings
                                                                                      && settings.claimNotificationBus
                                                                                      === false)
