@@ -144,6 +144,8 @@ in
 
   home.sessionVariables = systemCaEnv // rec {
     FZF_DEFAULT_OPTS = "--reverse";
+    TRY_BIN = lib.getExe' config.programs.try.package "try";
+    TRY_PATH = config.programs.try.path;
 
     BLEND_CACHE_DIR = "/vault/userdata/cache/blender";
     BUN_INSTALL_CACHE_DIR = "/vault/userdata/cache/bun-install";

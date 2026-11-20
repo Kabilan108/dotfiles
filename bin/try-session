@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# vim: syn=bash ft=bash
 
 LOG_FILE=/dev/null
 log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG_FILE"; }
@@ -7,50 +6,36 @@ log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG_FILE"; }
 log "=== try-session started ==="
 log "args: $*"
 
-try_line=$(grep 'try init' ~/.bashrc 2>/dev/null)
-if [[ -z "$try_line" ]]; then
-  echo "try not configured in .bashrc"
+if [[ -z "${TRY_BIN:-}" || -z "${TRY_PATH:-}" ]]; then
+  echo "try-session: TRY_BIN and TRY_PATH must be configured" >&2
   exit 1
 fi
 
-try_bin=$(echo "$try_line" | grep -oP "/nix/store/[^/]+/bin/try")
-try_path=$(echo "$try_line" | grep -oP "try init \K[^)\"]+")
+try_bin=$TRY_BIN
+try_path="${TRY_PATH/#\~/$HOME}"
 
-log "try_line: $try_line"
 log "try_bin: $try_bin"
 log "try_path: $try_path"
 
-if [[ -z "$try_bin" || -z "$try_path" ]]; then
-  log "ERROR: Could not parse try configuration"
-  echo "Could not parse try configuration"
-  exit 1
-fi
-
-try_path="${try_path/#\~/$HOME}"
-
-try_wrapped="${try_bin%/try}/.try-wrapped"
-log "try_wrapped: $try_wrapped"
-
-log "Calling: ruby $try_wrapped exec --path $try_path $*"
-output=$(/usr/bin/env ruby "$try_wrapped" exec --path "$try_path" "$@" 2>/dev/tty)
+log "Calling: $try_bin exec --path $try_path $*"
+output=$("$try_bin" exec --path "$try_path" "$@" 2>/dev/tty)
 exit_code=$?
 log "exit_code: $exit_code"
 log "output: $output"
 
-if [[ -z "$output" ]]; then
-  log "No output, user cancelled"
+if (( exit_code != 0 )) || [[ -z "$output" ]]; then
+  log "No selection returned"
   exit 0
 fi
 
-selected=$(echo "$output" | grep -oP "cd '\K[^']+")
+eval "$output" 2>/dev/null || exit 0
+selected=$PWD
 log "selected: $selected"
 
 if [[ -z "$selected" || ! -d "$selected" ]]; then
   log "ERROR: selected is empty or not a directory"
   exit 0
 fi
-
-eval "$output" 2>/dev/null
 
 selected_name=$(basename "$selected" | tr . _)
 log "selected_name: $selected_name"
