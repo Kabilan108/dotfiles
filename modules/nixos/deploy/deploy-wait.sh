@@ -1,31 +1,4 @@
 # shellcheck shell=bash
-# Hold a signed rebuild of this host until CI has published the heavy packages
-# it would otherwise compile. `deploy` and bin/rebuild run it on the
-# controller before they switch.
-#
-#   deploy-wait [-C DIR] [--key FILE] [--commit COMMIT] TAG
-#
-# COMMIT is the commit the caller recorded for TAG when it checked it, so a
-# tag moved in the meantime can't choose what gets planned; without it, TAG's
-# commit now.
-#
-# A tag that isn't on DEPLOY_REPO_URL started no CI run, such as one whose
-# push failed, so it says how to push it, with the signing key FILE when the
-# caller knows it, and exits 0 without waiting.
-#
-# Otherwise it runs `ci/cache-targets.py heavy` from TAG's commit, which
-# evaluates only this host's system at that commit and lists the packages
-# marked "# wait" in ci/cache-packages with an output in neither the local
-# store nor the binary cache. With none it exits 0 at once. Otherwise it finds
-# the run of the cache workflow that TAG's push started (a tag push runs with
-# the tag as its branch) and waits for the "build <package>" job of each
-# listed package. A package has no job when the plan found it cached; the
-# script counts it so only once the build matrix exists or the run succeeded.
-#
-# Exits 0 to build. If a job fails, CI can't be read, no run turns up within
-# DEPLOY_WAIT_FIND seconds, DEPLOY_WAIT_TIMEOUT seconds pass, or on Ctrl-C, it
-# asks on the terminal whether to build locally anyway, and exits 1 without a
-# terminal or a yes. GitHub is polled every DEPLOY_WAIT_POLL seconds.
 set -euo pipefail
 
 : "${DEPLOY_GITHUB_REPO:?DEPLOY_GITHUB_REPO must name the GitHub repo, as owner/name}"
@@ -69,7 +42,6 @@ trap 'interrupted=1' INT
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-# Ends the script: 0 if the answer on the terminal is yes, else 1.
 give_up() {
   local answer=""
   trap - INT
@@ -98,8 +70,6 @@ if [[ -z $commit ]]; then
 fi
 top=$(git -C "$repo" rev-parse --show-toplevel)
 
-# --exit-code makes 2 mean "no such ref"; anything else unexpected leaves it
-# to the run lookup below.
 on_remote=0
 git ls-remote --exit-code "$DEPLOY_REPO_URL" "refs/tags/$tag" >/dev/null || on_remote=$?
 if ((on_remote == 2)); then
@@ -108,8 +78,6 @@ if ((on_remote == 2)); then
   exit 0
 fi
 
-# The planner and its package list come from the tagged commit, never from
-# the work tree, and it evaluates that commit from the repository's objects.
 echo "Checking which heavy packages $tag would compile here."
 if ! git -C "$repo" archive "$commit" ci | tar -x -C "$work" ||
   ! planned=$(python3 "$work/ci/cache-targets.py" heavy "git+file://$top?rev=$commit") ||
@@ -140,11 +108,6 @@ while :; do
 done
 echo "Waiting for CI to publish them: $url"
 
-# One "<package>\t<state>" line per pending package. The job API doesn't
-# show the plan's "packages" output, but the build matrix is that list:
-# GitHub creates all of its jobs at once. So a package without a job wasn't
-# planned once some "build <package>" job exists, or once the run succeeded.
-# A run that ended any other way before building it failed for it.
 # shellcheck disable=SC2016 # jq variables
 states='
   (.jobs | map(select(.name == "plan")) | first) as $plan

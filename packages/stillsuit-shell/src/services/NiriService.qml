@@ -4,17 +4,10 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Niri's event format is intentionally normalized here before it crosses the
-// host boundary. All commands are fixed literal argv arrays; plugins receive
-// only adapter snapshots and cannot issue compositor commands.
 Scope {
     id: root
 
     property bool enabled: true
-    // Niri's event stream is authoritative and resends full workspace and
-    // window snapshots on connect. Reconciliation fills in outputs (which the
-    // stream does not carry) on stream start, on screen changes, and after an
-    // event the parser cannot apply; this interval is only a safety net.
     property int reconciliationIntervalMs: 60000
     property int reconciliationTimeoutMs: 5000
     property int reconnectDelayMs: 1000
@@ -36,8 +29,6 @@ Scope {
     property bool _reconciliationRunning: false
     property bool _reconciliationPending: false
     property int _reconnectAttempts: 0
-    // Collections the event stream changed while the current reconciliation
-    // was in flight. Its snapshot of those collections may predate the event.
     property var _streamTouched: ({})
     property string _screenSignature: ""
 
@@ -79,12 +70,6 @@ Scope {
         }
     }
 
-    // Returns the adapter collections an event changes, or null when the
-    // event is unknown or its payload fails validation; either way the caller
-    // reconciles instead of applying it. Collections that the event leaves
-    // untouched are passed back as the same array, so the adapter skips them.
-    // References to a workspace or window the state does not contain are
-    // treated as invalid, as niri-ipc's own reducer asserts they exist.
     function _eventChanges(kind, payload) {
         if (!payload || typeof payload !== "object" || Array.isArray(payload))
             return null
@@ -179,9 +164,6 @@ Scope {
         return null
     }
 
-    // Mirrors the niri-ipc Workspace, Window and WindowLayout structs: required
-    // fields must be present with the right type; Option<T> fields may be null
-    // or absent.
     readonly property var _workspaceSchema: ({
                                                  required: {
                                                      id: "number",
@@ -328,8 +310,6 @@ Scope {
         }
     }
 
-    // A request that arrives while a generation is in flight runs once that
-    // generation and its processes have finished.
     function refresh() {
         if (!enabled)
             return
@@ -558,8 +538,6 @@ Scope {
         }
     }
 
-    // Copies only the rows whose fields actually change, so unchanged rows keep
-    // their identity. `patchFor` returns the fields to set on a row, or null.
     function _patchRows(rows, patchFor) {
         var next = null
         for (var index = 0; index < rows.length; index++) {
@@ -589,9 +567,6 @@ Scope {
         return false
     }
 
-    // Mirrors niri-ipc's reducer: a focused opened or changed window takes
-    // focus from every other window, since niri need not send a separate
-    // WindowFocusChanged.
     function _upsertWindow(rows, window) {
         var next = rows.slice()
         var replaced = false
@@ -679,10 +654,6 @@ Scope {
         return String(fallback || "")
     }
 
-    // The one compositor mutation the host offers. The argv is fixed apart
-    // from the window id, which is validated as an integer before it is used.
-    // A request that arrives while one is in flight replaces any earlier
-    // pending one and runs when the process exits: the last click wins.
     property int _pendingFocusId: 0
 
     function focusWindow(windowId) {
@@ -713,12 +684,6 @@ Scope {
         }
     }
 
-    // A workspace is addressed by its snapshot id so a per-output bar acts on
-    // its own workspace. Niri's CLI takes only an index, applied to the
-    // focused monitor, so the id resolves against the snapshot to an output
-    // and index, and a workspace on another output is reached by focusing
-    // that monitor first. A request arriving while a command runs replaces
-    // any earlier pending request once the command exits: the last click wins.
     property var _workspaceCommands: []
     property var _replacementWorkspaceCommands: null
 

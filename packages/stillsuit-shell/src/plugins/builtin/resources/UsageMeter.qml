@@ -11,7 +11,6 @@ RowLayout {
     required property string label
     property var percent: null
     property string detail: ""
-    // Host cards share these so every bar in the panel starts and ends at the same x.
     property real labelWidth: labelText.implicitWidth
     property real detailWidth: detailText.implicitWidth
     property real percentWidth: percentText.implicitWidth

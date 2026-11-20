@@ -1,7 +1,4 @@
 # shellcheck shell=bash
-# Forced command for agent keys on hosts in lib/fleet.nix
-# deploy.gatedAgentLogins. They may start a deploy or list sessions for
-# sessionizer, and nothing else.
 set -euo pipefail
 
 # shellcheck disable=SC2016 # sessionizer sends exactly this string

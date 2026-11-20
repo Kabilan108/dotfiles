@@ -1,5 +1,3 @@
-# Configure XBox Controller
-
 { config, ... }:
 {
   hardware.bluetooth.settings.General = {
@@ -8,7 +6,7 @@
     Class = "0x000100";
     FastConnectable = true;
   };
-  hardware.xpadneo.enable = true; # for Xbox One controller
+  hardware.xpadneo.enable = true;
   boot.extraModulePackages = with config.boot.kernelPackages; [ xpadneo ];
   boot.extraModprobeConfig = ''
     options bluetooth disable_ertm=Y

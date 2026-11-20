@@ -8,10 +8,7 @@ Item {
     id: root
 
     required property var theme
-    // A freedesktop icon name ("org.gnome.Nautilus") or an absolute path.
     property string icon: ""
-    // Shown as a monogram when the icon cannot be resolved; the catalog
-    // glyph is used when this is empty.
     property string fallbackLabel: ""
     property string fallbackIconName: "circle"
     property string sizeRole: "large"
@@ -19,20 +16,6 @@ Item {
     readonly property url resolvedSource: _resolve(icon, _verdict)
     readonly property bool ready: image.status === Image.Ready && _verdict === IconCheck.USABLE
 
-    // Quickshell's icon provider draws a placeholder for a name the theme
-    // lacks, so a themed name only counts once the theme has confirmed it.
-    // That lookup is synchronous and can take most of a second while the
-    // theme is cold. On a surface that is about to take keyboard focus it
-    // would hold back the request for that focus, and typing meant for the
-    // surface would reach the previous window. So no binding asks the theme.
-    // A name is looked up once, on the GUI thread, only after the provider
-    // has loaded its image on the pixmap reader thread, which has just paid
-    // the theme cost for that name, and after the next frame while lookups
-    // are allowed. Until then the image skips the pixmap cache: a cached
-    // image is Ready without that load, and its theme entry may have been
-    // evicted since. A surface that takes keyboard focus also sets this to
-    // `Window.active`, which turns true once the compositor has handed it the
-    // keyboard.
     property bool themeCheckAllowed: true
     property int _verdict: IconCheck.UNCHECKED
 
@@ -108,7 +91,6 @@ Item {
         _requestFrame()
     }
 
-    // A window whose content looks the same would not draw again.
     function _requestFrame() {
         if (_verdict === IconCheck.UNCHECKED && themeCheckAllowed && image.status === Image.Ready
                 && Window.window)

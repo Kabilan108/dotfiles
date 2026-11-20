@@ -1,15 +1,3 @@
-// Calc gating. The input is sent to qalc only when one of these holds:
-// 1. A unit conversion: number, unit (one or two words), to|in|as|into|->,
-//    unit. "5 km to mi", "100 usd in eur".
-// 2. "N% of M".
-// 3. An expression made only of numbers, operators (+ - * / ^ × ÷ mod),
-//    postfix % and !, parentheses, known functions (sqrt, sin, log, ...) and
-//    constants (pi, e, tau, phi), with at least one operator, function,
-//    parenthesis or implicit product (a number directly before a constant,
-//    "2pi"), and ending in an operand. "sin(pi)", "pi+e" and "e^2" qualify.
-// Any other word ("7zip", "x264", "2fa"), a bare number ("2048") or a bare
-// constant ("pi", "e") is not math. ISO dates (2026-10-05) are excluded.
-
 var meta = { id: "calc", label: "Calculator", icon: "shell:calculator" }
 
 var CALC_SCORE = 1000000

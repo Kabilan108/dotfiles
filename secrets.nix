@@ -2,9 +2,6 @@ let
   fleet = import ./lib/fleet.nix;
   sietch = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDW1t7U7qDPNYEVWqnxivPK21jkOM5OFwQRmlrQh7XoE kabilan@sietch";
   jacurutu = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPN/jpn1y7lmxhrBSmApiVvA+H2YN3AFkczBJbKIGVUe kabilan@jacurutu";
-  # tleilax's files: its SSH host key plus both YubiKey age identities, and no
-  # user keys. The rules appear only once both identities are recorded, so
-  # nothing gets encrypted without them (docs/tleilax-install.md).
   tleilax = [ fleet.hosts.tleilax.hostPubkey ] ++ fleet.ageRecipients;
   tleilaxReady = builtins.length fleet.ageRecipients >= 2;
   backupSietch = [ fleet.hosts.sietch.hostPubkey ] ++ fleet.ageRecipients;
@@ -23,18 +20,13 @@ in
     { }
 )
 // {
-  # Root-only host key plus both YubiKey age identities, never a user key
-  # (docs/backups.md).
   "secrets/backup/sietch-smb.age".publicKeys = backupSietch;
   "secrets/backup/sietch-restic.age".publicKeys = backupSietch;
   "secrets/backup/jacurutu-smb.age".publicKeys = backupJacurutu;
   "secrets/backup/jacurutu-restic.age".publicKeys = backupJacurutu;
-  # The media library's NAS accounts (docs/nas-network-policy.md, "Media
-  # library"), with the same root-only recipients as sietch's backups.
   "secrets/library/sietch-ro-smb.age".publicKeys = backupSietch;
   "secrets/library/sietch-rw-smb.age".publicKeys = backupSietch;
 
-  # 1password service accounts
   "secrets/op/sietch-agents.age".publicKeys = backupSietch;
   "secrets/op/jacurutu-agents.age".publicKeys = backupJacurutu;
 
@@ -76,7 +68,6 @@ in
     sietch
     jacurutu
   ];
-  # Decrypted only on sietch; jacurutu's key is a second way to recover them.
   "secrets/hark/android-release-keystore.age".publicKeys = [
     sietch
     jacurutu
@@ -85,8 +76,6 @@ in
     sietch
     jacurutu
   ];
-  # The key every Android app on Tony's phone is signed with (agents/skills/android-apps).
-  # Decrypted only on sietch; jacurutu's key is a second way to recover it.
   "secrets/android/personal-keystore.age".publicKeys = [
     sietch
     jacurutu

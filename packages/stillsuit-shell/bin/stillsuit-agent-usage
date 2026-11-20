@@ -33,8 +33,6 @@ FAILURE_KEY = "_failure"
 ANTIGRAVITY_MIN_VERSION = (1, 1, 11)
 ANTIGRAVITY_TIMEOUT_SECONDS = 30
 ANTIGRAVITY_MAX_OUTPUT_BYTES = 1_048_576
-# agy briefly prints "not signed in" while it refreshes a valid login, so that
-# notice never counts. A running probe stops only for the blocking login prompt.
 ANTIGRAVITY_LOGIN_PROMPT_MARKERS = (
     "authentication required",
     "waiting for authentication",
@@ -704,7 +702,6 @@ def _agy_environment(probe_dir: Path) -> dict[str, str]:
         [str(launcher_dir), environment.get("PATH", "/usr/bin:/bin")]
     )
     environment["BROWSER"] = str(launcher_dir / "xdg-open")
-    # agy ignores any other spelling, including "1".
     environment["AGY_CLI_DISABLE_AUTO_UPDATE"] = "true"
     return environment
 
@@ -789,7 +786,6 @@ def _run_agy_usage(
                 break
             except subprocess.TimeoutExpired:
                 pass
-            # Signed out, agy waits a minute for a browser login that never comes.
             if _agy_requested_sign_in(stderr_path, ANTIGRAVITY_LOGIN_PROMPT_MARKERS):
                 return "signed-out", None
             if stdout_path.stat().st_size > ANTIGRAVITY_MAX_OUTPUT_BYTES:
@@ -926,7 +922,6 @@ def _collect_antigravity(account: Account) -> Account:
         if version is None:
             result.update(status="unavailable", statusText="Unrecognized agy version")
             return result
-        # Older agy builds can send an unknown slash command to a model as a prompt.
         if version < ANTIGRAVITY_MIN_VERSION:
             result.update(status="unavailable", statusText="Update agy to show usage")
             return result

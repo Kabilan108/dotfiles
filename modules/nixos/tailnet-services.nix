@@ -22,9 +22,6 @@ in
   };
 
   config = lib.mkIf (services != { }) {
-    # The services config file format (`serve set-config`) cannot express TLS
-    # termination as of tailscale 1.98 -- `tcp:443` endpoints proxy plain HTTP.
-    # Drive the CLI per service instead, and clear services no longer declared.
     systemd.services.tailscale-serve-config = {
       description = "Apply Tailscale Services serve configuration";
       after = [ "tailscaled.service" ];

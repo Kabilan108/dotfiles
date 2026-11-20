@@ -261,7 +261,6 @@ ShellRoot {
             notificationService.dismiss(key)
             return JSON.stringify(fixture.report())
         }
-        // A flick: the card was dragged 120 pt and let go at 1500 pt/s.
         function swipe(key: string): string {
             var slot = fixture.slotByKey(key)
             if (!slot)

@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Real wl-clipboard against a private headless sway. Never touches the host
-# session: WAYLAND_DISPLAY and XDG_RUNTIME_DIR point at the nested compositor.
-# Needs sway, wl-copy and wl-paste on PATH. With STILLSUIT_CLIPBOARD_COLLECTOR
-# set to a built wrapper, it also runs the wrapper with a PATH holding only
-# wl-clipboard, as the service does.
 
 set -euo pipefail
 
@@ -61,7 +56,6 @@ expect_event() {
     exit 1
 }
 
-# The first event reports the empty selection at startup.
 expect_event 1 '.kind == "skipped" and .reason == "empty"' "startup with nothing copied"
 
 printf 'hello from e2e\n' | wl-copy
@@ -75,8 +69,6 @@ expect_event 3 '.kind == "image" and .mime == "image/png"' "image copy"
 printf 'hunter2' | wl-copy --type x-kde-passwordManagerHint
 expect_event 4 '.kind == "skipped" and .reason == "hint"' "password manager hint"
 
-# Without --type, wl-copy would infer a binary type for a lone NUL. Only a
-# Gecko-shaped offer can be a clear; wl-copy's NUL is just empty.
 printf '\0' | wl-copy --type 'text/plain;charset=utf-8'
 expect_event 5 '.kind == "skipped" and .reason == "empty"' "non-Gecko NUL is not a clear"
 
@@ -108,8 +100,6 @@ if pgrep -af -- "--state-dir $state" >&2; then
 fi
 echo "ok: stopping the watcher stops its process group"
 
-# wl-paste and wl-copy exec `cat`, so a wrapper missing coreutils loses every
-# capture and re-copy under the service's exact PATH while a full PATH hides it.
 if [[ -n ${STILLSUIT_CLIPBOARD_COLLECTOR:-} ]]; then
     wl_bin=$(dirname -- "$(readlink -f -- "$(command -v wl-paste)")")
     [[ ! -e $wl_bin/cat ]] || { echo "FAIL: $wl_bin holds cat; the minimal PATH proves nothing" >&2; exit 1; }

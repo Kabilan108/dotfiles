@@ -485,9 +485,6 @@ ShellRoot {
                 "global surface rehome disturbed the per-output route")
     }
 
-    // Polled: widget components load asynchronously and pure additions reach
-    // the bar on a later event-loop turn, so this answers "pending" until the
-    // two fixture widgets are registered.
     function runWidgetStability() {
         if (stabilityPhase === 0) {
             stabilityPhase = 1

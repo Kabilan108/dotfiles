@@ -62,7 +62,6 @@ descendant_pids() {
 
 readonly cpa_url='https://cliproxyapi.sole-pierce.ts.net'
 
-# First process under the pane whose name is $2.
 agent_pid() {
   local pane_pid=$1 name=$2 pid
 
@@ -77,8 +76,6 @@ agent_pid() {
   return 1
 }
 
-# Whether the agent process was started by claude-cpa or codex-cpa, which
-# put the CPA settings in its environment.
 uses_cpa() {
   local agent=$1 pid=$2 entry
 
@@ -92,8 +89,6 @@ uses_cpa() {
   return 1
 }
 
-# Start the saved command with the CPA wrapper instead of the binary the
-# wrapper exec'd. codex-cpa adds its own provider override, so drop that.
 cpa_command() {
   local agent=$1 command=$2 args=
 
@@ -178,7 +173,6 @@ rewrite_resurrect_file() {
   mappings_file=$(mktemp)
   proxies_file=$(mktemp)
   rewritten_file=$(mktemp)
-  # Expand the local paths now so they remain available when the process exits.
   # shellcheck disable=SC2064
   trap "rm -f '$mappings_file' '$proxies_file' '$rewritten_file'" EXIT
 

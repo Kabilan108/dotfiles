@@ -1,6 +1,3 @@
-// Field order and the minimum score that gates the usage boost follow
-// Elephant's desktopapplications provider (GPL-3.0, min_score 30).
-
 var meta = { id: "apps", label: "Applications", icon: "applications-all", snapshot: "apps", history: true }
 
 var MIN_SCORE = 30

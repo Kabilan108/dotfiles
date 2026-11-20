@@ -4,7 +4,6 @@ const Model = require("../../plugins/builtin/clipboard/ClipboardModel.js")
 const HOUR = 3600 * 1000
 const T0 = Date.UTC(2030, 0, 1)
 const sha = n => n.toString(16).padStart(64, "0")
-// The collector's sha256 prefix of the offered type list.
 const SHAPE = "0123456789abcdef"
 const OTHER_SHAPE = "fedcba9876543210"
 const text = (n, extra) => Object.assign(
@@ -25,7 +24,6 @@ function feed(events, options) {
     return state
 }
 
-// options: defaults, clamping, QVariantList-like lists
 {
     assert.equal(opts.maxItems, 200)
     assert.equal(opts.ttlMs, 72 * HOUR)
@@ -48,7 +46,6 @@ function feed(events, options) {
     assert.equal(Model.options({ geckoAppIds: "^x$" }).geckoAppIds, "^x$")
 }
 
-// parseEvent validates shape and drops unknown fields
 {
     assert.equal(Model.parseEvent("not json"), null)
     assert.equal(Model.parseEvent(JSON.stringify({ kind: "text", sha: "xyz", mime: "text/plain", bytes: 1 })), null)
@@ -64,7 +61,6 @@ function feed(events, options) {
     assert.ok(Model.parseEvent(JSON.stringify(text(1, { mime: "UTF8_STRING" }))))
 }
 
-// dedupe: a repeat moves to the top, keeps `created`, refreshes lastUsed
 {
     const state = feed([[text(1), T0], [text(2), T0 + 1000], [text(1, { preview: "new" }), T0 + 2000]])
     assert.deepEqual(state.entries.map(e => e.id), [sha(1), sha(2)])
@@ -74,7 +70,6 @@ function feed(events, options) {
     assert.equal(state.lastRecorded, sha(1))
 }
 
-// cap: oldest entries are evicted and reported for blob cleanup
 {
     const small = Model.options({ maxItems: 3 })
     let state = Model.emptyState()
@@ -90,7 +85,6 @@ function feed(events, options) {
     assert.equal(defaultCap.entries.length, 200)
 }
 
-// TTL: expiry at exactly ttl, prune on insert, items hide expired entries
 {
     const state = feed([[text(1), T0], [text(2), T0 + HOUR]])
     const before = Model.prune(state.entries, T0 + 72 * HOUR - 1, opts)
@@ -103,7 +97,6 @@ function feed(events, options) {
     assert.deepEqual(inserted.removed.sort(), [sha(1), sha(2)].sort())
 }
 
-// purge window: strict boundary, only the newest entry, only text
 {
     const window = opts.purgeWindowMs
     const base = feed([[text(1), T0], [text(2), T0 + 1000]])
@@ -153,13 +146,9 @@ function feed(events, options) {
         "a history copy does not make an old entry purgeable before it is captured")
 }
 
-// clear correlation across the browsers' transient events: a nil
-// announcement ("empty" skip) neither purges nor detaches the following clear
 {
     const record = Model.options({ unattributedFirefox: "record" })
     const empty = { kind: "skipped", reason: "empty" }
-    // Firefox in record mode, as probed: copy, nil, duplicate data, nil, then
-    // the extension's zero-byte clear.
     const copied = feed([[text(1), T0], [text(2), T0 + 1000], [empty, T0 + 1100], [text(2), T0 + 1200]], record)
     const announced = apply(copied, empty, T0 + 10000, record)
     assert.equal(announced.changed, false, "a nil event changes nothing")
@@ -168,7 +157,6 @@ function feed(events, options) {
     assert.deepEqual([cleared.changed, cleared.removed], [true, [sha(2)]])
     assert.deepEqual(cleared.state.entries.map(e => e.id), [sha(1)])
 
-    // Skip mode: the copy and its clear are both skipped as unattributed.
     const skipped = feed([[text(1), T0], [{ kind: "skipped", reason: "unattributed" }, T0 + 1000],
         [empty, T0 + 1100]])
     assert.equal(skipped.lastRecorded, "", "an unattributed skip detaches later clears")
@@ -177,8 +165,6 @@ function feed(events, options) {
     assert.equal(atStartup.state.lastRecorded, null, "the startup event leaves the last capture unknown")
 }
 
-// clock skew: future timestamps clamp on load; a clear never purges an entry
-// captured "after" it
 {
     const future = T0 + 5 * HOUR
     const raw = JSON.stringify({ schemaVersion: 1, entries: [
@@ -195,8 +181,6 @@ function feed(events, options) {
     assert.equal(apply(ahead, clear, T0 + 1000, opts).changed, true, "zero age is")
 }
 
-// expiry: isExpired gates copy; touch is a separate step the service takes
-// only after the copy succeeded
 {
     const state = feed([[text(1), T0], [text(2), T0 + 1000]])
     assert.equal(Model.isExpired(state.entries[1], T0 + 72 * HOUR - 1, opts), false)
@@ -206,7 +190,6 @@ function feed(events, options) {
     assert.equal(state.entries[1].lastUsed, T0, "touch does not mutate its input")
 }
 
-// timers: TTL wakes at most every 10 minutes
 {
     assert.equal(Model.MIN_TIMER_MS, 10 * 60 * 1000)
     assert.equal(Model.nextExpiryAt([], opts), 0)
@@ -221,7 +204,6 @@ function feed(events, options) {
     assert.ok(jittered > 10 * 60 * 1000 && jittered <= 10 * 60 * 1000 + 5000)
 }
 
-// history round trip and corrupt-file recovery
 {
     const state = feed([[text(1), T0], [image(2), T0 + 1000]])
     const raw = Model.serialize(state.entries)
@@ -259,7 +241,6 @@ function feed(events, options) {
     assert.deepEqual(recovered.removed, [sha(5)])
 }
 
-// pending removals survive in the history until `rm` succeeds
 {
     const state = feed([[text(1), T0]])
     const pending = [{ shas: [sha(7), sha(8)], before: T0 - 50 }, { shas: [sha(9)], before: T0 }]
@@ -283,8 +264,6 @@ function feed(events, options) {
     assert.equal(Model.parseHistory(JSON.stringify(doc) + "\n", T0 + 10, opts).dirty, true)
 }
 
-// pending removals are merged, never dropped: each sha stays queued once,
-// under its latest decision time
 {
     const many = []
     for (let n = 0; n < 100; n++)
@@ -308,7 +287,6 @@ function feed(events, options) {
     assert.deepEqual(queue, [{ shas: [sha(1), sha(2)], before: T0 }], "same decision time merges")
 }
 
-// a history read back from disk is checked by shas and decision times
 {
     const state = feed([[text(1), T0], [text(2), T0 + 1]])
     const pending = [{ shas: [sha(7)], before: T0 }]
@@ -322,7 +300,6 @@ function feed(events, options) {
     assert.equal(Model.historyMatches("{truncated", state.entries, pending), false)
 }
 
-// remove, touch and public item shape
 {
     const state = feed([[text(1), T0], [image(2), T0 + 1000]])
     const removed = Model.remove(state, sha(1))
@@ -338,7 +315,6 @@ function feed(events, options) {
     assert.equal(Model.find(state, sha(2)).kind, "image")
 }
 
-// workbench fixture items are coerced to the public shape
 {
     const items = Model.modelItems([{ id: "a", kind: "text", preview: "hello", bytes: "5" }, { kind: "image", path: "/p" }])
     assert.deepEqual(items[0], { id: "a", kind: "text", mime: "text/plain;charset=utf-8", bytes: 5,
@@ -347,7 +323,6 @@ function feed(events, options) {
     assert.deepEqual(Model.modelItems(null), [])
 }
 
-// focus settle option for the GTK3 attribution rule
 {
     assert.equal(opts.focusSettleMs, 2000)
     assert.equal(Model.options({ focusSettleMs: 500 }).focusSettleMs, 500)
@@ -356,7 +331,6 @@ function feed(events, options) {
     assert.equal(Model.options({ focusSettleMs: 1e9 }).focusSettleMs, 60000)
 }
 
-// gc follow-up: at the earliest eligibility, at most one per ten minutes
 {
     const MIN = 60 * 1000
     const at = (reply, now, last) => Model.gcFollowUpAt(reply, now, last || 0, 120)
@@ -370,8 +344,6 @@ function feed(events, options) {
     assert.equal(at({ deferred: 1, nextEligibleMs: T0 + 500 * HOUR }, T0), T0 + Model.MAX_TIMER_MS)
     assert.equal(at({ deferred: 1, nextEligibleMs: T0 + 2000 }, T0, T0 - 30000), T0 - 30000 + Model.GC_FOLLOW_UP_GAP_MS,
         "the next follow-up waits ten minutes after the previous one")
-    // A file that never ages (its mtime keeps moving) wakes the sweep at
-    // most once per ten minutes.
     let now = T0
     let last = 0
     const wakes = []
@@ -385,7 +357,6 @@ function feed(events, options) {
         assert.ok(wakes[index] - wakes[index - 1] >= Model.GC_FOLLOW_UP_GAP_MS, "follow-ups " + index)
 }
 
-// gc keeps the union of the live and the durable shas
 {
     assert.deepEqual(Model.union([sha(1), sha(2)], [sha(2), sha(3)]), [sha(1), sha(2), sha(3)])
     assert.deepEqual(Model.union([], []), [])

@@ -35,7 +35,6 @@ def cpa(path, body=None):
 
 
 def accounts():
-    # auth-files also carries raw API keys and personal details; pass only these.
     return [
         {
             "id": a.get("id"),
@@ -58,7 +57,6 @@ def usage(auth_index):
     if account["provider"] == "codex" and account["id_token"]["chatgpt_account_id"]:
         header["Chatgpt-Account-Id"] = account["id_token"]["chatgpt_account_id"]
     result = cpa("api-call", {"auth_index": auth_index, "method": "GET", "url": url, "header": header})
-    # CPA returns every upstream response header too, cookies included; drop them.
     return {"status_code": result["status_code"], "body": result["body"]}
 
 

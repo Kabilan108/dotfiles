@@ -1,5 +1,3 @@
-// Snapshot: context.profiles as {active: id, available: [{id, name, description}]}.
-
 var meta = { id: "profiles", label: "Profiles", icon: "shell:settings", snapshot: "profiles" }
 
 function safeString(value) {

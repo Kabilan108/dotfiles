@@ -13,12 +13,9 @@ ShellRoot {
     property int checks: 0
     property string phase: "loading"
     readonly property string iconPng: Quickshell.env("FIXTURE_ICON_PNG")
-    // The latest fake component handed to the router, by plugin ID.
     property var loads: ({})
     property string reopenOnClose: ""
-    // Content that closes its own route when the host reparents it.
     property string closeOnParent: ""
-    // Keys the menu field saw, in order.
     property var menuKeys: []
 
     QtObject {
@@ -72,10 +69,6 @@ ShellRoot {
         }
     }
 
-    // Stands in for a component from Qt.createComponent, which the router
-    // destroys on unload; the declared components below must survive that.
-    // IDs starting with "slow" stay Loading until a step sets status, as an
-    // asynchronous compile would. Instances learn their plugin ID as routeId.
     Component {
         id: fakeComponentType
         QtObject {
@@ -238,8 +231,6 @@ ShellRoot {
         screens: root.testScreens
     }
 
-    // An ordinary toplevel that should hold keyboard focus whenever no menu
-    // is shown.
     FloatingWindow {
         id: probeWindow
         title: "menu-host-probe"
@@ -269,7 +260,6 @@ ShellRoot {
         return named(host.contentItem, "menu-host-stage")
     }
 
-    // When the host last presented, and the window it presented in.
     property real presentedAt: 0
     property var presentWindow: null
     function openTimed() {
@@ -368,8 +358,6 @@ ShellRoot {
                               })
     }
 
-    // The headless seat has no pointer, so presses go through the scrim's
-    // press handler at points inside and outside the content.
     function checkPresses() {
         var host = menuHost(focusedId())
         var scrim = named(host.contentItem, "menu-host-scrim")
@@ -582,8 +570,6 @@ ShellRoot {
         verifyParked(otherHost, "other host after per-output close")
     }
 
-    // Content callbacks that close or reopen their own route re-entrantly.
-    // The router treats that as a cancellation, never as a failure.
     function checkReentrantRoutes() {
         var host = menuHost(focusedId())
         var panelHost = testRouter.panelHosts[focusedId()]
@@ -683,8 +669,6 @@ ShellRoot {
         verify(root.closeOnParent === "", "both re-entrant closes ran")
     }
 
-    // The compositor can focus the shown surface, and send keys, before the
-    // surface grows. The content must hold focus from present on, unpainted.
     function checkPresentBeforeGrowth() {
         var host = menuHost(focusedId())
         verify(testRouter.open("menu", JSON.stringify({
@@ -700,7 +684,6 @@ ShellRoot {
                "focus is assigned to the field on present")
     }
 
-    // Keys typed right after opening reach the field in order.
     function checkImmediateKeys() {
         var host = menuHost(focusedId())
         var menu = host.menuContent
@@ -712,9 +695,6 @@ ShellRoot {
         verify(remappedAt === 0, "an unstalled surface is not remapped")
     }
 
-    // A parked surface that last committed under a window gets no frame
-    // callbacks, so Qt stops rendering it. The host remaps it well before the
-    // compositor would have sent several keys elsewhere.
     function checkStalledOpen() {
         var host = menuHost(focusedId())
         verify(host.drawn && stageOf(host).opacity === 1, "the stalled menu shows")
@@ -726,8 +706,6 @@ ShellRoot {
         verify(host.menuContent.field.inputItem.activeFocus, "the field holds focus after a remap")
     }
 
-    // A menu still loading when focus moves to another output is cancelled,
-    // including when a panel on the old output is dismissed by the same move.
     function checkQueuedMenuFocusChange() {
         var focused = focusedId()
         var other = otherId()
@@ -754,7 +732,6 @@ ShellRoot {
         testCompositor.focusedOutputId = focused
     }
 
-    // Content destroyed by something other than the router.
     function startDestroyedMenu() {
         verify(testRouter.open("menu", "") === "ok" && menuHost(focusedId()).menuContent !== null,
                "menu shown before its content is destroyed")

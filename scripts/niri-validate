@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Validate the niri config once per host: config.kdl includes ~/.config/niri/host.kdl,
-# so substitute each repo host file for that include.
 set -euo pipefail
 
 niri_dir="$(git rev-parse --show-toplevel)/home/desktop/wayland/compositors/niri"

@@ -1,9 +1,6 @@
 # shellcheck shell=bash
-# preStart, CPA and the two nginx fronts from sietch's generated nginx.conf.
-# Sourced by run.sh. CPA and nginx stay up for browser_checks; cleanup stops them.
 # shellcheck disable=SC2154,SC2034 # run.sh sets the inputs and cleanup reads the pids
 
-# A legacy-layout config shaped like the live file, with file logging still on.
 write_legacy_config() {
   cat >"$state/config.yaml" <<EOF
 host: 127.0.0.1
@@ -35,7 +32,6 @@ EOF
   chmod 600 "$state/config.yaml"
 }
 
-# CPA runs from its state directory, like the unit's WorkingDirectory.
 start_cpa() {
   (cd "$state" && MANAGEMENT_STATIC_PATH=$panel exec setsid "$cpa" --config "$state/config.yaml") \
     >"$out/cpa-$1.log" 2>&1 &
@@ -55,7 +51,6 @@ run_pre_start() {
   PATH=$unit_path CLIPROXY_CONFIG=$1 CLIPROXY_MANAGEMENT_KEY=$mkey "$pre_start" >"$out/$2.log" 2>&1
 }
 
-# yq_is <expected> <yq args...>
 yq_is() {
   local want=$1
   shift
@@ -76,8 +71,6 @@ fresh_config_checks() {
 legacy_config_checks() {
   local config=$state/config.yaml
   section "preStart on a legacy config"
-  # Control: without preStart, file logging writes logs/, so the logging checks can fail.
-  # CPA refuses to start on management: null, which preStart fixes, so drop it here.
   write_legacy_config
   "$yq" -i 'del(.management)' "$config"
   if start_cpa control; then
@@ -105,8 +98,6 @@ direct_checks() {
   expect_http 200 "loopback GET /management.html" "$api/management.html"
 }
 
-# Remap every loopback listen to a free port, point proxy_pass at the test CPA,
-# and move the pid file and temp paths into the run directory.
 write_nginx_conf() {
   local conf=$run/nginx/nginx.conf listen port spare
   local -a edits=(-e "s/127\.0\.0\.1:$prod_api_port;/127.0.0.1:$api_port;/g")
@@ -211,7 +202,6 @@ models_front_checks() {
     /v1/%2e%2e/%2e%2e/v0/management/config \
     "/v1/models/..;/../v0/management/auth-files" \
     /healthz/../v0/management/auth-files; do
-    # CPA routes /v1/models/*model, so that traversal reaches inference auth (401).
     expect_http "400 401 404" "refuses $path" -H "Authorization: Bearer $mkey" "$f$path"
     check "no management data for $path" body_lacks '"files"'
   done
@@ -255,13 +245,11 @@ admin_front_checks() {
     /management.html/../v1/messages \
     //v1/messages; do
     expect_http "400 404" "refuses $path" -H "Authorization: Bearer $ikey" "$a$path"
-    # CPA also 404s a GET on its POST routes, so only nginx's page proves the refusal.
     check "nginx itself refuses $path" body_has "<center>nginx</center>"
   done
 
   expect_http 200 "GET /v1/models (dashboard model list)" -H "Authorization: Bearer $ikey" "$a/v1/models"
   check "GET /v1/models lists $model" body_has "\"$model\""
-  # nginx lets HEAD through; CPA has no HEAD handler here and answers 404 itself.
   expect_http "200 404" "HEAD /v1/models is forwarded" -I -H "Authorization: Bearer $ikey" "$a/v1/models"
   check "HEAD /v1/models answered by CPA, not nginx" grep -q -i "^access-control-allow-headers" "$out/body"
   expect_http 401 "GET /v1/models without key (CPA auth)" "$a/v1/models"

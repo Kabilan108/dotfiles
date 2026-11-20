@@ -1,16 +1,4 @@
 #!/usr/bin/env bash
-# Start a program in its own transient systemd user scope under app.slice, so
-# it lives in app.slice/app-stillsuit-<label>-<random>.scope instead of the
-# shell's service cgroup and runs with the session environment.
-#
-#   stillsuit-app-launch --name <label> [--cwd <dir>] -- <argv...>
-#   stillsuit-app-launch --check
-#
-# --check exits 0 without output; the shell runs it once to learn that the
-# helper can run at all. A launch that fails before systemd-run starts posts a
-# desktop notification naming only the label and exits non-zero. Failures
-# after the exec (scope creation, the program itself) belong to systemd-run
-# and the program and are not reported here.
 set -euo pipefail
 shopt -s execfail
 
@@ -59,15 +47,12 @@ if [[ ! $label =~ [a-zA-Z0-9] ]]; then
 fi
 unit="app-stillsuit-${label}-$(printf '%08x' "$SRANDOM").scope"
 
-# The notification carries the label and a fixed reason, never the argv.
 fail() {
     printf 'stillsuit-app-launch: %s: %s\n' "$label" "$1" >&2
     notify-send --app-name=Stillsuit "Couldn't start $label" "$1" >/dev/null 2>&1 || true
     exit 1
 }
 
-# Prints the executable file that the search path $1 resolves program $2 to.
-# Relative search path entries are skipped.
 resolve() {
     local program=$2 dir dirs
     if [[ $program == */* ]]; then
@@ -85,9 +70,6 @@ resolve() {
     return 1
 }
 
-# The shell service runs with an exact, minimal PATH. Launched programs get
-# the user manager's environment instead, which carries the session PATH,
-# XDG_DATA_DIRS, and the compositor variables imported at login.
 manager_environment=$(busctl --user --json=short get-property \
     org.freedesktop.systemd1 /org/freedesktop/systemd1 \
     org.freedesktop.systemd1.Manager Environment) \

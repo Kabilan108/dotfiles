@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# Launcher service and menu in an offscreen shell: fixture desktop entries,
-# a fake host context, and fake qalc and fd scripts that log each run so the
-# fixture can check which lookups started, finished, or were terminated.
-# The fd script runs the real fd for patterns containing "needle" against a search
-# tree with a directory link into another volume and Nix-style result links.
-# Set LAUNCHER_QML_SCREENSHOTS to a directory to keep the menu screenshots.
 set -euo pipefail
 test_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source_dir=$(cd -- "$test_dir/../.." && pwd)
@@ -100,9 +94,6 @@ esac
 STUB
 chmod +x "$fixture_dir/bin/qalc" "$fixture_dir/bin/fd"
 
-# The search root links a directory on another volume, as home directories
-# link into /vault, and holds result links into a store tree with more
-# matches than fd's result cap.
 mkdir -p "$fixture_dir/vault/repos/project" "$fixture_dir/search/proj/node_modules/pkg"
 : >"$fixture_dir/vault/repos/project/needle-vault.txt"
 : >"$fixture_dir/search/proj/needle-src.txt"

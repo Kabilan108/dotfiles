@@ -1,8 +1,3 @@
--- Tag search for the coppermind vault. Inline checkbox items and #todo lines come from the retired
--- Obsidian Tasks setup and are skipped, so a tag surfaces notes and TaskNotes tasks (tagged in
--- frontmatter) instead of hundreds of old inline todos. Nested tags count toward their parents,
--- as in Obsidian: #moberg also finds #moberg/clara.
-
 local pickers = require 'telescope.pickers'
 local finders = require 'telescope.finders'
 local make_entry = require 'telescope.make_entry'
@@ -21,7 +16,6 @@ local M = {}
 
 local INLINE_TAG = [[(^|[\s(])#[A-Za-z][\w/-]*]]
 local FRONTMATTER = [[\A---\r?\n(?s:.*?)\r?\n---\r?$]]
--- same folders markdown-oxide skips
 local EXCLUDED = '!**/{archives,_archive,excalidraw,repos}/**'
 
 ---@return string
@@ -74,7 +68,6 @@ local function collect_inline(root, hits)
   end
 end
 
--- handles both `tags: [a, b]` and a `tags:` key followed by `- a` list items
 ---@param path string
 ---@param block string
 ---@param first_lnum integer
@@ -213,7 +206,6 @@ local function pick_tag(root, hits)
     :find()
 end
 
---- With the cursor on a #tag, list its occurrences; otherwise pick a tag first.
 function M.pick()
   local root = vault_root()
   local hits = collect(root)

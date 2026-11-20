@@ -6,9 +6,7 @@
 }:
 let
   port = 8787;
-  # Server state only. Android release material stays in /vault/userdata/hark as kabilan.
   dataDir = "/vault/userdata/hark-server";
-  # Published APKs: written by kabilan's release script, read by the service.
   downloadsDir = "/vault/userdata/hark-downloads";
 in
 {
@@ -26,7 +24,6 @@ in
     owner = "hark";
     group = "hark";
   };
-  # Read by hark's scripts/android-build-release, which runs as kabilan.
   age.secrets.hark-android-release-keystore = {
     file = ../../../secrets/hark/android-release-keystore.age;
     owner = "kabilan";
@@ -40,7 +37,6 @@ in
 
   systemd.tmpfiles.rules = [ "d ${downloadsDir} 0755 kabilan users -" ];
 
-  # Online backups of the database: sudo -u hark sqlite3 ... ".backup <dest>".
   environment.systemPackages = [ pkgs.sqlite ];
 
   services.hark = {

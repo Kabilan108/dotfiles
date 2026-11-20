@@ -8,12 +8,9 @@ let
   thisHost = config.networking.hostName;
   knownFleetHosts = lib.filterAttrs (_: host: host.hostPubkey != null) fleet.hosts;
   canAccess = fleet.hosts.${thisHost}.canAccess or [ ];
-  # Boot-environment host keys, pinned under an alias (<host>-initrd) that
-  # only the unlock SSH aliases in modules/home/fleet.nix use.
   initrdUnlockTargets = lib.filterAttrs (
     name: host: builtins.elem name canAccess && (host.initrdUnlock.hostPubkey or null) != null
   ) fleet.hosts;
-  # Hosts that hold SSH client keys also get the private client config.
   holdsClientKeys = (fleet.hosts.${thisHost}.sshKeyFiles or [ ]) != [ ];
 
   home = config.users.users.kabilan.home;
@@ -68,8 +65,6 @@ in
       }
     ) initrdUnlockTargets
     // {
-      # Published at https://bitbucket.org/site/ssh; fingerprints verified against
-      # https://support.atlassian.com/bitbucket-cloud/docs/configure-ssh-and-two-step-verification/
       bitbucket-ed25519 = {
         hostNames = [ "ssh.bitbucket.org" ];
         publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIazEu89wgQZ4bqs3d63QSMzYVa0MuJ2e2gKTKqu+UUO";

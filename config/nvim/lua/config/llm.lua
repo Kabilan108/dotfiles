@@ -1,10 +1,6 @@
--- llm.lua
--- keymaps & configuration for llm assistance, auto completion & claude code integration
-
 local droid = require 'droid'
 local utils = require 'utils'
 
--- droid.nvim:  llm assistance and inline edits
 droid.setup {
   api_key_name = 'OPENROUTER_API_KEY',
   available_models = {

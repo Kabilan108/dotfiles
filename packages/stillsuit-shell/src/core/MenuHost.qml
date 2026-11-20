@@ -3,11 +3,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 
-// A per-output overlay whose surface outlives each open. A surface mapped per
-// open draws its first frames before the compositor sends the fractional
-// scale. Closed, it parks as a 1x1, input-less layer below windows: it takes
-// no keyboard focus and stays off the overlay layer, so it never blocks
-// direct scanout. Opening only resizes and raises it.
 PanelWindow {
     id: root
     required property var router
@@ -15,11 +10,6 @@ PanelWindow {
     required property string outputId
     property Item menuContent: null
     readonly property bool shown: menuContent !== null
-    // Nothing is painted until the surface has grown. A frame painted at 1x1
-    // holds only the scrim color, which the compositor would stretch across
-    // the output until the full-size frame arrives. The content stays visible
-    // at zero opacity instead of hidden: the compositor can send keys before
-    // the surface grows, and only a visible item can hold focus to take them.
     readonly property bool drawn: shown && width > 1 && height > 1
     property Region emptyRegion: Region {}
 
@@ -50,13 +40,6 @@ PanelWindow {
             remapTimer.stop()
     }
 
-    // A compositor sends no frame callbacks to a surface it does not show,
-    // such as this parked one when it last committed under a window. Qt
-    // Wayland then marks the window unexposed after 100 ms and stops
-    // rendering and committing it, so the shown layer state never reaches the
-    // compositor. A fresh surface carries it. Keys typed until the compositor
-    // focuses the menu go to the previous window, so a render loop that has
-    // not touched the shown surface within one check counts as stalled.
     property bool renderedSinceShown: false
     Connections {
         target: root.shown && !root.drawn ? stage.Window.window : null
@@ -74,7 +57,6 @@ PanelWindow {
                 stop()
                 return
             }
-            // A surface that rendered is growing; give it a little longer.
             if (root.renderedSinceShown && ++waits < 3)
                 return
             stop()
@@ -131,7 +113,6 @@ PanelWindow {
             dismiss(menuContent)
         menuContent = item
         item.parent = contentArea
-        // The content's parent handler may have closed its own route.
         if (menuContent !== item)
             return
         item.anchors.fill = contentArea
@@ -147,7 +128,6 @@ PanelWindow {
     }
     Component.onCompleted: router.registerMenuHost(outputId, root)
     Component.onDestruction: {
-        // Keep cached plugin objects out of the dying window's visual tree.
         if (menuContent)
             menuContent.parent = null
         router.unregisterMenuHost(outputId, root)

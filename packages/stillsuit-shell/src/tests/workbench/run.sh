@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Boots the plugin workbench headless, then asserts the acceptance target:
-# a plugin can be created, edited, broken, and restored without a restart, and
-# every fixture switches with the real core reporting no errors.
 set -euo pipefail
 test_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source_dir=$(cd -- "$test_dir/../.." && pwd)
@@ -39,8 +36,6 @@ wait_for "workbench readiness" '.ready == true and .fixture == "default" and .pr
 status | jq -e '(.plugins | to_entries | map(select(.value.state == "error")) | length) == 0' > /dev/null
 status | jq -e '.modelsApplied | index("stillsuit.battery") != null and index("stillsuit.audio") != null' > /dev/null
 
-# Profiles use only workbench-owned config and state. The switch command goes
-# through the same narrow shell IPC action as the desktop profile picker.
 profile_config="$sandbox/config/stillsuit/runtime-discovery.json"
 "$package_dir/bin/stillsuit-plugins" --config "$profile_config" \
     profile create work --name Work --description "Workbench profile"
@@ -56,7 +51,6 @@ jq -e --arg sandbox "$sandbox" \
 [[ $("${workbench[@]}" profile default 2>/dev/null) == started ]]
 wait_for "default profile restored" '.profile.active == "default" and .profile.state == "ready"'
 
-# The example plugins are the skill's templates; they must load cleanly.
 for example in stillsuit.example-widget stillsuit.example-panel stillsuit.example-counter; do
     wait_for "$example loaded" ".plugins[\"$example\"].enabled == true and (.plugins[\"$example\"].state // \"\") != \"error\""
 done

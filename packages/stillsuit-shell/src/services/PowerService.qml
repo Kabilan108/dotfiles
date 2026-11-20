@@ -23,9 +23,6 @@ QtObject {
                                                                                !== ""))
     readonly property int revision: model && model.revision !== undefined ? Number(model.revision) :
                                                                             internalRevision
-    // PowerProfiles reports Balanced even when power-profiles-daemon is absent,
-    // so a one-shot read decides availability; live changes then come from the
-    // singleton's PropertiesChanged tracking.
     readonly property var probeArgv: ["powerprofilesctl", "list"]
 
     property Process daemonProbe: Process {
@@ -41,8 +38,6 @@ QtObject {
         }
     }
 
-    // Quickshell writes the profile optimistically and only logs a rejected
-    // D-Bus Set, so a later read confirms what the daemon kept.
     property Timer confirmTimer: Timer {
         interval: 750
         repeat: false

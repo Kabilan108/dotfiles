@@ -65,9 +65,6 @@ Item {
     ]
     readonly property bool monitorTarget: captureTarget === "monitor"
     readonly property bool exporting: recording && recording.exportPhase === "running"
-    // The host owns this panel's visibility, so children report an effective
-    // visible of false. These flags are the bindings the setup and completed
-    // views use, exposed for fixtures.
     readonly property bool annotateToggleVisible: monitorTarget
     readonly property bool exportButtonsEnabled: gifButton.enabled && webmButton.enabled
     readonly property bool gifExportBusy: gifButton.busy
@@ -113,8 +110,6 @@ Item {
         applyAudioDefaults()
     }
 
-    // Monitor captures keep the configured audio defaults. Region and window
-    // captures are silent unless the user opts in for this recording.
     function applyAudioDefaults() {
         if (monitorTarget) {
             desktopAudio = recording ? recording.defaultDesktopAudio : true
@@ -165,9 +160,6 @@ Item {
         var result = recording.start(recording.recordingDirectory, selectedMonitor, draftTitle.trim(
                                          ), desktopAudio, microphone, captureTarget, monitorTarget
                                      ? annotate : true)
-        // Region and window captures hand the screen to the selector, so the
-        // panel closes before the helper answers. A cancelled selector leaves
-        // the recorder idle and nothing else happens.
         if (result === "started")
             closeSurface()
         return result
@@ -317,8 +309,6 @@ Item {
         onTriggered: completionCountdown.tick(interval)
     }
 
-    // A stop issued outside the panel (the omarecord overlay toolbar) still
-    // has to surface the completed view, but only on the recorded output.
     property bool wasActive: recording ? recording.active : false
     readonly property bool ownsRecording: recording && String(recording.monitor || "")
                                           === root.outputId

@@ -1,20 +1,14 @@
 import QtQuick
 import "Motion.js" as Motion
 
-// One number that follows `target` on a spring. A retarget samples the
-// current position and velocity and starts a new closed-form segment from
-// them, so motion stays continuous however often the target moves.
 Item {
     id: root
 
     property var spring: Motion.LAYOUT
     property real target: 0
-    // NaN starts at the target; anything else is the first frame's value.
     property real from: NaN
     property real epsilon: 0.25
     property bool instant: false
-    // Holds the value where it is until released, e.g. until the surface
-    // that shows it has presented a frame.
     property bool hold: false
     property real value: 0
     property real velocity: 0
@@ -30,7 +24,6 @@ Item {
     width: 0
     height: 0
 
-    // Starts from `position` moving at `speed` (units per second), toward the target.
     function launch(position, speed) {
         value = position
         velocity = speed

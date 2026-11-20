@@ -345,9 +345,6 @@ ShellRoot {
                                       secondaryFocusedColumn: workspaceSecondary.focusedColumn
                                   })
         }
-        // Clicking is driven through each cell's MouseArea so the assertion
-        // covers the wiring from pointer to action. The secondary output's
-        // active workspace is 2; clicking it must not reach the compositor.
         function workspaceClick(): string {
             var cells = fixture.workspaceCells(workspaceSecondary)
             var areas = cells.map(function (cell) {
@@ -385,8 +382,6 @@ ShellRoot {
             fixture.actionCalls = []
             recordingModel.pauseCalls = 0
             recordingModel.paused = false
-            // ShellAction activation pauses recording. Panel routing belongs
-            // to the double click and must retain the widget's own output.
             recordingPrimary.trigger()
             var activation = {
                 pauseCalls: recordingModel.pauseCalls,

@@ -21,7 +21,6 @@ local function destination(node, buf, clean)
   if not url then
     return nil
   end
-  -- Keep titles and angle-bracket destinations intact in the new definition.
   local angle = url:sub(1, 1) == '<' and url:sub(-1) == '>'
   local plain = angle and url:sub(2, -2) or url
   if not plain:lower():match '^https?://' or plain:find '[\r\n]' then
@@ -43,8 +42,6 @@ function M.convert(first, last)
   end
   local parser = vim.treesitter.get_parser(buf, 'markdown')
   parser:parse(true)
-  -- Markdown fenced code may itself inject a Markdown parser. Exclude source
-  -- ranges from the outer document before looking through injected trees.
   local excluded = {}
   local function collect_excluded(node)
     local kind = node:type()
@@ -80,7 +77,6 @@ function M.convert(first, last)
           used[key] = true
           local target = destination(node, buf, false)
           if target and not defined[key] then
-            -- Only reuse compact IDs compatible with markdown-oxide's parser.
             if #label >= 2 and not label:find '[%s%[%]]' and label:sub(1, 1) ~= '^' then
               existing[target] = existing[target] or label
             end
@@ -93,7 +89,6 @@ function M.convert(first, last)
         vim.treesitter.query.parse('markdown_inline', '(inline_link) @link (link_label) @label (shortcut_link) @shortcut (collapsed_reference_link) @shortcut')
       for id, node in query:iter_captures(tree:root(), buf) do
         if blocked(node) then
-          -- No changes or reference definitions from code/HTML examples.
         elseif query.captures[id] == 'label' then
           used[normalize(vim.treesitter.get_node_text(node, buf):sub(2, -2))] = true
         elseif query.captures[id] == 'shortcut' then
@@ -134,7 +129,6 @@ function M.convert(first, last)
       if base == '' then
         base = 'link'
       elseif #base == 1 then
-        -- markdown-oxide 0.25.12 requires at least two characters in an ID.
         base = 'link-' .. base
       end
       id = base
@@ -156,8 +150,6 @@ function M.convert(first, last)
 
   local definition_count = #definitions
   if definition_count > 0 then
-    -- Refuse to append definitions into an unfinished code fence or HTML block.
-    -- Validate before changing any user text, using a separate string parser.
     local source = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     local candidate = table.concat(source, '\n') .. '\n\n' .. table.concat(definitions, '\n')
     local preview = vim.treesitter.get_string_parser(candidate, 'markdown')

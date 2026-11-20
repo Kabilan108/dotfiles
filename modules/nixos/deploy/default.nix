@@ -1,10 +1,3 @@
-# YubiKey-signed deploys; lib/fleet.nix `deploy` says which host plays which
-# part. Every host gets deploy-tag and deploy-switch, which bin/rebuild uses.
-# The controller gets `deploy`, deploy-key, which `deploy` and bin/rebuild use
-# to pick the plugged-in key, and deploy-wait, which holds their signed
-# rebuilds until CI has published the heavy packages. Receivers build fleet tags naming them through
-# deploy-receiver.service, which the deploy-trigger socket starts and
-# deploy-receiver-run records.
 {
   config,
   lib,
@@ -21,15 +14,9 @@ let
   stateDir = "/var/lib/deploy-receiver";
   triggerSocket = "/run/deploy-trigger.sock";
   runningNixosVersion = "/run/current-system/sw/bin/nixos-version";
-  # The receiver and bin/rebuild each switch only while holding this lock.
   switchLock = "/run/fleet-switch.lock";
-  # Per boot, like the systemd job IDs that key it.
   runsFile = "/run/deploy-receiver/runs";
 
-  # The receiver's Nix reads only this file: the system nix.conf without its
-  # include lines, so nothing outside the store (such as the access-token
-  # include) reaches a root Nix process. Its directory has no registry,
-  # machines or netrc file either.
   receiverNixConf = pkgs.runCommand "deploy-receiver-nix-conf" { } ''
     mkdir "$out"
     grep -Ev '^[[:space:]]*!?include[[:space:]]' ${
@@ -41,7 +28,6 @@ let
     fi
   '';
 
-  # The principal is the key's comment (yk-nfc-deploy, yk-nano-deploy).
   allowedSigners = pkgs.writeText "deploy-signers" (
     lib.concatMapStrings (
       key: "${lib.last (lib.splitString " " key)} namespaces=\"git\" ${key}\n"
@@ -215,8 +201,6 @@ in
   config = {
     assertions = [
       {
-        # deploy-tag reads touch and PIN from the signature, which only
-        # security keys carry.
         assertion = builtins.all (lib.hasPrefix "sk-") deploy.signers;
         message = "lib/fleet.nix deploy.signers must all be security keys (sk-...).";
       }
@@ -227,8 +211,6 @@ in
         message = "lib/fleet.nix deploy.signerYubiKeys must name only keys in deploy.signers, and include deploy.defaultSigner.";
       }
       {
-        # Tags are deploy/<name>/<UTC time>, and deploy/fleet/* are the fleet
-        # tags, whose "Hosts:" line names hosts.
         assertion =
           !(fleet.hosts ? fleet)
           && builtins.all (name: name != "fleet" && builtins.match "[a-z0-9-]+" name != null) deployHosts;
@@ -239,14 +221,12 @@ in
         message = "bin/rebuild must switch under the same lock as the receiver (${switchLock}).";
       }
       {
-        # deploy-gate runs /run/current-system/sw/bin/sessionizer --inventory.
         assertion =
           !isGated || builtins.any (pkg: lib.getName pkg == "sessionizer") config.environment.systemPackages;
         message = "${thisHost} is in lib/fleet.nix deploy.gatedAgentLogins, so it needs sessionizer in environment.systemPackages.";
       }
     ];
 
-    # Root-only, so no one else can open it to hold the lock.
     systemd.tmpfiles.rules = [ "f ${switchLock} 0600 root root -" ];
 
     environment.systemPackages = [
@@ -263,7 +243,6 @@ in
 
     systemd.services.deploy-receiver = lib.mkIf isReceiver {
       description = "Build and switch to the newest signed deploy tag";
-      # Like nixos-upgrade: the switch it runs must not stop or restart it.
       restartIfChanged = false;
       unitConfig.X-StopOnRemoval = false;
       after = [ "network-online.target" ];
@@ -271,7 +250,6 @@ in
       environment =
         config.nix.envVars
         // {
-          # Root's Nix and git read only store files and root-owned paths.
           HOME = stateDir;
           XDG_CONFIG_HOME = "${stateDir}/config";
           XDG_DATA_HOME = "${stateDir}/data";
@@ -301,11 +279,6 @@ in
       };
     };
 
-    # Members of deploy-trigger may connect to the socket. Each connection runs
-    # the broker as root, which queues the receiver with a fixed job mode, reads
-    # nothing from the caller and exits. This is a socket rather than a polkit rule
-    # because systemd doesn't pass the job mode to polkit: a rule allowing
-    # "start" would also allow --job-mode=flush.
     users.groups.deploy-trigger = lib.mkIf isReceiver {
       members = [ fleet.hosts.${thisHost}.user ];
     };

@@ -374,7 +374,6 @@ def framing_camera(direction: Vector, center: Vector, radius: float, aspect: flo
     data.sensor_fit = "AUTO"
     obj = bpy.data.objects.new("_blend_cam", data)
     bpy.context.scene.collection.objects.link(obj)
-    # Sensor fit AUTO spans the wider image side; the narrower side decides the fit.
     long_over_short = max(aspect, 1 / aspect)
     if ortho:
         data.type = "ORTHO"

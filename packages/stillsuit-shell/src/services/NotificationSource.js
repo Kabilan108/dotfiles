@@ -24,8 +24,6 @@ function hostOf(url) {
     return hostname(authority.replace(/:\d+$/, ""))
 }
 
-// Chromium prefixes native notification bodies with an origin anchor. It is
-// sender identity, not message content, so lift only this narrow leading form.
 function liftBrowserOrigin(body) {
     var raw = text(body)
     var match = raw.match(/^\s*<a\s+href=["']([^"']+)["'][^>]*>([^<]+)<\/a>\s*/i)
@@ -55,9 +53,6 @@ function identify(snapshot) {
     }
 }
 
-// Slack titles every message "[workspace] in #channel" (or "[workspace] from
-// Name") and puts "Sender: message" in the body. A card reads better as the
-// sender, the message, and the channel beside the app's name (after Hokum).
 function slackMessage(summary, body) {
     var title = text(summary).match(/^\[[^\]]*\] (in|from) (.+)$/)
     if (!title) return null

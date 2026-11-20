@@ -1,6 +1,3 @@
--- completion.lua
--- configure autocomplete
-
 local cmp = require 'cmp'
 local luasnip = require 'luasnip'
 
@@ -46,9 +43,7 @@ cmp.setup {
   },
   formatting = {
     format = function(entry, vim_item)
-      -- Kind icons
       vim_item.kind = string.format('%s %s', utils.cmp_icons[vim_item.kind], vim_item.kind)
-      -- Source
       vim_item.menu = ({
         nvim_lsp = '[LSP]',
         luasnip = '[Snippet]',

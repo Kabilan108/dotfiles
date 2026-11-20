@@ -9,8 +9,6 @@ QtObject {
     property QtObject serviceRegistry: null
     property QtObject surfaceRouter: null
     property QtObject compositorControl: null
-    // Launch actions are context-only. No IpcHandler forwards to them, so IPC
-    // never becomes a way to run programs or write the clipboard.
     property QtObject appLauncher: null
     property QtObject fallbackContext: null
     property var theme: ({})
@@ -439,8 +437,6 @@ QtObject {
         profileError = String(message)
     }
 
-    // Qt.callLater collapses repeated calls only for the same function object,
-    // so a burst of registry and router revisions schedules one refresh.
     function _queueSettledProfileRefresh() {
         Qt.callLater(root._refreshSettledProfileState)
     }

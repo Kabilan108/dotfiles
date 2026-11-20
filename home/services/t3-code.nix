@@ -18,7 +18,6 @@ let
   androidSdkPackage = pkgs.symlinkJoin {
     name = "androidsdk-t3";
     paths = [ android.androidsdk ];
-    # T3 requires the Android Studio layout; Nix installs tools by version.
     postBuild = ''
       tools_root="$out/libexec/android-sdk/cmdline-tools"
       if [ ! -e "$tools_root/latest" ]; then
@@ -102,11 +101,8 @@ let
         *) usage >&2; exit 2 ;;
       esac
 
-      # Home Manager owns t3-code.service; do not install the upstream service.
       "$t3_binary" update "''${update_args[@]}"
 
-      # Compare the running executable with the updated symlink, including when
-      # an earlier update downloaded a release without restarting this service.
       running_pid=$(systemctl --user show t3-code.service --property=MainPID --value)
       running_binary=$(readlink -f "/proc/$running_pid/exe" || true)
       installed_binary=$(readlink -f "$t3_binary")
@@ -131,7 +127,6 @@ in
     ]
     ++ lib.optionals cfg.android.enable [ androidSdkPackage ];
 
-    # Also expose the conventional path for tools outside the systemd service.
     home.file."Android/Sdk" = lib.mkIf cfg.android.enable {
       source = androidSdk;
     };

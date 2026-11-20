@@ -35,19 +35,6 @@ WAIT_HOST = "jacurutu"
 CACHE = "https://kabilan108.cachix.org"
 UPSTREAM = "https://cache.nixos.org"
 
-# A host's system before system.replaceDependencies grafts it. The graft
-# rewrites built outputs, not derivations, so this closure holds the same
-# package builds the host uses. Evaluating the grafted toplevel needs
-# import-from-derivation of the whole system closure, which would build every
-# package during the plan step. IFD stays off so that any other IFD fails the
-# eval at once instead of building inside it.
-#
-# Temporary exception: Atuin's flake picks its Rust toolchain with fenix's
-# fromToolchainFile, which downloads channel-rust-<version>.toml and reads it
-# during eval. Until upstream pins the manifest as a flake input
-# (fromManifestFile, no IFD), the plan step evaluates with IFD on, and any
-# other IFD would build inside it too. require_atuin_ifd() fails the plan once
-# the locked Atuin evaluates without IFD; then delete it and this paragraph.
 UNGRAFTED_TOPLEVEL = """
 host: (host.extendModules {
   modules = [ ({ lib, ... }: { system.replaceDependencies.replacements = lib.mkForce [ ]; }) ];
@@ -187,7 +174,6 @@ def find(
             continue
         seen.add(pname)
         outs = sorted(store_path(o["path"]) for o in outputs)
-        # Also skips nixpkgs builds of the same pname pulled in elsewhere.
         if not all(cached(out, UPSTREAM) for out in outs):
             found[pname][path] = outs
     return found, seen
@@ -218,7 +204,6 @@ def heavy(flake: str) -> list[str]:
 def cached(path: str, cache: str = CACHE) -> bool:
     url = f"{cache}/{Path(path).name[:32]}.narinfo"
     try:
-        # Cachix refuses urllib's default User-Agent.
         request = urllib.request.Request(
             url, method="HEAD", headers={"User-Agent": "dotfiles-cache-targets"}
         )

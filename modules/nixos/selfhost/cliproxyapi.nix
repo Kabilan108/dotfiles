@@ -7,9 +7,6 @@
 let
   cliproxyapi = pkgs.callPackage ../../../packages/cliproxyapi.nix { };
   configPath = "/var/lib/cliproxyapi/config.yaml";
-  # CPA serves inference and management on one listener. Local callers (the
-  # cpa-usage-front for sera) use it directly; each tailnet service reaches only
-  # its own front.
   apiPort = 8317;
   inferencePort = 8320;
   adminPort = 8321;
@@ -19,13 +16,10 @@ let
     "/openai/v1/"
     "/backend-api/codex/"
   ];
-  # The dashboard calls /v8/management and probes /v0/management for old backends.
   adminPrefixes = [
     "/v0/management/"
     "/v8/management/"
   ];
-  # SSE streams and Codex's Responses websocket (GET /v1/responses) stay open
-  # for whole turns, so upgrades pass through and nothing is buffered.
   cpaProxy = {
     proxyPass = "http://127.0.0.1:${toString apiPort}";
     proxyWebsockets = true;
@@ -47,7 +41,6 @@ let
       }
     ];
     serverName = "_";
-    # Tailscale Serve terminates TLS, so redirects must stay relative.
     extraConfig = ''
       access_log off;
       absolute_redirect off;
@@ -64,9 +57,6 @@ in
   selfhost.tailnetServices.cliproxyapi.port = inferencePort;
   selfhost.tailnetServices.cpa-admin.port = adminPort;
 
-  # Tailscale Serve proxies from loopback, so CPA sees every tailnet request as
-  # local and allow-remote alone cannot refuse it. Each front forwards only its
-  # own routes; the management key is still checked by CPA.
   services.nginx = {
     enable = true;
     virtualHosts.cliproxyapi-inference = loopbackVhost inferencePort (
@@ -76,7 +66,6 @@ in
       {
         "= /".return = "302 /management.html";
         "= /management.html" = cpaProxy;
-        # The dashboard's model list card reads this one inference route.
         "= /v1/models" = cpaProxy // {
           extraConfig = cpaProxy.extraConfig + ''
             limit_except GET {
@@ -108,8 +97,6 @@ in
     serviceConfig = {
       User = "cliproxyapi";
       Group = "cliproxyapi";
-      # systemd re-owns the whole tree when the directory's owner differs from
-      # User=/Group=, which moves the existing kabilan-owned state on first start.
       StateDirectory = "cliproxyapi";
       StateDirectoryMode = "0700";
       WorkingDirectory = "/var/lib/cliproxyapi";
@@ -142,17 +129,13 @@ in
       LockPersonality = true;
       MemoryDenyWriteExecute = true;
       SystemCallArchitectures = "native";
-      # yq -i in preStart fchowns its temp file to the current owner, which
-      # ~@privileged would kill. Without capabilities chown cannot change owners.
       SystemCallFilter = [
         "@system-service"
         "~@privileged"
         "~@resources"
         "@chown"
       ];
-      # Fail a filtered call instead of killing the gateway mid-session.
       SystemCallErrorNumber = "EPERM";
-      # Upstream providers are on the internet; AF_NETLINK serves Go's interface lookups.
       RestrictAddressFamilies = [
         "AF_UNIX"
         "AF_INET"
@@ -161,7 +144,6 @@ in
       ];
     };
     preStart = ''
-      # Preserve the operator configuration before applying the v8 recovery settings.
       if [[ -e "$CLIPROXY_CONFIG" && ! -e "$CLIPROXY_CONFIG.pre-v8" ]]; then
         install -m 0600 "$CLIPROXY_CONFIG" "$CLIPROXY_CONFIG.pre-v8"
       fi
@@ -186,8 +168,6 @@ in
         ' > "$CLIPROXY_CONFIG"
       fi
 
-      # Logs go to stdout and the journal. The v8 path overrides the legacy
-      # top-level key on load, so set it whatever the file's layout.
       yq -i '
         .routing.strategy = "round-robin" |
         .routing."session-affinity" = true |
@@ -196,8 +176,6 @@ in
         .observability.logs."logging-to-file" = false
       ' "$CLIPROXY_CONFIG"
 
-      # Keep existing files in their current layout until a v8 API write migrates them.
-      # Never replace the management object: it contains the operator-managed key.
       if yq -e 'has("management")' "$CLIPROXY_CONFIG" >/dev/null 2>&1; then
         yq -i '
           .management."disable-auto-update-panel" = true |
@@ -210,8 +188,6 @@ in
         ' "$CLIPROXY_CONFIG"
       fi
 
-      # A missing conversation is a request fault, not a reason to cool the account.
-      # Prepend the rule so broader operator rules cannot turn it into a cooldown.
       export CLIPROXY_THREAD_RULE='{"status":404,"match":["thread_not_found","No thread state was found"],"action":"stop"}'
       if yq -e '.oauth | has("request-scoped-errors")' "$CLIPROXY_CONFIG" >/dev/null 2>&1; then
         yq -i '
@@ -229,7 +205,6 @@ in
         ' "$CLIPROXY_CONFIG"
       fi
 
-      # Anthropic rejects thread + fallbacks. Preserve fallbacks on unthreaded calls.
       export CLIPROXY_THREAD_FILTER='{"models":[{"name":"claude-*","protocol":"claude","exist":["thread"]}],"params":["fallbacks"]}'
       if yq -e '.requests | has("payload")' "$CLIPROXY_CONFIG" >/dev/null 2>&1; then
         yq -i '

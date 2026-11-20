@@ -43,8 +43,6 @@ QtObject {
     property int positionTrackingRefs: 0
     readonly property bool positionTracking: positionTrackingRefs > 0
 
-    // MPRIS only signals position on seeks, so a visible position readout
-    // needs a ticker; it runs only while some view holds a tracking ref.
     property Timer positionTimer: Timer {
         interval: 500
         repeat: true

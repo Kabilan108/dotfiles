@@ -1,17 +1,11 @@
--- keymaps.lua
-
 local sessions = require 'mini.sessions'
 local trailspace = require 'mini.trailspace'
 
 local utils = require 'utils'
 
----------------------------------------------------------------------------------------
-
--- general keymaps
 utils.map('-', 'n', '<CMD>Oil<CR>', 'edit directory')
 utils.map('<Esc>', 'n', '<CMD>nohlsearch<CR>', 'clear search')
 
--- git staging with gitsigns
 utils.map('<leader>ga', 'n', '<CMD>Gitsigns stage_buffer<CR>', 'git: stage current file')
 utils.map('<leader>gs', 'n', '<CMD>Gitsigns stage_hunk<CR>', 'git: stage hunk')
 utils.map('<leader>gu', 'n', '<CMD>Gitsigns undo_stage_hunk<CR>', 'git: unstage hunk')
@@ -28,14 +22,11 @@ utils.map('<leader>dd', 'n', function()
   ]]
 end, 'git: diff mode')
 
--- sessions
 utils.map('<leader>sl', 'n', sessions.read, 'session load')
 utils.map('<leader>ss', 'n', '<CMD>mksession<CR>', 'session save')
 
--- trim whitespace
 utils.map('<leader>tw', 'n', trailspace.trim, 'trim whitespace')
 
--- disable arrow keys in normal mode
 local keys = { '<left>', '<right>', '<up>', '<down>' }
 for i = 1, #keys do
   utils.map(keys[i], 'n', function()
@@ -46,38 +37,29 @@ for i = 1, #keys do
   end)
 end
 
--- window resizing
 utils.map('<C-A-t>', 'n', '<CMD>resize +2<CR>', 'resize: taller')
 utils.map('<C-A-s>', 'n', '<CMD>resize -2<CR>', 'resize: shorter')
 utils.map('<C-A-w>', 'n', '<CMD>vertical resize +2<CR>', 'resize: wider')
 utils.map('<C-A-n>', 'n', '<CMD>vertical resize -2<CR>', 'resize: narrower')
 
--- tab navigation
 utils.map('<leader>tt', 'n', '<CMD>tabnew<CR>', 'new tab')
 utils.map('<leader>tn', 'n', '<CMD>tabnext<CR>', 'next tab')
 utils.map('<A->>', 'n', '<CMD>tabnext<CR>', 'next tab')
 utils.map('<leader>tp', 'n', '<CMD>tabprevious<CR>', 'previous tab')
 utils.map('<A-<>', 'n', '<CMD>tabprevious<CR>', 'previous tab')
 
--- buffer navigation
 utils.map('bp', 'n', '<CMD>bp<CR>', 'previous buffer')
 utils.map('bn', 'n', '<CMD>bn<CR>', 'next bugger')
 utils.map('bcc', 'n', '<CMD>enew<CR>', 'clear buffer')
 
--- increment & decrement numbers
 utils.map('<C-i>', 'n', '<C-a>', 'increment')
 utils.map('<C-d>', 'n', '<C-x>', 'decrement')
 
--- terminal mode
 utils.map('<C-`>', 'n', function()
   vim.cmd 'split | terminal | startinsert'
 end, 'open horizontal terminal split')
 utils.map('<C-n>', 't', '<C-\\><C-n>', 'exit terminal mode')
 
--- window navigation is handled by vim-tmux-navigator (<C-h/j/k/l> cross
--- seamlessly between nvim splits and tmux panes)
-
--- treesitter context: jump to sticky context (defers to native [c in diff mode)
 utils.map('[c', 'n', function()
   if vim.wo.diff then
     vim.cmd 'normal! [c'
@@ -86,11 +68,9 @@ utils.map('[c', 'n', function()
   end
 end, 'jump to context')
 
--- visual mode indentation that preserves selection
 utils.map('<Tab>', 'v', '>gv', 'indent and keep selection')
 utils.map('<S-Tab>', 'v', '<gv', 'unindent and keep selection')
 
--- yank with file context (for pasting into Claude Code, etc.)
 utils.map('<leader>cc', 'v', function()
   utils.yank_with_context()
 end, 'yank selection with file context')
@@ -99,7 +79,6 @@ utils.map('<leader>cd', 'v', function()
   utils.yank_with_context { include_diagnostics = true }
 end, 'yank selection with file context and diagnostics')
 
--- code execution
 ---@type table<string, utils.Executor>
 local executors = {
   lua = {
@@ -134,7 +113,6 @@ for lang, exec in pairs(executors) do
   utils.setup_exec_kmaps(lang, exec)
 end
 
--- format json with jq
 vim.api.nvim_create_autocmd('FileType', {
   pattern = 'json',
   callback = function(event)
@@ -164,7 +142,6 @@ vim.api.nvim_create_autocmd('FileType', {
   end,
 })
 
--- setup icat for python plotting
 vim.api.nvim_create_autocmd('FileType', {
   pattern = 'python',
   callback = function(event)

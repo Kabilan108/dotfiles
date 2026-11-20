@@ -48,7 +48,6 @@ function query(text, env) {
         if (prepared) {
             var match = env.matcher.score(prepared, item.fields)
             if (match.score <= 0) continue
-            // Equal matches keep menu order.
             score = match.score * 10 + items.length - index
             positions = match.field === 0 ? match.positions : []
         }

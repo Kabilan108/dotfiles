@@ -1,4 +1,3 @@
-# Hold newly published npm packages for three days.
 minimumReleaseAge: 4320
 
 storeDir: /vault/userdata/cache/pnpm-store

@@ -1,6 +1,3 @@
-// A notification the host raises itself, shaped like a
-// Quickshell.Services.Notifications object so NotificationService tracks it
-// without a D-Bus round trip. Containment reports and workbench fixtures use it.
 import QtQuick
 
 QtObject {

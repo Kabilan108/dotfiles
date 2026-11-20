@@ -6,7 +6,6 @@ let
     url = "https://downloads.cursor.com/grokbot/stable/${commitSha}/linux/x64/grok-bot_${version}_amd64.deb";
     inherit (pin) hash;
   };
-  # Extract only. dpkg maintainer scripts (apt source, AppArmor profile) are not run.
   payload =
     pkgs.runCommand "grok-bot-official-payload-${version}"
       {

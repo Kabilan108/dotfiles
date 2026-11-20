@@ -167,8 +167,6 @@ Ui.ShellAction {
             Layout.preferredWidth: box
             Layout.preferredHeight: box
 
-            // A fixed-size circle scaled about its centre grows evenly on
-            // every side; resizing it would snap its position to whole pixels.
             Rectangle {
                 width: recordingDot.box
                 height: width

@@ -27,7 +27,6 @@ in
       };
       Service = {
         Type = "oneshot";
-        # Three builds of up to 3h each when caches miss (BUILD_TIMEOUT in the script).
         TimeoutStartSec = "10h";
         Nice = 10;
         Environment = [
@@ -40,7 +39,6 @@ in
             ]
           }:${config.home.profileDirectory}/bin:/run/current-system/sw/bin"
         ];
-        # A store copy, so the job doesn't run whatever ~/dotfiles has checked out.
         ExecStart = "${lib.getExe pkgs.python3} ${../../bin/flake-update-pr} --repo-dir ${homeDir}/dotfiles";
       };
     };

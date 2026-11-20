@@ -9,11 +9,8 @@ PanelWindow {
     required property var theme
     required property string outputId
     property Item panelContent: null
-    // Output-space x of the opening bar entry's center, or -1 when unknown.
     property real anchorCenterX: -1
     color: "transparent"
-    // Geometry below is in output coordinates, including the bar's reserved
-    // height. Respecting its exclusive zone here would count that height twice.
     exclusionMode: ExclusionMode.Ignore
     visible: panelContent !== null
     anchors {
@@ -25,8 +22,6 @@ PanelWindow {
     WlrLayershell.namespace: "stillsuit.panel"
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-    // Leave the bar outside the input region so a single click reaches the
-    // next entry even while this host is open.
     mask: Region {
         item: dismissArea
     }
@@ -76,7 +71,6 @@ PanelWindow {
             panelContent.visible = false
         panelContent = item
         item.parent = contentArea
-        // The content's parent handler may have closed its own route.
         if (panelContent !== item)
             return
         item.anchors.fill = contentArea
@@ -93,7 +87,6 @@ PanelWindow {
     }
     Component.onCompleted: router.registerPanelHost(outputId, root)
     Component.onDestruction: {
-        // Keep cached plugin objects out of the dying window's visual tree.
         if (panelContent)
             panelContent.parent = null
         router.unregisterPanelHost(outputId, root)

@@ -24,12 +24,10 @@ end
 
 local function link(label, url)
   label = label:gsub('[\\%[%]]', '\\%0')
-  -- Parentheses in branch names must not close the Markdown destination.
   url = M.clean_url(url):gsub('%(', '%%28'):gsub('%)', '%%29')
   return ('[%s](%s)'):format(label, url)
 end
 
--- Format only a whole URL, leaving prose, existing links and unrelated URLs alone.
 function M.format(text)
   local url = vim.trim(text)
   if url:find '%s' then
@@ -97,8 +95,6 @@ function M.put_keys(key)
   if info.regtype == 'V' then
     expression = expression .. ' . "\\n"'
   end
-  -- Native expression-register put retains counts, undo and dot-repeat without
-  -- replacing the source register or writing to the system clipboard.
   return '"=' .. expression .. '\r' .. key
 end
 
@@ -131,7 +127,6 @@ function M.setup()
     if pending == nil then
       return original_paste(lines, phase)
     end
-    -- Terminal pastes can split even a single URL across several chunks.
     pending = pending .. table.concat(lines, '\n')
     if phase == 1 or phase == 2 then
       return true

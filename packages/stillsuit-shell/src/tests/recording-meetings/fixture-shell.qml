@@ -176,8 +176,6 @@ ShellRoot {
                              "--target", target, annotate ? "--annotate" : "--no-annotate",
                              desktopAudio ? "--desktop-audio" : "--no-desktop-audio", microphone
                              ? "--microphone" : "--no-microphone"]
-            // The selector owns the screen for region and window captures; a
-            // cancelled selector leaves the recorder idle.
             phase = target === "monitor" || !cancelSelector ? "recording" : "idle"
             return "started"
         }
@@ -291,10 +289,6 @@ ShellRoot {
                 completedAt: 10
             }
         ]
-        // The real service persists discard through the meeting-minutes helper,
-        // which rewrites jobs.json; refresh() there reloads from that file. This
-        // fixture keeps the same in-memory jobs array as its durable source, so
-        // calling refresh() after a discard must not resurrect the removed job.
         function refresh() {
         }
         function retry(jobId) {

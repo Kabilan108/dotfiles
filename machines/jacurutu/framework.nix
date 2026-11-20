@@ -1,4 +1,3 @@
-# Configure Framework 13 with AMD 7040 series
 { inputs, ... }:
 {
   imports = [ inputs.nixos-hardware.nixosModules.framework-13-7040-amd ];
@@ -12,11 +11,11 @@
   security.pam.services = {
     sudo = {
       fprintAuth = true;
-      unixAuth = true; # fallback to password
+      unixAuth = true;
     };
     polkit-1 = {
       fprintAuth = true;
-      unixAuth = true; # fallback to password
+      unixAuth = true;
     };
   };
   security.polkit.enable = true;

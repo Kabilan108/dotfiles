@@ -19,7 +19,6 @@ def test_new_default_acl_preserves_masked_group_access(tmp_path: Path) -> None:
         check=True,
     )
     original = subprocess.check_output(["getfacl", "-cpn", str(directory)], text=True)
-    # Names are inside namespace IDs; normalize the two test principals.
     original = original.replace("user:100999:", "user:1000:")
     updated = API["shared_acl"](original, directory=True)
     assert "default:group::r-x\n" in updated

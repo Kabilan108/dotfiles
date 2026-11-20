@@ -45,8 +45,6 @@ QtObject {
                                                                               "")
     readonly property bool helperReady: model === null && helperPath.charAt(0) === "/"
                                         && helper.running
-    // Networking is only touched when no model is injected, so fixtures and the
-    // workbench never instantiate the D-Bus backend.
     readonly property bool networkingBackend: model === null && !forceUnavailable
                                               && Networking.backend
                                               === NetworkBackendType.NetworkManager
@@ -126,15 +124,10 @@ QtObject {
 
     onLinkSignatureChanged: if (networkingActive)
                                 linkDebounce.restart()
-    // Quickshell lists unsaved networks only while a device's scanner is on, and
-    // the scanner keeps requesting scans, so it runs only while it is needed.
     onScannerWantedChanged: applyScanner(_backendDevices(), scannerWanted)
     onLiveDevicesChanged: applyScanner(_backendDevices(), scannerWanted)
     Component.onDestruction: releaseScanners()
 
-    // Helper-only mode polls as before. With the Networking backend the full
-    // snapshot (IP addresses, VPNs, Tailscale) is only refreshed while the
-    // panel is shown.
     property Timer refreshTimer: Timer {
         interval: 10000
         repeat: true
@@ -149,9 +142,6 @@ QtObject {
                          root.refresh()
     }
 
-    // Quickshell 0.3.1 does not recover after a NetworkManager restart. A cheap
-    // one-nmcli summary keeps the VPN chip fresh and, after two consecutive
-    // disagreements with the live devices, drops back to helper polling.
     property Timer sanityTimer: Timer {
         interval: root.staleStrikes > 0 ? 5000 : 60000
         repeat: true
@@ -211,8 +201,6 @@ QtObject {
                     byName[candidate.name] = candidate
             }
         }
-        // The helper's last scan fills in SSIDs Quickshell hides while its
-        // scanner is off; live rows always win.
         for (var helperIndex = 0; liveWifiEnabled && helperIndex
              < helperNetworks.length; helperIndex++) {
             var scanned = helperNetworks[helperIndex]
@@ -322,9 +310,6 @@ QtObject {
         return networkingBackend && Networking.devices ? Networking.devices.values : []
     }
 
-    // Only devices this service switched on are tracked, so a scanner enabled
-    // elsewhere is left alone and every one switched on here is switched off on
-    // panel close, scan end, fallback or destruction.
     function applyScanner(devices, enabled) {
         if (!enabled) {
             releaseScanners()
@@ -372,8 +357,6 @@ QtObject {
             return true
         if (summary.wifiSsids.length !== Number(live.wifiConnectedCount || 0))
             return false
-        // A hidden network has no live SSID, so every live SSID must be active in
-        // NetworkManager, but an active one may be missing from the live list.
         var remaining = summary.wifiSsids.map(String)
         var liveSsids = live.wifiSsids || []
         for (var index = 0; index < liveSsids.length; index++) {

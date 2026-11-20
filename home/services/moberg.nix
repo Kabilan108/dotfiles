@@ -29,11 +29,6 @@ let
     exec ${pkgs.direnv}/bin/direnv exec . "$@"
   '';
 
-  # The forced command behind the desktop dev-checkouts key. It accepts only
-  # `status`, `pause NAME`, and `resume NAME`, from SSH_ORIGINAL_COMMAND or
-  # argv. It runs the checkout's editable devcli venv directly: a forced SSH
-  # command has no login environment, and loading the direnv/nix shell would
-  # cost seconds per poll. Docker's endpoint comes from ~/.config/moberg/docker.toml.
   devCheckouts = pkgs.writeShellApplication {
     name = "moberg-dev-checkouts";
     runtimeInputs = [

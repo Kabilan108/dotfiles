@@ -1,7 +1,6 @@
 const assert = require("node:assert/strict")
 const { History, DAY, NOW } = require("./load.js")
 
-// Boost: max((10 - days) * count, 1) / (1 + |stored length - query length|).
 {
     const history = History.create(null)
     assert.equal(history.boost("obs", "apps:obsidian", NOW), 0, "unknown items get nothing")
@@ -15,7 +14,6 @@ const { History, DAY, NOW } = require("./load.js")
     assert.equal(history.boost("", "apps:obsidian", NOW), 0)
 }
 
-// Decay over days, floor of 1, count capped at 10.
 {
     const history = History.create(null)
     history.record("fi", "apps:firefox", NOW)
@@ -33,7 +31,6 @@ const { History, DAY, NOW } = require("./load.js")
     assert.equal(history.toJSON().records[0].count, 10)
 }
 
-// Empty-query rank: frequency across queries, decayed by the latest use.
 {
     const history = History.create(null)
     history.record("a", "apps:a", NOW - 3 * DAY)
@@ -49,7 +46,6 @@ const { History, DAY, NOW } = require("./load.js")
     assert.ok(rank("apps:b") > rank("apps:a"), "tables refresh after a record")
 }
 
-// Serialisation round trip.
 {
     const history = History.create(null)
     history.record("obs", "apps:obsidian", NOW)
@@ -66,7 +62,6 @@ const { History, DAY, NOW } = require("./load.js")
     assert.equal(History.create(history), history, "an instance passes through")
 }
 
-// Corrupt or foreign input starts empty; bad records are dropped one by one.
 {
     const corrupt = [
         undefined, null, "", "{", "null", "[]", "42", "\"text\"", { version: 2, records: [] },
@@ -98,7 +93,6 @@ const { History, DAY, NOW } = require("./load.js")
     assert.equal(mixed.boost("big", "apps:big", NOW), 100, "counts are clamped on load")
 }
 
-// Bounded to 2,000 records, oldest evicted.
 {
     const history = History.create(null)
     for (let index = 0; index < History.MAX_RECORDS + 25; index++) {
@@ -116,7 +110,6 @@ const { History, DAY, NOW } = require("./load.js")
     assert.equal(loaded.boost("q0", "k0", NOW + 3000), 0)
 }
 
-// Remove, clear and revision tracking.
 {
     const history = History.create(null)
     const start = history.revision
@@ -135,8 +128,6 @@ const { History, DAY, NOW } = require("./load.js")
     assert.equal(history.boost("a", "__proto__", NOW), 10)
 }
 
-// Timestamps: non-finite, non-positive and far-future stamps are dropped on
-// load; near-future ones rank as now.
 {
     const stamps = [NaN, "soon", -1, 0, NOW + 2 * DAY, NOW + 3600000, NOW - DAY]
     const records = stamps.map((lastUsed, index) => ({ query: "q", key: "apps:k" + index, count: 1, lastUsed }))
@@ -146,7 +137,6 @@ const { History, DAY, NOW } = require("./load.js")
     assert.equal(loaded.boost("q", "apps:k6", NOW), 9)
 }
 
-// The empty-query recency tie-breaker never outweighs frequency.
 {
     const history = History.create(null)
     history.record("a", "apps:frequent", NOW - DAY)

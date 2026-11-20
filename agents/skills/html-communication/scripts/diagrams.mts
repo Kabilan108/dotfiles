@@ -1,8 +1,3 @@
-// Renders <pre><code class="language-mermaid"> blocks with Pele, in place. Safe to rerun.
-// Usage: node diagrams.mts page.html [more.html ...] [--cdn]
-// Default: copies the vendored Pele build to <page dir>/pele/ for `pagebin publish --assets <page dir>/pele`.
-// --cdn: loads the same pinned version from jsDelivr instead, for an HTML page shown in a thread.
-
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,8 +7,6 @@ const VERSION = readFileSync(join(VENDOR, "VERSION"), "utf8").trim();
 const MERMAID_BLOCK = /<pre\b[^>]*>\s*<code\b[^>]*\bclass\s*=\s*["'][^"']*\blanguage-mermaid\b/gi;
 const INJECTED = /[ \t]*<(style|script)\b[^>]*\bdata-pele\b[^>]*>[\s\S]*?<\/\1>\n?/gi;
 
-// Diagram colours follow whatever background and text colour the page has where each diagram sits.
-// Page CSS can still set any --pele-* variable on .pele-diagram, since these rules have zero specificity.
 const CSS = `:where(.pele-diagram){--pele-muted:color-mix(in oklab,var(--pele-fg) 62%,var(--pele-bg));--pele-line:color-mix(in oklab,var(--pele-fg) 55%,var(--pele-bg));--pele-surface:color-mix(in oklab,var(--pele-fg) 7%,var(--pele-bg));--pele-surface-alt:color-mix(in oklab,var(--pele-fg) 3.5%,var(--pele-bg));--pele-border:color-mix(in oklab,var(--pele-fg) 26%,var(--pele-bg));margin:8px 0}
 .pele-source>summary{cursor:pointer;font-size:.85em;opacity:.7}`;
 

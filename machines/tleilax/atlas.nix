@@ -1,15 +1,9 @@
 { inputs, pkgs, ... }:
 let
-  # tleilax takes none of the shared overlays, so build atlas here with the
-  # Pi's own package set, as the atlas overlay does elsewhere.
   atlas = pkgs.callPackage "${inputs.atlas}/nix/package.nix" { };
   port = 8303;
 in
 {
-  # No tailnet service: only Executor on this box calls it, so the Jira and
-  # Bitbucket tokens never leave the Pi. Stateless: every request carries its
-  # own credentials in X-Atlas-* headers, and `mcp serve` skips the update
-  # check and the disk cache.
   tleilax.executor.localServices.atlas = port;
 
   systemd.services.atlas = {

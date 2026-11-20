@@ -1,9 +1,3 @@
-// Usage boost reimplements the formula of Elephant's CalcUsageScore
-// (abenz1267/elephant pkg/common/history/history.go, GPL-3.0). Differences:
-// related stored queries contribute their best per-record boost instead of a
-// summed count, and the length difference divides as (1 + delta), so results
-// don't depend on map iteration order.
-
 var VERSION = 1
 var MAX_RECORDS = 2000
 var MAX_COUNT = 10
@@ -12,14 +6,8 @@ var MAX_KEY_LENGTH = 512
 var DAY_MS = 24 * 60 * 60 * 1000
 var BASE_DAYS = 10
 var MAX_EMPTY_COUNT = 50
-// Boost tables are rebuilt when this much time has passed, so a cached table
-// never drifts by more than a fraction of a day.
 var TABLE_MAX_AGE_MS = 60 * 1000
-// Records stamped further ahead than this are dropped on load; nearer future
-// stamps (clock skew) rank as now.
 var MAX_FUTURE_MS = DAY_MS
-// The empty-query recency tie-breaker stays below this, and ranks are
-// integers, so recency only orders equal ranks.
 var TIE_BREAK_MAX = 0.5
 
 function safeString(value) {
@@ -95,7 +83,6 @@ function isHistory(value) {
         && typeof value.emptyQueryRank === "function"
 }
 
-// `now` (ms, default Date.now()) bounds the timestamps accepted from `data`.
 function create(data, now) {
     if (isHistory(data)) return data
 
@@ -209,8 +196,6 @@ function create(data, now) {
         return true
     }
 
-    // Called once per matching candidate on every keystroke, so the raw query
-    // is compared before normalising it again.
     history.boost = function(query, key, now) {
         var time = typeof now === "number" && isFinite(now) ? now : finiteNow(now)
         if (!boostTable || query !== boostRawQuery || boostRevision !== history.revision

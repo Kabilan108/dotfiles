@@ -1,11 +1,7 @@
-# Configure Nvidia drivers & CUDA
-
 { config, pkgs, ... }:
 {
-  # load driver for xorg & wayland
   services.xserver.videoDrivers = [ "nvidia" ];
 
-  # enable opengl
   hardware.graphics.enable = true;
   hardware.graphics.enable32Bit = true;
 
@@ -26,8 +22,6 @@
     __GLX_VENDOR_LIBRARY_NAME = "nvidia";
   };
 
-  # The driver's heap-reuse heuristic keeps ~1 GiB of freed buffers pooled in
-  # niri instead of ~100 MiB. https://yalter.github.io/niri/Nvidia.html
   environment.etc."nvidia/nvidia-application-profiles-rc.d/50-limit-free-buffer-pool-in-wayland-compositors.json".text =
     builtins.toJSON {
       rules = [

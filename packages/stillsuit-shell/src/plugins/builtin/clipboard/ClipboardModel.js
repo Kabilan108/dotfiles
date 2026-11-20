@@ -1,21 +1,11 @@
-// Clipboard history rules for stillsuit.clipboard. Pure functions over plain
-// objects so node tests and the QML service share them; the service owns IO,
-// timers and the clock.
-
 var SCHEMA_VERSION = 1
 var SHA_PATTERN = /^[0-9a-f]{64}$/
-// The collector's `shape`: a sha256 prefix of the offered MIME types.
 var SHAPE_PATTERN = /^[0-9a-f]{16}$/
-// Mirrors MIME_RE in bin/stillsuit-clipboard-collector, which validates again
-// before running wl-copy.
 var MIME_PATTERN = /^(?:[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}\/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}(?:;[ ]?[A-Za-z0-9_.-]{1,64}=[A-Za-z0-9_.-]{1,64})?|[A-Z][A-Z0-9_]{0,63})$/
 var PREVIEW_MAX_CHARS = 4096
-// Mirrors BLOB_GONE in bin/stillsuit-clipboard-collector: `copy` found the
-// blob missing or not holding its content.
 var COPY_BLOB_GONE = 3
 var DEFAULT_GECKO_APP_IDS = "^(zen|zen-beta|zen-browser|zen-alpha|zen-twilight|app\\.zen_browser\\.zen"
     + "|firefox|firefox-esr|firefox-nightly|librewolf|org\\.mozilla\\.firefox)$"
-// TTL pruning batches expiries.
 var MIN_TIMER_MS = 10 * 60 * 1000
 var MAX_TIMER_MS = 6 * 60 * 60 * 1000
 var MAX_JITTER_MS = 5000
@@ -34,7 +24,6 @@ function _number(value, fallback, min, max) {
 }
 
 function _list(value, fallback) {
-    // Settings lists arrive as QVariantList, which fails Array.isArray in Qt.
     if (!value || typeof value !== "object" || typeof value.length !== "number")
         return fallback.slice()
     var result = []
@@ -64,13 +53,9 @@ function options(values) {
 }
 
 function emptyState() {
-    // lastRecorded: sha of the entry the previous capture event recorded, ""
-    // when the previous event recorded nothing, null when unknown (startup).
     return { entries: [], lastRecorded: null }
 }
 
-// A timestamp written while the clock ran ahead is clamped to now, so it can
-// neither postpone expiry nor make a later clear look like it came first.
 function _time(value, now) {
     var number = Number(value)
     return isFinite(number) && number > 0 ? Math.floor(Math.min(number, now)) : 0
@@ -141,7 +126,6 @@ function isExpired(entry, now, opts) {
     return now - entry.lastUsed >= opts.ttlMs
 }
 
-// Removal results list the blob shas to delete in `removed`.
 function prune(entries, now, opts) {
     var kept = []
     var removed = []
@@ -155,14 +139,6 @@ function prune(entries, now, opts) {
     return { entries: kept, removed: removed }
 }
 
-// A pending removal is a batch of blob shas the service decided to delete at
-// `before` (ms) and has not yet seen `rm` finish. They are persisted with the
-// history so a shutdown or crash cannot lose them. A `before` from a clock
-// that ran ahead is clamped, which only keeps more blobs.
-//
-// Each sha is pending in at most one batch, the one with its latest decision,
-// so the queue never holds more shas than there are blobs and no intent is
-// ever dropped to bound it.
 function enqueueRemoval(batches, shas, before) {
     var incoming = []
     for (var index = 0; index < shas.length; index++) {
@@ -213,9 +189,6 @@ function normalizeRemovals(raw, now) {
     return batches
 }
 
-// Whether a history read back from disk records exactly these entries (in
-// order) and pending removals. Compares shas and decision times only, so text
-// that changed in a UTF-8 round trip still matches.
 function historyMatches(raw, entries, pendingRemovals) {
     var document
     try {
@@ -242,9 +215,6 @@ function historyMatches(raw, entries, pendingRemovals) {
     return true
 }
 
-// `dirty` asks the caller to write the history back: something was dropped,
-// clamped or otherwise normalized, so the file differs from what serialize()
-// would write.
 function parseHistory(raw, now, opts) {
     var text = String(raw === undefined || raw === null ? "" : raw)
     var broken = { entries: [], removed: [], pendingRemovals: [], corrupt: true, dirty: true }
@@ -351,15 +321,6 @@ function _record(state, event, now, opts) {
 function _purge(state, event, now, opts) {
     var newest = state.entries.length > 0 ? state.entries[0] : null
     var age = newest !== null ? now - newest.captured : -1
-    // A clear only belongs to the newest entry when the previous capture
-    // recorded it. After a skipped secret, the clear belongs to that secret
-    // and must not delete an unrelated earlier copy. A negative age means the
-    // clock moved; the clear cannot be placed, so nothing is purged.
-    //
-    // An owner that offers text and sends no bytes also reads as a clear, so
-    // the clear must offer the same types as the newest entry's capture did.
-    // Bitwarden's Firefox clear offers the types of its copy. Entries saved
-    // before shapes were recorded have none and are never purged.
     var eligible = newest !== null && newest.kind === "text"
         && age >= 0 && age < opts.purgeWindowMs
         && (state.lastRecorded === null || state.lastRecorded === newest.sha)
@@ -377,10 +338,6 @@ function _unchanged(state) {
     return { state: state, changed: false, removed: [] }
 }
 
-// An "empty" skip (CLIPBOARD_STATE=nil, nothing offered) is not a capture:
-// browsers announce both copies and clears with a nil event first, and it
-// must not detach a following clear from the entry it belongs to. Every
-// other skip may have been a secret, so the next clear belongs to it.
 function applyEvent(state, event, now, opts) {
     if (!event)
         return _unchanged(state)
@@ -453,7 +410,6 @@ function publicItems(entries, now, opts, blobDir) {
     return items
 }
 
-// Items a workbench fixture model supplies, coerced to the public shape.
 function modelItems(raw) {
     var items = []
     if (!raw || typeof raw !== "object" || typeof raw.length !== "number")
@@ -490,10 +446,6 @@ function timerDelay(wakeAt, now, random) {
     return Math.round(delay + fraction * Math.min(MAX_JITTER_MS, delay * 0.05))
 }
 
-// When to sweep again after a gc that deferred files: just after the first of
-// them becomes eligible (`nextEligibleMs`, wall-clock ms), but at least
-// GC_FOLLOW_UP_GAP_MS after the previous follow-up, so files that stay young
-// wake the service no more than once per gap. 0 when nothing was deferred.
 function gcFollowUpAt(reply, now, lastFollowUpAt, graceSec) {
     if (!reply || !(reply.deferred > 0))
         return 0

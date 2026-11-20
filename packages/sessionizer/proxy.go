@@ -13,17 +13,8 @@ import (
 	"time"
 )
 
-// A proxy is a local tmux session whose one pane runs
-// `ssh -t <host> sessionizer --proxy-attach`, a tmux client of the remote
-// server. The local tmux stays the outer layer: switching to a remote session
-// tells that remote client to switch, then moves the local client to the
-// proxy. The proxy's key table holds only M-s (see config/.tmux.conf), so
-// every other key, the prefix included, reaches the remote tmux.
-
 const proxyKeyTable = "sessionizer-proxy"
 
-// Exit status of --proxy-switch when the host has no live proxy client for
-// this origin, so the origin should start a new proxy.
 const exitNoProxyClient = 3
 
 type exitStatus int
@@ -39,7 +30,6 @@ func directorySpec(path string) string {
 	return "dir:" + path
 }
 
-// openRemote shows a remote session or directory through host's proxy.
 func openRemote(host, spec string) error {
 	origin := localHostname()
 	target := "=" + proxySessionName(host)
@@ -68,8 +58,6 @@ func openRemote(host, spec string) error {
 	return switchOrAttach(target)
 }
 
-// startProxy creates host's proxy session, or restarts the pane of a stale
-// one in place so a client already showing it never leaves.
 func startProxy(host, origin, spec string, replace bool) error {
 	target := optionTarget(host)
 	command := []string{"ssh", "-t", host, "exec " + remoteSessionizer("--proxy-attach", origin, spec)}
@@ -89,8 +77,6 @@ func startProxy(host, origin, spec string, replace bool) error {
 	for _, option := range options {
 		args = append(args, ";", "set-option", "-t", target, option[0], option[1])
 	}
-	// A failed ssh (no touch, host down) keeps its pane so the error shows.
-	// The proxy has no prefix, so any key, M-s included, closes it.
 	deadMessage := fmt.Sprintf("#[reverse] ssh to %s ended (status #{pane_dead_status}). Press any key to close this proxy. #[default]", host)
 	args = append(args,
 		";", "set-option", "-w", "-t", target, "remain-on-exit", "failed-key",
@@ -100,8 +86,6 @@ func startProxy(host, origin, spec string, replace bool) error {
 	return err
 }
 
-// optionTarget names the proxy session exactly for commands, like
-// set-option, whose -t is a pane target.
 func optionTarget(host string) string {
 	return "=" + proxySessionName(host) + ":"
 }
@@ -130,8 +114,6 @@ func proxyRecordPath(origin string) (string, error) {
 	return filepath.Join(dir, origin+".json"), nil
 }
 
-// resolveSpec turns "session:$N" or "dir:/path" into a session id on this
-// host, creating the directory's session if needed.
 func resolveSpec(spec string) (string, error) {
 	kind, value, _ := strings.Cut(spec, ":")
 	switch kind {
@@ -149,9 +131,6 @@ func resolveSpec(spec string) (string, error) {
 	return "", fmt.Errorf("invalid target: %q", spec)
 }
 
-// proxyAttach runs on the remote host as the proxy pane's command. It records
-// its terminal so --proxy-switch can find this client, then becomes
-// `tmux attach`.
 func proxyAttach(origin, spec string) error {
 	path, err := proxyRecordPath(origin)
 	if err != nil {
@@ -175,8 +154,6 @@ func proxyAttach(origin, spec string) error {
 	return execTmux("attach-session", "-t", id)
 }
 
-// proxySwitch runs on the remote host: it moves the origin's proxy client to
-// the target and prints the session id.
 func proxySwitch(origin, spec string) error {
 	tty, ok := liveProxyClient(origin)
 	if !ok {
@@ -193,9 +170,6 @@ func proxySwitch(origin, spec string) error {
 	return nil
 }
 
-// proxyCurrent runs on the remote host and prints, as inventory JSON, the
-// session the origin's proxy client shows. It may differ from the last one
-// the picker chose, and may be newer than the origin's cached inventory.
 func proxyCurrent(origin string) error {
 	tty, ok := liveProxyClient(origin)
 	if !ok {
@@ -214,8 +188,6 @@ func proxyCurrent(origin string) error {
 	return fmt.Errorf("session %s vanished", id)
 }
 
-// proxyShows asks host which session its proxy client shows, over the login
-// connection the proxy keeps open.
 func proxyShows(host string) (InventorySession, bool) {
 	out, err := run(runOptions{timeout: 3 * time.Second}, masterSSH(host, remoteSessionizer("--proxy-current", localHostname()))...)
 	var session InventorySession

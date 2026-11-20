@@ -33,8 +33,6 @@ type runOptions struct {
 	stderr  *os.File
 }
 
-// run executes a command and returns its stdout. A non-zero exit is an error
-// that carries stderr.
 func run(options runOptions, command ...string) (string, error) {
 	timeout := options.timeout
 	if timeout == 0 {
@@ -126,8 +124,6 @@ func (s tmuxSession) Path() string {
 	return s.SessionPath
 }
 
-// Recency orders sessions by when you last switched to them. A session nobody
-// has attached yet counts from its creation.
 func (s tmuxSession) Recency() int64 {
 	if s.LastAttached > 0 {
 		return s.LastAttached
@@ -154,8 +150,6 @@ func parseInt(value string) int64 {
 	return number
 }
 
-// listTmuxSessions returns every session, proxies included. An absent tmux
-// server is an empty list.
 func listTmuxSessions() []tmuxSession {
 	out, err := tmux("list-sessions", "-F", sessionFormat)
 	if err != nil {
@@ -215,8 +209,6 @@ var paneFormat = strings.Join([]string{
 	"#{pane_title}",
 }, fieldSeparator)
 
-// listAllPanes returns every pane on the server keyed by session id, with the
-// coding agents running in each.
 func listAllPanes() map[string][]Pane {
 	out, err := tmux("list-panes", "-a", "-F", paneFormat)
 	if err != nil {
@@ -264,8 +256,6 @@ func sessionIDsByName() map[string]string {
 	return result
 }
 
-// sessionNameForDirectory picks the directory's basename, or parent-basename
-// when another directory already holds that name.
 func sessionNameForDirectory(path string, sessions map[string]string) string {
 	base := unsafeSessionChars.ReplaceAllString(filepath.Base(path), "_")
 	if base == "" || base == "/" {
@@ -299,8 +289,6 @@ func sameDirectory(a, b string) bool {
 	return errA == nil && errB == nil && ra == rb
 }
 
-// ensureDirectorySession returns the id of the session for path, creating it
-// and running its .sessionizer script if there is none.
 func ensureDirectorySession(pathValue string) (string, error) {
 	path, err := filepath.Abs(expandUser(pathValue))
 	if err != nil {
@@ -343,8 +331,6 @@ func sessionExists(target string) bool {
 	return err == nil
 }
 
-// switchOrAttach moves this tmux client to target, or attaches to it when the
-// picker runs outside tmux.
 func switchOrAttach(target string) error {
 	if insideTmux() {
 		args := []string{"switch-client"}

@@ -2,7 +2,6 @@ function deckKey(row) {
     return String((row || {}).sourceKey || "app:unknown")
 }
 
-// Rows newest first in, decks out in the order of their newest row.
 function group(rows) {
     var input = Array.isArray(rows) ? rows : []
     var byKey = {}

@@ -14,23 +14,15 @@
   nixpkgs.config.android_sdk.accept_license = true;
 
   dotfiles.docker.rootlessDevelopment.enable = true;
-  # Its operator is still kabilan, so agents can change this client without
-  # sudo. Revisit if the office moves to Headscale.
   dotfiles.mobergTailscale.enable = true;
   services.teamviewer.enable = true;
 
-  # Keep ordinary OpenSSH and key authentication, but require the tailnet for
-  # remote administration. Local console access is the recovery path.
   networking.firewall.interfaces.tailscale0.allowedTCPPorts = [ 22 ];
 
-  # Agents run as kabilan here, so no operator: changing Tailscale (Serve
-  # backends included) needs sudo. The empty value clears the shared default.
   services.tailscale.extraSetFlags = lib.mkForce [ "--operator=" ];
 
-  # Leave Bluetooth available for deliberate use, but keep its radio off on boot.
   hardware.bluetooth.powerOnBoot = lib.mkForce false;
 
-  # CUDA builds are not covered by cache.nixos.org.
   nix.settings = {
     substituters = [ "https://cache.nixos-cuda.org" ];
     trusted-public-keys = [
@@ -38,9 +30,6 @@
     ];
   };
 
-  # sietch uses its wired 2.5 GbE link as the LAN data plane. Keep the Wi-Fi
-  # hardware available for manual recovery, but disable its radio on every
-  # boot and whenever this configuration is activated.
   systemd.services.disable-wifi = {
     description = "Disable the Wi-Fi radio on sietch";
     wantedBy = [ "multi-user.target" ];
@@ -54,15 +43,12 @@
   };
 
   programs.steam.enable = true;
-  # The op CLI only: agents here sign in with the service-account token, since
-  # there is no desktop app to unlock it.
   programs._1password.enable = true;
   environment = {
     systemPackages = with pkgs; [
       openrgb-with-all-plugins
       prismlauncher
       jdk25
-      # pkgsCuda (not blender.override) matches cache.nixos-cuda.org's build.
       pkgsCuda.blender
     ];
   };
@@ -70,15 +56,11 @@
   systemd.tmpfiles.rules = [
     "d /vault/userdata/tracer-ingest 0755 kabilan users -"
     "d /vault/userdata/tracer-ingest/jacurutu 0755 kabilan users -"
-    # Vaultwarden was retired for 1Password; its data stays until the stage 8
-    # re-key. Its user is gone, so keep the folder away from whoever gets that UID.
     "z /var/lib/vaultwarden 0700 root root -"
     "d /vault/userdata/vms 0755 kabilan users -"
   ];
 
   home-manager.users.kabilan = {
-    # Agents start every VM in this slice (see the vms skill). The cap leaves
-    # half of sietch's 32 threads and most of its 62 GiB for everything else.
     systemd.user.slices.vms = {
       Unit.Description = "VMs started by agents";
       Slice = {
@@ -100,15 +82,11 @@
       wayvnc.enable = true;
     };
 
-    # The ingest root is fed by merge-preserving `tracer push` from the fleet,
-    # so tag/outcome writes here (e.g. wiki:compiled from tracer-digest)
-    # survive re-pushes. Only safe while nothing rsyncs into this root.
     programs.tracer.settings.archive.annotatable_roots = [ "/vault/userdata/tracer-ingest" ];
 
     dotfiles.wallpaper.lockscreen = "$HOME/dotfiles/wallpapers/uwide/lucy.png";
   };
 
-  # docs/backups.md. Off until the placeholder secrets hold real values.
   age.secrets = lib.mkIf config.dotfiles.backup.enable {
     backup-smb.file = ../../secrets/backup/sietch-smb.age;
     backup-restic.file = ../../secrets/backup/sietch-restic.age;
@@ -121,7 +99,6 @@
       credentialsFile = config.age.secrets.backup-smb.path;
     };
     passwordFile = config.age.secrets.backup-restic.path;
-    # 04:00 EST, 05:00 EDT.
     timer = {
       OnCalendar = "*-*-* 09:00:00 UTC";
       RandomizedDelaySec = "30m";

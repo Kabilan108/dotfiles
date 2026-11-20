@@ -1,7 +1,3 @@
-# VM test for the deploy-trigger socket, its broker, the run record and the
-# switch lock, with a stand-in receiver under the real deploy-receiver-run
-# (tests/test_deploy_gate.py covers the real receiver). From the repo root:
-#   nix build --impure --expr 'import ./tests/deploy-trigger.nix { pkgs = (builtins.getFlake "git+file://${toString ./.}").inputs.nixpkgs.legacyPackages.x86_64-linux; }'
 { pkgs }:
 pkgs.testers.runNixOSTest {
   name = "deploy-trigger";
@@ -16,16 +12,11 @@ pkgs.testers.runNixOSTest {
         extraGroups = [ "wheel" ];
       };
       users.users.agent.isNormalUser = true;
-      # The noisy run logs at debug priority: in the journal, not on the slow
-      # serial console, which would otherwise hold journald back.
       services.journald.settings.Journal.MaxLevelConsole = lib.mkForce "info";
       dotfiles.deploy.receiverProgram = "${pkgs.writeShellScript "stand-in-receiver" ''
         echo "stand-in receiver ran as $(id -un)"
         echo run >> /run/stand-in-runs
         if [ -e /run/noisy-deploy ]; then
-          # Far more log than a socket buffer holds, then still running, so a
-          # broker that streamed the log to a caller that never reads would
-          # block on it.
           for i in $(seq 20000); do
             echo "<7>noisy deploy log line $i, which a client that never reads would block"
           done
@@ -37,7 +28,6 @@ pkgs.testers.runNixOSTest {
         fi
         echo "deploy/fleet/20261029T100000Z 0123abc" > /var/lib/deploy-receiver/deployed
       ''}";
-      # queued.service waits in the job queue for as long as blocker runs.
       systemd.services.blocker.serviceConfig = {
         Type = "oneshot";
         ExecStart = "${pkgs.coreutils}/bin/sleep 600";
@@ -66,7 +56,6 @@ pkgs.testers.runNixOSTest {
     machine.succeed("test \"$(stat -c '%U:%G %a' /run/deploy-trigger.sock)\" = 'root:deploy-trigger 660'")
     machine.succeed("systemctl cat deploy-trigger@.service | grep -qx RuntimeMaxSec=30")
 
-    # The switch lock is root-only, so kabilan can't hold it to stall deploys.
     machine.succeed("test \"$(stat -c '%U:%G %a' /run/fleet-switch.lock)\" = 'root:root 600'")
     machine.fail("su - kabilan -c 'flock --nonblock /run/fleet-switch.lock true'")
 
@@ -80,7 +69,6 @@ pkgs.testers.runNixOSTest {
     assert "sietch runs 0123456789abcdef0123456789abcdef01234567" in out, out
     queued_job_waits()
 
-    # The broker names the job it queued; the run record outlives the unit.
     reply = machine.succeed("su - kabilan -c '${pkgs.socat}/bin/socat -u UNIX-CONNECT:/run/deploy-trigger.sock -'").strip()
     assert reply.startswith("deploy-trigger: queued job "), reply
     job = reply.rsplit(" ", 1)[1]
@@ -89,13 +77,11 @@ pkgs.testers.runNixOSTest {
     machine.succeed(f"su - kabilan -c 'grep -Eq \"^{job} [0-9a-f]{{32}} exit:0$\" /run/deploy-receiver/runs'")
     machine.succeed("test \"$(stat -c '%U:%G %a' /run/deploy-receiver/runs)\" = 'root:root 644'")
 
-    # The receiver's failure reaches the caller as the exit status.
     machine.succeed("touch /run/fail-deploy")
     out = machine.fail("su - kabilan -c deploy-trigger")
     assert "stand-in receiver failing" in out, out
     machine.succeed("rm /run/fail-deploy")
 
-    # kabilan can't drive systemd directly, in any job mode.
     for command in [
         "start deploy-receiver.service",
         "--job-mode=flush start deploy-receiver.service",
@@ -108,14 +94,10 @@ pkgs.testers.runNixOSTest {
         machine.fail(f"su - kabilan -c 'systemctl {command}'")
     queued_job_waits()
 
-    # Only members of deploy-trigger may connect.
     runs = stand_in_runs()
     machine.fail("su - agent -c deploy-trigger")
     assert stand_in_runs() == runs
 
-    # Six clients connect and never read, while the receiver writes far more
-    # log than a socket holds. Every broker still exits, the receiver runs,
-    # and a normal trigger gets a slot.
     machine.succeed("touch /run/noisy-deploy")
     runs, before = stand_in_runs(), accepted()
     for i in range(6):
@@ -125,7 +107,6 @@ pkgs.testers.runNixOSTest {
         )
     machine.wait_until_succeeds(f"test $(systemctl show --property=NAccepted --value deploy-trigger.socket) -ge {before + 4}", timeout=30)
     machine.wait_until_succeeds("test -z \"$(systemctl list-units --all --no-legend 'deploy-trigger@*')\"", timeout=60)
-    # The brokers are gone while the noisy receiver still runs; now let it end.
     machine.wait_until_succeeds("test \"$(systemctl show --property=ActiveState --value deploy-receiver.service)\" = inactive", timeout=120)
     assert stand_in_runs() > runs
     machine.succeed("rm /run/noisy-deploy")
@@ -133,8 +114,6 @@ pkgs.testers.runNixOSTest {
     assert "sietch deployed deploy/fleet/20261029T100000Z 0123abc" in out, out
     machine.succeed("systemctl stop 'never-reads-*'")
 
-    # Control: a flush start does cancel the queued job, so the checks above
-    # would have seen it.
     machine.succeed("systemctl --job-mode=flush start --no-block deploy-receiver.service")
     machine.wait_until_fails("systemctl list-jobs --no-legend | grep -q 'queued.service'")
     machine.fail("systemctl is-active queued.service")

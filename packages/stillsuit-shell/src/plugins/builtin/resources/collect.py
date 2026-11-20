@@ -28,7 +28,6 @@ def number(raw: str) -> float | None:
 def counters(proc: Path, sys: Path) -> dict[str, Any]:
     stat = read(proc / "stat").splitlines()
     cpu = [int(value) for value in stat[0].split()[1:9]]
-    # Physical whole disks only: partitions and dm layers would double count I/O.
     disks = {}
     for line in read(proc / "diskstats").splitlines():
         fields = line.split()
@@ -36,7 +35,6 @@ def counters(proc: Path, sys: Path) -> dict[str, Any]:
         if len(fields) < 14 or not (sys / "block" / name / "device").exists():
             continue
         disks[name] = [int(fields[5]) * 512, int(fields[9]) * 512]
-    # Physical interfaces only: exclude loopback, bridges, containers and VPNs.
     network = {}
     for line in read(proc / "net/dev").splitlines():
         name, sep, values = line.partition(":")
@@ -48,7 +46,6 @@ def counters(proc: Path, sys: Path) -> dict[str, Any]:
 
 
 def rates(before: dict[str, list[int]], after: dict[str, list[int]], seconds: float) -> list[float]:
-    # Removed/new devices and counters reset by a reconnect are not activity spikes.
     return [sum(max(0, values[index] - before[name][index])
                 for name, values in after.items() if name in before) / seconds
             for index in range(2)]
@@ -80,7 +77,6 @@ def pressure(proc: Path) -> dict[str, float | None]:
 
 def gpus(sys: Path) -> list[dict[str, Any]]:
     result = []
-    # NVIDIA reports N/A for unsupported fields; leave those absent, never zero.
     try:
         query = subprocess.run(
             ["nvidia-smi", "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw",

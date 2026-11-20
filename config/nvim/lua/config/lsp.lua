@@ -1,13 +1,7 @@
--- lsp.lua
--- configure LSPs
-
--- enable virtual text diagnostic
 vim.diagnostic.config {
   virtual_text = true,
   update_in_insert = false,
 }
-
--- configure LSPs
 
 local servers = {
   'bashls',
@@ -30,10 +24,8 @@ local servers = {
 
 local custom_cfg = {
   markdown_oxide = {
-    -- only start inside a vault; markdown in ordinary git repos stays LSP-free
     root_markers = { '.obsidian', '.moxide.toml' },
     workspace_required = true,
-    -- markdown-oxide relies on file watching to see notes created outside nvim
     capabilities = {
       workspace = {
         didChangeWatchedFiles = { dynamicRegistration = true },
@@ -57,12 +49,10 @@ local custom_cfg = {
   pyright = {
     settings = {
       pyright = {
-        -- use ruff's import organizer
         disableOrganizeImports = true,
       },
       python = {
         analysis = {
-          -- ignore all files for analysis to exclusively use ruff for linting
           ignore = { '*' },
         },
       },
@@ -86,7 +76,6 @@ for _, s in pairs(servers) do
   vim.lsp.enable(s)
 end
 
--- markdown-oxide's reference lenses call a client-side command that Neovim doesn't ship
 vim.lsp.commands['moxide.findReferences'] = function(command, ctx)
   local client = assert(vim.lsp.get_client_by_id(ctx.client_id))
   local items = vim.lsp.util.locations_to_items(command.arguments[1].locations, client.offset_encoding)
@@ -94,7 +83,6 @@ vim.lsp.commands['moxide.findReferences'] = function(command, ctx)
   vim.cmd.copen()
 end
 
--- reference counts (backlinks) above headings and files in markdown notes
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('markdown-oxide-codelens', { clear = true }),
   callback = function(args)

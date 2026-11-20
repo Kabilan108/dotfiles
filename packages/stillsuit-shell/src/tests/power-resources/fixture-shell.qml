@@ -407,7 +407,6 @@ ShellRoot {
                 }
             }
             verify(!resources.remoteAvailable, "desktop never SSHes back to laptop")
-            // Mark requests busy so this ownership check has no external processes.
             resources.localRefreshing = true
             resources.setPanelOpen("first", true)
             resources.setPanelOpen("second", true)
@@ -426,7 +425,6 @@ ShellRoot {
             resources.setHovered("second", false)
             verify(!resources.hoverDelay.running && resources.tooltipOutputId === "",
                    "hover exit cancels tooltip delay and visibility")
-            // Restore the deterministic bar values after refreshDetails read /proc.
             resources.cpuPercent = 50
             resources.memoryPercent = 75
 

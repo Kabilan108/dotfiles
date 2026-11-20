@@ -8,9 +8,6 @@ WINDOW="${TRACER_DIGEST_WINDOW:-336h}"
 
 mkdir -p "$DIGEST_DIR"
 
-# Processed-state lives in session frontmatter: unprocessed = not yet tagged
-# wiki:compiled. Survives re-pushes (receiver merge unions tags) and needs no
-# side-channel bookkeeping file.
 sessions=$(tracer list --json --since "$WINDOW" --tag '!wiki:compiled')
 
 mapfile -t rows < <(
@@ -24,8 +21,6 @@ if [[ ${#rows[@]} -eq 0 ]]; then
   exit 0
 fi
 
-# Slim transcripts: tool output is ~85% of session bytes and read-time
-# filtering keeps the narrative while cutting token cost ~5-7x.
 slim_dir=$(mktemp -d "${TMPDIR:-/tmp}/tracer-digest.XXXXXX")
 trap 'rm -rf "$slim_dir"' EXIT
 
@@ -81,7 +76,6 @@ digest=$(claude -p "$prompt" --allowedTools "Read")
 
 obsidian-reconcile "$out_file" || true
 
-# Mark processed only after the digest is written, so a failed run retries.
 tag_failures=0
 for row in "${rows[@]}"; do
   id=$(jq -r '.id' <<<"$row")

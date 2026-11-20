@@ -2,13 +2,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Fixed-shape launch actions behind context.actions. Callers name a desktop
-// entry, URL, path, text, or session action; argv always comes from the
-// desktop entry index or the Nix-generated launch config, never the caller.
-// execDetached reports nothing about the process it starts, so `ok` means
-// submitted. The helper reports its own failures as desktop notifications,
-// and launches through it return `unavailable` until `helper --check` has
-// succeeded once.
 QtObject {
     id: root
 
@@ -35,7 +28,6 @@ QtObject {
     property bool _configLoaded: false
     property var _copyPending: null
     property string _copyInFlight: ""
-    // "checking", "ready", or "unavailable".
     property string helperState: "checking"
     property int helperChecks: 0
     property bool _helperCheckPassed: false
@@ -44,7 +36,6 @@ QtObject {
         onExited: function (exitCode, exitStatus) {
             root._helperCheckPassed = exitCode === 0
         }
-        // A helper that cannot start changes running without an exit.
         onRunningChanged: if (!running)
                               root._helperCheckFinished()
     }
@@ -60,7 +51,6 @@ QtObject {
     property Process copyProcess: Process {
         id: copier
         command: ["wl-copy", "--type", "text/plain;charset=utf-8"]
-        // Closing stdin after the write lets wl-copy see end of input.
         onStarted: {
             copier.write(root._copyInFlight)
             copier.stdinEnabled = false
@@ -184,8 +174,6 @@ QtObject {
         }
     }
 
-    // One check per call: at startup, then again only when a launch finds
-    // the helper unavailable and no check is running.
     function _checkHelper() {
         if (helperState === "checking" && helperChecks > 0)
             return
@@ -219,7 +207,6 @@ QtObject {
         _startCopy(next)
     }
 
-    // Read once, at completion or at the first action, whichever runs first.
     function _ensureConfig() {
         if (_configLoaded)
             return

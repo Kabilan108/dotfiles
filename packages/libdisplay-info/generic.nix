@@ -40,7 +40,6 @@ stdenv.mkDerivation (finalAttrs: {
     python3
   ]
   ++ lib.optionals (stdenv.hostPlatform.emulatorAvailable buildPackages) [
-    # Only used for tests, which we cannot run without an emulator
     v4l-utils
   ];
 

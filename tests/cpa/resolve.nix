@@ -1,5 +1,3 @@
-# Applied to nixosConfigurations.sietch by run.sh. Prints the store paths the
-# CPA tests use as shell variables, so a checkout tests what it builds.
 sys:
 let
   inherit (sys) pkgs;

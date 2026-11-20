@@ -76,8 +76,6 @@ send_notification() {
   env -u LD_LIBRARY_PATH notify-send "$@"
 }
 
-# notify-send closes its own notification once an action arrives, so a sender
-# that stays (resident) is sent over D-Bus directly.
 gdbus_bin=$(command -v gdbus || printf '%s/bin/gdbus' "$(nix build --no-link --print-out-paths nixpkgs#glib.bin)")
 send_raw_notification() {
   local summary=$1 actions=$2 hints=$3
@@ -176,13 +174,11 @@ node "$fixture_dir/source-links-layout.test.js"
 node "$fixture_dir/notification-card-source.test.js"
 start_shell
 
-# Dismissing a toast closes it; nothing is archived.
 send_notification -a lane-e -t 5000 "dismiss-me"
 wait_for_json '(.popups | length) == 1' >/dev/null
 [[ $(ipc dismissFirst) == ok ]]
 wait_for_json '(.popups | length) == 0 and (.held | length) == 0 and .liveRefCount == 0' >/dev/null
 
-# Toast dismissals share the persist() debounce: a burst writes state once.
 for index in {1..3}; do
   send_notification -a "debounce-$index" -t 60000 "debounce-$index"
 done
@@ -196,12 +192,10 @@ sleep 0.3
 jq -e ".stateWrites == $((writes_before + 1))" >/dev/null <<<"$(ipc state)"
 wait_for_state_file '.schemaVersion == 3 and (.popups | length) == 0 and has("history") == false'
 
-# Requested timeout is milliseconds.
 send_notification -a lane-e -t 350 "requested-timeout"
 wait_for_json '.popups | length == 1' >/dev/null
 wait_for_json '(.popups | length) == 0' >/dev/null
 
-# Cards with buttons stay at least ten seconds; plain ones keep the default.
 send_notification -a lane-e -A reply=Reply "button-card" >/dev/null &
 button_pid=$!
 button_state=$(wait_for_json '.popups[0].summary == "button-card"')
@@ -212,7 +206,6 @@ jq -e '.popups[0].deadline - .popups[0].timestamp | . >= 4900 and . <= 5100' >/d
 ipc dismissAll >/dev/null
 wait "$button_pid" 2>/dev/null || true
 
-# A replacement-only update keeps identity and restarts the engine deadline.
 replacement_id=$(send_notification -p -a lane-e -t 350 "replace-before")
 sleep 0.2
 send_notification -a lane-e -r "$replacement_id" -t 700 "replace-after"
@@ -222,7 +215,6 @@ sleep 0.25
 jq -e '.popups | length == 1' >/dev/null <<<"$(ipc state)"
 wait_for_json '(.popups | length) == 0' >/dev/null
 
-# A stack tag continues one card: same key, new content, the old sender closed.
 send_notification -a volume-tool -t 5000 -h string:x-dunst-stack-tag:volume -h int:value:30 "Volume"
 first_volume=$(wait_for_json '.popups[0].hints.value == 30')
 volume_key=$(jq -r '.popups[0].key' <<<"$first_volume")
@@ -234,7 +226,6 @@ send_notification -a other-tool -t 5000 -h string:x-dunst-stack-tag:volume -h in
 wait_for_json '(.popups | length) == 2' >/dev/null
 ipc dismissAll >/dev/null
 
-# Named and default actions invoke the sender directly.
 send_notification -a lane-e -t 5000 -A default=Open -A reply=Reply "named-action" >"$tmp_dir/named.out" &
 named_pid=$!
 wait_for_json '.popups[0].actions | map(.identifier) == ["default", "reply"]' >/dev/null
@@ -243,7 +234,6 @@ wait "$named_pid"
 [[ $(<"$tmp_dir/named.out") == reply ]]
 wait_for_json '(.popups | length) == 0' >/dev/null
 
-# A resident notification stays after its action.
 send_raw_notification resident-card '["default", "Open"]' '{"resident": <true>}'
 wait_for_json '.popups[0].summary == "resident-card" and .popups[0].resident == true' >/dev/null
 [[ $(ipc invokeFirst default) == ok ]]
@@ -255,8 +245,6 @@ wait_for_json '.popups[0].summary == "plain-action-card"' >/dev/null
 wait_for_json '[.popups[] | select(.summary == "plain-action-card")] | length == 0' >/dev/null
 ipc dismissAll >/dev/null
 
-# Hover intent pauses one deck and queues arrivals until exit; leaving gives
-# the paused card at least the 1.2 s grace instead of what it had left.
 send_notification -a lane-e -t 400 "pause-me"
 wait_for_json '.popups[0].summary == "pause-me"' >/dev/null
 [[ $(ipc hoverFirst on) == ok ]]
@@ -279,9 +267,6 @@ jq -e '[.popups[] | select(.summary == "pause-me")] | length == 1' >/dev/null <<
 wait_for_json '[.popups[] | select(.summary == "pause-me")] | length == 0' >/dev/null
 ipc dismissAll >/dev/null
 
-# Quiet mode holds what is on screen and what arrives; critical breaks
-# through; transient and stacked status cards are dropped; turning quiet off
-# replays the held rows with their actions still live.
 send_notification -a chat-app -t 5000 "visible-before-quiet"
 wait_for_json '(.popups | length) == 1' >/dev/null
 [[ $(ipc toggleQuiet) == on ]]
@@ -307,7 +292,6 @@ ipc dismissAll >/dev/null
 [[ -n $held_key ]]
 wait "$held_pid" 2>/dev/null || true
 
-# A replayed row's action still reaches its sender.
 [[ $(ipc toggleQuiet) == on ]]
 send_notification -a chat-app -t 5000 -A default=Open "replayed-action" >"$tmp_dir/replayed.out" &
 replayed_pid=$!
@@ -318,7 +302,6 @@ wait_for_json '.popups[0].summary == "replayed-action"' >/dev/null
 wait "$replayed_pid"
 [[ $(<"$tmp_dir/replayed.out") == default ]]
 
-# A held row its sender raises to critical breaks through quiet at once.
 [[ $(ipc toggleQuiet) == on ]]
 raised_id=$(send_notification -p -a chat-app -t 5000 "raise-me")
 wait_for_json '(.held | length) == 1' >/dev/null
@@ -328,7 +311,6 @@ jq -e '.quiet and .popups[0].quietClass == "bypass"' >/dev/null <<<"$raised"
 [[ $(ipc toggleQuiet) == off ]]
 ipc dismissAll >/dev/null
 
-# At most five sources show, each with at most eight rows; the stalest go.
 for index in {1..7}; do
   send_notification -a "deck-$index" -t 60000 "deck-$index"
 done
@@ -344,12 +326,10 @@ jq -e '.decks == [{"key": "app:busy-app", "rows": 8}] and .popups[0].summary == 
   and .popups[7].summary == "busy-3"' >/dev/null <<<"$rows_state"
 wait_for_json '.liveRefCount == 8' >/dev/null
 
-# One global service presents every toast on exactly one output.
 presentation=$(ipc presentationProof)
 jq -e '.outputA == 8 and .outputB == 0 and .overlap == 0' >/dev/null <<<"$presentation"
 ipc dismissAll >/dev/null
 
-# Quiet mode and held rows survive a restart; their actions do not.
 [[ $(ipc toggleQuiet) == on ]]
 send_notification -a chat-app -t 5000 -A default=Open "held-across-restart"
 wait_for_json '(.held | length) == 1' >/dev/null
@@ -363,7 +343,6 @@ jq -e '.held[0].summary == "held-across-restart" and .liveRefCount == 0' >/dev/n
 wait_for_json '.popups[0].summary == "held-across-restart"' >/dev/null
 ipc dismissAll >/dev/null
 
-# A persisted popup keeps its absolute engine deadline across a restart.
 send_notification -a lane-e -t 1200 "restart-deadline"
 wait_for_json '.popups[0].summary == "restart-deadline"' >/dev/null
 sleep 0.25
@@ -373,7 +352,6 @@ wait_for_json '.popups[0].summary == "restart-deadline"' >/dev/null
 [[ $(ipc firstActionState) == none ]]
 wait_for_json '(.popups | length) == 0' >/dev/null
 
-# A version 2 file loses its history and every snooze.
 stop_shell
 future=$(( $(date +%s) * 1000 + 600000 ))
 jq -n --argjson until "$future" '{
@@ -388,8 +366,6 @@ jq -e '(.held | length) == 0 and (.popups | length) == 0' >/dev/null <<<"$migrat
 wait_for_state_file '.schemaVersion == 3 and has("history") == false and has("snoozes") == false
   and has("mutes") == false'
 
-# Held rows replay on start when quiet was turned off while the shell was
-# down, including rows an early schema 3 file held for a per-source mute.
 stop_shell
 now_ms=$(( $(date +%s) * 1000 ))
 jq -n --argjson now "$now_ms" '{
@@ -405,7 +381,6 @@ released=$(wait_for_json '(.held | length) == 0 and .popups[0].summary == "expir
 jq -e '.popups[0].deadline > 0' >/dev/null <<<"$released"
 ipc dismissAll >/dev/null
 
-# Runtime cleanup drops an old live popup, closes its sender, and releases its ref.
 send_notification -u critical -a lane-e -t 0 -A default=Open "old-live-cleanup" \
   >"$tmp_dir/old-live.out" &
 old_live_pid=$!
@@ -417,7 +392,6 @@ prune_timestamp=$(jq -nr --argjson timestamp "$old_live_timestamp" \
 wait_for_json '(.popups | length) == 0 and .liveRefCount == 0' >/dev/null
 wait_for_pid_exit "$old_live_pid"
 
-# Unknown hints are discarded before and after a process restart.
 [[ $(ipc toggleQuiet) == on ]]
 send_notification -a lane-e -t 250 -h "string:untrusted-command:touch $marker" "forged-hint"
 hint_state=$(wait_for_json '.held[0].summary == "forged-hint"')
@@ -431,7 +405,6 @@ jq -e '.held[0].hints["untrusted-command"] == null' >/dev/null <<<"$restarted_st
 [[ $(ipc invokeFirst default) == unavailable ]]
 [[ ! -e $marker ]]
 
-# A bad record cannot poison valid held rows during the next restart.
 stop_shell
 jq '.held += [{"summary":"missing identity"}]' "$state_dir/notifications-v1.json" >"$tmp_dir/corrupt-state.json"
 cp "$tmp_dir/corrupt-state.json" "$state_dir/notifications-v1.json"
@@ -440,7 +413,6 @@ recovered_state=$(wait_for_json '.held | length == 1')
 jq -e '.held[0].summary == "forged-hint"' >/dev/null <<<"$recovered_state"
 [[ ! -e $marker ]]
 
-# Evicting a held row past the limit releases its live notification reference.
 ipc dismissAll >/dev/null
 stop_shell
 export STILLSUIT_NOTIFICATION_HELD_LIMIT=2
@@ -451,7 +423,6 @@ done
 eviction_state=$(wait_for_json '(.held | length) == 2 and .liveRefCount == 2')
 jq -e '.held | map(.summary) == ["held-3", "held-2"]' >/dev/null <<<"$eviction_state"
 
-# Clear-all reaches disk before it returns, so a crash cannot restore old rows.
 wait_for_state_file '(.held | length) == 2'
 [[ $(ipc dismissAll) == ok ]]
 if ! jq -e '(.popups | length) == 0 and (.held | length) == 0' \

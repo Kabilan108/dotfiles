@@ -2,10 +2,6 @@ import QtQuick
 import Quickshell
 import "Motion.js" as Motion
 
-// The toasts from one source. Collapsed, the newest card sits in front of up
-// to two narrower cards peeking out below it; hovered, they spread into a
-// list. Every card keeps its own slot while it leaves, so the others reflow
-// at once and the leaving one finishes its exit where it was.
 Item {
     id: root
 
@@ -26,7 +22,6 @@ Item {
     readonly property real peek: 10
     readonly property int maxPeeks: 2
 
-    // Rows on screen, newest first, including ones still leaving.
     property var rendered: []
     property var rowCache: ({})
     property var naturalHeights: ({})
@@ -108,7 +103,6 @@ Item {
         return true
     }
 
-    // Where a live row sits, collapsed or expanded.
     function placement(key) {
         var index = liveKeys.indexOf(key)
         if (index < 0)
@@ -197,8 +191,6 @@ Item {
             property real exitDirection: 1
             property var xMotion: Motion.ENTER
             readonly property real offsetX: card.dragging ? card.dragOffset : xSpring.value
-            // Until it has mostly faded in, a new card takes its measured
-            // height at once instead of growing into it.
             readonly property bool fresh: !exiting && appear.value < 0.3
             readonly property real presence: appear.value
             property alias card: card
@@ -214,7 +206,6 @@ Item {
                                                   * appear.value)
             enabled: !exiting && (layout.index === 0 || root.expanded)
 
-            // Leaving rows keep the place they last had.
             onPlaceChanged: if (place)
                                 lastPlace = place
 
@@ -311,7 +302,6 @@ Item {
         }
     }
 
-    // How many cards wait behind the front one.
     Rectangle {
         readonly property int count: root.liveKeys.length
         visible: countFade.value > 0.01

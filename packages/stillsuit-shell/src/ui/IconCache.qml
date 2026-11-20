@@ -4,19 +4,11 @@ pragma Singleton
 import QtQuick
 import Quickshell.Io
 
-// Shared by every ShellIcon in the engine. A directory import of ui/ and the
-// Stillsuit.Ui module import resolve to different URLs, so each import style
-// gets its own instance; both stay correct, the second only repeats the reads.
 QtObject {
     id: root
 
-    // A plugin animating an icon's color would mint a key per frame; past this
-    // many entries the tinted cache starts over instead of growing without end.
     readonly property int tintedLimit: 512
 
-    // Lookups run inside ShellIcon bindings. The store is only ever mutated in
-    // place: assigning a property here would notify every icon binding that
-    // read it, and the binding doing the assignment would loop.
     readonly property var store: ({
                                       knownNames: null,
                                       markupByUrl: {},
@@ -45,8 +37,6 @@ QtObject {
         return Qt.resolvedUrl("icons/" + key + ".svg")
     }
 
-    // Qt SVG has no currentColor support, so the fill is written into the
-    // markup before decoding instead of tinting pixels afterwards.
     function tinted(source, fill) {
         var url = String(source)
         if (url === "")

@@ -6,8 +6,6 @@
 }:
 let
   colors = config.lib.stylix.colors;
-  # Dictator keeps its microphone open while the session is unlocked; release
-  # it for the lock and resume it afterwards. Failures never block locking.
   dictatorEnabled = config.services.dictator.enable or false;
   dictatorMic =
     action:

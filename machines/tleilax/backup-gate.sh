@@ -1,12 +1,4 @@
 # shellcheck shell=bash
-# backup-gate-executor IMAGE
-# The ExecCondition of podman-executor-v2, so it runs after the old container
-# has stopped. Executor starts when IMAGE is the one it last started with, or
-# when none is recorded: a first start records IMAGE without a snapshot. Any
-# other IMAGE waits for a snapshot tagged pre-update. If the snapshot fails,
-# the condition fails: Executor stays stopped (Restart= doesn't retry a failed
-# condition) and Tony gets an alert. IMAGE is recorded only after a snapshot
-# succeeds, so an interrupted deploy or a reboot asks again.
 
 version="$1"
 state=/var/lib/backup/versions/executor

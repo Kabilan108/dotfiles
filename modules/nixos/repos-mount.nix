@@ -1,6 +1,3 @@
-# ~/repos is a bind mount of /vault/repos rather than a symlink, so ~/repos/x
-# and /vault/repos/x are one path to tools like direnv that key their allow
-# lists on the real path.
 {
   config,
   lib,
@@ -19,8 +16,6 @@ in
     options = [ "bind" ];
   };
 
-  # systemd won't mount over the old symlink; swap it for an empty directory.
-  # A real directory with contents is left for Tony to move by hand.
   system.activationScripts.reposMountpoint = ''
     if [ -L ${quoted} ]; then
       rm ${quoted}

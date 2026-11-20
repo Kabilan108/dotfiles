@@ -33,14 +33,10 @@ Scope {
 
     property bool ready: false
     property bool popupsVisible: true
-    // Newest first. Popups show as toasts; held rows wait for quiet mode to
-    // end and then replay as toasts.
     property var popups: []
     property var held: []
     property bool quiet: false
     property double quietSince: 0
-    // Arrivals wait here while the pointer is over a deck, so nothing moves
-    // under it.
     property var queuedArrivals: []
     property int revision: 0
     property int stateWrites: 0
@@ -175,8 +171,6 @@ Scope {
         return ""
     }
 
-    // The picture a notification carries (an avatar, album art), unless it is
-    // only the app's own icon again.
     function imageForSnapshot(snapshot) {
         var row = snapshot || {}
         var image = String(row.image || "")
@@ -256,7 +250,6 @@ Scope {
         held = held.slice(0, policy.heldLimit)
         hydrating = false
         ready = true
-        // Quiet that ended while the shell was down releases its rows now.
         replayHeld()
         revision += 1
         restartDeadlineTimer()
@@ -291,8 +284,6 @@ Scope {
         restartDeadlineTimer()
     }
 
-    // At most popupLimit sources show, each with at most deckRowLimit rows;
-    // the stalest go first.
     function enforcePopupLimits() {
         var decks = NotificationLayout.group(popups)
         var evicted = []
@@ -349,7 +340,6 @@ Scope {
             endDeckInteraction()
     }
 
-    // Takes a row off screen (or out of the held list) and closes its sender.
     function closeRow(key, reason, expire) {
         var inPopups = removePopupSnapshot(key)
         var heldBefore = held.length
@@ -414,7 +404,6 @@ Scope {
         if (!action || typeof action.invoke !== "function")
             return "unknown-action"
 
-        // A resident notification stays after an action, as the sender asked.
         var resident = false
         try {
             resident = ref.resident === true
@@ -442,8 +431,6 @@ Scope {
         return quiet ? "quiet" : ""
     }
 
-    // Moves a row into the held list. Held rows keep their live reference so
-    // their actions still work when they replay.
     function hold(snapshot, reason) {
         var row = Object.assign({}, snapshot, {
                                     heldReason: reason,
@@ -460,8 +447,6 @@ Scope {
             closeLive(releaseLive(evicted[index].key), true, "held overflow")
     }
 
-    // Holds what is on screen and waiting behind a hovered deck, now that
-    // quiet mode is on.
     function holdBlockedRows() {
         var now = Date.now()
         var visible = popups.concat(queuedArrivals)
@@ -487,8 +472,6 @@ Scope {
         endInteractionIfEmpty()
     }
 
-    // Replays every held row once quiet is off, oldest first so the newest
-    // lands on top.
     function replayHeld() {
         if (quiet || held.length === 0)
             return 0
@@ -588,14 +571,11 @@ Scope {
         if (!NotificationModel.snapshotChanged(previous, updated))
             return
         if (indexByKey(popups, key) >= 0) {
-            // A replaces_id update begins a fresh display lifetime, even if
-            // only body text, an action label, or the timeout changed.
             updated.deadline = deadlineFor(updated, Date.now())
             popups = replaceIn(popups, key, updated)
         } else if (indexByKey(queuedArrivals, key) >= 0) {
             queuedArrivals = replaceIn(queuedArrivals, key, updated)
         } else if (NotificationPolicy.quietClass(updated, true, settings) === "bypass") {
-            // A held row that its sender raised to critical breaks through now.
             held = held.filter(function (row) {
                 return row.key !== key
             })
@@ -632,8 +612,6 @@ Scope {
         restartDeadlineTimer()
     }
 
-    // A stack-tagged arrival takes over the card it continues: same key, same
-    // place, fresh lifetime. Its predecessor closes.
     function stackPredecessor(snapshot) {
         var rows = popups.concat(queuedArrivals)
         for (var index = 0; index < rows.length; index++)

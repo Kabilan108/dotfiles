@@ -9,7 +9,6 @@ if [[ $# -gt 1 || ( "$mode" != --check && "$mode" != --write ) ]]; then
   exit 2
 fi
 
-# Resolve tools from this repository's pinned nixpkgs, without a system rebuild.
 if ! command -v dpkg-deb >/dev/null || ! command -v jq >/dev/null; then
   tools_expr="let p = (builtins.getFlake \"git+file://$repo_root\").nixosConfigurations.jacurutu.pkgs; in p.buildEnv { name = \"chatgpt-update-tools\"; paths = [ p.dpkg p.jq ]; }"
   exec direnv exec "$repo_root" nix shell --impure --expr "$tools_expr" --command "$0" "$mode"
@@ -44,7 +43,6 @@ if [[ "$mode" == --check ]]; then
   exit 0
 fi
 
-# Pin an immutable version URL, and confirm it serves the same bytes as latest.
 version_url="https://persistent.oaistatic.com/codex-app-prod/linux/deb/pool/main/c/chatgpt/chatgpt_${version}_amd64.deb"
 nix store prefetch-file --json --expected-hash "$hash" "$version_url" >/dev/null
 candidate="$(mktemp "$pin_file.candidate.XXXXXX")"

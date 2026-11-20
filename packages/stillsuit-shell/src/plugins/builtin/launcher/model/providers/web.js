@@ -1,26 +1,9 @@
-// URL detection. An "Open" row is offered only for http(s) URLs:
-// - explicit: http:// or https:// followed by a host without "@" (no userinfo,
-//   so "https://bank.com@evil.example" is rejected) and an optional
-//   path/query/fragment, no whitespace;
-// - bare domains: dot-separated DNS labels ending in a two-letter TLD or one
-//   from COMMON_TLDS, optional :port and path. https:// is prepended. TLDs
-//   that are also common file extensions ("notes.md", "main.go", "x.zip") are
-//   not inferred; type the scheme to open those.
-// Reverse-DNS app ids such as "org.gnome.Nautilus" end in a word that is not
-// a known TLD, so they are not URLs.
-// An explicit URL ranks near the top; an inferred one ranks below every other
-// match, just above the trailing search row.
-// A query starting with "!" is a search-engine bang ("!nixpkgs baobab"): its
-// search row ranks first and the "!" goes to the engine unchanged.
-
 var meta = { id: "web", label: "Web", icon: "shell:search" }
 
 var DEFAULT_ENGINE = "https://unduck.link?q=%TERM%"
 var URL_SCORE = 800000
 var INFERRED_URL_SCORE = 1
 var BANG_SCORE = 2000000
-// Combi's fallback row is trailing: the engine appends it after every real
-// match, and only when the result cap leaves a free slot.
 var FALLBACK_SCORE = 0
 var MAX_URL_LENGTH = 8192
 
@@ -50,7 +33,6 @@ function safeString(value) {
     }
 }
 
-// Returns {url, explicit} or null.
 function parseUrl(value) {
     var text = safeString(value).trim()
     if (text === "" || text.length > MAX_URL_LENGTH) return null
@@ -64,7 +46,6 @@ function parseUrl(value) {
     return url.length > MAX_URL_LENGTH ? null : { url: url, explicit: false }
 }
 
-// Returns the URL to open, or "".
 function detectUrl(value) {
     var parsed = parseUrl(value)
     return parsed ? parsed.url : ""
@@ -76,8 +57,6 @@ function engineTemplate(env) {
     return template
 }
 
-// Returns "" when the text cannot be encoded (lone surrogates); Query.parse
-// already replaces those.
 function searchUrl(template, text) {
     var term
     try {

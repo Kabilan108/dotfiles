@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// minNameWidth is how narrow a row's name gets before its agents give way.
 const minNameWidth = 12
 
 type segment struct {
@@ -26,7 +25,6 @@ func segmentsWidth(segments []segment) int {
 	return width
 }
 
-// renderSegments draws segments on background, cut or padded to width.
 func renderSegments(segments []segment, width int, background lipgloss.Style) string {
 	var out strings.Builder
 	used := 0
@@ -88,9 +86,6 @@ func (m *pickerModel) View() string {
 	return strings.Join(lines, "\n")
 }
 
-// chipLine shows ALL and each machine with its row count; the machine
-// filter's chip is lit. Remote machines show when they are refreshing or
-// offline.
 func (m *pickerModel) chipLine(width int) string {
 	total := 0
 	for _, count := range m.hostCounts {
@@ -224,8 +219,6 @@ func agentSegments(agents []string) []segment {
 	return segments
 }
 
-// rowLines draws a row's two lines: kind, name, badges, agents, and age;
-// then machine, path, and branch.
 func (m *pickerModel) rowLines(row Row, selected bool, terms []queryTerm, width int) (string, string) {
 	bar := segment{text: " "}
 	background := lipgloss.NewStyle()
@@ -281,8 +274,6 @@ func (m *pickerModel) rowLines(row Row, selected bool, terms []queryTerm, width 
 	return renderSegments(top, width, background), renderSegments(bottom, width, background)
 }
 
-// highlightMatches splits text into segments, marking where query terms
-// match.
 func highlightMatches(text string, terms []queryTerm, color string, bold bool) []segment {
 	runes := []rune(text)
 	marked := make([]bool, len(runes))
@@ -324,8 +315,6 @@ func highlightMatches(text string, terms []queryTerm, color string, bold bool) [
 	return segments
 }
 
-// previewColumn renders the selected row's preview, with its hint on the
-// last line.
 func (m *pickerModel) previewColumn(width int) []string {
 	border := paint(colorSurface1, "│") + " "
 	inner := width - 2

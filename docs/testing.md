@@ -88,3 +88,16 @@ of the running desktop are separate evidence.
 Host configuration evaluation and builds are also explicit. A root
 `nix flake check`, even with `--no-build`, can evaluate Sietch. Follow the host
 restriction in `AGENTS.md` and validate Sietch on Sietch.
+
+## NixOS VM tests
+
+`tests/backup.nix` runs `modules/nixos/backup` against a local repository in place
+of the NAS share. `tests/deploy-trigger.nix` covers the deploy-trigger socket, its
+broker, the run record and the switch lock, with a stand-in receiver under the
+real `deploy-receiver-run`; `tests/test_deploy_gate.py` covers the real receiver.
+No flake output builds them. From the repo root:
+
+```sh
+nix build --impure --expr 'import ./tests/backup.nix { pkgs = (builtins.getFlake "git+file://${toString ./.}").inputs.nixpkgs.legacyPackages.x86_64-linux; }'
+nix build --impure --expr 'import ./tests/deploy-trigger.nix { pkgs = (builtins.getFlake "git+file://${toString ./.}").inputs.nixpkgs.legacyPackages.x86_64-linux; }'
+```

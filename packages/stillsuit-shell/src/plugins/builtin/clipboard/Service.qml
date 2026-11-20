@@ -3,21 +3,6 @@ import Quickshell
 import Quickshell.Io
 import "ClipboardModel.js" as ClipboardModel
 
-// Clipboard history. One supervised `wl-paste --watch` runs the Nix-provided
-// collector per selection change; this service is the only writer of
-// history.v1.json. Construction never fails on runtime problems: the launcher
-// depends on this service, so problems surface through `status` and `error`.
-//
-// Blobs of entries this service drops are deleted explicitly through the
-// collector's `rm`. A commit that drops entries is written synchronously and
-// read back before any `rm` starts, so a crash can never leave history
-// entries whose blobs are gone. Each removal batch stays in history.v1.json
-// (`pendingRemovals`) until its `rm` exits successfully, so a failed run is
-// retried and a shutdown or crash mid-run is finished at the next start. The
-// grace-based `gc` sweep only collects crash leftovers.
-//
-// With a `model` (the workbench's fixture input) the service runs no helpers
-// and touches no files: items come from the model and actions go to it.
 Scope {
     id: root
 
@@ -25,8 +10,6 @@ Scope {
     property var model: null
 
     readonly property string apiVersion: "1"
-    // Newest first, expired entries omitted. Each item:
-    // { id, kind: "text"|"image", mime, bytes, preview, created, lastUsed, path }.
     property var items: []
     property int revision: 0
     property string status: "degraded"
@@ -57,26 +40,18 @@ Scope {
     property real _watcherStartedAt: 0
     property int _watcherExitCode: -1
     property bool _gcPending: false
-    // A gc asked for while dropped entries may still be listed on disk; it
-    // runs once a write without them has been read back.
     property bool _gcAwaitingPersist: false
     property real _expiryWakeAt: 0
     property bool _gcNextIsFollowUp: false
     property real _gcLastFollowUpAt: 0
-    // { shas, before } batches for `rm`, oldest first; the running one is
-    // _activeRemoval until its process exits. None starts until the history
-    // holding the queued batches has been read back from disk.
     property var _removals: []
     property bool _removalsPersisted: true
-    // Blob shas of the last history read back from disk; gc keeps them too.
     property var _durableShas: []
     property var _activeRemoval: null
     property int _removalExitCode: -1
     property int _removalBackoffMs: 5000
     property int _saveBackoffMs: 1000
     property bool _saveFailed: false
-    // FileView keeps the text of a failed save as if it were on disk, and
-    // skips a later save of the same text.
     property bool _historyCacheStale: false
     property var _pendingCopy: null
     property var _activeCopy: null
@@ -127,8 +102,6 @@ Scope {
         return "ok"
     }
 
-    // Once a model has been supplied the service stays model-driven, even if
-    // the model is later withdrawn: the workbench never runs the collector.
     function _useModel() {
         if (!_modelDriven) {
             _modelDriven = true
@@ -151,7 +124,6 @@ Scope {
         return result === undefined ? "ok" : String(result)
     }
 
-    // Unfinished removals stay in the history for the next start.
     function _stopHelpers() {
         _flushNow()
         _shuttingDown = true
@@ -305,7 +277,6 @@ Scope {
         restartTimer.restart()
         _backoffMs = Math.min(_backoffMs * 2, 60000)
         _watcherExitCode = -1
-        // A collection the watcher's group was killed in can leave temp files.
         _scheduleGc()
     }
 
@@ -352,8 +323,6 @@ Scope {
         revision++
     }
 
-    // Commits only ever pull the TTL wake earlier; restarting it on each one
-    // would starve it while copies keep arriving.
     function _rearm() {
         var now = Date.now()
         var expiresAt = ClipboardModel.nextExpiryAt(_state.entries, options)
@@ -397,8 +366,6 @@ Scope {
         return historyCheck.text()
     }
 
-    // Writes the current history synchronously and reads it back: Quickshell's
-    // FileView reports a failed atomic commit (ENOSPC on flush) as saved.
     function _writeDurably() {
         var entries = _state.entries
         var pending = _pendingRemovals()
@@ -418,9 +385,6 @@ Scope {
         return durable
     }
 
-    // Queued removals may only run once the history without their entries,
-    // and with their intent, is on disk. A failed write is retried with
-    // backoff; until then no `rm` starts.
     function _persistRemovals() {
         if (!_ready || _shuttingDown)
             return
@@ -461,9 +425,6 @@ Scope {
         copyProcess.running = true
     }
 
-    // A blob that is gone (a recapture raced a removal, or it was deleted
-    // by hand) takes its entry with it, unless the content was captured again
-    // since the copy was asked for.
     function _onCopyStopped() {
         var copied = _activeCopy
         _activeCopy = null
@@ -484,7 +445,6 @@ Scope {
         _runCopy()
     }
 
-    // Callers persist the history afterwards; _runRemoval waits for that.
     function _queueRemoval(shas) {
         if (!shas || shas.length === 0)
             return
@@ -492,9 +452,6 @@ Scope {
         _removalsPersisted = false
     }
 
-    // Blob shas a live entry references are never removed, and with
-    // --before-ms neither is a blob replaced after the removal was decided:
-    // the same content may have been captured again and its event is on the way.
     function _removalCommand(batch) {
         var shas = []
         for (var index = 0; index < batch.shas.length; index++) {
@@ -553,9 +510,6 @@ Scope {
         gcTimer.restart()
     }
 
-    // Until a dropped entry's write is read back, the history on disk may
-    // still list it, and its blob must survive a crash. gc waits for that
-    // write and keeps what the last durable history listed as well.
     function _runGc() {
         if (!_ready || _shuttingDown)
             return
@@ -578,9 +532,6 @@ Scope {
         gcProcess.running = true
     }
 
-    // Files a sweep deferred (orphans inside the grace period, staging files
-    // younger than 10 minutes) get a follow-up sweep once the first of them is
-    // eligible. Follow-ups are at least 10 minutes apart.
     function _onGcReply(line) {
         var reply
         try {
@@ -597,10 +548,6 @@ Scope {
         }
     }
 
-    // Processes cannot outlive this object, and an active `rm` dies with it.
-    // The history keeps every unfinished batch for the next start; detached
-    // `rm`s also finish them now in case the plugin does not come back. Only
-    // batches known to be on disk qualify: the active one always is.
     function _flushRemovalsDetached() {
         var batches = _removalsPersisted ? _pendingRemovals() : (_activeRemoval ? [_activeRemoval] :
                                                                                   [])
@@ -629,8 +576,6 @@ Scope {
         }
     }
 
-    // Every change restarts persistTimer or writes at once, so the file is
-    // current unless the timer runs or a write failed.
     function _flushNow() {
         if (!_ready || (!persistTimer.running && _removalsPersisted && !saveRetryTimer.running))
             return

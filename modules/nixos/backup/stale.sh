@@ -1,17 +1,9 @@
 # shellcheck shell=bash
-# backup-stale-check
-# Runs daily as the alert user. It alerts once when a job hasn't succeeded
-# within BACKUP_STALE_AFTER_SEC: each job a host in BACKUP_STALE_HOSTS sent a
-# status for (an offline laptop can't alert for itself), each of this host's
-# own BACKUP_STALE_OWN_JOBS, and each listed host that sent no status at all.
-# A failed alert leaves no mark and is retried on the next run; a fresh
-# success clears the mark.
 
 marks="$BACKUP_STALE_MARKS"
 mkdir -p "$marks"
 now="$(date +%s)"
 
-# alert_once MARK VALUE ALERT-ARGS...: alerts unless MARK already holds VALUE.
 alert_once() {
   local mark="$1" value="$2"
   shift 2
@@ -25,7 +17,6 @@ alert_once() {
   fi
 }
 
-# check_job HOST JOB FILE: FILE is HOST's status for JOB, and may be missing.
 check_job() {
   local host="$1" job="$2" file="$3" last="" last_sec
   if [ -e "$file" ]; then

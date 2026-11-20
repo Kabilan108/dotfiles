@@ -1,11 +1,8 @@
 const assert = require("node:assert/strict")
 const L = require("./load.js")
 
-// Node's JIT is far faster than QML's V4; qml-load-fixture.qml asserts the
-// real budgets. These limits only catch gross regressions.
 const BUDGET_MS = 8
 
-// Typing sequences: every prefix of each word, one keystroke at a time.
 function typingInputs(words, count) {
     const inputs = []
     for (let sequence = 0; inputs.length < count; sequence++) {
@@ -73,7 +70,6 @@ function measure(appCount) {
     return stats
 }
 
-// The sequence picker must not depend on how many keystrokes came before.
 assert.deepEqual(typingInputs(["ab", "c", "de"], 7), ["a", "ab", "c", "d", "de", "a", "ab"])
 
 for (const appCount of [400, 1500]) {

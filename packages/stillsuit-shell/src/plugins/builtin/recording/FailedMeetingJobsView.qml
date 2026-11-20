@@ -2,9 +2,6 @@ import QtQuick
 import QtQuick.Layouts
 import "../../../ui" as Ui
 
-// Failed-job recovery for the recording panel. This is a trimmed, recording-local
-// projection of what used to be the standalone meeting plugin's queue view: only
-// the failed rows the panel exposes (capped at five, Details/Retry/Discard).
 ColumnLayout {
     id: root
 

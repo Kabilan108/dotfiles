@@ -1,5 +1,3 @@
-// Command sessionizer switches between tmux sessions and project directories
-// across the fleet.
 package main
 
 import (

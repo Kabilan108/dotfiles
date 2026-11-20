@@ -15,7 +15,6 @@ in
   config = lib.mkIf cfg.enable {
     home.packages = [ pkgs.grok-bot ];
 
-    # mimeapps.list is read-only under home-manager, so the app cannot register its own deep-link handlers.
     xdg.mimeApps.defaultApplications = {
       "x-scheme-handler/grokbot" = "grok-bot.desktop";
       "x-scheme-handler/sand" = "grok-bot.desktop";

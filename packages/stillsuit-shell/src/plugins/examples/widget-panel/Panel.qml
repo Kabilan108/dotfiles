@@ -2,8 +2,6 @@ import QtQuick
 import QtQuick.Layouts
 import Stillsuit.Ui as Ui
 
-// A hosted panel is plain Item content. The core owns the window, placement
-// below the bar, outside-click and Escape dismissal, and output switching.
 Item {
     id: root
     readonly property bool hostedPanel: true

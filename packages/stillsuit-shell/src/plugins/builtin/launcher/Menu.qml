@@ -2,11 +2,6 @@ import QtQuick
 import Quickshell
 import "../../../ui" as Ui
 
-// Hosted menu content: a view over the launcher service. The result list is
-// keyed by row key: a narrowed or reordered result set moves, inserts, and
-// removes delegates, and a surviving delegate reads its row from a key map.
-// The model holds plain strings, never row objects, because Quickshell 0.3.1
-// ScriptModel rebinds object rows by position after a removal.
 FocusScope {
     id: root
 
@@ -20,10 +15,7 @@ FocusScope {
     readonly property real rowHeight: theme.metrics.rowHeight + unit
     readonly property real maxVisibleRows: 8.5
     readonly property bool clipboardView: service.clipboardActive
-    // Short single-purpose lists get a narrower frame so it doesn't read as
-    // mostly empty space.
     readonly property bool compactView: viewName === "power" || viewName === "profiles"
-    // 560, 256, and 420 px at the default 4 px unit.
     readonly property real standardWidth: unit * 140
     readonly property real connectionsWidth: unit * 120
     readonly property real compactWidth: unit * 64
@@ -80,7 +72,6 @@ FocusScope {
                                          })
     readonly property string viewName: service.prefixProvider !== "" ? service.prefixProvider :
                                                                        service.mode
-    // Rows name their provider only when several can appear together.
     readonly property bool mixedProviders: service.providerIds.length > 1
 
     implicitWidth: clipboardView ? clipboardWidth : viewName === "remmina" ? connectionsWidth :
@@ -94,7 +85,6 @@ FocusScope {
         service.open(payloadJson)
         field.text = service.query
         field.forceActiveFocus()
-        // A pointer resting where the menu appears must not pick a row.
         pointerGate.reset()
         list.positionViewAtBeginning()
     }
@@ -103,7 +93,6 @@ FocusScope {
         service.close()
     }
 
-    // A toggle that asks for another mode switches to it instead of closing.
     function keepOpenOnToggle(payloadJson) {
         return service.opened && service.requestedMode(payloadJson) !== service.mode
     }
@@ -153,7 +142,6 @@ FocusScope {
         return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     }
 
-    // StyledText with the matched characters in the accent color.
     function highlighted(text, positions) {
         var value = String(text || "")
         if (!positions || positions.length === 0)
@@ -189,8 +177,6 @@ FocusScope {
         return row.provider === "windows" ? service.iconForAppId(row.appId) : String(row.icon || "")
     }
 
-    // "shell:<name>" rows show a glyph from Stillsuit's icon pack; app and
-    // window rows keep the icon theme.
     function shellIconName(row) {
         var icon = row ? String(row.icon || "") : ""
         return icon.indexOf("shell:") === 0 ? icon.slice(6) : ""

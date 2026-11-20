@@ -1,10 +1,3 @@
-# The 1 TB Samsung T5 USB SSD. Partition 1 is the FAT boot partition the Pi
-# firmware reads: firmware, u-boot, extlinux, kernels, initrds and the boot
-# environment's SSH host key. Partition 2 is LUKS2 with Adiantum, which is
-# fast on the Pi 4's CPU (no AES instructions), holding ext4 for /.
-#
-# `device` is only used when formatting (docs/tleilax-install.md); the
-# installed system finds both partitions by their GPT labels.
 {
   disko.devices.disk.ssd = {
     type = "disk";

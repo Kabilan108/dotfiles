@@ -13,13 +13,11 @@ def draw_soft(name: str, g: Glyph) -> bool:
     line, arc, box, disk, rounded = g.line, g.arc, g.box, g.disk, g.rounded
 
     if name.startswith('battery'):
-        # Build the housing and bands upright, then rotate to a right-hand terminal.
         box(6, 4, 12, 17)
         rounded([(10,2),(14,2),(14,4),(10,4)], .65, True)
         if name in ('battery', 'battery-level-full'):
             charge = 1.0
         elif name.startswith('battery-level-'):
-            # Representative fill levels for the existing eight shell states.
             charge = [0, .125, .25, .375, .5, .75, .875][int(name[-1])]
         else:
             charge = 0
@@ -38,14 +36,11 @@ def draw_soft(name: str, g: Glyph) -> bool:
         elif name == 'battery-question':
             arc(12,10.3,2.2,190,360); arc(12,10.3,2.2,0,65)
             line((12.93,12.29),(12,13),(12,13.5)); disk(12,16.5,1)
-        # Keep the bolt and punctuation upright inside the horizontal housing.
         g.polygons[symbol_start:] = [
             [(11.5 + (x-12)*.8, 12 + (y-12.5)*.8) for x,y in polygon]
             for polygon in g.polygons[symbol_start:]
         ]
     elif name in ('wifi', 'network', 'wifi-off'):
-        # Broad, low arches and a generous dot, with less vertical sprawl.
-        # Split disabled arcs around the slash so the junction stays legible.
         if name == 'wifi-off':
             for r in (13.7,9.5,5.3):
                 arc(12,19,r,226,230); arc(12,19,r,251,314)
@@ -63,12 +58,10 @@ def draw_soft(name: str, g: Glyph) -> bool:
         line((12,6.8),(12,11)); disk(8,15.8,1); disk(16,15.8,1)
     elif name == 'memory':
         rounded([(2.5,6),(21.5,6),(21.5,16),(2.5,16)],1.2)
-        # Equal 3.2-unit gaps, including the space to the inside housing edges.
         for x in (7,12,17):
             rounded([(x-.9,8.6),(x+.9,8.6),(x+.9,13.4),(x-.9,13.4)],.35,True)
         rounded([(4,15.8),(20,15.8),(20,19),(4,19)],.5,True)
     elif name == 'ethernet':
-        # Root and two leaves, rather than an RJ45 socket.
         rounded([(9,2.8),(15,2.8),(15,8.3),(9,8.3)],.8)
         line((12,8.3),(12,11.8)); line((5.5,15),(5.5,11.8),(18.5,11.8),(18.5,15))
         rounded([(2.5,15),(8.5,15),(8.5,20.7),(2.5,20.7)],.8)
@@ -87,7 +80,6 @@ def draw_soft(name: str, g: Glyph) -> bool:
             x = 19.5 if name=='skip-next' else 4.5
             line((x,5),(x,19))
     elif name == 'copy':
-        # Front square at bottom left, interrupted rear square at top right.
         box(3.5,9,11.5,11.5)
         points=[(9,7),(9,5.5)]
         for i in range(13):
@@ -105,7 +97,6 @@ def draw_soft(name: str, g: Glyph) -> bool:
     elif name == 'record':
         arc(12,12,9); disk(12,12,5)
     elif name == 'settings':
-        # Six rounded teeth connected into a single silhouette.
         points=[]
         for tooth in range(6):
             for offset,radius in ((-30,7.1),(-17,7.1),(-13,9.2),(13,9.2),(17,7.1)):
@@ -120,7 +111,6 @@ def draw_soft(name: str, g: Glyph) -> bool:
             line((16,9.5),(21,14.5)); line((21,9.5),(16,14.5))
     elif name == 'delete':
         line((4,7),(20,7)); box(6,7,12,14)
-        # Rounded handle and straight walls under one continuous lid.
         arc(11,5,2,180,270); line((11,3),(13,3)); arc(13,5,2,270,360)
         line((9,5),(9,7)); line((15,5),(15,7))
         line((10,11),(10,17)); line((14,11),(14,17))
@@ -148,7 +138,6 @@ def draw_soft(name: str, g: Glyph) -> bool:
         line((21,18.5),(8.5,18.5)); arc(8.5,13,5.5,90,180)
         line((3,13),(3,11)); line((18,15.5),(21,18.5),(18,21.5))
     elif name == 'shuffle':
-        # Smooth shoulders leading into the crossing diagonals.
         def route(points: list[tuple[float, float]]) -> None:
             outline=[points[0]]
             for i in range(1,len(points)-1):
@@ -169,12 +158,9 @@ def draw_soft(name: str, g: Glyph) -> bool:
         rounded([(3.6,8),(4.9,8),(6.2,13.7),(7.5,8),(8.8,8),(6.9,16),(5.5,16)],.15,True)
         rounded([(9.6,8),(14,8),(14,12.8),(10.9,12.8),(10.9,16),(9.6,16)],.35,True)
         rounded([(15.3,16),(15.3,8),(16.6,8),(19,13.2),(19,8),(20.3,8),(20.3,16),(19,16),(16.6,10.8),(16.6,16)],.15,True)
-        # Letter cutouts remain transparent and follow ShellIcon's inherited fill.
         g.polygons[holes:]=[list(reversed(polygon)) for polygon in g.polygons[holes:]]
         rounded([(10.9,9.3),(12.7,9.3),(12.7,11.5),(10.9,11.5)],.3,True)
     elif name == 'sleep':
-        # Crescent: the outer disc minus a bite disc at the upper right,
-        # traced as one closed outline between the two intersections.
         (x1,y1,r1),(x2,y2,r2)=(12,12.5,8.5),(17,7.5,7)
         d=math.hypot(x2-x1,y2-y1); a=(r1*r1-r2*r2+d*d)/(2*d); h=math.sqrt(r1*r1-a*a)
         ux,uy=(x2-x1)/d,(y2-y1)/d; mx,my=x1+a*ux,y1+a*uy
@@ -188,7 +174,6 @@ def draw_soft(name: str, g: Glyph) -> bool:
             points+=[(cx+r*math.cos(math.radians(start+(end-start)*i/steps)),cy+r*math.sin(math.radians(start+(end-start)*i/steps))) for i in range(steps+1)]
         line(*points,points[0])
     elif name == 'logout':
-        # Open door frame on the left, arrow leaving to the right.
         line((11,3.5),(7,3.5)); arc(7,5.7,2.2,180,270); line((4.8,5.7),(4.8,18.3))
         arc(7,18.3,2.2,90,180); line((7,20.5),(11,20.5))
         line((10,12),(20,12)); line((16,8),(20,12),(16,16))
@@ -210,11 +195,9 @@ def draw_soft(name: str, g: Glyph) -> bool:
         for x in (3,13.5):
             for y in (3,13.5): box(x,y,7.5,7.5)
     elif name == 'window':
-        # Frame with a title bar rule.
         box(2.5,4,19,16)
         line((3.4,8.6),(20.6,8.6))
     elif name == 'layers':
-        # Top sheet with two edges stacked beneath it.
         rounded([(12,3),(21,7.8),(12,12.6),(3,7.8)],1.2)
         line((3,12.2),(12,17),(21,12.2))
         line((3,16.4),(12,21.2),(21,16.4))

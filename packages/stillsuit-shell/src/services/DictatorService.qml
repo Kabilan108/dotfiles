@@ -2,8 +2,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The one global Dictator socket client. Overlay instances render this service
-// state and never open another socket.
 Scope {
     id: root
 
@@ -119,9 +117,6 @@ Scope {
         id: reconnectTimer
         repeat: false
         onTriggered: {
-            // A failed Quickshell Socket retains its internal QLocalSocket.
-            // Writing connected=true again cannot initiate another attempt.
-            // Recreate the client so each retry starts with a fresh socket.
             socketLoader.active = false
             root.connectionState = root.configured ? "connecting" : "unconfigured"
             socketLoader.active = root.configured

@@ -1,4 +1,3 @@
-# Compile a rich palette into the public semantic and component records.
 input:
 let
   neutral = input.palette.neutral;

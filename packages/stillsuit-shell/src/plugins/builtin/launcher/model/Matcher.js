@@ -23,8 +23,6 @@ var FIELD_PENALTY_MAX = 50
 var ACRONYM_MAX_LENGTH = 5
 var MAX_PATTERN_LENGTH = 128
 var MAX_FIELD_LENGTH = 4096
-// Rows within this fraction of the best score count as equally good, so
-// recency-ordered providers (windows, clipboard) can keep their own order.
 var STRONG_MATCH_RATIO = 0.75
 var NO_LIMIT = -1000000
 
@@ -41,8 +39,6 @@ var DELIMITER_CHARS = "/,:;|"
 
 var NO_MATCH = Object.freeze({ score: 0, field: -1, positions: Object.freeze([]) })
 
-// Two-character patterns take twoCharMatch; tests turn this off to compare it
-// with the general DP.
 var TWO_CHAR_PATH = true
 var scratchC1 = []
 var scratchMatrixSize = 0
@@ -53,8 +49,6 @@ var scratchPositions = zeroes(MAX_PATTERN_LENGTH)
 var lastStart = 0
 var lastAcronymOffset = 0
 
-// Plain arrays, not typed arrays: element access on typed arrays is about ten
-// times slower in QML's V4 engine.
 function zeroes(length) {
     var result = []
     for (var index = 0; index < length; index++) result.push(0)
@@ -81,7 +75,6 @@ function charClass(code) {
     if (ch.toLowerCase() !== ch) return CLASS_UPPER
     if (ch.toUpperCase() !== ch) return CLASS_LOWER
     if (/\s/.test(ch)) return CLASS_WHITE
-    // General punctuation, arrows, math and box-drawing blocks are not words.
     if (code >= 0x2000 && code <= 0x2bff) return CLASS_NON_WORD
     return CLASS_LETTER
 }
@@ -108,10 +101,6 @@ function isLow(code) {
     return code >= 0xDC00 && code <= 0xDFFF
 }
 
-// Lowercases one code point (one or two UTF-16 units) to a string of the same
-// length, so folded indices stay original indices. Final sigma folds to σ.
-// When lowercasing changes the length ("İ" -> "i̇"), the first code point is
-// kept if it has the original width.
 function foldCodePoint(unit) {
     if (unit === "\u03C2") return "\u03C3"
     var lowered = unit.toLowerCase()
@@ -120,8 +109,6 @@ function foldCodePoint(unit) {
     return width === unit.length ? lowered.slice(0, width) : unit
 }
 
-// Chunks between replaced code points hold only ASCII and code points that
-// fold to themselves, so lowercasing a chunk keeps its length.
 function foldString(text) {
     if (!/[^\x00-\x7F]/.test(text)) return text.toLowerCase()
     var result = ""
@@ -141,8 +128,6 @@ function foldString(text) {
     return result + text.slice(start).toLowerCase()
 }
 
-// Class of the code point starting at `index`; a low surrogate takes its
-// pair's class.
 function classAt(text, index) {
     var code = text.charCodeAt(index)
     if (code < 0xD800 || code > 0xDFFF) return charClass(code)
@@ -206,10 +191,6 @@ function prepare(value) {
     }
 }
 
-// The alignment DP covers the first MAX_PATTERN_LENGTH units (`length`); a
-// match also requires the whole pattern (`fullLength`) to be a subsequence
-// of the field. Patterns longer than a field can be never match, so they are
-// cut just past MAX_FIELD_LENGTH.
 function prepareQuery(value) {
     if (value && value.isQuery === true) return value
     var raw = safeString(value)
@@ -261,11 +242,6 @@ function ensureMatrix(size) {
     scratchC = zeroes(next)
 }
 
-// Returns fzf's raw score, or -1. Fills scratchPositions in reverse order with
-// `query.length` entries and sets lastStart. Also returns -1 when raw score
-// minus start cannot exceed `mustExceed`: the match starts at or after the
-// first occurrence of the first query character, and the raw score is at most
-// `ceiling`. score() has already checked the character masks.
 function fuzzyMatch(query, field, mustExceed, ceiling) {
     var pattern = query.codes
     var M = query.length
@@ -275,10 +251,6 @@ function fuzzyMatch(query, field, mustExceed, ceiling) {
     var N = T.length
     if (M === 0 || full > N) return -1
 
-    // Native indexOf finds the greedy first occurrences (fzf's F) and rejects
-    // non-matches before any per-character loop; the DP then only spans
-    // F[0]..lastIdx, like fzf's asciiFuzzyIndex trimming. Characters past the
-    // DP's pattern only need to be a subsequence.
     var F = scratchF
     var lower = field.lower
     var chars = query.chars
@@ -291,7 +263,6 @@ function fuzzyMatch(query, field, mustExceed, ceiling) {
     if (ceiling - F[0] <= mustExceed) return -1
 
     if (M === 1) {
-        // Same choice as fzf's single-character path, visiting occurrences only.
         var bestPos = -1
         var best = 0
         for (var at = F[0]; at >= 0; at = lower.indexOf(chars[0], at + 1)) {
@@ -406,9 +377,6 @@ function fuzzyMatch(query, field, mustExceed, ceiling) {
     return maxScore
 }
 
-// Row 0 of the DP at `column`: the first-character score of the nearest
-// occurrence at or before it, minus a gap of -3 then -1 per column, floored
-// at 0.
 function firstRowScore(lower, bonus, char0, column) {
     var at = lower.lastIndexOf(char0, column)
     var first = SCORE_MATCH + bonus[at] * BONUS_FIRST_CHAR_MULTIPLIER
@@ -417,11 +385,6 @@ function firstRowScore(lower, bonus, char0, column) {
     return decayed > 0 ? decayed : 0
 }
 
-// fuzzyMatch for two-character patterns: the same score, start and positions
-// as the general DP, evaluated only at occurrences of the two characters.
-// Between occurrences of the second character its row only decays, so its
-// maximum and the cells the traceback reads sit on occurrences; row 0 is
-// firstRowScore. Needs f0 < f1 <= lastIdx from fuzzyMatch.
 function twoCharMatch(query, field, f0, f1, lastIdx) {
     var lower = field.lower
     var B = field.bonus
@@ -434,7 +397,6 @@ function twoCharMatch(query, field, f0, f1, lastIdx) {
     var prevScore = 0
     var prevGap = SCORE_GAP_START
     for (var col = f1; col >= 0 && col <= lastIdx; col = lower.indexOf(char1, col + 1)) {
-        // Exact while positive; any value <= 0 has the same effect below.
         var s2 = prevScore + prevGap - (col - prevColumn - 1)
         var diagonal = firstRowScore(lower, B, char0, col - 1)
         var s1 = diagonal + SCORE_MATCH
@@ -467,8 +429,6 @@ function twoCharMatch(query, field, f0, f1, lastIdx) {
         prevColumn = col
     }
 
-    // The traceback records maxScorePos on row 1 at once; on row 0 only an
-    // occurrence of the first character can be recorded.
     var column = maxScorePos - 1
     var start = f0
     for (;;) {
@@ -519,11 +479,6 @@ function acronymScore(query, field) {
     return total
 }
 
-// fields: strings or prepare() results; empty entries keep their index.
-// opts.acronym (default true), opts.startPenalty (default true),
-// opts.positions (default true), opts.minScore (default 0: scores below it
-// are no match, which lets fields and alignments that cannot reach it be
-// skipped).
 function score(query, fields, opts) {
     var prepared = prepareQuery(query)
     if (prepared.length === 0 || !fields) return NO_MATCH
@@ -538,7 +493,6 @@ function score(query, fields, opts) {
     var bestAcronym = false
     var bestPositions = null
 
-    // No alignment scores above a run of boundary matches starting the string.
     var caseCeiling = prepared.hasUpper ? BONUS_CASE_MATCH * prepared.length : 0
     var ceiling = prepared.rawCeiling + caseCeiling
     var nonBoundaryCeiling = prepared.rawCeiling - BONUS_BOUNDARY_WHITE * BONUS_FIRST_CHAR_MULTIPLIER
@@ -546,18 +500,12 @@ function score(query, fields, opts) {
     var tryAcronym = useAcronym && prepared.acronym
     for (var index = 0; index < fields.length; index++) {
         var penalty = fieldPenalty(index)
-        // Penalties only grow with the index, so no later field can win.
         if (bestScore > 0 && bestScore >= ceiling - penalty) break
         if (ceiling - penalty < minScore) break
         var raw = fields[index]
         if (raw === undefined || raw === null || raw === "") continue
         var field = raw.codes ? raw : prepare(raw)
-        // Neither alignment nor acronym can use a character the field lacks.
         if ((field.mask & queryMask) !== queryMask) continue
-        // Every non-zero bonus is at least BONUS_CAMEL_123, so when the first
-        // character is never on a boundary its doubled bonus is lost and no
-        // acronym can start. Whitespace has no mask bit, so a zero firstBit
-        // proves nothing.
         var boundaryFirst = prepared.firstBit === 0 || (field.boundaryMask & prepared.firstBit) !== 0
         var fieldCeiling = boundaryFirst ? prepared.rawCeiling : nonBoundaryCeiling
 

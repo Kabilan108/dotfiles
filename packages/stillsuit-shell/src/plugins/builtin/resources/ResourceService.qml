@@ -64,7 +64,6 @@ QtObject {
         }
         onRunningChanged: if (!running)
                               Qt.callLater(function () {
-                                  // FailedToStart has no exited signal. Normal exits finish first.
                                   if (root.localRefreshing && !root.localCollector.running) {
                                       localTimeout.stop()
                                       root.localRefreshing = false
@@ -95,7 +94,6 @@ QtObject {
                                       root.remoteError = "Couldn't start the PC performance request"
                                   }
                               })
-        // Send the collector over stdin, so the PC needs no installation or repo sync.
         onStarted: {
             root.remoteCollector.write(root.collectorFile.text() + "\n")
             root.remoteCollector.stdinEnabled = false
@@ -188,7 +186,6 @@ QtObject {
         if (firstLine.length < 5 || firstLine[0] !== "cpu")
             return
         var total = 0
-        // guest and guest_nice are already included in user and nice.
         for (var index = 1; index < Math.min(firstLine.length, 9); index++) {
             var sample = Number(firstLine[index])
             if (!isFinite(sample))

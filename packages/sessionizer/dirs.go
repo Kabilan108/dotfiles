@@ -32,10 +32,7 @@ const (
 	previewEntryLimit = 40
 	readmeReadLimit   = 8 << 10
 	readmeLineLimit   = 200
-	// gitBudget caps the git phase of one inventory, so a cold cache on a
-	// host with many repositories still answers well inside the picker's
-	// ssh timeout. Repositories it skips are read on a later run.
-	gitBudget = 5 * time.Second
+	gitBudget         = 5 * time.Second
 )
 
 type foundDirectory struct {
@@ -43,9 +40,6 @@ type foundDirectory struct {
 	Path string
 }
 
-// scanDirectories lists project directories under the search paths, in a
-// stable order: search paths in config order, then by path. Like
-// `fd -L -t d -d N`, it follows symlinks and skips hidden and ignored names.
 func scanDirectories(config Config, overrides []string, used map[string]bool) []foundDirectory {
 	roots := overrides
 	if len(roots) == 0 {
@@ -135,8 +129,6 @@ func ignored(name, relative string, patterns []string) bool {
 	return false
 }
 
-// summarizeDirectory lists path for the preview. It reads no git state but
-// the branch; addGitDetails fills in the rest.
 func summarizeDirectory(path string) *DirSummary {
 	entries, err := os.ReadDir(path)
 	if err != nil {
@@ -179,9 +171,6 @@ func summarizeDirectory(path string) *DirSummary {
 	return summary
 }
 
-// readRegularHead reads up to limit bytes of a regular file. The open
-// doesn't block and the type is checked again on the open file, so a FIFO
-// or device swapped in after the directory listing can't hang the caller.
 func readRegularHead(path string, limit int) string {
 	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOCTTY, 0)
 	if err != nil {
@@ -195,9 +184,6 @@ func readRegularHead(path string, limit int) string {
 	return string(data)
 }
 
-// readmeLine picks the first line of a README that says something: not
-// blank, not a badge, image, HTML, or rule, and not a heading that only
-// repeats the directory's name.
 func readmeLine(text, name string) string {
 	inComment := false
 	for _, raw := range strings.Split(text, "\n") {
@@ -235,8 +221,6 @@ var (
 	htmlTag      = regexp.MustCompile(`<[^>]*>`)
 )
 
-// nameKey compares names the way a title restates a directory name: "T3
-// Code" for t3code, "Pre-commit Hooks" for pre-commit-hooks.
 func nameKey(name string) string {
 	return strings.Map(func(r rune) rune {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
@@ -246,13 +230,10 @@ func nameKey(name string) string {
 	}, name)
 }
 
-// bareURL is a line that only links somewhere, like a pasted video.
 func bareURL(line string) bool {
 	return !strings.Contains(line, " ") && (strings.HasPrefix(line, "https://") || strings.HasPrefix(line, "http://"))
 }
 
-// addGitDetails fills in summary.Git for a repository, from cache when the
-// repository hasn't changed.
 func addGitDetails(ctx context.Context, summary *DirSummary, path string, cache *gitCache) {
 	if summary == nil || cache == nil {
 		return
@@ -264,8 +245,6 @@ func addGitDetails(ctx context.Context, summary *DirSummary, path string, cache 
 	summary.Git = cache.details(ctx, path, repo)
 }
 
-// summarizeDirectories summarizes every directory with bounded parallelism,
-// keeping paths' order.
 func summarizeDirectories(paths []string, cache *gitCache) []*DirSummary {
 	ctx, cancel := context.WithTimeout(context.Background(), gitBudget)
 	defer cancel()

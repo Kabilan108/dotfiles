@@ -7,15 +7,12 @@ log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG_FILE"; }
 log "=== try-session started ==="
 log "args: $*"
 
-# Extract try binary path and experiments dir from .bashrc
 try_line=$(grep 'try init' ~/.bashrc 2>/dev/null)
 if [[ -z "$try_line" ]]; then
   echo "try not configured in .bashrc"
   exit 1
 fi
 
-# Parse: eval "$(/nix/store/.../try init ~/experiments)"
-# Extract the nix store path to try binary
 try_bin=$(echo "$try_line" | grep -oP "/nix/store/[^/]+/bin/try")
 try_path=$(echo "$try_line" | grep -oP "try init \K[^)\"]+")
 
@@ -29,28 +26,22 @@ if [[ -z "$try_bin" || -z "$try_path" ]]; then
   exit 1
 fi
 
-# Expand ~ in try_path
 try_path="${try_path/#\~/$HOME}"
 
-# The wrapped binary is .try-wrapped in the same directory
 try_wrapped="${try_bin%/try}/.try-wrapped"
 log "try_wrapped: $try_wrapped"
 
-# Call the wrapped binary directly to get raw output
 log "Calling: ruby $try_wrapped exec --path $try_path $*"
 output=$(/usr/bin/env ruby "$try_wrapped" exec --path "$try_path" "$@" 2>/dev/tty)
 exit_code=$?
 log "exit_code: $exit_code"
 log "output: $output"
 
-# User cancelled
 if [[ -z "$output" ]]; then
   log "No output, user cancelled"
   exit 0
 fi
 
-# Extract path from the cd command in output
-# Format: cd '/path/to/dir'
 selected=$(echo "$output" | grep -oP "cd '\K[^']+")
 log "selected: $selected"
 
@@ -59,14 +50,11 @@ if [[ -z "$selected" || ! -d "$selected" ]]; then
   exit 0
 fi
 
-# Run the touch command to update access time (for try's recency sorting)
 eval "$output" 2>/dev/null
 
-# Session name from directory basename
 selected_name=$(basename "$selected" | tr . _)
 log "selected_name: $selected_name"
 
-# Create session if it doesn't exist
 if ! tmux has-session -t="$selected_name" 2>/dev/null; then
   log "Creating new session: $selected_name in $selected"
   tmux new-session -ds "$selected_name" -c "$selected"
@@ -74,7 +62,6 @@ else
   log "Session already exists: $selected_name"
 fi
 
-# Switch to the session
 if [[ -z $TMUX ]]; then
   log "Attaching to session (not in tmux)"
   tmux attach-session -t "$selected_name"

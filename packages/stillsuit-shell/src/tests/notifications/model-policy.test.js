@@ -61,7 +61,6 @@ assert.equal(
     "malformed numeric settings fall back safely"
 )
 
-// Cards with buttons stay long enough to reach them; an explicit timeout wins.
 const plain = { urgency: 1, expireTimeout: 0, actions: [] }
 assert.equal(Policy.durationFor(plain, {}), 5000)
 assert.equal(Policy.durationFor({ ...plain, actions: [{ identifier: "default", text: "Open" }] }, {}), 5000,
@@ -73,7 +72,6 @@ assert.equal(Policy.durationFor({ ...plain, expireTimeout: 3000, actions: [{ ide
 assert.equal(Policy.durationFor({ ...plain, urgency: 2, actions: [{ identifier: "reply", text: "Reply" }] }, {}), 0)
 assert.deepEqual(Policy.buttonActions(notification.actions).map(action => action.identifier), ["reply"])
 
-// Hover resumes with what was left, and at least the grace period.
 assert.equal(Policy.resumedDeadline(1100, 1000, 5000, {}), 6200, "100 ms left becomes the 1.2 s grace")
 assert.equal(Policy.resumedDeadline(4000, 1000, 5000, {}), 8000, "3 s left stays 3 s")
 assert.equal(Policy.resumedDeadline(0, 1000, 5000, {}), 0, "sticky rows stay sticky")
@@ -119,7 +117,6 @@ assert.deepEqual(Policy.notificationsPolicy({ notifications: { quietBypass: { ap
 assert.equal(Policy.listValue("DP-4"), null, "strings are not lists")
 assert.equal(Policy.listValue({ a: 1 }), null, "plain objects are not lists")
 
-// State: quiet is one indefinite switch; held rows survive a restart.
 const day = 24 * 60 * 60 * 1000
 const now = 10 * day
 const good = { ...first, key: "good", timestamp: now - 1000 }
@@ -140,7 +137,6 @@ assert.equal(parsed.held.length, 1, "malformed held records are isolated")
 assert.equal(parsed.corrupt, true)
 assert.equal(Model.parseState("{broken", limits, now).corrupt, true)
 
-// Version 2 files: history and every snooze go.
 const migrated = Model.parseState(JSON.stringify({
     schemaVersion: 2,
     snoozes: { "*": { until: now + 1000 }, "app:signal": { until: now + 1000, startedAt: now } },

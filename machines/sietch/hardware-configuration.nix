@@ -23,7 +23,6 @@
     "cryptd"
   ];
   boot.initrd.luks.devices."cryptroot".device = "/dev/disk/by-label/NIXOS_LUKS";
-  # Let periodic fstrim reach the SSD through the encrypted root mapping.
   boot.initrd.luks.devices."cryptroot".allowDiscards = true;
   boot.kernelModules = [ "kvm-amd" ];
   boot.extraModulePackages = [ ];
@@ -52,21 +51,13 @@
   ];
 
   systemd.tmpfiles.rules = [
-    # Protect root-owned entries without changing ownership of their contents.
     "d /vault 1755 root root - -"
     "a /vault - - - - u::rwx,u:kabilan:rwx,g::r-x,m::rwx,o::r-x"
     "d /vault/userdata 1755 root root - -"
     "a /vault/userdata - - - - u::rwx,u:kabilan:rwx,g::r-x,m::rwx,o::r-x"
   ];
 
-  # Enables DHCP on each ethernet and wireless interface. In case of scripted networking
-  # (the default) this is the recommended approach. When using systemd-networkd it's
-  # still possible to use this option, but it's recommended to use it in conjunction
-  # with explicit per-interface declarations with `networking.interfaces.<interface>.useDHCP`.
   networking.useDHCP = lib.mkDefault true;
-  # networking.interfaces.enp5s0.useDHCP = lib.mkDefault true;
-  # networking.interfaces.enp6s0.useDHCP = lib.mkDefault true;
-  # networking.interfaces.wlp7s0.useDHCP = lib.mkDefault true;
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
   hardware.enableAllFirmware = true;

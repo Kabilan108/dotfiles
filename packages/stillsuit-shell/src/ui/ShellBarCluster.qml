@@ -7,10 +7,8 @@ ShellAction {
     required property var theme
     property string iconName: "settings"
     property url iconSource: ""
-    // A second icon beside the first, by catalog name or image source.
     property string secondaryIconName: ""
     property url secondaryIconSource: ""
-    // A small overlay on the corner of the first icon.
     property string badgeIconName: ""
     property string label: ""
     property string secondaryLabel: ""

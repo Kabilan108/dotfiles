@@ -72,8 +72,6 @@ def validate_manifest(folder: Path) -> dict[str, Any]:
 
 
 def generation(folder: Path, manifest: dict[str, Any], state: Path, core: Path) -> Path:
-    # The only current cross-plugin view import is recording -> meeting. Copy
-    # explicitly imported sibling directories into this same generation.
     trees = {folder.name: folder}
     pending = [folder]
     while pending:
@@ -96,8 +94,6 @@ def generation(folder: Path, manifest: dict[str, Any], state: Path, core: Path) 
     destination = base / manifest["id"] / digest.hexdigest()
     if not destination.exists():
         destination.parent.mkdir(parents=True, exist_ok=True)
-        # Existing builtins use ../../../ui and ../../../services. These point
-        # to immutable core exports, also available as named QML modules.
         for name in ("ui", "services"):
             link = base / name
             target = core / name
@@ -266,7 +262,6 @@ def scan(
     seed = sources.seed
     validator = sources.validator
     defaults = {row["manifest"]["id"]: row for row in seed["plugins"]}
-    # The bar frame stays in the core closure. Runtime plugins fill its slots.
     reserved = seed.get("selectedBar", "stillsuit.bar")
     rows: list[dict[str, Any]] = []
     if reserved in defaults:
@@ -369,8 +364,6 @@ def tree_keys(root: str) -> list[StatKey]:
             if entry.is_dir(follow_symlinks=False):
                 pending.append(entry.path)
             elif entry.is_symlink():
-                # scan() follows symlinked plugin folders far enough to read
-                # their manifest ID before rejecting them.
                 keys.append(stat_key(entry.path))
                 keys.append(stat_key(os.path.join(entry.path, "manifest.json")))
     return keys
@@ -405,7 +398,6 @@ class Watcher:
             inputs.extend(tree_keys(str(root)))
         if inputs == self.inputs and self.output_keys() == self.outputs:
             return None
-        # A failed scan leaves inputs unset so the next tick retries it.
         self.inputs = None
         if self.sources is None or sources_key != self.sources_key:
             self.sources = Sources(self.configuration)

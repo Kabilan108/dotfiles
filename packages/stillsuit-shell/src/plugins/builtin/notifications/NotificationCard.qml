@@ -5,8 +5,6 @@ import Quickshell
 import "../../../ui" as Ui
 import "Motion.js" as Motion
 
-// One notification. The card draws and reports gestures; the deck's slot
-// around it owns every position, scale, and opacity change.
 Ui.ShellSurface {
     id: root
 
@@ -15,7 +13,6 @@ Ui.ShellSurface {
     required property var snapshot
     property bool interactive: true
     property real contentOpacity: 1
-    // The horizontal drag, and its speed in points per second.
     property real dragOffset: 0
     property real dragVelocity: 0
     readonly property bool dragging: gestureMouse.dragging
@@ -79,7 +76,6 @@ Ui.ShellSurface {
         return Qt.rgba(parsed.r, parsed.g, parsed.b, Math.max(0, Math.min(1, alpha)))
     }
 
-    // A click opens the sender when it has a default action, else dismisses.
     function activate() {
         if (!root.service)
             return
@@ -299,8 +295,6 @@ Ui.ShellSurface {
             }
         }
 
-        // Buttons sit right-aligned on one line; when they need more room the
-        // row takes the card's width and wraps.
         Flow {
             id: buttonFlow
             readonly property real naturalWidth: {

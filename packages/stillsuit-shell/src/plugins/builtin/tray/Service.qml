@@ -1,15 +1,11 @@
 import QtQuick
 import Quickshell.Services.SystemTray
 
-// Importing SystemTray registers this process as the session's
-// StatusNotifierWatcher/Host, which is what lets Electron and Qt apps offer a
-// tray icon at all: without a watcher on the bus they never create one.
 QtObject {
     id: root
 
     required property var context
     readonly property string apiVersion: "1"
-    // Workbench fixture input; null means the live StatusNotifier bus.
     property var model: null
 
     readonly property var rawItems: model ? (model.items || []) : (SystemTray.items ? SystemTray.items.values :
@@ -62,10 +58,6 @@ QtObject {
         return String(item.tooltipTitle || item.title || item.id || "")
     }
 
-    // SNI ids are app-chosen ("Slack_status_icon_1", "discord_status_icon_1",
-    // "blueman"); the compositor knows windows by app_id ("slack", "discord").
-    // Match on the leading identifier token so a tray item can be tied to its
-    // open windows without a per-app table.
     function appKey(item) {
         var source = String((item && (item.id || item.title)) || "").toLowerCase()
         var match = source.match(/^[a-z0-9.+-]+/)
@@ -73,9 +65,6 @@ QtObject {
         return key.replace(/[._-]?(status[._-]?icon|tray|indicator|applet|sni)$/, "")
     }
 
-    // A window matches when its app_id equals the key outright, or when the
-    // last dotted segment of a reverse-DNS app_id does ("org.foo.slack").
-    // No prefix matching: "steam" must not claim "steam_app_123".
     function windowMatches(appId, key) {
         var id = String(appId || "").toLowerCase()
         if (id === "" || key.length < 2)
@@ -112,8 +101,6 @@ QtObject {
         return result
     }
 
-    // Already focused, else on the active workspace of the focused output,
-    // else the first match: a click should land where the user already is.
     function preferredWindow(item) {
         var windows = windowsFor(item)
         if (windows.length === 0)
@@ -136,8 +123,6 @@ QtObject {
         return context.actions.windowFocus(window.id)
     }
 
-    // Left click: raise an existing window when there is one; otherwise let
-    // the app handle Activate, which for most tray apps opens a fresh window.
     function activate(item) {
         var window = preferredWindow(item)
         if (window && focusWindow(window) === "ok")

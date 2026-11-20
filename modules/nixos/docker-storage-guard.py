@@ -14,7 +14,6 @@ def verify_storage(root: Path = Path("/")) -> None:
             if not metadata.st_mode & stat.S_ISVTX:
                 raise RuntimeError(f"system Docker requires sticky protection: {path}")
         elif metadata.st_mode & 0o022:
-            # The group class also represents the effective POSIX ACL mask.
             raise RuntimeError(f"system Docker rejects non-root write access: {path}")
     if not (root / "vault").is_mount():
         raise RuntimeError("system Docker requires the mounted vault filesystem")

@@ -1,11 +1,3 @@
-# Executor v2 (beta), reachable as executor-v2.sole-pierce.ts.net. It starts
-# empty; nothing migrates from v1 on sietch.
-#
-# BETTER_AUTH_SECRET and EXECUTOR_ENCRYPTION_KEY come from agenix, so the
-# data volume never holds the key that decrypts its credentials. Executor
-# refuses to start if the key source changes under an existing database, so
-# the secret must exist before the first boot: create it on jacurutu as in
-# docs/tleilax-install.md ("Executor v2 keys").
 {
   config,
   lib,
@@ -28,8 +20,6 @@ let
       if explicit == null then 443 else lib.toInt (builtins.head explicit)
     ) cfg.officeServices
   );
-  # IPv6 is refused below, so names that have both address families resolve
-  # to IPv4 first instead of waiting on a refused IPv6 address.
   preferIPv4 = pkgs.writeText "executor-v2-gai.conf" ''
     precedence ::ffff:0:0/96 100
   '';
@@ -93,14 +83,12 @@ in
     };
     users.groups.executor-v2.gid = cfg.uid;
 
-    # Podman: no daemon to keep running on the Pi.
     virtualisation.podman.enable = true;
     virtualisation.oci-containers.backend = "podman";
 
     selfhost.tailnetServices.executor-v2.port = port;
 
     virtualisation.oci-containers.containers.executor-v2 = {
-      # Bump by tag (each beta is a new tag), then re-pin the digest.
       image = "ghcr.io/usefulsoftwareco/executor-selfhost:2.0.0-beta.61@sha256:9ac9dd7c64d78cc166d9fba0ec277eaaee67166b741b67eec31d64562a1fcf98";
       user = "${id}:${id}";
       volumes = [
@@ -114,7 +102,6 @@ in
         PORT = toString port;
         BETTER_AUTH_URL = "https://executor-v2.sole-pierce.ts.net";
         EXECUTOR_DISABLE_ANALYTICS = "1";
-        # This PR flow tracks releases, so skip the daily npm dist-tags check.
         EXECUTOR_NO_UPDATE_CHECK = "1";
         EXECUTOR_APPS_ALLOW_PRIVATE_FETCH = lib.boolToString (
           cfg.localServices != { } || cfg.officeServices != [ ]
@@ -127,8 +114,6 @@ in
       extraOptions = [
         "--network=host"
         "--init"
-        # On SIGTERM the host gives workerd 15 seconds to finish, then kills
-        # it; Podman's default 10 would kill the container first.
         "--stop-timeout=30"
       ];
     };
@@ -139,10 +124,6 @@ in
         chain output {
           type filter hook output priority -10; policy accept;
 
-          # Only Executor's own sockets go through the rules below. A kernel
-          # socket, such as the backup's SMB mount over tailscale0, has no
-          # owner UID, so `meta skuid` matches neither it nor its negation;
-          # matching the UID positively lets it pass.
           meta skuid ${id} jump executor
         }
 
@@ -158,8 +139,6 @@ in
               lib.concatMapStringsSep ", " toString officePorts
             } } accept
           ''}
-          # Reject rather than drop: workerd tries a name's next address only
-          # after a connection fails, and a dropped one hangs until timeout.
           meta nfproto ipv6 reject with icmpx admin-prohibited
           oifname { "lo", "tailscale0" } drop
           ip daddr { 10.0.0.0/8, 100.64.0.0/10, 169.254.0.0/16, 172.16.0.0/12, 192.168.0.0/16 } drop

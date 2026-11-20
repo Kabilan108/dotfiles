@@ -22,7 +22,6 @@ function baseEnv(extra) {
 
 const texts = rows => rows.map(row => row.text)
 
-// ghost -> Ghostty first
 {
     const engine = L.createEngine()
     const result = engine.run("ghost", "combi", baseEnv())
@@ -34,8 +33,6 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(last.text, "Search the web for ghost")
 }
 
-// obs: OBS Studio and Obsidian tie on match score; three Obsidian launches
-// from "obs" put Obsidian on top.
 {
     const engine = L.createEngine()
     const env = baseEnv()
@@ -54,7 +51,6 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(prefixQuery[0].text, "Obsidian", "a longer related query is still boosted")
 }
 
-// vsc -> Visual Studio Code via acronym
 {
     const engine = L.createEngine()
     const rows = engine.run("vsc", "combi", baseEnv()).rows
@@ -62,7 +58,6 @@ const texts = rows => rows.map(row => row.text)
     assert.deepEqual(rows[0].positions, [0, 7, 14])
 }
 
-// 2+2*3: calc row on top once the answer for this exact text arrives
 {
     const engine = L.createEngine()
     const waiting = engine.run("2+2*3", "combi", baseEnv())
@@ -87,7 +82,6 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(app.rows[0].text, "2048")
 }
 
-// !nix flake -> the bang search row first, "!" passed to Unduck
 {
     const engine = L.createEngine()
     const result = engine.run("!nix flake", "combi", baseEnv())
@@ -114,7 +108,6 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(unsafe.rows[0].url, "https://unduck.link?q=!q", "a non-http engine falls back to the default")
 }
 
-// URL rows
 {
     const engine = L.createEngine()
     const bare = engine.run("github.com/foo", "combi", baseEnv()).rows
@@ -127,7 +120,6 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(explicit[0].url, "https://example.com")
 }
 
-// The web fallback never outranks an app match and only takes a free slot
 {
     const engine = L.createEngine()
     const many = L.syntheticApps(300)
@@ -144,7 +136,6 @@ const texts = rows => rows.map(row => row.text)
         "empty text has no web row")
 }
 
-// Inferred URLs rank below real matches; explicit ones stay on top
 {
     const engine = L.createEngine()
     const apps = L.APPS.concat([L.app("xcom", "X.com Desktop")])
@@ -159,7 +150,6 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(engine.run("notes.md", "combi", baseEnv()).rows.some(row => row.key === "web:url"), false)
 }
 
-// $hel -> Helium windows, most recently focused first
 {
     const engine = L.createEngine()
     const result = engine.run("$hel", "combi", baseEnv())
@@ -175,7 +165,6 @@ const texts = rows => rows.map(row => row.text)
     assert.deepEqual(engine.run("", "windows", baseEnv()).rows.map(row => row.windowId), [3, 5, 1, 4, 2])
 }
 
-// With a query the focused window keeps its recency position
 {
     const engine = L.createEngine()
     const windows = [
@@ -191,8 +180,6 @@ const texts = rows => rows.map(row => row.text)
     assert.deepEqual(engine.run("$helium", "combi", env).rows.map(row => row.windowId), [2, 3, 1])
 }
 
-// While the launcher holds keyboard focus niri flags no window focused; the
-// newest focus timestamp then names the current window
 {
     const engine = L.createEngine()
     const stamped = (id, title, secs, nanos) =>
@@ -239,9 +226,6 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(single[0].current, true)
 }
 
-// niri debounces focus stamps, so right after a focus change the newest stamp
-// can belong to the previous window; the window captured when the launcher
-// opened wins over both stamps and the flag
 {
     const engine = L.createEngine()
     const windows = [
@@ -268,7 +252,6 @@ const texts = rows => rows.map(row => row.text)
         ["Older", "Revisited", "Previous"], "no captured window falls back to the newest stamp")
 }
 
-// Empty combi -> apps by usage, then alphabetical
 {
     const engine = L.createEngine()
     const history = L.History.create(null)
@@ -283,7 +266,6 @@ const texts = rows => rows.map(row => row.text)
     assert.deepEqual(result.pending, {})
 }
 
-// Power, profiles and clipboard modes
 {
     const engine = L.createEngine()
     const power = engine.run("", "power", baseEnv()).rows
@@ -304,7 +286,6 @@ const texts = rows => rows.map(row => row.text)
     assert.deepEqual(engine.activate(searched[0], ""), { type: "profile.activate", id: "default" })
 }
 
-// Prefix parsing through the engine
 {
     const engine = L.createEngine()
     const env = baseEnv({ clipboardItems: [{ id: "a", kind: "text", preview: "hello", mime: "text/plain", bytes: 5, createdAt: 1, lastUsed: 1 }] })
@@ -324,7 +305,6 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(engine.run("x", "nonsense", env).mode, "combi")
 }
 
-// Files: rows only for the current text, relative display, three actions
 {
     const engine = L.createEngine()
     const waiting = engine.run("/ notes ", "combi", baseEnv())
@@ -358,7 +338,6 @@ const texts = rows => rows.map(row => row.text)
         .rows.some(r => r.provider === "files"), false, "files only under the / prefix")
 }
 
-// App actions and intent validation
 {
     const engine = L.createEngine()
     const ghostty = engine.run("ghost", "combi", baseEnv()).rows[0]
@@ -376,7 +355,6 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(L.providers.web.activate(forged, ""), null, "non-http urls never become intents")
 }
 
-// Only rows from the most recent run activate
 {
     const engine = L.createEngine()
     const env = baseEnv({
@@ -415,7 +393,6 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(engine.activate(new Proxy({}, { get() { throw new Error("hostile") } }), ""), null)
 }
 
-// run() never throws: random UTF-16, lone surrogates, long input
 {
     const engine = L.createEngine()
     const env = baseEnv({
@@ -456,7 +433,6 @@ const texts = rows => rows.map(row => row.text)
     }
 }
 
-// Row keys are unique and stable
 {
     const engine = L.createEngine()
     const duplicateApps = L.APPS.concat([L.APPS[0]])
@@ -470,7 +446,6 @@ const texts = rows => rows.map(row => row.text)
     }
 }
 
-// Snapshot preparation is cached by identity or revision
 {
     const engine = L.createEngine()
     const env = baseEnv()
@@ -484,7 +459,6 @@ const texts = rows => rows.map(row => row.text)
     assert.notEqual(engine.prepare(baseEnv({ revisions: { apps: 8 } })).apps, byRevision)
 }
 
-// Plain history data is accepted and wrapped once
 {
     const engine = L.createEngine()
     const data = { version: 1, records: [{ query: "obs", key: "apps:obsidian", count: 3, lastUsed: L.NOW }] }
@@ -492,7 +466,6 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(engine.run("obs", "combi", env).rows[0].text, "Obsidian")
 }
 
-// leadingRows keeps exactly what a full sort puts first
 {
     let seed = 3
     const next = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff)
@@ -525,7 +498,6 @@ const texts = rows => rows.map(row => row.text)
     }
 }
 
-// Returned rows are frozen views; activation reads the engine's own snapshot
 {
     const engine = L.createEngine()
     const env = baseEnv({ filesResult: { text: "notes", paths: ["/home/test/notes.md"] } })
@@ -543,7 +515,6 @@ const texts = rows => rows.map(row => row.text)
         "a copy's edited fields are ignored")
 }
 
-// App actions in a returned row do not alias the prepare cache
 {
     const engine = L.createEngine()
     const env = baseEnv()
@@ -558,7 +529,6 @@ const texts = rows => rows.map(row => row.text)
     assert.equal(engine.activate(later, "action:new-window").actionId, "new-window")
 }
 
-// Capped results keep insertion order among exact ties
 {
     const engine = L.createEngine()
     const apps = []
@@ -571,8 +541,6 @@ const texts = rows => rows.map(row => row.text)
     }
 }
 
-// Non-app rows name glyphs from Stillsuit's icon pack, which icon themes
-// without non-symbolic names cannot break; app and window rows keep the theme
 {
     const fs = require("node:fs")
     const path = require("node:path")

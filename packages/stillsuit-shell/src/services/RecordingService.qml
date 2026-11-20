@@ -2,8 +2,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Global recording authority. Views only consume this snapshot; destroying a
-// view or reloading an overlay never signals the recorder process.
 Scope {
     id: root
 
@@ -240,9 +238,6 @@ Scope {
             stateFile.reload()
     }
 
-    // The helper only settles a running export when it is asked for status, so
-    // the service polls while one is in flight. Polling never occupies the
-    // action slot: user actions stay available and lastCommandJson is untouched.
     function pollStatus() {
         if (!configured || actionRunning || statusPoll.running)
             return "busy"
@@ -262,8 +257,6 @@ Scope {
         return "started"
     }
 
-    // Every command starts with the configured immutable helper path. No shell
-    // string is constructed and this service never starts or owns the recorder.
     function start(directory, selectedMonitor, requestedTitle, desktopAudio, microphone,
                    requestedTarget, requestedAnnotate) {
         if (arguments.length === 0) {
@@ -350,8 +343,6 @@ Scope {
     onOutputPathChanged: if (!publishing)
                              _clearPublication()
 
-    // Publishing runs on its own process so the helper-backed actions (rename,
-    // dismiss) stay available while the upload is in flight.
     function publish() {
         if (!completed || !outputPath.startsWith("/") || outputPath.indexOf("\u0000") !== -1)
             return "unavailable"
@@ -389,8 +380,6 @@ Scope {
     FileView {
         id: stateFile
         path: root.statePath
-        // Quickshell 0.3 watches the target's parent directory as part of
-        // watchChanges, including while the target itself does not exist.
         watchChanges: true
         onFileChanged: reload()
         onLoaded: root._apply(text())

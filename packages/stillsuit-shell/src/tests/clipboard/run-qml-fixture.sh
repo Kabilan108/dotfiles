@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Loads the clipboard Service.qml offscreen against the real collector and a
-# scripted fake `wl-paste --watch`, then checks what it left on disk.
 
 set -euo pipefail
 
@@ -23,8 +21,6 @@ export XDG_CACHE_HOME="$fixture_root/cache"
 export XDG_RUNTIME_DIR="$fixture_root/runtime"
 export QT_QPA_PLATFORM=offscreen
 export STILLSUIT_CONFIG_ID=stillsuit-clipboard-fixture
-# Each fake wl-paste call is a Python startup; a classification makes several,
-# which alone can take a large share of the collector's text bound.
 export STILLSUIT_CLIPBOARD_TEXT_GATE_SEC=2
 unset DBUS_SESSION_BUS_ADDRESS WAYLAND_DISPLAY
 
@@ -46,8 +42,6 @@ export CLIP_FIXTURE_IDLE_WL_PASTE="$fixture_root/idle-wl-paste"
 printf '#!/usr/bin/env python3\nimport time\ntime.sleep(3600)\n' >"$CLIP_FIXTURE_IDLE_WL_PASTE"
 chmod +x "$CLIP_FIXTURE_IDLE_WL_PASTE"
 
-# scenario <dir> <type> <payload-file> [<type> <payload-file>]...
-# The first type is the one wl-paste would pipe to the watch command.
 scenario() {
     local dir=$1
     shift
@@ -79,13 +73,10 @@ printf '\x89PNG\r\n\x1a\nfixture-image' >"$payloads/png"
 scenario "$fake/scenarios/01" "text/plain;charset=utf-8" "$payloads/alpha" "chromium/x-source-url" "$payloads/page-url"
 scenario "$fake/scenarios/02" "text/plain;charset=utf-8" "$payloads/bravo"
 scenario "$fake/scenarios/03" "image/png" "$payloads/png"
-# Exercise defaults through the real service/watch command, not test-only flags.
 scenario "$fake/scenarios/04b" "text/plain;charset=utf-8" "$payloads/onepassword-secret" "chromium/x-source-url" "$payloads/onepassword-url"
 scenario "$fake/scenarios/04c" "text/plain;charset=utf-8" "$payloads/onepassword-secret" "x-kde-passwordManagerHint" "$payloads/password-hint"
 scenario "$fake/scenarios/04d" "text/plain;charset=utf-8" "$payloads/onepassword-secret" "chromium/x-source-url" "$payloads/onepassword-vault-url"
 scenario "$fake/scenarios/05" "text/plain;charset=utf-8" "$payloads/alpha"
-# Another sender offers the types charlie was copied with and fails, so the
-# read is zero bytes. Without Gecko's shape that is no clear: charlie stays.
 scenario "$fake/scenarios/06" "text/plain;charset=utf-8" "$payloads/charlie" "chromium/x-source-url" "$payloads/page-url"
 printf 'gate-1\n' >"$fake/scenarios/06/gate"
 scenario "$fake/scenarios/07" "text/plain;charset=utf-8" "$payloads/zero" "chromium/x-source-url" "$payloads/page-url"
@@ -95,9 +86,6 @@ printf '3\n' >"$fake/scenarios/08/exit"
 hex() { printf '%s' "$1" | sha256sum | cut -c1-64; }
 private_dir() { mkdir -p -- "$1" && chmod 700 -- "$1"; }
 
-# Expiry instance (ttlHours 0.1 = 360 s): e1 expires 8 s from now. e3 has no
-# blob, so copying it drops the entry; e2's copy fails for want of wl-copy and
-# keeps it.
 expiry_root="$XDG_STATE_HOME/expiry"
 private_dir "$expiry_root/clipboard"
 private_dir "$expiry_root/clipboard/blobs"
@@ -114,10 +102,6 @@ export CLIP_FIXTURE_EXPIRY_ROOT="$expiry_root"
 export CLIP_FIXTURE_MISSING_WL_COPY="$fixture_root/no-such-wl-copy"
 export CLIP_FIXTURE_EXPIRY_IDS="$e1 $e2 $e3"
 
-# Sweep instance (gcGraceSec 4): a young orphan and a staging file, both
-# eligible 20 s from now (the staging file by its 600 s minimum age, well past
-# the grace), which the first sweep defers and one follow-up at that time
-# removes, and a future-dated orphan no sweep removes.
 sweep_root="$XDG_STATE_HOME/sweep"
 private_dir "$sweep_root/clipboard"
 private_dir "$sweep_root/clipboard/blobs"
@@ -144,7 +128,6 @@ export CLIP_FIXTURE_SWEEP_YOUNG="$sweep_root/clipboard/blobs/$young"
 export CLIP_FIXTURE_SWEEP_FUTURE="$sweep_root/clipboard/blobs/$future"
 export CLIP_FIXTURE_SWEEP_STAGING="$staging"
 
-# scripted <name>: a fake wl-paste with its own scenario directory.
 scripted() {
     local name=$1
     mkdir -p "$fixture_root/$name-fake/scenarios"
@@ -155,8 +138,6 @@ WRAPPER
     chmod +x "$fixture_root/$name-wl-paste"
 }
 
-# firefox_offer <dir> <text-file> [<moz-origin-file>]: Gecko's plain-text
-# targets as probed, with a page origin when given.
 firefox_offer() {
     local dir=$1 text=$2 origin=${3:-}
     local args=("text/plain;charset=utf-8" "$text" UTF8_STRING "$text" COMPOUND_TEXT "$payloads/empty"
@@ -177,10 +158,6 @@ python3 -c 'import sys; sys.stdout.buffer.write("http://localhost:8333".encode("
 printf '\x14\x00\x00\x00\x2d\x00\x00\x00token' >"$payloads/rfh-token"
 printf 'chrome-extension://nngceckbapebfimnlniiiahkandclblb/offscreen-document/index.html' >"$payloads/bw-offscreen"
 
-# Gecko instance (unattributedFirefox skip) replays the Wayland probe: a
-# Firefox page copy, the Bitwarden extension's password copy, the nil
-# announcement, Firefox's zero-byte clear and Chromium's text-less clear. Only
-# the page copy and the closing sentinel may be recorded.
 scripted gecko
 g=$fixture_root/gecko-fake/scenarios
 firefox_offer "$g/01" "$payloads/gecko-page" "$payloads/page-origin"
@@ -192,10 +169,6 @@ scenario "$g/05" "chromium/x-internal-source-rfh-token" "$payloads/rfh-token" \
     "chromium/x-source-url" "$payloads/bw-offscreen"
 scenario "$g/06" "text/plain;charset=utf-8" "$payloads/gecko-done"
 
-# Record instance (unattributedFirefox record): the extension's copy, nil, a
-# duplicate data event, nil, then the clear, which purges the copy. Then
-# another app offers text with other types and sends no bytes; that empty
-# read must not purge the sentinel.
 scripted record
 r=$fixture_root/record-fake/scenarios
 firefox_offer "$r/01" "$payloads/record-password"
@@ -216,9 +189,6 @@ export CLIP_FIXTURE_RECORD_PASTE="$fixture_root/record-wl-paste"
 CLIP_FIXTURE_RECORD_SHA=$(hex RECORD-password)
 export CLIP_FIXTURE_RECORD_SHA
 
-# Pending instance: removals survive shutdown and failure. Two young blobs
-# (younger than the 120 s gc grace, so only an explicit rm deletes them in
-# time) and collectors whose rm is slow or always fails.
 pending_root="$XDG_STATE_HOME/pending"
 private_dir "$pending_root/clipboard"
 private_dir "$pending_root/clipboard/blobs"
@@ -248,8 +218,6 @@ export CLIP_FIXTURE_SLOW_COLLECTOR="$fixture_root/slow-collector"
 export CLIP_FIXTURE_FAILING_COLLECTOR="$fixture_root/failing-collector"
 export CLIP_FIXTURE_FAILING_CALLS="$fixture_root/failing-calls"
 
-# Normalize instance: a history written while the clock ran ahead, with a
-# field this version no longer keeps, is written back normalized.
 normalize_root="$XDG_STATE_HOME/normalize"
 private_dir "$normalize_root/clipboard"
 nz=$(hex normalize-z)
@@ -258,10 +226,6 @@ cat >"$normalize_root/clipboard/history.v1.json" <<HISTORY
 HISTORY
 export CLIP_FIXTURE_NORMALIZE_ROOT="$normalize_root"
 
-# Durable instance: a commit that drops entries is on disk before its `rm`
-# starts. The collector's rm snapshots the history it starts under; gc is a
-# no-op so it cannot re-tighten the state directory the fixture makes
-# read-only to fail a save.
 durable_root="$XDG_STATE_HOME/durable"
 private_dir "$durable_root/clipboard"
 private_dir "$durable_root/clipboard/blobs"
@@ -296,11 +260,6 @@ export CLIP_FIXTURE_DURABLE_COLLECTOR="$fixture_root/durable-collector"
 export CLIP_FIXTURE_DURABLE_CALLS="$fixture_root/durable-calls"
 export CLIP_FIXTURE_DURABLE_SNAPSHOTS="$fixture_root/durable-snapshot-"
 
-# Gc-gate instance: while a write that drops an entry keeps failing, no gc
-# runs, and none is ever asked to delete a blob the history on disk lists.
-# Its gc only records each call: the state directory mode (the fixture makes
-# it read-only to fail the write) and the listed shas missing from --keep. The
-# watcher exits once, on the fixture's signal, which schedules a gc.
 scripted gcgate
 gcgate_root="$XDG_STATE_HOME/gcgate"
 private_dir "$gcgate_root/clipboard"
@@ -340,7 +299,6 @@ export CLIP_FIXTURE_GCGATE_PASTE="$fixture_root/gcgate-wl-paste"
 export CLIP_FIXTURE_GCGATE_FAKE="$fixture_root/gcgate-fake"
 export CLIP_FIXTURE_GCGATE_CALLS="$fixture_root/gcgate-calls"
 
-# Model instance: a fixture model is the only input; no helper runs.
 model_collector="$fixture_root/model-collector"
 cat >"$model_collector" <<WRAPPER
 #!/usr/bin/env bash
@@ -352,8 +310,6 @@ export CLIP_FIXTURE_MODEL_COLLECTOR="$model_collector"
 export CLIP_FIXTURE_MODEL_CALLS="$fixture_root/model-calls"
 export CLIP_FIXTURE_MODEL_ROOT="$XDG_STATE_HOME/model"
 
-# Late-model instance: its copy, rm and gc hang until killed, recording their
-# pids, so attaching a model must stop them.
 late_root="$XDG_STATE_HOME/model-late"
 private_dir "$late_root/clipboard"
 l1=$(hex late-1) l2=$(hex late-2)

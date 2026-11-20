@@ -1,8 +1,4 @@
 # shellcheck shell=bash
-# backup-capture STAGE SPEC
-# Copies each live SQLite database in SPEC (lines of "name<TAB>user<TAB>path")
-# into a fresh STAGE with SQLite's online backup, run as the database's owner,
-# then checks the copy. Any failure fails the run; an old copy is never reused.
 
 stage="$1"
 spec="$2"
@@ -27,7 +23,6 @@ while IFS=$'\t' read -r name user database; do
     exit 1
   fi
   as_owner sqlite3 -init /dev/null -bail "$database" ".backup '$copy'"
-  # The copy inherits WAL mode; leave it as one self-contained file.
   as_owner sqlite3 -init /dev/null -bail "$copy" 'PRAGMA journal_mode=DELETE;' > /dev/null
   result="$(as_owner sqlite3 -init /dev/null -readonly "$copy" 'PRAGMA quick_check;')"
   if [ "$result" != ok ]; then

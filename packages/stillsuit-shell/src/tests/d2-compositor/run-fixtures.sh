@@ -38,8 +38,6 @@ ln -s "$source_root/services" "$config_dir/services"
 ln -s "$source_root/plugins" "$config_dir/plugins"
 ln -s "$source_root/tests/FixtureTheme.js" "$config_dir/FixtureTheme.js"
 
-# qs ipc occasionally answers "Not ready" without running the call, so that
-# reply is retried; it never means the call took effect.
 ipc() {
   local reply
   for _ in {1..40}; do
@@ -111,9 +109,6 @@ if ! kill -0 "$shell_pid" 2>/dev/null; then
   exit 1
 fi
 
-# Niri returns an output map keyed by connector. Both the event stream and the
-# first successful command triplet normalize it to a sorted plain array. The
-# first generation is started by the event stream connecting, not by a timer.
 wait_for_reconciliation '.completedGeneration >= 1 and .acceptedGeneration == 1' >/dev/null
 first=$(wait_for '(.apiVersion == "1") and (.name == "niri") and (.focusedOutputId == "DP-2")')
 jq -e '
@@ -128,9 +123,6 @@ jq -e '
   and ([.windows[].id] == [10])
 ' >/dev/null <<<"$first"
 
-# The stream's malformed line queues generation 2 behind generation 1. Its
-# outputs and windows are usable, but workspaces exits 23 with empty stdout, so
-# none of that generation may replace any part of generation 1.
 wait_for_reconciliation '.completedGeneration == 2 and .acceptedGeneration == 1 and .running == false' >/dev/null
 after_bad=$(ipc state)
 jq -e '
@@ -141,9 +133,6 @@ jq -e '
   and ([.outputs[].name] | index("BROKEN-OUTPUT") == null)
 ' >/dev/null <<<"$after_bad"
 
-# With the stream connected and nothing to repair, no further reconciliation
-# runs: the old 2.5 s poll is gone and the safety net is at least a minute.
-# Known events the adapter does not model are ignored without reconciling.
 jq -e '.intervalMs >= 60000' >/dev/null <<<"$(ipc reconciliation)"
 [[ $(ipc inject '{"ConfigLoaded":{"failed":false}}') == false ]]
 [[ $(ipc inject '{"KeyboardLayoutSwitched":{"idx":1}}') == false ]]
@@ -154,8 +143,6 @@ sleep 3
 [[ $(argv_count 'msg -j windows') -eq $idle_outputs ]]
 jq -e '.completedGeneration == 2' >/dev/null <<<"$(ipc reconciliation)"
 
-# Generation 3 exits zero but contains malformed output JSON. The other two
-# valid members are still rejected as part of the same triplet.
 : >"$STILLSUIT_D2_FIXTURE_STATE/allow-malformed"
 ipc reconcile >/dev/null
 wait_for_reconciliation '.completedGeneration == 3 and .acceptedGeneration == 1 and .running == false' >/dev/null
@@ -167,8 +154,6 @@ jq -e '
   and ([.windows[].title] == ["generation-1"])
 ' >/dev/null <<<"$after_malformed"
 
-# Generation 4 never completes. The timeout must reject the whole generation,
-# terminate its collectors, and release the running flag for a later retry.
 : >"$STILLSUIT_D2_FIXTURE_STATE/allow-recovery"
 ipc reconcile >/dev/null
 wait_for_reconciliation '.completedGeneration == 4 and .acceptedGeneration == 1 and .timedOutGeneration == 4' >/dev/null
@@ -180,10 +165,6 @@ jq -e '
   and ([.windows[].title] == ["generation-1"])
 ' >/dev/null <<<"$after_timeout"
 
-# The next generation may then commit its valid members. A stream event that
-# lands while the generation is in flight is newer than that generation's
-# snapshot of the same collection, so the stream's windows survive while the
-# generation's outputs and workspaces commit.
 ipc reconcile >/dev/null
 wait_for_reconciliation '.running == true' >/dev/null
 ipc inject '{"WindowsChanged":{"windows":[{"id":40,"workspace_id":4,"title":"stream-newer","is_focused":true,"is_floating":false,"is_urgent":false,"layout":{"pos_in_scrolling_layout":[1,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]}}]}}' >/dev/null
@@ -201,9 +182,6 @@ jq -e '
   and (.windows[0].title == "stream-newer")
 ' >/dev/null <<<"$recovered"
 
-# Incremental events replace only the rows they change. Unchanged rows and
-# untouched collections keep their identity, the revision bumps once per real
-# change, and the workspace strip updates its existing cells in place.
 ipc inject '{"WorkspacesChanged":{"workspaces":[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":true,"is_focused":true,"active_window_id":40,"is_urgent":false},{"id":5,"idx":2,"output":"HDMI-A-1","is_active":false,"is_focused":false,"is_urgent":false}]}}' >/dev/null
 ipc inject '{"WindowsChanged":{"windows":[{"id":40,"workspace_id":4,"title":"stream-newer","is_focused":true,"layout":{"pos_in_scrolling_layout":[1,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]},"is_floating":false,"is_urgent":false},{"id":41,"workspace_id":4,"title":"second","is_focused":false,"layout":{"pos_in_scrolling_layout":[2,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]},"is_floating":false,"is_urgent":false}]}}' >/dev/null
 ipc markRows >/dev/null
@@ -242,8 +220,6 @@ jq -e '
   and ([.windows[] | .layout.pos_in_scrolling_layout[0]] == [1,3])
 ' >/dev/null <<<"$activated"
 
-# A focused opened or changed window takes focus from every other window, as
-# in niri-ipc's reducer; only the rows whose focus changes are replaced.
 ipc markRows >/dev/null
 ipc inject '{"WindowOpenedOrChanged":{"window":{"id":42,"workspace_id":4,"title":"third","is_focused":true,"layout":{"pos_in_scrolling_layout":[4,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]},"is_floating":false,"is_urgent":false}}}' >/dev/null
 jq -e '.revisionDelta == 1 and .workspacesArraySame and .windowRowsReused == {"40":false,"41":true,"42":false}' \
@@ -254,7 +230,6 @@ jq -e '[.windows[] | select(.is_focused) | .id] == [40]' >/dev/null <<<"$(ipc st
 ipc inject '{"WindowOpenedOrChanged":{"window":{"id":41,"workspace_id":4,"title":"renamed","is_focused":false,"layout":{"pos_in_scrolling_layout":[3,1],"tile_size":[640,480],"window_size":[640,480],"window_offset_in_tile":[0,0]},"is_floating":false,"is_urgent":false}}}' >/dev/null
 jq -e '[.windows[] | select(.is_focused) | .id] == [40] and ([.windows[].id] == [40,41,42])' >/dev/null <<<"$(ipc state)"
 
-# Urgency, focus timestamps, and a null focus apply to known rows.
 ipc inject '{"WindowUrgencyChanged":{"id":41,"urgent":true}}' >/dev/null
 ipc inject '{"WorkspaceUrgencyChanged":{"id":4,"urgent":true}}' >/dev/null
 ipc inject '{"WindowFocusTimestampChanged":{"id":40,"focus_timestamp":{"secs":5,"nanos":7}}}' >/dev/null
@@ -266,9 +241,6 @@ jq -e '
   and ([.windows[] | select(.is_focused)] == [])
 ' >/dev/null <<<"$(ipc state)"
 
-# A null focus (a layer surface such as a Stillsuit menu holds the keyboard)
-# keeps the last focused window, as does closing some other window. Closing
-# that window clears it, and a later focus sets it again.
 jq -e '.lastFocusedWindowId == 40' >/dev/null <<<"$(ipc state)"
 ipc inject '{"WindowClosed":{"id":42}}' >/dev/null
 jq -e '.lastFocusedWindowId == 40 and ([.windows[].id] == [40,41])' >/dev/null <<<"$(ipc state)"
@@ -278,10 +250,6 @@ ipc inject '{"WindowFocusChanged":{"id":41}}' >/dev/null
 ipc inject '{"WindowFocusChanged":{"id":null}}' >/dev/null
 jq -e '.lastFocusedWindowId == 41 and ([.windows[] | select(.is_focused)] == [])' >/dev/null <<<"$(ipc state)"
 
-# Removing a middle workspace in the same update that changes the row before
-# it keeps every surviving cell bound to its own workspace: the cell that
-# showed workspace 6 still shows 6, rather than the removed cell for 5 being
-# handed workspace 6 by position.
 ipc inject '{"WorkspacesChanged":{"workspaces":[{"id":4,"idx":1,"output":"HDMI-A-1","is_active":false,"is_focused":false,"active_window_id":41,"is_urgent":false},{"id":5,"idx":2,"output":"HDMI-A-1","is_active":true,"is_focused":true,"is_urgent":false},{"id":6,"idx":3,"output":"HDMI-A-1","is_active":false,"is_focused":false,"is_urgent":false}]}}' >/dev/null
 ipc markRows >/dev/null
 jq -e '.delegateStates == [{"id":4,"active":false},{"id":5,"active":true},{"id":6,"active":false}]' >/dev/null <<<"$(ipc rowIdentity)"
@@ -292,11 +260,6 @@ jq -e '
   and .delegateStates == [{"id":4,"active":true},{"id":6,"active":false}]
 ' >/dev/null <<<"$(ipc rowIdentity)"
 
-# Focusing a workspace resolves its id against the snapshot. A workspace on
-# the focused output becomes a single focus-workspace by index; one that is
-# already active and focused sends nothing; ids the snapshot lacks are refused
-# before any process starts. A workspace on another output focuses that
-# monitor first, then the index on it, in that order.
 wait_for_argv_count() {
   local argv expected
   argv=$1
@@ -327,9 +290,6 @@ workspace_line=$(grep -nxF -- 'msg action focus-workspace 1' "$STILLSUIT_D2_FIXT
 (( monitor_line < workspace_line ))
 [[ $(argv_count 'msg action focus-window --id 0') -eq 0 ]]
 
-# Known events whose payloads fail validation, and events the parser does not
-# know, are never applied. The first queues generation 6, which the fake holds
-# so the unchanged state can be observed; the rest collapse into generation 7.
 : >"$STILLSUIT_D2_FIXTURE_STATE/hold-reconcile"
 before_invalid=$(ipc state)
 for invalid in \
@@ -362,20 +322,14 @@ wait_for_reconciliation '.completedGeneration == 5 and .running == true' >/dev/n
 rm -f -- "$STILLSUIT_D2_FIXTURE_STATE/hold-reconcile"
 wait_for_reconciliation '.completedGeneration == 7 and .acceptedGeneration == 7 and .running == false' >/dev/null
 
-# Reconnecting the stream reconciles again.
 : >"$STILLSUIT_D2_FIXTURE_STATE/release-stream"
 wait_for_reconciliation '.completedGeneration >= 8 and .acceptedGeneration >= 8' >/dev/null
 [[ $(<"$STILLSUIT_D2_FIXTURE_STATE/stream-count") -ge 2 ]]
 
-# The fake stream exits repeatedly without the live Niri socket. After the
-# initial healthy event resets the counter, retries double from 50 to 100 ms
-# and stay capped at 200 ms.
 reconnect=$(wait_for_reconnect '.attempts >= 4 and .scheduledDelayMs == 200')
 jq -e '.baseDelayMs == 50 and .doubledDelayMs == 100 and .cappedDelayMs == 200' >/dev/null <<<"$reconnect"
 [[ $(<"$STILLSUIT_D2_FIXTURE_STATE/stream-count") -ge 4 ]]
 
-# Commands remain fixed literal Niri argv forms, and the fixture has one global
-# service and adapter instance.
 ownership=$(ipc ownership)
 jq -e '.serviceInstances == 1 and .adapterInstances == 1' >/dev/null <<<"$ownership"
 LC_ALL=C sort -u "$STILLSUIT_D2_FIXTURE_STATE/argv.log" >"$tmp_dir/argv.unique"

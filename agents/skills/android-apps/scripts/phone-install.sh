@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Usage: phone-install.sh HOST APK PACKAGE ACTIVITY
-# ACTIVITY is a full class name or one relative to PACKAGE, e.g. .MainActivity.
-# Needs wireless debugging on and this machine paired. Exits 0 only when the app
-# was installed over the existing one, is running, and the crash log is empty.
 set -u
 usage="usage: phone-install.sh HOST APK PACKAGE ACTIVITY"
 host=${1:?$usage}

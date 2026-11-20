@@ -469,8 +469,6 @@ ShellRoot {
                                   })
         }
 
-        // A re-sync hands the bar a fresh array of the same records, as the
-        // host does after an unrelated service or catalog revision.
         function resync(): string {
             productionBar.widgetRegistrations = [fixture.workspaceRegistration,
                                                  fixture.clockRegistration]
@@ -486,8 +484,6 @@ ShellRoot {
             return "ok"
         }
 
-        // ScriptModel must reconcile by record identity, not by position: the
-        // slots after a removed entry keep their own widget.
         function removeMiddleMarker(): string {
             productionBar.widgetRegistrations = [fixture.workspaceRegistration,
                                                  fixture.clockRegistration,

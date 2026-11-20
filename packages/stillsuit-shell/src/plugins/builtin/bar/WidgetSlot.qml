@@ -23,8 +23,6 @@ Item {
     property var createdWidget: null
     property var pendingConstruction: null
 
-    // Widgets hide through `collapsed`, not `visible`: a child reads
-    // visible as false while this slot is hidden, so it could never return.
     readonly property bool collapsed: createdWidget !== null && createdWidget.collapsed === true
     readonly property bool occupied: !failed && createdWidget !== null && !collapsed
 

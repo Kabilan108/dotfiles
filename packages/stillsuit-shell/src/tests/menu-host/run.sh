@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Menu hosting under a headless wlroots compositor: the router's menu branch,
-# the parked and shown MenuHost surface states, and real keyboard input
-# through a virtual keyboard, including focus returning to a toplevel. The
-# headless seat has no pointer, so presses use the scrim's press handler.
 set -euo pipefail
 test_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source_dir=$(cd -- "$test_dir/../.." && pwd)
@@ -51,13 +47,9 @@ with open(sys.argv[1], "wb") as out:
     out.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 16, 16, 8, 6, 0, 0, 0))
         + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
 PNG
-# The probe floats clear of the output's top-left corner, so the parked 1x1
-# menu surface stays visible and keeps getting frame callbacks.
 printf '%s\n' 'output * resolution 1280x720' \
     'for_window [title="menu-host-probe"] floating enable, move position 600 300' > "$fixture_dir/sway.conf"
 
-# A dead session bus address and no DISPLAY keep D-Bus from autolaunching a
-# session whose portals would mount FUSE file systems in the fixture runtime.
 unset DISPLAY
 env XDG_RUNTIME_DIR="$fixture_dir/runtime" DBUS_SESSION_BUS_ADDRESS="unix:path=$fixture_dir/no-bus" \
     WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=2 WLR_LIBINPUT_NO_DEVICES=1 WLR_RENDERER=pixman \
@@ -72,9 +64,6 @@ for _ in {1..100}; do
     sleep 0.02
 done
 if [[ -z $socket ]]; then sed -n '1,120p' "$fixture_dir/sway.log"; exit 1; fi
-# The headless seat starts without a keyboard. A short-lived virtual keyboard
-# per wtype call would add and remove the seat's keyboard capability around
-# every keystroke, so one idle virtual keyboard stays for the whole run.
 XDG_RUNTIME_DIR="$fixture_dir/runtime" WAYLAND_DISPLAY="$socket" "$wtype_bin" -s 600000 &
 keyboard_pid=$!
 export HOME="$fixture_dir/home" XDG_RUNTIME_DIR="$fixture_dir/runtime" \
@@ -145,12 +134,10 @@ wait_for "focus to return after Escape" '.probeFocus'
 type_text d
 wait_for "typing to reach the toplevel after Escape" '.probeText == "acd"'
 
-# The content holds focus from present on, before the surface grows.
 run_step presentBeforeGrowth
 [[ $(ipc close) == ok ]]
 wait_for "focus to return after the before-growth check" '.probeFocus'
 
-# Keys typed with no pause after opening.
 run_step resetKeys
 [[ $(ipc openTimed) == ok ]]
 "$wtype_bin" term
@@ -160,8 +147,6 @@ run_step immediateKeys
 [[ $(ipc close) == ok ]]
 wait_for "focus to return after the immediate keys" '.probeFocus'
 
-# A parked surface that commits under a fullscreen window stalls: open and
-# close the menu over it, then open again.
 sway_command '[title="menu-host-probe"] fullscreen enable'
 sleep 0.2
 [[ $(ipc open '{"mode":"combi"}') == ok ]]

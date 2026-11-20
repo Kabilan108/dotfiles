@@ -97,7 +97,6 @@ ShellRoot {
                                              })
     }
 
-    // Production gc grace (the default, 120 s) unless a test overrides it.
     function baseValues(pastePath, extra) {
         var values = {
             collectorPath: collector,
@@ -165,7 +164,6 @@ ShellRoot {
                                                            unattributedFirefox: "record"
                                                        }), recordRoot)
     property var normalizeContext: makeContext(baseValues(idlePaste), normalizeRoot)
-    // No production settings at all, as in the workbench.
     property var modelContext: makeContext({
                                                collectorPath: modelCollector
                                            }, modelRoot, "model: ")
@@ -429,8 +427,6 @@ ShellRoot {
         }
     }
 
-    // copy() checks expiry before acting and updates order only on success.
-    // A copy whose blob is gone drops the entry; any other failure keeps it.
     function tickExpiry() {
         var e1 = expiryIds[0], e2 = expiryIds[1], e3 = expiryIds[2]
         var waited = Date.now() - expiryStepStarted
@@ -473,8 +469,6 @@ ShellRoot {
         expiryStepStarted = Date.now()
     }
 
-    // Deferred orphans and staging files get one follow-up sweep, when the
-    // first of them becomes eligible.
     function gcRuns() {
         var count = 0
         var lines = readFile(sweepCalls).split("\n")
@@ -528,7 +522,6 @@ ShellRoot {
         return shas
     }
 
-    // The probe replay in skip mode: only the page copy and the sentinel.
     function tickGecko() {
         if (geckoStep !== 0 || previews(gecko).indexOf("GECKO-done") < 0)
             return
@@ -537,8 +530,6 @@ ShellRoot {
         geckoStep++
     }
 
-    // Record mode: the nil events keep the clear attached, so it purges. An
-    // empty read of another offer's types does not purge.
     function tickRecord() {
         if (recordStep === 0) {
             if (previews(recorder).indexOf("RECORD-after") < 0)
@@ -565,8 +556,6 @@ ShellRoot {
         return readFile(rootPath + "/clipboard/blobs/" + sha)
     }
 
-    // A removal survives an `rm` killed by shutdown, a failing `rm` and a
-    // restart, and its blob goes long before the 120 s gc grace would allow.
     function tickPending() {
         var waited = Date.now() - pendingStepStarted
         if (pendingStep === 0) {
@@ -712,9 +701,6 @@ ShellRoot {
         chmodProcess.running = true
     }
 
-    // A dropped entry is gone from the history on disk, with its removal
-    // pending, before `rm` starts; a failed write holds `rm` back until a
-    // retry succeeds.
     function tickDurable() {
         var waited = Date.now() - durableStepStarted
         if (durableStep === 0) {
@@ -796,9 +782,6 @@ ShellRoot {
         gcGateChmod.running = true
     }
 
-    // A dropped entry whose history write fails stays listed on disk, so its
-    // blob must outlive every gc until a write succeeds; a gc asked for in
-    // the meantime runs once it has.
     function tickGcGate() {
         var waited = Date.now() - gcGateStepStarted
         if (gcGateStep === 0) {

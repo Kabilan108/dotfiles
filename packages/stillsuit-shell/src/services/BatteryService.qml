@@ -15,7 +15,6 @@ QtObject {
     readonly property bool present: device !== null && Boolean(device.isPresent !== undefined
                                                                ? device.isPresent : true)
     readonly property bool available: !forceUnavailable && present
-    // Quickshell 0.3 converts UPower's 0-100 D-Bus value to a 0.0-1.0 value.
     readonly property int percentage: present ? _percentage(device.percentage) : 0
     readonly property string state: model ? String(model.state || "unknown") : _stateName(device
                                                                                           ? device.state :
@@ -67,9 +66,6 @@ QtObject {
         }
     }
 
-    // Design capacity, cycle count and charge thresholds are not exposed by
-    // UPowerDevice, so they are read when the battery appears or changes
-    // state instead of on a timer; the delay coalesces state flapping.
     property Timer detailRefreshDelay: Timer {
         interval: 2000
         repeat: false

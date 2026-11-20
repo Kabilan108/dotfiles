@@ -16,7 +16,6 @@ const storm = JSON.parse(fs.readFileSync(stormPath, "utf8"))
 const emptyPath = path.join(__dirname, "../../../design-lab/fixtures/notification-empty.json")
 const empty = JSON.parse(fs.readFileSync(emptyPath, "utf8"))
 
-// The center is gone; the bell toggles quiet mode.
 assert(!fs.existsSync(path.join(pluginDir, "NotificationCenter.qml")))
 assert.deepEqual(manifest.kinds, ["service", "bar-widget", "overlay"])
 assert.equal(manifest.entryPoints.panel, undefined)
@@ -27,7 +26,6 @@ assert.match(widgetSource, /label:\s*service \? service\.heldBadgeText : ""/)
 assert.doesNotMatch(widgetSource, /surfaceToggle|unread/)
 assert.doesNotMatch(serviceSource, /history|unread|markRead|openCenter|centerRows/i)
 
-// Sender text renders as plain text, styled only through theme roles.
 assert.match(cardSource, /textFormat:\s*Text\.PlainText/)
 assert.doesNotMatch(cardSource, /textFormat:\s*Text\.StyledText/)
 assert.match(serviceSource, /bodyMarkupSupported:\s*false/)
@@ -37,7 +35,6 @@ assert.match(cardSource, /text:\s*"Actions expired"/)
 assert.match(cardSource, /^\s*theme:\s*context\.theme\s*$/m)
 assert.doesNotMatch(cardSource + deckSource + toastsSource, /theme\.colors|theme\.controls|#[0-9a-fA-F]{3,8}/)
 
-// A click opens the sender, or dismisses a card that has nothing to open.
 assert.match(cardSource, /if \(root\.canActivate\)\s+root\.service\.invokeAction\(root\.snapshot\.key, "default"\)\s*else\s+root\.service\.dismiss\(root\.snapshot\.key\)/)
 assert.doesNotMatch(cardSource + serviceSource, /mute(Source|s\b)|showOverflow|"more"/,
     "no per-source mutes and no overflow menu")
@@ -49,7 +46,6 @@ assert.match(cardSource, /Math\.abs\(dx\) > Math\.abs\(dy\) \* 1\.2/)
 assert.match(cardSource, /preventStealing:\s*dragging/)
 assert.match(cardSource, /readonly property bool hovered:\s*hoverMouse\.containsMouse/)
 
-// Every card and deck keeps its delegate by key, including while it leaves.
 assert.match(toastsSource, /Motion\.merge\(rendered, decks\.map/)
 assert.match(toastsSource, /model:\s*deckKeys/)
 assert.match(toastsSource, /overlayVisible:\s*rendered\.length > 0/,
@@ -67,7 +63,6 @@ assert.match(deckSource, /onSettled:\s*if \(slot\.exiting && value === 0\)\s+roo
 assert.match(deckSource, /function syncHovered\(\)/)
 assert.match(deckSource, /service\.setDeckHovered\(deckKey, hovered\)/)
 
-// Motion runs on the springs and honours reduced motion everywhere.
 assert.match(springSource, /FrameAnimation/)
 assert.match(springSource, /Motion\.solve\(spring, offset, velocity\)/)
 assert.doesNotMatch(deckSource + toastsSource, /NumberAnimation|Easing\.OutCubic/)
@@ -80,7 +75,6 @@ for (const name of ["closeRow", "invokeAction"]) {
     assert.match(body, /persist\(\)/)
 }
 
-// The production IPC reads status and switches quiet mode; nothing else.
 const ipc = serviceSource.split("IpcHandler {")[1]
 assert.deepEqual([...ipc.matchAll(/function (\w+)\(/g)].map(match => match[1]), ["status", "toggleQuiet", "setQuiet"])
 

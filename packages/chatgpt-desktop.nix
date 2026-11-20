@@ -6,7 +6,6 @@ let
     url = "https://persistent.oaistatic.com/codex-app-prod/linux/deb/pool/main/c/chatgpt/chatgpt_${version}_amd64.deb";
     inherit (pin) hash;
   };
-  # Extract only. No ELF, ASAR, launcher, or feature patches.
   payload =
     pkgs.runCommand "chatgpt-official-payload-${version}"
       {
@@ -18,7 +17,6 @@ let
       '';
   launcher = pkgs.writeShellScript "chatgpt-desktop-launch" ''
     set -euo pipefail
-    # Use the normal Electron profile and the intentional ~/.codex configuration.
     unset CODEX_HOME CODEX_ELECTRON_USER_DATA_PATH
     unset XDG_CONFIG_HOME XDG_CACHE_HOME XDG_DATA_HOME
     unset CODEX_CLI_PATH NIX_LD_LIBRARY_PATH LD_LIBRARY_PATH

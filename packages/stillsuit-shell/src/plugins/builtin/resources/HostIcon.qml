@@ -13,8 +13,6 @@ Item {
     implicitWidth: theme.metrics.iconMedium
     implicitHeight: theme.metrics.iconMedium
 
-    // Lucide uses stroked currentColor SVGs; resolve the theme color before Qt
-    // decodes them. Keep the vendored geometry intact.
     property FileView assetFile: FileView {
         path: root.assetSource
         preload: false

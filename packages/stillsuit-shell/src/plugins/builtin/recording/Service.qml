@@ -2,9 +2,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Pipewire
 
-// Live microphone level for the recording indicator. The recorder captures
-// PipeWire's default input, so this meters that same node, and only while a
-// recording that includes the microphone is running and unpaused.
 Scope {
     id: root
 
@@ -37,7 +34,6 @@ Scope {
         return isFinite(value) ? value : fallback
     }
 
-    // PwNodePeakMonitor reports the cube root of the sample peak.
     function _levelFromPeak(peak) {
         var visualPeak = Number(peak)
         if (!isFinite(visualPeak) || visualPeak <= 0)

@@ -1,10 +1,4 @@
 # shellcheck shell=bash
-# backup-status JOB
-# Runs after every attempt of a backup job (ExecStopPost). Records the result
-# in $BACKUP_STATUS_DIR/<host>-<job>.json, keeping the last success time across
-# failures. After a success it adds the repository size and the NAS's free
-# space, alerts once when either crosses its threshold, and pushes the file to
-# the status host if one is configured. Nothing here fails the run.
 
 job="$1"
 file="$BACKUP_STATUS_DIR/$BACKUP_HOST-$job.json"

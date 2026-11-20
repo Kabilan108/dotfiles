@@ -37,9 +37,6 @@ QtObject {
     property string presentedMenuId: ""
     property var menuHosts: ({})
     property bool catalogReconciliationActive: false
-    // Bumped whenever a route opens or closes. A plugin callback can open or
-    // close its own route re-entrantly; callers compare generations after
-    // each callback and stop when the route changed underneath them.
     property var routeGenerations: ({})
     property bool tearingDown: false
 
@@ -74,9 +71,6 @@ QtObject {
     }
     property QtObject surfaceHost: QtObject {}
 
-    // Anchor resolvers reported by the bar, keyed pluginId + "@" + outputId.
-    // Each returns the bar entry's center x in output coordinates, queried at
-    // present time so layout changes never go stale.
     property var panelAnchors: ({})
 
     readonly property QtObject barAnchorFacade: QtObject {
@@ -91,8 +85,6 @@ QtObject {
             var key = root._anchorKey(pluginId, outputId)
             if (root.panelAnchors[key] === undefined)
                 return
-            // A replacement slot may register before the old slot finishes
-            // destruction. Do not let that old slot remove its replacement.
             if (typeof resolver === "function" && root.panelAnchors[key] !== resolver)
                 return
             var next = root._copy(root.panelAnchors)
@@ -131,7 +123,6 @@ QtObject {
                 close(ids[index])
     }
 
-    // A banner arriving while the user types must not close a menu.
     function interruptForBanner(outputId) {
         var ids = Object.keys(sessionOpen)
         for (var index = 0; index < ids.length; index++) {
@@ -142,8 +133,6 @@ QtObject {
         }
     }
 
-    // Presented and still-loading menus alike, so a menu requested on one
-    // output never appears there after focus moved on.
     function _closeMenusAwayFrom(outputId) {
         var ids = Object.keys(sessionOpen)
         for (var index = 0; index < ids.length; index++) {
@@ -401,8 +390,6 @@ QtObject {
         return isOpen(pluginId) ? close(pluginId) : open(pluginId, payloadJson)
     }
 
-    // A menu may answer a toggle with new content, such as a launcher asked
-    // for another mode, instead of closing.
     function _menuKeepsOpenOnToggle(pluginId, payloadJson) {
         var instance = _placedInstance(pluginId, catalog.primarySurfaceKind(pluginId))
         if (!instance || typeof instance.keepOpenOnToggle !== "function")
@@ -634,10 +621,6 @@ QtObject {
         return instances
     }
 
-    // The router destroys instances only after removing them from objects.
-    // An instance that dies while still listed was destroyed by something
-    // else: end its route and unload the contribution so the next open
-    // constructs a fresh instance instead of presenting a dead one.
     function _watchInstance(pluginId, kind, instance) {
         var routeKey = _routeKey(pluginId, kind)
         instance.Component.destruction.connect(function () {
@@ -666,7 +649,6 @@ QtObject {
         _unloadContributionKey(routeKey)
     }
 
-    // Route state only; the dead instance gets no close() call.
     function _endRoute(pluginId) {
         if (presentedId === pluginId)
             presentedId = ""
@@ -715,9 +697,6 @@ QtObject {
         return true
     }
 
-    // Returns true when the request was delivered or a plugin callback
-    // closed or replaced the route meanwhile; a cancelled delivery is not a
-    // failure.
     function _deliverOne(pluginId, kind, payloadJson) {
         if (!isOpen(pluginId))
             return true
@@ -810,7 +789,6 @@ QtObject {
                     instances[index].close()
                 else if ("visible" in instances[index])
                     instances[index].visible = false
-                // A close() that reopened or unloaded the route owns it now.
                 if (_routeGeneration(pluginId) !== generation)
                     return true
             }
@@ -821,8 +799,6 @@ QtObject {
         }
     }
 
-    // A global menu instance follows its placement between hosts, and a
-    // per-output sibling may still be shown on the previous output.
     function _releaseMenuFromOtherHosts(pluginId, kind, instance) {
         var targetOutputId = placementOutputId(pluginId)
         var siblings = contributionInstances(pluginId, kind)

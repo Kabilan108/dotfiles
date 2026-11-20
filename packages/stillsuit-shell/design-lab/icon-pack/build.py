@@ -47,9 +47,6 @@ class Glyph:
                 continue
             self.disk(*point, r)
 
-    # Between two nearly collinear segments the quads leave a notch shallower
-    # than 0.01 units; a wedge on each side covers it with 6 points instead of
-    # a 24-point disk. Sharper turns and terminals keep the round cap.
     def _joint(self, previous: tuple[float, float], point: tuple[float, float], following: tuple[float, float], r: float) -> bool:
         (px, py), (x, y), (fx, fy) = previous, point, following
         d1, d2 = math.hypot(x-px, y-py), math.hypot(fx-x, fy-y)

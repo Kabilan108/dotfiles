@@ -1,11 +1,3 @@
-// Snapshot: stillsuit.clipboard items
-// {id, kind: "text"|"image", preview, mime, bytes, createdAt, lastUsed, path?}.
-// Newest first by lastUsed. With a query, matches within
-// Matcher.STRONG_MATCH_RATIO of the best one keep that order and weaker ones
-// follow by score. The start offset is not penalised: where a match sits in a
-// long clip says little about relevance.
-// env.clipboardImagesOnly keeps only image items.
-
 var meta = { id: "clipboard", label: "Clipboard", icon: "shell:copy", snapshot: "clipboardItems" }
 
 var MAX_TITLE_LENGTH = 200

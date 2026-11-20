@@ -11,13 +11,10 @@ in
 {
   age.secrets.selfhost-blocky-denylist.file = ../../../secrets/selfhost/blocky-denylist.age;
 
-  # Publish only DoH, not Blocky's management API or memory profiler.
   selfhost.tailnetServices.blocky.port = 8319;
 
   services.blocky = {
     enable = true;
-    # Blocky's normal HTTP listener exposes unauthenticated management and
-    # profiling routes even on loopback. Keep DoH while removing both routers.
     package = pkgs.blocky.overrideAttrs (old: {
       postPatch = (old.postPatch or "") + ''
         substituteInPlace server/server_endpoints.go \
@@ -27,16 +24,13 @@ in
     });
     settings = {
       ports = {
-        # Standard DNS uses the node IP; Tailscale Services proxies DoH.
         dns = "${tailscaleIp}:53";
         http = "127.0.0.1:8318";
       };
-      # IP literals avoid depending on the DNS service we are providing.
       upstreams.groups.default = [
         "https://1.1.1.1/dns-query"
         "https://1.0.0.1/dns-query"
       ];
-      # Resolve blocklist hosts without the system resolver, which may use Blocky.
       bootstrapDns = [
         "https://1.1.1.1/dns-query"
         "https://1.0.0.1/dns-query"
@@ -108,8 +102,6 @@ in
 
   systemd.services.blocky = {
     restartTriggers = [ config.age.secrets.selfhost-blocky-denylist.file ];
-    # Blocky serves remote clients, not the host's early-boot resolver.
-    # Remove the native module's nss-lookup ordering before waiting for Tailscale.
     before = lib.mkForce [ ];
     wants = lib.mkForce [
       "network-online.target"
@@ -119,13 +111,10 @@ in
       "network-online.target"
       "tailscaled.service"
     ];
-    # tailscaled may be running before its address is assigned.
     startLimitIntervalSec = 0;
     serviceConfig = {
       RestartSec = "5s";
       LoadCredential = [ "denylist:${config.age.secrets.selfhost-blocky-denylist.path}" ];
-      # Privacy redaction preserves name lengths and is not applied to every error.
-      # Discard application output rather than retain a partial activity record.
       StandardOutput = "null";
       StandardError = "null";
       LimitCORE = 0;
@@ -138,7 +127,6 @@ in
     MemorySwapMax = 0;
   };
 
-  # Tailscale Serve handles decrypted DoH messages before the localhost proxy.
   systemd.services.tailscaled.serviceConfig = {
     LimitCORE = 0;
     MemorySwapMax = 0;

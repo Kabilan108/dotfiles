@@ -76,7 +76,6 @@ def captured_output(folder: Path, provider: str) -> dict[str, Any]:
 def read_record(
     root: Path, run_id: str, *, launch_locked: bool = False
 ) -> dict[str, Any]:
-    # Readers share the launch lock: no observable running record before launch.
     if not launch_locked:
         with (root / ".start.lock").open("a") as lock:
             fcntl.flock(lock, fcntl.LOCK_SH)
@@ -88,7 +87,6 @@ def read_record(
         live = tmux(root, "has-session", "-t", record["tmux_session"])
         if live.returncode != 0:
             record["state"] = "interrupted"
-    # The worker may have saved completion while has-session was running.
     if terminal.exists():
         record.update(json.loads(terminal.read_text()))
     elif record["state"] == "interrupted":
@@ -132,7 +130,6 @@ def provider_command(record: dict[str, Any], folder: Path) -> list[str]:
                 "-c",
                 'approval_policy="never"',
             ]
-        # Config flags are accepted by exec/resume; never use --last.
         return args + (["resume", resume, "-"] if resume else ["-"])
     args = [
         "claude",

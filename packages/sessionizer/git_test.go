@@ -296,8 +296,6 @@ func TestGitCacheTTL(t *testing.T) {
 	}
 }
 
-// fakeGit puts a git on PATH that runs script with the subcommand in $cmd and
-// logs each subcommand to the returned file.
 func fakeGit(t *testing.T, script string) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -389,8 +387,6 @@ func TestRunGitResults(t *testing.T) {
 	}
 }
 
-// processGone reports whether pid has exited, counting an unreaped zombie
-// as gone.
 func processGone(pid int) bool {
 	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
 	if err != nil {

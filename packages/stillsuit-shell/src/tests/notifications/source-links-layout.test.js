@@ -42,7 +42,6 @@ assert.deepEqual(decks.map(deck => [deck.key, deck.rows.length]), [
     ["app:ghostty", 1]
 ])
 
-// Slack's "[workspace] in #channel" titles become sender, message, and channel.
 assert.deepEqual(Source.slackMessage("[anomaly] in #abattoir", "Dax: ship it: today"), {
     context: "#abattoir",
     summary: "Dax",

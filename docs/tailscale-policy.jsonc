@@ -1,26 +1,15 @@
-// Reference copy of the tailnet policy (source of truth: Tailscale admin
-// console).Update this file when the console policy changes.
 {
 	"tagOwners": {
-		// coding agents on dedicated agent boxes (none today)
 		"tag:agent": ["autogroup:admin"],
 
-		// tleilax: credential services (Executor v2, atlas). Vaultwarden was
-		// retired in favour of 1Password, and Executor v1 was retired from
-		// sietch rather than moved here.
 		"tag:credentials": ["autogroup:admin"],
 
-		// machines that exclusively need media (sietch::jellyfin) access
 		"tag:media": ["autogroup:admin"],
 
-		// dedicated storage appliances; no outbound fleet access
 		"tag:nas": ["autogroup:admin"],
 
-		// dev boxes
 		"tag:server": ["autogroup:admin"],
 
-		// Grokbot, joined through a Tailscale OAuth app. Tagged so it leaves
-		// autogroup:member and gets only its own grant.
 		"tag:grokbot": ["autogroup:admin"],
 	},
 
@@ -46,51 +35,28 @@
 	},
 
 	"grants": [
-		// Phone browser uses Blocky's DoH endpoint. Jacurutu retains its
-		// existing control-plane access through the grant below.
 		{"src": ["pixel-9"], "dst": ["svc:blocky"], "ip": ["tcp:443"]},
 
-		// Phone opens the CPA dashboard. Jacurutu reaches it through the grant
-		// below; nothing else does.
 		{"src": ["pixel-9"], "dst": ["svc:cpa-admin"], "ip": ["tcp:443"]},
 
-		// control plane: jacurutu reaches everything
 		{"src": ["jacurutu"], "dst": ["*"], "ip": ["*"]},
 
-		// sietch runs coding agents, so it gets nothing on tleilax. Away from
-		// home, jacurutu reaches tleilax's boot-time unlock through sietch over
-		// the LAN, which this policy doesn't govern.
-
-		// Wireless ADB uses randomized pairing and connection ports. Allow
-		// sietch to initiate TCP connections to the Pixel, but nothing else.
 		{"src": ["sietch"], "dst": ["pixel-9"], "ip": ["tcp:*"]},
 
-		// allow sietch to access `moberg-demo` while its still part of the tailnet
 		{"src": ["sietch"], "dst": ["moberg-demo"], "ip": ["tcp:22"]},
 
-		// Uncomment if syncthing stops syncing after the allow-all removal:
-		// jacurutu-side dialing usually suffices, but if sietch must
-		// initiate, permit exactly the syncthing port and nothing else.
-		// {"src": ["sietch"], "dst": ["jacurutu"], "ip": ["tcp:22000"]},
-
-		// phone: T3 Code and dev servers on both interactive machines. The phone
-		// never uses SSH, so it gets every TCP port except 22. It reaches
-		// tleilax's services through the svc: grants only.
 		{
 			"src": ["pixel-9"],
 			"dst": ["sietch", "jacurutu"],
 			"ip":  ["tcp:1-21", "tcp:23-65535"],
 		},
 
-		// iPad: SSH and T3 Code over Tailscale Serve.
 		{
 			"src": ["ipad"],
 			"dst": ["sietch", "jacurutu", "tleilax"],
 			"ip":  ["tcp:22", "tcp:443"],
 		},
 
-		// tailnet members reach the hosted services. svc:cliproxyapi is left
-		// out: only jacurutu, sietch and agent boxes send inference.
 		{
 			"src": ["autogroup:member"],
 			"dst": [
@@ -102,9 +68,6 @@
 			"ip": ["tcp:443"],
 		},
 
-		// sietch is tagged, so autogroup:member above does not cover it; its
-		// own consumers use the svc names too (dictator -> siren). Keep this
-		// minimal - add services only when something on sietch needs them.
 		{
 			"src": ["tag:server"],
 			"dst": [
@@ -116,28 +79,21 @@
 			"ip": ["tcp:443"],
 		},
 
-		// human-owned devices administer the NAS through Tailscale Serve.
 		{
 			"src": ["autogroup:member"],
 			"dst": ["tag:nas"],
 			"ip":  ["tcp:443"],
 		},
 
-		// tleilax sends failed-unit alerts to Hark and backs up Executor v2 to
-		// its own NAS share over SMB, and reaches nothing else. Atlas runs on
-		// tleilax itself, on loopback, for Executor v2.
 		{"src": ["tag:credentials"], "dst": ["svc:hark"], "ip": ["tcp:443"]},
 		{"src": ["tag:credentials"], "dst": ["tag:nas"], "ip": ["tcp:445"]},
 
-		// Grokbot reaches Executor v2 and sietch's T3 Code (Tailscale Serve on the
-		// machine's own HTTPS address, which carries the T3 MCP) and nothing else.
 		{
 			"src": ["tag:grokbot"],
 			"dst": ["svc:executor-v2", "sietch"],
 			"ip":  ["tcp:443"],
 		},
 
-		// tagged clients: media boxes get jellyfin, agent boxes get the MCP/API services
 		{"src": ["tag:media"], "dst": ["svc:jellyfin"], "ip": ["tcp:443"]},
 		{
 			"src": ["tag:agent"],
@@ -147,14 +103,12 @@
 	],
 
 	"ssh": [
-		// human SSH to own untagged devices, check mode
 		{
 			"action": "check",
 			"src":    ["autogroup:member"],
 			"dst":    ["autogroup:self"],
 			"users":  ["autogroup:nonroot", "root"],
 		},
-		// sietch is tagged, so autogroup:self does not cover it
 		{
 			"action": "check",
 			"src":    ["autogroup:member"],
@@ -257,9 +211,6 @@
 	],
 	"nodeAttrs": [
 		{
-			// Funnel policy, which lets tailnet members control Funnel
-			// for their own devices.
-			// Learn more at https://tailscale.com/docs/features/tailscale-funnel
 			"target": ["autogroup:member"],
 			"attr":   ["funnel"],
 		},

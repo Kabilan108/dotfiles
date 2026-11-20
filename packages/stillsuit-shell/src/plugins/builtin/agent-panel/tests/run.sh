@@ -319,8 +319,6 @@ EOF
 chmod +x "$TEST_DIR/real-bin/tmux"
 export REAL_TMUX FIXTURE_TMUX_SOCKET
 export PATH="$TEST_DIR/real-bin:$REAL_PATH"
-# Start the server through the helper, rather than pre-starting it outside
-# the lock. The next request must complete while that server stays alive.
 jq -cn --arg directory "$HOME/dotfiles" \
   '{command: ["sleep", "60"], workingDirectory: $directory}' >"$XDG_CONFIG_HOME/stillsuit/agent-panel.json"
 timeout 15 "$HELPER" open >/dev/null || fail "cold-server open failed"

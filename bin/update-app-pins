@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Update the prebuilt app pins, build each changed package, commit and push.
-# Deployment stays manual: the notification asks for a rebuild.
 set -euo pipefail
 
 cd "${1:?usage: update-app-pins REPO}"
@@ -31,13 +29,11 @@ skip() {
   exit 0
 }
 
-# name, updater, pin file, package attribute
 apps=(
   "Helium:update-helium:packages/helium-version.json:helium"
   "ChatGPT desktop:update-chatgpt-desktop:packages/chatgpt-desktop-version.json:chatgpt-desktop"
   "Grok bot:update-grok-bot:packages/grok-bot-version.json:grok-bot"
 )
-# Builds read the working tree, so its package inputs must match HEAD.
 build_inputs=(packages flake.nix flake.lock bin/update-helium bin/update-chatgpt-desktop bin/update-grok-bot)
 
 if [[ $(git branch --show-current) != nixos ]]; then
@@ -51,7 +47,6 @@ export GIT_TERMINAL_PROMPT=0
 export GIT_SSH_COMMAND='ssh -o BatchMode=yes'
 if ! git fetch origin refs/heads/nixos; then
   failure_context='Cannot fetch origin/nixos. The service will retry in 15 minutes.'
-  # EX_TEMPFAIL: only this failure asks systemd to retry automatically.
   exit 75
 fi
 if [[ $(git rev-parse HEAD) != "$(git rev-parse FETCH_HEAD)" ]]; then
@@ -89,7 +84,6 @@ done
 
 pushed=true
 if ((${#updated[@]})); then
-  # No force or rebase. A rejected push leaves the commits for manual recovery.
   git push origin HEAD:refs/heads/nixos || pushed=false
 fi
 

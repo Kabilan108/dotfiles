@@ -1,6 +1,3 @@
-// A HostContext v1 compositor snapshot driven by the fixture instead of Niri.
-// Outputs come from the real Quickshell screens so per-output plugins and the
-// panel hosts see the same output identities the windows are on.
 import QtQuick
 import Quickshell
 
@@ -14,8 +11,6 @@ QtObject {
     property string focusedOutputId: ""
     property var workspaces: []
     property var windows: []
-    // A fixture with no focused window may name the one a layer surface took
-    // focus from; like the Niri adapter, it is null unless that window exists.
     readonly property var lastFocusedWindowId: root._lastFocusedWindowId
     property var _lastFocusedWindowId: null
     property var focusRequests: []
@@ -28,8 +23,6 @@ QtObject {
         return "ok"
     }
 
-    // Activates the workspace in the snapshot the way Niri's WorkspaceActivated
-    // event would, so the bar on the fixture output shows the switch.
     function focusWorkspace(workspaceId) {
         var id = Number(workspaceId)
         if (!Number.isInteger(id) || id <= 0)
@@ -57,9 +50,6 @@ QtObject {
         return "ok"
     }
 
-    // The workbench draws on exactly the screens it was given, so focus
-    // always lands there: a fixture's focusedOutputId only selects among
-    // several headless outputs and never points at a screen it cannot use.
     function apply(snapshot, screens) {
         var nextOutputs = []
         for (var index = 0; index < screens.length; index++)
@@ -93,8 +83,6 @@ QtObject {
         return namedOpen ? named : null
     }
 
-    // Fixtures name their output "WB-1"; map it onto whatever the first real
-    // screen is called so workspace views find their rows.
     function _retarget(rows, primary) {
         var result = JSON.parse(JSON.stringify(rows))
         for (var index = 0; index < result.length; index++) {

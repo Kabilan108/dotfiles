@@ -59,9 +59,6 @@ ShellRoot {
 
     Component {
         id: builtinFallbackBar
-        // A headless shadow fixture has no PanelWindow backend. Production
-        // never receives this marker: failure to construct the packaged bar
-        // keeps readiness false, as required by the host contract.
         QtObject {
             required property var context
             readonly property bool emergencyFallback: true
@@ -150,7 +147,6 @@ ShellRoot {
         }
     }
 
-    // A contained plugin disappears from the bar; the desktop must say why.
     Component {
         id: hostNoticeComponent
         HostNotice {}

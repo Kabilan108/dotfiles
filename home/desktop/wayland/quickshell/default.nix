@@ -32,13 +32,7 @@ let
   clipboardCollector =
     pkgs.callPackage ../../../../packages/stillsuit-shell/clipboard-collector.nix
       { };
-  # `niri msg` should speak the running compositor's IPC version, and both
-  # hosts run niri-unstable rather than the nixpkgs release.
   niri = lib.getExe osConfig.programs.niri.package;
-  # swaylock.nix (imported by the niri compositor module) installs the
-  # lock-screen script. Session actions run against the shell's exact PATH,
-  # so the launcher needs its store path rather than the bare name. Configs
-  # without it keep the module's loginctl default.
   lockScreen = lib.findFirst (
     package: (package.name or "") == "lock-screen"
   ) null config.home.packages;
@@ -55,16 +49,11 @@ let
       pkgs.glib
       pkgs.mpv
     ];
-    # gio launches the handler's Exec line (e.g. a bare `helium`), which the
-    # shell unit's restricted PATH cannot resolve on its own.
     text = ''
       export PATH="$PATH:/etc/profiles/per-user/${config.home.username}/bin:/run/current-system/sw/bin"
       gio open -- "$1"
     '';
   };
-  # The key's authorized_keys entry on sietch forces `moberg-dev-checkouts`,
-  # which parses SSH_ORIGINAL_COMMAND as the request itself (`status`,
-  # `pause NAME`, `resume NAME`), so send only the request words.
   devCheckoutsHelper = pkgs.writeShellApplication {
     name = "stillsuit-dev-checkouts";
     runtimeInputs = [ pkgs.openssh ];
@@ -90,12 +79,8 @@ in
   programs.stillsuitShell.ownership.notificationOwners = [ "stillsuit.notifications" ];
   home.packages = [ pkgs.quickshell ];
 
-  # Stillsuit is built on niri IPC.
   systemd.user.services.stillsuit-shell.Unit.ConditionEnvironment = "XDG_CURRENT_DESKTOP=niri";
 
-  # Stillsuit provides the network and Bluetooth controls. Keep the desktop
-  # packages available for their manager commands, but suppress their legacy
-  # XDG tray applets.
   xdg.configFile."autostart/nm-applet.desktop".text = ''
     [Desktop Entry]
     Type=Application
@@ -186,14 +171,6 @@ in
           maxTextBytes = 1048576;
           maxImageBytes = 20971520;
           clearPurgeWindowSec = 330;
-          # Password-manager extension copies in Zen/Firefox offer the same
-          # MIME types as an address-bar copy and as any GTK3 app's text copy. With
-          # "skip", such an offer is recorded only when niri shows the same
-          # settled focus before and after the payload read: a window not
-          # matching geckoAppIds, stamped by niri, newest stamp, and focused
-          # for at least focusSettleMs. Firefox/Zen address-bar copies and
-          # GTK3 copies made within 2 s of a focus change don't enter
-          # history. "record" keeps them all.
           unattributedFirefox = "skip";
           focusSettleMs = 2000;
           geckoAppIds = "^(zen|zen-beta|zen-browser|zen-alpha|zen-twilight|app\\.zen_browser\\.zen|firefox|firefox-esr|firefox-nightly|librewolf|org\\.mozilla\\.firefox)$";
@@ -203,7 +180,6 @@ in
       }
     )
     (builtinPlugin "clock")
-    # Enabled by the "moberg" Stillsuit profile.
     (
       (builtinPlugin "dev-checkouts")
       // {

@@ -2,8 +2,6 @@ function stringValue(value) {
     return value === undefined || value === null ? "" : String(value)
 }
 
-// Settings cross a QML property boundary as QVariantList, which fails
-// Array.isArray inside Qt's engine while still iterating like an array.
 function listValue(value) {
     if (Array.isArray(value)) return value.slice()
     if (value && typeof value === "object" && typeof value.length === "number") {
@@ -24,7 +22,6 @@ function notificationsPolicy(settings) {
     var values = settings && settings.notifications ? settings.notifications : {}
     var bypass = values.quietBypass || values.dndBypass || {}
     return {
-        // Sources shown at once; each is one deck of up to deckRowLimit rows.
         popupLimit: Math.round(boundedNumber(values.popupLimit, 5, 1, 20)),
         deckRowLimit: Math.round(boundedNumber(values.deckRowLimit, 8, 1, 40)),
         heldLimit: Math.round(boundedNumber(values.heldLimit, 50, 1, 200)),
@@ -67,8 +64,6 @@ function isSettingsAction(action) {
     return identifier === "settings" || label === "settings"
 }
 
-// The buttons a card shows: not the default action (a click on the card) and
-// not Chromium's per-site "Settings" button.
 function buttonActions(actions) {
     return (listValue(actions) || []).filter(function(action) {
         return action && stringValue(action.identifier) !== "default" && !isSettingsAction(action)
@@ -82,13 +77,11 @@ function durationFor(snapshot, settings) {
     if (Number(row.urgency) === 0) return Math.round(policy.lowTimeoutMs)
     var requested = Number(row.expireTimeout || 0)
     if (isFinite(requested) && requested > 0) return Math.round(requested)
-    // Cards with buttons stay long enough to reach them.
     if (buttonActions(row.actions).length > 0)
         return Math.round(Math.max(policy.normalTimeoutMs, policy.actionTimeoutMs))
     return Math.round(policy.normalTimeoutMs)
 }
 
-// A paused card resumes with what it had left, and never less than the grace.
 function resumedDeadline(deadline, pausedAt, now, settings) {
     var current = Number(deadline || 0)
     if (current <= 0) return current
@@ -115,7 +108,6 @@ function shouldBypassQuiet(snapshot, settings) {
         try {
             if (new RegExp(stringValue(policy.summaryPatterns[patternIndex])).test(summary)) return true
         } catch (error) {
-            // A malformed optional rule cannot block the rest of notification policy.
         }
     }
     return false
@@ -126,8 +118,6 @@ function isTransient(snapshot) {
     return hints.transient === true || hints["transient"] === 1
 }
 
-// Held rows replay when quiet ends. Transient rows and stacked status cards
-// (volume, brightness) are only worth seeing when they happen.
 function quietClass(snapshot, held, settings) {
     if (!held) return "visible"
     if (shouldBypassQuiet(snapshot, settings)) return "bypass"
@@ -136,8 +126,6 @@ function quietClass(snapshot, held, settings) {
     return isTransient(snapshot) || stacked ? "silenced-ephemeral" : "silenced-retained"
 }
 
-// A stable colour per source, so the same sender reads the same at a glance
-// (Hokum's FNV-1a hash onto an oklch hue).
 function sourceTint(key) {
     var text = stringValue(key)
     var hash = 2166136261
@@ -168,12 +156,6 @@ function oklchHex(lightness, chroma, hue) {
     }).join("")
 }
 
-// Multi-output rule: a toast stays on the output focused when it arrived.
-// If that output disappeared, exactly one fallback is selected: the currently
-// focused output, then the first output in stable input order.
-// Banners go to the output the notification was saved for, else the focused
-// output, else the first. `avoidOutputs` removes candidates while another
-// process (the workbench) owns those screens, as long as one output remains.
 function presentationOutput(snapshot, outputIds, focusedOutputId, avoidOutputs) {
     var all = (listValue(outputIds) || []).map(stringValue)
     var avoid = (listValue(avoidOutputs) || []).map(stringValue)

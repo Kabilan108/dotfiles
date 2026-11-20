@@ -50,12 +50,10 @@ SHARED: tempfile.TemporaryDirectory[str]
 T1 = "deploy/fleet/20261029T100000Z"
 T2 = "deploy/fleet/20261029T110000Z"
 T3 = "deploy/fleet/20261029T120000Z"
-# Tags from before fleet tags, which a host's state file may still name.
 OLD1 = "deploy/sietch/20261029T100000Z"
 OLD2 = "deploy/sietch/20261029T110000Z"
 FOR_SIETCH = "deploy sietch\nHosts: sietch"
 
-# `ykman list` lines, for the serials in DEPLOY_KEY_SERIALS below.
 NFC = "YubiKey 5 NFC (5.7.1) [OTP+FIDO+CCID] Serial: 10000001"
 NANO = "YubiKey 5C Nano (5.7.1) [OTP+FIDO+CCID] Serial: 10000002"
 OTHER = "YubiKey 5C (5.4.3) [OTP+FIDO+CCID] Serial: 20000001"
@@ -205,7 +203,6 @@ def setUpModule() -> None:
             capture_output=True,
             start_new_session=True,
         )
-    # Same line format as modules/nixos/deploy/default.nix; evil isn't listed.
     with (keys / "signers").open("w") as signers:
         for name in ["yk", "notouch", "pin", "soft"]:
             pub = KEYS[name].with_suffix(".pub").read_text().strip()
@@ -596,7 +593,6 @@ class Receiver(DeployGate):
         r = self.run_cmd(["git", "mktag"], stdin=tag_object)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.git("update-ref", f"refs/tags/{T1}", r.stdout.strip())
-        # git itself accepts this tag: it only checks the last block.
         verify = self.run_cmd(
             ["git", "-c", f"gpg.ssh.allowedSignersFile={KEYS['signers']}", "verify-tag", T1]
         )
@@ -627,7 +623,6 @@ class Receiver(DeployGate):
         r = self.receive()
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn(f"No deploy tag for sietch newer than {T2}", r.stdout)
-        # Deleting the newer tag on GitHub doesn't bring the older one back.
         self.git("push", "-q", "origin", f":refs/tags/{T2}")
         r = self.receive()
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -645,8 +640,6 @@ class Receiver(DeployGate):
 
 class Rollback(DeployGate):
     def test_withheld_tag_cannot_roll_back_a_manual_rebuild(self) -> None:
-        # The review's replay: deploy A, sign B but withhold it, rebuild a newer
-        # C by hand, then publish B and trigger.
         self.sign(T1, "yk")
         self.assertEqual(self.receive().returncode, 0)
         b = self.push_commit("b")
@@ -659,7 +652,6 @@ class Rollback(DeployGate):
         self.assertIn(f"refusing {T2}: {b} doesn't descend from {c}", r.stderr)
         self.assertEqual(self.running(), c)
         self.assertEqual(self.rebuilds(), self.deploy_lines(self.tip))
-        # The manual rebuild is the new floor: a tag on a child of C deploys.
         d = self.push_commit("d")
         self.sign(T3, "yk")
         r = self.receive()
@@ -669,7 +661,6 @@ class Rollback(DeployGate):
     def test_signed_override_allows_a_rollback(self) -> None:
         older = self.rev("HEAD^")
         self.set_running(self.tip)
-        # Outside the first paragraph the line doesn't count.
         self.sign(T1, "yk", rev=older, message=f"{FOR_SIETCH}\n\nAllow-Rollback: yes")
         self.assert_refused(f"{older} doesn't descend from {self.tip}")
         self.sign(
@@ -681,8 +672,6 @@ class Rollback(DeployGate):
         self.assertEqual(self.running(), older)
 
     def test_unsigned_trailer_cannot_allow_a_rollback(self) -> None:
-        # The re-review's tag: a valid signed message of one paragraph, with
-        # the override appended right after the signature, which nothing covers.
         older = self.rev("HEAD^")
         self.set_running(self.tip)
         self.sign(T1, "yk", rev=older, push=False)
@@ -691,7 +680,6 @@ class Rollback(DeployGate):
         forged = self.run_cmd(["git", "mktag"], stdin=signed + "\nAllow-Rollback: yes\n")
         self.assertEqual(forged.returncode, 0, forged.stderr)
         self.git("update-ref", f"refs/tags/{T1}", forged.stdout.strip())
-        # git accepts the forged tag: the trailer sits outside what it verifies.
         verify = self.run_cmd(
             ["git", "-c", f"gpg.ssh.allowedSignersFile={KEYS['signers']}", "verify-tag", T1]
         )
@@ -702,9 +690,6 @@ class Rollback(DeployGate):
         self.assertEqual(self.run_cmd(["deploy-tag", "allows-rollback", T1]).returncode, 1)
 
     def test_only_an_empty_line_ends_the_first_paragraph(self) -> None:
-        # The third review's variants: a blank-looking line that isn't empty
-        # would leave the marker in the first paragraph. Tags carrying one are
-        # refused outright.
         older = self.rev("HEAD^")
         self.set_running(self.tip)
         variants = {
@@ -760,8 +745,6 @@ class SwitchLock(DeployGate):
     def test_a_manual_rebuild_during_the_build_wins(self) -> None:
         self.sign(T1, "yk")
         c = self.push_commit("c")
-        # While the receiver builds the signed commit, a manual rebuild
-        # switches the host to the newer C.
         r = self.receive(TEST_DURING_BUILD=f'echo {c} > "{self.tmp}/running"')
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn(f"{self.tip} doesn't descend from {c}", r.stderr)
@@ -1102,7 +1085,6 @@ class Deploy(DeployGate):
 
     def test_reports_a_host_running_another_commit(self) -> None:
         self.assertEqual(self.deploy("--yes", "--key", str(KEYS["yk"]), "sietch").returncode, 0)
-        # A manual rebuild moved the host on; nothing new is signed.
         self.set_running(self.side)
         r = self.deploy("--yes", "--key", str(KEYS["yk"]), "sietch")
         self.assertEqual(r.returncode, 1)
@@ -1158,8 +1140,6 @@ class Trigger(DeployGate):
 
     def test_broker_returns_at_once_for_a_client_that_never_reads(self) -> None:
         self.sign(T1, "yk")
-        # The receiver stays busy for a while; the broker must not wait for it,
-        # and its output pipe is never read.
         broker = subprocess.Popen(
             ["bash", str(SCRIPTS / "broker.sh")],
             cwd=self.tmp,
@@ -1195,8 +1175,6 @@ class Trigger(DeployGate):
         return self.trigger(f'exec bash "{SCRIPTS}/broker.sh"', **extra)
 
     def test_a_run_that_ends_before_the_first_poll(self) -> None:
-        # The re-review's case: the run finishes, and its job and unit are gone,
-        # before the client first looks.
         self.sign(T1, "yk")
         r = self.broker(TEST_SYNC_START="1")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
@@ -1239,7 +1217,6 @@ class Trigger(DeployGate):
         self.commit("next")
         self.git("push", "-q", "origin", "HEAD:nixos")
         self.sign(T2, "yk")
-        # SIGKILL the receiver mid-build; run-record.sh notes the signal.
         r = self.broker(TEST_DURING_BUILD='kill -9 "$(ps -o ppid= -p "$PPID")"')
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("the receiver run for job 2 failed (exit 137)", r.stderr)
@@ -1250,9 +1227,6 @@ class Trigger(DeployGate):
         self.commit("next")
         self.git("push", "-q", "origin", "HEAD:nixos")
         self.sign(T2, "yk")
-        # SIGKILL the receiver and run-record.sh too: job 2 records only its
-        # start, while job 1's success stays in the record. ps pads PIDs under
-        # seven digits with a space, which `ps -p` rejects.
         r = self.broker(
             TEST_DURING_BUILD=(
                 'receiver=$(ps -o ppid= -p "$PPID" | tr -d " "); '
@@ -1398,7 +1372,6 @@ class Rebuild(DeployGate):
         self.assertTrue(call.startswith(f"flock {self.tmp}/switch.lock "), call)
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)])
 
-        # HEAD is signed already; CI may still be building for it.
         r = self.rebuild()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn(f"HEAD is {tag}.", r.stdout)
@@ -1517,7 +1490,6 @@ class Rebuild(DeployGate):
                 self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
                 self.assertIn("HEAD is deploy/fleet/", r.stdout)
                 self.assertEqual(self.lines("waits"), [])
-        # --unsigned builds the checkout even though HEAD is signed.
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)] * 2)
         self.assertEqual(
             self.sudo_calls()[2:],
@@ -1541,7 +1513,6 @@ class Rebuild(DeployGate):
         self.assertEqual(len(self.git("tag", "-l", "deploy/*").splitlines()), 1)
         self.assertEqual(self.lines("waits"), [])
         self.assertEqual(len(self.sudo_calls()), 1)
-        # A signed HEAD with uncommitted changes builds unsigned, unwaited.
         r = self.rebuild("y\n")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(len(self.git("tag", "-l", "deploy/*").splitlines()), 1)
@@ -1568,7 +1539,6 @@ class Rebuild(DeployGate):
         self.assertEqual(len(self.sudo_calls()), 1)
 
     def test_a_signed_build_builds_the_tagged_commit(self) -> None:
-        # A pull lands in ~/dotfiles while the build waits for CI.
         self.give_key()
         pull = f'cd "{self.work}" && echo pulled > file && git commit -qam pulled'
         r = self.rebuild("y\n", TEST_DURING_WAIT=pull)
@@ -1578,8 +1548,6 @@ class Rebuild(DeployGate):
         self.assertEqual(self.local_running(), self.tip)
 
     def test_a_tag_moved_during_the_wait_is_refused(self) -> None:
-        # The review's repro: another process running as Tony re-points the
-        # tag while rebuild waits for CI.
         self.give_key()
         for how in ["unsigned", "for sietch"]:
             with self.subTest(how):
@@ -1589,7 +1557,6 @@ class Rebuild(DeployGate):
                 self.assertEqual(self.rebuilds(self.local), [])
                 self.assertEqual(self.sudo_calls(), [])
                 self.assertEqual(self.local_running(), self.rev("HEAD^"))
-                # Next round signs a fresh tag at HEAD.
                 for tag in self.git("tag", "-l", "deploy/*").splitlines():
                     self.git("tag", "-d", tag)
                     self.git("push", "-q", "origin", f":refs/tags/{tag}")
@@ -1651,7 +1618,6 @@ class Rebuild(DeployGate):
         )
 
     def test_a_signed_rebuild_may_move_back(self) -> None:
-        # Moving forward is checked by deploy only; rebuild leaves it to Tony.
         self.give_key()
         (self.local / "running").write_text(self.tip + "\n")
         self.git("reset", "-q", "--hard", "HEAD^")
@@ -1675,7 +1641,6 @@ class Rebuild(DeployGate):
         self.assertEqual(self.rebuild("y\n").returncode, 0)
         (self.tmp / "offline.git").rename(self.origin)
         [tag] = self.git("tag", "-l", "deploy/*").splitlines()
-        # The real deploy-wait; gh fails loudly if it gets that far.
         (self.tmp / "bin/deploy-wait").write_text(
             f'#!/usr/bin/env bash\nexec bash "{SCRIPTS}/deploy-wait.sh" "$@"\n'
         )
@@ -1760,7 +1725,6 @@ class FleetTags(DeployGate):
         self.sign(T2, "yk", message="deploy jacurutu sietch\nHosts: jacurutu sietch")
         self.assertEqual(self.receive().returncode, 0)
         self.assertEqual((self.state / "deployed").read_text(), f"{T2} {self.tip}\n")
-        # A newer tag for other hosts is skipped, not counted as refused.
         self.push_commit("c")
         self.sign(T3, "yk", message="rebuild jacurutu\nHosts: jacurutu")
         r = self.receive()
@@ -1777,8 +1741,6 @@ class FleetTags(DeployGate):
         self.assertEqual(self.git("tag", "-l", cwd=self.state / "dotfiles.git"), "")
 
     def test_an_old_state_entry_is_compared_by_time(self) -> None:
-        # The old receiver deployed OLD2 (11:00). A comparison of whole names
-        # would put every deploy/fleet tag before deploy/sietch.
         (self.state / "deployed").write_text(f"{OLD2} {self.rev('HEAD^')}\n")
         self.sign(T1, "yk")
         self.sign(T2, "yk", rev="HEAD^")
@@ -1796,7 +1758,6 @@ class FleetTags(DeployGate):
     def test_a_replayed_fleet_tag_of_an_older_or_equal_time_is_refused(self) -> None:
         self.sign(T2, "yk", rev="HEAD^")
         self.assertEqual(self.receive().returncode, 0)
-        # T1 is older; an old per-host tag of T2's time names nobody here.
         self.sign(T1, "yk")
         self.sign(OLD2, "yk", message="deploy sietch")
         r = self.receive()
@@ -1902,7 +1863,6 @@ class FleetDeployTag(DeployGate):
                     self.approves(T1, "jacurutu", obj, self.tip),
                     f"it now resolves to {now}, not {obj}",
                 )
-                # Checking the replacement itself fails too.
                 if how == "unsigned":
                     self.assertEqual(self.approves(T1, "jacurutu", now, self.rev("HEAD^")).returncode, 1)
                 else:
@@ -1939,7 +1899,6 @@ class FleetDeploy(DeployGate):
         return self.git("tag", "-l", "deploy/*", cwd=self.origin).splitlines()
 
     def test_one_tag_deploys_the_whole_fleet(self) -> None:
-        # Uncommitted changes in ~/dotfiles stay out of jacurutu's build.
         (self.work / "file").write_text("dirty")
         r = self.deploy("--yes", "--key", str(KEYS["yk"]))
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
@@ -1981,7 +1940,6 @@ class FleetDeploy(DeployGate):
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)] * 2)
 
     def test_receivers_deploy_in_parallel(self) -> None:
-        # Each build waits until both have started; one at a time would fail.
         both = (
             f'for _ in $(seq 100); do [[ -e "{self.tmp}/rebuilds" && -e "{self.tleilax}/rebuilds" ]]'
             " && exit 0; sleep 0.1; done; exit 1"
@@ -2051,8 +2009,6 @@ class FleetDeploy(DeployGate):
         return ahead
 
     def test_jacurutu_is_not_moved_back(self) -> None:
-        # The review's repro: nixos's tip already has a fleet tag, and
-        # jacurutu runs a later commit.
         self.sign(T1, "yk", message="deploy jacurutu sietch\nHosts: jacurutu sietch")
         ahead = self.ahead_of_nixos()
         r = self.deploy("--yes", "--no-wait", "--key", str(KEYS["yk"]), "jacurutu", "sietch")
@@ -2079,8 +2035,6 @@ class FleetDeploy(DeployGate):
                 self.assertEqual(self.local_running(), self.rev("HEAD^"))
 
     def test_the_first_fleet_deploy_after_the_switch_signs_a_fleet_tag(self) -> None:
-        # The switch-over left old per-host tags at the tip, which approve
-        # nothing on their own.
         self.sign("deploy/jacurutu/20261029T100000Z", "yk", message="rebuild")
         self.sign(OLD2, "yk", message="deploy sietch")
         r = self.deploy("--yes", "--key", str(KEYS["yk"]), "jacurutu", "sietch")
@@ -2099,11 +2053,9 @@ class FleetDeploy(DeployGate):
         self.assertEqual(self.lines("sudo"), [])
 
     def test_a_switch_that_lands_while_this_one_waits_for_the_lock_wins(self) -> None:
-        # Tony's rebuild of a later commit holds the lock and finishes first.
         ahead = self.ahead_of_nixos()
         (self.local / "running").write_text(self.rev("HEAD^^") + "\n")
         lock = self.tmp / "switch.lock"
-        # It switches once deploy-switch, past its first check, asks sudo.
         holder = subprocess.Popen(
             [
                 "flock", str(lock), "bash", "-c",
@@ -2178,7 +2130,6 @@ class FleetDeploy(DeployGate):
         self.assertEqual(self.ykman_calls(), [])
         self.assertEqual(len(self.deployed_tags()), 1)
         self.assertEqual(self.rebuilds(self.local), [self.tagged_build(self.tip)] * 2)
-        # deploy-wait hears the key it was given, for its push hint.
         [tag] = self.deployed_tags()
         self.assertEqual(
             self.lines("waits"),
@@ -2221,8 +2172,6 @@ class DeployWait(DeployGate):
                 '[[ ${TEST_PLANNER_EXIT:-0} == 0 ]] || exit "$TEST_PLANNER_EXIT"\n'
                 f'cat "{self.tmp}/heavy.json"'
             ),
-            # Each call of `gh run list` or `gh run view` answers with the
-            # next numbered response, repeating the last one.
             "gh": (
                 f'd="{self.tmp}/gh"\n'
                 'echo "$*" >> "$d/calls"\n'
@@ -2274,7 +2223,6 @@ class DeployWait(DeployGate):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("Every heavy package is in the local store or the cache.", r.stdout)
         self.assertEqual(self.gh_calls(), [])
-        # The planner comes from the tagged commit and evaluates it by rev.
         self.assertEqual((self.tmp / "planner-script").read_text(), "committed planner\n")
         self.assertEqual(
             (self.tmp / "planner-flake").read_text(),
@@ -2374,8 +2322,6 @@ class DeployWait(DeployGate):
         self.assertIn("niri was in the cache by the time CI planned.", r.stdout)
 
     def test_a_run_cancelled_before_its_build_jobs_is_no_cache_hit(self) -> None:
-        # The review's repro: the plan succeeds, then the run is cancelled
-        # before the build matrix exists.
         self.heavy(["niri"])
         self.found()
         views = {
@@ -2403,7 +2349,6 @@ class DeployWait(DeployGate):
                 self.assertEqual(code, 0, out)
 
     def test_a_package_left_out_of_the_build_matrix_was_cached(self) -> None:
-        # Another package's build failed; niri was never planned.
         self.heavy(["niri"])
         self.found()
         self.respond(
@@ -2644,9 +2589,6 @@ class CacheTargets(unittest.TestCase):
             "jacurutu": [niri[0], ghostty[0], dictator[0], gui[0], upstream_niri[0], pagebin[0]],
             "sietch": [sietch_disktree[0], pagebin[0]],
         }
-        # niri is built here; the rest are missing, but ghostty is in the
-        # cache and the other niri on cache.nixos.org. One output of
-        # dictator-gui is enough to wait for it.
         invalid = {out(ghostty), out(dictator), out(gui, "lib"), out(upstream_niri), out(pagebin)}
         cached = {
             (out(ghostty), self.ct.CACHE),
@@ -2708,8 +2650,6 @@ class CacheTargets(unittest.TestCase):
             redirect_stdout(stdout),
         ):
             self.ct.main()
-        # The plan ignores the local store: niri is built on jacurutu but
-        # not cached, so CI still builds it.
         self.assertEqual(json.loads(stdout.getvalue())["packages"], ["niri", "disktree", "pagebin"])
 
 

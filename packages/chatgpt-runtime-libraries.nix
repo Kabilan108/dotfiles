@@ -1,6 +1,5 @@
 { pkgs }:
 let
-  # Retain the existing nix-ld support for bundled workspace tools.
   curlWithGnuTlsCompat =
     (pkgs.curl.override {
       gnutlsSupport = true;
