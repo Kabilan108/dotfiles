@@ -68,6 +68,65 @@ fresh_config_checks() {
   prod_api_port=$("$yq" '.server.port' "$fresh")
 }
 
+same_config_values() {
+  local actual=$1 expected=$2
+  "$yq" -o=json -I=0 'sort_keys(..)' "$actual" >"$out/config-actual.json" &&
+    "$yq" -o=json -I=0 'sort_keys(..)' "$expected" >"$out/config-expected.json" &&
+    cmp -s "$out/config-actual.json" "$out/config-expected.json"
+}
+
+timestamped_backup() {
+  [[ $1 =~ \.pre-v8\.[0-9]{8}T[0-9]{6}\.[0-9]{9}Z$ ]]
+}
+
+pre_start_fails() { ! run_pre_start "$@"; }
+
+migration_fixture_checks() {
+  local config=$run/migration/config.yaml backup
+  local -a backups
+  section "legacy migration preserves operator values"
+  mkdir -p "$run/migration"
+  cp "$here/legacy.yaml" "$config"
+  check "legacy fixture migrates (exit 0)" run_pre_start "$config" pre-start-fixture
+  check "all operator values match the expected v8 config" same_config_values "$config" "$here/v8.yaml"
+  check "unknown setting retained as a comment" grep -q '^# obsolete-operator-setting: preserved-in-comments$' "$config"
+  backups=("$config".pre-v8.*)
+  check "one timestamped backup exists" test "${#backups[@]}" -eq 1
+  backup=${backups[0]}
+  check "backup has a UTC timestamp" timestamped_backup "$backup"
+  check "backup preserves the original bytes" cmp -s "$here/legacy.yaml" "$backup"
+  check "backup is private" test "$(stat -c %a "$backup")" = 600
+  check "migrated config is private" test "$(stat -c %a "$config")" = 600
+  cp "$config" "$run/migration/once.yaml"
+  check "second preStart succeeds" run_pre_start "$config" pre-start-fixture-again
+  check "second preStart leaves the config byte-for-byte unchanged" cmp -s "$config" "$run/migration/once.yaml"
+  backups=("$config".pre-v8.*)
+  check "second preStart creates no extra backup" test "${#backups[@]}" -eq 1
+  check "second preStart leaves the backup intact" cmp -s "$here/legacy.yaml" "$backup"
+
+  section "preStart on a v8 config"
+  config=$run/v8/config.yaml
+  mkdir -p "$run/v8"
+  cp "$here/v8.yaml" "$config"
+  check "v8 fixture passes preStart (exit 0)" run_pre_start "$config" pre-start-v8
+  check "v8 fixture values are unchanged" same_config_values "$config" "$here/v8.yaml"
+  backups=("$config".pre-v8.*)
+  check "v8 fixture creates no backup" test ! -e "${backups[0]}"
+
+  section "migration failure preserves the original"
+  config=$run/no-backup/config.yaml
+  mkdir -p "$run/no-backup"
+  cp "$here/legacy.yaml" "$config"
+  chmod 500 "$run/no-backup"
+  check "preStart fails when the backup cannot be written" pre_start_fails "$config" pre-start-no-backup
+  check "backup failure leaves the original bytes untouched" cmp -s "$here/legacy.yaml" "$config"
+  chmod 700 "$run/no-backup"
+  "$yq" -i '."config-version" = 9' "$config"
+  cp "$config" "$run/unsupported.yaml"
+  check "preStart refuses an unsupported config version" pre_start_fails "$config" pre-start-unsupported
+  check "unsupported version is left untouched" cmp -s "$run/unsupported.yaml" "$config"
+}
+
 legacy_config_checks() {
   local config=$state/config.yaml
   section "preStart on a legacy config"
@@ -82,7 +141,8 @@ legacy_config_checks() {
   write_legacy_config
 
   check "preStart migrates the legacy config (exit 0)" run_pre_start "$config" pre-start-legacy
-  check "pre-v8 backup written" test -e "$config.pre-v8"
+  local -a backups=("$config".pre-v8.*)
+  check "timestamped pre-v8 backup written" test -e "${backups[0]}"
   check "legacy config: management allow-remote is false" yq_is false '.management."allow-remote"' "$config"
   check "legacy config: top-level logging-to-file removed" yq_is false 'has("logging-to-file")' "$config"
   check "legacy config: observability file logging is off" yq_is false '.observability.logs."logging-to-file"' "$config"
@@ -284,6 +344,7 @@ logging_checks() {
 
 fronts_checks() {
   fresh_config_checks
+  migration_fixture_checks
   legacy_config_checks
   direct_checks || return 0
   start_nginx || return 0

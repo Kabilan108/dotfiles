@@ -1,0 +1,106 @@
+config-version: 8
+server:
+  host: 127.0.0.1
+  port: 18317
+access:
+  api-keys: [dummy-client-one, dummy-client-two]
+management:
+  allow-remote: false
+  secret-key: '$2a$10$dummy-existing-management-hash'
+  disable-control-panel: false
+  disable-auto-update-panel: true
+  panel-github-repository: https://example.invalid/panel
+observability:
+  logs:
+    debug: true
+    logging-to-file: false
+    error-logs-max-files: 7
+  usage:
+    usage-statistics-enabled: true
+routing:
+  strategy: round-robin
+  session-affinity: true
+  session-affinity-ttl: 1h
+  retry:
+    request-retry: 4
+  cooldown:
+    disable-cooling: false
+requests:
+  proxy-url: http://127.0.0.1:18080
+  payload:
+    filter:
+      - models:
+          - name: claude-*
+            protocol: claude
+            exist: [thread]
+        params: [fallbacks]
+      - models:
+          - name: operator-*
+            protocol: openai
+        params: [operator-param]
+    default:
+      - models:
+          - name: claude-*
+        params:
+          temperature: 0.25
+oauth:
+  auth-dir: /dummy/auth
+  settings:
+    claude:
+      - name: claude-*
+        max-context-length: 123456
+  excluded-models:
+    codex: [hidden-model]
+  model-alias:
+    claude:
+      - name: claude-source
+        alias: claude-alias
+        fork: true
+  request-scoped-errors:
+    claude:
+      - status: 404
+        match: [thread_not_found, No thread state was found]
+        action: stop
+      - status: 429
+        match: [operator-limit]
+        action: stop
+    codex:
+      - status: 400
+        match: [operator-error]
+        action: stop
+client:
+  codex:
+    optimize-multi-agent-v2: true
+upstream:
+  codex:
+    websocket-compression: false
+api-keys:
+  claude:
+    - name: claude-1
+      base-url: https://example.invalid/claude
+      headers: {X-Operator: dummy-header}
+      models:
+        - name: source-model
+          alias: test-model
+      request-scoped-errors:
+        - status: 404
+          match: [per-key-error]
+          action: stop
+      keys:
+        - api-key: dummy-claude-key
+  openai-compatibility:
+    - name: dummy-provider
+      base-url: https://example.invalid/v1
+      keys:
+        - api-key: dummy-upstream-one
+          weight: 2
+        - api-key: dummy-upstream-two
+          weight: 3
+      models:
+        - name: up
+          alias: test-model
+plugins:
+  configs:
+    operator-plugin:
+      enabled: false
+      settings: {operator-setting: preserved}
