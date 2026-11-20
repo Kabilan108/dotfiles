@@ -1,0 +1,564 @@
+#!/usr/bin/env python3
+"""Ban new code comments, ratcheting existing ones down to zero.
+
+Usage:
+  comment-lint check [PATH...]     fail if a file has more comment lines than its baseline
+  comment-lint list [--json] [PATH...]
+  comment-lint delete ID...        delete comment blocks by PATH:LINE id
+  comment-lint baseline [--reset]  lower baseline counts to the current state
+  comment-lint verify REF [PATH...]  check that the comment-free syntax tree matches REF
+  comment-lint stats [REF]         count comment lines (in REF's tree, if given)
+
+The baseline lives in scripts/comment-lint.baseline.json and maps each path to its
+allowed number of comment lines. Paths absent from it allow none. `baseline` only
+ever lowers counts; `baseline --reset` rewrites it from scratch and needs a reason
+in the commit message.
+
+Tool directives (shebangs, shellcheck, PEP 723 blocks, LuaLS annotations, lint
+suppressions, go: pragmas, schema hints) are not comments for this rule.
+
+Grammars come from $COMMENT_LINT_GRAMMARS, which the dev shell sets.
+"""
+
+from __future__ import annotations
+
+import argparse
+import ctypes
+import json
+import os
+import re
+import subprocess
+import sys
+import warnings
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import tree_sitter
+
+warnings.simplefilter("ignore", DeprecationWarning)
+
+REPO = Path(
+    subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+)
+BASELINE = REPO / "scripts" / "comment-lint.baseline.json"
+
+GRAMMAR_BY_SUFFIX = {
+    ".nix": "nix",
+    ".sh": "bash",
+    ".bash": "bash",
+    ".bashrc": "bash",
+    ".envrc": "bash",
+    ".py": "python",
+    ".qml": "qmljs",
+    ".js": "javascript",
+    ".mjs": "javascript",
+    ".cjs": "javascript",
+    ".ts": "typescript",
+    ".mts": "typescript",
+    ".go": "go",
+    ".lua": "lua",
+    ".kdl": "kdl",
+    ".toml": "toml",
+    ".yaml": "yaml",
+    ".yml": "yaml",
+    ".jsonc": "json",
+}
+
+EXCLUDED = re.compile(
+    r"(^|/)vendor/|^secrets/|^agents/claude/usage-data/|\.lock$|\.age$|(^|/)\.gitignore$"
+    r"|^agents/opencode/plugins/atuin\.ts$|^agents/pi/agent/extensions/atuin\.ts$"
+)
+
+DIRECTIVE = re.compile(
+    r"""^(
+        \#!
+      | \#\s*shellcheck\s
+      | \#\s*(type|pyright|mypy|ruff|fmt|isort):
+      | \#\s*(noqa|pragma)\b
+      | \#\s*deadnix:
+      | \#\s*yaml-language-server:
+      | \#:schema\s
+      | //\s*(eslint|jshint|prettier-ignore|biome-ignore|@ts-|qmllint\s)
+      | /\*\s*(eslint|global\s|biome-ignore)
+      | ///\s*<reference
+      | //go:
+      | //\s*\+build\s
+      | //nolint
+      | //export\s
+      | //\s*Code\ generated\ .*DO\ NOT\ EDIT
+      | ---@
+      | (\#|//|--)\s*vim?:\s
+      | (\#|//|--|/\*)\s*SPDX-License-Identifier:
+    )""",
+    re.VERBOSE,
+)
+PEP723_OPEN = re.compile(r"^#\s*///\s*script\s*$")
+PEP723_CLOSE = re.compile(r"^#\s*///\s*$")
+
+
+def load_language(name: str) -> tree_sitter.Language:
+    root = os.environ.get("COMMENT_LINT_GRAMMARS")
+    if not root:
+        sys.exit("comment-lint: COMMENT_LINT_GRAMMARS is unset; run inside the dev shell")
+    library = ctypes.cdll.LoadLibrary(str(Path(root) / f"{name}.so"))
+    entry = getattr(library, f"tree_sitter_{name}")
+    entry.restype = ctypes.c_void_p
+    return tree_sitter.Language(entry())
+
+
+PARSERS: dict[str, tree_sitter.Parser] = {}
+
+
+def parser_for(grammar: str) -> tree_sitter.Parser:
+    if grammar not in PARSERS:
+        PARSERS[grammar] = tree_sitter.Parser(load_language(grammar))
+    return PARSERS[grammar]
+
+
+def grammar_for(path: str, head: bytes) -> str | None:
+    if EXCLUDED.search(path):
+        return None
+    name = Path(path).name
+    suffix = Path(path).suffix or (name if name.startswith(".") else "")
+    if suffix in GRAMMAR_BY_SUFFIX:
+        return GRAMMAR_BY_SUFFIX[suffix]
+    if suffix:
+        return None
+    first = head.split(b"\n", 1)[0]
+    if not first.startswith(b"#!"):
+        return None
+    if b"python" in first:
+        return "python"
+    if re.search(rb"\b(ba|z)?sh\b", first):
+        return "bash"
+    return None
+
+
+@dataclass
+class Comment:
+    start: int
+    end: int
+    line: int
+    end_line: int
+    text: str
+    own_line: bool
+
+
+@dataclass
+class Block:
+    path: str
+    line: int
+    end_line: int
+    comments: list[Comment] = field(default_factory=list)
+
+    @property
+    def id(self) -> str:
+        return f"{self.path}:{self.line}"
+
+    @property
+    def text(self) -> str:
+        return "\n".join(c.text for c in self.comments)
+
+    @property
+    def line_count(self) -> int:
+        return sum(c.end_line - c.line + 1 for c in self.comments)
+
+
+def comment_nodes(tree: tree_sitter.Tree) -> list[tree_sitter.Node]:
+    found: list[tree_sitter.Node] = []
+    stack = [tree.root_node]
+    while stack:
+        node = stack.pop()
+        if node.type.endswith("comment"):
+            found.append(node)
+            continue
+        stack.extend(reversed(node.children))
+    return sorted(found, key=lambda n: n.start_byte)
+
+
+def node_span(node: tree_sitter.Node, source: bytes) -> tuple[int, int]:
+    start, end = node.start_byte, node.end_byte
+    if node.type == "node_comment" and node.next_named_sibling is not None:
+        end = node.next_named_sibling.end_byte
+    while end > start and source[end - 1 : end] in (b"\n", b"\r"):
+        end -= 1
+    return start, end
+
+
+def scan(path: str, source: bytes) -> tuple[list[Comment], bool] | None:
+    grammar = grammar_for(path, source[:200])
+    if grammar is None:
+        return None
+    tree = parser_for(grammar).parse(source)
+    comments: list[Comment] = []
+    in_pep723 = False
+    for node in comment_nodes(tree):
+        start, end = node_span(node, source)
+        text = source[start:end].decode("utf-8", "replace")
+        line_start = source.rfind(b"\n", 0, start) + 1
+        own_line = source[line_start:start].strip() == b""
+        if grammar == "python" and PEP723_OPEN.match(text):
+            in_pep723 = True
+        if in_pep723:
+            if PEP723_CLOSE.match(text):
+                in_pep723 = False
+            continue
+        if DIRECTIVE.match(text):
+            continue
+        if node.start_point[0] == 0 and text.startswith("#!"):
+            continue
+        comments.append(
+            Comment(
+                start=start,
+                end=end,
+                line=source.count(b"\n", 0, start) + 1,
+                end_line=source.count(b"\n", 0, end) + 1,
+                text=text,
+                own_line=own_line,
+            )
+        )
+    return comments, tree.root_node.has_error
+
+
+def blocks_of(path: str, comments: list[Comment]) -> list[Block]:
+    blocks: list[Block] = []
+    for comment in comments:
+        previous = blocks[-1] if blocks else None
+        if (
+            previous is not None
+            and comment.own_line
+            and previous.comments[-1].own_line
+            and comment.line == previous.end_line + 1
+        ):
+            previous.comments.append(comment)
+            previous.end_line = comment.end_line
+            continue
+        blocks.append(Block(path, comment.line, comment.end_line, [comment]))
+    return blocks
+
+
+def tracked_files(ref: str | None = None) -> list[str]:
+    command = ["git", "ls-tree", "-r", "--name-only", ref] if ref else ["git", "ls-files"]
+    output = subprocess.run(
+        command, cwd=REPO, check=True, capture_output=True, text=True
+    ).stdout
+    return [line for line in output.splitlines() if line]
+
+
+def read_tracked(path: str, ref: str | None = None) -> bytes | None:
+    if ref is None:
+        file = REPO / path
+        if not file.is_file() or file.is_symlink():
+            return None
+        return file.read_bytes()
+    result = subprocess.run(
+        ["git", "cat-file", "blob", f"{ref}:{path}"], cwd=REPO, capture_output=True
+    )
+    return result.stdout if result.returncode == 0 else None
+
+
+def relative(paths: list[str]) -> list[str]:
+    if not paths:
+        return tracked_files()
+    cwd = Path.cwd()
+    return [str((cwd / p).resolve().relative_to(REPO)) for p in paths]
+
+
+def collect(paths: list[str], ref: str | None = None) -> dict[str, list[Block]]:
+    result: dict[str, list[Block]] = {}
+    for path in paths:
+        source = read_tracked(path, ref)
+        if source is None:
+            continue
+        scanned = scan(path, source)
+        if scanned is None:
+            continue
+        comments, _ = scanned
+        result[path] = blocks_of(path, comments)
+    return result
+
+
+def line_counts(found: dict[str, list[Block]]) -> dict[str, int]:
+    counts = {path: sum(b.line_count for b in blocks) for path, blocks in found.items()}
+    return {path: count for path, count in counts.items() if count}
+
+
+def load_baseline() -> dict[str, int]:
+    if not BASELINE.exists():
+        return {}
+    return json.loads(BASELINE.read_text())
+
+
+def write_baseline(counts: dict[str, int]) -> None:
+    BASELINE.write_text(json.dumps(dict(sorted(counts.items())), indent=2) + "\n")
+
+
+def command_check(args: argparse.Namespace) -> int:
+    baseline = load_baseline()
+    paths = relative(args.paths)
+    current = line_counts(collect(paths))
+    failures: list[str] = []
+    for path in paths:
+        allowed = baseline.get(path, 0)
+        actual = current.get(path, 0)
+        if actual > allowed:
+            failures.append(f"{path}: {actual} comment lines, baseline allows {allowed}")
+        elif actual < allowed:
+            failures.append(
+                f"{path}: {actual} comment lines, below baseline {allowed}; "
+                "run `scripts/comment-lint baseline` to lock in the drop"
+            )
+    if not args.paths:
+        tracked = set(paths)
+        failures += [
+            f"{path}: in baseline but no longer tracked; run `scripts/comment-lint baseline`"
+            for path in baseline
+            if path not in tracked
+        ]
+    for failure in failures:
+        print(failure, file=sys.stderr)
+    if failures:
+        print(
+            "\nComments are banned: move decisions into docs/adr/, file an issue for "
+            "workarounds, delete the rest. See docs/adr/0001-ban-code-comments.md.",
+            file=sys.stderr,
+        )
+    return 1 if failures else 0
+
+
+def command_list(args: argparse.Namespace) -> int:
+    found = collect(relative(args.paths))
+    blocks = [block for blocks in found.values() for block in blocks]
+    if args.json:
+        json.dump(
+            [
+                {
+                    "id": b.id,
+                    "path": b.path,
+                    "line": b.line,
+                    "end_line": b.end_line,
+                    "lines": b.line_count,
+                    "inline": not b.comments[0].own_line,
+                    "text": b.text,
+                }
+                for b in blocks
+            ],
+            sys.stdout,
+            indent=1,
+        )
+        print()
+        return 0
+    for block in blocks:
+        print(f"{block.id}\n{block.text}\n")
+    return 0
+
+
+def strip_span(source: bytes, start: int, end: int) -> tuple[int, int]:
+    line_start = source.rfind(b"\n", 0, start) + 1
+    newline = source.find(b"\n", end)
+    line_end = len(source) if newline == -1 else newline
+    before = source[line_start:start]
+    after = source[end:line_end]
+    if before.strip() == b"" and after.strip() == b"":
+        return line_start, min(line_end + 1, len(source))
+    if before.strip() == b"":
+        while end < line_end and source[end : end + 1] in (b" ", b"\t"):
+            end += 1
+        return start, end
+    while start > line_start and source[start - 1 : start] in (b" ", b"\t"):
+        start -= 1
+    return start, end
+
+
+def is_blank_line_at(source: bytes, line_start: int) -> bool:
+    newline = source.find(b"\n", line_start)
+    return newline != -1 and source[line_start:newline].strip() == b""
+
+
+def follows_blank_line(source: bytes, line_start: int) -> bool:
+    if line_start == 0:
+        return True
+    previous_start = source.rfind(b"\n", 0, line_start - 1) + 1
+    return source[previous_start : line_start - 1].strip() == b""
+
+
+def tidy_blank_lines(source: bytes, removed_at: list[int]) -> bytes:
+    for position in sorted(set(removed_at), reverse=True):
+        at_line_start = position == 0 or source[position - 1 : position] == b"\n"
+        if (
+            at_line_start
+            and is_blank_line_at(source, position)
+            and follows_blank_line(source, position)
+        ):
+            newline = source.find(b"\n", position)
+            source = source[:position] + source[newline + 1 :]
+    if source.endswith(b"\n\n"):
+        source = source.rstrip(b"\n") + b"\n"
+    return source
+
+
+def command_delete(args: argparse.Namespace) -> int:
+    wanted: dict[str, set[int]] = {}
+    for item in args.ids:
+        path, _, line = item.rpartition(":")
+        wanted.setdefault(path, set()).add(int(line))
+    status = 0
+    for path, lines in wanted.items():
+        source = read_tracked(path)
+        scanned = scan(path, source) if source is not None else None
+        if scanned is None:
+            print(f"{path}: not a scanned file", file=sys.stderr)
+            status = 1
+            continue
+        blocks = {b.line: b for b in blocks_of(path, scanned[0])}
+        missing = sorted(lines - blocks.keys())
+        for line in missing:
+            print(f"{path}:{line}: no comment block starts here", file=sys.stderr)
+            status = 1
+        spans = sorted(
+            (strip_span(source, c.start, c.end) for line in lines if line in blocks for c in blocks[line].comments),
+            reverse=True,
+        )
+        removed_at: list[int] = []
+        for start, end in spans:
+            source = source[:start] + source[end:]
+            removed_at = [p - (end - start) if p > start else p for p in removed_at]
+            removed_at.append(start)
+        source = tidy_blank_lines(source, removed_at)
+        (REPO / path).write_bytes(source)
+    return status
+
+
+def command_baseline(args: argparse.Namespace) -> int:
+    current = line_counts(collect(tracked_files()))
+    if args.reset:
+        write_baseline(current)
+        return 0
+    previous = load_baseline()
+    write_baseline(
+        {path: min(count, previous[path]) for path, count in current.items() if path in previous}
+    )
+    raised = sorted(path for path, count in current.items() if count > previous.get(path, 0))
+    for path in raised:
+        print(f"{path}: above baseline; delete the new comments", file=sys.stderr)
+    return 1 if raised else 0
+
+
+EMBEDDED_COMMENT_LINE = re.compile(r"^\s*#(?!!)")
+TOKEN_ONLY_GRAMMARS = {"bash"}
+
+
+def without_embedded_comments(text: str) -> str:
+    kept = [
+        line
+        for line in text.split("\n")
+        if line.strip() and not EMBEDDED_COMMENT_LINE.match(line)
+    ]
+    return "\n".join(line.rstrip() for line in kept)
+
+
+def shape(node: tree_sitter.Node, grammar: str, out: list[str]) -> None:
+    if node.type.endswith("comment"):
+        return
+    if node.child_count == 0:
+        text = node.text.decode("utf-8", "replace")
+        if grammar == "nix" and node.type == "string_fragment":
+            text = without_embedded_comments(text)
+        out.append(text if grammar in TOKEN_ONLY_GRAMMARS else f"{node.type}:{text}")
+        return
+    structural = grammar not in TOKEN_ONLY_GRAMMARS
+    if structural:
+        out.append(f"({node.type}")
+    for child in node.children:
+        shape(child, grammar, out)
+    if structural:
+        out.append(")")
+
+
+def tree_shape(path: str, source: bytes) -> list[str] | None:
+    grammar = grammar_for(path, source[:200])
+    if grammar is None:
+        return None
+    out: list[str] = []
+    shape(parser_for(grammar).parse(source).root_node, grammar, out)
+    return ["".join(out)] if grammar in TOKEN_ONLY_GRAMMARS else out
+
+
+def command_verify(args: argparse.Namespace) -> int:
+    if args.paths:
+        paths = relative(args.paths)
+    else:
+        diff = subprocess.run(
+            ["git", "diff", "--name-only", "--diff-filter=M", args.ref],
+            cwd=REPO,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        paths = diff.split()
+    status = 0
+    checked = 0
+    for path in paths:
+        old, new = read_tracked(path, args.ref), read_tracked(path)
+        if old is None or new is None:
+            continue
+        old_shape, new_shape = tree_shape(path, old), tree_shape(path, new)
+        if old_shape is None:
+            continue
+        checked += 1
+        if old_shape != new_shape:
+            print(f"{path}: syntax tree changed beyond comments", file=sys.stderr)
+            status = 1
+    print(f"verified {checked} files against {args.ref}")
+    return status
+
+
+def command_stats(args: argparse.Namespace) -> int:
+    found = collect(tracked_files(args.ref), args.ref)
+    blocks = [b for bs in found.values() for b in bs]
+    print(
+        json.dumps(
+            {
+                "files": sum(1 for bs in found.values() if bs),
+                "blocks": len(blocks),
+                "comment_lines": sum(b.line_count for b in blocks),
+            }
+        )
+    )
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(prog="comment-lint", description=__doc__.split("\n")[0])
+    commands = parser.add_subparsers(dest="command", required=True)
+    check = commands.add_parser("check")
+    check.add_argument("paths", nargs="*")
+    check.set_defaults(run=command_check)
+    listing = commands.add_parser("list")
+    listing.add_argument("--json", action="store_true")
+    listing.add_argument("paths", nargs="*")
+    listing.set_defaults(run=command_list)
+    delete = commands.add_parser("delete")
+    delete.add_argument("ids", nargs="+")
+    delete.set_defaults(run=command_delete)
+    baseline = commands.add_parser("baseline")
+    baseline.add_argument("--reset", action="store_true")
+    baseline.set_defaults(run=command_baseline)
+    verify = commands.add_parser("verify")
+    verify.add_argument("ref")
+    verify.add_argument("paths", nargs="*")
+    verify.set_defaults(run=command_verify)
+    stats = commands.add_parser("stats")
+    stats.add_argument("ref", nargs="?")
+    stats.set_defaults(run=command_stats)
+    args = parser.parse_args()
+    return args.run(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
