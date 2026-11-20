@@ -6,6 +6,7 @@
 }:
 let
   cliproxyapi = pkgs.callPackage ../../../packages/cliproxyapi.nix { };
+  migrateConfig = pkgs.callPackage ../../../packages/cliproxyapi-migrate.nix { inherit cliproxyapi; };
   configPath = "/var/lib/cliproxyapi/config.yaml";
   apiPort = 8317;
   inferencePort = 8320;
@@ -144,10 +145,6 @@ in
       ];
     };
     preStart = ''
-      if [[ -e "$CLIPROXY_CONFIG" && ! -e "$CLIPROXY_CONFIG.pre-v8" ]]; then
-        install -m 0600 "$CLIPROXY_CONFIG" "$CLIPROXY_CONFIG.pre-v8"
-      fi
-
       if [[ ! -e "$CLIPROXY_CONFIG" ]]; then
         umask 077
         export CLIPROXY_MANAGEMENT_KEY
@@ -168,61 +165,36 @@ in
         ' > "$CLIPROXY_CONFIG"
       fi
 
+      ${lib.getExe migrateConfig} "$CLIPROXY_CONFIG"
+
       yq -i '
         .routing.strategy = "round-robin" |
         .routing."session-affinity" = true |
         .routing."session-affinity-ttl" = "1h" |
-        del(."logging-to-file") |
         .observability.logs."logging-to-file" = false
       ' "$CLIPROXY_CONFIG"
 
-      if yq -e 'has("management")' "$CLIPROXY_CONFIG" >/dev/null 2>&1; then
-        yq -i '
-          .management."disable-auto-update-panel" = true |
-          .management."allow-remote" = false
-        ' "$CLIPROXY_CONFIG"
-      else
-        yq -i '
-          ."remote-management"."disable-auto-update-panel" = true |
-          ."remote-management"."allow-remote" = false
-        ' "$CLIPROXY_CONFIG"
-      fi
+      yq -i '
+        .management."disable-auto-update-panel" = true |
+        .management."allow-remote" = false
+      ' "$CLIPROXY_CONFIG"
 
       export CLIPROXY_THREAD_RULE='{"status":404,"match":["thread_not_found","No thread state was found"],"action":"stop"}'
-      if yq -e '.oauth | has("request-scoped-errors")' "$CLIPROXY_CONFIG" >/dev/null 2>&1; then
-        yq -i '
-          .oauth."request-scoped-errors".claude =
-            ([env(CLIPROXY_THREAD_RULE)] + ((.oauth."request-scoped-errors".claude // []) | map(select(
-              (.status == 404 and .action == "stop" and ((.match // []) | join("|")) == "thread_not_found|No thread state was found") | not
-            ))))
-        ' "$CLIPROXY_CONFIG"
-      else
-        yq -i '
-          ."oauth-request-scoped-errors".claude =
-            ([env(CLIPROXY_THREAD_RULE)] + ((."oauth-request-scoped-errors".claude // []) | map(select(
-              (.status == 404 and .action == "stop" and ((.match // []) | join("|")) == "thread_not_found|No thread state was found") | not
-            ))))
-        ' "$CLIPROXY_CONFIG"
-      fi
+      yq -i '
+        .oauth."request-scoped-errors".claude =
+          ([env(CLIPROXY_THREAD_RULE)] + ((.oauth."request-scoped-errors".claude // []) | map(select(
+            (.status == 404 and .action == "stop" and ((.match // []) | join("|")) == "thread_not_found|No thread state was found") | not
+          ))))
+      ' "$CLIPROXY_CONFIG"
 
       export CLIPROXY_THREAD_FILTER='{"models":[{"name":"claude-*","protocol":"claude","exist":["thread"]}],"params":["fallbacks"]}'
-      if yq -e '.requests | has("payload")' "$CLIPROXY_CONFIG" >/dev/null 2>&1; then
-        yq -i '
-          .requests.payload.filter =
-            ([env(CLIPROXY_THREAD_FILTER)] + ((.requests.payload.filter // []) | map(select(
-              ((.models | length) == 1 and .models[0].name == "claude-*" and .models[0].protocol == "claude" and
-                ((.models[0].exist // []) | join("|")) == "thread" and ((.params // []) | join("|")) == "fallbacks") | not
-            ))))
-        ' "$CLIPROXY_CONFIG"
-      else
-        yq -i '
-          .payload.filter =
-            ([env(CLIPROXY_THREAD_FILTER)] + ((.payload.filter // []) | map(select(
-              ((.models | length) == 1 and .models[0].name == "claude-*" and .models[0].protocol == "claude" and
-                ((.models[0].exist // []) | join("|")) == "thread" and ((.params // []) | join("|")) == "fallbacks") | not
-            ))))
-        ' "$CLIPROXY_CONFIG"
-      fi
+      yq -i '
+        .requests.payload.filter =
+          ([env(CLIPROXY_THREAD_FILTER)] + ((.requests.payload.filter // []) | map(select(
+            ((.models | length) == 1 and .models[0].name == "claude-*" and .models[0].protocol == "claude" and
+              ((.models[0].exist // []) | join("|")) == "thread" and ((.params // []) | join("|")) == "fallbacks") | not
+          ))))
+      ' "$CLIPROXY_CONFIG"
     '';
   };
 }
