@@ -7,10 +7,14 @@ script = Path(__file__).resolve().parents[2] / "bin/sync-agent-skills"
 with tempfile.TemporaryDirectory() as temp:
     root = Path(temp)
     agents = root / "agents"
-    for name in ["niri-computer-use", "keep"]:
+    skills = {
+        "niri-computer-use": "---\nname: niri-computer-use\nmetadata:\n  fleet-hosts: jacurutu\n---\ntest\n",
+        "keep": "test",
+    }
+    for name, content in skills.items():
         p = agents / "skills" / name
         p.mkdir(parents=True)
-        (p / "SKILL.md").write_text("test")
+        (p / "SKILL.md").write_text(content)
     for agent in ["claude", "codex", "opencode"]:
         (agents / agent / "skills").mkdir(parents=True)
     env = {**os.environ, "DOTFILES_DIR": str(root)}
@@ -23,9 +27,10 @@ with tempfile.TemporaryDirectory() as temp:
 
     fake_bin = root / "bin"
     fake_bin.mkdir()
-    hostname = fake_bin / "hostname"
-    hostname.write_text("#!/bin/sh\nexit 127\n")
-    hostname.chmod(0o755)
+    for name in ("hostname", "awk"):
+        stub = fake_bin / name
+        stub.write_text("#!/bin/sh\nexit 127\n")
+        stub.chmod(0o755)
     env["PATH"] = str(fake_bin) + ":" + env["PATH"]
     run("--help")
     if Path("/proc/sys/kernel/hostname").read_text().strip().split(".")[0] in {

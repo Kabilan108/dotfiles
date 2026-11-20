@@ -503,6 +503,31 @@ class FlakeLockVerify(unittest.TestCase):
         out = self.verify("7", code=1)
         self.assertIn("home-manager/nixpkgs: the root flake.nix declares follows 'nixpkgs'", out)
 
+    def test_pre_resolved_follows_chain_passes(self) -> None:
+        flake = copy.deepcopy(ROOT_FLAKE)
+        flake["inputs"]["firefox-addons"]["inputs"] = {"nixpkgs": {"follows": "home-manager/nixpkgs"}}
+        (self.work / "flake.nix").write_text(json.dumps(flake))
+        self.set_base(base_root_lock())
+        pr = updated_root_lock()
+        pr["nodes"]["firefox-addons"]["inputs"] = {"nixpkgs": ["nixpkgs"]}
+        self.open_pr(pr)
+        out = self.verify("7", code=0)
+        self.assertIn("firefox-addons/nixpkgs: follows home-manager/nixpkgs as the root flake.nix declares", out)
+
+    def test_pre_resolved_follows_chain_to_different_node_fails(self) -> None:
+        flake = copy.deepcopy(ROOT_FLAKE)
+        flake["inputs"]["firefox-addons"]["inputs"] = {"nixpkgs": {"follows": "home-manager/nixpkgs"}}
+        (self.work / "flake.nix").write_text(json.dumps(flake))
+        self.set_base(base_root_lock())
+        pr = updated_root_lock()
+        pr["nodes"]["firefox-addons"]["inputs"] = {"nixpkgs": ["boot-nixpkgs"]}
+        self.open_pr(pr)
+        out = self.verify("7", code=1)
+        self.assertIn(
+            "firefox-addons/nixpkgs: the root flake.nix declares follows 'home-manager/nixpkgs', the lock has ['boot-nixpkgs']",
+            out,
+        )
+
     def test_unused_override_does_not_block_an_upstream_removal(self) -> None:
         base = base_root_lock()
         base["nodes"]["data"] = gh_node("o", "data", D1, flake=False)
