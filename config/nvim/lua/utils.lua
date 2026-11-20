@@ -40,29 +40,12 @@ end
 
 ---@return string[]
 M.get_visual_selection = function()
-  local _, srow, scol = unpack(vim.fn.getpos 'v')
-  local _, erow, ecol = unpack(vim.fn.getpos '.')
-
-  if vim.fn.mode() == 'V' then
-    if srow > erow then
-      srow, erow = erow, srow
-    end
-    return vim.api.nvim_buf_get_lines(0, srow - 1, erow, true)
+  local mode = vim.fn.mode()
+  if mode ~= 'v' and mode ~= 'V' and mode ~= '\22' then
+    return {}
   end
 
-  if vim.fn.mode():find('v', 1, true) then
-    local start_pos, end_pos
-    if srow < erow or (srow == erow and scol <= ecol) then
-      start_pos = { srow - 1, scol - 1 }
-      end_pos = { erow - 1, ecol }
-    else
-      start_pos = { erow - 1, ecol - 1 }
-      end_pos = { srow - 1, scol }
-    end
-    return vim.api.nvim_buf_get_text(0, start_pos[1], start_pos[2], end_pos[1], end_pos[2], {})
-  end
-
-  return {}
+  return vim.fn.getregion(vim.fn.getpos 'v', vim.fn.getpos '.', { type = mode })
 end
 
 ---@class utils.Executor
