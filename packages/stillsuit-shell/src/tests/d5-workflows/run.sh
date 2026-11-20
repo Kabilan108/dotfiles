@@ -218,6 +218,7 @@ wait_json '.recording.outputFilename == "renamed fixture.mp4" and (.recording.ac
 [[ $(ipc copyPath) == copied ]]
 jq -e '.recording.copiedPath == "/tmp/fixture-recordings/renamed fixture.mp4"' >/dev/null <<<"$(ipc state)"
 
+status_calls=$(grep -c '^status$' "$STILLSUIT_FIXTURE_HELPER_LOG" || true)
 [[ $(ipc exportAs gif) == started ]]
 wait_json '.recording.exportPhase == "running" and .recording.exporting and .recording.exportFormat == "gif"
   and .recording.exportOutput == "/tmp/fixture-recordings/renamed fixture.gif"' >/dev/null
@@ -225,7 +226,7 @@ wait_json '.recording.exportPhase == "running" and .recording.exporting and .rec
 wait_json '.recording.exportPhase == "completed" and (.recording.exporting | not)
   and .recording.exportOutput == "/tmp/fixture-recordings/renamed fixture.gif"' >/dev/null
 [[ $(grep -c '^export --format gif$' "$STILLSUIT_FIXTURE_HELPER_LOG") -eq 1 ]]
-[[ $(grep -c '^status$' "$STILLSUIT_FIXTURE_HELPER_LOG") -ge 2 ]]
+[[ $(grep -c '^status$' "$STILLSUIT_FIXTURE_HELPER_LOG" || true) -eq $status_calls ]]
 [[ $(ipc copyExportPath) == copied ]]
 jq -e '.recording.copiedPath == "/tmp/fixture-recordings/renamed fixture.gif"' >/dev/null <<<"$(ipc state)"
 touch "$STILLSUIT_FIXTURE_RECORDING_STATE.export-fail"

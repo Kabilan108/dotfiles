@@ -15,21 +15,16 @@ elif [[ ${1:-} == export ]]; then
     output: (.output | sub("\\.mp4$"; "." + $format)), error: ""}' \
     "$STILLSUIT_FIXTURE_RECORDING_STATE" > "$STILLSUIT_FIXTURE_RECORDING_STATE.tmp"
   mv -- "$STILLSUIT_FIXTURE_RECORDING_STATE.tmp" "$STILLSUIT_FIXTURE_RECORDING_STATE"
-  printf '0\n' > "$STILLSUIT_FIXTURE_RECORDING_STATE.polls"
   cat -- "$STILLSUIT_FIXTURE_RECORDING_STATE"
-elif [[ ${1:-} == status && -s $STILLSUIT_FIXTURE_RECORDING_STATE.polls ]]; then
-  polls=$(( $(<"$STILLSUIT_FIXTURE_RECORDING_STATE.polls") + 1 ))
-  printf '%s\n' "$polls" > "$STILLSUIT_FIXTURE_RECORDING_STATE.polls"
-  if (( polls >= 2 )); then
-    result=completed
-    [[ -e $STILLSUIT_FIXTURE_RECORDING_STATE.export-fail ]] && result=error
+  result=completed
+  [[ -e $STILLSUIT_FIXTURE_RECORDING_STATE.export-fail ]] && result=error
+  (
+    sleep 0.6
     jq -c --arg result "$result" '.export.phase = $result
       | .export.error = (if $result == "error" then "ffmpeg exited 1" else "" end)' \
       "$STILLSUIT_FIXTURE_RECORDING_STATE" > "$STILLSUIT_FIXTURE_RECORDING_STATE.tmp"
     mv -- "$STILLSUIT_FIXTURE_RECORDING_STATE.tmp" "$STILLSUIT_FIXTURE_RECORDING_STATE"
-    rm -f -- "$STILLSUIT_FIXTURE_RECORDING_STATE.polls"
-  fi
-  cat -- "$STILLSUIT_FIXTURE_RECORDING_STATE"
+  ) >/dev/null 2>&1 &
 elif [[ -s $STILLSUIT_FIXTURE_RECORDING_STATE ]]; then
   cat -- "$STILLSUIT_FIXTURE_RECORDING_STATE"
 else
