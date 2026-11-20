@@ -16,6 +16,15 @@ type previewContext struct {
 	pending bool
 	updated int64
 	loading bool
+
+	sessionName string
+}
+
+func newSessionName(row Row) string {
+	if row.Session || !row.Local {
+		return ""
+	}
+	return sanitize(sessionNameForDirectory(row.Target, sessionIDsByName()))
 }
 
 func relativeAge(timestamp int64, now time.Time) string {
@@ -198,8 +207,8 @@ func directoryPreview(row Row, ctx previewContext) ([]string, string) {
 	lines := append([]string{title, subtitle}, hostNotes(row, ctx)...)
 	lines = append(lines, "", previewField(iconFolder, "path", abbreviatePath(sanitize(row.Target))))
 	hint := "enter creates session"
-	if row.Local {
-		hint += " " + sanitize(sessionNameForDirectory(row.Target, sessionIDsByName()))
+	if ctx.sessionName != "" {
+		hint += " " + ctx.sessionName
 	}
 	hint = paint(colorOverlay0, hint+" on "+row.Host)
 	summary := row.Summary

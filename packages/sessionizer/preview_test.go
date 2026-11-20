@@ -46,7 +46,8 @@ esac
 			if c.local {
 				host = "local"
 			}
-			_, hint := directoryPreview(Row{Host: host, Target: c.path, Local: c.local}, previewContext{})
+			row := Row{Host: host, Target: c.path, Local: c.local}
+			_, hint := directoryPreview(row, previewContext{sessionName: newSessionName(row)})
 			if got := ansi.Strip(hint); got != c.want {
 				t.Errorf("hint = %q, want %q", got, c.want)
 			}

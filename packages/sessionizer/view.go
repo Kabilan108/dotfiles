@@ -315,6 +315,18 @@ func highlightMatches(text string, terms []queryTerm, color string, bold bool) [
 	return segments
 }
 
+func (m *pickerModel) newSessionName(row Row) string {
+	name, known := m.hintNames[row.ID]
+	if !known {
+		if m.hintNames == nil {
+			m.hintNames = map[string]string{}
+		}
+		name = newSessionName(row)
+		m.hintNames[row.ID] = name
+	}
+	return name
+}
+
 func (m *pickerModel) previewColumn(width int) []string {
 	border := paint(colorSurface1, "│") + " "
 	inner := width - 2
@@ -322,7 +334,7 @@ func (m *pickerModel) previewColumn(width int) []string {
 	var lines []string
 	hint := ""
 	if row, ok := m.current(); ok {
-		ctx := previewContext{now: m.now(), width: inner, loading: m.summaryLoading[row.ID]}
+		ctx := previewContext{now: m.now(), width: inner, loading: m.summaryLoading[row.ID], sessionName: m.newSessionName(row)}
 		if state, ok := m.hostState(row.Host); ok {
 			ctx.pending, ctx.updated = state.pending, state.updated
 		}
