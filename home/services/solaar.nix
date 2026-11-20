@@ -64,17 +64,14 @@ in
       }
     ];
 
-    xdg.configFile."solaar/rules.yaml" = {
-      force = true;
-      text = ''
-        ---
-        - Or:
-        ${lib.concatMapStringsSep "\n" (serial: "    - Device: ${serial}") mouseSerials}
-        - Key: [Mouse Gesture Button, pressed]
-        - Execute: [${lib.getExe config.services.dictator.package}, toggle]
-        ...
-      '';
-    };
+    xdg.configFile."solaar/rules.yaml".text = ''
+      ---
+      - Or:
+      ${lib.concatMapStringsSep "\n" (serial: "    - Device: ${serial}") mouseSerials}
+      - Key: [Mouse Gesture Button, pressed]
+      - Execute: [${lib.getExe config.services.dictator.package}, toggle]
+      ...
+    '';
 
     xdg.configFile."autostart/solaar.desktop" = {
       force = true;

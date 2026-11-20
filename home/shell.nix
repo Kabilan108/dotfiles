@@ -176,10 +176,7 @@ in
     ".claude".source = agentLink "claude";
     ".codex".source = agentLink "codex";
     ".config/opencode".source = agentLink "opencode";
-    ".gemini/config" = {
-      source = agentLink "antigravity";
-      force = true;
-    };
+    ".gemini/config".source = agentLink "antigravity";
 
     ".gitconfig".source = cfgLink ".gitconfig";
     ".ipython/profile_default/ipython_config.py".source = cfgLink "ipython_config.py";
