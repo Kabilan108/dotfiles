@@ -62,7 +62,6 @@ show_ci_changes() {
 signed_tag="" signed_object="" signed_commit=""
 pin() {
   local tag=$1 commit=$2 object
-  [[ $tag == deploy/fleet/* ]] || return 0
   object=$(git -C "$repo" rev-parse --verify --quiet "refs/tags/$tag") || return 1
   deploy-tag -C "$repo" approves "$tag" "$host_name" "$object" "$commit" || return 1
   signed_tag=$tag signed_object=$object signed_commit=$commit
@@ -151,11 +150,6 @@ review() {
   [[ $answer == [yY]* ]]
 }
 
-if ! command -v deploy-tag >/dev/null; then
-  echo "deploy-tag isn't installed yet, so this build skips the signed-tag check."
-  sudo nixos-rebuild "$action" --flake "$repo#$host_name"
-  exit
-fi
 if ! review; then
   echo "Not building."
   exit 1
@@ -166,11 +160,8 @@ if [[ -n $signed_tag && $wait_for_ci == true ]] && command -v deploy-wait >/dev/
   exit 1
 fi
 if [[ -n $signed_tag ]]; then
-  if command -v deploy-switch >/dev/null; then
-    exec deploy-switch -C "$repo" --object "$signed_object" --commit "$signed_commit" \
-      "$signed_tag" "$host_name" "$action"
-  fi
-  echo "deploy-switch isn't installed yet, so this build uses the checkout."
+  exec deploy-switch -C "$repo" --object "$signed_object" --commit "$signed_commit" \
+    "$signed_tag" "$host_name" "$action"
 fi
 
 sudo flock /run/fleet-switch.lock nixos-rebuild "$action" --flake "$repo#$host_name"
