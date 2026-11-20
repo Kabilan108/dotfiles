@@ -205,6 +205,8 @@ func TestFleetHostIcons(t *testing.T) {
 			"empty-icon\t#a6e3a1\t100.1.2.6\t\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	fleetHostIcons = nil
+	t.Cleanup(func() { fleetHostIcons = nil })
 	want := []FleetHost{
 		{Name: "renamed-laptop", Color: "#89b4fa", Address: "100.1.2.3", Icon: "󰌢"},
 		{Name: "jacurutu", Color: "#cba6f7", Address: "100.1.2.4", Icon: "󰐿"},

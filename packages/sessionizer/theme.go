@@ -48,11 +48,17 @@ const (
 	iconClock    = "\U000F0954"
 )
 
+var fleetHostIcons map[string]string
+
 func hostIcon(host string) string {
-	for _, entry := range readFleetHosts() {
-		if entry.Name == host && entry.Icon != "" {
-			return entry.Icon
+	if fleetHostIcons == nil {
+		fleetHostIcons = map[string]string{}
+		for _, entry := range readFleetHosts() {
+			fleetHostIcons[entry.Name] = entry.Icon
 		}
+	}
+	if icon := fleetHostIcons[host]; icon != "" {
+		return icon
 	}
 	return iconServer
 }
