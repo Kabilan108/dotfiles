@@ -24,16 +24,13 @@ fi
 # Change to workspace directory for git operations
 cd "$workspace_dir" 2>/dev/null || cd "$HOME" || exit 1
 
-# Get worktree information
-worktree_path=$(git --no-optional-locks rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
-if [ -n "$worktree_path" ]; then
-    # Check if we're in a worktree (not the main repository)
-    if [[ "$worktree_path" == *"/.git/worktrees/"* ]]; then
-        # Extract worktree name from the path
-        worktree_name=$(basename "$(git --no-optional-locks rev-parse --path-format=absolute --git-dir 2>/dev/null)" 2>/dev/null)
+git_dir=$(git --no-optional-locks rev-parse --path-format=absolute --git-dir 2>/dev/null)
+common_dir=$(git --no-optional-locks rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+if [ -n "$git_dir" ]; then
+    if [ "$git_dir" != "$common_dir" ]; then
+        worktree_name=$(basename "$git_dir")
         is_worktree=true
     else
-        # We're in the main repository
         worktree_name="main"
         is_worktree=false
     fi
