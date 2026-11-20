@@ -31,7 +31,7 @@ When the pinned nixpkgs lacks a vulnerability fix, put temporary package overrid
 in `packages/security-overrides.nix` and import that overlay in both the shared
 `overlays` list in `flake.nix` and tleilax's separate `nixpkgs.overlays`.
 
-- Record the CVE, upstream fix, pinned source or patch hash, and removal condition.
+- Record the CVE, upstream fix, pinned source or patch hash, and removal condition in `packages/AGENTS.md`.
   Use `prev.<package>.overrideAttrs` so the override does not recurse through itself.
 - For a version bump, guard it with
   `if prev.lib.versionAtLeast prev.<package>.version fixedVersion then throw "Remove the obsolete security override for <package>" else ...`.
