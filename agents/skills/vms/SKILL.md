@@ -1,6 +1,6 @@
 ---
 name: vms
-description: Run a VM for testing — a compositor or desktop shell, an installer, a NixOS system, an Android app. Use when booting, driving, stopping or cleaning up a VM, or deciding where one should run.
+description: Run a VM for testing — a compositor or desktop shell, an installer, a NixOS system. Use when booting, driving, stopping or cleaning up a VM, or deciding where one should run.
 metadata:
   fleet-hosts: sietch
 ---
