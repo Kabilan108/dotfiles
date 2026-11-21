@@ -385,6 +385,9 @@ trust_level = "trusted"
 [projects."/vault/repos/koma"]
 trust_level = "trusted"
 
+[projects."/home/kabilan/repos/stt/dictator"]
+trust_level = "trusted"
+
 [tui]
 screen_reader_detection_done = true
 
