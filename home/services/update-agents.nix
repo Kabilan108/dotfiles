@@ -55,6 +55,7 @@ let
     update_agent pi pi update
     update_agent claude claude upgrade
     update_agent agy agy update
+    update_agent grok grok update
 
     if (( ''${#failures[@]} )); then
       printf 'Agent updates failed: %s\n' "''${failures[*]}" >&2
