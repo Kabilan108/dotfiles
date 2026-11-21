@@ -175,7 +175,10 @@ in
     ".pi".source = agentLink "pi";
     ".claude".source = agentLink "claude";
     ".codex".source = agentLink "codex";
-    ".grok".source = agentLink "grok";
+    ".grok" = {
+      source = agentLink "grok";
+      force = true;
+    };
     ".config/opencode".source = agentLink "opencode";
     ".gemini/config".source = agentLink "antigravity";
 
@@ -206,14 +209,9 @@ in
     PATH="${pkgs.jq}/bin:$PATH" $DRY_RUN_CMD ${homeDir}/dotfiles/bin/sync-agent-skills
   '';
 
-  home.activation.moveGrokHome = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
-    grokHome="$HOME/.grok"
-    grokCheckout="${homeDir}/dotfiles/agents/grok"
-    if [[ -L "$grokHome" && "$(readlink "$grokHome")" == "$grokCheckout" ]]; then
-      $DRY_RUN_CMD rm "$grokHome"
-    elif [[ -d "$grokHome" && ! -L "$grokHome" && -d "$grokCheckout" ]]; then
-      $DRY_RUN_CMD cp -an "$grokHome/." "$grokCheckout/"
-      $DRY_RUN_CMD rm -rf "$grokHome"
+  home.activation.clobberGrokHome = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+    if [[ -d "$HOME/.grok" && ! -L "$HOME/.grok" ]]; then
+      $DRY_RUN_CMD rm -rf "$HOME/.grok"
     fi
   '';
 
