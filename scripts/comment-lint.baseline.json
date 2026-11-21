@@ -1,6 +1,5 @@
 {
   ".github/workflows/cache.yml": 6,
-  "agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh": 2,
   "agents/skills/html-communication/scripts/lint.py": 2,
   "packages/stillsuit-shell/src/plugins/builtin/bar/Bar.qml": 4,
   "packages/stillsuit-shell/src/plugins/builtin/bar/WidgetSlot.qml": 2,

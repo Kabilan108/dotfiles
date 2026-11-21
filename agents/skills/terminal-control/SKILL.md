@@ -1,5 +1,4 @@
 ---
-disable-model-invocation: true
 name: terminal-control
 description: Inspect and drive terminal user interfaces in a real PTY with termctrl.
 ---
