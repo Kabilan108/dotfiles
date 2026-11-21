@@ -9,6 +9,7 @@
 # - unfree packages (NVIDIA, CUDA builds, Slack, Chrome,
 #   firmware): a public cache must not redistribute them;
 # - plain downloads (bun) and cheap builds.
+tabiew # wait
 niri # wait
 ghostty # wait
 dictator-gui # wait
