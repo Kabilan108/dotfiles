@@ -505,6 +505,28 @@ else:
             started = time.monotonic()
             agy_signed_out = collect_agy("signed-out")
             signed_out_seconds = time.monotonic() - started
+            marker = root / helper.ANTIGRAVITY_KEYRING_MARKER
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_text("2030-01-01T00:00:00Z")
+            agy_keyring_skipped = collect_agy("signed-out")
+            marker.unlink()
+            original_busctl = helper._busctl_user
+            version_count.write_text("")
+            helper._agy_versions.clear()
+            bus_answers: dict[str, str | None] = {}
+            helper._busctl_user = lambda *arguments: bus_answers.get(arguments[0])
+            try:
+                bus_answers.update(call="b false")
+                agy_no_keyring = collect_agy("success")
+                bus_answers.update(call="b true", **{"get-property": "b true"})
+                agy_locked_keyring = collect_agy("success")
+                waiting_version_calls = version_count.read_text()
+                bus_answers.update(**{"get-property": "b false"})
+                agy_unlocked_keyring = collect_agy("success")
+                bus_answers.clear()
+                agy_no_bus = collect_agy("success")
+            finally:
+                helper._busctl_user = original_busctl
             agy_error = collect_agy("error")
             helper._agy_versions.clear()
             agy_old = collect_agy("old")
@@ -522,6 +544,18 @@ else:
         assert agy_signed_out["statusText"] == "Run agy to sign in"
         assert signed_out_seconds < 5, "a sign-in prompt stops the probe at once"
         assert "secret-state" not in json.dumps(agy_signed_out)
+        assert agy_keyring_skipped["status"] == "signed-out"
+        assert agy_keyring_skipped["statusText"] == "agy is skipping the keyring", (
+            "agy's keyring-unavailable marker is reported instead of a plain sign-out"
+        )
+        for waiting in (agy_no_keyring, agy_locked_keyring):
+            assert waiting["status"] == "unavailable", waiting
+            assert waiting["statusText"] == "Waiting for the keyring"
+        assert waiting_version_calls == "", (
+            "agy is not started while the keyring is absent or locked"
+        )
+        assert agy_unlocked_keyring["status"] == "ready", agy_unlocked_keyring
+        assert agy_no_bus["status"] == "ready", "an unreachable bus does not block the probe"
         assert agy_error["status"] == "error"
         assert agy_error["statusText"] == "Antigravity usage request failed"
         assert helper.FAILURE_KEY in agy_error

@@ -75,7 +75,14 @@ deduplicated. Explicit IDs use lowercase letters, numbers, dots, and hyphens.
   later, because older builds can send an unknown slash command to a model as a
   prompt. When signed out, agy prints a sign-in URL and waits a minute. The
   collector watches stderr for that request, stops the process group at once,
-  and reports `Run agy to sign in`; stderr is never returned. Each report shows
+  and reports `Run agy to sign in`; stderr is never returned. When agy cannot
+  reach the keyring it writes `cache/antigravity-keyring-unavailable` in its
+  config directory and then ignores a valid keyring sign-in, so the collector
+  skips agy and reports `Waiting for the keyring` while the session bus shows
+  the Secret Service absent or its default collection locked (as at login,
+  before gnome-keyring starts). A sign-out with that marker present reports
+  `agy is skipping the keyring`; deleting the marker restores the sign-in. The
+  collector never deletes it. Each report shows
   the Gemini and Claude + GPT families with their 5-hour and weekly windows,
   plus any model-specific family such as Gemini 4 Argon. As in CodexBar, a
   family whose every window is still unused stays hidden until it is used,

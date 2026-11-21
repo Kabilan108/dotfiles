@@ -3,6 +3,7 @@
   codexBin,
   python3,
   runCommand,
+  systemd,
   writeShellApplication,
 }:
 
@@ -18,6 +19,7 @@ writeShellApplication {
   runtimeInputs = [
     userAgents
     python3
+    systemd
   ];
   text = ''
     exec python3 ${./bin/stillsuit-agent-usage}

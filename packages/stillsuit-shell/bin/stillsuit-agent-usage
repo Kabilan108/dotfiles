@@ -44,6 +44,9 @@ ANTIGRAVITY_SIGN_IN_MARKERS = (
     "please log in",
     "please sign in",
 )
+ANTIGRAVITY_KEYRING_MARKER = Path("cache") / "antigravity-keyring-unavailable"
+SECRET_SERVICE_NAME = "org.freedesktop.secrets"
+SECRET_SERVICE_DEFAULT_COLLECTION = "/org/freedesktop/secrets/aliases/default"
 ACCOUNT_ID_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:[-.][a-z0-9]+)*$")
 
 Account = dict[str, Any]
@@ -706,6 +709,55 @@ def _agy_environment(probe_dir: Path) -> dict[str, str]:
     return environment
 
 
+def _busctl_user(*arguments: str) -> str | None:
+    busctl = shutil.which("busctl")
+    if not busctl or not os.environ.get("DBUS_SESSION_BUS_ADDRESS"):
+        return None
+    try:
+        completed = subprocess.run(
+            [busctl, "--user", *arguments],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            timeout=3,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if completed.returncode != 0:
+        return None
+    return completed.stdout.decode("utf-8", "replace").strip()
+
+
+def _secret_service_ready() -> bool:
+    """False only when the session bus says the Secret Service is absent or locked.
+
+    agy records a failed keyring lookup in a marker file and then ignores the
+    keyring, so probing before the keyring is up signs the CLI out.
+    """
+    owned = _busctl_user(
+        "call",
+        "org.freedesktop.DBus",
+        "/org/freedesktop/DBus",
+        "org.freedesktop.DBus",
+        "NameHasOwner",
+        "s",
+        SECRET_SERVICE_NAME,
+    )
+    if owned is None:
+        return True
+    if owned != "b true":
+        return False
+    locked = _busctl_user(
+        "get-property",
+        SECRET_SERVICE_NAME,
+        SECRET_SERVICE_DEFAULT_COLLECTION,
+        "org.freedesktop.Secret.Collection",
+        "Locked",
+    )
+    return locked != "b true"
+
+
 def _agy_version(
     agy: str, environment: dict[str, str], probe_dir: Path
 ) -> tuple[int, int, int] | None:
@@ -906,6 +958,9 @@ def _collect_antigravity(account: Account) -> Account:
             status="unavailable", statusText="Antigravity CLI is not installed"
         )
         return result
+    if not _secret_service_ready():
+        result.update(status="unavailable", statusText="Waiting for the keyring")
+        return result
     with tempfile.TemporaryDirectory(
         prefix="stillsuit-agy-", dir=_private_runtime_parent()
     ) as probe_value:
@@ -930,7 +985,10 @@ def _collect_antigravity(account: Account) -> Account:
         except OSError:
             return _fetch_failed(result, "error", "Antigravity usage is unavailable")
     if outcome == "signed-out":
-        result.update(status="signed-out", statusText="Run agy to sign in")
+        if (Path(account["configDir"]) / ANTIGRAVITY_KEYRING_MARKER).is_file():
+            result.update(status="signed-out", statusText="agy is skipping the keyring")
+        else:
+            result.update(status="signed-out", statusText="Run agy to sign in")
         return result
     if outcome == "launch-failed":
         return _fetch_failed(result, "unavailable", "Antigravity CLI could not start")
