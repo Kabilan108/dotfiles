@@ -18,18 +18,6 @@ Item {
     readonly property QtObject dictator: service ? service.dictator : null
     readonly property string state: service ? service.state : "idle"
     readonly property bool live: service && service.connected
-    readonly property int barCount: dictator ? dictator.barCount : 23
-    readonly property real barMaxHeight: 26
-    readonly property real barMinHeight: 3
-    readonly property bool reducedMotion: context.settings && context.settings.values
-                                          && context.settings.values.reducedMotion === true
-    readonly property color meterColor: state === "error" ? theme.semantic.status.danger : state
-                                                            === "recording"
-                                                            ? theme.semantic.signal.microphone :
-                                                              state === "transcribing" || state
-                                                              === "typing"
-                                                              ? theme.semantic.status.info :
-                                                                theme.semantic.content.disabled
     readonly property string statusText: !service || !service.configured
                                          ? "Dictator is not configured" : !live
                                            ? "Daemon not running" : state === "recording"
@@ -39,28 +27,17 @@ Item {
                                                                                          state === "error"
                                                                                          ? "Last recording failed" :
                                                                                            "Ready"
-    property bool opened: false
-    readonly property var levels: opened && dictator ? dictator.levels || [] : []
-    readonly property real scanPos: opened && dictator ? dictator.scanPos : 0
 
     function open(payloadJson) {
-        opened = true
         if (service)
             service.refreshRecent()
     }
     function close() {
-        opened = false
     }
     function closeSurface() {
         context.actions.surfaceClose("stillsuit.dictation")
     }
 
-    function toggle() {
-        return service ? service.toggle() : "unavailable"
-    }
-    function cancel() {
-        return service ? service.cancel() : "unavailable"
-    }
     function openWindowAndClose() {
         var result = service ? service.openWindow() : "unavailable"
         if (result === "started")
@@ -69,21 +46,6 @@ Item {
     }
     function copyRow(row) {
         return service ? service.copyText(row ? row.text : "") : "unavailable"
-    }
-    function levelAt(index) {
-        return index < levels.length && typeof levels[index] === "number" ? levels[index] : 0
-    }
-    function meterBarHeight(index) {
-        if (state === "transcribing" && dictator && !reducedMotion) {
-            var pulse = clamp(1 - Math.abs(index - scanPos) / 4, 0, 1)
-            return barMinHeight + Math.pow(pulse, 0.8) * (barMaxHeight - barMinHeight) * 0.7
-        }
-        var level = state === "recording" ? Math.pow(clamp((levelAt(index) - 0.15) / 0.85, 0, 1),
-                                                     1.2) : 0
-        return barMinHeight + level * (barMaxHeight - barMinHeight)
-    }
-    function clamp(value, minimum, maximum) {
-        return Math.min(Math.max(value, minimum), maximum)
     }
     function timeLabel(timestamp) {
         var date = new Date(String(timestamp || ""))
@@ -137,80 +99,6 @@ Item {
                     accessibleName: "Open the Dictator app"
                     visible: root.service && root.service.guiPath !== ""
                     onClicked: root.openWindowAndClose()
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: root.theme.metrics.spaceUnit * 3
-
-                Ui.ShellAction {
-                    id: recordButton
-                    readonly property bool recordingNow: root.state === "recording"
-                    implicitWidth: 44
-                    implicitHeight: 44
-                    enabled: root.service && root.service.canToggle
-                    accessibleName: recordingNow ? "Stop and transcribe" : "Start recording"
-                    onActivated: root.toggle()
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: width / 2
-                        color: !recordButton.enabled ? root.theme.component.control.disabled :
-                                                       recordButton.recordingNow
-                                                       ? root.theme.component.control.background :
-                                                         root.theme.semantic.accent.primary
-                        border.width: recordButton.recordingNow ? 1 : 0
-                        border.color: root.theme.component.control.outline
-                        opacity: recordButton.enabled ? (recordButton.pressed ? 0.85 : 1) : 0.6
-                    }
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: 14
-                        height: 14
-                        radius: recordButton.recordingNow ? 3 : 7
-                        color: recordButton.recordingNow ? root.theme.semantic.signal.microphone :
-                                                           root.theme.semantic.accent.onAccent
-                    }
-                }
-
-                Item {
-                    id: meter
-                    readonly property real gap: 3
-                    readonly property real barWidth: Math.max(2, (width - gap * (root.barCount
-                                                                                 - 1)) / root.barCount)
-
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: root.barMaxHeight
-                    opacity: root.state === "recording" || root.state === "transcribing" ? 0.95 :
-                                                                                           0.5
-
-                    Repeater {
-                        model: root.barCount
-
-                        Rectangle {
-                            required property int index
-
-                            x: index * (meter.barWidth + meter.gap)
-                            y: (root.barMaxHeight - height) / 2
-                            width: meter.barWidth
-                            height: root.meterBarHeight(index)
-                            radius: Math.min(width, height) / 2
-                            antialiasing: true
-                            color: root.meterColor
-                        }
-                    }
-                }
-
-                Ui.ShellButton {
-                    visible: root.service && root.service.canCancel
-                    theme: root.theme
-                    label: ""
-                    iconName: "close"
-                    compact: true
-                    destructive: true
-                    accessibleName: "Cancel recording"
-                    onClicked: root.cancel()
                 }
             }
 

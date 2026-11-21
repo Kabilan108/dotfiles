@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "stillsuit.dictation",
   "name": "Dictation",
-  "description": "Dictator recording controls, live level meter, and recent transcripts anchored under the bar.",
+  "description": "Recent Dictator transcripts anchored under the bar.",
   "version": "1.0.0",
   "apiVersion": "1",
   "kinds": ["service", "bar-widget", "panel"],

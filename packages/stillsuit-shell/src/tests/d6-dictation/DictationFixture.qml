@@ -57,29 +57,6 @@ ShellRoot {
         outputId: "DP-1"
     }
 
-    function rectangles(node, found) {
-        var children = node.children || []
-        var bars = []
-        for (var index = 0; index < children.length; index++) {
-            if (children[index].border !== undefined)
-                bars.push(children[index])
-            rectangles(children[index], found)
-        }
-        if (bars.length === workflows.dictator.barCount)
-            found.push(bars)
-        return found
-    }
-    function meter(view) {
-        var groups = rectangles(view, [])
-        var bars = groups.length === 1 ? groups[0] : []
-        return {
-            groups: groups.length,
-            heights: bars.map(function (bar) {
-                return bar.height
-            })
-        }
-    }
-
     IpcHandler {
         target: "stillsuit-d6-fixture"
         function state(): string {
@@ -115,24 +92,6 @@ ShellRoot {
         }
         function clipboard(): string {
             return String(Quickshell.clipboardText || "")
-        }
-        function setDictatorState(value: string): string {
-            workflows.dictator.applyLine(JSON.stringify({
-                                                            type: "state",
-                                                            value: value,
-                                                            recording_duration_ms: 1000
-                                                        }))
-            return workflows.dictator.visualizerState
-        }
-        function setPanelOpened(value: string): string {
-            panel.opened = value === "on"
-            return "ok"
-        }
-        function meters(): string {
-            return JSON.stringify({
-                                      scanPos: workflows.dictator.scanPos,
-                                      panel: fixture.meter(panel)
-                                  })
         }
     }
 }
