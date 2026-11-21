@@ -1,0 +1,38 @@
+[cli]
+installer = "internal"
+
+[models]
+default = "grok-4.6"
+
+[compat.claude]
+skills = false
+rules = false
+agents = false
+mcps = false
+hooks = false
+sessions = false
+
+[compat.cursor]
+skills = false
+rules = false
+agents = false
+mcps = false
+hooks = false
+sessions = false
+
+[compat.codex]
+sessions = false
+
+[plugins]
+disabled = ["code-simplifier", "pyright-lsp", "typescript-lsp", "gopls-lsp"]
+
+[marketplace]
+default_skills_installs_purged = true
+official_marketplace_auto_installed = true
+
+[[marketplace.sources]]
+name = "xAI Official"
+git = "https://github.com/xai-org/plugin-marketplace.git"
+
+[privacy]
+privacy_banner_acked = "2026-11-21T18:48:46Z"
