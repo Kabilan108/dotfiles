@@ -205,7 +205,6 @@ in
 
   xdg.mimeApps = {
     enable = true;
-    associations.removed."text/plain" = "zotero.desktop";
     defaultApplications = lib.genAttrs textMimeTypes (_: textEditorDesktop) // {
       "image/avif" = "org.gnome.Loupe.desktop";
       "image/bmp" = "org.gnome.Loupe.desktop";
@@ -265,7 +264,6 @@ in
     remmina
     seahorse
     (withElectronA11y slack [ "slack" ])
-    zotero
 
     inputs.disktree.packages.${systemName}.default
     gparted

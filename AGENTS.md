@@ -76,7 +76,6 @@ code can't show live in two places:
 
 - Keep ghostty on `inputs.nixpkgs.follows` and atuin off it in `flake.nix`. ghostty's own nixpkgs shipped brotli 1.2.0 (CVE-2026-111497) and it needs the system glibc and Mesa ABI; atuin must build with its own nixpkgs and toolchain to match atuin.cachix.org, and its pin stays on a release tag that Atuin's CI has cached, or it compiles locally.
 - Bring pagebin in through its overlay, not its flake package. `bun build --compile` embeds the bun that builds it, so the overlay makes it use this overlay set's bun.
-- `permittedInsecurePackages` in `flake.nix` allows `firefox-esr-140-bin-unwrapped-140.17.0esr` for Zotero 10, which bundles Firefox 140 ESR (end of life 2026-10-13). Drop the permit once nixpkgs' Zotero moves to a supported ESR.
 - Keep the two agenix copies of `secrets/nix-access-tokens.age` in `user.nix` and reach them through links included with `!include`. Root's Nix must read a root-owned copy, because a kabilan-owned file included from the system Nix config could be rewritten to load plugins into root's Nix. The links exist because the Codex sandbox hides the agenix runtime directory: Nix ignores its whole config when an include path sits in a hidden directory, but skips an unreadable link.
 - Keep jacurutu's key on the sietch-only Android secrets in `secrets.nix` (the Hark release keystore and signing properties, and the personal keystore). It is the second way to recover them, and losing them means re-signing every app on Tony's phone.
 

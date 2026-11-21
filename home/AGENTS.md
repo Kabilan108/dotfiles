@@ -19,6 +19,5 @@
 ## default.nix
 
 - Keep `xdg.terminal-exec` defaulting to Ghostty. GLib launches `Terminal=true` desktop entries (the nvim entry) only through xdg-terminal-exec or a hardcoded terminal list that lacks Ghostty.
-- Keep the removed Zotero association for text/plain. Zotero's desktop entry claims text/plain, and every code and markdown type inherits from it.
 - List MIME types one by one in `xdg.mimeApps.defaultApplications`. XDG default applications do not support wildcards such as image/*.
 - Declare an app's URL scheme handlers in `xdg.mimeApps` when adding it (see `services/grok-bot.nix`). Home Manager makes the user's mimeapps list read-only, so an app cannot register its own deep-link handlers at runtime.
