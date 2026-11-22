@@ -9,3 +9,4 @@
 - In `docker-storage-guard.py`, the group and other write-bit check (0o022) also rules out an ACL that grants write: in a mode word the group class carries the effective POSIX ACL mask. Do not replace it with an owner-only check.
 - Keep the tmpfiles `d` rule for the moberg config directory in `docker.nix`. agenix can create that directory as root before Home Manager links the Docker user config into it; the rule resets the directory's owner without touching the secrets inside.
 - Keep `teamviewerd` out of boot (`wantedBy` forced empty in `teamviewer.nix`). It is a root daemon that only matters while TeamViewer is in use, so start it by hand first.
+- Keep the tailnet `WebRtcIPHandlingUrl` policy in `helium.nix` under `/etc/chromium/policies/managed/`. Helium patches Chromium's default WebRTC IP handling policy to `default_public_interface_only`, which breaks tailnet WebRTC peers such as JetKVM, and Helium still reads Chromium's managed policy directory.

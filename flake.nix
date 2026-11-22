@@ -63,6 +63,7 @@
             ./modules/nixos/virt-manager.nix
             ./modules/nixos/teamviewer.nix
             ./modules/nixos/syncthing.nix
+            ./modules/nixos/helium.nix
             ./modules/nixos/desktop-wayland.nix
             inputs."niri-flake".nixosModules.niri
             ./modules/nixos/wayland/niri.nix
