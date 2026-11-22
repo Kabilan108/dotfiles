@@ -61,7 +61,11 @@ in
   services.nginx = {
     enable = true;
     virtualHosts.cliproxyapi-inference = loopbackVhost inferencePort (
-      { "= /healthz" = cpaProxy; } // lib.genAttrs inferencePrefixes (_: cpaProxy)
+      {
+        "= /healthz" = cpaProxy;
+        "^~ /v1/tunnel".return = "404";
+      }
+      // lib.genAttrs inferencePrefixes (_: cpaProxy)
     );
     virtualHosts.cliproxyapi-admin = loopbackVhost adminPort (
       {
