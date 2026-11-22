@@ -8,3 +8,4 @@
 - sietch may open any TCP port on the Pixel and nothing else there, because wireless ADB uses randomized pairing and connection ports.
 - Away from home, jacurutu reaches tleilax's boot-time unlock through sietch over the LAN. This policy does not govern that path, so the sietch-to-tleilax denial here does not block it.
 - `tag:grokbot` exists so Grokbot, which joins through a Tailscale OAuth app, leaves `autogroup:member` and gets only its own grant. Its sietch:443 access is Tailscale Serve on the machine's own HTTPS address, which carries the T3 MCP.
+- `tag:kvm` isolates hardware IP-KVMs (`sietch-kvm`) from `tag:server`, `tag:credentials`, and `tag:grokbot` and prevents the KVM from initiating tailnet connections, while granting `autogroup:member` HTTP/HTTPS and WebRTC UDP access.

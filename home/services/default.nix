@@ -7,6 +7,7 @@
     ./grok-bot.nix
     ./mise-update.nix
     ./install-tools.nix
+    ./jetkvm-update-check.nix
     ./meeting-minutes.nix
     ./mic-volume-enforce.nix
     ./moberg.nix

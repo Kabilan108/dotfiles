@@ -136,6 +136,13 @@ rec {
       tailscaleIp = "100.120.97.93";
       description = "Tony's iPad. Agents never connect to it.";
     };
+    sietch-kvm = {
+      role = "kvm";
+      model = "JetKVM Mini (Ethernet)";
+      os = "JetKVM (ESP-IDF)";
+      tailscaleIp = "100.123.155.6";
+      description = "Hardware IP-KVM attached to sietch for out-of-band console and LUKS unlock, tagged tag:kvm. Reached at http://sietch-kvm.sole-pierce.ts.net (LAN DHCP reservation 10.0.0.32).";
+    };
   };
 
   extraAuthorizedKeys = {

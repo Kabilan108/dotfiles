@@ -72,6 +72,7 @@
 
     dotfiles.services = {
       flake-update.enable = true;
+      jetkvm-update-check.enable = true;
       moberg.devMaintenance.enable = true;
       moberg.devCheckouts.enable = true;
       moberg.eboostReviewerReport.enable = true;

@@ -11,6 +11,8 @@
 		"tag:server": ["autogroup:admin"],
 
 		"tag:grokbot": ["autogroup:admin"],
+
+		"tag:kvm": ["autogroup:admin"],
 	},
 
 	"autoApprovers": {
@@ -82,6 +84,12 @@
 			"ip":  ["tcp:443"],
 		},
 
+		{
+			"src": ["autogroup:member"],
+			"dst": ["tag:kvm"],
+			"ip":  ["tcp:80", "tcp:443", "udp:*"],
+		},
+
 		{"src": ["tag:credentials"], "dst": ["svc:hark"], "ip": ["tcp:443"]},
 		{"src": ["tag:credentials"], "dst": ["tag:nas"], "ip": ["tcp:445"]},
 
@@ -123,6 +131,7 @@
 			"tleilax:22",
 			"tleilax:443",
 			"svc:jellyfin:443",
+			"tag:kvm:80",
 		], "deny": ["sietch:7297", "svc:cliproxyapi:443", "svc:cpa-admin:443"]},
 		{
 			"src": "jacurutu",
@@ -131,6 +140,7 @@
 				"sietch:443",
 				"tleilax:22",
 				"tag:nas:443",
+				"tag:kvm:80",
 				"svc:blocky:443",
 				"svc:cliproxyapi:443",
 				"svc:cpa-admin:443",
@@ -146,6 +156,8 @@
 				"jacurutu:443",
 				"tag:nas:443",
 				"tag:nas:2049",
+				"tag:kvm:80",
+				"tag:kvm:443",
 				"svc:blocky:443",
 				"svc:cpa-admin:443",
 			],
@@ -160,6 +172,7 @@
 				"jacurutu:445",
 				"tag:nas:443",
 				"tag:nas:22",
+				"tag:kvm:80",
 				"svc:cliproxyapi:443",
 				"svc:cpa-admin:443",
 			],
@@ -171,6 +184,7 @@
 				"sietch:8096",
 				"jacurutu:443",
 				"tag:nas:443",
+				"tag:kvm:80",
 				"svc:blocky:443",
 				"svc:cpa-admin:443",
 			],
@@ -193,6 +207,7 @@
 				"tleilax:443",
 				"pixel-9:443",
 				"tag:nas:443",
+				"tag:kvm:80",
 				"svc:hark:443",
 				"svc:jellyfin:443",
 				"svc:siren:443",
@@ -204,6 +219,10 @@
 		{
 			"src":  "tag:nas",
 			"deny": ["sietch:22", "jacurutu:22", "tleilax:22", "sietch:53", "svc:blocky:443"],
+		},
+		{
+			"src":  "tag:kvm",
+			"deny": ["sietch:22", "sietch:443", "jacurutu:22", "tleilax:22", "tag:nas:443", "svc:hark:443"],
 		},
 	],
 	"nodeAttrs": [

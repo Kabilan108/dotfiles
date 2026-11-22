@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+sku="${1:?usage: jetkvm-update-check SKU HOSTNAME BASELINE_VERSION}"
+hostname="${2:?usage: jetkvm-update-check SKU HOSTNAME BASELINE_VERSION}"
+baseline="${3:?usage: jetkvm-update-check SKU HOSTNAME BASELINE_VERSION}"
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/jetkvm-update-check"
+state_file="$state_dir/$hostname.version"
+mkdir -p "$state_dir"
+
+if [[ -f "$state_file" ]]; then
+  last_seen=$(<"$state_file")
+else
+  last_seen="$baseline"
+  printf '%s\n' "$last_seen" > "$state_file"
+fi
+
+latest=$(
+  curl --fail --silent --show-error --max-time 30 \
+    "https://api.jetkvm.com/releases?deviceId=${hostname}&sku=${sku}" \
+  | jq -er .systemVersion
+)
+
+if [[ "$latest" == "$last_seen" ]]; then
+  printf 'JetKVM %s (%s) is current at %s.\n' "$hostname" "$sku" "$latest"
+  exit 0
+fi
+
+harkctl notify \
+  "JetKVM Mini firmware $latest is available for $hostname (last seen: $last_seen). Open http://$hostname.sole-pierce.ts.net/settings/general to update." \
+  --title "JetKVM firmware update available" \
+  --project dotfiles \
+  --idempotency-key "jetkvm-update-$hostname-$latest"
+
+printf '%s\n' "$latest" > "$state_file"
