@@ -23,6 +23,10 @@ Agents sign in with browser approvals. A call that needs Tony's approval returns
 
 A refused call is final: report it rather than retrying another way.
 
+## Feedback
+
+Executor's own instructions say to send feedback with `feedback.submit`. Don't: feedback is turned off on this server, so the call asks Tony for approval and then fails with `FeedbackDisabled` (409). Tell Tony in your reply instead.
+
 ## Results
 
 - Use America/New_York for Google and Outlook times unless Tony names another zone; use the Slack profile's zone for Slack.
