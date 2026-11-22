@@ -13,6 +13,14 @@
   networking.hostName = "sietch";
   nixpkgs.config.android_sdk.accept_license = true;
 
+  boot.initrd.kernelModules = [
+    "nvidia"
+    "nvidia_modeset"
+    "nvidia_uvm"
+    "nvidia_drm"
+  ];
+  boot.loader.systemd-boot.configurationLimit = lib.mkForce 8;
+
   dotfiles.docker.rootlessDevelopment.enable = true;
   dotfiles.mobergTailscale.enable = true;
   services.teamviewer.enable = true;
