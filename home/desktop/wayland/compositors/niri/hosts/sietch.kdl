@@ -9,3 +9,7 @@ spawn-sh-at-startup "swaybg -i $HOME/dotfiles/wallpapers/uwide/lucy.png -m fill"
 debug {
     disable-pipewire-dmabuf
 }
+
+binds {
+    Mod+Alt+Shift+D hotkey-overlay-title="Toggle DP-1 Output" { spawn "niri-toggle-output" "DP-1" "HDMI-A-1"; }
+}

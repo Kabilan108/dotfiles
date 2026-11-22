@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   osConfig,
   pkgs,
   ...
@@ -7,6 +8,21 @@
 let
   homeDir = "/home/kabilan";
   niriConfigDir = "${homeDir}/dotfiles/home/desktop/wayland/compositors/niri";
+  niriToggleOutput = pkgs.writeShellScriptBin "niri-toggle-output" ''
+    set -euo pipefail
+    target="''${1:?usage: niri-toggle-output OUTPUT [FALLBACK_OUTPUT]}"
+    fallback="''${2:-}"
+    outputs=$(niri msg --json outputs)
+
+    if ${lib.getExe pkgs.jq} -e --arg out "$target" '.[$out].logical != null' <<< "$outputs" >/dev/null; then
+      if [ -n "$fallback" ] && ! ${lib.getExe pkgs.jq} -e --arg out "$fallback" '.[$out].logical != null' <<< "$outputs" >/dev/null; then
+        exit 0
+      fi
+      niri msg output "$target" off
+    else
+      niri msg output "$target" on
+    fi
+  '';
   acuTools = with pkgs; [
     wlrctl
     wev
@@ -22,6 +38,7 @@ in
   home.packages =
     with pkgs;
     [
+      niriToggleOutput
       swayidle
       swaybg
       xwayland-satellite
