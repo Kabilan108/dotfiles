@@ -16,7 +16,6 @@
           grok-bot = import ./packages/grok-bot.nix { pkgs = final; };
           helium = import ./packages/helium.nix { pkgs = final; };
         })
-        (import ./packages/rust-system-libs.nix)
         (import ./packages/security-overrides.nix)
         inputs.pagebin.overlays.default
         inputs.atlas.overlays.default

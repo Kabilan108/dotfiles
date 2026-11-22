@@ -5,4 +5,3 @@
 - Keep the `unset` lines in the ChatGPT launcher. Desktop sessions can carry Codex, XDG and library-path variables that would redirect the app's Electron profile and Codex configuration away from the intended defaults.
 - Keep the `deps` list in `helium.nix` in step with nixpkgs' google-chrome package, which it was copied from.
 - Keep both checks on the Helium tarball: the pinned hash fixes the bytes, and gpgv against `helium-signing-key.asc` proves Helium published them. A signing-key rotation needs the new key committed.
-- `rust-system-libs.nix` copies fixes from nixpkgs master for packages broken by nixos-unstable commit f4a03c0, which makes Rust -sys crates link system libraries that those packages never listed. tabiew gets sqlcipher and zstd from NixOS/nixpkgs@7e94c72bfc; each override throws once nixpkgs carries its fix.
