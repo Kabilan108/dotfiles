@@ -14,6 +14,7 @@ The permission model for these services is in `docs/security-hardening.md` ("Sel
 ## CPA (`cliproxyapi.nix`, `cpa-usage-front.nix`)
 
 - The admin front forwards `/v8/management/`, `/v0/management/` and `GET /v1/models` because the pinned dashboard calls v8, probes v0 for old backends, and fills its model list card from `/v1/models`. Check those three again when bumping the panel.
+- The models front returns 404 for `/v1/tunnel`. CPA 8.0.68 added that websocket relay under `/v1/`. Anyone with the shared inference key can join it as a client or a server, no client here uses it, and CPA has no setting to turn it off. When a CPA bump adds a route under a forwarded prefix, decide whether the front should block it.
 - Bump CPA and `passthru.managementPanel` in `packages/cliproxyapi.nix` together. The panel is a separate release asset from the backend and the unit serves the pinned file, so the two can drift apart.
 - Do not downgrade CPA below 8.0.46: Codex's Responses websocket through CPA needs it (upstream PR #46). CPA opens an upstream websocket only for Codex auth files that have `"websockets": true`, so set that flag on every Codex credential added.
 - `cpa-usage-front` exists so sera never holds the management key; agents can edit sera's code. Keep its two answers filtered: CPA's `auth-files` response carries raw API keys and personal details, and `api-call` returns every upstream response header, cookies included.

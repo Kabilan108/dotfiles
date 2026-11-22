@@ -32,6 +32,7 @@ state=$run/state
 mkdir -p "$out" "$state/auth"
 mkey=dummy-mgmt-key
 ikey=dummy-inference-key
+tunnel_query="role=client&uuid=cpa-test&name=cpa-test"
 model=test-model
 
 # shellcheck source=lib.sh

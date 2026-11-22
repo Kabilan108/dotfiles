@@ -174,6 +174,8 @@ direct_checks() {
   expect_http 200 "loopback GET /v0/management/auth-files" -H "Authorization: Bearer $mkey" "$api/v0/management/auth-files"
   expect_http "200 400" "loopback POST /v0/management/api-call (key accepted)" -X POST -H "Authorization: Bearer $mkey" -H "Content-Type: application/json" -d "{\"method\":\"GET\",\"url\":\"http://127.0.0.1:$upstream_port/v1/models\"}" "$api/v0/management/api-call"
   expect_http 200 "loopback GET /management.html" "$api/management.html"
+  ws_upgrade "$api/v1/tunnel?$tunnel_query"
+  check "CPA itself upgrades /v1/tunnel with the inference key" grep -q "^HTTP/1.1 101" "$out/ws-headers"
 }
 
 write_nginx_conf() {
@@ -214,7 +216,7 @@ start_nginx() {
 }
 
 ws_upgrade() {
-  curl -s -D "$out/ws-headers" -o /dev/null --max-time 3 -H "Authorization: Bearer $ikey" \
+  curl -s --path-as-is -D "$out/ws-headers" -o /dev/null --max-time 3 -H "Authorization: Bearer $ikey" \
     -H "OpenAI-Beta: responses_websockets=2026-02-06" -H "Connection: Upgrade" -H "Upgrade: websocket" \
     -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
     -H "Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits" "$1"
@@ -282,6 +284,12 @@ models_front_checks() {
     /healthz/../v0/management/auth-files; do
     expect_http "400 401 404" "refuses $path" -H "Authorization: Bearer $mkey" "$f$path"
     check "no management data for $path" body_lacks '"files"'
+  done
+  for path in /v1/tunnel /v1/tunnel/ /v1//tunnel /v1/./tunnel /v1/%74unnel /v1/x/../tunnel; do
+    ws_upgrade "$f$path?$tunnel_query"
+    check "refuses the websocket tunnel on $path" grep -q "^HTTP/1.1 404" "$out/ws-headers"
+    expect_http 404 "nginx itself answers GET $path" -H "Authorization: Bearer $ikey" "$f$path?$tunnel_query"
+    check "nginx 404 page for $path" body_has "<center>nginx</center>"
   done
   expect_http "400 404" "refuses POST /v0/management/api-call" -X POST -H "Authorization: Bearer $mkey" -H "Content-Type: application/json" -d '{}' "$f/v0/management/api-call"
   expect_http "400 404" "refuses PUT /v0/management/config.yaml" -X PUT -H "Authorization: Bearer $mkey" --data-binary 'x: 1' "$f/v0/management/config.yaml"
