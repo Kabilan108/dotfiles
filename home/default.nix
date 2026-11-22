@@ -157,6 +157,12 @@ in
         icon = "google-messages";
         class = "GoogleMessages";
       }
+      {
+        name = "Sietch KVM";
+        url = "http://sietch-kvm.sole-pierce.ts.net";
+        icon = "jetkvm";
+        class = "SietchKVM";
+      }
     ];
   };
 
