@@ -219,8 +219,10 @@ when generating the first sk key.
 
 ## Binary cache (decided 2026-11-01)
 
-CI builds the expensive packages (`ci/cache-packages`) on free GitHub runners
-and publishes them to `kabilan108.cachix.org`. There is no cache on sietch:
+CI builds the expensive packages (`ci/cache-packages`) and publishes them to
+`kabilan108.cachix.org`. Most build on free GitHub runners; niri, dictator-gui
+and disktree build on Namespace runners, which then hold the push token
+([ADR 0010](adr/0010-heavy-cache-builds-on-namespace-runners.md)). There is no cache on sietch:
 sietch runs agents, so a cache it signed would let them choose what jacurutu
 installs. ghostty comes from `ghostty.cachix.org`; niri.cachix.org is off,
 since niri builds against our nixpkgs and that cache only ever served crate
@@ -254,7 +256,8 @@ delete the check. The gate is in GitHub's settings, which agents can't change:
 
 What this doesn't stop: a bad workflow change inside a commit I deploy.
 `deploy` and `rebuild` list `.github/` changes on their own line for that
-reason. Nor does it stop a compromise of GitHub, Cachix or a pinned action.
+reason. Nor does it stop a compromise of GitHub, Namespace, Cachix or a pinned
+action.
 
 ### Fleet tags and waiting for the cache (2026-11-15)
 

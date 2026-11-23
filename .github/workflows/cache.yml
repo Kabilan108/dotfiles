@@ -58,7 +58,7 @@ jobs:
   build:
     needs: plan
     if: github.event_name == 'push' && needs.plan.outputs.packages != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ${{ contains(fromJSON('["niri", "dictator-gui", "disktree"]'), matrix.package) && 'namespace-profile-dotfiles-nix-16' || 'ubuntu-latest' }}
     timeout-minutes: 360
     environment: ${{ github.event_name == 'push' && 'cache-publish' || '' }}
     strategy:
