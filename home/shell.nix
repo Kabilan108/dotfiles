@@ -240,7 +240,6 @@ in
       theme.name = themeName;
       threads.capture = true;
       daemon.autostart = false;
-      teams.enabled = false;
     };
     themes = {
       "${themeName}" = {

@@ -238,6 +238,6 @@
       url = "github:kabilan108/tracer";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    atuin.url = "github:atuinsh/atuin/v18.24.8";
+    atuin.url = "github:atuinsh/atuin/v18.25.1";
   };
 }
