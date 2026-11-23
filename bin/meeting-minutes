@@ -95,7 +95,8 @@ CONTEXT_GATHERING_ENABLED = (
     os.environ.get("MEETING_MINUTES_CONTEXT_GATHERING", "1").strip() != "0"
 )
 EXECUTOR_URL = os.environ.get(
-    "MEETING_MINUTES_EXECUTOR_URL", "https://executor-v2.sole-pierce.ts.net/mcp"
+    "MEETING_MINUTES_EXECUTOR_URL",
+    "https://executor-v2.sole-pierce.ts.net/mcp?elicitation_mode=model",
 )
 EXECUTOR_KEY_FILE = Path(
     os.environ.get(

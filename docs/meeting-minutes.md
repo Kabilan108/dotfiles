@@ -24,7 +24,7 @@ Some Codex config layers sit outside the pipeline home and are still inputs: the
 
 Meeting sessions live under that home, not `~/.codex/sessions`. To inspect one by hand, run Codex with `CODEX_HOME=~/.local/state/meeting-minutes/codex-home`.
 
-Executor v2 (`https://executor-v2.sole-pierce.ts.net/mcp`) is called directly with a personal access token read from `~/.config/meeting-minutes/executor-env` (agenix `secrets/executor/meeting-minutes.age`). Only the read operations in `EXECUTOR_READ_OPERATIONS` can run, each on one fixed account.
+Executor v2 (`https://executor-v2.sole-pierce.ts.net/mcp?elicitation_mode=model`) is called directly with a personal access token read from `~/.config/meeting-minutes/executor-env` (agenix `secrets/executor/meeting-minutes.age`). Only the read operations in `EXECUTOR_READ_OPERATIONS` can run, each on one fixed account. The URL names `model` mode because a token at the plain `/mcp` URL runs in `automatic` mode since Executor 2.0.0-beta.67, which accepts approvals at once; in `model` mode an approval pauses, and the client never resumes it.
 
 ## Slack
 
