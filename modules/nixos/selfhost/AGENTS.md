@@ -35,6 +35,14 @@ The permission model for these services is in `docs/security-hardening.md` ("Sel
 - Keep Jellyfin's library at `/media`. Its database stores the `/media/...` paths from the old container, and keeping them valid preserves watch state and metadata.
 - Keep `_netdev` on the `/media` bind. As a plain local bind it joined `local-fs.target`, which then waited on `/library` and the network, and systemd broke that cycle at boot by mounting `/library` before the network.
 
+## Media acquisition (`media-arr.nix`, `mullvad-relays.nix`)
+
+- Keep `qbittorrent` confined to the `torrent` network namespace with `bindsTo` and `partOf` on `torrent-netns.service`. The namespace holds only `lo` and `wg-torrent` with an `inet torrent` nftables drop policy, so a VPN drop fails closed instead of falling back to the host NIC. The Web UI reaches host `127.0.0.1:8334` only through `qbittorrent-webui-proxy`.
+- Keep `qbittorrent` out of `users`. `qbittorrent`, `radarr`, and `sonarr` share `media-dl` on `/vault/userdata/downloads` (`2775`, `UMask = "0002"` on qBittorrent), while only `radarr` and `sonarr` join `users` to write to `/library-rw`.
+- Keep `/var/lib/qBittorrent/qBittorrent/config/qBittorrent.conf` seeded only when absent in `preStart` instead of setting `services.qbittorrent.serverConfig`. Setting `serverConfig` overwrites the file on every restart and wipes passwords or UI changes.
+- Mullvad dropped port forwarding in 2023. Public well-seeded torrents work without it, though seeding is slower and rare low-seed or private-tracker torrents can stall. If stalls become an issue or private trackers are added, switch the WireGuard peer to a provider that supports WireGuard port forwarding, such as Proton VPN or AirVPN.
+- `mullvad-relays.nix` holds public Mullvad New York WireGuard relay endpoints and public keys from `https://api.mullvad.net/www/relays/wireguard/`. Only the private key and tunnel address live in the `selfhost-torrent-wg-key` agenix secret.
+
 ## Siren (`siren.nix`)
 
 - Change the Parakeet boost terms or weights only through a new evaluation. The current values come from the November 2026 dictation evaluation (~/.local/state/vocab-eval/report.md on jacurutu): the low first-token weight (0.05) keeps stray capitalisation down while later tokens still pull whole terms in.

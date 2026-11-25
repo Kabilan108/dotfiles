@@ -13,6 +13,7 @@
     ./hark.nix
     ./jellyfin.nix
     ./library.nix
+    ./media-arr.nix
     ./siren.nix
   ];
 

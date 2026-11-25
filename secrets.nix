@@ -140,7 +140,7 @@ in
   "secrets/selfhost/siren-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/hark-env.age".publicKeys = [ sietch ];
   "secrets/selfhost/hark-fcm-service-account.age".publicKeys = [ sietch ];
-
+  "secrets/selfhost/torrent-wg-key.age".publicKeys = backupSietch;
   "secrets/executor/meeting-minutes.age".publicKeys = [
     sietch
     jacurutu

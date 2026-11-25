@@ -17,6 +17,7 @@
 
 	"autoApprovers": {
 		"services": {
+			"svc:arr":         ["tag:server"],
 			"svc:blocky":      ["tag:server"],
 			"svc:cliproxyapi": ["tag:server"],
 			"svc:cpa-admin":   ["tag:server"],
@@ -36,6 +37,8 @@
 	},
 
 	"grants": [
+		{"src": ["pixel-9"], "dst": ["svc:arr"], "ip": ["tcp:443"]},
+
 		{"src": ["pixel-9"], "dst": ["svc:blocky"], "ip": ["tcp:443"]},
 
 		{"src": ["pixel-9"], "dst": ["svc:cpa-admin"], "ip": ["tcp:443"]},
@@ -70,6 +73,7 @@
 		{
 			"src": ["tag:server"],
 			"dst": [
+				"svc:arr",
 				"svc:cliproxyapi",
 				"svc:siren",
 				"svc:executor-v2",
@@ -132,7 +136,7 @@
 			"tleilax:443",
 			"svc:jellyfin:443",
 			"tag:kvm:80",
-		], "deny": ["sietch:7297", "svc:cliproxyapi:443", "svc:cpa-admin:443"]},
+		], "deny": ["sietch:7297", "svc:arr:443", "svc:cliproxyapi:443", "svc:cpa-admin:443"]},
 		{
 			"src": "jacurutu",
 			"accept": [
@@ -141,6 +145,7 @@
 				"tleilax:22",
 				"tag:nas:443",
 				"tag:kvm:80",
+				"svc:arr:443",
 				"svc:blocky:443",
 				"svc:cliproxyapi:443",
 				"svc:cpa-admin:443",
@@ -148,7 +153,7 @@
 		},
 		{
 			"src":    "sietch",
-			"accept": ["pixel-9:40000", "svc:cliproxyapi:443", "svc:executor-v2:443"],
+			"accept": ["pixel-9:40000", "svc:arr:443", "svc:cliproxyapi:443", "svc:executor-v2:443"],
 			"deny": [
 				"tleilax:22",
 				"tleilax:443",
@@ -173,6 +178,7 @@
 				"tag:nas:443",
 				"tag:nas:22",
 				"tag:kvm:80",
+				"svc:arr:443",
 				"svc:cliproxyapi:443",
 				"svc:cpa-admin:443",
 			],
@@ -185,6 +191,7 @@
 				"jacurutu:443",
 				"tag:nas:443",
 				"tag:kvm:80",
+				"svc:arr:443",
 				"svc:blocky:443",
 				"svc:cpa-admin:443",
 			],
@@ -193,7 +200,7 @@
 		{
 			"src":    "tag:agent",
 			"accept": ["svc:cliproxyapi:443", "svc:executor-v2:443"],
-			"deny":   ["svc:cpa-admin:443"],
+			"deny":   ["svc:arr:443", "svc:cpa-admin:443"],
 		},
 		{
 			"src":    "tag:grokbot",
@@ -208,6 +215,7 @@
 				"pixel-9:443",
 				"tag:nas:443",
 				"tag:kvm:80",
+				"svc:arr:443",
 				"svc:hark:443",
 				"svc:jellyfin:443",
 				"svc:siren:443",
@@ -218,11 +226,11 @@
 		},
 		{
 			"src":  "tag:nas",
-			"deny": ["sietch:22", "jacurutu:22", "tleilax:22", "sietch:53", "svc:blocky:443"],
+			"deny": ["sietch:22", "jacurutu:22", "tleilax:22", "sietch:53", "svc:arr:443", "svc:blocky:443"],
 		},
 		{
 			"src":  "tag:kvm",
-			"deny": ["sietch:22", "sietch:443", "jacurutu:22", "tleilax:22", "tag:nas:443", "svc:hark:443"],
+			"deny": ["sietch:22", "sietch:443", "jacurutu:22", "tleilax:22", "tag:nas:443", "svc:arr:443", "svc:hark:443"],
 		},
 	],
 	"nodeAttrs": [
