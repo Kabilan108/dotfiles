@@ -63,27 +63,28 @@ approval_mode = "approve"
 
 [mcp_servers.node_repl]
 args = []
-command = "/nix/store/6xwwmar0hdnm75mn93dx3qhsvmypc5bz-chatgpt-official-payload-26.1021.22027/usr/lib/chatgpt/resources/cua_node/bin/node_repl"
+command = "/nix/store/bs9bgmclmq2jljrfavy2gzjrm4v3aag5-chatgpt-official-payload-26.1117.41037/usr/lib/chatgpt/resources/cua_node/bin/node_repl"
 env_vars = ["BROWSER_USE_ACCESS_EXECUTOR_ID", "BROWSER_USE_ACCESS_PIPE_PATH", "BROWSER_USE_ACCESS_VERIFYING_IDENTITY"]
 startup_timeout_sec = 120
 
 [mcp_servers.node_repl.env]
 NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
-NODE_REPL_NODE_MODULE_DIRS = "/nix/store/6xwwmar0hdnm75mn93dx3qhsvmypc5bz-chatgpt-official-payload-26.1021.22027/usr/lib/chatgpt/resources/cua_node/lib/node_modules"
-NODE_REPL_NODE_PATH = "/nix/store/6xwwmar0hdnm75mn93dx3qhsvmypc5bz-chatgpt-official-payload-26.1021.22027/usr/lib/chatgpt/resources/cua_node/bin/node"
-NODE_REPL_TRUSTED_CODE_PATHS = "/home/kabilan/.codex:/nix/store/6xwwmar0hdnm75mn93dx3qhsvmypc5bz-chatgpt-official-payload-26.1021.22027/usr/lib/chatgpt/resources/cua_node/lib/node_modules"
+NODE_REPL_NODE_MODULE_DIRS = "/nix/store/bs9bgmclmq2jljrfavy2gzjrm4v3aag5-chatgpt-official-payload-26.1117.41037/usr/lib/chatgpt/resources/cua_node/lib/node_modules"
+NODE_REPL_NODE_PATH = "/nix/store/bs9bgmclmq2jljrfavy2gzjrm4v3aag5-chatgpt-official-payload-26.1117.41037/usr/lib/chatgpt/resources/cua_node/bin/node"
+NODE_REPL_TRUSTED_CODE_PATHS = "/home/kabilan/.codex:/nix/store/bs9bgmclmq2jljrfavy2gzjrm4v3aag5-chatgpt-official-payload-26.1117.41037/usr/lib/chatgpt/resources/cua_node/lib/node_modules"
 CODEX_HOME = "/home/kabilan/.codex"
 BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab,mcpapps"
 BROWSER_USE_TINYSKY_ENABLED = "1"
 NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunction with the Browser Plugin."
 NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
 BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
-BROWSER_USE_CODEX_APP_VERSION = "26.1021.22027"
-NODE_REPL_TRUSTED_SERVICES = '{"browser":"/home/kabilan/.codex/plugins/cache/openai-bundled/browser/26.1021.22027/scripts/browser-service.mjs"}'
-CODEX_CLI_PATH = "/nix/store/6xwwmar0hdnm75mn93dx3qhsvmypc5bz-chatgpt-official-payload-26.1021.22027/usr/lib/chatgpt/resources/codex"
+BROWSER_USE_CODEX_APP_VERSION = "26.1117.41037"
+NODE_REPL_TRUSTED_SERVICES = '{"browser":"/home/kabilan/.codex/plugins/cache/openai-bundled/browser/26.1117.41037/scripts/browser-service.mjs"}'
+CODEX_CLI_PATH = "/nix/store/bs9bgmclmq2jljrfavy2gzjrm4v3aag5-chatgpt-official-payload-26.1117.41037/usr/lib/chatgpt/resources/codex"
+NODE_REPL_LAZY_TRUSTED_WORKER = "0"
 
 [mcp_servers.cua_repl]
-command = "/nix/store/6xwwmar0hdnm75mn93dx3qhsvmypc5bz-chatgpt-official-payload-26.1021.22027/usr/lib/chatgpt/ChatGPT"
+command = "/nix/store/bs9bgmclmq2jljrfavy2gzjrm4v3aag5-chatgpt-official-payload-26.1117.41037/usr/lib/chatgpt/ChatGPT"
 enabled = false
 
 [notice]
@@ -460,6 +461,7 @@ defaultTerminalLocation = "right"
 open-link-in-target-preference = "in-app-browser"
 projectlessWorkspaceRoot = "/home/kabilan/experiments/codex-bin"
 avatar-overlay-pet-visible = false
+migratedFollowUpQueueToSteer = false
 
 [desktop.appearanceDarkChromeTheme]
 accent = "#006efe"
