@@ -250,6 +250,11 @@ in
       "d ${downloadsDir}/complete 2775 qbittorrent media-dl -"
     ];
 
+    systemd.tmpfiles.settings.qbittorrent = {
+      "/var/lib/qBittorrent/qBittorrent/".d.mode = lib.mkForce "0700";
+      "/var/lib/qBittorrent/qBittorrent/config/".d.mode = lib.mkForce "0700";
+    };
+
     systemd.services.torrent-netns = {
       description = "Isolated Mullvad WireGuard network namespace for torrent traffic";
       after = [ "network-online.target" ];
@@ -288,7 +293,11 @@ in
       serviceConfig = {
         NetworkNamespacePath = "/var/run/netns/${netnsName}";
         BindReadOnlyPaths = [ "${netnsResolv}:/etc/resolv.conf" ];
-        UMask = "0002";
+        InaccessiblePaths = [
+          "-/run/nscd"
+          "-/run/systemd/resolve"
+        ];
+        UMask = "0007";
       };
     };
 
@@ -324,28 +333,46 @@ in
 
     services.prowlarr = {
       enable = true;
-      settings.server = {
-        bindaddress = "127.0.0.1";
-        port = prowlarrPort;
-        urlbase = "/prowlarr";
+      settings = {
+        auth = {
+          method = "Forms";
+          required = "Enabled";
+        };
+        server = {
+          bindaddress = "127.0.0.1";
+          port = prowlarrPort;
+          urlbase = "/prowlarr";
+        };
       };
     };
 
     services.radarr = {
       enable = true;
-      settings.server = {
-        bindaddress = "127.0.0.1";
-        port = radarrPort;
-        urlbase = "/radarr";
+      settings = {
+        auth = {
+          method = "Forms";
+          required = "Enabled";
+        };
+        server = {
+          bindaddress = "127.0.0.1";
+          port = radarrPort;
+          urlbase = "/radarr";
+        };
       };
     };
 
     services.sonarr = {
       enable = true;
-      settings.server = {
-        bindaddress = "127.0.0.1";
-        port = sonarrPort;
-        urlbase = "/sonarr";
+      settings = {
+        auth = {
+          method = "Forms";
+          required = "Enabled";
+        };
+        server = {
+          bindaddress = "127.0.0.1";
+          port = sonarrPort;
+          urlbase = "/sonarr";
+        };
       };
     };
 

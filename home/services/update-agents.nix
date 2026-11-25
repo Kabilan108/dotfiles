@@ -68,16 +68,12 @@ in
 
   config = lib.mkIf cfg.enable {
     systemd.user.services.update-agents = {
-      Unit = {
-        Description = "Update Agent CLIs";
-        After = "network-online.target";
-      };
+      Unit.Description = "Update Agent CLIs";
       Service = {
         Type = "oneshot";
         Environment = [ "PATH=${agentPath}" ];
         ExecStart = updateAgents;
       };
-      Install.WantedBy = [ "default.target" ];
     };
 
     systemd.user.timers.update-agents = {
