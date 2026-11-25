@@ -647,6 +647,10 @@ ShellRoot {
                 root.expect(field.text === "ghostty" && service.opened && root.callsNamed(
                                 "clipboard.remove").length === 0,
                             "Ctrl+D outside the clipboard does nothing")
+                root.key(Qt.Key_D, Qt.ControlModifier | Qt.ShiftModifier)
+                root.expect(field.text === "ghostty" && service.opened && root.callsNamed(
+                                "clipboard.clear").length === 0,
+                            "Ctrl+Shift+D outside the clipboard does nothing")
                 root.expect(field.text === "ghostty" && root.fieldFocused(),
                             "action keys leave the field text alone")
                 root.calls = []
@@ -1512,11 +1516,22 @@ ShellRoot {
                 root.expect(root.lastCall("clipboard.copy") === '["c1"]', "Enter copies the item")
                 root.expect(root.callsNamed("surfaceClose").length === 1, "copy closes")
                 root.openMenu('{"mode":"clipboard"}')
+                root.savedItems = root.fakeClipboard.items
+                root.expect(root.key(Qt.Key_D, Qt.ControlModifier | Qt.ShiftModifier),
+                            "Ctrl+Shift+D is handled")
+                root.expect(root.callsNamed("clipboard.clear").length === 1 && root.callsNamed(
+                                "clipboard.remove").length === 1,
+                            "Ctrl+Shift+D clears the history without deleting the item")
+                root.expect(root.callsNamed("surfaceClose").length === 2 && !service.opened,
+                            "clear closes")
+                root.fakeClipboard.items = root.savedItems
+                root.fakeClipboard.revision++
+                root.openMenu('{"mode":"clipboard"}')
                 root.key(Qt.Key_Tab)
                 root.key(Qt.Key_Tab)
                 root.expect(service.selectedAction.id === "clear", "Tab reaches clear")
                 root.key(Qt.Key_Return)
-                root.expect(root.callsNamed("clipboard.clear").length === 1,
+                root.expect(root.callsNamed("clipboard.clear").length === 2,
                             "clear runs on the service")
                 root.fakeClipboard.status = "degraded"
                 root.fakeClipboard.error = "clipboard watcher exited with status 1; retrying in 2 s"

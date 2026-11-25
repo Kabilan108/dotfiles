@@ -127,7 +127,7 @@ FocusScope {
             activateSelected()
         else if (control && event.key === Qt.Key_D) {
             if (selectedRow && selectedRow.provider === "clipboard")
-                service.activate(service.selectedIndex, "remove")
+                service.activate(service.selectedIndex, shift ? "clear" : "remove")
         } else if (control && event.key === Qt.Key_I) {
             service.toggleClipboardImages()
             list.positionViewAtBeginning()
@@ -437,8 +437,10 @@ FocusScope {
                     armed: true
                 }
                 Hint {
-                    visible: hints.nextAction !== null && !(hints.removable && hints.nextAction.id
-                                                            === "remove")
+                    visible: hints.nextAction !== null && !(hints.removable && (hints.nextAction.id
+                                                                                === "remove"
+                                                                                || hints.nextAction.id
+                                                                                === "clear"))
                     keys: "Tab"
                     label: hints.nextAction ? hints.nextAction.label : ""
                 }
@@ -446,6 +448,11 @@ FocusScope {
                     visible: hints.removable
                     keys: "Ctrl+D"
                     label: "Delete"
+                }
+                Hint {
+                    visible: hints.removable
+                    keys: "Ctrl+Shift+D"
+                    label: "Clear history"
                 }
                 Hint {
                     visible: root.clipboardView
