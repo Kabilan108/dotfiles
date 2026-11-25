@@ -202,8 +202,8 @@ let
   '';
 
   arrProxyHeaders = ''
-    proxy_set_header Host $http_host;
-    proxy_set_header X-Forwarded-Host $http_host;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Host $host;
     proxy_set_header X-Forwarded-Proto https;
     proxy_set_header X-Forwarded-For $remote_addr;
     proxy_redirect off;
@@ -393,8 +393,8 @@ in
           "^~ /qbit/" = {
             proxyPass = "http://127.0.0.1:${toString qbitPort}/";
             extraConfig = ''
-              proxy_set_header Host $http_host;
-              proxy_set_header X-Forwarded-Host $http_host;
+              proxy_set_header Host $host;
+              proxy_set_header X-Forwarded-Host $host;
               proxy_set_header X-Forwarded-Proto https;
               proxy_set_header X-Forwarded-For $remote_addr;
               proxy_cookie_path / "/qbit/; Secure";
