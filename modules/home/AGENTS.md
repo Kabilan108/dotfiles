@@ -12,6 +12,7 @@
 
 - Call `~/.local/bin/claude` and `~/.local/bin/codex` by absolute path in the `claude-cpa` and `codex-cpa` wrappers, so a wrapper can never resolve back to itself through PATH.
 - Keep `-c 'model_provider="cpa"'` before the user's arguments in `codex-cpa`. At the root it applies to every subcommand, including the `app-server` and `exec` modes that T3 and scripts use. `agents/codex/config.toml` defines `[model_providers.cpa]` but does not make it the default, so plain `codex` keeps using OpenAI auth.
+- Keep `codex-cpa` passing its filtered copy of CPA's catalog through `model_catalog_json`, not `model_catalog_url` in `agents/codex/config.toml`. With API-key auth and no catalog, Codex uses its bundled list, which lacks Ultrafast on GPT-6.2 Sol. CPA's full catalog also lists Claude models, and T3's `delegate_task` accepts any model in a provider's catalog, even models hidden in T3. The `gpt-*` filter only hides models: CPA client keys can call every model.
 
 ## Other modules
 
