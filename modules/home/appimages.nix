@@ -32,12 +32,12 @@ let
 
   updater = pkgs.writeShellApplication {
     name = "update-appimages";
-    runtimeInputs = with pkgs; [
-      coreutils
-      findutils
-      gh
-      jq
-      libnotify
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.findutils
+      cfg.ghPackage
+      pkgs.jq
+      pkgs.libnotify
     ];
     text = ''
       app_dir=${lib.escapeShellArg appDir}
@@ -161,7 +161,7 @@ let
       lib.mapAttrsToList (_name: app: ''
         if ! find "${appDir}" -maxdepth 1 -name '${app.pattern}' -type f 2>/dev/null | grep -q .; then
           echo "Bootstrapping ${app.desktopName}..."
-          ${lib.getExe pkgs.gh} release download --repo ${app.repo} \
+          ${lib.getExe cfg.ghPackage} release download --repo ${app.repo} \
             --pattern '${app.downloadPattern}' -D "${appDir}" || \
             echo "Warning: failed to download ${app.desktopName}. Download manually to ${appDir}." >&2
         fi
@@ -172,6 +172,8 @@ in
 {
   options.programs.appimages = {
     enable = lib.mkEnableOption "AppImage management with auto-update support";
+
+    ghPackage = lib.mkPackageOption pkgs "gh" { };
 
     apps = lib.mkOption {
       type = lib.types.attrsOf (

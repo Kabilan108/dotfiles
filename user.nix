@@ -107,6 +107,15 @@ in
       group = "users";
     };
 
+    secrets."secrets/gh-token" =
+      lib.mkIf (isSietch && builtins.pathExists ./secrets/gh/sietch-token.age)
+        {
+          file = ./secrets/gh/sietch-token.age;
+          mode = "0400";
+          owner = "kabilan";
+          group = "users";
+        };
+
     secrets."secrets/op/agents.age" = {
       file = opServiceAccountFile;
       path = "${home}/.config/op-agents/env";

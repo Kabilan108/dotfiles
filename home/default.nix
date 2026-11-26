@@ -1,4 +1,5 @@
 {
+  config,
   inputs,
   lib,
   pkgs,
@@ -67,6 +68,7 @@ in
     ../modules/home/cpa-clients.nix
     ../modules/home/fleet.nix
     ../modules/home/fonts.nix
+    ../modules/home/gh.nix
     ../modules/home/gogcli.nix
     ../modules/home/ghostty.nix
     ../modules/home/gtk.nix
@@ -89,6 +91,7 @@ in
 
   programs.home-manager.enable = true;
   programs.gogcli.enable = true;
+  dotfiles.gh.enable = true;
 
   programs.yazi = {
     enable = true;
@@ -196,7 +199,10 @@ in
     };
   };
 
-  programs.appimages.enable = true;
+  programs.appimages = {
+    enable = true;
+    ghPackage = config.dotfiles.gh.package;
+  };
 
   xdg.terminal-exec = {
     enable = true;
@@ -295,7 +301,6 @@ in
     fastfetch
     fd
     fzf
-    gh
     ghostty
     harkctl
     pagebin

@@ -33,7 +33,7 @@ in
           "PATH=${
             lib.makeBinPath [
               pkgs.coreutils
-              pkgs.gh
+              config.dotfiles.gh.package
               pkgs.git
               pkgs.openssh
             ]

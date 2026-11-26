@@ -32,7 +32,7 @@ in
               pkgs.coreutils
               pkgs.curl
               pkgs.dpkg
-              pkgs.gh
+              config.dotfiles.gh.package
               pkgs.git
               pkgs.gnupg
               pkgs.jq

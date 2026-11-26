@@ -16,6 +16,7 @@
 
 ## Other modules
 
+- Give gh to user services through `config.dotfiles.gh.package` (`gh.nix`), not `pkgs.gh`. Plain gh reads its token from GNOME Keyring, and while the keyring is locked a timer-started gh hangs on the keyring prompt; the wrapper exports `GH_TOKEN` from the agenix file instead.
 - Write tpm plugin lines to the generated plugins file that the tmux config sources, as `shell-base.nix` does. tpm reads `@plugin` lines only from the main tmux config and the files it sources.
 - Keep `UnsetEnvironment` in the resident Ghostty unit in `ghostty.nix`. Every Ghostty window is a child of that one process, and AppImages such as T3 Code export their bundled library path (`LD_LIBRARY_PATH`, `APPDIR`, `APPIMAGE`, `GSETTINGS_SCHEMA_DIR`), which would otherwise leak into every shell.
 - Keep Ghostty's `async-backend = "epoll"`. The io_uring backend's event waits inflate Linux I/O-pressure readings while the terminal is idle.

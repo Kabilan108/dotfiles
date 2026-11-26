@@ -29,6 +29,7 @@ in
 
   "secrets/op/sietch-agents.age".publicKeys = backupSietch;
   "secrets/op/jacurutu-agents.age".publicKeys = backupJacurutu;
+  "secrets/gh/sietch-token.age".publicKeys = backupSietch;
 
   "secrets/agent-browser-encryption-key.age".publicKeys = [
     sietch
