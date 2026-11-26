@@ -89,7 +89,7 @@ in
     selfhost.tailnetServices.executor-v2.port = port;
 
     virtualisation.oci-containers.containers.executor-v2 = {
-      image = "ghcr.io/usefulsoftwareco/executor-selfhost:2.0.0-beta.68@sha256:03af5df187359b1cb762e5c338f4d509f6a8275a5b73e6d460e41025d48d0f52";
+      image = "ghcr.io/usefulsoftwareco/executor-selfhost:2.0.0-beta.74@sha256:054e677a1f694ffa827a82d0cb501dbd087c9e576b64b3473c91ca874f92c44a";
       user = "${id}:${id}";
       volumes = [
         "/var/lib/executor-v2:/app/data"
