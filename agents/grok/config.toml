@@ -1,5 +1,6 @@
 [cli]
 installer = "internal"
+auto_update = true
 
 [models]
 default = "grok-4.6"
@@ -24,7 +25,12 @@ sessions = false
 sessions = false
 
 [plugins]
-disabled = ["code-simplifier", "pyright-lsp", "typescript-lsp", "gopls-lsp"]
+disabled = [
+    "code-simplifier",
+    "pyright-lsp",
+    "typescript-lsp",
+    "gopls-lsp",
+]
 
 [marketplace]
 default_skills_installs_purged = true
