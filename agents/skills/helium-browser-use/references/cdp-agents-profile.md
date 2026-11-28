@@ -16,4 +16,4 @@ agent-browser --session "$session" --cdp "$port" tab list --json
 - Tabs are under `.data.tabs` in JSON output. Run tab creation and tab-list parsing as separate commands, so a failed parser doesn't leave an untracked tab.
 - When finished, `tab close <tabId>` your own tab, then `close`. `close --all` would close other agents' tabs.
 
-From sietch, `helium-browser-tunnel sietch` on jacurutu forwards sietch `127.0.0.1:9223` to the local CDP port; use `--cdp 9223` there. Keep the forward on loopback: CDP has no authentication.
+This profile is local to jacurutu: CDP has no authentication, so it is never forwarded to other hosts.
