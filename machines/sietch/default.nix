@@ -132,6 +132,7 @@
 
   services = {
     hardware.openrgb.enable = true;
+    resolved.enable = true;
     openssh = {
       enable = true;
       openFirewall = false;
