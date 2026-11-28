@@ -13,7 +13,6 @@ let
     postBuild = ''
       wrapProgram "$out/bin/browse" \
         --set OPENCODE_BROWSER_AUTO_UPDATE off \
-        --set-default OPENCODE_BROWSER_AGENT_WINDOW separate \
         --set OPENCODE_BROWSER_PORT ${toString cfg.port} \
         ${lib.optionalString (cfg.relay == "forwarded") "--set OPENCODE_BROWSER_AUTOSTART 0"}
     '';
