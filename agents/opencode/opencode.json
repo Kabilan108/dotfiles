@@ -7,11 +7,6 @@
   "plugin": [
   ],
   "mcp": {
-    "deepwiki": {
-      "type": "remote",
-      "url": "https://mcp.deepwiki.com/mcp",
-      "enabled": true
-    },
     "executor": {
       "type": "remote",
       "url": "https://executor-v2.sole-pierce.ts.net/mcp?elicitation_mode=browser",

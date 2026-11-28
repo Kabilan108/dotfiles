@@ -1,9 +1,5 @@
 {
   "mcpServers": {
-    "deepwiki": {
-      "disabled": false,
-      "url": "https://mcp.deepwiki.com/mcp"
-    },
     "executor": {
       "disabled": false,
       "url": "https://executor-v2.sole-pierce.ts.net/mcp?elicitation_mode=browser"
