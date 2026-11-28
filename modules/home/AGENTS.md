@@ -14,6 +14,11 @@
 - Keep `-c 'model_provider="cpa"'` before the user's arguments in `codex-cpa`. At the root it applies to every subcommand, including the `app-server` and `exec` modes that T3 and scripts use. `agents/codex/config.toml` defines `[model_providers.cpa]` but does not make it the default, so plain `codex` keeps using OpenAI auth.
 - Keep `codex-cpa` passing its filtered copy of CPA's catalog through `model_catalog_json`, not `model_catalog_url` in `agents/codex/config.toml`. With API-key auth and no catalog, Codex uses its bundled list, which lacks Ultrafast on GPT-6.2 Sol. CPA's full catalog also lists Claude models, and T3's `delegate_task` accepts any model in a provider's catalog, even models hidden in T3. The `gpt-*` filter only hides models: CPA client keys can call every model.
 
+## browse (`opencode-browse.nix`)
+
+- Keep `OPENCODE_BROWSER_AUTO_UPDATE=off` forced in the wrapper. browse otherwise downloads and installs releases hourly, unpinned; its updates come through `update-app-pins` instead.
+- Keep the relay port pinned on every host. `browse-relay-tunnel` forwards one fixed port, and an unpinned relay moves to 19990-19997 when 19988 is busy, which would leave a forwarded host on a dead port.
+
 ## Other modules
 
 - Give gh to user services through `config.dotfiles.gh.package` (`gh.nix`), not `pkgs.gh`. Plain gh reads its token from GNOME Keyring, and while the keyring is locked a timer-started gh hangs on the keyring prompt; the wrapper exports `GH_TOKEN` from the agenix file instead.

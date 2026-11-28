@@ -73,6 +73,7 @@ in
     ../modules/home/ghostty.nix
     ../modules/home/gtk.nix
     ../modules/home/helium.nix
+    ../modules/home/opencode-browse.nix
     ../modules/home/pwas.nix
     ../modules/home/scout.nix
     ../modules/home/stillsuit

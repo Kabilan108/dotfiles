@@ -15,6 +15,7 @@
           chatgpt-desktop = import ./packages/chatgpt-desktop.nix { pkgs = final; };
           grok-bot = import ./packages/grok-bot.nix { pkgs = final; };
           helium = import ./packages/helium.nix { pkgs = final; };
+          opencode-browse = import ./packages/opencode-browse.nix { pkgs = final; };
         })
         (import ./packages/security-overrides.nix)
         inputs.pagebin.overlays.default

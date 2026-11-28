@@ -52,6 +52,10 @@ supports_websockets = true
 [mcp_servers.executor]
 url = "https://executor-v2.sole-pierce.ts.net/mcp?elicitation_mode=browser"
 
+[mcp_servers.browse]
+command = "/etc/profiles/per-user/kabilan/bin/browse"
+args = ["mcp"]
+
 [mcp_servers.node_repl]
 args = []
 command = "/nix/store/bs9bgmclmq2jljrfavy2gzjrm4v3aag5-chatgpt-official-payload-26.1117.41037/usr/lib/chatgpt/resources/cua_node/bin/node_repl"

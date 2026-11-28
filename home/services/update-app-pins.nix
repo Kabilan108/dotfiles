@@ -9,7 +9,7 @@ let
 in
 {
   options.dotfiles.services.update-app-pins.enable =
-    lib.mkEnableOption "daily Helium, ChatGPT desktop and grok-bot pin updates";
+    lib.mkEnableOption "daily Helium, ChatGPT desktop, grok-bot and browse pin updates";
 
   config = lib.mkIf cfg.enable {
     systemd.user.services.update-app-pins = {

@@ -1,76 +1,16 @@
-# Remote Helium Browser Use
+# browse from sietch
 
-Use this when the agent is running on a remote host, such as `sietch`, and the visible Helium browser is running on the user's local machine.
+The browser and its relay run on jacurutu. `browse-relay-tunnel sietch`, run on jacurutu, copies jacurutu's relay token to sietch and holds a reverse SSH tunnel from sietch `127.0.0.1:19988` to jacurutu `127.0.0.1:19988` in tmux target `browse-relay:sietch`. sietch's `browse` is built with `OPENCODE_BROWSER_AUTOSTART=0`, so with the tunnel down it reports no relay instead of starting one.
 
-## Mental Model
-
-CDP is forwarded from the browser-host machine to the remote agent host. The browser still runs locally, so page URLs are resolved from the browser-host machine's network view.
-
-For dev servers running on `sietch`, prefer Tailscale-reachable URLs, such as:
+Check from sietch:
 
 ```bash
-http://sietch:<port>
-http://<sietch-tailscale-ip>:<port>
+curl -fsS http://127.0.0.1:19988/version
+browse status
 ```
 
-Do not assume `http://127.0.0.1:<port>` means the remote host. In the browser, loopback means the browser-host machine unless a separate application tunnel is also set up.
+If that fails, the tunnel is down. Ask Tony to run `browse-relay-tunnel sietch` on jacurutu; don't start a relay or a browser on sietch.
 
-## From The Remote Agent Host
+Pages load from jacurutu's network, so `127.0.0.1` in a URL means jacurutu. Use sietch's tailnet name for its dev servers (`http://sietch:<port>`). File paths for uploads resolve on jacurutu: pass sietch files inline (`{ name, data }`, up to about 10 MB per call).
 
-First check whether the forwarded CDP endpoint already exists:
-
-```bash
-session="<unique-task-worker-id>"
-remote_port="${HELIUM_REMOTE_CDP_PORT:-9223}"
-curl -fsS "http://127.0.0.1:${remote_port}/json/version"
-agent-browser --session "$session" --cdp "$remote_port" --pin-tab get cdp-url --json
-```
-
-If this succeeds, use the normal `helium-browser-use` tab discipline with `agent-browser --session "$session" --cdp "$remote_port" ...`.
-
-If this fails, do not try to launch Helium on the remote host. Ask the browser-host machine to start or repair the reverse tunnel.
-
-## From The Browser-Host Machine
-
-Confirm local Helium CDP is reachable:
-
-```bash
-local_port="${HELIUM_AGENTS_CDP_PORT:-9222}"
-curl -fsS "http://127.0.0.1:${local_port}/json/version"
-```
-
-Start or repair the reverse SSH tunnel:
-
-```bash
-helium-browser-tunnel sietch
-```
-
-The helper keeps a stable tmux target:
-
-```text
-helium-browser-use:sietch
-```
-
-It forwards remote `127.0.0.1:9223` on `sietch` to local `127.0.0.1:9222`.
-
-## Manual Tunnel
-
-If the helper is unavailable, start the tunnel manually from the browser-host machine:
-
-```bash
-tmux new-session -d -s helium-browser-use -n sietch \
-  'ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -R 127.0.0.1:9223:127.0.0.1:9222 sietch-agent'
-```
-
-Then verify from `sietch`:
-
-```bash
-curl -fsS http://127.0.0.1:9223/json/version
-agent-browser --session "$session" --cdp 9223 --pin-tab get cdp-url --json
-```
-
-## Safety
-
-Keep the forwarded CDP endpoint bound to remote loopback. Do not use `0.0.0.0` or expose CDP on a public interface.
-
-Do not close the tunnel while another agent is actively using the remote browser. Check the tmux pane and active agent work first.
+Agents on jacurutu and sietch share the one relay and the one browser, so other agents' tabs may be open alongside yours.

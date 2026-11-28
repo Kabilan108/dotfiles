@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd -- "$(dirname -- "$(readlink -f -- "$0")")/.." && pwd)"
+pin_file="$repo_root/packages/opencode-browse-version.json"
+npm_package=@opencode/browse-linux-x64
+npm_metadata_url=https://registry.npmjs.org/@opencode%2fbrowse-linux-x64
+release_manifest_url=https://anoma.ly/release/browse/cli/stable.json
+mode="${1:---check}"
+if [[ $# -gt 1 || ( "$mode" != --check && "$mode" != --write ) ]]; then
+  echo 'Usage: update-opencode-browse [--check|--write]' >&2
+  exit 2
+fi
+
+if ! command -v jq >/dev/null || ! command -v curl >/dev/null; then
+  tools_expr="let p = (builtins.getFlake \"git+file://$repo_root\").nixosConfigurations.jacurutu.pkgs; in p.buildEnv { name = \"opencode-browse-update-tools\"; paths = [ p.curl p.jq ]; }"
+  exec direnv exec "$repo_root" nix shell --impure --expr "$tools_expr" --command "$0" "$mode"
+fi
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+
+current_version="$(jq -er .version "$pin_file")"
+curl -fsSL "$npm_metadata_url" -o "$work/npm.json"
+curl -fsSL "$release_manifest_url" -o "$work/release.json"
+npm_version="$(jq -er '."dist-tags".latest' "$work/npm.json")"
+release_version="$(jq -er 'select(.app == "browse" and .artifact == "cli" and .channel == "stable") | .release.version' "$work/release.json")"
+if [[ ! "$npm_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Unexpected npm version $npm_version; pin was not changed." >&2
+  exit 1
+fi
+printf 'Pinned: %s\nnpm: %s\nRelease service: %s\n' "$current_version" "$npm_version" "$release_version"
+if [[ "$npm_version" != "$release_version" ]]; then
+  echo 'npm and the release service disagree on the stable version; pin was not changed. This clears once both publish the same release.'
+  exit 0
+fi
+if [[ "$(printf '%s\n%s\n' "$current_version" "$npm_version" | sort -V | tail -1)" != "$npm_version" ]]; then
+  echo "Published version $npm_version is older than pinned $current_version; pin was not changed." >&2
+  exit 1
+fi
+integrity="$(jq -er --arg v "$npm_version" '.versions[$v].dist.integrity' "$work/npm.json")"
+if [[ "$npm_version" == "$current_version" ]]; then
+  if [[ "$integrity" != "$(jq -er .hash "$pin_file")" ]]; then
+    echo 'Published npm tarball differs for the same version; pin was not changed.' >&2
+    exit 1
+  fi
+  echo 'Already current.'
+  exit 0
+fi
+if [[ "$mode" == --check ]]; then
+  echo 'Run update-opencode-browse --write to update the pin, then build and rebuild.'
+  exit 0
+fi
+
+tarball_url="$(jq -er --arg v "$npm_version" '.versions[$v].dist.tarball' "$work/npm.json")"
+if [[ "$tarball_url" != "https://registry.npmjs.org/$npm_package/-/browse-linux-x64-$npm_version.tgz" ]]; then
+  echo "Unexpected npm tarball URL $tarball_url; pin was not changed." >&2
+  exit 1
+fi
+curl -fsSL "$tarball_url" -o "$work/npm.tgz"
+expected_sha512="$(base64 -d <<< "${integrity#sha512-}" | od -An -v -tx1 | tr -d ' \n')"
+if [[ "$integrity" != sha512-* || "$(sha512sum < "$work/npm.tgz" | cut -d' ' -f1)" != "$expected_sha512" ]]; then
+  echo 'npm tarball does not match its published integrity; pin was not changed.' >&2
+  exit 1
+fi
+
+release_path="$(jq -er '.release.targets["linux-x64"].url' "$work/release.json")"
+release_sha="$(jq -er '.release.targets["linux-x64"].sha256' "$work/release.json")"
+if [[ "$release_path" != /release/browse/files/* ]]; then
+  echo "Unexpected release URL $release_path; pin was not changed." >&2
+  exit 1
+fi
+curl -fsSL "https://anoma.ly$release_path" -o "$work/release.tgz"
+if [[ "$(sha256sum < "$work/release.tgz" | cut -d' ' -f1)" != "$release_sha" ]]; then
+  echo 'Release service tarball does not match its manifest; pin was not changed.' >&2
+  exit 1
+fi
+
+mkdir "$work/npm" "$work/release"
+tar -xzf "$work/npm.tgz" -C "$work/npm" package/bin/browse
+tar -xzf "$work/release.tgz" -C "$work/release" package/bin/browse
+if ! cmp -s "$work/npm/package/bin/browse" "$work/release/package/bin/browse"; then
+  echo 'npm and the release service ship different browse binaries; pin was not changed.' >&2
+  exit 1
+fi
+
+candidate="$(mktemp "$pin_file.candidate.XXXXXX")"
+jq --arg version "$npm_version" --arg hash "$integrity" '{version: $version, hash: $hash}' "$pin_file" > "$candidate"
+chmod --reference="$pin_file" "$candidate"
+mv -- "$candidate" "$pin_file"
+echo "Updated $pin_file. Review the diff and build before rebuilding."

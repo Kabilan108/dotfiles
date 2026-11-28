@@ -69,6 +69,8 @@
   ];
 
   home-manager.users.kabilan = {
+    dotfiles.opencodeBrowse.relay = "forwarded";
+
     systemd.user.slices.vms = {
       Unit.Description = "VMs started by agents";
       Slice = {

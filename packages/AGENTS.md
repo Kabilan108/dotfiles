@@ -5,3 +5,4 @@
 - Keep the `unset` lines in the ChatGPT launcher. Desktop sessions can carry Codex, XDG and library-path variables that would redirect the app's Electron profile and Codex configuration away from the intended defaults.
 - Keep the `deps` list in `helium.nix` in step with nixpkgs' google-chrome package, which it was copied from.
 - Keep both checks on the Helium tarball: the pinned hash fixes the bytes, and gpgv against `helium-signing-key.asc` proves Helium published them. A signing-key rotation needs the new key committed.
+- Keep `bin/update-opencode-browse` requiring npm and Anomaly's release service to publish the same stable version with byte-identical `browse` binaries. Neither channel signs releases in a way we verify, and the relay holds a debugger connection to Tony's logged-in browser, so a pin moves only when two independently hosted channels agree.

@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: browse-relay-tunnel [remote-host]
+
+Run from the machine with the browser. Copies this machine's browse relay token
+to the remote host and keeps a tmux-managed reverse SSH tunnel from the remote
+host's loopback relay port back to the local relay, so agents there drive this
+browser.
+
+Environment:
+  OPENCODE_BROWSER_PORT   Relay port on both ends. Default: 19988
+
+Example:
+  browse-relay-tunnel sietch
+USAGE
+}
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  usage
+  exit 0
+fi
+
+remote_host="${1:-sietch}"
+port="${OPENCODE_BROWSER_PORT:-19988}"
+token_file="${XDG_DATA_HOME:-$HOME/.local/share}/browse/relay-token"
+session_name="browse-relay"
+window_name="${remote_host}"
+target="${session_name}:${window_name}"
+
+window_exists() {
+  tmux list-windows -t "${session_name}" -F '#{window_name}' 2>/dev/null | grep -Fxq "${window_name}"
+}
+
+remote_healthy() {
+  ssh "${remote_host}" "curl -fsS http://127.0.0.1:${port}/version >/dev/null" 2>/dev/null
+}
+
+if ! curl -fsS "http://127.0.0.1:${port}/version" >/dev/null; then
+  echo "browse-relay-tunnel: no browse relay on local port ${port}. Check systemctl --user status browse-relay." >&2
+  exit 1
+fi
+if [[ ! -s "${token_file}" ]]; then
+  echo "browse-relay-tunnel: ${token_file} is missing; the local relay has not created its token." >&2
+  exit 1
+fi
+
+ssh "${remote_host}" 'umask 077; dir="${XDG_DATA_HOME:-$HOME/.local/share}/browse"; mkdir -p "$dir"; cat > "$dir/relay-token.new"; mv -f "$dir/relay-token.new" "$dir/relay-token"' < "${token_file}"
+
+if window_exists; then
+  if remote_healthy; then
+    printf 'browse relay tunnel already healthy: %s 127.0.0.1:%s -> local 127.0.0.1:%s\n' "${remote_host}" "${port}" "${port}"
+    exit 0
+  fi
+  tmux kill-window -t "${target}"
+fi
+
+run_tunnel='
+set -euo pipefail
+printf "Starting browse relay reverse tunnel: %s 127.0.0.1:%s -> local 127.0.0.1:%s\n" "${BROWSE_REMOTE_HOST}" "${BROWSE_PORT}" "${BROWSE_PORT}"
+exec ssh -N \
+  -o ExitOnForwardFailure=yes \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=3 \
+  -R "127.0.0.1:${BROWSE_PORT}:127.0.0.1:${BROWSE_PORT}" \
+  "${BROWSE_REMOTE_HOST}"
+'
+
+tmux_command=(
+  env
+  "BROWSE_REMOTE_HOST=${remote_host}"
+  "BROWSE_PORT=${port}"
+  bash
+  -lc
+  "${run_tunnel}"
+)
+printf -v tmux_command_string '%q ' "${tmux_command[@]}"
+
+if tmux has-session -t "${session_name}" 2>/dev/null; then
+  tmux new-window -d -t "${session_name}" -n "${window_name}" "${tmux_command_string}"
+else
+  tmux new-session -d -s "${session_name}" -n "${window_name}" "${tmux_command_string}"
+fi
+
+sleep 1
+
+if remote_healthy; then
+  printf 'browse relay tunnel ready: %s 127.0.0.1:%s -> local 127.0.0.1:%s\n' "${remote_host}" "${port}" "${port}"
+else
+  printf 'browse-relay-tunnel: tunnel started but the remote relay check failed. Inspect tmux target %s.\n' "${target}" >&2
+  exit 1
+fi

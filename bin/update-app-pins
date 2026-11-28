@@ -33,8 +33,9 @@ apps=(
   "Helium:update-helium:packages/helium-version.json:helium"
   "ChatGPT desktop:update-chatgpt-desktop:packages/chatgpt-desktop-version.json:chatgpt-desktop"
   "Grok bot:update-grok-bot:packages/grok-bot-version.json:grok-bot"
+  "browse:update-opencode-browse:packages/opencode-browse-version.json:opencode-browse"
 )
-build_inputs=(packages flake.nix flake.lock bin/update-helium bin/update-chatgpt-desktop bin/update-grok-bot)
+build_inputs=(packages flake.nix flake.lock bin/update-helium bin/update-chatgpt-desktop bin/update-grok-bot bin/update-opencode-browse)
 
 if [[ $(git branch --show-current) != nixos ]]; then
   skip 'Skipping app pin update: checkout must be on nixos.'
